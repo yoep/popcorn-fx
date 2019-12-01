@@ -1,4 +1,4 @@
-package org.github.popcorn.controller;
+package com.github.yoep.popcorn.controllers;
 
 import org.springframework.stereotype.Controller;
 

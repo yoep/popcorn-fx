@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: Popcorn Time
+
+logging:
+  level:
+    org.springframework: WARN
+    com.github.yoep.popcorn: INFO

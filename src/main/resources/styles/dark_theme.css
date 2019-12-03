@@ -1,3 +1,29 @@
-.root {
-    background-color: #17181b;
+.root, .root InfiniteScrollPane, .root InfiniteScrollPane > .viewport {
+    -fx-background-color: #17181b;
+    -fx-border-width: 0;
+}
+
+.root .posterItem {
+    -fx-padding: 10;
+    -fx-min-height: 252;
+    -fx-max-height: 252;
+    -fx-min-width: 154;
+    -fx-max-width: 154;
+    -fx-cursor: hand;
+}
+
+.root .posterItem .poster {
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 10, 0, 0, 0);
+}
+
+.root .posterItem .title {
+    -fx-text-fill: #fff;
+    -fx-fill: #fff;
+    -fx-padding: 4 0 2 0;
+}
+
+.root .posterItem .year {
+    -fx-text-fill: #5b5b5b;
+    -fx-fill: #5b5b5b;
+    -fx-font-size: 0.85em;
 }

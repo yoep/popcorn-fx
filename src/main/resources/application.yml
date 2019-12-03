@@ -6,3 +6,8 @@ logging:
   level:
     org.springframework: WARN
     com.github.yoep.popcorn: INFO
+
+popcorn:
+  providers:
+    movies:
+      url: https://tv-v2.api-fetch.website/movies

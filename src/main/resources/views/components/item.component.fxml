@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          styleClass="posterItem">
+    <columnConstraints>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+    <padding>
+        <Insets topRightBottomLeft="10"/>
+    </padding>
+
+    <ImageView fx:id="poster" styleClass="poster" preserveRatio="true" fitHeight="196"
+               GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+    <Label fx:id="title" styleClass="title"
+           GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+    <Label fx:id="year" styleClass="year"
+           GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+</GridPane>

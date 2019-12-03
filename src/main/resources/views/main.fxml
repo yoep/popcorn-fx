@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<GridPane prefHeight="600.0" prefWidth="800.0" stylesheets="/styles/dark_theme.css" xmlns="http://javafx.com/javafx/10.0.2-internal"
+          xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.yoep.popcorn.controllers.MainController">
+    <columnConstraints>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints maxHeight="50" minHeight="50"/>
+        <RowConstraints vgrow="ALWAYS"/>
+    </rowConstraints>
 
-<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.controllers.MainController"
-            prefHeight="400.0" prefWidth="600.0">
-
-</AnchorPane>
+    <fx:include source="sections/list.section.fxml" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+</GridPane>

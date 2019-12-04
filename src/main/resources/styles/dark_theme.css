@@ -6,9 +6,14 @@
 .root,
 .root InfiniteScrollPane,
 .root InfiniteScrollPane > .viewport,
-.root InfiniteScrollPane .scroll-bar {
+.root InfiniteScrollPane .scroll-bar,
+.root .tooltip {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
+}
+
+.root .tooltip {
+    -fx-font-smoothing-type: gray;
 }
 
 .root InfiniteScrollPane .scroll-bar {
@@ -75,7 +80,14 @@
 }
 
 .root .posterItem .poster {
+    -fx-border-radius: 2em;
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 10, 0, 0, 0);
+}
+
+.root .posterItem .poster:hover {
+    -fx-border-width: 2;
+    -fx-border-color: #2d72d9;
+    -fx-border-radius: 2em;
 }
 
 .root .posterItem .title {

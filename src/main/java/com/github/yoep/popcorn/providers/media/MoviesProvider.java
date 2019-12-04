@@ -27,7 +27,7 @@ public class MoviesProvider {
     public List<Movie> getPage(int page) {
         URI uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())
                 .path("/{page}")
-                .queryParam("sort", "rating")
+                .queryParam("sort", "trending")
                 .queryParam("order", -1)
                 .queryParam("genre", "all")
                 .queryParam("keywords", "")

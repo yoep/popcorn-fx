@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.providers.media.models.Media;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import lombok.RequiredArgsConstructor;
@@ -50,5 +51,7 @@ public class ItemComponent implements Initializable {
     private void initializeText() {
         title.setText(media.getTitle());
         year.setText(media.getYear());
+
+        Tooltip.install(title, new Tooltip(media.getTitle()));
     }
 }

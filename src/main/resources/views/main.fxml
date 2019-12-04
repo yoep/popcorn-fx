@@ -7,9 +7,15 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <RowConstraints maxHeight="50" minHeight="50"/>
+        <RowConstraints minHeight="50"/>
         <RowConstraints vgrow="ALWAYS"/>
     </rowConstraints>
 
-    <fx:include source="sections/list.section.fxml" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+    <fx:include source="sections/header.section.fxml"
+                GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.fillWidth="true" />
+
+    <fx:include fx:id="listSection" source="sections/list.section.fxml"
+                GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+
+    <Pane fx:id="detailsSection" GridPane.columnIndex="0" GridPane.rowIndex="1" />
 </GridPane>

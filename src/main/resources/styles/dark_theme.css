@@ -1,6 +1,68 @@
-.root, .root InfiniteScrollPane, .root InfiniteScrollPane > .viewport {
+@font-face {
+    font-family: "Open Sans Semibold";
+    src: url("../fonts/open-sans-semibold.ttf");
+}
+
+.root,
+.root InfiniteScrollPane,
+.root InfiniteScrollPane > .viewport,
+.root InfiniteScrollPane .scroll-bar {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
+}
+
+.root InfiniteScrollPane .scroll-bar {
+    -fx-padding: 0 3 0 0;
+}
+
+.root InfiniteScrollPane .increment-arrow,
+.root InfiniteScrollPane .decrement-arrow {
+    -fx-shape: " ";
+    -fx-padding: 0em 0.0;
+}
+
+.root InfiniteScrollPane .track {
+    -fx-background-color: #30333c;
+    -fx-border-color: transparent;
+    -fx-background-radius: 2em;
+    -fx-border-radius: 0em;
+}
+
+.root InfiniteScrollPane .increment-button,
+.root InfiniteScrollPane .decrement-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0.0em;
+    -fx-padding: 0 8 0 0;
+}
+
+.root InfiniteScrollPane .thumb {
+    -fx-background-color: #83888c;
+    -fx-background-insets: 2.0, 0.0, 0.0;
+    -fx-background-radius: 2.0em;
+}
+
+.root InfiniteScrollPane .thumb:hover {
+    -fx-background-color: #93989c;
+}
+
+.root .header {
+    -fx-background-color: #17181b;
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 0, 0.9), 10, 0, 0, 0);
+}
+
+.root .header .filterBar Label {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 12.5;
+    -fx-font-smoothing-type: gray;
+    -fx-text-fill: #c3c5c7;
+    -fx-cursor: hand;
+    -fx-text-alignment: center;
+    -fx-padding: 10 15 1 18;
+}
+
+.root .header .filterBar .active {
+    -fx-border-width: 0 0 4 0;
+    -fx-border-color: #2d72d9;
 }
 
 .root .posterItem {
@@ -13,7 +75,7 @@
 }
 
 .root .posterItem .poster {
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 10, 0, 0, 0);
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 10, 0, 0, 0);
 }
 
 .root .posterItem .title {

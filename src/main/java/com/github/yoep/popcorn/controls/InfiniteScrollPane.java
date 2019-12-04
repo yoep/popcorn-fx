@@ -22,6 +22,7 @@ public class InfiniteScrollPane extends ScrollPane {
     private final List<PageListener> pageListeners = new ArrayList<>();
 
     private int page;
+    private boolean updating;
 
     //region Constructors
 
@@ -59,15 +60,16 @@ public class InfiniteScrollPane extends ScrollPane {
     private void onScroll() {
         double vPercentage = (this.getVvalue() / this.getVmax()) * 100;
 
-        if (vPercentage > SCROLLBAR_THRESHOLD) {
+        if (vPercentage > SCROLLBAR_THRESHOLD && !updating) {
             loadNextPage();
         }
     }
 
     private void loadNextPage() {
+        updating = true;
         progressIndicator.setVisible(true);
-        int previousPage = page;
 
+        int previousPage = page;
         page = page + 1;
 
         synchronized (pageListeners) {
@@ -75,5 +77,6 @@ public class InfiniteScrollPane extends ScrollPane {
         }
 
         progressIndicator.setVisible(false);
+        updating = false;
     }
 }

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.providers.media;
 
-import com.github.yoep.popcorn.config.properties.PopcornConfig;
-import com.github.yoep.popcorn.config.properties.ProviderConfig;
+import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.providers.media.models.Movie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -17,9 +17,9 @@ import java.util.Optional;
 @Component
 public class MoviesProvider {
     private final RestTemplate restTemplate;
-    private final ProviderConfig providerConfig;
+    private final ProviderProperties providerConfig;
 
-    public MoviesProvider(RestTemplate restTemplate, PopcornConfig popcornConfig) {
+    public MoviesProvider(RestTemplate restTemplate, PopcornProperties popcornConfig) {
         this.restTemplate = restTemplate;
         this.providerConfig = popcornConfig.getProvider("movies");
     }

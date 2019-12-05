@@ -13,15 +13,15 @@ import java.util.Map;
 @Validated
 @Configuration
 @ConfigurationProperties("popcorn")
-public class PopcornConfig {
+public class PopcornProperties {
     /**
      * The providers for the available categories in Popcorn Time.
      */
     @Valid
     @NotNull
-    private Map<String, ProviderConfig> providers;
+    private Map<String, ProviderProperties> providers;
 
-    public ProviderConfig getProvider(String name) {
+    public ProviderProperties getProvider(String name) {
         return providers.entrySet().stream()
                 .filter(e -> e.getKey().equalsIgnoreCase(name))
                 .findFirst()

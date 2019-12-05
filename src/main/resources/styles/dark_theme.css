@@ -1,6 +1,22 @@
 @font-face {
-    font-family: "Open Sans Semibold";
-    src: url("../fonts/open-sans-semibold.ttf");
+    font-family: 'Open Sans';
+    src: url("../fonts/OpenSans-Regular.woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Open Sans Bold';
+    src: url("../fonts/OpenSans-Bold.woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Open Sans Semibold';
+    src: url("../fonts/OpenSans-Semibold.woff");
+    font-weight: normal;
+    font-style: normal;
 }
 
 .root,
@@ -50,27 +66,56 @@
     -fx-background-color: #93989c;
 }
 
-.root .header {
-    -fx-background-color: #17181b;
-    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 0, 0.9), 10, 0, 0, 0);
+.root .header AnchorPane {
+    -fx-background-color: linear-gradient(rgba(0, 0, 0, 1) 10%, rgba(255, 255, 255, 0) 100%);
 }
 
-.root .header .filterBar Label {
+.root .header Separator .line {
+    -fx-border-style: solid;
+    -fx-border-width: 1px;
+    -fx-border-color: #17181b;
+}
+
+.root .header Label {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 12.5;
     -fx-font-smoothing-type: gray;
     -fx-text-fill: #c3c5c7;
     -fx-cursor: hand;
     -fx-text-alignment: center;
-    -fx-padding: 10 15 1 18;
+    -fx-padding: 10 15 5 18;
 }
 
-.root .header .filterBar .active {
+.root .header Label:hover {
+    -fx-text-fill: #fff;
+}
+
+.root .header .filterNavBar .active {
     -fx-border-width: 0 0 4 0;
     -fx-border-color: #2d72d9;
 }
 
-.root .posterItem {
+.root .header .filterBar ComboBox {
+    -fx-min-width: 75;
+    -fx-padding: 5 15 5 18;
+    -fx-text-fill: #2d72d9;
+    -fx-cursor: hand;
+    -fx-background-color: transparent;
+}
+
+.root .header .filterBar .filterGroup ComboBox .arrow {
+    -fx-background-color: #c3c5c7;
+}
+
+.root .header .filterBar .filterGroup:hover ComboBox .arrow {
+    -fx-background-color: #fff;
+}
+
+.root .header .filterBar .filterGroup ComboBox .list-view {
+    -fx-background-color: rgba(23, 24, 27, 0.8);
+}
+
+.root .poster-item {
     -fx-padding: 10;
     -fx-min-height: 252;
     -fx-max-height: 252;
@@ -79,24 +124,58 @@
     -fx-cursor: hand;
 }
 
-.root .posterItem .poster {
+.root .poster-item.watched {
+    -fx-opacity: 0.4;
+}
+
+.root .poster-item:hover {
+    -fx-opacity: 1;
+}
+
+.root .poster-item .poster .poster-image {
     -fx-border-radius: 2em;
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 10, 0, 0, 0);
 }
 
-.root .posterItem .poster:hover {
-    -fx-border-width: 2;
-    -fx-border-color: #2d72d9;
-    -fx-border-radius: 2em;
+.root .poster-item:hover .poster .poster-image {
+    -fx-effect: dropshadow(three-pass-box, #2d72d9, 15, 0, 0, 0);
 }
 
-.root .posterItem .title {
+.root .poster-item .poster .overlay {
+    visibility: hidden;
+    -fx-background-color: rgba(23, 24, 27, 0.6);
+}
+
+.root .poster-item .poster:hover .overlay {
+    visibility: visible;
+}
+
+.root .poster-item .poster .overlay Icon {
     -fx-text-fill: #fff;
-    -fx-fill: #fff;
+    -fx-opacity: 0.3;
+}
+
+.root .poster-item .poster .overlay Icon:hover {
+    -fx-text-fill: #2d72d9;
+    -fx-opacity: 1;
+}
+
+.root .poster-item .poster .overlay Label {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1em;
+    -fx-font-smoothing-type: gray;
+}
+
+.root .poster-item .title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1em;
+    -fx-text-fill: #fff;
+    -fx-font-smoothing-type: gray;
     -fx-padding: 4 0 2 0;
 }
 
-.root .posterItem .year {
+.root .poster-item .year {
     -fx-text-fill: #5b5b5b;
     -fx-fill: #5b5b5b;
     -fx-font-size: 0.85em;

@@ -1,23 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.controllers.HeaderController" styleClass="header">
-    <GridPane>
-        <columnConstraints>
-            <ColumnConstraints/>
-            <ColumnConstraints maxWidth="Infinity" hgrow="ALWAYS"/>
-            <ColumnConstraints/>
-        </columnConstraints>
-        <rowConstraints>
-            <RowConstraints minHeight="50"/>
-        </rowConstraints>
 
-        <HBox styleClass="filterBar" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="BOTTOM" fillHeight="false">
-            <Label styleClass="active" text="%filter_movies"/>
-            <Label text="%filter_series"/>
-            <Label text="%filter_favorites"/>
+<?import javafx.geometry.Insets?>
+<GridPane styleClass="header" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
+          fx:controller="com.github.yoep.popcorn.controllers.HeaderController">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints minWidth="20"/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+        <ColumnConstraints/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="10"/>
+        <RowConstraints minHeight="24"/>
+        <RowConstraints maxHeight="10" minHeight="10"/>
+    </rowConstraints>
+
+    <HBox styleClass="filterNavBar" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+        <Label styleClass="active" text="%filter_movies"/>
+        <Label text="%filter_series"/>
+        <Label text="%filter_favorites"/>
+    </HBox>
+
+    <HBox styleClass="filterBar" GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+        <HBox styleClass="filterGroup">
+            <Label labelFor="$genreCombo" text="%filter_genre"/>
+            <ComboBox fx:id="genreCombo"/>
         </HBox>
-    </GridPane>
-</StackPane>
+        <HBox styleClass="filterGroup">
+            <Label labelFor="$sortByCombo" text="%filter_sort_by"/>
+            <ComboBox fx:id="sortByCombo"/>
+        </HBox>
+    </HBox>
+
+    <AnchorPane GridPane.columnIndex="0" GridPane.columnSpan="5" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2"/>
+</GridPane>

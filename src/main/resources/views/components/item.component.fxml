@@ -4,8 +4,10 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.spring.boot.javafx.font.controls.Icons?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          styleClass="posterItem">
+          styleClass="poster-item">
     <columnConstraints>
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
@@ -18,8 +20,21 @@
         <Insets topRightBottomLeft="10"/>
     </padding>
 
-    <ImageView fx:id="poster" styleClass="poster" preserveRatio="true" fitHeight="196"
-               GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+    <AnchorPane styleClass="poster" GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <ImageView fx:id="poster" styleClass="poster-image"/>
+
+        <AnchorPane styleClass="overlay" AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">
+            <Icon AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7" sizeFactor="1.5">
+                <Icons fx:constant="EYE"/>
+            </Icon>
+            <Icon AnchorPane.topAnchor="7" AnchorPane.rightAnchor="7" sizeFactor="1.5">
+                <Icons fx:constant="HEART"/>
+            </Icon>
+
+            <Label fx:id="ratingValue" AnchorPane.rightAnchor="7" AnchorPane.bottomAnchor="5" />
+        </AnchorPane>
+    </AnchorPane>
+
     <Label fx:id="title" styleClass="title"
            GridPane.columnIndex="0" GridPane.rowIndex="1"/>
     <Label fx:id="year" styleClass="year"

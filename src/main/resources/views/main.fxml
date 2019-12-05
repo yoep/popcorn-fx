@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.layout.*?>
-<AnchorPane prefHeight="600.0" prefWidth="800.0" stylesheets="/styles/dark_theme.css" xmlns="http://javafx.com/javafx/10.0.2-internal"
-            xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.yoep.popcorn.controllers.MainController">
-    <fx:include source="sections/header.section.fxml"
-                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
-
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.yoep.popcorn.controllers.MainController"
+            prefHeight="600.0" prefWidth="800.0" stylesheets="/styles/dark_theme.css" xmlns="http://javafx.com/javafx/10.0.2-internal">
     <fx:include fx:id="listSection" source="sections/list.section.fxml"
                 AnchorPane.topAnchor="50" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
 
     <Pane fx:id="detailsSection"
           AnchorPane.topAnchor="50" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
+
+    <fx:include source="sections/header.section.fxml"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0"/>
 </AnchorPane>

@@ -10,6 +10,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.core.io.ClassPathResource;
 
 import java.net.URL;
@@ -27,6 +28,8 @@ public class ItemComponent implements Initializable {
     private Label title;
     @FXML
     private Label year;
+    @FXML
+    private Label ratingValue;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -39,8 +42,8 @@ public class ItemComponent implements Initializable {
             Image image = Optional.ofNullable(media.getImages())
                     .map(Images::getPoster)
                     .filter(e -> !e.equalsIgnoreCase("n/a"))
-                    .map(Image::new)
-                    .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream()));
+                    .map(e -> new Image(e, 0, 196, true, true))
+                    .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream(), 0, 196, true, true));
 
             poster.setImage(image);
         } catch (Exception ex) {
@@ -49,9 +52,13 @@ public class ItemComponent implements Initializable {
     }
 
     private void initializeText() {
-        title.setText(media.getTitle());
-        year.setText(media.getYear());
+        String unescapedTitle = StringEscapeUtils.unescapeHtml4(media.getTitle());
+        double rating = (double) media.getRating().getPercentage() / 10;
 
-        Tooltip.install(title, new Tooltip(media.getTitle()));
+        title.setText(unescapedTitle);
+        year.setText(media.getYear());
+        ratingValue.setText(rating + "/10");
+
+        Tooltip.install(title, new Tooltip(unescapedTitle));
     }
 }

@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.*?>
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.spring.boot.javafx.font.controls.Icons?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           styleClass="poster-item">
     <columnConstraints>
@@ -21,7 +20,7 @@
     </padding>
 
     <AnchorPane styleClass="poster" GridPane.columnIndex="0" GridPane.rowIndex="0">
-        <ImageView fx:id="poster" styleClass="poster-image"/>
+        <BorderPane fx:id="poster" styleClass="poster-image"/>
 
         <AnchorPane styleClass="overlay" AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">
             <Icon AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7" sizeFactor="1.5">
@@ -31,7 +30,9 @@
                 <Icons fx:constant="HEART"/>
             </Icon>
 
-            <Label fx:id="ratingValue" AnchorPane.rightAnchor="7" AnchorPane.bottomAnchor="5" />
+            <HBox fx:id="ratingStars" styleClass="rating-stars" AnchorPane.leftAnchor="7" AnchorPane.bottomAnchor="7"/>
+
+            <Label fx:id="ratingValue" AnchorPane.rightAnchor="7" AnchorPane.bottomAnchor="5"/>
         </AnchorPane>
     </AnchorPane>
 

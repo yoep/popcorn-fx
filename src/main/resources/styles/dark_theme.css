@@ -133,6 +133,8 @@
 }
 
 .root .poster-item .poster .poster-image {
+    -fx-pref-width: 134;
+    -fx-pref-height: 196;
     -fx-border-radius: 2em;
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 10, 0, 0, 0);
 }
@@ -165,6 +167,20 @@
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
     -fx-font-smoothing-type: gray;
+}
+
+.root .poster-item .poster .overlay .rating-stars Icon {
+    -fx-padding: 0 2 0 0;
+    -fx-opacity: 1;
+    -fx-font-smoothing-type: gray;
+}
+
+.root .poster-item .poster .overlay .rating-stars .empty {
+    -fx-text-fill: #a3a5a7;
+}
+
+.root .poster-item .poster .overlay .rating-stars .filled {
+    -fx-text-fill: #ffc900;
 }
 
 .root .poster-item .title {

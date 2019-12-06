@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.services.MovieService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -27,7 +28,7 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        loadMovies(++currentPageIndex);
+        initializeListPane();
         initializeListeners();
     }
 
@@ -37,6 +38,11 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
     public void reset() {
         currentPageIndex = 0;
         Platform.runLater(() -> scrollPane.getItemsPane().getChildren().clear());
+    }
+
+    private void initializeListPane() {
+        scrollPane.getItemsPane().setPadding(new Insets(0, 10, 0, 10));
+        loadMovies(++currentPageIndex);
     }
 
     private void loadMovies(int page) {

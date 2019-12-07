@@ -13,7 +13,19 @@ public interface Media {
 
     String getImdbId();
 
+    /**
+     * Get the unescaped title of the media.
+     *
+     * @return Returns the media title.
+     */
     String getTitle();
+
+    /**
+     * Get the unescaped description of the media.
+     *
+     * @return Returns the media description.
+     */
+    String getSynopsis();
 
     String getYear();
 

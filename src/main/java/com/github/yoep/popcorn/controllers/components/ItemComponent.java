@@ -1,31 +1,31 @@
 package com.github.yoep.popcorn.controllers.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.font.controls.Icons;
+import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.providers.media.models.Images;
 import com.github.yoep.popcorn.providers.media.models.Media;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.core.io.ClassPathResource;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
+import static java.util.Arrays.asList;
+
 @Slf4j
-@RequiredArgsConstructor
 public class ItemComponent implements Initializable {
+    private static final int POSTER_WIDTH = 134;
+    private static final int POSTER_HEIGHT = 196;
+
+    private final List<ItemListener> listeners = new ArrayList<>();
     private final Media media;
 
     @FXML
@@ -37,7 +37,16 @@ public class ItemComponent implements Initializable {
     @FXML
     private Label ratingValue;
     @FXML
-    private HBox ratingStars;
+    private Stars ratingStars;
+
+    public ItemComponent(Media media) {
+        this.media = media;
+    }
+
+    public ItemComponent(Media media, ItemListener... listeners) {
+        this.media = media;
+        this.listeners.addAll(asList(listeners));
+    }
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -46,13 +55,19 @@ public class ItemComponent implements Initializable {
         initializeStars();
     }
 
+    public void addListener(ItemListener listener) {
+        synchronized (listeners) {
+            listeners.add(listener);
+        }
+    }
+
     private void initializeImage() {
         try {
             Image image = Optional.ofNullable(media.getImages())
                     .map(Images::getPoster)
                     .filter(e -> !e.equalsIgnoreCase("n/a"))
-                    .map(e -> new Image(e, 134, 196, true, true))
-                    .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream(), 0, 196, true, true));
+                    .map(e -> new Image(e, POSTER_WIDTH, POSTER_HEIGHT, true, true))
+                    .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true));
 
             poster.setBackground(new Background(
                     new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER,
@@ -63,41 +78,23 @@ public class ItemComponent implements Initializable {
     }
 
     private void initializeText() {
-        String unescapedTitle = StringEscapeUtils.unescapeHtml4(media.getTitle());
         double rating = (double) media.getRating().getPercentage() / 10;
 
-        title.setText(unescapedTitle);
+        title.setText(media.getTitle());
         year.setText(media.getYear());
         ratingValue.setText(rating + "/10");
 
-        Tooltip.install(title, new Tooltip(unescapedTitle));
+        Tooltip.install(title, new Tooltip(media.getTitle()));
     }
 
     private void initializeStars() {
-        double rating = media.getRating().getPercentage() * 0.05;
-        ObservableList<Node> starHolder = ratingStars.getChildren();
+        ratingStars.setRating(media.getRating());
+    }
 
-        for (int i = 0; i < 5; i++) {
-            Node star;
-
-            if (rating >= 0.75) {
-                star = new Icon(Icons.STAR);
-                star.getStyleClass().add("filled");
-            } else if (rating < 0.75 && rating > 0.25) {
-                Icon halfStar = new Icon(Icons.STAR_HALF);
-                halfStar.getStyleClass().add("filled");
-                Icon emptyStar = new Icon(Icons.STAR);
-                emptyStar.getStyleClass().add("empty");
-                StackPane stackpane = new StackPane(emptyStar, halfStar);
-                stackpane.setAlignment(Pos.CENTER_LEFT);
-                star = stackpane;
-            } else {
-                star = new Icon(Icons.STAR);
-                star.getStyleClass().add("empty");
-            }
-
-            rating = --rating;
-            starHolder.add(star);
+    @FXML
+    private void showDetails() {
+        synchronized (listeners) {
+            listeners.forEach(e -> e.onClicked(media));
         }
     }
 }

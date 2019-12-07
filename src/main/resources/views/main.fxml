@@ -6,7 +6,7 @@
     <fx:include fx:id="listSection" source="sections/list.section.fxml"
                 AnchorPane.topAnchor="50" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
 
-    <Pane fx:id="detailsSection"
+    <fx:include fx:id="detailsSection" source="sections/details.section.fxml"
           AnchorPane.topAnchor="50" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
 
     <fx:include source="sections/header.section.fxml"

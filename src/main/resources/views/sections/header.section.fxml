@@ -2,39 +2,38 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<VBox styleClass="header" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.github.yoep.popcorn.controllers.HeaderController">
+    <GridPane styleClass="bar">
+        <columnConstraints>
+            <ColumnConstraints/>
+            <ColumnConstraints minWidth="20"/>
+            <ColumnConstraints/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints minHeight="15"/>
+            <RowConstraints minHeight="24"/>
+        </rowConstraints>
 
-<?import javafx.geometry.Insets?>
-<GridPane styleClass="header" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-          fx:controller="com.github.yoep.popcorn.controllers.HeaderController">
-    <columnConstraints>
-        <ColumnConstraints/>
-        <ColumnConstraints minWidth="20"/>
-        <ColumnConstraints/>
-        <ColumnConstraints hgrow="ALWAYS"/>
-        <ColumnConstraints/>
-    </columnConstraints>
-    <rowConstraints>
-        <RowConstraints minHeight="10"/>
-        <RowConstraints minHeight="24"/>
-        <RowConstraints maxHeight="10" minHeight="10"/>
-    </rowConstraints>
-
-    <HBox styleClass="filterNavBar" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
-        <Label styleClass="active" text="%filter_movies"/>
-        <Label text="%filter_series"/>
-        <Label text="%filter_favorites"/>
-    </HBox>
-
-    <HBox styleClass="filterBar" GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
-        <HBox styleClass="filterGroup">
-            <Label labelFor="$genreCombo" text="%filter_genre"/>
-            <ComboBox fx:id="genreCombo"/>
+        <HBox styleClass="filter-nav-bar" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+            <Label styleClass="active" text="%filter_movies"/>
+            <Label text="%filter_series"/>
+            <Label text="%filter_favorites"/>
         </HBox>
-        <HBox styleClass="filterGroup">
-            <Label labelFor="$sortByCombo" text="%filter_sort_by"/>
-            <ComboBox fx:id="sortByCombo"/>
-        </HBox>
-    </HBox>
 
-    <AnchorPane GridPane.columnIndex="0" GridPane.columnSpan="5" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2"/>
-</GridPane>
+        <HBox styleClass="filter-bar" GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+            <HBox styleClass="filterGroup">
+                <Label labelFor="$genreCombo" text="%filter_genre"/>
+                <ComboBox fx:id="genreCombo"/>
+            </HBox>
+            <HBox styleClass="filterGroup">
+                <Label labelFor="$sortByCombo" text="%filter_sort_by"/>
+                <ComboBox fx:id="sortByCombo"/>
+            </HBox>
+        </HBox>
+    </GridPane>
+
+    <BorderPane styleClass="shadow"/>
+</VBox>

@@ -5,8 +5,9 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.controls.Stars?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          styleClass="poster-item">
+          styleClass="poster-item" onMouseClicked="#showDetails">
     <columnConstraints>
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
@@ -23,14 +24,14 @@
         <BorderPane fx:id="poster" styleClass="poster-image"/>
 
         <AnchorPane styleClass="overlay" AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">
-            <Icon AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7" sizeFactor="1.5">
-                <Icons fx:constant="EYE"/>
+            <Icon AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7" sizeFactor="1.5" styleClass="view">
+                <Icon fx:constant="EYE_UNICODE"/>
             </Icon>
-            <Icon AnchorPane.topAnchor="7" AnchorPane.rightAnchor="7" sizeFactor="1.5">
-                <Icons fx:constant="HEART"/>
+            <Icon AnchorPane.topAnchor="7" AnchorPane.rightAnchor="7" sizeFactor="1.5" styleClass="like">
+                <Icon fx:constant="HEART_UNICODE"/>
             </Icon>
 
-            <HBox fx:id="ratingStars" styleClass="rating-stars" AnchorPane.leftAnchor="7" AnchorPane.bottomAnchor="7"/>
+            <Stars fx:id="ratingStars" AnchorPane.leftAnchor="7" AnchorPane.bottomAnchor="7"/>
 
             <Label fx:id="ratingValue" AnchorPane.rightAnchor="7" AnchorPane.bottomAnchor="5"/>
         </AnchorPane>

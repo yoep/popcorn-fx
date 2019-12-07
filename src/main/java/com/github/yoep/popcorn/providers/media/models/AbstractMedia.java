@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -23,4 +24,14 @@ public abstract class AbstractMedia implements Media {
     private String synopsis;
     private Map<String, Map<String, Torrent>> torrents;
     private Map<String, String> subtitles;
+
+    @Override
+    public String getTitle() {
+        return StringEscapeUtils.unescapeHtml4(title);
+    }
+
+    @Override
+    public String getSynopsis() {
+        return StringEscapeUtils.unescapeHtml4(synopsis);
+    }
 }

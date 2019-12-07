@@ -23,6 +23,7 @@
 .root InfiniteScrollPane,
 .root InfiniteScrollPane > .viewport,
 .root InfiniteScrollPane .scroll-bar,
+.root .header .bar,
 .root .tooltip {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
@@ -66,14 +67,23 @@
     -fx-background-color: #93989c;
 }
 
-.root .header AnchorPane {
-    -fx-background-color: linear-gradient(rgba(0, 0, 0, 1) 10%, rgba(255, 255, 255, 0) 100%);
+.root .stars Icon {
+    -fx-padding: 0 2 0 0;
+    -fx-opacity: 1;
+    -fx-font-smoothing-type: gray;
 }
 
-.root .header Separator .line {
-    -fx-border-style: solid;
-    -fx-border-width: 1px;
-    -fx-border-color: #17181b;
+.root .stars .empty {
+    -fx-text-fill: #a3a5a7;
+}
+
+.root .stars .filled {
+    -fx-text-fill: #ffc900;
+}
+
+.root .header .shadow {
+    -fx-pref-height: 10;
+    -fx-background-color: linear-gradient(rgba(0, 0, 0, 1) 10%, rgba(255, 255, 255, 0) 100%);
 }
 
 .root .header Label {
@@ -90,12 +100,12 @@
     -fx-text-fill: #fff;
 }
 
-.root .header .filterNavBar .active {
+.root .header .bar .filter-nav-bar .active {
     -fx-border-width: 0 0 4 0;
     -fx-border-color: #2d72d9;
 }
 
-.root .header .filterBar ComboBox {
+.root .header .bar .filter-bar ComboBox {
     -fx-min-width: 75;
     -fx-padding: 5 15 5 18;
     -fx-text-fill: #2d72d9;
@@ -103,15 +113,15 @@
     -fx-background-color: transparent;
 }
 
-.root .header .filterBar .filterGroup ComboBox .arrow {
+.root .header .bar .filter-bar .filterGroup ComboBox .arrow {
     -fx-background-color: #c3c5c7;
 }
 
-.root .header .filterBar .filterGroup:hover ComboBox .arrow {
+.root .header .bar .filter-bar .filterGroup:hover ComboBox .arrow {
     -fx-background-color: #fff;
 }
 
-.root .header .filterBar .filterGroup ComboBox .list-view {
+.root .header .bar .filter-bar .filterGroup ComboBox .list-view {
     -fx-background-color: rgba(23, 24, 27, 0.8);
 }
 
@@ -135,7 +145,6 @@
 .root .poster-item .poster .poster-image {
     -fx-pref-width: 134;
     -fx-pref-height: 196;
-    -fx-border-radius: 2em;
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 10, 0, 0, 0);
 }
 
@@ -152,12 +161,14 @@
     visibility: visible;
 }
 
-.root .poster-item .poster .overlay Icon {
+.root .poster-item .poster .overlay .view,
+.root .poster-item .poster .overlay .like {
     -fx-text-fill: #fff;
     -fx-opacity: 0.3;
 }
 
-.root .poster-item .poster .overlay Icon:hover {
+.root .poster-item .poster .overlay .view:hover,
+.root .poster-item .poster .overlay .like:hover {
     -fx-text-fill: #2d72d9;
     -fx-opacity: 1;
 }
@@ -167,20 +178,6 @@
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
     -fx-font-smoothing-type: gray;
-}
-
-.root .poster-item .poster .overlay .rating-stars Icon {
-    -fx-padding: 0 2 0 0;
-    -fx-opacity: 1;
-    -fx-font-smoothing-type: gray;
-}
-
-.root .poster-item .poster .overlay .rating-stars .empty {
-    -fx-text-fill: #a3a5a7;
-}
-
-.root .poster-item .poster .overlay .rating-stars .filled {
-    -fx-text-fill: #ffc900;
 }
 
 .root .poster-item .title {
@@ -195,4 +192,82 @@
     -fx-text-fill: #5b5b5b;
     -fx-fill: #5b5b5b;
     -fx-font-size: 0.85em;
+}
+
+.root .details .background-cover {
+    -fx-background-color: #000;
+    -fx-opacity: 0.65;
+}
+
+.root .details .close-button {
+    -fx-text-fill: #ccc;
+    -fx-cursor: hand;
+}
+
+.root .details .close-button:hover {
+    -fx-text-fill: #fff;
+}
+
+.root .details .poster-image {
+    -fx-background-radius: 2em;
+}
+
+.root .details .title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 38px;
+    -fx-font-smoothing-type: gray;
+    -fx-padding: 0 0 0 0;
+}
+
+.root .details .metadata Label {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1em;
+    -fx-font-smoothing-type: gray;
+}
+
+.root .details .metadata .separator {
+    -fx-text-fill: #dbdbdd;
+    -fx-font-size: 5px;
+    -fx-padding: 0 10 0 10;
+    -fx-font-smoothing-type: gray;
+}
+
+.root .details .overview {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1em;
+    -fx-font-smoothing-type: gray;
+}
+
+.root .details .magnet-link {
+    -fx-text-fill: #ddd;
+    -fx-cursor: hand;
+    -fx-padding: 0 8 0 8;
+}
+
+.root .details .magnet-link:hover {
+    -fx-text-fill: #fff;
+}
+
+.root .details .health {
+    -fx-text-fill: #737577;
+}
+
+.root .details Button {
+    -fx-font-family: "Open Sans Bold";
+    -fx-background-color: #1f375f;
+    -fx-text-fill: #fff;
+    -fx-padding: 10 15 10 15;
+    -fx-cursor: hand;
+}
+
+.root .details SplitMenuButton . {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+}
+
+.root .details Button:hover {
+    -fx-background-color: #225694;
 }

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.controllers.MainController;
 import com.github.yoep.popcorn.controllers.components.ItemComponent;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
 import com.github.yoep.popcorn.services.MovieService;
@@ -22,7 +21,7 @@ import java.util.ResourceBundle;
 public class ListSectionController extends ScaleAwareImpl implements Initializable {
     private final MovieService movieService;
     private final ViewLoader viewLoader;
-    private final MainController mainController;
+    private final ContentSectionController contentController;
     private int currentPageIndex;
 
     @FXML
@@ -50,7 +49,7 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
     private void loadMovies(int page) {
         movieService.getPage(page)
                 .thenAccept(movies -> movies.forEach(movie -> {
-                    ItemComponent itemComponent = new ItemComponent(movie, mainController::showDetails);
+                    ItemComponent itemComponent = new ItemComponent(movie, contentController::showDetails);
                     Pane component = viewLoader.loadComponent("item.component.fxml", itemComponent);
 
                     Platform.runLater(() -> scrollPane.getItemsPane().getChildren().add(component));

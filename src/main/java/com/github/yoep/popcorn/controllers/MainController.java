@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.controllers;
 
-import com.github.yoep.popcorn.controllers.sections.DetailsSectionController;
-import com.github.yoep.popcorn.providers.media.models.Media;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
@@ -14,30 +12,18 @@ import java.util.ResourceBundle;
 @Controller
 @RequiredArgsConstructor
 public class MainController implements Initializable {
-    private final DetailsSectionController detailsController;
-
     @FXML
-    private Pane listSection;
+    private Pane contentSection;
     @FXML
-    private Pane detailsSection;
+    private Pane playerSection;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeDetailsSection();
+        switchSection(false);
     }
 
-    public void showDetails(Media media) {
-        listSection.setVisible(false);
-        detailsSection.setVisible(true);
-        detailsController.load(media);
-    }
-
-    private void initializeDetailsSection() {
-        detailsSection.setVisible(false);
-
-        detailsController.addListener(() -> {
-            listSection.setVisible(true);
-            detailsSection.setVisible(false);
-        });
+    private void switchSection(boolean showPlayer) {
+        contentSection.setVisible(!showPlayer);
+        playerSection.setVisible(showPlayer);
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -20,6 +21,13 @@ public class PopcornProperties {
     @Valid
     @NotNull
     private Map<String, ProviderProperties> providers;
+
+    /**
+     * The supported genres by the Popcorn API.
+     * https://popcornofficial.docs.apiary.io/#reference/genres/page?console=1
+     */
+    @NotNull
+    private List<String> genres;
 
     public ProviderProperties getProvider(String name) {
         return providers.entrySet().stream()

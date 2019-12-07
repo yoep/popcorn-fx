@@ -23,6 +23,7 @@
 .root InfiniteScrollPane,
 .root InfiniteScrollPane > .viewport,
 .root InfiniteScrollPane .scroll-bar,
+.root ComboBox .scroll-bar,
 .root .header .bar,
 .root .tooltip {
     -fx-background-color: #17181b;
@@ -33,17 +34,21 @@
     -fx-font-smoothing-type: gray;
 }
 
-.root InfiniteScrollPane .scroll-bar {
+.root InfiniteScrollPane .scroll-bar,
+.root ComboBox .list-view .scroll-bar {
     -fx-padding: 0 3 0 0;
 }
 
 .root InfiniteScrollPane .increment-arrow,
-.root InfiniteScrollPane .decrement-arrow {
+.root InfiniteScrollPane .decrement-arrow,
+.root ComboBox .list-view .increment-arrow,
+.root ComboBox .list-view .decrement-arrow {
     -fx-shape: " ";
     -fx-padding: 0em 0.0;
 }
 
-.root InfiniteScrollPane .track {
+.root InfiniteScrollPane .track,
+.root ComboBox .list-view .track {
     -fx-background-color: #30333c;
     -fx-border-color: transparent;
     -fx-background-radius: 2em;
@@ -51,19 +56,23 @@
 }
 
 .root InfiniteScrollPane .increment-button,
-.root InfiniteScrollPane .decrement-button {
+.root InfiniteScrollPane .decrement-button,
+.root ComboBox .list-view .increment-button,
+.root ComboBox .list-view .decrement-button {
     -fx-background-color: transparent;
     -fx-background-radius: 0.0em;
     -fx-padding: 0 8 0 0;
 }
 
-.root InfiniteScrollPane .thumb {
+.root InfiniteScrollPane .thumb,
+.root ComboBox .list-view .thumb {
     -fx-background-color: #83888c;
     -fx-background-insets: 2.0, 0.0, 0.0;
     -fx-background-radius: 2.0em;
 }
 
-.root InfiniteScrollPane .thumb:hover {
+.root InfiniteScrollPane .thumb:hover,
+.root ComboBox .list-view .thumb:hover {
     -fx-background-color: #93989c;
 }
 
@@ -106,11 +115,17 @@
 }
 
 .root .header .bar .filter-bar ComboBox {
-    -fx-min-width: 75;
-    -fx-padding: 5 15 5 18;
-    -fx-text-fill: #2d72d9;
+    -fx-min-width: 100;
+    -fx-max-width: 100;
+    -fx-padding: 5 5 0 5;
     -fx-cursor: hand;
     -fx-background-color: transparent;
+}
+
+.root .header .bar .filter-bar ComboBox > .list-cell {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #2d72d9;
+    -fx-font-smoothing-type: gray;
 }
 
 .root .header .bar .filter-bar .filterGroup ComboBox .arrow {
@@ -121,8 +136,37 @@
     -fx-background-color: #fff;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view {
+.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar {
+    -fx-padding: 0 0 0 0;
+}
+
+.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar,
+.root .header .bar .filter-bar .filterGroup ComboBox .list-view,
+.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell {
     -fx-background-color: rgba(23, 24, 27, 0.8);
+}
+
+.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #c3c5c7;
+    -fx-font-smoothing-type: gray;
+    -fx-cursor: hand;
+}
+
+.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell:selected {
+    -fx-text-fill: #fff;
+    -fx-background-color: #0b131f;
+    -fx-border-width: 0 0 0 4;
+    -fx-border-color: #c3c5c7;
+    -fx-border-style: solid;
+}
+
+.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell:hover {
+    -fx-text-fill: #fff;
+    -fx-background-color: #0b131f;
+    -fx-border-width: 0 0 0 4;
+    -fx-border-color: #2d72d9;
+    -fx-border-style: solid;
 }
 
 .root .poster-item {

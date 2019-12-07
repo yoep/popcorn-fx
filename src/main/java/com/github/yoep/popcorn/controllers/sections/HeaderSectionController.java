@@ -36,4 +36,9 @@ public class HeaderSectionController implements Initializable {
         genreCombo.getItems().addAll(genres);
         genreCombo.getSelectionModel().select(0);
     }
+
+    @FXML
+    private void onGenreClicked() {
+        genreCombo.show();
+    }
 }

@@ -25,7 +25,7 @@
 
         <HBox styleClass="filter-bar" GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
             <HBox styleClass="filterGroup">
-                <Label labelFor="$genreCombo" text="%filter_genre"/>
+                <Label labelFor="$genreCombo" text="%filter_genre" onMouseClicked="#onGenreClicked"/>
                 <ComboBox fx:id="genreCombo"/>
             </HBox>
             <HBox styleClass="filterGroup">

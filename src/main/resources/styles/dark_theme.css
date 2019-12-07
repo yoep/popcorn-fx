@@ -114,10 +114,14 @@
     -fx-border-color: #2d72d9;
 }
 
+.root .header .bar .filter-bar Label {
+    -fx-padding: 10 5 5 18;
+}
+
 .root .header .bar .filter-bar ComboBox {
     -fx-min-width: 100;
     -fx-max-width: 100;
-    -fx-padding: 5 5 0 5;
+    -fx-padding: 6 0 0 0;
     -fx-cursor: hand;
     -fx-background-color: transparent;
 }
@@ -129,6 +133,7 @@
 }
 
 .root .header .bar .filter-bar .filterGroup ComboBox .arrow {
+    -fx-padding: 5 8 0 0;
     -fx-background-color: #c3c5c7;
 }
 

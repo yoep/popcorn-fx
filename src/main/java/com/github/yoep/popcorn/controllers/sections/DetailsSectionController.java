@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.providers.media.models.Torrent;
 import javafx.application.Application;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.GaussianBlur;
@@ -23,6 +24,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.Assert;
@@ -66,6 +68,8 @@ public class DetailsSectionController implements Initializable {
     private Icon magnetLink;
     @FXML
     private Icon health;
+    @FXML
+    private Button watchTrailerButton;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -93,6 +97,7 @@ public class DetailsSectionController implements Initializable {
         loadImages();
         loadText();
         loadStars();
+        loadButtons();
     }
 
     private void initializeBackground() {
@@ -147,6 +152,11 @@ public class DetailsSectionController implements Initializable {
     private void loadStars() {
         ratingStars.setRating(media.getRating());
         Tooltip.install(ratingStars, new Tooltip(media.getRating().getPercentage() / 10 + "/10"));
+    }
+
+    private void loadButtons() {
+        Movie movie = (Movie) media;
+        watchTrailerButton.setVisible(StringUtils.isNotEmpty(movie.getTrailer()));
     }
 
     private void openMagnetLink(Torrent torrent) {

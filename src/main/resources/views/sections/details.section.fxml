@@ -91,7 +91,7 @@
 
             <HBox GridPane.columnIndex="0" GridPane.rowIndex="3" alignment="CENTER_LEFT" spacing="5">
                 <SplitMenuButton text="%details_watch_now"/>
-                <Button text="%details_watch_trailer"/>
+                <Button id="watchTrailerButton" text="%details_watch_trailer"/>
             </HBox>
         </GridPane>
     </GridPane>

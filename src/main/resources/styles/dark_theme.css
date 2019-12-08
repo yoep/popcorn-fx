@@ -304,19 +304,33 @@
     -fx-text-fill: #737577;
 }
 
+.root .details SplitMenuButton,
+.root .details SplitMenuButton .label,
+.root .details SplitMenuButton .arrow-button,
 .root .details Button {
     -fx-font-family: "Open Sans Bold";
     -fx-background-color: #1f375f;
     -fx-text-fill: #fff;
-    -fx-padding: 10 15 10 15;
     -fx-cursor: hand;
 }
 
-.root .details SplitMenuButton . {
-    -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+.root .details SplitMenuButton .label,
+.root .details SplitMenuButton .arrow-button,
+.root .details Button {
+    -fx-padding: 10 15 10 15;
 }
 
+.root .details SplitMenuButton:hover .label,
+.root .details SplitMenuButton:hover .arrow-button,
 .root .details Button:hover {
     -fx-background-color: #225694;
+}
+
+.root .details SplitMenuButton .arrow-button {
+    -fx-border-width: 0 0 0 1;
+    -fx-border-color: rgba(255,255,255,0.2);
+}
+
+.root .details SplitMenuButton .arrow-button .arrow {
+    -fx-background-color: #fff;
 }

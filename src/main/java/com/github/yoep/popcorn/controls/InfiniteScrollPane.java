@@ -1,6 +1,8 @@
 package com.github.yoep.popcorn.controls;
 
+import javafx.application.Platform;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.FlowPane;
@@ -33,15 +35,49 @@ public class InfiniteScrollPane extends ScrollPane {
 
     //endregion
 
-    public FlowPane getItemsPane() {
-        return itemsPane;
-    }
+    //region Methods
 
+    /**
+     * Add a new {@link PageListener} to this infinite scroll pane.
+     *
+     * @param listener The listener to add.
+     */
     public void addListener(PageListener listener) {
         synchronized (pageListeners) {
             pageListeners.add(listener);
         }
     }
+
+    /**
+     * Add a new item to this infinite scroll pane.
+     *
+     * @param item The item to add to this control.
+     */
+    public void addItem(Node item) {
+        Platform.runLater(() -> itemsPane.getChildren().add(item));
+    }
+
+    /**
+     * Reset the infinite scroll pane.
+     * This will reset the page to "0" and remove all items from this control.
+     */
+    public void reset() {
+        page = 0;
+        itemsPane.getChildren().clear();
+    }
+
+    /**
+     * Load a new page into the infinite scroll pane.
+     * This will invoke all the {@link PageListener}'s that are currently registered.
+     */
+    public void loadNewPage() {
+        if (!updating)
+            loadNextPage();
+    }
+
+    //endregion
+
+    //region Functions
 
     private void initializeScrollBars() {
         this.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
@@ -79,4 +115,6 @@ public class InfiniteScrollPane extends ScrollPane {
         progressIndicator.setVisible(false);
         updating = false;
     }
+
+    //endregion
 }

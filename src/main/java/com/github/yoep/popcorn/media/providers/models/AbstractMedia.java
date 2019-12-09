@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.providers.media.models;
+package com.github.yoep.popcorn.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;

@@ -1,8 +1,8 @@
-package com.github.yoep.popcorn.providers.media;
+package com.github.yoep.popcorn.media.providers;
 
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
-import com.github.yoep.popcorn.providers.media.models.Movie;
+import com.github.yoep.popcorn.media.providers.models.Movie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;

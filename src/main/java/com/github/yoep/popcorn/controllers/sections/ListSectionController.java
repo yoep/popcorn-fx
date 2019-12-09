@@ -4,7 +4,7 @@ import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.controllers.components.ItemComponent;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
-import com.github.yoep.popcorn.providers.media.models.Movie;
+import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.services.ProviderService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

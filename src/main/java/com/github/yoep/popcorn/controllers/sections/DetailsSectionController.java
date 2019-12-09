@@ -2,13 +2,15 @@ package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.controls.Stars;
+import com.github.yoep.popcorn.media.providers.models.Images;
+import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.DetailsMessage;
-import com.github.yoep.popcorn.providers.media.models.Images;
-import com.github.yoep.popcorn.providers.media.models.Media;
-import com.github.yoep.popcorn.providers.media.models.Movie;
-import com.github.yoep.popcorn.providers.media.models.Torrent;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -30,8 +32,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.util.Assert;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.stream.Stream;
@@ -40,7 +40,7 @@ import java.util.stream.Stream;
 @Controller
 @RequiredArgsConstructor
 public class DetailsSectionController implements Initializable {
-    private final List<DetailsListener> listeners = new ArrayList<>();
+    private final ActivityManager activityManager;
     private final LocaleText localeText;
     private final Application application;
 
@@ -76,28 +76,7 @@ public class DetailsSectionController implements Initializable {
         initializeBackground();
         initializePoster();
         initializeTooltips();
-    }
-
-    /**
-     * Add a details listener to this controller.
-     *
-     * @param listener The listener to add.
-     */
-    public void addListener(DetailsListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        synchronized (listeners) {
-            listeners.add(listener);
-        }
-    }
-
-    public void load(Media media) {
-        Assert.notNull(media, "media cannot be null");
-        this.media = media;
-
-        loadImages();
-        loadText();
-        loadStars();
-        loadButtons();
+        initializeListeners();
     }
 
     private void initializeBackground() {
@@ -112,6 +91,21 @@ public class DetailsSectionController implements Initializable {
     private void initializeTooltips() {
         Tooltip.install(magnetLink, new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK)));
         Tooltip.install(health, new Tooltip(localeText.get(DetailsMessage.HEALTH_UNKNOWN)));
+    }
+
+    private void initializeListeners() {
+        activityManager.register(DetailsShowActivity.class, activity ->
+                Platform.runLater(() -> load(activity.getMedia())));
+    }
+
+    private void load(Media media) {
+        Assert.notNull(media, "media cannot be null");
+        this.media = media;
+
+        loadImages();
+        loadText();
+        loadStars();
+        loadButtons();
     }
 
     private void loadImages() {
@@ -155,6 +149,9 @@ public class DetailsSectionController implements Initializable {
     }
 
     private void loadButtons() {
+        if (watchTrailerButton == null)
+            return;
+
         Movie movie = (Movie) media;
         watchTrailerButton.setVisible(StringUtils.isNotEmpty(movie.getTrailer()));
     }
@@ -189,11 +186,25 @@ public class DetailsSectionController implements Initializable {
     }
 
     @FXML
-    private void close() {
-        synchronized (listeners) {
-            listeners.forEach(DetailsListener::onClose);
-        }
+    private void onTrailerClicked() {
+        activityManager.register(new PlayMediaTrailerActivity() {
+            @Override
+            public String getUrl() {
+                Movie movie = (Movie) media;
+                return movie.getTrailer();
+            }
 
+            @Override
+            public Media getMedia() {
+                return media;
+            }
+        });
+    }
+
+    @FXML
+    private void close() {
+        activityManager.register(new DetailsCloseActivity() {
+        });
         poster.setImage(null);
     }
 }

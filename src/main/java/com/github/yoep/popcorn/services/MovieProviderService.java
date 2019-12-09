@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.services;
 
-import com.github.yoep.popcorn.providers.media.MoviesProvider;
-import com.github.yoep.popcorn.providers.media.models.Movie;
+import com.github.yoep.popcorn.media.providers.MoviesProvider;
+import com.github.yoep.popcorn.media.providers.models.Movie;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

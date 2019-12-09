@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.services;
 
-import com.github.yoep.popcorn.providers.media.models.Media;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;

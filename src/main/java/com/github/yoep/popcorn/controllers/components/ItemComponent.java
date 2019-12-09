@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.github.yoep.popcorn.controls.Stars;
-import com.github.yoep.popcorn.providers.media.models.Images;
-import com.github.yoep.popcorn.providers.media.models.Media;
+import com.github.yoep.popcorn.media.providers.models.Images;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;

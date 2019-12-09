@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.model.Genre;
+import com.github.yoep.popcorn.models.Genre;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
@@ -31,6 +31,7 @@ public class HeaderSectionController implements Initializable {
     private void initializeGenres() {
         List<Genre> genres = popcornProperties.getGenres().stream()
                 .map(e -> new Genre(e, localeText.get("genre_" + e)))
+                .sorted()
                 .collect(Collectors.toList());
 
         genreCombo.getItems().addAll(genres);

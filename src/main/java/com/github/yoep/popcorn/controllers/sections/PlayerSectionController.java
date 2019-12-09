@@ -1,38 +1,19 @@
 package com.github.yoep.popcorn.controllers.sections;
 
-import com.github.yoep.popcorn.video.VideoPlayer;
-import javafx.fxml.FXML;
+import com.github.yoep.popcorn.activities.ActivityManager;
 import javafx.fxml.Initializable;
-import javafx.scene.image.ImageView;
-import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
 @Controller
+@RequiredArgsConstructor
 public class PlayerSectionController implements Initializable {
-    @Getter
-    private VideoPlayer videoPlayer;
-
-    @FXML
-    private ImageView videoView;
-
-    public PlayerSectionController() {
-
-    }
+    private final ActivityManager activityManager;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        initializeVideoPlayer();
-    }
-
-    private void initializeVideoPlayer() {
-        if (videoPlayer != null)
-            return;
-
-        videoView.setVisible(false);
-
-        this.videoPlayer = new VideoPlayer(videoView);
     }
 }

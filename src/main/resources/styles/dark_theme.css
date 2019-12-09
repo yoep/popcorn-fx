@@ -248,11 +248,13 @@
     -fx-opacity: 0.65;
 }
 
+.root .player .player-header .close-button,
 .root .details .close-button {
     -fx-text-fill: #ccc;
     -fx-cursor: hand;
 }
 
+.root .player .player-header .close-button,
 .root .details .close-button:hover {
     -fx-text-fill: #fff;
 }
@@ -333,4 +335,55 @@
 
 .root .details SplitMenuButton .arrow-button .arrow {
     -fx-background-color: #fff;
+}
+
+.root .player  {
+    -fx-background-color: #000;
+}
+
+.root .player .player-header {
+    -fx-background-color: linear-gradient(rgba(0, 0, 0, 1) 0%, rgba(255, 255, 255, 0) 100%);
+    -fx-padding: 10 0 20 0;
+}
+
+.root .player .player-header .title {
+    -fx-font-family: "Open Sans";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.8em;
+    -fx-font-smoothing-type: gray;
+}
+
+.root .player .player-overlay {
+    -fx-cursor: hand;
+}
+
+.root .player .player-controls {
+    -fx-background-color: #111214;
+}
+
+.root .player .player-controls Icon,
+.root .player .player-controls Label {
+    -fx-text-fill: #f9fafc;
+}
+
+.root .player .player-controls .player-state-button {
+    -fx-cursor: hand;
+    -fx-padding: 10 15 10 15;
+}
+
+.root .player .player-controls .player-state-button:hover {
+    -fx-text-fill: #fff;
+}
+
+.root .player .player-controls .time {
+    -fx-font-family: "Open Sans";
+    -fx-padding: 10 5 10 5;
+}
+
+.root .player .player-controls .slider {
+    -fx-control-inner-background: #2d72d9;
+}
+
+.root .player .player-controls .slider:disabled {
+    -fx-control-inner-background: gray;
 }

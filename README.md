@@ -12,4 +12,4 @@ missing from the modules causing an `IllegalAccessException` when trying to run 
 
 Add the following options to the `VM Options` in the run configuration of IntelliJ to fix this issue. 
 
-    -p "<PATH TO JAVAFX SDK>\lib" --add-modules javafx.controls,javafx.fxml
+    -p "<PATH TO JAVAFX SDK>\lib" --add-modules javafx.controls,javafx.fxml,javafx.swing

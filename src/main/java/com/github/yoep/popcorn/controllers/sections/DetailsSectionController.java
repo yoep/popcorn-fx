@@ -2,7 +2,10 @@ package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.DetailsCloseActivity;
+import com.github.yoep.popcorn.activities.DetailsShowActivity;
+import com.github.yoep.popcorn.activities.PlayMediaTrailerActivity;
 import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;

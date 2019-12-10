@@ -1,11 +1,9 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.PlayMediaTrailerActivity;
-import com.github.yoep.popcorn.activities.PlayerCloseActivity;
-import com.github.yoep.popcorn.media.video.PlayerState;
+import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
+import com.github.yoep.popcorn.media.video.state.PlayerState;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -36,6 +34,8 @@ public class PlayerComponent implements Initializable {
     private Label timeInfo;
     @FXML
     private Icon playPauseIcon;
+    @FXML
+    private Icon fullscreenIcon;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -70,6 +70,13 @@ public class PlayerComponent implements Initializable {
             videoPlayer.play(activity.getUrl());
             Platform.runLater(() -> title.setText(activity.getMedia().getTitle()));
         });
+        activityManager.register(FullscreenActivity.class, activity -> {
+            if (activity.isFullscreen()) {
+                Platform.runLater(() -> fullscreenIcon.setText(Icon.COLLAPSE_UNICODE));
+            } else {
+                Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
+            }
+        });
     }
 
     private void changePlayPauseState() {
@@ -88,6 +95,12 @@ public class PlayerComponent implements Initializable {
     @FXML
     private void onPlayPauseClicked() {
         changePlayPauseState();
+    }
+
+    @FXML
+    private void onFullscreenClicked() {
+        activityManager.register(new ToggleFullscreenActivity() {
+        });
     }
 
     @FXML

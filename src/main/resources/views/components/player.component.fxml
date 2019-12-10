@@ -1,72 +1,95 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.spring.boot.javafx.font.controls.*?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.control.Slider?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.github.yoep.popcorn.controllers.components.PlayerComponent"
             styleClass="player">
+    <!-- Video Player -->
     <Pane fx:id="videoView"
           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
-    <GridPane AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0">
+    <!-- Video Player Cover -->
+    <BorderPane styleClass="player-overlay" onMouseClicked="#onPlayerClick"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <!-- Player Header -->
+    <GridPane styleClass="player-header"
+              AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints minWidth="10" maxWidth="10"/>
+            <ColumnConstraints minWidth="40" maxWidth="40"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints/>
-            <RowConstraints minHeight="20" vgrow="ALWAYS"/>
-            <RowConstraints minHeight="15"/>
         </rowConstraints>
 
-        <!-- Header -->
-        <GridPane styleClass="player-header" GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints minWidth="10" maxWidth="10"/>
-                <ColumnConstraints minWidth="40" maxWidth="40"/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints/>
-            </rowConstraints>
+        <Label fx:id="title" styleClass="title"
+               GridPane.columnIndex="0" GridPane.rowIndex="0">
+            <padding>
+                <Insets left="15"/>
+            </padding>
+        </Label>
+        <Icon styleClass="close-button" sizeFactor="2" onMouseClicked="#close"
+              GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.valignment="TOP" GridPane.halignment="RIGHT">
+            <padding>
+                <Insets right="15"/>
+            </padding>
+            <Icon fx:constant="CROSS_UNICODE"/>
+        </Icon>
+    </GridPane>
 
-            <Label fx:id="title" styleClass="title"
-                   GridPane.columnIndex="0" GridPane.rowIndex="0">
-                <padding>
-                    <Insets left="15"/>
-                </padding>
-            </Label>
-            <Icon styleClass="close-button" sizeFactor="2" onMouseClicked="#close"
-                  GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.valignment="TOP" GridPane.halignment="RIGHT">
-                <padding>
-                    <Insets right="15"/>
-                </padding>
-                <Icon fx:constant="CROSS_UNICODE"/>
-            </Icon>
-        </GridPane>
+    <!-- Player Controls -->
+    <GridPane styleClass="player-controls"
+              AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0">
+        <columnConstraints>
+            <ColumnConstraints/>
+            <ColumnConstraints/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints/>
+            <ColumnConstraints/>
+            <ColumnConstraints/>
+            <ColumnConstraints/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints valignment="CENTER"/>
+        </rowConstraints>
 
-        <BorderPane styleClass="player-overlay" GridPane.columnIndex="0" GridPane.rowIndex="1" onMouseClicked="#onPlayerClick"/>
+        <!-- Play/Pause -->
+        <Icon fx:id="playPauseIcon" styleClass="player-button" onMouseClicked="#onPlayPauseClicked"
+              GridPane.columnIndex="0" GridPane.rowIndex="0">
+            <Icon fx:constant="PLAY_UNICODE"/>
+        </Icon>
 
-        <GridPane styleClass="player-controls" GridPane.columnIndex="0" GridPane.rowIndex="2">
-            <columnConstraints>
-                <ColumnConstraints/>
-                <ColumnConstraints/>
-                <ColumnConstraints hgrow="ALWAYS"/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints/>
-            </rowConstraints>
+        <!-- Time -->
+        <Label fx:id="timeInfo" styleClass="time" text="00:00:00/00:00:00"
+               GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
-            <Icon fx:id="playPauseIcon" styleClass="player-state-button" onMouseClicked="#onPlayPauseClicked"
-                  GridPane.columnIndex="0" GridPane.rowIndex="0">
-                <Icon fx:constant="PLAY_UNICODE"/>
-            </Icon>
-            <Label fx:id="timeInfo" styleClass="time" text="00:00:00/00:00:00"
-                   GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-            <Slider fx:id="timeSlider" styleClass="slider"
-                    GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-        </GridPane>
+        <!-- Time picker -->
+        <Slider fx:id="timeSlider" styleClass="slider"
+                GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+        <!-- Subtitle -->
+        <Icon styleClass="player-button, subtitle, subtitle-smaller"
+               GridPane.columnIndex="3" GridPane.rowIndex="0">
+            <Icon fx:constant="FONT_UNICODE" />
+        </Icon>
+        <Icon styleClass="player-button, subtitle"
+               GridPane.columnIndex="4" GridPane.rowIndex="0">
+            <Icon fx:constant="FONT_UNICODE" />
+        </Icon>
+        <Icon styleClass="player-button, subtitle"
+              GridPane.columnIndex="5" GridPane.rowIndex="0">
+            <Icon fx:constant="COMMENT"/>
+        </Icon>
+
+        <!-- Fullscreen -->
+        <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked"
+              GridPane.columnIndex="6" GridPane.rowIndex="0">
+            <Icon fx:constant="EXPAND"/>
+        </Icon>
     </GridPane>
 </AnchorPane>

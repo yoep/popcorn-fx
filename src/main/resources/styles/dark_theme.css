@@ -366,13 +366,22 @@
     -fx-text-fill: #f9fafc;
 }
 
-.root .player .player-controls .player-state-button {
+.root .player .player-controls .player-button {
     -fx-cursor: hand;
     -fx-padding: 10 15 10 15;
 }
 
-.root .player .player-controls .player-state-button:hover {
+.root .player .player-controls .player-button:hover {
     -fx-text-fill: #fff;
+}
+
+.root .player .player-controls .subtitle {
+    -fx-padding: 10 8 10 8;
+}
+
+.root .player .player-controls .subtitle-smaller {
+    -fx-font-size: 9;
+    -fx-padding: 13 8 10 8;
 }
 
 .root .player .player-controls .time {

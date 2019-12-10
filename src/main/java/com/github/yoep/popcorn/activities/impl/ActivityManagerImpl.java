@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
@@ -13,6 +14,7 @@ import org.springframework.util.Assert;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ActivityManagerImpl implements ActivityManager {
@@ -36,9 +38,17 @@ public class ActivityManagerImpl implements ActivityManager {
                 listeners.stream()
                         .filter(e -> e.getActivity().isAssignableFrom(activity.getClass()))
                         .map(ListenerHolder::getListener)
-                        .forEach(e -> e.onActive(activity));
+                        .forEach(e -> invokeActivityListener(activity, e));
             }
         });
+    }
+
+    private static void invokeActivityListener(Activity activity, ActivityListener<Activity> listener) {
+        try {
+            listener.onActive(activity);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
     }
 
     /**

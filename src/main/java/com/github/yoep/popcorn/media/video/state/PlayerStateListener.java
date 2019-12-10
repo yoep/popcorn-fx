@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.media.video;
+package com.github.yoep.popcorn.media.video.state;
 
 public interface PlayerStateListener {
     /**

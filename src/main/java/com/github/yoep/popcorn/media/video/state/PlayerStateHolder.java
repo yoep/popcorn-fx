@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.media.video;
+package com.github.yoep.popcorn.media.video.state;
 
 import org.springframework.util.Assert;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
@@ -8,15 +8,20 @@ import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 import java.util.ArrayList;
 import java.util.List;
 
-class PlayerStateHolder {
+public class PlayerStateHolder {
     private final List<PlayerStateListener> listeners = new ArrayList<>();
     private PlayerState state;
 
-    PlayerStateHolder(EmbeddedMediaPlayer mediaPlayer) {
+    public PlayerStateHolder(EmbeddedMediaPlayer mediaPlayer) {
         init(mediaPlayer);
     }
 
-    PlayerState getState() {
+    /**
+     * Get the {@link PlayerState} from this holder.
+     *
+     * @return Returns the player state.
+     */
+    public PlayerState getState() {
         return state;
     }
 
@@ -25,7 +30,7 @@ class PlayerStateHolder {
      *
      * @param listener The listener ta-hat needs to be registered.
      */
-    void addListener(PlayerStateListener listener) {
+    public void addListener(PlayerStateListener listener) {
         Assert.notNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.add(listener);

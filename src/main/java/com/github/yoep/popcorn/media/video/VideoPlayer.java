@@ -1,5 +1,8 @@
 package com.github.yoep.popcorn.media.video;
 
+import com.github.yoep.popcorn.media.video.state.PlayerState;
+import com.github.yoep.popcorn.media.video.state.PlayerStateHolder;
+import com.github.yoep.popcorn.media.video.state.PlayerStateListener;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.canvas.Canvas;

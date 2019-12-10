@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.media.video;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.state.PlayerStateHolder;
 import com.github.yoep.popcorn.media.video.state.PlayerStateListener;
+import com.github.yoep.popcorn.media.video.time.TimeHolder;
+import com.github.yoep.popcorn.media.video.time.TimeListener;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.canvas.Canvas;
@@ -38,6 +40,7 @@ public class VideoPlayer {
     private final MediaPlayerFactory mediaPlayerFactory;
     private final EmbeddedMediaPlayer mediaPlayer;
     private final PlayerStateHolder playerStateHolder;
+    private final TimeHolder timeHolder;
     private final Pane canvasPane;
 
     private PixelBuffer<ByteBuffer> videoPixelBuffer;
@@ -60,6 +63,7 @@ public class VideoPlayer {
         this.mediaPlayerFactory = new MediaPlayerFactory();
         this.mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
         this.playerStateHolder = new PlayerStateHolder(this.mediaPlayer);
+        this.timeHolder = new TimeHolder(this.mediaPlayer);
 
         init();
     }
@@ -74,12 +78,21 @@ public class VideoPlayer {
     }
 
     /**
-     * Add the given listener to this video player listeners.
+     * Add the given listener to this video player.
      *
-     * @param listener The listener ta-hat needs to be registered.
+     * @param listener The player state change listener .
      */
     public void addListener(PlayerStateListener listener) {
         playerStateHolder.addListener(listener);
+    }
+
+    /**
+     * Add the given listener to this video player.
+     *
+     * @param listener The time change listener.
+     */
+    public void addListener(TimeListener listener) {
+        timeHolder.addListener(listener);
     }
 
     /**
@@ -115,6 +128,15 @@ public class VideoPlayer {
         this.timer.stop();
         this.mediaPlayer.controls().stop();
         renderBlackFrame();
+    }
+
+    /**
+     * Jump to the given time in the video player.
+     *
+     * @param time The new time in millis.
+     */
+    public void setTime(long time) {
+        mediaPlayer.controls().setTime(time);
     }
 
     public void dispose() {

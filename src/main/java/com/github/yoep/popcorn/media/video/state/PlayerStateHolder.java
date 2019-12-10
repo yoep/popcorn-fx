@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.media.video.state;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
@@ -8,6 +9,7 @@ import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class PlayerStateHolder {
     private final List<PlayerStateListener> listeners = new ArrayList<>();
     private PlayerState state;
@@ -61,6 +63,7 @@ public class PlayerStateHolder {
 
             @Override
             public void error(MediaPlayer mediaPlayer) {
+                log.warn("Media player went into error state");
                 changeState(PlayerState.ERROR);
             }
         });
@@ -74,7 +77,15 @@ public class PlayerStateHolder {
         state = newState;
 
         synchronized (listeners) {
-            listeners.forEach(e -> e.onChange(oldState, newState));
+            listeners.forEach(e -> invokeListener(newState, oldState, e));
+        }
+    }
+
+    private static void invokeListener(PlayerState newState, PlayerState oldState, PlayerStateListener listener) {
+        try {
+            listener.onChange(oldState, newState);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
         }
     }
 }

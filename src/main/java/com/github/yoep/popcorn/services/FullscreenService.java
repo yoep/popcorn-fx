@@ -17,13 +17,25 @@ import javax.annotation.PostConstruct;
 public class FullscreenService {
     private final ActivityManager activityManager;
     private final ViewManager viewManager;
+    private boolean listenerRegistered;
 
     @PostConstruct
     private void init() {
         activityManager.register(ToggleFullscreenActivity.class, activity -> viewManager.getPrimaryStage()
-                .ifPresent(stage -> Platform.runLater(() -> {
-                    stage.setFullScreen(!stage.isFullScreen());
-                    activityManager.register((FullscreenActivity) stage::isFullScreen);
-                })));
+                .ifPresent(stage -> {
+                    if (!listenerRegistered)
+                        registerListener();
+
+                    Platform.runLater(() -> stage.setFullScreen(!stage.isFullScreen()));
+                }));
+
+    }
+
+    private void registerListener() {
+        listenerRegistered = true;
+        viewManager.getPrimaryStage()
+                .ifPresent(e -> e.fullScreenProperty().addListener((observable, oldValue, newValue) -> {
+                    activityManager.register((FullscreenActivity) () -> newValue);
+                }));
     }
 }

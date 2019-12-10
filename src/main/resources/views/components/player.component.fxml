@@ -53,6 +53,7 @@
             <ColumnConstraints/>
             <ColumnConstraints/>
             <ColumnConstraints/>
+            <ColumnConstraints/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints valignment="CENTER"/>
@@ -64,31 +65,35 @@
             <Icon fx:constant="PLAY_UNICODE"/>
         </Icon>
 
-        <!-- Time -->
-        <Label fx:id="timeInfo" styleClass="time" text="00:00:00/00:00:00"
+        <!-- Current Time -->
+        <Label fx:id="currentTime" styleClass="time" text="00:00"
                GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
         <!-- Time picker -->
-        <Slider fx:id="timeSlider" styleClass="slider"
+        <Slider fx:id="slider" styleClass="slider"
                 GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+        <!-- Duration -->
+        <Label fx:id="duration" styleClass="time" text="00:00"
+               GridPane.columnIndex="3" GridPane.rowIndex="0"/>
 
         <!-- Subtitle -->
         <Icon styleClass="player-button, subtitle, subtitle-smaller"
-               GridPane.columnIndex="3" GridPane.rowIndex="0">
-            <Icon fx:constant="FONT_UNICODE" />
-        </Icon>
-        <Icon styleClass="player-button, subtitle"
                GridPane.columnIndex="4" GridPane.rowIndex="0">
             <Icon fx:constant="FONT_UNICODE" />
         </Icon>
         <Icon styleClass="player-button, subtitle"
-              GridPane.columnIndex="5" GridPane.rowIndex="0">
+               GridPane.columnIndex="5" GridPane.rowIndex="0">
+            <Icon fx:constant="FONT_UNICODE" />
+        </Icon>
+        <Icon styleClass="player-button, subtitle"
+              GridPane.columnIndex="6" GridPane.rowIndex="0">
             <Icon fx:constant="COMMENT"/>
         </Icon>
 
         <!-- Fullscreen -->
         <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked"
-              GridPane.columnIndex="6" GridPane.rowIndex="0">
+              GridPane.columnIndex="7" GridPane.rowIndex="0">
             <Icon fx:constant="EXPAND"/>
         </Icon>
     </GridPane>

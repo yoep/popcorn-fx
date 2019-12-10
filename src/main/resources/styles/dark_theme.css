@@ -19,6 +19,10 @@
     font-style: normal;
 }
 
+.root {
+    -fx-font-smoothing-type: gray;
+}
+
 .root,
 .root InfiniteScrollPane,
 .root InfiniteScrollPane > .viewport,
@@ -28,10 +32,6 @@
 .root .tooltip {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
-}
-
-.root .tooltip {
-    -fx-font-smoothing-type: gray;
 }
 
 .root InfiniteScrollPane .scroll-bar,
@@ -79,7 +79,6 @@
 .root .stars Icon {
     -fx-padding: 0 2 0 0;
     -fx-opacity: 1;
-    -fx-font-smoothing-type: gray;
 }
 
 .root .stars .empty {
@@ -98,7 +97,6 @@
 .root .header Label {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 12.5;
-    -fx-font-smoothing-type: gray;
     -fx-text-fill: #c3c5c7;
     -fx-cursor: hand;
     -fx-text-alignment: center;
@@ -129,7 +127,6 @@
 .root .header .bar .filter-bar ComboBox > .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #2d72d9;
-    -fx-font-smoothing-type: gray;
 }
 
 .root .header .bar .filter-bar .filterGroup ComboBox .arrow {
@@ -154,7 +151,6 @@
 .root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #c3c5c7;
-    -fx-font-smoothing-type: gray;
     -fx-cursor: hand;
 }
 
@@ -226,14 +222,12 @@
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
-    -fx-font-smoothing-type: gray;
 }
 
 .root .poster-item .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 1em;
     -fx-text-fill: #fff;
-    -fx-font-smoothing-type: gray;
     -fx-padding: 4 0 2 0;
 }
 
@@ -267,7 +261,6 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 38px;
-    -fx-font-smoothing-type: gray;
     -fx-padding: 0 0 0 0;
 }
 
@@ -275,21 +268,18 @@
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
-    -fx-font-smoothing-type: gray;
 }
 
 .root .details .metadata .separator {
     -fx-text-fill: #dbdbdd;
     -fx-font-size: 5px;
     -fx-padding: 0 10 0 10;
-    -fx-font-smoothing-type: gray;
 }
 
 .root .details .overview {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
-    -fx-font-smoothing-type: gray;
 }
 
 .root .details .magnet-link {
@@ -350,7 +340,6 @@
     -fx-font-family: "Open Sans";
     -fx-text-fill: #fff;
     -fx-font-size: 1.8em;
-    -fx-font-smoothing-type: gray;
 }
 
 .root .player .player-overlay {
@@ -386,7 +375,7 @@
 
 .root .player .player-controls .time {
     -fx-font-family: "Open Sans";
-    -fx-padding: 10 5 10 5;
+    -fx-padding: 0 5 0 5;
 }
 
 .root .player .player-controls .slider {

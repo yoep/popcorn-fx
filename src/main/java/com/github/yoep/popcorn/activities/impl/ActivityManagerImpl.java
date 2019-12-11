@@ -43,7 +43,15 @@ public class ActivityManagerImpl implements ActivityManager {
         });
     }
 
+    @Override
+    public <T extends Activity> void unregister(ActivityListener<T> listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        listeners.removeIf(e -> e.getListener() == listener);
+    }
+
     private static void invokeActivityListener(Activity activity, ActivityListener<Activity> listener) {
+        // make sure we are exception safe invoking each listener,
+        // as they might throw an error which prevents other listeners from receiving any event
         try {
             listener.onActive(activity);
         } catch (Exception ex) {
@@ -53,6 +61,7 @@ public class ActivityManagerImpl implements ActivityManager {
 
     /**
      * Holds information about an activity listener.
+     * This holder makes it easier for lookup of the correct listeners instead of using a complex reflection setup.
      *
      * @param <T> The activity class this listener listens on.
      */

@@ -54,6 +54,8 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <commons-text.version>1.8</commons-text.version>
+        <jlibtorrent.version>1.2.0.18</jlibtorrent.version>
+        <vlc.version>4.2.0</vlc.version>
     </properties>
 
     <dependencies>
@@ -108,12 +110,17 @@
         <dependency>
             <groupId>com.frostwire</groupId>
             <artifactId>jlibtorrent</artifactId>
-            <version>1.2.0.18</version>
+            <version>${jlibtorrent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.frostwire</groupId>
+            <artifactId>jlibtorrent-windows</artifactId>
+            <version>${jlibtorrent.version}</version>
         </dependency>
         <dependency>
             <groupId>uk.co.caprica</groupId>
             <artifactId>vlcj</artifactId>
-            <version>4.2.0</version>
+            <version>${vlc.version}</version>
         </dependency>
 
         <!-- Jackson -->

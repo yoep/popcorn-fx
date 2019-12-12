@@ -170,6 +170,15 @@
     -fx-border-style: solid;
 }
 
+.root .background-image {
+    -fx-background-color: #000;
+}
+
+.root .background-image .background-cover {
+    -fx-background-color: #000;
+    -fx-opacity: 0.65;
+}
+
 .root .poster-item {
     -fx-padding: 10;
     -fx-min-height: 252;
@@ -235,11 +244,6 @@
     -fx-text-fill: #5b5b5b;
     -fx-fill: #5b5b5b;
     -fx-font-size: 0.85em;
-}
-
-.root .details .background-cover {
-    -fx-background-color: #000;
-    -fx-opacity: 0.65;
 }
 
 .root .player .player-header .close-button,

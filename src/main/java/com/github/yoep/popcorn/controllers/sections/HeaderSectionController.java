@@ -1,6 +1,8 @@
 package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.GenreChangeActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.models.Genre;
 import javafx.fxml.FXML;
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 @Controller
 @RequiredArgsConstructor
 public class HeaderSectionController implements Initializable {
+    private final ActivityManager activityManager;
     private final PopcornProperties popcornProperties;
     private final LocaleText localeText;
 
@@ -36,6 +39,8 @@ public class HeaderSectionController implements Initializable {
 
         genreCombo.getItems().addAll(genres);
         genreCombo.getSelectionModel().select(0);
+        genreCombo.selectionModelProperty().addListener((observable, oldValue, newValue) ->
+                activityManager.register((GenreChangeActivity) newValue::getSelectedItem));
     }
 
     @FXML

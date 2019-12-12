@@ -2,11 +2,9 @@ package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.DetailsCloseActivity;
-import com.github.yoep.popcorn.activities.DetailsShowActivity;
-import com.github.yoep.popcorn.activities.PlayMediaTrailerActivity;
+import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.controls.Stars;
+import com.github.yoep.popcorn.media.providers.MediaException;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
@@ -18,22 +16,24 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Tooltip;
-import javafx.scene.effect.GaussianBlur;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.Assert;
 
+import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -46,11 +46,10 @@ public class DetailsSectionController implements Initializable {
     private final ActivityManager activityManager;
     private final LocaleText localeText;
     private final Application application;
+    private final TaskExecutor taskExecutor;
 
     private Media media;
 
-    @FXML
-    private BorderPane backgroundImage;
     @FXML
     private BorderPane posterHolder;
     @FXML
@@ -72,18 +71,19 @@ public class DetailsSectionController implements Initializable {
     @FXML
     private Icon health;
     @FXML
+    private SplitMenuButton watchNowButton;
+    @FXML
     private Button watchTrailerButton;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeBackground();
         initializePoster();
         initializeTooltips();
-        initializeListeners();
     }
 
-    private void initializeBackground() {
-        backgroundImage.setEffect(new GaussianBlur(30));
+    @PostConstruct
+    private void init() {
+        initializeListeners();
     }
 
     private void initializePoster() {
@@ -99,43 +99,45 @@ public class DetailsSectionController implements Initializable {
     private void initializeListeners() {
         activityManager.register(DetailsShowActivity.class, activity ->
                 Platform.runLater(() -> load(activity.getMedia())));
+        activityManager.register(DetailsCloseActivity.class, activity -> reset());
+    }
+
+    private void reset() {
+        Platform.runLater(() -> {
+            title.setText(StringUtils.EMPTY);
+            overview.setText(StringUtils.EMPTY);
+            year.setText(StringUtils.EMPTY);
+            duration.setText(StringUtils.EMPTY);
+            genres.setText(StringUtils.EMPTY);
+            poster.setImage(null);
+        });
     }
 
     private void load(Media media) {
         Assert.notNull(media, "media cannot be null");
         this.media = media;
 
-        loadImages();
         loadText();
         loadStars();
         loadButtons();
+        loadPosterImage();
     }
 
-    private void loadImages() {
-        try {
-            Image posterImage = Optional.ofNullable(media.getImages())
-                    .map(Images::getPoster)
-                    .filter(e -> !e.equalsIgnoreCase("n/a"))
-                    .map(Image::new)
-                    .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream()));
+    private void loadPosterImage() {
+        // load the poster image in the background
+        taskExecutor.execute(() -> {
+            try {
+                final Image posterImage = Optional.ofNullable(media.getImages())
+                        .map(Images::getPoster)
+                        .filter(e -> !e.equalsIgnoreCase("n/a"))
+                        .map(Image::new)
+                        .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream()));
 
-            poster.setImage(posterImage);
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
-        }
-
-        try {
-            Optional.ofNullable(media.getImages())
-                    .map(Images::getFanart)
-                    .filter(e -> !e.equalsIgnoreCase("n/a"))
-                    .map(Image::new)
-                    .ifPresent(image -> backgroundImage.setBackground(new Background(
-                            new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT,
-                                    new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, true))
-                    )));
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
-        }
+                Platform.runLater(() -> poster.setImage(posterImage));
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        });
     }
 
     private void loadText() {
@@ -186,6 +188,23 @@ public class DetailsSectionController implements Initializable {
         } else {
             torrent.ifPresent(this::openMagnetLink);
         }
+    }
+
+    @FXML
+    private void onWatchNowClicked() {
+        activityManager.register(new PlayMediaMovieActivity() {
+            @Override
+            public String getQuality() {
+                return media.getTorrents().get("en").keySet().stream()
+                        .findFirst()
+                        .orElseThrow(() -> new MediaException(media, "No torrents available for the media"));
+            }
+
+            @Override
+            public Media getMedia() {
+                return media;
+            }
+        });
     }
 
     @FXML

@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
+import com.github.yoep.popcorn.torrent.TorrentStream;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -30,6 +32,7 @@ public class PlayerComponent implements Initializable {
     private final PauseTransition idle = new PauseTransition(Duration.seconds(3));
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
+    private final TorrentStream torrentStream;
 
     private VideoPlayer videoPlayer;
 
@@ -51,8 +54,12 @@ public class PlayerComponent implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeVideoPlayer();
-        initializeListeners();
         initializeSlider();
+    }
+
+    @PostConstruct
+    private void init() {
+        initializeListeners();
     }
 
     @PreDestroy
@@ -102,6 +109,9 @@ public class PlayerComponent implements Initializable {
         activityManager.register(PlayMediaTrailerActivity.class, activity -> {
             videoPlayer.play(activity.getUrl());
             Platform.runLater(() -> title.setText(activity.getMedia().getTitle()));
+        });
+        activityManager.register(PlayMediaMovieActivity.class, activity -> {
+            torrentStream.startStream(activity.getMedia().getTorrents().get("en").get(activity.getQuality()).getUrl());
         });
         activityManager.register(FullscreenActivity.class, activity -> {
             if (activity.isFullscreen()) {

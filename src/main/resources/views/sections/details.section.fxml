@@ -19,13 +19,11 @@
         <RowConstraints minHeight="20" percentHeight="10"/>
     </rowConstraints>
 
-    <BorderPane fx:id="backgroundImage"
-                GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-    <BorderPane styleClass="background-cover"
+    <fx:include source="../components/background.component.fxml"
                 GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-    <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2" GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.halignment="RIGHT"
-          GridPane.valignment="TOP">
+    <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2"
+          GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.halignment="RIGHT" GridPane.valignment="TOP">
         <padding>
             <Insets top="5" right="15"/>
         </padding>
@@ -90,7 +88,7 @@
                    GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
 
             <HBox GridPane.columnIndex="0" GridPane.rowIndex="3" alignment="CENTER_LEFT" spacing="5">
-                <SplitMenuButton text="%details_watch_now"/>
+                <SplitMenuButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
                 <Button id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
             </HBox>
         </GridPane>

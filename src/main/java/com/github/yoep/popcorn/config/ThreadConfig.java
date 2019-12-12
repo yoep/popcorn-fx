@@ -12,7 +12,7 @@ public class ThreadConfig {
     @Bean
     public TaskExecutor taskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
+        executor.setCorePoolSize(3);
         executor.setQueueCapacity(0);
         executor.setThreadNamePrefix("PT-background");
         executor.initialize();

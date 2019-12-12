@@ -14,6 +14,8 @@ import javafx.scene.control.Slider;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
@@ -21,11 +23,13 @@ import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PlayerComponent implements Initializable {
     private final PauseTransition idle = new PauseTransition(Duration.seconds(3));
     private final ActivityManager activityManager;
+    private final TaskExecutor taskExecutor;
 
     private VideoPlayer videoPlayer;
 
@@ -68,6 +72,10 @@ public class PlayerComponent implements Initializable {
                     break;
                 case PAUSED:
                     Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
+                    break;
+                case FINISHED:
+                    //TODO: fix issue were this is being called when the video is switched
+                    //close();
                     break;
             }
         });
@@ -113,7 +121,7 @@ public class PlayerComponent implements Initializable {
     }
 
     private void reset() {
-        videoPlayer.stop();
+        taskExecutor.execute(() -> videoPlayer.stop());
 
         Platform.runLater(() -> {
             slider.setValue(0);
@@ -154,6 +162,7 @@ public class PlayerComponent implements Initializable {
 
     @FXML
     private void close() {
+        log.trace("Closing player component");
         reset();
         activityManager.register(new PlayerCloseActivity() {
         });

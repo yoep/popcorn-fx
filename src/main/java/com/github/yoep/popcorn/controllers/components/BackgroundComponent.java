@@ -13,6 +13,7 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Scope;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +22,10 @@ import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
+import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_PROTOTYPE;
+
 @Slf4j
+@Scope(SCOPE_PROTOTYPE)
 @Component
 @RequiredArgsConstructor
 public class BackgroundComponent implements Initializable {
@@ -44,9 +48,6 @@ public class BackgroundComponent implements Initializable {
 
     private void loadBackgroundImage(final Media media) {
         taskExecutor.execute(() -> {
-            // switch first to black background
-            backgroundImage.setBackground(Background.EMPTY);
-
             // try to load the background image
             try {
                 Optional.ofNullable(media.getImages())

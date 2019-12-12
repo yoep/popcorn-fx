@@ -11,13 +11,6 @@ public class TorrentListenerHolder implements TorrentListener {
     private final List<TorrentListener> listeners = new ArrayList<>();
 
     @Override
-    public void onStreamPrepared(Torrent torrent) {
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onStreamPrepared(torrent));
-        }
-    }
-
-    @Override
     public void onStreamStarted(Torrent torrent) {
         synchronized (listeners) {
             listeners.forEach(e -> e.onStreamStarted(torrent));

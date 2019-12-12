@@ -4,8 +4,6 @@ import com.github.yoep.popcorn.torrent.StreamStatus;
 import com.github.yoep.popcorn.torrent.Torrent;
 
 public interface TorrentListener {
-    void onStreamPrepared(Torrent torrent);
-
     void onStreamStarted(Torrent torrent);
 
     void onStreamError(Torrent torrent, Exception e);

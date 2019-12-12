@@ -189,54 +189,61 @@ public class TorrentStream {
         return new File(System.getProperty("user.home") + File.separator + SAVE_DIRECTORY_NAME);
     }
 
+    /**
+     * Get torrent metadata, either by downloading the .torrent or fetching the magnet
+     *
+     * @param torrentUrl {@link String} URL to .torrent or magnet link
+     * @return {@link TorrentInfo}
+     */
     private TorrentInfo getTorrentInfo(String torrentUrl) throws TorrentInfoException {
         if (torrentUrl.startsWith("magnet")) {
-            byte[] data = this.torrentSession.fetchMagnet(torrentUrl, 60);
-            if (data != null) {
+            byte[] data = torrentSession.fetchMagnet(torrentUrl, 30000);
+            if (data != null)
                 try {
                     return TorrentInfo.bdecode(data);
-                } catch (IllegalArgumentException var6) {
-                    throw new TorrentInfoException(var6);
+                } catch (IllegalArgumentException e) {
+                    throw new TorrentInfoException(e);
                 }
+
+        } else if (torrentUrl.startsWith("http") || torrentUrl.startsWith("https")) {
+            try {
+                URL url = new URL(torrentUrl);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                connection.setRequestMethod("GET");
+                connection.setInstanceFollowRedirects(true);
+                connection.connect();
+
+                InputStream inputStream = connection.getInputStream();
+
+                byte[] responseByteArray = new byte[0];
+
+                if (connection.getResponseCode() == 200) {
+                    responseByteArray = IOUtils.toByteArray(inputStream);
+                }
+
+                inputStream.close();
+                connection.disconnect();
+
+                if (responseByteArray.length > 0) {
+                    return TorrentInfo.bdecode(responseByteArray);
+                }
+            } catch (IOException | IllegalArgumentException e) {
+                throw new TorrentInfoException(e);
             }
-        } else {
-            byte[] responseByteArray;
-            if (!torrentUrl.startsWith("http") && !torrentUrl.startsWith("https")) {
-                if (torrentUrl.startsWith("file")) {
-                    File file = new File(torrentUrl);
+        } else if (torrentUrl.startsWith("file")) {
+            File file = new File(torrentUrl);
 
-                    try {
-                        FileInputStream fileInputStream = new FileInputStream(file);
-                        responseByteArray = IOUtils.toByteArray(fileInputStream);
-                        fileInputStream.close();
-                        if (responseByteArray.length > 0) {
-                            return TorrentInfo.bdecode(responseByteArray);
-                        }
-                    } catch (IllegalArgumentException | IOException var7) {
-                        throw new TorrentInfoException(var7);
-                    }
-                }
-            } else {
-                try {
-                    URL url = new URL(torrentUrl);
-                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                    connection.setRequestMethod("GET");
-                    connection.setInstanceFollowRedirects(true);
-                    connection.connect();
-                    InputStream inputStream = connection.getInputStream();
-                    responseByteArray = new byte[0];
-                    if (connection.getResponseCode() == 200) {
-                        responseByteArray = IOUtils.toByteArray(inputStream);
-                    }
+            try {
+                FileInputStream fileInputStream = new FileInputStream(file);
+                byte[] responseByteArray = IOUtils.toByteArray(fileInputStream);
+                fileInputStream.close();
 
-                    inputStream.close();
-                    connection.disconnect();
-                    if (responseByteArray.length > 0) {
-                        return TorrentInfo.bdecode(responseByteArray);
-                    }
-                } catch (IllegalArgumentException | IOException var8) {
-                    throw new TorrentInfoException(var8);
+                if (responseByteArray.length > 0) {
+                    return TorrentInfo.bdecode(responseByteArray);
                 }
+            } catch (IOException | IllegalArgumentException e) {
+                throw new TorrentInfoException(e);
             }
         }
 

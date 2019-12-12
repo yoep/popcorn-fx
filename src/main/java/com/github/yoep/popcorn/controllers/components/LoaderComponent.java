@@ -16,6 +16,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -51,13 +52,8 @@ public class LoaderComponent {
         activityManager.register(PlayMediaMovieActivity.class, this::startTorrent);
         torrentStream.addListener(new TorrentListener() {
             @Override
-            public void onStreamPrepared(com.github.yoep.popcorn.torrent.Torrent torrent) {
-
-            }
-
-            @Override
             public void onStreamStarted(com.github.yoep.popcorn.torrent.Torrent torrent) {
-
+                Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.STARTING)));
             }
 
             @Override
@@ -67,17 +63,22 @@ public class LoaderComponent {
 
             @Override
             public void onStreamReady(com.github.yoep.popcorn.torrent.Torrent torrent) {
-
+                Platform.runLater(() -> {
+                    statusText.setText(localeText.get(TorrentMessage.READY));
+                    progressBar.setProgress(1);
+                });
             }
 
             @Override
             public void onStreamProgress(com.github.yoep.popcorn.torrent.Torrent torrent, StreamStatus status) {
                 Platform.runLater(() -> {
                     progressStatus.setVisible(true);
+                    progressBar.setProgress(status.getProgress());
                     statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
-                    progressPercentage.setText(status.progress + "%");
-                    downloadText.setText(String.valueOf(status.downloadSpeed));
-                    activePeersText.setText(String.valueOf(status.seeds));
+                    progressPercentage.setText(String.format("%1$,.2f", status.getProgress() * 100) + "%");
+                    downloadText.setText(FileUtils.byteCountToDisplaySize(status.getDownloadSpeed()) + "/s");
+                    uploadText.setText(FileUtils.byteCountToDisplaySize(status.getUploadSpeed()) + "/s");
+                    activePeersText.setText(String.valueOf(status.getSeeds()));
                 });
             }
 
@@ -90,7 +91,10 @@ public class LoaderComponent {
 
     private void startTorrent(PlayMediaMovieActivity activity) {
         taskExecutor.execute(() -> {
-            Platform.runLater(() -> progressStatus.setVisible(false));
+            Platform.runLater(() -> {
+                progressStatus.setVisible(false);
+                progressBar.setProgress(-1);
+            });
 
             if (!torrentStream.isInitialized())
                 waitForTorrentStream();

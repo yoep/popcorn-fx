@@ -7,7 +7,9 @@ import lombok.Getter;
 public enum TorrentMessage implements Message {
     INITIALIZING("torrent_initializing"),
     CONNECTING("torrent_connecting"),
-    DOWNLOADING("torrent_downloading");
+    STARTING("torrent_starting"),
+    DOWNLOADING("torrent_downloading"),
+    READY("torrent_ready");
 
     private final String key;
 

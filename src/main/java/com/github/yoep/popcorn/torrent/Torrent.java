@@ -6,6 +6,7 @@ import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.frostwire.jlibtorrent.alerts.BlockFinishedAlert;
 import com.frostwire.jlibtorrent.alerts.PieceFinishedAlert;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,6 +18,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+@Slf4j
 public class Torrent implements AlertListener {
 
     private final static Integer MAX_PREPARE_COUNT = 20;
@@ -67,9 +69,7 @@ public class Torrent implements AlertListener {
             setLargestFile();
         }
 
-        if (this.listener != null) {
-            this.listener.onStreamPrepared(this);
-        }
+        startDownload();
     }
 
     /**
@@ -360,6 +360,7 @@ public class Torrent implements AlertListener {
 
     /**
      * Get the index of the piece we're currently interested in
+     *
      * @return Interested piece index
      */
     public int getInterestedPieceIndex() {
@@ -368,6 +369,7 @@ public class Torrent implements AlertListener {
 
     /**
      * Get amount of pieces to prepare
+     *
      * @return Amount of pieces to prepare
      */
     public Integer getPiecesToPrepare() {
@@ -459,12 +461,14 @@ public class Torrent implements AlertListener {
 
     private void sendStreamProgress() {
         TorrentStatus status = torrentHandle.status();
-        float progress = status.progress() * 100;
-        int seeds = status.numSeeds();
-        int downloadSpeed = status.downloadPayloadRate();
-
         if (listener != null && prepareProgress >= 1) {
-            listener.onStreamProgress(this, new StreamStatus(progress, prepareProgress.intValue(), seeds, downloadSpeed));
+            listener.onStreamProgress(this, StreamStatus.builder()
+                    .progress(status.progress())
+                    .bufferProgress(prepareProgress.intValue())
+                    .downloadSpeed(status.downloadRate())
+                    .uploadSpeed(status.uploadRate())
+                    .seeds(status.numSeeds())
+                    .build());
         }
     }
 

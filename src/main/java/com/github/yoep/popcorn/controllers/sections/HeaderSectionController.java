@@ -37,10 +37,10 @@ public class HeaderSectionController implements Initializable {
                 .sorted()
                 .collect(Collectors.toList());
 
+        genreCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
+                activityManager.register((GenreChangeActivity) () -> newValue));
         genreCombo.getItems().addAll(genres);
         genreCombo.getSelectionModel().select(0);
-        genreCombo.selectionModelProperty().addListener((observable, oldValue, newValue) ->
-                activityManager.register((GenreChangeActivity) newValue::getSelectedItem));
     }
 
     @FXML

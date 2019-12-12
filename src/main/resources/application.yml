@@ -22,24 +22,19 @@ popcorn:
     - disaster
     - documentary
     - drama
-    - eastern
     - family
-    - fan-film
     - fantasy
-    - film-noir
     - history
     - holiday
     - horror
-    - indie
     - music
     - mystery
     - romance
     - science-fiction
     - short
-    - sports
-    - sporting-event
     - suspense
     - thriller
-    - tv-movie
     - war
     - western
+  sort-by:
+    -

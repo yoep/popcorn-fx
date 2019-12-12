@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.media.providers;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.models.Genre;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -24,12 +25,12 @@ public class MoviesProvider {
         this.providerConfig = popcornConfig.getProvider("movies");
     }
 
-    public List<Movie> getPage(int page) {
+    public List<Movie> getPage(Genre genre, int page) {
         URI uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())
                 .path("/{page}")
                 .queryParam("sort", "trending")
                 .queryParam("order", -1)
-                .queryParam("genre", "all")
+                .queryParam("genre", genre.getKey())
                 .queryParam("keywords", "")
                 .build(page);
 

@@ -28,6 +28,11 @@ public class PopcornProperties {
      */
     @NotNull
     private List<String> genres;
+    /**
+     * The supported "sort by" by the Popcorn API.
+     */
+    @NotNull
+    private List<String> sortBy;
 
     public ProviderProperties getProvider(String name) {
         return providers.entrySet().stream()

@@ -63,7 +63,7 @@ public class InfiniteScrollPane extends ScrollPane {
      */
     public void reset() {
         page = 0;
-        itemsPane.getChildren().clear();
+        Platform.runLater(() -> itemsPane.getChildren().clear());
     }
 
     /**

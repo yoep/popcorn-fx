@@ -53,6 +53,7 @@ public class LoaderComponent {
         torrentStream.addListener(new TorrentListener() {
             @Override
             public void onStreamStarted(com.github.yoep.popcorn.torrent.Torrent torrent) {
+                log.debug("Torrent is starting");
                 Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.STARTING)));
             }
 
@@ -63,6 +64,7 @@ public class LoaderComponent {
 
             @Override
             public void onStreamReady(com.github.yoep.popcorn.torrent.Torrent torrent) {
+                log.debug("Torrent is ready to be displayed");
                 Platform.runLater(() -> {
                     statusText.setText(localeText.get(TorrentMessage.READY));
                     progressBar.setProgress(1);

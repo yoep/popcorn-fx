@@ -1,9 +1,6 @@
 package com.github.yoep.popcorn.torrent;
 
-import com.frostwire.jlibtorrent.SessionManager;
-import com.frostwire.jlibtorrent.SessionParams;
-import com.frostwire.jlibtorrent.SettingsPack;
-import com.frostwire.jlibtorrent.TorrentInfo;
+import com.frostwire.jlibtorrent.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -20,33 +17,89 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Arrays;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class TorrentStream {
+    private static final String SAVE_DIRECTORY_NAME = ".popcorn-time";
     private final TaskExecutor taskExecutor;
 
     private SessionManager torrentSession;
     private boolean initialized;
+    private boolean streaming;
+
+    //region Getters & Setters
+
+    /**
+     * Get if this torrent stream instance is initialized.
+     *
+     * @return Returns true if this instance is initialized and ready for use, else false.
+     */
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    /**
+     * Get if this instance is streaming.
+     *
+     * @return Returns true if this instance is streaming, else false.
+     */
+    public boolean isStreaming() {
+        return streaming;
+    }
+
+    //endregion
 
     public void startStream(String torrentUrl) {
         if (!initialized)
             throw new TorrentException("TorrentStream is not yet initialized");
 
-        TorrentInfo torrentInfo = getTorrentInfo(torrentUrl);
+        // start a new thread
+        taskExecutor.execute(() -> {
+            try {
+                log.debug("DHT contains {} nodes", torrentSession.stats().dhtNodes());
+                TorrentInfo torrentInfo = getTorrentInfo(torrentUrl);
+
+                Priority[] priorities = new Priority[torrentInfo.numFiles()];
+
+                Arrays.fill(priorities, Priority.IGNORE);
+
+                this.torrentSession.download(torrentInfo, getSaveDirectory(), null, priorities, null);
+                this.streaming = true;
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        });
+    }
+
+    public void stopStream() {
+        if (!this.streaming)
+            return;
+
+
     }
 
     @PostConstruct
     private void init() {
         taskExecutor.execute(() -> {
-            log.trace("Initializing TorrentStream...");
+            log.trace("Initializing TorrentStream");
+            long startTime = System.currentTimeMillis();
             initNativeLibraries();
-            initSessionManager();
+            this.torrentSession = new SessionManager();
             initSettings();
-            this.initialized = true;
-            log.debug("TorrentStream initialized");
+            initSaveDirectory();
+            initDHT(startTime);
         });
+    }
+
+    private void initSaveDirectory() {
+        File directory = getSaveDirectory();
+
+        if (directory.mkdirs()) {
+            log.info("Created torrent save directory in {}", directory.getAbsolutePath());
+        }
     }
 
     private void initNativeLibraries() {
@@ -67,16 +120,12 @@ public class TorrentStream {
         }
     }
 
-    private void initSessionManager() {
-        this.torrentSession = new SessionManager();
-    }
-
     private void initSettings() {
         SettingsPack settingsPack = (new SettingsPack())
                 .anonymousMode(true)
                 .connectionsLimit(200)
                 .downloadRateLimit(0)
-                .uploadRateLimit(1)
+                .uploadRateLimit(0)
                 .sendBufferWatermark(16)
                 .activeDhtLimit(88);
 
@@ -87,9 +136,32 @@ public class TorrentStream {
         }
     }
 
+    private void initDHT(long startTime) {
+        log.trace("Starting torrent session DHT");
+        this.torrentSession.startDht();
+
+        taskExecutor.execute(() -> {
+            try {
+                // wait for the dht to have at least 10 nodes before continuing
+                while (this.torrentSession.stats().dhtNodes() < 10) {
+                    Thread.sleep(100);
+                }
+            } catch (InterruptedException e) {
+                log.warn("Unexpectedly quit of DHT monitor with " + e.getMessage(), e);
+            }
+
+            this.initialized = true;
+            log.info("TorrentStream initialized in {} seconds", (System.currentTimeMillis() - startTime) / 1000.0);
+        });
+    }
+
+    private File getSaveDirectory() {
+        return new File(System.getProperty("user.home") + File.separator + SAVE_DIRECTORY_NAME);
+    }
+
     private TorrentInfo getTorrentInfo(String torrentUrl) throws TorrentInfoException {
         if (torrentUrl.startsWith("magnet")) {
-            byte[] data = this.torrentSession.fetchMagnet(torrentUrl, 20);
+            byte[] data = this.torrentSession.fetchMagnet(torrentUrl, 60);
             if (data != null) {
                 try {
                     return TorrentInfo.bdecode(data);

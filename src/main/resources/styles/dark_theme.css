@@ -76,6 +76,53 @@
     -fx-background-color: #93989c;
 }
 
+.root SplitMenuButton,
+.root SplitMenuButton .label,
+.root SplitMenuButton .arrow-button,
+.root Button {
+    -fx-font-family: "Open Sans Bold";
+    -fx-background-color: #1f375f;
+    -fx-text-fill: #fff;
+    -fx-cursor: hand;
+}
+
+.root SplitMenuButton .label,
+.root SplitMenuButton .arrow-button,
+.root Button {
+    -fx-padding: 10 15 10 15;
+}
+
+.root SplitMenuButton:hover .label,
+.root SplitMenuButton:hover .arrow-button,
+.root Button:hover {
+    -fx-background-color: #225694;
+}
+
+.root SplitMenuButton .arrow-button {
+    -fx-border-width: 0 0 0 1;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+}
+
+.root SplitMenuButton .arrow-button .arrow {
+    -fx-background-color: #fff;
+}
+
+.root ProgressBar {
+    -fx-padding: 0 0 0 0;
+}
+
+.root ProgressBar .track {
+    -fx-background-color: #bababa;
+    -fx-background-radius: 6;
+}
+
+.root ProgressBar .bar {
+    -fx-background-color: #2468cc;
+    -fx-padding: 5 0 0 0;
+    -fx-background-radius: 6;
+    -fx-background-insets: 0;
+}
+
 .root .stars Icon {
     -fx-padding: 0 2 0 0;
     -fx-opacity: 1;
@@ -300,38 +347,7 @@
     -fx-text-fill: #737577;
 }
 
-.root .details SplitMenuButton,
-.root .details SplitMenuButton .label,
-.root .details SplitMenuButton .arrow-button,
-.root .details Button {
-    -fx-font-family: "Open Sans Bold";
-    -fx-background-color: #1f375f;
-    -fx-text-fill: #fff;
-    -fx-cursor: hand;
-}
-
-.root .details SplitMenuButton .label,
-.root .details SplitMenuButton .arrow-button,
-.root .details Button {
-    -fx-padding: 10 15 10 15;
-}
-
-.root .details SplitMenuButton:hover .label,
-.root .details SplitMenuButton:hover .arrow-button,
-.root .details Button:hover {
-    -fx-background-color: #225694;
-}
-
-.root .details SplitMenuButton .arrow-button {
-    -fx-border-width: 0 0 0 1;
-    -fx-border-color: rgba(255,255,255,0.2);
-}
-
-.root .details SplitMenuButton .arrow-button .arrow {
-    -fx-background-color: #fff;
-}
-
-.root .player  {
+.root .player {
     -fx-background-color: #000;
 }
 
@@ -388,4 +404,22 @@
 
 .root .player .player-controls .slider:disabled {
     -fx-control-inner-background: gray;
+}
+
+.root .loader .status-text {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #f9fafc;
+    -fx-font-size: 1.5em;
+}
+
+.root .loader .progress-status {
+    -fx-max-width: 400;
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-background-radius: 5;
+}
+
+.root .loader .progress-status Label {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #f9fafc;
+    -fx-font-size: 1.2em;
 }

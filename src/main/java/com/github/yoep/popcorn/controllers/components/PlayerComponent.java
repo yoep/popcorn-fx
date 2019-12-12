@@ -111,7 +111,7 @@ public class PlayerComponent implements Initializable {
             Platform.runLater(() -> title.setText(activity.getMedia().getTitle()));
         });
         activityManager.register(PlayMediaMovieActivity.class, activity -> {
-            torrentStream.startStream(activity.getMedia().getTorrents().get("en").get(activity.getQuality()).getUrl());
+
         });
         activityManager.register(FullscreenActivity.class, activity -> {
             if (activity.isFullscreen()) {

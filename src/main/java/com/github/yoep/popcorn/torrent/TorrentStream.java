@@ -1,6 +1,8 @@
 package com.github.yoep.popcorn.torrent;
 
 import com.frostwire.jlibtorrent.*;
+import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.torrent.listeners.TorrentListenerHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -11,6 +13,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,11 +27,14 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class TorrentStream {
     private static final String SAVE_DIRECTORY_NAME = ".popcorn-time";
+
+    private final TorrentListenerHolder listenerHolder = new TorrentListenerHolder();
     private final TaskExecutor taskExecutor;
 
     private SessionManager torrentSession;
+    private TorrentFactory torrentFactory;
+    private Thread currentStream;
     private boolean initialized;
-    private boolean streaming;
 
     //region Getters & Setters
 
@@ -47,17 +53,27 @@ public class TorrentStream {
      * @return Returns true if this instance is streaming, else false.
      */
     public boolean isStreaming() {
-        return streaming;
+        return currentStream != null && currentStream.isAlive();
     }
 
     //endregion
+
+    public void addListener(TorrentListener listener) {
+        listenerHolder.addListener(listener);
+    }
+
+    public void removeListener(TorrentListener listener) {
+        listenerHolder.removeListener(listener);
+    }
 
     public void startStream(String torrentUrl) {
         if (!initialized)
             throw new TorrentException("TorrentStream is not yet initialized");
 
-        // start a new thread
-        taskExecutor.execute(() -> {
+        if (isStreaming())
+            stopStream();
+
+        this.currentStream = new Thread(() -> {
             try {
                 log.debug("DHT contains {} nodes", torrentSession.stats().dhtNodes());
                 TorrentInfo torrentInfo = getTorrentInfo(torrentUrl);
@@ -67,18 +83,21 @@ public class TorrentStream {
                 Arrays.fill(priorities, Priority.IGNORE);
 
                 this.torrentSession.download(torrentInfo, getSaveDirectory(), null, priorities, null);
-                this.streaming = true;
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }
         });
+
+        // start a new thread
+        taskExecutor.execute(this.currentStream);
     }
 
     public void stopStream() {
-        if (!this.streaming)
+        if (!isStreaming())
             return;
 
-
+        this.currentStream.interrupt();
+        this.torrentFactory.getCurrentTorrent().ifPresent(Torrent::pause);
     }
 
     @PostConstruct
@@ -87,19 +106,17 @@ public class TorrentStream {
             log.trace("Initializing TorrentStream");
             long startTime = System.currentTimeMillis();
             initNativeLibraries();
-            this.torrentSession = new SessionManager();
+            initSession();
             initSettings();
             initSaveDirectory();
             initDHT(startTime);
         });
     }
 
-    private void initSaveDirectory() {
-        File directory = getSaveDirectory();
-
-        if (directory.mkdirs()) {
-            log.info("Created torrent save directory in {}", directory.getAbsolutePath());
-        }
+    @PreDestroy
+    public void destroy() {
+        stopStream();
+        this.torrentSession.stop();
     }
 
     private void initNativeLibraries() {
@@ -120,6 +137,11 @@ public class TorrentStream {
         }
     }
 
+    private void initSession() {
+        this.torrentSession = new SessionManager();
+        this.torrentFactory = new TorrentFactory(this.torrentSession, this.listenerHolder);
+    }
+
     private void initSettings() {
         SettingsPack settingsPack = (new SettingsPack())
                 .anonymousMode(true)
@@ -133,6 +155,14 @@ public class TorrentStream {
             this.torrentSession.start(new SessionParams(settingsPack));
         } else {
             this.torrentSession.applySettings(settingsPack);
+        }
+    }
+
+    private void initSaveDirectory() {
+        File directory = getSaveDirectory();
+
+        if (directory.mkdirs()) {
+            log.info("Created torrent save directory in {}", directory.getAbsolutePath());
         }
     }
 

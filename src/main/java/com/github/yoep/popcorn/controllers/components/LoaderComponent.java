@@ -6,7 +6,9 @@ import com.github.yoep.popcorn.activities.PlayMediaMovieActivity;
 import com.github.yoep.popcorn.activities.PlayerCloseActivity;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.TorrentMessage;
+import com.github.yoep.popcorn.torrent.StreamStatus;
 import com.github.yoep.popcorn.torrent.TorrentStream;
+import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -47,20 +49,73 @@ public class LoaderComponent {
     @PostConstruct
     private void init() {
         activityManager.register(PlayMediaMovieActivity.class, this::startTorrent);
+        torrentStream.addListener(new TorrentListener() {
+            @Override
+            public void onStreamPrepared(com.github.yoep.popcorn.torrent.Torrent torrent) {
+
+            }
+
+            @Override
+            public void onStreamStarted(com.github.yoep.popcorn.torrent.Torrent torrent) {
+
+            }
+
+            @Override
+            public void onStreamError(com.github.yoep.popcorn.torrent.Torrent torrent, Exception e) {
+
+            }
+
+            @Override
+            public void onStreamReady(com.github.yoep.popcorn.torrent.Torrent torrent) {
+
+            }
+
+            @Override
+            public void onStreamProgress(com.github.yoep.popcorn.torrent.Torrent torrent, StreamStatus status) {
+                Platform.runLater(() -> {
+                    progressStatus.setVisible(true);
+                    statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
+                    progressPercentage.setText(status.progress + "%");
+                    downloadText.setText(String.valueOf(status.downloadSpeed));
+                    activePeersText.setText(String.valueOf(status.seeds));
+                });
+            }
+
+            @Override
+            public void onStreamStopped() {
+
+            }
+        });
     }
 
     private void startTorrent(PlayMediaMovieActivity activity) {
-        Platform.runLater(() -> {
-            progressStatus.setVisible(false);
-            statusText.setText(localeText.get(TorrentMessage.CONNECTING));
-        });
-
-        // go to a separate thread to unblock the activityManager
         taskExecutor.execute(() -> {
-            Map<String, Map<String, Torrent>> torrents = activity.getMedia().getTorrents();
+            Platform.runLater(() -> progressStatus.setVisible(false));
 
-            torrentStream.startStream(torrents.get("en").get(activity.getQuality()).getUrl());
+            if (!torrentStream.isInitialized())
+                waitForTorrentStream();
+
+            Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
+
+            // go to a separate thread to unblock the activityManager
+            taskExecutor.execute(() -> {
+                Map<String, Map<String, Torrent>> torrents = activity.getMedia().getTorrents();
+
+                torrentStream.startStream(torrents.get("en").get(activity.getQuality()).getUrl());
+            });
         });
+    }
+
+    private void waitForTorrentStream() {
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
+
+        try {
+            while (!torrentStream.isInitialized()) {
+                Thread.sleep(100);
+            }
+        } catch (InterruptedException e) {
+            log.error(e.getMessage(), e);
+        }
     }
 
     private void stopStream() {

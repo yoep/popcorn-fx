@@ -3,8 +3,10 @@ package com.github.yoep.popcorn.controllers.sections;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.GenreChangeActivity;
+import com.github.yoep.popcorn.activities.SortByChangeActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.models.Genre;
+import com.github.yoep.popcorn.models.SortBy;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
@@ -25,10 +27,13 @@ public class HeaderSectionController implements Initializable {
 
     @FXML
     private ComboBox<Genre> genreCombo;
+    @FXML
+    private ComboBox<SortBy> sortByCombo;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeGenres();
+        initializeSortBy();
     }
 
     private void initializeGenres() {
@@ -41,6 +46,17 @@ public class HeaderSectionController implements Initializable {
                 activityManager.register((GenreChangeActivity) () -> newValue));
         genreCombo.getItems().addAll(genres);
         genreCombo.getSelectionModel().select(0);
+    }
+
+    private void initializeSortBy() {
+        List<SortBy> sortBy = popcornProperties.getSortBy().stream()
+                .map(e -> new SortBy(e, localeText.get("sort-by_" + e)))
+                .collect(Collectors.toList());
+
+        sortByCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
+                activityManager.register((SortByChangeActivity) () -> newValue));
+        sortByCombo.getItems().addAll(sortBy);
+        sortByCombo.getSelectionModel().select(0);
     }
 
     @FXML

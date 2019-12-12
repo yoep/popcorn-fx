@@ -37,4 +37,9 @@ popcorn:
     - war
     - western
   sort-by:
-    -
+    - trending
+    - popularity
+    - last added
+    - year
+    - title
+    - rating

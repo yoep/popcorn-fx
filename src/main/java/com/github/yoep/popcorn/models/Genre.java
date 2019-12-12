@@ -1,13 +1,13 @@
 package com.github.yoep.popcorn.models;
 
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 public class Genre implements Comparable<Genre> {
     private static final String ALL_KEYWORD = "all";
 
-    private String key;
-    private String text;
+    private final String key;
+    private final String text;
 
     public Genre(String key, String text) {
         this.key = key;

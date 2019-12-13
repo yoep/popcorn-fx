@@ -8,9 +8,11 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.image.Image;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
@@ -48,6 +50,9 @@ public class BackgroundComponent implements Initializable {
 
     private void loadBackgroundImage(final Media media) {
         taskExecutor.execute(() -> {
+            // set black background first
+            Platform.runLater(() -> this.backgroundImage.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY))));
+
             // try to load the background image
             try {
                 Optional.ofNullable(media.getImages())

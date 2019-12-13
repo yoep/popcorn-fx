@@ -10,6 +10,8 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.models.TorrentHealth;
+import com.github.yoep.popcorn.services.TorrentService;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -35,6 +37,7 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
+import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.stream.Stream;
@@ -47,6 +50,7 @@ public class DetailsSectionController implements Initializable {
     private final LocaleText localeText;
     private final Application application;
     private final TaskExecutor taskExecutor;
+    private final TorrentService torrentService;
 
     private Media media;
 
@@ -120,6 +124,7 @@ public class DetailsSectionController implements Initializable {
         loadText();
         loadStars();
         loadButtons();
+        loadHealth();
         loadPosterImage();
     }
 
@@ -159,6 +164,25 @@ public class DetailsSectionController implements Initializable {
 
         Movie movie = (Movie) media;
         watchTrailerButton.setVisible(StringUtils.isNotEmpty(movie.getTrailer()));
+    }
+
+    private void loadHealth() {
+        health.getStyleClass().removeIf(e -> !e.equals("health"));
+
+        media.getTorrents().get("en").entrySet().stream()
+                .findFirst()
+                .map(Map.Entry::getValue)
+                .ifPresent(e -> {
+                    TorrentHealth health = torrentService.calculateHealth(e.getSeed(), e.getPeer());
+
+                    this.health.getStyleClass().add(health.getStatus().getStyleClass());
+                    Tooltip tooltip = new Tooltip(
+                            localeText.get(health.getStatus().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
+                                    "Seeds: " + e.getSeed() + " - Peers: " + e.getPeer());
+                    tooltip.setWrapText(true);
+                    Tooltip.install(this.health, tooltip);
+                });
+
     }
 
     private void openMagnetLink(Torrent torrent) {

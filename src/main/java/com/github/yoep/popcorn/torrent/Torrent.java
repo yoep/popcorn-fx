@@ -20,7 +20,6 @@ import java.util.List;
 
 @Slf4j
 public class Torrent implements AlertListener {
-
     private final static Integer MAX_PREPARE_COUNT = 20;
     private final static Integer MIN_PREPARE_COUNT = 2;
     private final static Integer DEFAULT_PREPARE_COUNT = 5;
@@ -48,6 +47,7 @@ public class Torrent implements AlertListener {
     private final Long prepareSize;
 
     public Torrent(TorrentHandle torrentHandle, TorrentListener listener, Long prepareSize) {
+        log.debug("Creating new torrent for " + torrentHandle);
         this.torrentHandle = torrentHandle;
         this.listener = listener;
         this.prepareSize = prepareSize;
@@ -227,7 +227,10 @@ public class Torrent implements AlertListener {
      * from {@code firstPieceIndex} and {@code lastPieceIndex}. Ignore all other pieces.
      */
     public void startDownload() {
-        if (state == State.STREAMING) return;
+        if (state == State.STREAMING)
+            return;
+
+        log.debug("Starting torrent download");
         state = State.STARTING;
 
         List<Integer> indices = new ArrayList<>();

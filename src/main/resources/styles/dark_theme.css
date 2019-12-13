@@ -28,10 +28,13 @@
 .root InfiniteScrollPane > .viewport,
 .root InfiniteScrollPane .scroll-bar,
 .root ComboBox .scroll-bar,
-.root .header .bar,
-.root .tooltip {
+.root .header .bar {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
+}
+
+.root .tooltip {
+    -fx-background-color: rgba(23, 24, 27, 0.6);
 }
 
 .root InfiniteScrollPane .scroll-bar,
@@ -343,8 +346,31 @@
     -fx-text-fill: #fff;
 }
 
+.root .details .magnet-link .tooltip,
+.root .details .health .tooltip {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1em;
+}
+
 .root .details .health {
     -fx-text-fill: #737577;
+}
+
+.root .details .health.bad {
+    -fx-text-fill: #d53f3f;
+}
+
+.root .details .health.medium {
+    -fx-text-fill: #ece523;
+}
+
+.root .details .health.good {
+    -fx-text-fill: #a3e147;
+}
+
+.root .details .health.excellent {
+    -fx-text-fill: #2ad942;
 }
 
 .root .player {

@@ -52,6 +52,16 @@ public class LoaderComponent {
         activityManager.register(PlayMediaMovieActivity.class, this::startTorrent);
         torrentStream.addListener(new TorrentListener() {
             @Override
+            public void onLoadError(String message) {
+                log.warn("Torrent loading failed: {}", message);
+                Platform.runLater(() -> {
+                    statusText.setText(localeText.get(TorrentMessage.FAILED));
+                    progressBar.setProgress(1);
+                    progressBar.getStyleClass().add("error");
+                });
+            }
+
+            @Override
             public void onStreamStarted(com.github.yoep.popcorn.torrent.Torrent torrent) {
                 log.debug("Torrent is starting");
                 Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.STARTING)));

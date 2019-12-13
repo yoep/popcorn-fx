@@ -11,6 +11,13 @@ public class TorrentListenerHolder implements TorrentListener {
     private final List<TorrentListener> listeners = new ArrayList<>();
 
     @Override
+    public void onLoadError(String message) {
+        synchronized (listeners) {
+            listeners.forEach(e -> e.onLoadError(message));
+        }
+    }
+
+    @Override
     public void onStreamStarted(Torrent torrent) {
         synchronized (listeners) {
             listeners.forEach(e -> e.onStreamStarted(torrent));

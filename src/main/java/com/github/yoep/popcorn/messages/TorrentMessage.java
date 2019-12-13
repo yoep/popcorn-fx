@@ -9,7 +9,8 @@ public enum TorrentMessage implements Message {
     CONNECTING("torrent_connecting"),
     STARTING("torrent_starting"),
     DOWNLOADING("torrent_downloading"),
-    READY("torrent_ready");
+    READY("torrent_ready"),
+    FAILED("torrent_failed");
 
     private final String key;
 

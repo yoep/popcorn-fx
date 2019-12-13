@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -76,13 +77,14 @@ public class TorrentStream {
         this.currentStream = new Thread(() -> {
             try {
                 log.debug("DHT contains {} nodes", torrentSession.stats().dhtNodes());
-                TorrentInfo torrentInfo = getTorrentInfo(torrentUrl);
+                getTorrentInfo(torrentUrl)
+                        .ifPresentOrElse(torrentInfo -> {
+                            Priority[] priorities = new Priority[torrentInfo.numFiles()];
 
-                Priority[] priorities = new Priority[torrentInfo.numFiles()];
+                            Arrays.fill(priorities, Priority.IGNORE);
 
-                Arrays.fill(priorities, Priority.IGNORE);
-
-                this.torrentSession.download(torrentInfo, getSaveDirectory(), null, priorities, null);
+                            this.torrentSession.download(torrentInfo, getSaveDirectory(), null, priorities, null);
+                        }, () -> listenerHolder.onLoadError("Failed to retrieve torrent information"));
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }
@@ -147,7 +149,7 @@ public class TorrentStream {
                 .anonymousMode(true)
                 .connectionsLimit(200)
                 .downloadRateLimit(0)
-                .uploadRateLimit(1)
+                .uploadRateLimit(0)
                 .sendBufferWatermark(16)
                 .activeDhtLimit(88);
 
@@ -195,12 +197,12 @@ public class TorrentStream {
      * @param torrentUrl {@link String} URL to .torrent or magnet link
      * @return {@link TorrentInfo}
      */
-    private TorrentInfo getTorrentInfo(String torrentUrl) throws TorrentInfoException {
+    private Optional<TorrentInfo> getTorrentInfo(String torrentUrl) throws TorrentInfoException {
         if (torrentUrl.startsWith("magnet")) {
-            byte[] data = torrentSession.fetchMagnet(torrentUrl, 30000);
+            byte[] data = torrentSession.fetchMagnet(torrentUrl, 60);
             if (data != null)
                 try {
-                    return TorrentInfo.bdecode(data);
+                    return Optional.of(TorrentInfo.bdecode(data));
                 } catch (IllegalArgumentException e) {
                     throw new TorrentInfoException(e);
                 }
@@ -226,7 +228,7 @@ public class TorrentStream {
                 connection.disconnect();
 
                 if (responseByteArray.length > 0) {
-                    return TorrentInfo.bdecode(responseByteArray);
+                    return Optional.of(TorrentInfo.bdecode(responseByteArray));
                 }
             } catch (IOException | IllegalArgumentException e) {
                 throw new TorrentInfoException(e);
@@ -240,13 +242,13 @@ public class TorrentStream {
                 fileInputStream.close();
 
                 if (responseByteArray.length > 0) {
-                    return TorrentInfo.bdecode(responseByteArray);
+                    return Optional.of(TorrentInfo.bdecode(responseByteArray));
                 }
             } catch (IOException | IllegalArgumentException e) {
                 throw new TorrentInfoException(e);
             }
         }
 
-        return null;
+        return Optional.empty();
     }
 }

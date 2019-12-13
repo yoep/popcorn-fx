@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
-<?import com.github.spring.boot.javafx.font.controls.Icons?>
+<?import com.github.yoep.popcorn.controls.Stars?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
-<?import com.github.yoep.popcorn.controls.Stars?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           styleClass="poster-item" onMouseClicked="#showDetails">
     <columnConstraints>

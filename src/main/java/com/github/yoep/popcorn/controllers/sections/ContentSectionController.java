@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.controllers.sections;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.DetailsCloseActivity;
 import com.github.yoep.popcorn.activities.DetailsShowActivity;
-import com.github.yoep.popcorn.media.providers.models.Media;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -26,22 +25,17 @@ public class ContentSectionController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeDetailsSection();
-    }
-
-    public void showDetails(Media media) {
-        listSection.setVisible(false);
-        detailsSection.setVisible(true);
-
-        activityManager.register((DetailsShowActivity) () -> media);
-    }
-
-    private void initializeDetailsSection() {
         detailsSection.setVisible(false);
 
+        activityManager.register(DetailsShowActivity.class, activity -> showDetails());
         activityManager.register(DetailsCloseActivity.class, activity -> Platform.runLater(() -> {
             listSection.setVisible(true);
             detailsSection.setVisible(false);
         }));
+    }
+
+    private void showDetails() {
+        listSection.setVisible(false);
+        detailsSection.setVisible(true);
     }
 }

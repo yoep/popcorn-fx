@@ -26,7 +26,7 @@ public class Torrent implements AlertListener {
     private final static Integer DEFAULT_PREPARE_COUNT = 5;
     private final static Integer SEQUENTIAL_CONCURRENT_PIECES_COUNT = 5;
 
-    public enum State {UNKNOWN, RETRIEVING_META, STARTING, STREAMING}
+    public enum State {RETRIEVING_META, STARTING, STREAMING}
 
     private Integer piecesToPrepare;
     private Integer lastPieceIndex;
@@ -47,28 +47,14 @@ public class Torrent implements AlertListener {
     private final TorrentListener listener;
     private final Long prepareSize;
 
-    /**
-     * The constructor for a new Torrent
-     * <p/>
-     * First the largest file in the download is selected as the file for playback
-     * <p/>
-     * After setting this priority, the first and last index of the pieces that make up this file are determined.
-     * And last: amount of pieces that are needed for playback are calculated (needed for playback means: make up 10 megabyte of the file)
-     *
-     * @param torrentHandle jlibtorrent TorrentHandle
-     */
     public Torrent(TorrentHandle torrentHandle, TorrentListener listener, Long prepareSize) {
         this.torrentHandle = torrentHandle;
         this.listener = listener;
-
         this.prepareSize = prepareSize;
 
         torrentStreamReferences = new ArrayList<>();
 
-        if (selectedFileIndex == -1) {
-            setLargestFile();
-        }
-
+        setLargestFile();
         startDownload();
     }
 

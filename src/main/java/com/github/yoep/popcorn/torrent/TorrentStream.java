@@ -147,7 +147,7 @@ public class TorrentStream {
                 .anonymousMode(true)
                 .connectionsLimit(200)
                 .downloadRateLimit(0)
-                .uploadRateLimit(0)
+                .uploadRateLimit(1)
                 .sendBufferWatermark(16)
                 .activeDhtLimit(88);
 

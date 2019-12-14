@@ -26,11 +26,11 @@ public class TorrentHealth {
 
     @Getter
     public enum Status {
-        UNKNOWN("details_health_unknown", "unknown"),
-        BAD("details_health_bad", "bad"),
-        MEDIUM("details_health_medium", "medium"),
-        GOOD("details_health_good", "good"),
-        EXCELLENT("details_health_excellent", "excellent");
+        UNKNOWN("health_unknown", "unknown"),
+        BAD("health_bad", "bad"),
+        MEDIUM("health_medium", "medium"),
+        GOOD("health_good", "good"),
+        EXCELLENT("health_excellent", "excellent");
 
         private final String key;
         private final String styleClass;

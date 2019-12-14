@@ -97,7 +97,6 @@ public class DetailsSectionController implements Initializable {
 
     private void initializeTooltips() {
         Tooltip.install(magnetLink, new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK)));
-        Tooltip.install(health, new Tooltip(localeText.get(DetailsMessage.HEALTH_UNKNOWN)));
     }
 
     private void initializeListeners() {

@@ -69,7 +69,7 @@ public class LoaderComponent {
 
             @Override
             public void onStreamError(com.github.yoep.popcorn.torrent.Torrent torrent, Exception e) {
-
+                log.warn("Torrent stream error: " + e.getMessage(), e);
             }
 
             @Override
@@ -96,7 +96,7 @@ public class LoaderComponent {
 
             @Override
             public void onStreamStopped() {
-
+                log.debug("Torrent stream has stopped");
             }
         });
     }
@@ -106,6 +106,7 @@ public class LoaderComponent {
             Platform.runLater(() -> {
                 progressStatus.setVisible(false);
                 progressBar.setProgress(-1);
+                progressBar.getStyleClass().remove("error");
             });
 
             if (!torrentStream.isInitialized())

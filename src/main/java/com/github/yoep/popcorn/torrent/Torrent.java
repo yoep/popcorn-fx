@@ -262,7 +262,7 @@ public class Torrent implements AlertListener {
         TorrentInfo torrentInfo = torrentHandle.torrentFile();
         TorrentStatus status = torrentHandle.status();
 
-        double blockCount = indices.size() * torrentInfo.pieceLength() / status.blockSize();
+        double blockCount = (float) indices.size() * torrentInfo.pieceLength() / status.blockSize();
 
         progressStep = 100 / blockCount;
 
@@ -411,13 +411,7 @@ public class Torrent implements AlertListener {
                 }
             }
         } else {
-            Iterator<Integer> piecesIterator = preparePieces.iterator();
-            while (piecesIterator.hasNext()) {
-                int index = piecesIterator.next();
-                if (index == alert.pieceIndex()) {
-                    piecesIterator.remove();
-                }
-            }
+            preparePieces.removeIf(index -> index == alert.pieceIndex());
 
             if (hasPieces != null) {
                 hasPieces[alert.pieceIndex() - firstPieceIndex] = true;

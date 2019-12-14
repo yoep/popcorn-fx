@@ -124,7 +124,7 @@ public class TorrentStream {
     private void initNativeLibraries() {
         try {
             PathMatchingResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
-            Resource[] resources = resourcePatternResolver.getResources("classpath*:**/jlibtorrent-*");
+            Resource[] resources = resourcePatternResolver.getResources("classpath*:**/*jlibtorrent-*");
             String workingDir = System.getProperty("user.dir");
 
             for (Resource resource : resources) {

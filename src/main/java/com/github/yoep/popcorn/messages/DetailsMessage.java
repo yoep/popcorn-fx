@@ -5,8 +5,7 @@ import lombok.Getter;
 
 @Getter
 public enum DetailsMessage implements Message {
-    MAGNET_LINK("details_magnet_link"),
-    HEALTH_UNKNOWN("health_unknown");
+    MAGNET_LINK("details_magnet_link");
 
     private final String key;
 

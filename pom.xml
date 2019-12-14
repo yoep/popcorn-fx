@@ -112,7 +112,7 @@
             <version>1.0.0</version>
         </dependency>
 
-        <!-- Butter -->
+        <!-- JLibtorrent -->
         <dependency>
             <groupId>com.frostwire</groupId>
             <artifactId>jlibtorrent</artifactId>
@@ -123,6 +123,8 @@
             <artifactId>jlibtorrent-windows</artifactId>
             <version>${jlibtorrent.version}</version>
         </dependency>
+
+        <!-- VLC player -->
         <dependency>
             <groupId>uk.co.caprica</groupId>
             <artifactId>vlcj</artifactId>

@@ -123,10 +123,22 @@ public class PlayerComponent implements Initializable {
     }
 
     private void initializeSlider() {
+        slider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                videoPlayer.pause();
+            } else {
+                videoPlayer.resume();
+            }
+        });
         slider.valueProperty().addListener((observableValue, oldValue, newValue) -> {
             if (slider.isValueChanging()) {
                 videoPlayer.setTime(newValue.longValue());
             }
+        });
+        slider.setOnMouseReleased(event -> {
+            slider.setValueChanging(true);
+            slider.setValue(slider.getValue() + 1);
+            slider.setValueChanging(false);
         });
     }
 

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.CategoryChangedActivity;
 import com.github.yoep.popcorn.activities.DetailsCloseActivity;
 import com.github.yoep.popcorn.activities.DetailsShowActivity;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
@@ -27,15 +27,13 @@ public class ContentSectionController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         detailsSection.setVisible(false);
 
-        activityManager.register(DetailsShowActivity.class, activity -> showDetails());
-        activityManager.register(DetailsCloseActivity.class, activity -> Platform.runLater(() -> {
-            listSection.setVisible(true);
-            detailsSection.setVisible(false);
-        }));
+        activityManager.register(DetailsShowActivity.class, activity -> switchContent(true));
+        activityManager.register(DetailsCloseActivity.class, activity -> switchContent(false));
+        activityManager.register(CategoryChangedActivity.class, activity -> switchContent(false));
     }
 
-    private void showDetails() {
-        listSection.setVisible(false);
-        detailsSection.setVisible(true);
+    private void switchContent(boolean isDetailsVisible) {
+        listSection.setVisible(!isDetailsVisible);
+        detailsSection.setVisible(isDetailsVisible);
     }
 }

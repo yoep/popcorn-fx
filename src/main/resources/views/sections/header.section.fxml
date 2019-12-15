@@ -18,9 +18,9 @@
         </rowConstraints>
 
         <HBox styleClass="filter-nav-bar" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
-            <Label styleClass="active" text="%filter_movies"/>
-            <Label text="%filter_series"/>
-            <Label text="%filter_favorites"/>
+            <Label fx:id="moviesCategory" text="%filter_movies" onMouseClicked="#onCategoryClicked"/>
+            <Label fx:id="seriesCategory" text="%filter_series" onMouseClicked="#onCategoryClicked"/>
+            <Label fx:id="favoritesCategory" text="%filter_favorites" onMouseClicked="#onCategoryClicked"/>
         </HBox>
 
         <HBox styleClass="filter-bar" GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">

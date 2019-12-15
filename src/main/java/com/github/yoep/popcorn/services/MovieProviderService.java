@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.services;
 
 import com.github.yoep.popcorn.media.providers.MoviesProvider;
 import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,11 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class MovieProviderService implements ProviderService<Movie> {
     private final MoviesProvider moviesProvider;
+
+    @Override
+    public boolean supports(Category category) {
+        return category == Category.MOVIES;
+    }
 
     @Override
     public CompletableFuture<List<Movie>> getPage(Genre genre, SortBy sortBy, int page) {

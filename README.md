@@ -13,3 +13,11 @@ missing from the modules causing an `IllegalAccessException` when trying to run 
 Add the following options to the `VM Options` in the run configuration of IntelliJ to fix this issue. 
 
     -p "<PATH TO JAVAFX SDK>\lib" --add-modules javafx.controls,javafx.fxml,javafx.swing
+    
+## TODO features
+
+- Add search
+- Add settings
+- Add favorites
+- Mark as watched when the video is at 90%
+- Resume video on last view time

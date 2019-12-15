@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.torrent.listeners.TorrentListenerHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -133,7 +134,7 @@ public class TorrentStream {
 
             for (Resource resource : resources) {
                 String filename = resource.getFilename();
-                File destination = new File(workingDir + File.separator + filename);
+                File destination = new File(workingDir + File.separator + "jlibtorrent-1.2.0.18." + FilenameUtils.getExtension(filename));
 
                 if (!destination.exists())
                     FileUtils.copyInputStreamToFile(resource.getInputStream(), destination);

@@ -2,7 +2,10 @@ package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.CategoryChangedActivity;
+import com.github.yoep.popcorn.activities.GenreChangeActivity;
+import com.github.yoep.popcorn.activities.SortByChangeActivity;
 import com.github.yoep.popcorn.controllers.components.MediaCardComponent;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
 import com.github.yoep.popcorn.media.providers.models.Media;
@@ -22,6 +25,7 @@ import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Controller
@@ -35,6 +39,9 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
     private Category category;
     private Genre genre;
     private SortBy sortBy;
+
+    private CompletableFuture currentLoadRequest;
+    private Thread currentProcessingThread;
 
     @FXML
     private InfiniteScrollPane scrollPane;
@@ -82,6 +89,12 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
         if (category == null || genre == null || sortBy == null)
             return;
 
+        // cancel the current load request if present
+        if (currentLoadRequest != null)
+            currentLoadRequest.cancel(true);
+        if (currentProcessingThread != null && currentProcessingThread.isAlive())
+            currentProcessingThread.interrupt();
+
         log.trace("Retrieving media page {} for {} category", page, category);
         providerServices.stream()
                 .filter(e -> e.supports(category))
@@ -91,21 +104,28 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
     }
 
     private void retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
-        provider.getPage(genre, sortBy, page)
+        currentLoadRequest = provider.getPage(genre, sortBy, page)
                 .thenAccept(this::processMediaPage);
     }
 
-    private void processMediaPage(List<? extends Media> mediaList) {
-        mediaList.forEach(media -> {
-            MediaCardComponent mediaCardComponent = new MediaCardComponent(media, taskExecutor, this::onItemClicked);
-            Pane component = viewLoader.loadComponent("media-card.component.fxml", mediaCardComponent);
+    private void processMediaPage(final List<? extends Media> mediaList) {
+        // offload to a thread which we can cancel later on
+        currentProcessingThread = new Thread(() -> {
+            mediaList.forEach(media -> {
+                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, taskExecutor, this::onItemClicked);
+                Pane component = viewLoader.loadComponent("media-card.component.fxml", mediaCardComponent);
 
-            scrollPane.addItem(component);
+                scrollPane.addItem(component);
+            });
         });
+        taskExecutor.execute(currentProcessingThread);
     }
 
     private void onItemClicked(Media media) {
-        activityManager.register((DetailsShowActivity) () -> media);
+        providerServices.stream()
+                .filter(e -> e.supports(category))
+                .findFirst()
+                .ifPresent(provider -> provider.showDetails(media));
     }
 
     private void reset() {

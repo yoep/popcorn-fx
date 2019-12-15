@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.services;
 
+import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
@@ -17,6 +18,7 @@ import java.net.URI;
 @RequiredArgsConstructor
 public abstract class AbstractProviderService<T extends Media> implements ProviderService<T> {
     protected final RestTemplate restTemplate;
+    protected final ActivityManager activityManager;
 
     protected URI getUriFor(Genre genre, SortBy sortBy, String keywords, int page) {
         return UriComponentsBuilder.fromUri(getBaseUrl())

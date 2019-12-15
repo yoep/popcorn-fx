@@ -1,96 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.*?>
-<?import com.github.yoep.popcorn.controls.Stars?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.controllers.sections.DetailsSectionController" styleClass="details">
-    <columnConstraints>
-        <ColumnConstraints minWidth="20" percentWidth="10"/>
-        <ColumnConstraints minWidth="400" percentWidth="80"/>
-        <ColumnConstraints minWidth="20" percentWidth="10"/>
-    </columnConstraints>
-    <rowConstraints>
-        <RowConstraints minHeight="20" percentHeight="10"/>
-        <RowConstraints minHeight="300" percentHeight="80" vgrow="ALWAYS"/>
-        <RowConstraints minHeight="20" percentHeight="10"/>
-    </rowConstraints>
-
-    <fx:include source="../components/background.component.fxml"
-                GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-
-    <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2"
-          GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.halignment="RIGHT" GridPane.valignment="TOP">
-        <padding>
-            <Insets top="5" right="15"/>
-        </padding>
-        <Icons fx:constant="CROSS"/>
-    </Icon>
-
-    <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">
-        <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS" percentWidth="35" halignment="RIGHT"/>
-            <ColumnConstraints hgrow="NEVER" minWidth="10"/>
-            <ColumnConstraints hgrow="ALWAYS" prefWidth="65" halignment="LEFT"/>
-        </columnConstraints>
-        <rowConstraints>
-            <RowConstraints vgrow="ALWAYS"/>
-        </rowConstraints>
-
-        <BorderPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
-        </BorderPane>
-
-        <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
-            <columnConstraints>
-                <ColumnConstraints/>
-                <ColumnConstraints/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints/>
-                <RowConstraints minHeight="30" valignment="CENTER"/>
-                <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
-                <RowConstraints minHeight="30"/>
-            </rowConstraints>
-
-            <Label fx:id="title" styleClass="title"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-
-            <HBox styleClass="metadata" GridPane.columnIndex="0" GridPane.rowIndex="1" alignment="CENTER">
-                <Label fx:id="year"/>
-                <Icon styleClass="separator">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-                <Label fx:id="duration"/>
-                <Icon styleClass="separator">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-                <Label fx:id="genres"/>
-                <Icon styleClass="separator">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-                <Stars fx:id="ratingStars" alignment="CENTER"/>
-            </HBox>
-
-            <HBox GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.halignment="RIGHT" alignment="CENTER_RIGHT">
-                <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
-                    <Icon fx:constant="MAGNET_UNICODE"/>
-                </Icon>
-                <Icon fx:id="health" styleClass="health">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-            </HBox>
-
-            <Label fx:id="overview" styleClass="overview" wrapText="true"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-
-            <HBox GridPane.columnIndex="0" GridPane.rowIndex="3" alignment="CENTER_LEFT" spacing="5">
-                <SplitMenuButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
-                <Button id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
-            </HBox>
-        </GridPane>
-    </GridPane>
-</GridPane>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.github.yoep.popcorn.controllers.sections.DetailsSectionController" styleClass="details">
+    <fx:include fx:id="movieDetailsPane" source="../components/details-movie.component.fxml"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+    <fx:include fx:id="showDetailsPane" source="../components/details-show.component.fxml"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+</AnchorPane>

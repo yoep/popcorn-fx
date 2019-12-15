@@ -1,7 +1,10 @@
 package com.github.yoep.popcorn.services;
 
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.ShowMovieDetailsActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
@@ -23,8 +26,8 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     private static final Category CATEGORY = Category.MOVIES;
     private final ProviderProperties providerConfig;
 
-    public MovieProviderService(RestTemplate restTemplate, PopcornProperties popcornConfig) {
-        super(restTemplate);
+    public MovieProviderService(RestTemplate restTemplate, ActivityManager activityManager, PopcornProperties popcornConfig) {
+        super(restTemplate, activityManager);
         this.providerConfig = popcornConfig.getProvider(CATEGORY.getProviderName());
     }
 
@@ -36,6 +39,11 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     @Override
     public CompletableFuture<List<Movie>> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, Strings.EMPTY, page));
+    }
+
+    @Override
+    public void showDetails(Media media) {
+        activityManager.register((ShowMovieDetailsActivity) () -> (Movie) media);
     }
 
     public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

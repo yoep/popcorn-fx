@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.DetailsShowActivity;
+import com.github.yoep.popcorn.activities.ShowDetailsActivity;
 import com.github.yoep.popcorn.activities.PlayMediaActivity;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
@@ -39,7 +39,7 @@ public class BackgroundComponent implements Initializable {
 
     @PostConstruct
     private void init() {
-        activityManager.register(DetailsShowActivity.class, activity -> loadBackgroundImage(activity.getMedia()));
+        activityManager.register(ShowDetailsActivity.class, activity -> loadBackgroundImage(activity.getMedia()));
         activityManager.register(PlayMediaActivity.class, activity -> loadBackgroundImage(activity.getMedia()));
     }
 

@@ -28,4 +28,11 @@ public interface ProviderService<T extends Media> {
      */
     @Async
     CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page);
+
+    /**
+     * Show the details of the given media item.
+     *
+     * @param media The media item to show the details of.
+     */
+    void showDetails(Media media);
 }

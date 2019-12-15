@@ -1,0 +1,8 @@
+.root {
+    -fx-pref-width: 256;
+    -fx-pref-height: 256;
+    -fx-background-color: transparent;
+    -fx-background-image: url(/images/icon.png);
+    -fx-background-repeat: no-repeat;
+    -fx-background-size: cover;
+}

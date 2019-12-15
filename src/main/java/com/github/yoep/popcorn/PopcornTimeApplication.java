@@ -12,7 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class PopcornTimeApplication extends SpringJavaFXApplication {
 
     public static void main(String[] args) {
-        launch(PopcornTimeApplication.class, args);
+        launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
 
     @Override

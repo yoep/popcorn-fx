@@ -25,7 +25,7 @@ public class MainController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        switchSection(false);
+        playerSection.setVisible(false);
         initializeListeners();
     }
 

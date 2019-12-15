@@ -1,13 +1,9 @@
 package com.github.yoep.popcorn.controls;
 
 import javafx.application.Platform;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -17,10 +13,7 @@ import java.util.List;
 public class InfiniteScrollPane extends ScrollPane {
     private static final int SCROLLBAR_THRESHOLD = 97;
 
-    private final ProgressIndicator progressIndicator = new ProgressIndicator();
-    private final Text noSearchResultsFound = new Text();
     private final FlowPane itemsPane = new FlowPane();
-    private final VBox contentPane = new VBox(itemsPane, progressIndicator, noSearchResultsFound);
     private final List<PageListener> pageListeners = new ArrayList<>();
 
     private int page;
@@ -89,8 +82,7 @@ public class InfiniteScrollPane extends ScrollPane {
     private void initializeContent() {
         this.setFocusTraversable(true);
         this.setFitToWidth(true);
-        this.contentPane.setAlignment(Pos.CENTER);
-        this.setContent(contentPane);
+        this.setContent(itemsPane);
     }
 
     private void onScroll() {
@@ -103,7 +95,6 @@ public class InfiniteScrollPane extends ScrollPane {
 
     private void loadNextPage() {
         updating = true;
-        progressIndicator.setVisible(true);
 
         int previousPage = page;
         page = page + 1;
@@ -112,7 +103,6 @@ public class InfiniteScrollPane extends ScrollPane {
             pageListeners.forEach(e -> e.onChange(previousPage, page));
         }
 
-        progressIndicator.setVisible(false);
         updating = false;
     }
 

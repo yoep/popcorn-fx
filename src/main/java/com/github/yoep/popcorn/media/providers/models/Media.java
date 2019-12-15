@@ -11,6 +11,12 @@ public interface Media {
      */
     String getVideoId();
 
+    /**
+     * Get the IMDB ID of the media.
+     * Use this ID to retrieve the show details.
+     *
+     * @return Returns the IMDB ID.
+     */
     String getImdbId();
 
     /**
@@ -27,8 +33,25 @@ public interface Media {
      */
     String getSynopsis();
 
+    /**
+     * Get the year of the media.
+     *
+     * @return Returns the year of the media.
+     */
     String getYear();
 
+    /**
+     * Get the duration of the media.
+     *
+     * @return Returns the duration of the media.
+     */
+    Integer getRuntime();
+
+    /**
+     * Get a list of genres for this media.
+     *
+     * @return Returns a list of genres (non-null).
+     */
     List<String> getGenres();
 
     Rating getRating();

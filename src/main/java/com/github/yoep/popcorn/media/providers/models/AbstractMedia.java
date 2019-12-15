@@ -6,8 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.text.StringEscapeUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Data
 @NoArgsConstructor
@@ -18,6 +20,7 @@ public abstract class AbstractMedia implements Media {
     private String imdbId;
     private String title;
     private String year;
+    private Integer runtime;
     private List<String> genres;
     private Rating rating;
     private Images images;
@@ -33,5 +36,11 @@ public abstract class AbstractMedia implements Media {
     @Override
     public String getSynopsis() {
         return StringEscapeUtils.unescapeHtml4(synopsis);
+    }
+
+    @Override
+    public List<String> getGenres() {
+        return Optional.ofNullable(genres)
+                .orElse(Collections.emptyList());
     }
 }

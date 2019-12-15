@@ -152,7 +152,7 @@ public class DetailsSectionController implements Initializable {
         title.setText(media.getTitle());
         overview.setText(media.getSynopsis());
         year.setText(media.getYear());
-        duration.setText(((Movie) media).getRuntime() + " min");
+        duration.setText(media.getRuntime() + " min");
         genres.setText(String.join(" / ", media.getGenres()));
     }
 

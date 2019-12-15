@@ -9,7 +9,6 @@ import lombok.ToString;
 @Data
 public class Movie extends AbstractMedia {
     private String trailer;
-    private int runtime;
 
     @Override
     public boolean isMovie() {

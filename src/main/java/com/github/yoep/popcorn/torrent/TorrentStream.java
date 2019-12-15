@@ -98,8 +98,10 @@ public class TorrentStream {
         if (!isStreaming())
             return;
 
-        this.currentStream.interrupt();
-        this.torrentFactory.getCurrentTorrent().ifPresent(Torrent::pause);
+        if (this.currentStream != null)
+            this.currentStream.interrupt();
+        if (this.torrentFactory != null)
+            this.torrentFactory.getCurrentTorrent().ifPresent(Torrent::pause);
     }
 
     @PostConstruct
@@ -118,7 +120,9 @@ public class TorrentStream {
     @PreDestroy
     public void destroy() {
         stopStream();
-        this.torrentSession.stop();
+
+        if (this.torrentSession != null)
+            this.torrentSession.stop();
     }
 
     private void initNativeLibraries() {

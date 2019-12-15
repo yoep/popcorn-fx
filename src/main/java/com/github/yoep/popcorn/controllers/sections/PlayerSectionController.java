@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.PlayMediaMovieActivity;
-import com.github.yoep.popcorn.activities.PlayMediaTrailerActivity;
+import com.github.yoep.popcorn.activities.LoadMovieActivity;
+import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.layout.Pane;
@@ -23,8 +23,8 @@ public class PlayerSectionController {
 
     @PostConstruct
     private void init() {
-        activityManager.register(PlayMediaTrailerActivity.class, activity -> switchContent(true));
-        activityManager.register(PlayMediaMovieActivity.class, activity -> switchContent(false));
+        activityManager.register(PlayVideoActivity.class, activity -> switchContent(true));
+        activityManager.register(LoadMovieActivity.class, activity -> switchContent(false));
     }
 
     private void switchContent(final boolean isPlayerVisible) {

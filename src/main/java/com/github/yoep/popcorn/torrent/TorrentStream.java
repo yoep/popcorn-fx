@@ -96,13 +96,19 @@ public class TorrentStream {
     }
 
     public void stopStream() {
-        if (!isStreaming())
+        if (this.torrentFactory.getCurrentTorrent().isEmpty())
             return;
+
+        log.debug("Stopping current torrent stream");
 
         if (this.currentStream != null)
             this.currentStream.interrupt();
-        if (this.torrentFactory != null)
-            this.torrentFactory.getCurrentTorrent().ifPresent(Torrent::pause);
+        if (this.torrentFactory != null) {
+            this.torrentFactory.getCurrentTorrent().ifPresent(torrent -> {
+                torrent.pause();
+                this.torrentSession.remove(torrent.getTorrentHandle());
+            });
+        }
     }
 
     @PostConstruct
@@ -184,7 +190,7 @@ public class TorrentStream {
                     Thread.sleep(100);
                 }
             } catch (InterruptedException e) {
-                log.warn("Unexpectedly quit of DHT monitor with " + e.getMessage(), e);
+                log.warn("Unexpectedly quit of DHT monitor", e);
             }
 
             this.initialized = true;
@@ -202,14 +208,14 @@ public class TorrentStream {
      * @param torrentUrl {@link String} URL to .torrent or magnet link
      * @return {@link TorrentInfo}
      */
-    private Optional<TorrentInfo> getTorrentInfo(String torrentUrl) throws TorrentInfoException {
+    private Optional<TorrentInfo> getTorrentInfo(String torrentUrl) {
         if (torrentUrl.startsWith("magnet")) {
             byte[] data = torrentSession.fetchMagnet(torrentUrl, 60);
             if (data != null)
                 try {
                     return Optional.of(TorrentInfo.bdecode(data));
                 } catch (IllegalArgumentException e) {
-                    throw new TorrentInfoException(e);
+                    throw new TorrentException("No torrent info could be found or read", e);
                 }
 
         } else if (torrentUrl.startsWith("http") || torrentUrl.startsWith("https")) {
@@ -235,8 +241,8 @@ public class TorrentStream {
                 if (responseByteArray.length > 0) {
                     return Optional.of(TorrentInfo.bdecode(responseByteArray));
                 }
-            } catch (IOException | IllegalArgumentException e) {
-                throw new TorrentInfoException(e);
+            } catch (IOException | IllegalArgumentException ex) {
+                throw new TorrentException("No torrent info could be found or read", ex);
             }
         } else if (torrentUrl.startsWith("file")) {
             File file = new File(torrentUrl);
@@ -249,8 +255,8 @@ public class TorrentStream {
                 if (responseByteArray.length > 0) {
                     return Optional.of(TorrentInfo.bdecode(responseByteArray));
                 }
-            } catch (IOException | IllegalArgumentException e) {
-                throw new TorrentInfoException(e);
+            } catch (IOException | IllegalArgumentException ex) {
+                throw new TorrentException("No torrent info could be found or read", ex);
             }
         }
 

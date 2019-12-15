@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
-import com.github.yoep.popcorn.torrent.TorrentStream;
+import com.github.yoep.popcorn.services.TorrentService;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -32,10 +32,12 @@ public class PlayerComponent implements Initializable {
     private final PauseTransition idle = new PauseTransition(Duration.seconds(3));
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
-    private final TorrentStream torrentStream;
+    private final TorrentService torrentService;
 
     private VideoPlayer videoPlayer;
 
+    @FXML
+    private Pane playerPane;
     @FXML
     private Pane videoView;
     @FXML
@@ -53,6 +55,7 @@ public class PlayerComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeKeyEvents();
         initializeVideoPlayer();
         initializeSlider();
     }
@@ -65,6 +68,27 @@ public class PlayerComponent implements Initializable {
     @PreDestroy
     private void dispose() {
         videoPlayer.dispose();
+    }
+
+    private void initializeKeyEvents() {
+        playerPane.setOnKeyReleased(event -> {
+            switch (event.getCode()) {
+                case LEFT:
+                case KP_LEFT:
+                    increaseVideoTime(-5000);
+                    break;
+                case RIGHT:
+                case KP_RIGHT:
+                    increaseVideoTime(5000);
+                    break;
+                case SPACE:
+                    changePlayPauseState();
+                    break;
+                case F11:
+                    toggleFullscreen();
+                    break;
+            }
+        });
     }
 
     private void initializeVideoPlayer() {
@@ -106,11 +130,11 @@ public class PlayerComponent implements Initializable {
     }
 
     private void initializeListeners() {
-        activityManager.register(PlayMediaTrailerActivity.class, activity -> {
+        activityManager.register(PlayVideoActivity.class, activity -> {
             videoPlayer.play(activity.getUrl());
             Platform.runLater(() -> title.setText(activity.getMedia().getTitle()));
         });
-        activityManager.register(PlayMediaMovieActivity.class, activity -> {
+        activityManager.register(LoadMovieActivity.class, activity -> {
 
         });
         activityManager.register(FullscreenActivity.class, activity -> {
@@ -135,11 +159,7 @@ public class PlayerComponent implements Initializable {
                 videoPlayer.setTime(newValue.longValue());
             }
         });
-        slider.setOnMouseReleased(event -> {
-            slider.setValueChanging(true);
-            slider.setValue(slider.getValue() + 1);
-            slider.setValueChanging(false);
-        });
+        slider.setOnMouseReleased(event -> setVideoTime(slider.getValue() + 1));
     }
 
     private void reset() {
@@ -160,6 +180,29 @@ public class PlayerComponent implements Initializable {
         }
     }
 
+    private void toggleFullscreen() {
+        log.trace("Toggling full screen mode");
+        activityManager.register(new ToggleFullscreenActivity() {
+        });
+    }
+
+    private void increaseVideoTime(double amount) {
+        log.trace("Increasing video time with {}", amount);
+        double newSliderValue = slider.getValue() + amount;
+        double maxSliderValue = slider.getMax();
+
+        if (newSliderValue > maxSliderValue)
+            newSliderValue = maxSliderValue;
+
+        setVideoTime(newSliderValue);
+    }
+
+    private void setVideoTime(double time) {
+        slider.setValueChanging(true);
+        slider.setValue(time);
+        slider.setValueChanging(false);
+    }
+
     private String formatTime(long time) {
         return String.format("%02d:%02d",
                 TimeUnit.MILLISECONDS.toMinutes(time),
@@ -178,14 +221,14 @@ public class PlayerComponent implements Initializable {
 
     @FXML
     private void onFullscreenClicked() {
-        activityManager.register(new ToggleFullscreenActivity() {
-        });
+        toggleFullscreen();
     }
 
     @FXML
     private void close() {
         log.trace("Closing player component");
         reset();
+        torrentService.stopStream();
         activityManager.register(new PlayerCloseActivity() {
         });
     }

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-public interface PlayMediaMovieActivity extends PlayMediaActivity {
+public interface LoadMovieActivity extends PlayMediaActivity {
     /**
      * Get the torrent quality that should be played.
      *

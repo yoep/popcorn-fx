@@ -47,14 +47,16 @@ public class Torrent implements AlertListener {
     private final Long prepareSize;
 
     public Torrent(TorrentHandle torrentHandle, TorrentListener listener, Long prepareSize) {
-        log.debug("Creating new torrent for " + torrentHandle);
+        log.debug("Creating new torrent for \"{}\"", torrentHandle.name());
         this.torrentHandle = torrentHandle;
         this.listener = listener;
         this.prepareSize = prepareSize;
 
         torrentStreamReferences = new ArrayList<>();
 
-        setLargestFile();
+        if (selectedFileIndex == -1)
+            setLargestFile();
+
         startDownload();
     }
 
@@ -181,6 +183,9 @@ public class Torrent implements AlertListener {
             }
         }
 
+        if (firstPieceIndexLocal == -1) {
+            firstPieceIndexLocal = 0;
+        }
         if (lastPieceIndexLocal == -1) {
             lastPieceIndexLocal = piecePriorities.length - 1;
         }
@@ -255,6 +260,7 @@ public class Torrent implements AlertListener {
         }
 
         preparePieces = indices;
+        log.trace("Prioritizing the following pieces: {}", preparePieces);
 
         hasPieces = new Boolean[lastPieceIndex - firstPieceIndex + 1];
         Arrays.fill(hasPieces, false);
@@ -267,9 +273,7 @@ public class Torrent implements AlertListener {
         progressStep = 100 / blockCount;
 
         torrentStreamReferences.clear();
-
         torrentHandle.resume();
-
         listener.onStreamStarted(this);
     }
 
@@ -412,6 +416,7 @@ public class Torrent implements AlertListener {
             }
         } else {
             preparePieces.removeIf(index -> index == alert.pieceIndex());
+            log.trace("Priority piece \"{}\" completed, waiting for another {} priority piece(s) to complete", alert.pieceIndex(), preparePieces.size());
 
             if (hasPieces != null) {
                 hasPieces[alert.pieceIndex() - firstPieceIndex] = true;

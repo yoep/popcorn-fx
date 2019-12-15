@@ -1,10 +1,34 @@
 package com.github.yoep.popcorn.services;
 
 import com.github.yoep.popcorn.models.TorrentHealth;
+import com.github.yoep.popcorn.torrent.TorrentStream;
+import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 @Service
+@RequiredArgsConstructor
 public class TorrentService {
+    private final TorrentStream torrentStream;
+
+    public boolean isInitialized() {
+        return torrentStream.isInitialized();
+    }
+
+    public void addListener(TorrentListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        torrentStream.addListener(listener);
+    }
+
+    public void startStream(String torrentUrl) {
+        Assert.hasText(torrentUrl, "torrentUrl cannot be empty");
+        torrentStream.startStream(torrentUrl);
+    }
+
+    public void stopStream() {
+        torrentStream.stopStream();
+    }
 
     /**
      * Calculate the torrent health for the given seeds/peers.

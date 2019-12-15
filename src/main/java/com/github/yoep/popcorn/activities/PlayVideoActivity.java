@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-public interface PlayMediaTrailerActivity extends PlayMediaActivity {
+public interface PlayVideoActivity extends PlayMediaActivity {
     /**
      * Get the url to play the media of.
      *

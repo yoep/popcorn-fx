@@ -352,6 +352,7 @@
     -fx-text-fill: #fff;
 }
 
+.root Stars .tooltip,
 .root .details .magnet-link .tooltip,
 .root .details .health .tooltip {
     -fx-font-family: "Open Sans Semibold";
@@ -361,6 +362,7 @@
 
 .root .details .health {
     -fx-text-fill: #737577;
+    -fx-cursor: hand;
 }
 
 .root .details .health.bad {

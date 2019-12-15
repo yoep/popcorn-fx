@@ -37,6 +37,11 @@ public class TorrentFactory implements AlertListener {
         this.torrentSession.addListener(this);
     }
 
+    /**
+     * Get the last torrent created by this factory.
+     *
+     * @return Returns the last torrent that was created by this factory.
+     */
     Optional<Torrent> getCurrentTorrent() {
         return Optional.ofNullable(currentTorrent);
     }
@@ -53,7 +58,7 @@ public class TorrentFactory implements AlertListener {
         AddTorrentAlert addTorrentAlert = (AddTorrentAlert) alert;
         TorrentHandle torrentHandle = this.torrentSession.find(addTorrentAlert.handle().infoHash());
         getCurrentTorrent().ifPresent(this.torrentSession::removeListener);
-        currentTorrent = new Torrent(torrentHandle, torrentListenerHolder, 15728640L);
+        currentTorrent = new Torrent(torrentHandle, torrentListenerHolder, 15 * 1024L * 1024L);
         this.torrentSession.addListener(currentTorrent);
         torrentHandle.resume();
 

@@ -2,12 +2,14 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.PlayMediaMovieActivity;
+import com.github.yoep.popcorn.activities.LoadMovieActivity;
+import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.activities.PlayerCloseActivity;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.TorrentMessage;
+import com.github.yoep.popcorn.services.TorrentService;
 import com.github.yoep.popcorn.torrent.StreamStatus;
-import com.github.yoep.popcorn.torrent.TorrentStream;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -29,8 +31,10 @@ import java.util.Map;
 public class LoaderComponent {
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
-    private final TorrentStream torrentStream;
+    private final TorrentService torrentService;
     private final LocaleText localeText;
+
+    private Media media;
 
     @FXML
     private Label statusText;
@@ -49,8 +53,8 @@ public class LoaderComponent {
 
     @PostConstruct
     private void init() {
-        activityManager.register(PlayMediaMovieActivity.class, this::startTorrent);
-        torrentStream.addListener(new TorrentListener() {
+        activityManager.register(LoadMovieActivity.class, this::startTorrent);
+        torrentService.addListener(new TorrentListener() {
             @Override
             public void onLoadError(String message) {
                 log.warn("Torrent loading failed: {}", message);
@@ -79,6 +83,17 @@ public class LoaderComponent {
                     statusText.setText(localeText.get(TorrentMessage.READY));
                     progressBar.setProgress(1);
                 });
+                activityManager.register(new PlayVideoActivity() {
+                    @Override
+                    public String getUrl() {
+                        return torrent.getVideoFile().getAbsolutePath();
+                    }
+
+                    @Override
+                    public Media getMedia() {
+                        return media;
+                    }
+                });
             }
 
             @Override
@@ -101,7 +116,10 @@ public class LoaderComponent {
         });
     }
 
-    private void startTorrent(PlayMediaMovieActivity activity) {
+    private void startTorrent(LoadMovieActivity activity) {
+        // store the requested media locally for later use
+        this.media = activity.getMedia();
+
         taskExecutor.execute(() -> {
             Platform.runLater(() -> {
                 progressStatus.setVisible(false);
@@ -109,7 +127,7 @@ public class LoaderComponent {
                 progressBar.getStyleClass().remove("error");
             });
 
-            if (!torrentStream.isInitialized())
+            if (!torrentService.isInitialized())
                 waitForTorrentStream();
 
             Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
@@ -118,7 +136,7 @@ public class LoaderComponent {
             taskExecutor.execute(() -> {
                 Map<String, Map<String, Torrent>> torrents = activity.getMedia().getTorrents();
 
-                torrentStream.startStream(torrents.get("en").get(activity.getQuality()).getUrl());
+                torrentService.startStream(torrents.get("en").get(activity.getQuality()).getUrl());
             });
         });
     }
@@ -127,16 +145,16 @@ public class LoaderComponent {
         Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
 
         try {
-            while (!torrentStream.isInitialized()) {
+            while (!torrentService.isInitialized()) {
                 Thread.sleep(100);
             }
         } catch (InterruptedException e) {
-            log.error(e.getMessage(), e);
+            log.error("Unexpectedly quit of wait for torrent stream monitor", e);
         }
     }
 
     private void stopStream() {
-        torrentStream.stopStream();
+        torrentService.stopStream();
     }
 
     @FXML

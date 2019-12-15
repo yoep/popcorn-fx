@@ -27,6 +27,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -53,6 +54,7 @@ public class DetailsSectionController implements Initializable {
     private final TorrentService torrentService;
 
     private Media media;
+    private Tooltip healthTooltip;
 
     @FXML
     private BorderPane posterHolder;
@@ -96,7 +98,9 @@ public class DetailsSectionController implements Initializable {
     }
 
     private void initializeTooltips() {
-        Tooltip.install(magnetLink, new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK)));
+        Tooltip tooltip = new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK));
+        setInstantTooltip(tooltip);
+        Tooltip.install(magnetLink, tooltip);
     }
 
     private void initializeListeners() {
@@ -154,7 +158,9 @@ public class DetailsSectionController implements Initializable {
 
     private void loadStars() {
         ratingStars.setRating(media.getRating());
-        Tooltip.install(ratingStars, new Tooltip(media.getRating().getPercentage() / 10 + "/10"));
+        Tooltip tooltip = new Tooltip(media.getRating().getPercentage() / 10 + "/10");
+        setInstantTooltip(tooltip);
+        Tooltip.install(ratingStars, tooltip);
     }
 
     private void loadButtons() {
@@ -171,17 +177,21 @@ public class DetailsSectionController implements Initializable {
         media.getTorrents().get("en").entrySet().stream()
                 .findFirst()
                 .map(Map.Entry::getValue)
-                .ifPresent(e -> {
-                    TorrentHealth health = torrentService.calculateHealth(e.getSeed(), e.getPeer());
+                .ifPresent(torrent -> {
+                    TorrentHealth health = torrentService.calculateHealth(torrent.getSeed(), torrent.getPeer());
 
                     this.health.getStyleClass().add(health.getStatus().getStyleClass());
-                    Tooltip tooltip = new Tooltip(
-                            localeText.get(health.getStatus().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
-                                    "Seeds: " + e.getSeed() + " - Peers: " + e.getPeer());
-                    tooltip.setWrapText(true);
-                    Tooltip.install(this.health, tooltip);
+                    this.healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
+                    this.healthTooltip.setWrapText(true);
+                    setInstantTooltip(this.healthTooltip);
+                    Tooltip.install(this.health, this.healthTooltip);
                 });
 
+    }
+
+    private String getHealthTooltip(Torrent torrent, TorrentHealth health) {
+        return localeText.get(health.getStatus().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
+                "Seeds: " + torrent.getSeed() + " - Peers: " + torrent.getPeer();
     }
 
     private void openMagnetLink(Torrent torrent) {
@@ -197,6 +207,12 @@ public class DetailsSectionController implements Initializable {
         clipboardContent.putUrl(torrent.getUrl());
         clipboardContent.putString(torrent.getUrl());
         Clipboard.getSystemClipboard().setContent(clipboardContent);
+    }
+
+    private void setInstantTooltip(Tooltip tooltip) {
+        tooltip.setShowDelay(Duration.ZERO);
+        tooltip.setShowDuration(Duration.INDEFINITE);
+        tooltip.setHideDelay(Duration.ZERO);
     }
 
     @FXML
@@ -215,7 +231,7 @@ public class DetailsSectionController implements Initializable {
 
     @FXML
     private void onWatchNowClicked() {
-        activityManager.register(new PlayMediaMovieActivity() {
+        activityManager.register(new LoadMovieActivity() {
             @Override
             public String getQuality() {
                 return media.getTorrents().get("en").keySet().stream()
@@ -232,7 +248,7 @@ public class DetailsSectionController implements Initializable {
 
     @FXML
     private void onTrailerClicked() {
-        activityManager.register(new PlayMediaTrailerActivity() {
+        activityManager.register(new PlayVideoActivity() {
             @Override
             public String getUrl() {
                 Movie movie = (Movie) media;

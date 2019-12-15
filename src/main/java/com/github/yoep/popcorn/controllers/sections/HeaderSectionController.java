@@ -53,7 +53,7 @@ public class HeaderSectionController implements Initializable {
     }
 
     private void initializeCategories() {
-        switchActiveCategory(moviesCategory);
+        switchCategory(moviesCategory);
     }
 
     private void initializeGenres() {
@@ -62,8 +62,7 @@ public class HeaderSectionController implements Initializable {
                 .sorted()
                 .collect(Collectors.toList());
 
-        genreCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
-                activityManager.register((GenreChangeActivity) () -> newValue));
+        genreCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchGenre(newValue));
         genreCombo.getItems().addAll(genres);
         genreCombo.getSelectionModel().select(0);
     }
@@ -74,12 +73,12 @@ public class HeaderSectionController implements Initializable {
                 .collect(Collectors.toList());
 
         sortByCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
-                activityManager.register((SortByChangeActivity) () -> newValue));
+                switchSortBy(newValue));
         sortByCombo.getItems().addAll(sortBy);
         sortByCombo.getSelectionModel().select(0);
     }
 
-    private void switchActiveCategory(Label item) {
+    private void switchCategory(Label item) {
         final AtomicReference<Category> category = new AtomicReference<>();
 
         moviesCategory.getStyleClass().remove(STYLE_ACTIVE);
@@ -98,13 +97,23 @@ public class HeaderSectionController implements Initializable {
             category.set(Category.FAVORITES);
         }
 
-        log.trace("Category is being changed to {}", category.get());
+        log.trace("Category is being changed to \"{}\"", category.get());
         activityManager.register((CategoryChangedActivity) category::get);
+    }
+
+    private void switchGenre(Genre genre) {
+        log.trace("Genre is being changed to \"{}\"", genre);
+        activityManager.register((GenreChangeActivity) () -> genre);
+    }
+
+    private void switchSortBy(SortBy sortBy) {
+        log.trace("SortBy is being changed to \"{}\"", sortBy);
+        activityManager.register((SortByChangeActivity) () -> sortBy);
     }
 
     @FXML
     private void onCategoryClicked(MouseEvent event) {
-        switchActiveCategory((Label) event.getSource());
+        switchCategory((Label) event.getSource());
     }
 
     @FXML

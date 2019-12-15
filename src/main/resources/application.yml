@@ -12,34 +12,69 @@ popcorn:
   providers:
     movies:
       url: https://tv-v2.api-fetch.website/movies
-  genres:
-    - all
-    - action
-    - adventure
-    - animation
-    - comedy
-    - crime
-    - disaster
-    - documentary
-    - drama
-    - family
-    - fantasy
-    - history
-    - holiday
-    - horror
-    - music
-    - mystery
-    - romance
-    - science-fiction
-    - short
-    - suspense
-    - thriller
-    - war
-    - western
-  sort-by:
-    - trending
-    - popularity
-    - last added
-    - year
-    - title
-    - rating
+      genres:
+        - all
+        - action
+        - adventure
+        - animation
+        - comedy
+        - crime
+        - disaster
+        - documentary
+        - drama
+        - family
+        - fantasy
+        - history
+        - holiday
+        - horror
+        - music
+        - mystery
+        - romance
+        - science-fiction
+        - short
+        - suspense
+        - thriller
+        - war
+        - western
+      sort-by:
+        - trending
+        - popularity
+        - last added
+        - year
+        - title
+        - rating
+    series:
+      url: https://tv-v2.api-fetch.website/shows
+      genres:
+        - all
+        - action
+        - adventure
+        - animation
+        - children
+        - comedy
+        - crime
+        - documentary
+        - drama
+        - family
+        - fantasy
+        - horror
+        - mini Series
+        - mystery
+        - news
+        - reality
+        - romance
+        - science-fiction
+        - soap
+        - special Interest
+        - sport
+        - suspense
+        - talk Show
+        - thriller
+        - western
+      sort-by:
+        - trending
+        - popularity
+        - updated
+        - year
+        - name
+        - rating

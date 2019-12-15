@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.activities.CategoryChangedActivity;
 import com.github.yoep.popcorn.activities.GenreChangeActivity;
 import com.github.yoep.popcorn.activities.SortByChangeActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
@@ -47,33 +48,39 @@ public class HeaderSectionController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeCategories();
-        initializeGenres();
-        initializeSortBy();
+        initializeComboListeners();
+        initializeCategory();
     }
 
-    private void initializeCategories() {
+    private void initializeComboListeners() {
+        genreCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchGenre(newValue));
+        sortByCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSortBy(newValue));
+    }
+
+    private void initializeCategory() {
+        // set the default view to movies
         switchCategory(moviesCategory);
     }
 
-    private void initializeGenres() {
-        List<Genre> genres = popcornProperties.getGenres().stream()
+    private void setGenres(Category category) {
+        ProviderProperties providerProperties = popcornProperties.getProvider(category.getProviderName());
+        List<Genre> genres = providerProperties.getGenres().stream()
                 .map(e -> new Genre(e, localeText.get("genre_" + e)))
                 .sorted()
                 .collect(Collectors.toList());
 
-        genreCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchGenre(newValue));
+        genreCombo.getItems().clear();
         genreCombo.getItems().addAll(genres);
         genreCombo.getSelectionModel().select(0);
     }
 
-    private void initializeSortBy() {
-        List<SortBy> sortBy = popcornProperties.getSortBy().stream()
+    private void setSortBy(Category category) {
+        ProviderProperties providerProperties = popcornProperties.getProvider(category.getProviderName());
+        List<SortBy> sortBy = providerProperties.getSortBy().stream()
                 .map(e -> new SortBy(e, localeText.get("sort-by_" + e)))
                 .collect(Collectors.toList());
 
-        sortByCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
-                switchSortBy(newValue));
+        sortByCombo.getItems().clear();
         sortByCombo.getItems().addAll(sortBy);
         sortByCombo.getSelectionModel().select(0);
     }
@@ -97,8 +104,13 @@ public class HeaderSectionController implements Initializable {
             category.set(Category.FAVORITES);
         }
 
+        // invoke the chang activity first before changing the genre & sort by
         log.trace("Category is being changed to \"{}\"", category.get());
         activityManager.register((CategoryChangedActivity) category::get);
+
+        // set the category specific genres and sort by filters
+        setGenres(category.get());
+        setSortBy(category.get());
     }
 
     private void switchGenre(Genre genre) {

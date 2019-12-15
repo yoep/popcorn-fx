@@ -46,25 +46,35 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
 
     @PostConstruct
     private void init() {
-        activityManager.register(CategoryChangedActivity.class, activity -> {
-            this.category = activity.getCategory();
-            reset();
-            scrollPane.loadNewPage();
-        });
-        activityManager.register(GenreChangeActivity.class, activity -> {
-            this.genre = activity.getGenre();
-            reset();
-            scrollPane.loadNewPage();
-        });
-        activityManager.register(SortByChangeActivity.class, activity -> {
-            this.sortBy = activity.getSortBy();
-            reset();
-            scrollPane.loadNewPage();
-        });
+        activityManager.register(CategoryChangedActivity.class, this::onCategoryChange);
+        activityManager.register(GenreChangeActivity.class, this::onGenreChange);
+        activityManager.register(SortByChangeActivity.class, this::onSortByChange);
     }
 
     private void initializeListeners() {
         scrollPane.addListener((previousPage, newPage) -> loadMovies(newPage));
+    }
+
+    private void onCategoryChange(CategoryChangedActivity categoryActivity) {
+        this.category = categoryActivity.getCategory();
+        reset();
+
+        // reset the genre & sort by as they might be different in the new category
+        // these will be automatically filled in again as the category change also triggers a GenreChangeActivity & SortByChangeActivity
+        this.genre = null;
+        this.sortBy = null;
+    }
+
+    private void onGenreChange(GenreChangeActivity genreActivity) {
+        this.genre = genreActivity.getGenre();
+        reset();
+        scrollPane.loadNewPage();
+    }
+
+    private void onSortByChange(SortByChangeActivity sortByActivity) {
+        this.sortBy = sortByActivity.getSortBy();
+        reset();
+        scrollPane.loadNewPage();
     }
 
     private void loadMovies(final int page) {

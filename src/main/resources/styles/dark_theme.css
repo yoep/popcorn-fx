@@ -162,6 +162,7 @@
 }
 
 .root .header .bar .filter-nav-bar .active {
+    -fx-text-fill: #fff;
     -fx-border-width: 0 0 4 0;
     -fx-border-color: #2d72d9;
 }

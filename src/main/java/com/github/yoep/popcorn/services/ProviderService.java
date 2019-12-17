@@ -30,6 +30,18 @@ public interface ProviderService<T extends Media> {
     CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page);
 
     /**
+     * Get the given page with search criteria for this media provider service.
+     *
+     * @param genre    The genre of the media items that should be loaded.
+     * @param sortBy   The sort order of the media items.
+     * @param page     The page to retrieve.
+     * @param keywords The search keywords to search on.
+     * @return Returns the list of {@link Media} items for the given page.
+     */
+    @Async
+    CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page, String keywords);
+
+    /**
      * Show the details of the given media item.
      *
      * @param media The media item to show the details of.

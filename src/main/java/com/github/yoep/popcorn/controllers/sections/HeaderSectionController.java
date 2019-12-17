@@ -1,12 +1,11 @@
 package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.CategoryChangedActivity;
-import com.github.yoep.popcorn.activities.GenreChangeActivity;
-import com.github.yoep.popcorn.activities.SortByChangeActivity;
+import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
+import com.github.yoep.popcorn.controls.SearchField;
+import com.github.yoep.popcorn.controls.SearchListener;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
@@ -45,11 +44,14 @@ public class HeaderSectionController implements Initializable {
     private ComboBox<Genre> genreCombo;
     @FXML
     private ComboBox<SortBy> sortByCombo;
+    @FXML
+    private SearchField search;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeComboListeners();
         initializeCategory();
+        initializeSearchListener();
     }
 
     private void initializeComboListeners() {
@@ -60,6 +62,20 @@ public class HeaderSectionController implements Initializable {
     private void initializeCategory() {
         // set the default view to movies
         switchCategory(moviesCategory);
+    }
+
+    private void initializeSearchListener() {
+        search.addListener(new SearchListener() {
+            @Override
+            public void onSearchValueChanged(String newValue) {
+                activityManager.register((SearchActivity) () -> newValue);
+            }
+
+            @Override
+            public void onSearchValueCleared() {
+                activityManager.register((SearchActivity) () -> null);
+            }
+        });
     }
 
     private void setGenres(Category category) {

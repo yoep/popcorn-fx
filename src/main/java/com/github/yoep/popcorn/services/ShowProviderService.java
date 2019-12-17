@@ -42,6 +42,11 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     @Override
+    public CompletableFuture<List<Show>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+        return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
+    }
+
+    @Override
     public void showDetails(Media media) {
         activityManager.register((ShowSerieDetailsActivity) () -> (Show) media);
     }

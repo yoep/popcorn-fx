@@ -35,6 +35,9 @@
 
 .root .tooltip {
     -fx-background-color: rgba(23, 24, 27, 0.6);
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1em;
 }
 
 .root InfiniteScrollPane .scroll-bar,
@@ -225,6 +228,33 @@
     -fx-border-style: solid;
 }
 
+.root .header .bar .filter-icon-bar {
+
+}
+
+.root .header .bar .filter-icon-bar .icon {
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #909498;
+    -fx-cursor: hand;
+    -fx-padding: 0 0 10 8;
+}
+
+.root .header .bar .filter-icon-bar .icon:hover {
+    -fx-text-fill: #2468cc;
+}
+
+.root .header .bar .filter-icon-bar .search-field .textfield {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-background-color: #000;
+    -fx-background-radius: 2em;
+    -fx-text-fill: #909498;
+}
+
+.root .header .bar .filter-icon-bar .search-field .search-icon,
+.root .header .bar .filter-icon-bar .search-field .clear-icon {
+    -fx-text-fill: #909498;
+}
+
 .root .background-image {
     -fx-background-color: #000;
 }
@@ -351,14 +381,6 @@
 
 .root .details .magnet-link:hover {
     -fx-text-fill: #fff;
-}
-
-.root Stars .tooltip,
-.root .details .magnet-link .tooltip,
-.root .details .health .tooltip {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
-    -fx-font-size: 1em;
 }
 
 .root .details .health {

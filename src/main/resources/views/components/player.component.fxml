@@ -88,13 +88,13 @@
         </Icon>
         <Icon styleClass="player-button, subtitle"
               GridPane.columnIndex="6" GridPane.rowIndex="0">
-            <Icon fx:constant="COMMENT"/>
+            <Icon fx:constant="COMMENT_UNICODE"/>
         </Icon>
 
         <!-- Fullscreen -->
         <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked"
               GridPane.columnIndex="7" GridPane.rowIndex="0">
-            <Icon fx:constant="EXPAND"/>
+            <Icon fx:constant="EXPAND_UNICODE"/>
         </Icon>
     </GridPane>
 </AnchorPane>

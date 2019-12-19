@@ -25,7 +25,6 @@ public abstract class AbstractMedia implements Media {
     private Rating rating;
     private Images images;
     private String synopsis;
-    private Map<String, Map<String, Torrent>> torrents;
     private Map<String, String> subtitles;
 
     @Override

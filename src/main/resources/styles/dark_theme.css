@@ -28,6 +28,13 @@
 .root InfiniteScrollPane > .viewport,
 .root InfiniteScrollPane .scroll-bar,
 .root ComboBox .scroll-bar,
+.root ListView,
+.root ListView .list-cell,
+.root TableView,
+.root TableView .table-row-cell,
+.root Episodes,
+.root Episodes .table-row-cell,
+.root Episodes .scroll-bar,
 .root .header .bar {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
@@ -40,13 +47,32 @@
     -fx-font-size: 1em;
 }
 
+.root ListView,
+.root Episodes {
+    -fx-background-insets: 0;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+
+.root ListView .list-cell,
+.root Episodes .table-cell {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+}
+
 .root InfiniteScrollPane .scroll-bar,
+.root ListView .scroll-bar,
+.root Episodes .scroll-bar,
 .root ComboBox .list-view .scroll-bar {
     -fx-padding: 0 3 0 0;
 }
 
 .root InfiniteScrollPane .increment-arrow,
 .root InfiniteScrollPane .decrement-arrow,
+.root ListView .increment-arrow,
+.root ListView .decrement-arrow,
+.root Episodes .increment-arrow,
+.root Episodes .decrement-arrow,
 .root ComboBox .list-view .increment-arrow,
 .root ComboBox .list-view .decrement-arrow {
     -fx-shape: " ";
@@ -54,7 +80,9 @@
 }
 
 .root InfiniteScrollPane .track,
-.root ComboBox .list-view .track {
+.root ListView .track,
+.root Episodes .track,
+.root ComboBox .list-view .track{
     -fx-background-color: #30333c;
     -fx-border-color: transparent;
     -fx-background-radius: 2em;
@@ -63,6 +91,10 @@
 
 .root InfiniteScrollPane .increment-button,
 .root InfiniteScrollPane .decrement-button,
+.root ListView .increment-button,
+.root ListView .decrement-button,
+.root Episodes .increment-button,
+.root Episodes .decrement-button,
 .root ComboBox .list-view .increment-button,
 .root ComboBox .list-view .decrement-button {
     -fx-background-color: transparent;
@@ -71,6 +103,8 @@
 }
 
 .root InfiniteScrollPane .thumb,
+.root ListView .thumb,
+.root Episodes .thumb,
 .root ComboBox .list-view .thumb {
     -fx-background-color: #83888c;
     -fx-background-insets: 2.0, 0.0, 0.0;
@@ -78,6 +112,8 @@
 }
 
 .root InfiniteScrollPane .thumb:hover,
+.root ListView .thumb:hover,
+.root Episodes .thumb:hover,
 .root ComboBox .list-view .thumb:hover {
     -fx-background-color: #93989c;
 }
@@ -336,14 +372,14 @@
 
 .root .player .player-header .close-button,
 .root .movie-details .close-button,
-.root .show-details .close-button {
+.root .show-details-section .close-button {
     -fx-text-fill: #ccc;
     -fx-cursor: hand;
 }
 
 .root .player .player-header .close-button,
 .root .movie-details .close-button:hover,
-.root .show-details .close-button:hover {
+.root .show-details-section .close-button:hover {
     -fx-text-fill: #fff;
 }
 
@@ -359,21 +395,21 @@
 }
 
 .root .movie-details .metadata Label,
-.root .show-details .metadata Label {
+.root .show-details-section .metadata Label {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
 }
 
 .root .movie-details .metadata .separator,
-.root .show-details .metadata .separator {
+.root .show-details-section .metadata .separator {
     -fx-text-fill: #dbdbdd;
     -fx-font-size: 5px;
     -fx-padding: 0 10 0 10;
 }
 
 .root .movie-details .overview,
-.root .show-details .overview {
+.root .show-details-section .overview {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
@@ -418,46 +454,98 @@
 }
 
 .root .movie-details .quality-selection .quality.active {
-    -fx-background-color: rgba(43,110,210,0.84);
+    -fx-background-color: rgba(43, 110, 210, 0.84);
     -fx-background-radius: 5em;
 }
 
-.root .show-details .title {
+.root .show-details-section .show-header .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 28px;
     -fx-padding: 8 0 5 0;
 }
 
-.root .show-details .poster {
+.root .show-details-section .show-header .poster {
     -fx-max-height: 198;
 }
 
-.root .show-details .poster .poster-image {
+.root .show-details-section .poster .poster-image {
     -fx-effect: dropshadow(three-pass-box, #17181b, 15, 0, 0, 0);
 }
 
-.root .show-details .bookmark {
+.root .show-details-section .show-header .bookmark {
     -fx-cursor: hand;
     -fx-padding: 5 0 8 5;
 }
 
-.root .show-details .bookmark Icon,
-.root .show-details .bookmark Label {
+.root .show-details-section .show-header .bookmark Icon,
+.root .show-details-section .show-header .bookmark Label {
     -fx-text-fill: #fff;
     -fx-font-size: 1.2em;
 }
 
-.root .show-details .bookmark Icon {
+.root .show-details-section .show-header .bookmark Icon {
     -fx-padding: 0 5 0 0;
 }
 
-.root .show-details .bookmark Label {
+.root .show-details-section .show-header .bookmark Label {
     -fx-font-family: "Open Sans Semibold";
 }
 
-.root .show-details .bookmark:hover Icon {
+.root .show-details-section .show-header .bookmark:hover Icon {
     -fx-text-fill: #2468cc;
+}
+
+.root .show-details-section .show-details {
+    -fx-background-color: #17181b;
+}
+
+.root .show-details-section .show-details .section-title {
+    -fx-font-family: "Open Sans SemiBold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 24px;
+}
+
+.root .show-details-section .show-details ListView .list-cell,
+.root .show-details-section .show-details Episodes .table-cell {
+    -fx-font-family: sans-serif;
+    -fx-text-fill: #fff;
+    -fx-font-size: 15px;
+    -fx-padding: 8 10 8 10;
+    -fx-cursor: hand;
+    -fx-border-width: 1;
+    -fx-border-color: #17181b;
+}
+
+.root .show-details-section .show-details ListView .list-cell {
+    -fx-font-weight: bold;
+}
+
+.root .show-details-section .show-details ListView .list-cell:even,
+.root .show-details-section .show-details Episodes .table-row-cell:even {
+    -fx-background-color: #1f2025;
+}
+
+.root .show-details-section .show-details ListView .list-cell:hover,
+.root .show-details-section .show-details Episodes .table-row-cell:hover {
+    -fx-background-color: #26272d;
+}
+
+.root .show-details-section .show-details ListView .list-cell:selected,
+.root .show-details-section .show-details Episodes .table-row-cell:selected {
+    -fx-background-color: #1b2d4c;
+}
+
+.root .show-details-section .show-details ListView .list-cell:empty,
+.root .show-details-section .show-details Episodes .table-row-cell:empty {
+    -fx-opacity: 0;
+}
+
+.root .show-details-section .show-details Episodes TableHeaderRow {
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+    -fx-pref-height: 0;
+    visibility: false;
 }
 
 .root .player {

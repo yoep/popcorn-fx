@@ -60,7 +60,5 @@ public interface Media {
 
     Images getImages();
 
-    Map<String, Map<String, Torrent>> getTorrents();
-
     Map<String, String> getSubtitles();
 }

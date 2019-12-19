@@ -23,7 +23,6 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -36,6 +35,7 @@ public class LoaderComponent {
     private final LocaleText localeText;
 
     private Media media;
+    private Torrent mediaTorrent;
     private String quality;
 
     @FXML
@@ -100,6 +100,11 @@ public class LoaderComponent {
                     public Media getMedia() {
                         return media;
                     }
+
+                    @Override
+                    public Optional<Torrent> getTorrent() {
+                        return Optional.of(mediaTorrent);
+                    }
                 });
             }
 
@@ -128,25 +133,29 @@ public class LoaderComponent {
         this.media = activity.getMedia();
         this.quality = activity.getQuality();
 
-        taskExecutor.execute(() -> {
-            Platform.runLater(() -> {
-                progressStatus.setVisible(false);
-                progressBar.setProgress(-1);
-                progressBar.getStyleClass().remove("error");
-            });
+        activity.getTorrent().ifPresentOrElse(
+                torrent -> {
+                    this.mediaTorrent = torrent;
+                    taskExecutor.execute(() -> {
+                        Platform.runLater(() -> {
+                            progressStatus.setVisible(false);
+                            progressBar.setProgress(-1);
+                            progressBar.getStyleClass().remove("error");
+                        });
 
-            if (!torrentService.isInitialized())
-                waitForTorrentStream();
+                        if (!torrentService.isInitialized())
+                            waitForTorrentStream();
 
-            Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
+                        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
 
-            // go to a separate thread to unblock the activityManager
-            taskExecutor.execute(() -> {
-                Map<String, Map<String, Torrent>> torrents = activity.getMedia().getTorrents();
-
-                torrentService.startStream(torrents.get("en").get(activity.getQuality()).getUrl());
-            });
-        });
+                        // go to a separate thread to unblock the activityManager
+                        taskExecutor.execute(() -> torrentService.startStream(mediaTorrent.getUrl()));
+                    });
+                },
+                () -> {
+                    log.error("Failed to load torrent, no torrent present");
+                    close();
+                });
     }
 
     private void waitForTorrentStream() {
@@ -161,14 +170,14 @@ public class LoaderComponent {
         }
     }
 
-    private void stopStream() {
+    private void close() {
         torrentService.stopStream();
+        activityManager.register(new PlayerCloseActivity() {
+        });
     }
 
     @FXML
     private void onCancelClicked() {
-        stopStream();
-        activityManager.register(new PlayerCloseActivity() {
-        });
+        close();
     }
 }

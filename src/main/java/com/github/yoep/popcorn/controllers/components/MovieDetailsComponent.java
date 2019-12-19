@@ -114,6 +114,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Assert.notNull(media, "media cannot be null");
         this.media = media;
 
+        reset();
         loadText();
         loadStars();
         loadButtons();
@@ -233,6 +234,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             public Media getMedia() {
                 return media;
             }
+
+            @Override
+            public Optional<Torrent> getTorrent() {
+                return Optional.of(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality));
+            }
         });
     }
 
@@ -252,6 +258,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             @Override
             public Media getMedia() {
                 return media;
+            }
+
+            @Override
+            public Optional<Torrent> getTorrent() {
+                return Optional.empty();
             }
         });
     }

@@ -125,8 +125,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         if (watchTrailerButton == null)
             return;
 
-        Movie movie = (Movie) media;
-        watchTrailerButton.setVisible(StringUtils.isNotEmpty(movie.getTrailer()));
+        watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
     }
 
     private void loadHealth() {
@@ -203,8 +202,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         activityManager.register(new PlayVideoActivity() {
             @Override
             public String getUrl() {
-                Movie movie = media;
-                return movie.getTrailer();
+                return media.getTrailer();
             }
 
             @Override

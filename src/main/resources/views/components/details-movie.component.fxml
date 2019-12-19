@@ -89,7 +89,7 @@
 
             <HBox GridPane.columnIndex="0" GridPane.rowIndex="3" alignment="CENTER_LEFT" spacing="5">
                 <SplitMenuButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
-                <Button id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
+                <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
             </HBox>
         </GridPane>
     </GridPane>

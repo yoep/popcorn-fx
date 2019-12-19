@@ -11,7 +11,7 @@ logging:
 popcorn:
   providers:
     movies:
-      url: https://tv-v2.api-fetch.website/movies
+      url: https://tv-v2.api-fetch.website/
       genres:
         - all
         - action
@@ -44,7 +44,7 @@ popcorn:
         - title
         - rating
     series:
-      url: https://tv-v2.api-fetch.website/shows
+      url: https://tv-v2.api-fetch.website/
       genres:
         - all
         - action

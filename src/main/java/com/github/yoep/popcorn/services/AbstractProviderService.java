@@ -20,14 +20,14 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
     protected final RestTemplate restTemplate;
     protected final ActivityManager activityManager;
 
-    protected URI getUriFor(Genre genre, SortBy sortBy, String keywords, int page) {
+    protected URI getUriFor(String resource, Genre genre, SortBy sortBy, String keywords, int page) {
         return UriComponentsBuilder.fromUri(getBaseUrl())
-                .path("/{page}")
+                .path("/{resource}/{page}")
                 .queryParam("sort", sortBy.getKey())
                 .queryParam("order", -1)
                 .queryParam("genre", genre.getKey())
                 .queryParam("keywords", keywords)
-                .build(page);
+                .build(resource, page);
     }
 
     /**

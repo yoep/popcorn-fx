@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.controllers.sections;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
@@ -34,6 +35,7 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
     private final List<ProviderService<? extends Media>> providerServices;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
+    private final LocaleText localeText;
 
     private Category category;
     private Genre genre;
@@ -131,7 +133,7 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
         // offload to a thread which we can cancel later on
         currentProcessingThread = new Thread(() -> {
             mediaList.forEach(media -> {
-                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, taskExecutor, this::onItemClicked);
+                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, this::onItemClicked);
                 Pane component = viewLoader.loadComponent("media-card.component.fxml", mediaCardComponent);
 
                 scrollPane.addItem(component);

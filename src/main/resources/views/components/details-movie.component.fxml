@@ -7,7 +7,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.controllers.components.MovieDetailsComponent" styleClass="details">
+          fx:controller="com.github.yoep.popcorn.controllers.components.MovieDetailsComponent" styleClass="movie-details">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="10"/>
         <ColumnConstraints minWidth="400" percentWidth="80"/>
@@ -27,7 +27,7 @@
         <padding>
             <Insets top="5" right="15"/>
         </padding>
-        <Icons fx:constant="CROSS"/>
+        <Icon fx:constant="CROSS_UNICODE"/>
     </Icon>
 
     <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">

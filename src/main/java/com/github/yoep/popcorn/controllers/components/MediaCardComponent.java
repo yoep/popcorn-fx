@@ -1,8 +1,11 @@
 package com.github.yoep.popcorn.controllers.components;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.messages.MediaMessage;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -30,6 +33,7 @@ public class MediaCardComponent implements Initializable, DisposableBean {
 
     private final List<ItemListener> listeners = new ArrayList<>();
     private final Media media;
+    private final LocaleText localeText;
     private final TaskExecutor taskExecutor;
 
     private Thread imageLoadingThread;
@@ -41,12 +45,15 @@ public class MediaCardComponent implements Initializable, DisposableBean {
     @FXML
     private Label year;
     @FXML
+    private Label seasons;
+    @FXML
     private Label ratingValue;
     @FXML
     private Stars ratingStars;
 
-    public MediaCardComponent(Media media, TaskExecutor taskExecutor, ItemListener... listeners) {
+    public MediaCardComponent(Media media, LocaleText localeText, TaskExecutor taskExecutor, ItemListener... listeners) {
         this.media = media;
+        this.localeText = localeText;
         this.taskExecutor = taskExecutor;
         this.listeners.addAll(asList(listeners));
     }
@@ -108,6 +115,17 @@ public class MediaCardComponent implements Initializable, DisposableBean {
         title.setText(media.getTitle());
         year.setText(media.getYear());
         ratingValue.setText(rating + "/10");
+
+        if (media instanceof Show) {
+            Show show = (Show) media;
+            String text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
+
+            if (show.getNumberOfSeasons() > 1) {
+                text += localeText.get(MediaMessage.PLURAL);
+            }
+
+            seasons.setText(text);
+        }
 
         Tooltip.install(title, new Tooltip(media.getTitle()));
     }

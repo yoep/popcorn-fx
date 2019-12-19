@@ -52,7 +52,7 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        URI uri = getUriFor(genre, sortBy, keywords, page);
+        URI uri = getUriFor("movies", genre, sortBy, keywords, page);
 
         ResponseEntity<Movie[]> items = restTemplate.getForEntity(uri, Movie[].class);
 

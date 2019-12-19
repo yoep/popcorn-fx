@@ -327,81 +327,102 @@
     -fx-padding: 4 0 2 0;
 }
 
-.root .poster-item .year {
+.root .poster-item .year,
+.root .poster-item .seasons {
     -fx-text-fill: #5b5b5b;
     -fx-fill: #5b5b5b;
     -fx-font-size: 0.85em;
 }
 
 .root .player .player-header .close-button,
-.root .details .close-button {
+.root .movie-details .close-button,
+.root .show-details .close-button {
     -fx-text-fill: #ccc;
     -fx-cursor: hand;
 }
 
 .root .player .player-header .close-button,
-.root .details .close-button:hover {
+.root .movie-details .close-button:hover,
+.root .show-details .close-button:hover {
     -fx-text-fill: #fff;
 }
 
-.root .details .poster-image {
+.root .movie-details .poster-image {
     -fx-background-radius: 2em;
 }
 
-.root .details .title {
+.root .movie-details .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 38px;
     -fx-padding: 0 0 0 0;
 }
 
-.root .details .metadata Label {
+.root .movie-details .metadata Label,
+.root .show-details .metadata Label {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
 }
 
-.root .details .metadata .separator {
+.root .movie-details .metadata .separator,
+.root .show-details .metadata .separator {
     -fx-text-fill: #dbdbdd;
     -fx-font-size: 5px;
     -fx-padding: 0 10 0 10;
 }
 
-.root .details .overview {
+.root .movie-details .overview,
+.root .show-details .overview {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
 }
 
-.root .details .magnet-link {
+.root .movie-details .magnet-link {
     -fx-text-fill: #ddd;
     -fx-cursor: hand;
     -fx-padding: 0 8 0 8;
 }
 
-.root .details .magnet-link:hover {
+.root .movie-details .magnet-link:hover {
     -fx-text-fill: #fff;
 }
 
-.root .details .health {
+.root .movie-details .health {
     -fx-text-fill: #737577;
     -fx-cursor: hand;
 }
 
-.root .details .health.bad {
+.root .movie-details .health.bad {
     -fx-text-fill: #d53f3f;
 }
 
-.root .details .health.medium {
+.root .movie-details .health.medium {
     -fx-text-fill: #ece523;
 }
 
-.root .details .health.good {
+.root .movie-details .health.good {
     -fx-text-fill: #a3e147;
 }
 
-.root .details .health.excellent {
+.root .movie-details .health.excellent {
     -fx-text-fill: #2ad942;
+}
+
+.root .show-details .title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 28px;
+    -fx-padding: 8 0 5 0;
+}
+
+.root .show-details .poster {
+    -fx-max-height: 198;
+}
+
+.root .show-details .poster .poster-image {
+    -fx-effect: dropshadow(three-pass-box, #17181b, 15, 0, 0, 0);
 }
 
 .root .player {

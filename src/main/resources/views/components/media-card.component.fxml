@@ -8,7 +8,8 @@
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           styleClass="poster-item" onMouseClicked="#showDetails" cache="true">
     <columnConstraints>
-        <ColumnConstraints hgrow="ALWAYS"/>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints/>
@@ -19,7 +20,8 @@
         <Insets topRightBottomLeft="10"/>
     </padding>
 
-    <AnchorPane styleClass="poster" GridPane.columnIndex="0" GridPane.rowIndex="0">
+    <AnchorPane styleClass="poster"
+                GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0">
         <BorderPane fx:id="poster" styleClass="poster-image"/>
 
         <AnchorPane styleClass="overlay" AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">
@@ -37,7 +39,10 @@
     </AnchorPane>
 
     <Label fx:id="title" styleClass="title"
-           GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+           GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
     <Label fx:id="year" styleClass="year"
            GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+    <Label fx:id="seasons" styleClass="seasons"
+           GridPane.halignment="RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
 </GridPane>

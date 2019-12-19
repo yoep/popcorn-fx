@@ -118,7 +118,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         loadStars();
         loadButtons();
         loadQualitySelection();
-        loadHealth();
         loadPosterImage();
     }
 
@@ -132,20 +131,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     private void loadButtons() {
         watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
-    }
-
-    private void loadHealth() {
-        health.getStyleClass().removeIf(e -> !e.equals("health"));
-
-        Torrent torrent = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-
-        TorrentHealth health = torrentService.calculateHealth(torrent.getSeed(), torrent.getPeer());
-
-        this.health.getStyleClass().add(health.getStatus().getStyleClass());
-        this.healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
-        this.healthTooltip.setWrapText(true);
-        setInstantTooltip(this.healthTooltip);
-        Tooltip.install(this.health, this.healthTooltip);
     }
 
     private void loadQualitySelection() {
@@ -187,6 +172,20 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Clipboard.getSystemClipboard().setContent(clipboardContent);
     }
 
+    private void switchHealth() {
+        health.getStyleClass().removeIf(e -> !e.equals("health"));
+
+        Torrent torrent = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+
+        TorrentHealth health = torrentService.calculateHealth(torrent.getSeed(), torrent.getPeer());
+
+        this.health.getStyleClass().add(health.getStatus().getStyleClass());
+        this.healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
+        this.healthTooltip.setWrapText(true);
+        setInstantTooltip(this.healthTooltip);
+        Tooltip.install(this.health, this.healthTooltip);
+    }
+
     private void switchActiveQuality(String quality) {
         String activeStyle = "active";
 
@@ -198,6 +197,8 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
                 .filter(e -> e.getText().equalsIgnoreCase(quality))
                 .findFirst()
                 .ifPresent(e -> e.getStyleClass().add(activeStyle));
+
+        switchHealth();
     }
 
     private void onQualityClicked(MouseEvent event) {

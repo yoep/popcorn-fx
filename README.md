@@ -13,10 +13,15 @@ missing from the modules causing an `IllegalAccessException` when trying to run 
 Add the following options to the `VM Options` in the run configuration of IntelliJ to fix this issue. 
 
     -p "<PATH TO JAVAFX SDK>\lib" --add-modules javafx.controls,javafx.fxml,javafx.swing
-    
+
+## White box glitch
+
+Add the following VM option when your experiencing white boxes in the UI.
+
+    -Dprism.dirtyopts=false
+
 ## TODO features
 
-- Add video quality selection
 - Add stream stats to player
 - Add settings
 - Add favorites

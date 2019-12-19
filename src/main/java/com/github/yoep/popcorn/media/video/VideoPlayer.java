@@ -201,7 +201,7 @@ public class VideoPlayer {
         double width = canvas.getWidth();
         double height = canvas.getHeight();
 
-        g.setFill(new Color(0, 0, 0, 1));
+        g.setFill(Color.BLACK);
         g.fillRect(0, 0, width, height);
     }
 

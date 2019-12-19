@@ -235,24 +235,22 @@ public class PlayerComponent implements Initializable {
     }
 
     private void onVideoStopped() {
-        // check if the video has been started for more than 500 millis before exiting the video player
+        // check if the video has been started for more than 1.5 sec before exiting the video player
         // this should fix the issue of the video player closing directly in some cases
-        if (System.currentTimeMillis() - videoChangeTime < 500)
+        if (System.currentTimeMillis() - videoChangeTime <= 1500)
             return;
 
         close();
     }
 
     private void reset() {
-        taskExecutor.execute(() -> videoPlayer.stop());
+        slider.setValue(0);
+        currentTime.setText(formatTime(0));
+        duration.setText(formatTime(0));
+        quality.setVisible(false);
+        playerStats.setVisible(false);
 
-        Platform.runLater(() -> {
-            slider.setValue(0);
-            currentTime.setText(formatTime(0));
-            duration.setText(formatTime(0));
-            quality.setVisible(false);
-            playerStats.setVisible(false);
-        });
+        taskExecutor.execute(() -> videoPlayer.stop());
     }
 
     private void changePlayPauseState() {

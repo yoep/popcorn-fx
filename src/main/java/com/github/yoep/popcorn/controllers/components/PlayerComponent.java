@@ -72,6 +72,7 @@ public class PlayerComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        log.trace("Initializing video player component for JavaFX");
         initializeSceneEvents();
         initializeVideoPlayer();
         initializeSlider();
@@ -179,6 +180,7 @@ public class PlayerComponent implements Initializable {
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
+        log.debug("Received play video activity for url {}, quality {} and media {}", activity.getUrl(), activity.getQuality().orElse("-"), activity.getMedia());
         videoChangeTime = System.currentTimeMillis();
         videoPlayer.play(activity.getUrl());
 

@@ -122,9 +122,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     }
 
     private void loadButtons() {
-        if (watchTrailerButton == null)
-            return;
-
         watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
     }
 

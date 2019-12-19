@@ -91,6 +91,10 @@
                 <SplitMenuButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
                 <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
             </HBox>
+            <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_RIGHT" spacing="5"
+                  GridPane.columnIndex="1" GridPane.rowIndex="3">
+
+            </HBox>
         </GridPane>
     </GridPane>
 </GridPane>

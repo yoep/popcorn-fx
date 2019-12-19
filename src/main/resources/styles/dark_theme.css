@@ -410,6 +410,18 @@
     -fx-text-fill: #2ad942;
 }
 
+.root .movie-details .quality-selection .quality {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-cursor: hand;
+    -fx-padding: 2 10 2 10;
+}
+
+.root .movie-details .quality-selection .quality.active {
+    -fx-background-color: rgba(43,110,210,0.84);
+    -fx-background-radius: 5em;
+}
+
 .root .show-details .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;

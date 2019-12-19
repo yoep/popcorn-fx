@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
-import com.github.yoep.popcorn.media.providers.MediaException;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
@@ -21,6 +20,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
@@ -29,20 +29,25 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.Map;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
 @Component
 public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
+    private static final String DEFAULT_TORRENT_AUDIO = "en";
+
     private final ActivityManager activityManager;
     private final LocaleText localeText;
     private final Application application;
     private final TorrentService torrentService;
 
     private Tooltip healthTooltip;
+    private String quality;
 
     @FXML
     private Label title;
@@ -62,6 +67,8 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private SplitMenuButton watchNowButton;
     @FXML
     private Button watchTrailerButton;
+    @FXML
+    private Pane qualitySelectionPane;
 
     public MovieDetailsComponent(ActivityManager activityManager, LocaleText localeText, Application application, TaskExecutor taskExecutor, TorrentService torrentService) {
         super(taskExecutor);
@@ -99,6 +106,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         year.setText(StringUtils.EMPTY);
         duration.setText(StringUtils.EMPTY);
         genres.setText(StringUtils.EMPTY);
+        qualitySelectionPane.getChildren().clear();
         poster.setImage(null);
     }
 
@@ -109,6 +117,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         loadText();
         loadStars();
         loadButtons();
+        loadQualitySelection();
         loadHealth();
         loadPosterImage();
     }
@@ -128,24 +137,39 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private void loadHealth() {
         health.getStyleClass().removeIf(e -> !e.equals("health"));
 
-        media.getTorrents().get("en").entrySet().stream()
-                .findFirst()
-                .map(Map.Entry::getValue)
-                .ifPresent(torrent -> {
-                    TorrentHealth health = torrentService.calculateHealth(torrent.getSeed(), torrent.getPeer());
+        Torrent torrent = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
 
-                    this.health.getStyleClass().add(health.getStatus().getStyleClass());
-                    this.healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
-                    this.healthTooltip.setWrapText(true);
-                    setInstantTooltip(this.healthTooltip);
-                    Tooltip.install(this.health, this.healthTooltip);
-                });
+        TorrentHealth health = torrentService.calculateHealth(torrent.getSeed(), torrent.getPeer());
 
+        this.health.getStyleClass().add(health.getStatus().getStyleClass());
+        this.healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
+        this.healthTooltip.setWrapText(true);
+        setInstantTooltip(this.healthTooltip);
+        Tooltip.install(this.health, this.healthTooltip);
+    }
+
+    private void loadQualitySelection() {
+        List<Label> qualities = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).keySet().stream()
+                .sorted(Comparator.comparing(o -> Integer.parseInt(o.replaceAll("[a-z]", ""))))
+                .map(this::createQualityOption)
+                .collect(Collectors.toList());
+
+        qualitySelectionPane.getChildren().addAll(qualities);
+        switchActiveQuality(qualities.get(qualities.size() - 1).getText());
     }
 
     private String getHealthTooltip(Torrent torrent, TorrentHealth health) {
         return localeText.get(health.getStatus().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
                 "Seeds: " + torrent.getSeed() + " - Peers: " + torrent.getPeer();
+    }
+
+    private Label createQualityOption(String quality) {
+        Label label = new Label(quality);
+
+        label.getStyleClass().add("quality");
+        label.setOnMouseClicked(this::onQualityClicked);
+
+        return label;
     }
 
     private void openMagnetLink(Torrent torrent) {
@@ -161,6 +185,25 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         clipboardContent.putUrl(torrent.getUrl());
         clipboardContent.putString(torrent.getUrl());
         Clipboard.getSystemClipboard().setContent(clipboardContent);
+    }
+
+    private void switchActiveQuality(String quality) {
+        String activeStyle = "active";
+
+        this.quality = quality;
+
+        qualitySelectionPane.getChildren().forEach(e -> e.getStyleClass().remove(activeStyle));
+        qualitySelectionPane.getChildren().stream()
+                .map(e -> (Label) e)
+                .filter(e -> e.getText().equalsIgnoreCase(quality))
+                .findFirst()
+                .ifPresent(e -> e.getStyleClass().add(activeStyle));
+    }
+
+    private void onQualityClicked(MouseEvent event) {
+        Label label = (Label) event.getSource();
+
+        switchActiveQuality(label.getText());
     }
 
     @FXML
@@ -182,9 +225,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         activityManager.register(new LoadMovieActivity() {
             @Override
             public String getQuality() {
-                return media.getTorrents().get("en").keySet().stream()
-                        .findFirst()
-                        .orElseThrow(() -> new MediaException(media, "No torrents available for the media"));
+                return quality;
             }
 
             @Override

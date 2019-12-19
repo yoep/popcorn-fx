@@ -203,8 +203,13 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         activityManager.register(new PlayVideoActivity() {
             @Override
             public String getUrl() {
-                Movie movie = (Movie) media;
+                Movie movie = media;
                 return movie.getTrailer();
+            }
+
+            @Override
+            public Optional<String> getQuality() {
+                return Optional.empty();
             }
 
             @Override

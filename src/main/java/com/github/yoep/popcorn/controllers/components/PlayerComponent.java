@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
@@ -43,6 +44,10 @@ public class PlayerComponent implements Initializable {
     @FXML
     private Label title;
     @FXML
+    private Label quality;
+    @FXML
+    private Icon playerStats;
+    @FXML
     private Label currentTime;
     @FXML
     private Label duration;
@@ -58,6 +63,7 @@ public class PlayerComponent implements Initializable {
         initializeKeyEvents();
         initializeVideoPlayer();
         initializeSlider();
+        initializeHeader();
     }
 
     @PostConstruct
@@ -130,20 +136,8 @@ public class PlayerComponent implements Initializable {
     }
 
     private void initializeListeners() {
-        activityManager.register(PlayVideoActivity.class, activity -> {
-            videoPlayer.play(activity.getUrl());
-            Platform.runLater(() -> title.setText(activity.getMedia().getTitle()));
-        });
-        activityManager.register(LoadMovieActivity.class, activity -> {
-
-        });
-        activityManager.register(FullscreenActivity.class, activity -> {
-            if (activity.isFullscreen()) {
-                Platform.runLater(() -> fullscreenIcon.setText(Icon.COLLAPSE_UNICODE));
-            } else {
-                Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
-            }
-        });
+        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
+        activityManager.register(FullscreenActivity.class, this::onFullscreenChanged);
     }
 
     private void initializeSlider() {
@@ -162,6 +156,35 @@ public class PlayerComponent implements Initializable {
         slider.setOnMouseReleased(event -> setVideoTime(slider.getValue() + 1));
     }
 
+    private void initializeHeader() {
+        quality.setVisible(false);
+        playerStats.setVisible(false);
+    }
+
+    private void onPlayVideo(PlayVideoActivity activity) {
+        videoPlayer.play(activity.getUrl());
+        Platform.runLater(() -> {
+            Media media = activity.getMedia();
+
+            title.setText(media.getTitle());
+
+            activity.getQuality().ifPresentOrElse(
+                    quality -> {
+                        this.quality.setText(quality);
+                        this.quality.setVisible(true);
+                    },
+                    () -> this.quality.setVisible(false));
+        });
+    }
+
+    private void onFullscreenChanged(FullscreenActivity activity) {
+        if (activity.isFullscreen()) {
+            Platform.runLater(() -> fullscreenIcon.setText(Icon.COLLAPSE_UNICODE));
+        } else {
+            Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
+        }
+    }
+
     private void reset() {
         taskExecutor.execute(() -> videoPlayer.stop());
 
@@ -169,6 +192,8 @@ public class PlayerComponent implements Initializable {
             slider.setValue(0);
             currentTime.setText(formatTime(0));
             duration.setText(formatTime(0));
+            quality.setVisible(false);
+            playerStats.setVisible(false);
         });
     }
 

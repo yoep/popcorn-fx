@@ -425,6 +425,29 @@
     -fx-effect: dropshadow(three-pass-box, #17181b, 15, 0, 0, 0);
 }
 
+.root .show-details .bookmark {
+    -fx-cursor: hand;
+    -fx-padding: 5 0 8 5;
+}
+
+.root .show-details .bookmark Icon,
+.root .show-details .bookmark Label {
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.2em;
+}
+
+.root .show-details .bookmark Icon {
+    -fx-padding: 0 5 0 0;
+}
+
+.root .show-details .bookmark Label {
+    -fx-font-family: "Open Sans Semibold";
+}
+
+.root .show-details .bookmark:hover Icon {
+    -fx-text-fill: #2468cc;
+}
+
 .root .player {
     -fx-background-color: #000;
 }
@@ -434,10 +457,29 @@
     -fx-padding: 10 0 20 0;
 }
 
-.root .player .player-header .title {
+.root .player .player-header .player-title {
     -fx-font-family: "Open Sans";
     -fx-text-fill: #fff;
     -fx-font-size: 1.8em;
+}
+
+.root .player .player-header .stats Icon {
+    -fx-text-fill: #fff;
+    -fx-font-size: 2em;
+}
+
+.root .player .player-header .stats Icon {
+    -fx-cursor: hand;
+}
+
+.root .player .player-header .stats .player-quality {
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.3em;
+    -fx-font-weight: bold;
+}
+
+.root .player .player-header .stats .player-stats {
+    -fx-padding: 0 8 0 8;
 }
 
 .root .player .player-overlay {

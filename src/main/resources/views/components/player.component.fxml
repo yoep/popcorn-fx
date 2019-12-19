@@ -21,25 +21,29 @@
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS"/>
             <ColumnConstraints minWidth="10" maxWidth="10"/>
-            <ColumnConstraints minWidth="40" maxWidth="40"/>
+            <ColumnConstraints minWidth="40"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints/>
         </rowConstraints>
 
-        <Label fx:id="title" styleClass="title"
+        <Label fx:id="title" styleClass="player-title"
                GridPane.columnIndex="0" GridPane.rowIndex="0">
             <padding>
                 <Insets left="15"/>
             </padding>
         </Label>
-        <Icon styleClass="close-button" sizeFactor="2" onMouseClicked="#close"
-              GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.valignment="TOP" GridPane.halignment="RIGHT">
-            <padding>
-                <Insets right="15"/>
-            </padding>
-            <Icon fx:constant="CROSS_UNICODE"/>
-        </Icon>
+
+        <HBox styleClass="stats" GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.valignment="TOP" GridPane.halignment="RIGHT" alignment="CENTER_RIGHT">
+            <Label fx:id="quality" styleClass="player-quality" />
+            <Icon fx:id="playerStats" styleClass="player-stats" />
+            <Icon styleClass="close-button" onMouseClicked="#close">
+                <padding>
+                    <Insets right="15"/>
+                </padding>
+                <Icon fx:constant="CROSS_UNICODE"/>
+            </Icon>
+        </HBox>
     </GridPane>
 
     <!-- Player Controls -->

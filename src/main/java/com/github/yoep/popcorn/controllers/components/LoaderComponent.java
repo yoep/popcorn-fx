@@ -24,6 +24,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -35,6 +36,7 @@ public class LoaderComponent {
     private final LocaleText localeText;
 
     private Media media;
+    private String quality;
 
     @FXML
     private Label statusText;
@@ -90,6 +92,11 @@ public class LoaderComponent {
                     }
 
                     @Override
+                    public Optional<String> getQuality() {
+                        return Optional.ofNullable(quality);
+                    }
+
+                    @Override
                     public Media getMedia() {
                         return media;
                     }
@@ -119,6 +126,7 @@ public class LoaderComponent {
     private void startTorrent(LoadMovieActivity activity) {
         // store the requested media locally for later use
         this.media = activity.getMedia();
+        this.quality = activity.getQuality();
 
         taskExecutor.execute(() -> {
             Platform.runLater(() -> {

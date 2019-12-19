@@ -96,7 +96,7 @@ public class TorrentStream {
     }
 
     public void stopStream() {
-        if (this.torrentFactory.getCurrentTorrent().isEmpty())
+        if (this.torrentFactory.getCurrentTorrent().map(e -> e.getState() == Torrent.State.PAUSED).orElse(true))
             return;
 
         log.debug("Stopping current torrent stream");

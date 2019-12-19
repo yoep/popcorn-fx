@@ -17,7 +17,6 @@ Add the following options to the `VM Options` in the run configuration of Intell
 ## TODO features
 
 - Add video quality selection
-- Add video quality to player
 - Add stream stats to player
 - Add settings
 - Add favorites

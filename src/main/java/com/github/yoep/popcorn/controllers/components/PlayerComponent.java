@@ -7,10 +7,13 @@ import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
 import com.github.yoep.popcorn.services.TorrentService;
+import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Cursor;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.layout.Pane;
@@ -30,15 +33,24 @@ import java.util.concurrent.TimeUnit;
 @Component
 @RequiredArgsConstructor
 public class PlayerComponent implements Initializable {
-    private final PauseTransition idle = new PauseTransition(Duration.seconds(3));
+    private static final int OVERLAY_FADE_DURATION = 1500;
+
+    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(5));
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
     private final TorrentService torrentService;
 
     private VideoPlayer videoPlayer;
+    private long videoChangeTime;
 
     @FXML
     private Pane playerPane;
+    @FXML
+    private Pane playerHeader;
+    @FXML
+    private Pane playerVideoOverlay;
+    @FXML
+    private Pane playerControls;
     @FXML
     private Pane videoView;
     @FXML
@@ -60,7 +72,7 @@ public class PlayerComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        initializeKeyEvents();
+        initializeSceneEvents();
         initializeVideoPlayer();
         initializeSlider();
         initializeHeader();
@@ -76,7 +88,7 @@ public class PlayerComponent implements Initializable {
         videoPlayer.dispose();
     }
 
-    private void initializeKeyEvents() {
+    private void initializeSceneEvents() {
         playerPane.setOnKeyReleased(event -> {
             switch (event.getCode()) {
                 case LEFT:
@@ -95,6 +107,8 @@ public class PlayerComponent implements Initializable {
                     break;
             }
         });
+        idleTimer.setOnFinished(e -> onHideOverlay());
+        playerPane.addEventHandler(Event.ANY, e -> onShowOverlay());
     }
 
     private void initializeVideoPlayer() {
@@ -103,6 +117,8 @@ public class PlayerComponent implements Initializable {
 
         this.videoPlayer = new VideoPlayer(videoView);
         this.videoPlayer.addListener((oldState, newState) -> {
+            log.debug("Video player state changed to {}", newState);
+
             switch (newState) {
                 case PLAYING:
                     Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
@@ -111,8 +127,9 @@ public class PlayerComponent implements Initializable {
                     Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
                     break;
                 case FINISHED:
-                    //TODO: fix issue were this is being called when the video is switched
-                    //close();
+                    break;
+                case STOPPED:
+                    onVideoStopped();
                     break;
             }
         });
@@ -162,7 +179,9 @@ public class PlayerComponent implements Initializable {
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
+        videoChangeTime = System.currentTimeMillis();
         videoPlayer.play(activity.getUrl());
+
         Platform.runLater(() -> {
             Media media = activity.getMedia();
 
@@ -183,6 +202,43 @@ public class PlayerComponent implements Initializable {
         } else {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
         }
+    }
+
+    private void onHideOverlay() {
+        if (videoPlayer.getPlayerState() != PlayerState.PLAYING)
+            return;
+
+        log.debug("Hiding video player overlay");
+        playerPane.setCursor(Cursor.NONE);
+        playerVideoOverlay.setCursor(Cursor.NONE);
+
+        FadeTransition transitionHeader = new FadeTransition(Duration.millis(OVERLAY_FADE_DURATION), playerHeader);
+        FadeTransition transitionControls = new FadeTransition(Duration.millis(OVERLAY_FADE_DURATION), playerControls);
+
+        transitionHeader.setToValue(0.0);
+        transitionControls.setToValue(0.0);
+
+        transitionHeader.play();
+        transitionControls.play();
+    }
+
+    private void onShowOverlay() {
+        playerPane.setCursor(Cursor.DEFAULT);
+        playerVideoOverlay.setCursor(Cursor.HAND);
+
+        playerHeader.setOpacity(1.0);
+        playerControls.setOpacity(1.0);
+
+        idleTimer.playFromStart();
+    }
+
+    private void onVideoStopped() {
+        // check if the video has been started for more than 500 millis before exiting the video player
+        // this should fix the issue of the video player closing directly in some cases
+        if (System.currentTimeMillis() - videoChangeTime < 500)
+            return;
+
+        close();
     }
 
     private void reset() {
@@ -251,7 +307,7 @@ public class PlayerComponent implements Initializable {
 
     @FXML
     private void close() {
-        log.trace("Closing player component");
+        log.trace("Closing video player component");
         reset();
         torrentService.stopStream();
         activityManager.register(new PlayerCloseActivity() {

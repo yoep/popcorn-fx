@@ -12,11 +12,11 @@
           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
     <!-- Video Player Cover -->
-    <BorderPane styleClass="player-overlay" onMouseClicked="#onPlayerClick"
+    <BorderPane fx:id="playerVideoOverlay" styleClass="player-overlay" onMouseClicked="#onPlayerClick"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
     <!-- Player Header -->
-    <GridPane styleClass="player-header"
+    <GridPane fx:id="playerHeader" styleClass="player-header"
               AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS"/>
@@ -47,7 +47,7 @@
     </GridPane>
 
     <!-- Player Controls -->
-    <GridPane styleClass="player-controls"
+    <GridPane fx:id="playerControls" styleClass="player-controls"
               AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0">
         <columnConstraints>
             <ColumnConstraints/>

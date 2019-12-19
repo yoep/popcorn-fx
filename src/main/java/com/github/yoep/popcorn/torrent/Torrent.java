@@ -25,7 +25,7 @@ public class Torrent implements AlertListener {
     private final static Integer DEFAULT_PREPARE_COUNT = 5;
     private final static Integer SEQUENTIAL_CONCURRENT_PIECES_COUNT = 5;
 
-    public enum State {RETRIEVING_META, STARTING, STREAMING}
+    public enum State {RETRIEVING_META, STARTING, STREAMING, PAUSED}
 
     private Integer piecesToPrepare;
     private Integer lastPieceIndex;
@@ -122,6 +122,7 @@ public class Torrent implements AlertListener {
      */
     public void pause() {
         torrentHandle.pause();
+        state = State.PAUSED;
     }
 
     /**

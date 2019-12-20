@@ -148,4 +148,10 @@ public class HeaderSectionController implements Initializable {
     private void onGenreClicked() {
         genreCombo.show();
     }
+
+    @FXML
+    private void onSettingsClicked() {
+        activityManager.register(new ShowSettingsActivity() {
+        });
+    }
 }

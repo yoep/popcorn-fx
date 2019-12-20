@@ -56,7 +56,7 @@
                     <Tooltip text="%header_torrent_collection" showDelay="500ms" showDuration="1h" />
                 </tooltip>
             </Icon>
-            <Icon styleClass="icon">
+            <Icon styleClass="icon" onMouseClicked="#onSettingsClicked">
                 <Icon fx:constant="COG_UNICODE" />
                 <tooltip>
                     <Tooltip text="%header_settings" showDelay="500ms" showDuration="1h" />

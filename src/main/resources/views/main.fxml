@@ -5,6 +5,8 @@
             prefHeight="720" prefWidth="1280" stylesheets="/styles/dark_theme.css" xmlns="http://javafx.com/javafx/10.0.2-internal">
     <fx:include fx:id="contentSection" source="sections/content.section.fxml"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+    <fx:include fx:id="settingsSection" source="sections/settings.section.fxml"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
     <fx:include fx:id="playerSection" source="sections/player.section.fxml"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 </AnchorPane>

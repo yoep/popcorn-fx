@@ -8,8 +8,11 @@ import com.github.spring.boot.javafx.view.ViewProperties;
 import javafx.stage.Stage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import java.io.File;
+
 @SpringBootApplication
 public class PopcornTimeApplication extends SpringJavaFXApplication {
+    public static String APP_DIR = getDefaultAppDirLocation();
 
     public static void main(String[] args) {
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
@@ -28,5 +31,9 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
                 .maximizable(true)
                 .build());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
+    }
+
+    private static String getDefaultAppDirLocation() {
+        return System.getProperty("user.home") + File.separator + ".popcorn-time" + File.separator;
     }
 }

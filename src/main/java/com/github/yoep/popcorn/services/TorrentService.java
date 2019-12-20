@@ -1,31 +1,72 @@
 package com.github.yoep.popcorn.services;
 
 import com.github.yoep.popcorn.models.TorrentHealth;
+import com.github.yoep.popcorn.models.settings.Settings;
 import com.github.yoep.popcorn.torrent.TorrentStream;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import javax.annotation.PreDestroy;
+import java.io.IOException;
+
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class TorrentService {
     private final TorrentStream torrentStream;
+    private final SettingsService settingsService;
 
+    //region Constructors
+
+    public TorrentService(TaskExecutor taskExecutor, SettingsService settingsService) {
+        this.settingsService = settingsService;
+        this.torrentStream = new TorrentStream(taskExecutor, settingsService);
+    }
+
+    //endregion
+
+    //region Getters
+
+    /**
+     * Check if the torrent stream has been initialized.
+     * This means that the torrent session has been started and has at least 10 DHT nodes available.
+     *
+     * @return Returns true if initialize, else false.
+     */
     public boolean isInitialized() {
         return torrentStream.isInitialized();
     }
 
+    //endregion
+
+    //region Methods
+
+    /**
+     * Register the given listener to the {@link TorrentStream}.
+     *
+     * @param listener The listener to register.
+     */
     public void addListener(TorrentListener listener) {
         Assert.notNull(listener, "listener cannot be null");
         torrentStream.addListener(listener);
     }
 
+    /**
+     * Start a new torrent stream for the given torrent url.
+     *
+     * @param torrentUrl The torrent url to start a new stream for.
+     */
     public void startStream(String torrentUrl) {
         Assert.hasText(torrentUrl, "torrentUrl cannot be empty");
         torrentStream.startStream(torrentUrl);
     }
 
+    /**
+     * Stop the current torrent stream.
+     */
     public void stopStream() {
         torrentStream.stopStream();
     }
@@ -76,4 +117,24 @@ public class TorrentService {
 
         return new TorrentHealth(status, ratio, seeds, peers);
     }
+
+    //endregion
+
+    //region Functions
+
+    @PreDestroy
+    public void destroy() {
+        Settings settings = settingsService.getSettings();
+
+        if (settings.isTorrentDirectoryCleaningEnabled()) {
+            try {
+                log.info("Cleaning torrent directory {}", settings.getTorrentDirectory());
+                FileUtils.cleanDirectory(settings.getTorrentDirectory());
+            } catch (IOException ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        }
+    }
+
+    //endregion
 }

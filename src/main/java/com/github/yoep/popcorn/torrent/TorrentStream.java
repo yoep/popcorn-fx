@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.torrent;
 
 import com.frostwire.jlibtorrent.*;
+import com.github.yoep.popcorn.services.SettingsService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListenerHolder;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -11,7 +11,6 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -25,18 +24,30 @@ import java.util.Arrays;
 import java.util.Optional;
 
 @Slf4j
-@Component
-@RequiredArgsConstructor
 public class TorrentStream {
-    private static final String SAVE_DIRECTORY_NAME = ".popcorn-time/torrents";
-
     private final TorrentListenerHolder listenerHolder = new TorrentListenerHolder();
     private final TaskExecutor taskExecutor;
+    private final SettingsService settingsService;
 
     private SessionManager torrentSession;
     private TorrentFactory torrentFactory;
     private Thread currentStream;
     private boolean initialized;
+
+    //region Constructors
+
+    /**
+     * Initialize a new instance of {@link TorrentStream}.
+     *
+     * @param taskExecutor    The task executor to use for delegating tasks to new threads.
+     * @param settingsService The application settings service to use.
+     */
+    public TorrentStream(TaskExecutor taskExecutor, SettingsService settingsService) {
+        this.taskExecutor = taskExecutor;
+        this.settingsService = settingsService;
+    }
+
+    //endregion
 
     //region Getters & Setters
 
@@ -84,7 +95,7 @@ public class TorrentStream {
 
                             Arrays.fill(priorities, Priority.IGNORE);
 
-                            this.torrentSession.download(torrentInfo, getSaveDirectory(), null, priorities, null);
+                            this.torrentSession.download(torrentInfo, settingsService.getSettings().getTorrentDirectory(), null, priorities, null);
                         }, () -> listenerHolder.onLoadError("Failed to retrieve torrent information"));
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
@@ -172,7 +183,7 @@ public class TorrentStream {
     }
 
     private void initSaveDirectory() {
-        File directory = getSaveDirectory();
+        File directory = settingsService.getSettings().getTorrentDirectory();
 
         if (directory.mkdirs()) {
             log.info("Created torrent save directory in {}", directory.getAbsolutePath());
@@ -196,10 +207,6 @@ public class TorrentStream {
             this.initialized = true;
             log.info("TorrentStream initialized in {} seconds", (System.currentTimeMillis() - startTime) / 1000.0);
         });
-    }
-
-    private File getSaveDirectory() {
-        return new File(System.getProperty("user.home") + File.separator + SAVE_DIRECTORY_NAME);
     }
 
     /**

@@ -82,7 +82,7 @@
 .root InfiniteScrollPane .track,
 .root ListView .track,
 .root Episodes .track,
-.root ComboBox .list-view .track{
+.root ComboBox .list-view .track {
     -fx-background-color: #30333c;
     -fx-border-color: transparent;
     -fx-background-radius: 2em;
@@ -180,6 +180,15 @@
 
 .root .stars .filled {
     -fx-text-fill: #ffc900;
+}
+
+.root .close-button {
+    -fx-text-fill: #ccc;
+    -fx-cursor: hand;
+}
+
+.root .close-button:hover {
+    -fx-text-fill: #fff;
 }
 
 .root .header .shadow {
@@ -368,19 +377,6 @@
     -fx-text-fill: #5b5b5b;
     -fx-fill: #5b5b5b;
     -fx-font-size: 0.85em;
-}
-
-.root .player .player-header .close-button,
-.root .movie-details .close-button,
-.root .show-details-section .close-button {
-    -fx-text-fill: #ccc;
-    -fx-cursor: hand;
-}
-
-.root .player .player-header .close-button,
-.root .movie-details .close-button:hover,
-.root .show-details-section .close-button:hover {
-    -fx-text-fill: #fff;
 }
 
 .root .movie-details .poster-image {
@@ -642,4 +638,18 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #f9fafc;
     -fx-font-size: 1.2em;
+}
+
+.root .settings-section .settings-title {
+    -fx-font-family: "Open Sans";
+    -fx-text-fill: #fff;
+    -fx-font-size: 22;
+    -fx-padding: 8 30 5 30;
+}
+
+.root .settings-section .subsection-title {
+    -fx-font-family: "Open Sans";
+    -fx-text-fill: #2d75df;
+    -fx-font-size: 17;
+    -fx-padding: 0 30 5 30;
 }

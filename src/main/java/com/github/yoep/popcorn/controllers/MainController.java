@@ -1,8 +1,6 @@
 package com.github.yoep.popcorn.controllers;
 
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.PlayMediaActivity;
-import com.github.yoep.popcorn.activities.PlayerCloseActivity;
+import com.github.yoep.popcorn.activities.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -21,23 +19,35 @@ public class MainController implements Initializable {
     @FXML
     private Pane contentSection;
     @FXML
+    private Pane settingsSection;
+    @FXML
     private Pane playerSection;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         playerSection.setVisible(false);
+        settingsSection.setVisible(false);
         initializeListeners();
     }
 
     private void initializeListeners() {
-        activityManager.register(PlayMediaActivity.class, activity -> switchSection(true));
-        activityManager.register(PlayerCloseActivity.class, activity -> switchSection(false));
+        activityManager.register(PlayMediaActivity.class, activity -> switchSection(ActiveSection.PLAYER));
+        activityManager.register(ShowSettingsActivity.class, activity -> switchSection(ActiveSection.SETTINGS));
+        activityManager.register(CloseSettingsActivity.class, activity -> switchSection(ActiveSection.CONTENT));
+        activityManager.register(PlayerCloseActivity.class, activity -> switchSection(ActiveSection.CONTENT));
     }
 
-    private void switchSection(final boolean showPlayer) {
+    private void switchSection(final ActiveSection activeSection) {
         Platform.runLater(() -> {
-            contentSection.setVisible(!showPlayer);
-            playerSection.setVisible(showPlayer);
+            contentSection.setVisible(activeSection == ActiveSection.CONTENT);
+            settingsSection.setVisible(activeSection == ActiveSection.SETTINGS);
+            playerSection.setVisible(activeSection == ActiveSection.PLAYER);
         });
+    }
+
+    private enum ActiveSection {
+        CONTENT,
+        SETTINGS,
+        PLAYER
     }
 }

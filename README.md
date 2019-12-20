@@ -22,6 +22,7 @@ Add the following VM option when your experiencing white boxes in the UI.
 
 ## TODO features
 
+- Add subtitles
 - Add stream stats to player
 - Add settings
 - Add favorites

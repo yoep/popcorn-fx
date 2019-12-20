@@ -75,9 +75,9 @@
 
     <GridPane styleClass="show-details" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="215">
         <columnConstraints>
-            <ColumnConstraints percentWidth="15"/>
+            <ColumnConstraints maxWidth="200"/>
             <ColumnConstraints hgrow="ALWAYS"/>
-            <ColumnConstraints minWidth="200" percentWidth="25"/>
+            <ColumnConstraints minWidth="250" percentWidth="25"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints vgrow="ALWAYS"/>

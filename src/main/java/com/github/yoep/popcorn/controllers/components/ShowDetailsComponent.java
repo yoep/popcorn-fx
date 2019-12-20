@@ -11,9 +11,9 @@ import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
-import javafx.util.Callback;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
@@ -107,6 +107,9 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     }
 
     private void switchSeason(Season newSeason) {
+        if (newSeason == null)
+            return;
+
         episodes.getItems().clear();
         episodes.getItems().addAll(media.getEpisodes().stream()
                 .filter(Objects::nonNull)

@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.services.SubtitleService;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -25,10 +26,12 @@ import java.util.concurrent.CompletableFuture;
 public class MovieProviderService extends AbstractProviderService<Movie> {
     private static final Category CATEGORY = Category.MOVIES;
     private final ProviderProperties providerConfig;
+    private final SubtitleService subtitleService;
 
-    public MovieProviderService(RestTemplate restTemplate, ActivityManager activityManager, PopcornProperties popcornConfig) {
+    public MovieProviderService(RestTemplate restTemplate, ActivityManager activityManager, PopcornProperties popcornConfig, SubtitleService subtitleService) {
         super(restTemplate, activityManager);
         this.providerConfig = popcornConfig.getProvider(CATEGORY.getProviderName());
+        this.subtitleService = subtitleService;
     }
 
     @Override
@@ -43,12 +46,16 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
 
     @Override
     public CompletableFuture<List<Movie>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
-        return CompletableFuture.completedFuture(getPage(genre, sortBy,keywords, page));
+        return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
     @Override
     public void showDetails(Media media) {
-        activityManager.register((ShowMovieDetailsActivity) () -> (Movie) media);
+        final Movie movie = (Movie) media;
+
+        activityManager.register((ShowMovieDetailsActivity) () -> movie);
+        subtitleService.getList(movie)
+                .thenAccept(subtitles -> movie.getSubtitles().putAll(subtitles));
     }
 
     public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

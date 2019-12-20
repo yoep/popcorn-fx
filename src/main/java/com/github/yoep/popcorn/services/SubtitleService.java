@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.services;
 
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.config.properties.SubtitleProperties;
 import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
@@ -47,6 +48,7 @@ public class SubtitleService {
         login(new XMLRPCCallback() {
             @Override
             public void onResponse(long id, Object result) {
+                log.trace("Received login response from {}", popcornProperties.getSubtitle().getUrl());
                 Map<String, Object> response = (Map<String, Object>) result;
                 String token = (String) response.get("token");
 
@@ -93,6 +95,7 @@ public class SubtitleService {
                                     }
                                 }
 
+                                log.debug("Found {} subtitles for \"{}\" movie ({})", subsMap.size(), movie.getTitle(), movie.getImdbId());
                                 completableFuture.complete(subsMap);
                             } else {
                                 completableFuture.completeExceptionally(new XMLRPCException("No subs found"));
@@ -119,12 +122,14 @@ public class SubtitleService {
 
             @Override
             public void onError(long id, XMLRPCException error) {
+                log.error(error.getMessage(), error);
                 completableFuture.completeExceptionally(error);
                 removeCall(id);
             }
 
             @Override
             public void onServerError(long id, XMLRPCServerException error) {
+                log.error(error.getMessage(), error);
                 completableFuture.completeExceptionally(error);
                 removeCall(id);
             }
@@ -145,7 +150,10 @@ public class SubtitleService {
      * @param callback XML RPC callback
      */
     private void login(XMLRPCCallback callback) {
-        long callId = client.callAsync(callback, "LogIn", "", "", "en", popcornProperties.getSubtitle().getUserAgent());
+        SubtitleProperties subtitleProperties = popcornProperties.getSubtitle();
+        log.trace("Logging in to {}", subtitleProperties.getUrl());
+
+        long callId = client.callAsync(callback, "LogIn", "", "", "en", subtitleProperties.getUserAgent());
         synchronized (ongoingCalls) {
             ongoingCalls.add(callId);
         }
@@ -174,6 +182,7 @@ public class SubtitleService {
      * @param callback XML RPC callback callback
      */
     private void search(Movie movie, String token, XMLRPCCallback callback) {
+        log.trace("Searching for \"{}\" movie subtitles ({})", movie.getTitle(), movie.getImdbId());
         Map<String, String> option = new HashMap<>();
         option.put("imdbid", movie.getImdbId().replace("tt", ""));
         option.put("sublanguageid", "all");

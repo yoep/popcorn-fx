@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.media.providers.models;
 
+import javafx.collections.ObservableMap;
+
 import java.util.List;
 import java.util.Map;
 
@@ -60,5 +62,11 @@ public interface Media {
 
     Images getImages();
 
-    Map<String, String> getSubtitles();
+    /**
+     * Get the subtitles for this media.
+     * This map is an observable as they it's async loaded from the media information and can be empty when first requested.
+     *
+     * @return Returns the observable map of subtitles.
+     */
+    ObservableMap<String, String> getSubtitles();
 }

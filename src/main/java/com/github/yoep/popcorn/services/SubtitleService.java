@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.models.Subtitle;
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;
@@ -34,16 +35,21 @@ public class SubtitleService {
 
     @Async
     public void download(final Media media, final String languageCode) {
-        restTemplate.execute(media.getSubtitles().get(languageCode), HttpMethod.GET, null, response -> {
-            File ret = File.createTempFile("download", "tmp");
-            StreamUtils.copy(response.getBody(), new FileOutputStream(ret));
-            return ret;
-        });
+        media.getSubtitles().stream()
+                .filter(e -> e.getLanguage().equalsIgnoreCase(languageCode))
+                .findFirst()
+                .ifPresent(subtitle -> {
+                    restTemplate.execute(subtitle.getUrl(), HttpMethod.GET, null, response -> {
+                        File ret = File.createTempFile("download", "tmp");
+                        StreamUtils.copy(response.getBody(), new FileOutputStream(ret));
+                        return ret;
+                    });
+                });
     }
 
     @Async
-    public CompletableFuture<Map<String, String>> getList(final Movie movie) {
-        CompletableFuture<Map<String, String>> completableFuture = new CompletableFuture<>();
+    public CompletableFuture<List<Subtitle>> getList(final Movie movie) {
+        CompletableFuture<List<Subtitle>> completableFuture = new CompletableFuture<>();
 
         login(new XMLRPCCallback() {
             @Override
@@ -56,9 +62,9 @@ public class SubtitleService {
                     search(movie, token, new XMLRPCCallback() {
                         @Override
                         public void onResponse(long id, Object result) {
-                            Map<String, Integer[]> scoreMap = new HashMap<>();
-                            Map<String, String> subsMap = new HashMap<>();
+                            List<Subtitle> subtitles = new ArrayList<>();
                             Map<String, Object> subData = (Map<String, Object>) result;
+
                             if (subData != null && subData.get("data") != null && subData.get("data") instanceof Object[]) {
                                 Object[] dataList = (Object[]) subData.get("data");
                                 for (Object dataItem : dataList) {
@@ -86,17 +92,26 @@ public class SubtitleService {
                                     if (item.get("UserRank").equals("trusted")) {
                                         score += 100;
                                     }
-                                    if (!subsMap.containsKey(lang)) {
-                                        subsMap.put(lang, url);
-                                        scoreMap.put(lang, new Integer[]{score, downloads});
-                                    } else if (score > scoreMap.get(lang)[0] || (score == scoreMap.get(lang)[0] && downloads > scoreMap.get(lang)[1])) {
-                                        subsMap.put(lang, url);
-                                        scoreMap.put(lang, new Integer[]{score, downloads});
+
+                                    Optional<Subtitle> subtitle = subtitles.stream()
+                                            .filter(e -> e.getLanguage().equalsIgnoreCase(lang))
+                                            .findAny();
+
+                                    if (subtitle.isPresent()) {
+                                        Subtitle sub = subtitle.get();
+
+                                        if (score > sub.getScore() || (score == sub.getScore() && downloads > sub.getDownloads())) {
+                                            sub.setUrl(url);
+                                            sub.setScore(score);
+                                            sub.setDownloads(downloads);
+                                        }
+                                    } else {
+                                        subtitles.add(new Subtitle(lang, url, score, downloads));
                                     }
                                 }
 
-                                log.debug("Found {} subtitles for \"{}\" movie ({})", subsMap.size(), movie.getTitle(), movie.getImdbId());
-                                completableFuture.complete(subsMap);
+                                log.debug("Found {} subtitles for \"{}\" movie ({})", subtitles.size(), movie.getTitle(), movie.getImdbId());
+                                completableFuture.complete(subtitles);
                             } else {
                                 completableFuture.completeExceptionally(new XMLRPCException("No subs found"));
                                 removeCall(id);

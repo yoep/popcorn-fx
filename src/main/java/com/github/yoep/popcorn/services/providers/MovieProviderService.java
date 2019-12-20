@@ -54,8 +54,11 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
         final Movie movie = (Movie) media;
 
         activityManager.register((ShowMovieDetailsActivity) () -> movie);
-        subtitleService.getList(movie)
-                .thenAccept(subtitles -> movie.getSubtitles().putAll(subtitles));
+
+        // check if the subtitles were already retrieved
+        if (movie.getSubtitles().size() == 0)
+            subtitleService.getList(movie)
+                    .thenAccept(subs -> movie.getSubtitles().addAll(subs));
     }
 
     public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

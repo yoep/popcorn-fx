@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.media.providers.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javafx.beans.property.SimpleMapProperty;
-import javafx.collections.ObservableMap;
+import com.github.yoep.popcorn.models.Subtitle;
+import javafx.beans.property.SimpleListProperty;
+import javafx.collections.ObservableList;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,7 +18,8 @@ import java.util.Optional;
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class AbstractMedia implements Media {
-    private final ObservableMap<String, String> subtitles = new SimpleMapProperty<>();
+    @JsonIgnore
+    private ObservableList<Subtitle> subtitles = new SimpleListProperty<>();
 
     @JsonProperty("_id")
     private String videoId;

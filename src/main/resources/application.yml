@@ -78,3 +78,6 @@ popcorn:
         - year
         - name
         - rating
+  subtitle:
+    url: http://api.opensubtitles.org/xml-rpc
+    user-agent: Popcorn Time v1

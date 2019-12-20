@@ -131,6 +131,13 @@
             <version>${vlc.version}</version>
         </dependency>
 
+        <!-- OpenSubtitles -->
+        <dependency>
+            <groupId>de.timroes</groupId>
+            <artifactId>aXMLRPC</artifactId>
+            <version>1.8.0</version>
+        </dependency>
+
         <!-- Jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

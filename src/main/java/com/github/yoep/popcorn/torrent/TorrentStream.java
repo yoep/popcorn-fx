@@ -28,7 +28,7 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class TorrentStream {
-    private static final String SAVE_DIRECTORY_NAME = ".popcorn-time";
+    private static final String SAVE_DIRECTORY_NAME = ".popcorn-time/torrents";
 
     private final TorrentListenerHolder listenerHolder = new TorrentListenerHolder();
     private final TaskExecutor taskExecutor;

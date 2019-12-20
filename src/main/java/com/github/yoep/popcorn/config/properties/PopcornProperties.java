@@ -21,6 +21,20 @@ public class PopcornProperties {
     @NotNull
     private Map<String, ProviderProperties> providers;
 
+    /**
+     * The subtitle properties of Popcorn Time.
+     */
+    @Valid
+    @NotNull
+    private SubtitleProperties subtitle;
+
+    /**
+     * Get the provider with the given name.
+     *
+     * @param name The name of the provider to retrieve.
+     * @return Returns the provider if found.
+     * @throws ProviderNotFoundException Is thrown when the given provider name couldn't be found.
+     */
     public ProviderProperties getProvider(String name) {
         return providers.entrySet().stream()
                 .filter(e -> e.getKey().equalsIgnoreCase(name))

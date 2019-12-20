@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.media.providers.models;
 import lombok.Data;
 import org.apache.commons.text.StringEscapeUtils;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @Data

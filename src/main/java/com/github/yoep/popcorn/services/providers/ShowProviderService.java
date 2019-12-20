@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.services;
+package com.github.yoep.popcorn.services.providers;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;

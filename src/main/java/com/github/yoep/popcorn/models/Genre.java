@@ -14,6 +14,15 @@ public class Genre implements Comparable<Genre> {
         this.text = text;
     }
 
+    /**
+     * Checks with either this genre is the special {@link #ALL_KEYWORD} genre.
+     *
+     * @return Returns true if this genre is the all genre, else false.
+     */
+    public boolean isAllGenre() {
+        return key.equalsIgnoreCase(ALL_KEYWORD);
+    }
+
     @Override
     public String toString() {
         return text;

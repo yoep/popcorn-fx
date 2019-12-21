@@ -81,28 +81,8 @@ popcorn:
     favorites:
       genres:
         - all
-        - action
-        - adventure
-        - animation
-        - comedy
-        - crime
-        - disaster
-        - documentary
-        - drama
-        - family
-        - fantasy
-        - history
-        - holiday
-        - horror
-        - music
-        - mystery
-        - romance
-        - science-fiction
-        - short
-        - suspense
-        - thriller
-        - war
-        - western
+        - movies
+        - tv
       sort-by:
         - trending
         - popularity

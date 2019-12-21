@@ -13,6 +13,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
@@ -36,6 +37,7 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
     private final ActivityManager activityManager;
     private final List<ProviderService<? extends Media>> providerServices;
     private final FavoriteService favoriteService;
+    private final WatchedService watchedService;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
     private final LocaleText localeText;
@@ -140,6 +142,7 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
                 Pane component = viewLoader.loadComponent("media-card.component.fxml", mediaCardComponent);
 
                 mediaCardComponent.setIsFavorite(favoriteService.isFavorite(media));
+                mediaCardComponent.setIsWatched(watchedService.isWatched(media));
                 scrollPane.addItem(component);
             });
         });
@@ -159,6 +162,15 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
                     favoriteService.addToFavorites(media);
                 } else {
                     favoriteService.removeFromFavorites(media);
+                }
+            }
+
+            @Override
+            public void onWatchedChanged(Media media, boolean newValue) {
+                if (newValue) {
+                    watchedService.addToWatchList(media);
+                } else {
+                    watchedService.removeFromWatchList(media);
                 }
             }
         };

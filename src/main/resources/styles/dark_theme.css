@@ -335,6 +335,7 @@
     -fx-opacity: 0.4;
 }
 
+.root .poster-item.watched:hover,
 .root .poster-item:hover {
     -fx-opacity: 1;
 }
@@ -372,6 +373,11 @@
 
 .root .poster-item .poster .overlay .like.liked {
     -fx-text-fill: #df2d37;
+    -fx-opacity: 1.0;
+}
+
+.root .poster-item.watched .poster .overlay .view {
+    -fx-text-fill: #fff;
     -fx-opacity: 1.0;
 }
 

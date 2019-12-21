@@ -35,15 +35,19 @@ public class MediaCardComponent implements Initializable, DisposableBean {
     private static final int POSTER_WIDTH = 134;
     private static final int POSTER_HEIGHT = 196;
     private static final String LIKED_STYLE_CLASS = "liked";
+    private static final String WATCHED_STYLE_CLASS = "watched";
 
     private final List<ItemListener> listeners = new ArrayList<>();
     private final BooleanProperty favoriteProperty = new SimpleBooleanProperty();
-    private final Media media;
+    private final BooleanProperty watchedProperty = new SimpleBooleanProperty();
     private final LocaleText localeText;
     private final TaskExecutor taskExecutor;
+    private final Media media;
 
     private Thread imageLoadingThread;
 
+    @FXML
+    private Pane posterItem;
     @FXML
     private BorderPane poster;
     @FXML
@@ -72,6 +76,7 @@ public class MediaCardComponent implements Initializable, DisposableBean {
         initializeText();
         initializeStars();
         initializeFavorite();
+        initializeView();
     }
 
     /**
@@ -81,6 +86,15 @@ public class MediaCardComponent implements Initializable, DisposableBean {
      */
     public void setIsFavorite(boolean value) {
         favoriteProperty.set(value);
+    }
+
+    /**
+     * Set if this media card is already watched by the user.
+     *
+     * @param value The watched/viewed value.
+     */
+    public void setIsWatched(boolean value) {
+        watchedProperty.set(value);
     }
 
     /**
@@ -157,11 +171,35 @@ public class MediaCardComponent implements Initializable, DisposableBean {
         favoriteProperty.addListener((observable, oldValue, newValue) -> switchFavorite(newValue));
     }
 
+    private void initializeView() {
+        switchWatched(watchedProperty.get());
+        watchedProperty.addListener((observable, oldValue, newValue) -> switchWatched(newValue));
+    }
+
     private void switchFavorite(boolean isFavorite) {
         if (isFavorite) {
             favorite.getStyleClass().add(LIKED_STYLE_CLASS);
         } else {
             favorite.getStyleClass().remove(LIKED_STYLE_CLASS);
+        }
+    }
+
+    private void switchWatched(boolean isWatched) {
+        if (isWatched) {
+            posterItem.getStyleClass().add(WATCHED_STYLE_CLASS);
+        } else {
+            posterItem.getStyleClass().remove(WATCHED_STYLE_CLASS);
+        }
+    }
+
+    @FXML
+    private void onWatchedClicked(MouseEvent event) {
+        event.consume();
+        boolean newValue = !watchedProperty.get();
+
+        watchedProperty.set(newValue);
+        synchronized (listeners) {
+            listeners.forEach(e -> e.onWatchedChanged(media, newValue));
         }
     }
 

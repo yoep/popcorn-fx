@@ -6,7 +6,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          styleClass="poster-item" onMouseClicked="#showDetails" cache="true">
+          fx:id="posterItem" styleClass="poster-item" onMouseClicked="#showDetails" cache="true">
     <columnConstraints>
         <ColumnConstraints/>
         <ColumnConstraints/>
@@ -25,7 +25,8 @@
         <BorderPane fx:id="poster" styleClass="poster-image"/>
 
         <AnchorPane styleClass="overlay" AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">
-            <Icon AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7" sizeFactor="1.5" styleClass="view">
+            <Icon sizeFactor="1.5" styleClass="view" onMouseClicked="#onWatchedClicked"
+                  AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7" >
                 <Icon fx:constant="EYE_UNICODE"/>
             </Icon>
             <Icon fx:id="favorite" sizeFactor="1.5" styleClass="like" onMouseClicked="#onFavoriteClicked"

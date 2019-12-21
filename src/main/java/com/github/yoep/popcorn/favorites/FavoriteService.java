@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
@@ -32,6 +33,7 @@ public class FavoriteService {
      * @return Returns true if the media is a favorite, else false.
      */
     public boolean isFavorite(Media media) {
+        Assert.notNull(media, "media cannot be null");
         synchronized (cache) {
             return cache.contains(media.getImdbId());
         }
@@ -61,6 +63,7 @@ public class FavoriteService {
      * @param media The media to add.
      */
     public void addToFavorites(Media media) {
+        Assert.notNull(media, "media cannot be null");
         synchronized (cache) {
             cache.add(media.getImdbId());
         }
@@ -76,6 +79,7 @@ public class FavoriteService {
      * @param media The media to remove.
      */
     public void removeFromFavorites(Media media) {
+        Assert.notNull(media, "media cannot be null");
         synchronized (cache) {
             cache.remove(media.getImdbId());
         }

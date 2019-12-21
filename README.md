@@ -20,6 +20,12 @@ Add the following VM option when your experiencing white boxes in the UI.
 
     -Dprism.dirtyopts=false
 
+## Virtual Keyboard
+
+Add the following VM option to enable the virtual keyboard
+
+    -Dcom.sun.javafx.virtualKeyboard=javafx 
+
 ## TODO features
 
 - Add language selection

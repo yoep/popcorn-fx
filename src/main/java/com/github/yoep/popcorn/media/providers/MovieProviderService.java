@@ -58,17 +58,12 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        URI uri = getUriFor("movies", genre, sortBy, keywords, page);
+        URI uri = getUriFor(providerConfig.getUrl(), "movies", genre, sortBy, keywords, page);
 
         ResponseEntity<Movie[]> items = restTemplate.getForEntity(uri, Movie[].class);
 
         return Optional.ofNullable(items.getBody())
                 .map(Arrays::asList)
                 .orElse(Collections.emptyList());
-    }
-
-    @Override
-    protected URI getBaseUrl() {
-        return providerConfig.getUrl();
     }
 }

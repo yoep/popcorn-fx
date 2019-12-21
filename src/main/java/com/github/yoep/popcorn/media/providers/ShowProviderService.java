@@ -51,7 +51,7 @@ public class ShowProviderService extends AbstractProviderService<Show> {
 
     @Override
     public void showDetails(Media media) {
-        URI uri = UriComponentsBuilder.fromUri(getBaseUrl())
+        URI uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())
                 .path("{resource}/{imdb_id}")
                 .build("show", media.getImdbId());
 
@@ -67,17 +67,12 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     public List<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        URI uri = getUriFor("shows", genre, sortBy, keywords, page);
+        URI uri = getUriFor(providerConfig.getUrl(), "shows", genre, sortBy, keywords, page);
 
         ResponseEntity<Show[]> shows = restTemplate.getForEntity(uri, Show[].class);
 
         return Optional.ofNullable(shows.getBody())
                 .map(Arrays::asList)
                 .orElse(Collections.emptyList());
-    }
-
-    @Override
-    protected URI getBaseUrl() {
-        return providerConfig.getUrl();
     }
 }

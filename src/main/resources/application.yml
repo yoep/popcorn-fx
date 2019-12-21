@@ -78,6 +78,38 @@ popcorn:
         - year
         - name
         - rating
+    favorites:
+      genres:
+        - all
+        - action
+        - adventure
+        - animation
+        - comedy
+        - crime
+        - disaster
+        - documentary
+        - drama
+        - family
+        - fantasy
+        - history
+        - holiday
+        - horror
+        - music
+        - mystery
+        - romance
+        - science-fiction
+        - short
+        - suspense
+        - thriller
+        - war
+        - western
+      sort-by:
+        - trending
+        - popularity
+        - last added
+        - year
+        - title
+        - rating
   subtitle:
     url: http://api.opensubtitles.org/xml-rpc
     user-agent: Popcorn Time v1

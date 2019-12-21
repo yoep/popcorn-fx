@@ -1,8 +1,5 @@
 package com.github.yoep.popcorn.media.providers.models;
 
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
-import javafx.collections.ObservableList;
-
 import java.util.List;
 
 public interface Media {

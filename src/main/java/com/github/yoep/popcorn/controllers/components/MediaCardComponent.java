@@ -1,16 +1,20 @@
 package com.github.yoep.popcorn.controllers.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.messages.MediaMessage;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
@@ -30,8 +34,10 @@ import static java.util.Arrays.asList;
 public class MediaCardComponent implements Initializable, DisposableBean {
     private static final int POSTER_WIDTH = 134;
     private static final int POSTER_HEIGHT = 196;
+    private static final String LIKED_STYLE_CLASS = "liked";
 
     private final List<ItemListener> listeners = new ArrayList<>();
+    private final BooleanProperty favoriteProperty = new SimpleBooleanProperty();
     private final Media media;
     private final LocaleText localeText;
     private final TaskExecutor taskExecutor;
@@ -49,6 +55,8 @@ public class MediaCardComponent implements Initializable, DisposableBean {
     @FXML
     private Label ratingValue;
     @FXML
+    private Icon favorite;
+    @FXML
     private Stars ratingStars;
 
     public MediaCardComponent(Media media, LocaleText localeText, TaskExecutor taskExecutor, ItemListener... listeners) {
@@ -63,6 +71,16 @@ public class MediaCardComponent implements Initializable, DisposableBean {
         initializeImage();
         initializeText();
         initializeStars();
+        initializeFavorite();
+    }
+
+    /**
+     * Set if this media card is liked by the user.
+     *
+     * @param value The favorite value.
+     */
+    public void setIsFavorite(boolean value) {
+        favoriteProperty.set(value);
     }
 
     /**
@@ -132,6 +150,30 @@ public class MediaCardComponent implements Initializable, DisposableBean {
 
     private void initializeStars() {
         ratingStars.setRating(media.getRating());
+    }
+
+    private void initializeFavorite() {
+        switchFavorite(favoriteProperty.get());
+        favoriteProperty.addListener((observable, oldValue, newValue) -> switchFavorite(newValue));
+    }
+
+    private void switchFavorite(boolean isFavorite) {
+        if (isFavorite) {
+            favorite.getStyleClass().add(LIKED_STYLE_CLASS);
+        } else {
+            favorite.getStyleClass().remove(LIKED_STYLE_CLASS);
+        }
+    }
+
+    @FXML
+    private void onFavoriteClicked(MouseEvent event) {
+        event.consume();
+        boolean newValue = !favoriteProperty.get();
+
+        favoriteProperty.set(newValue);
+        synchronized (listeners) {
+            listeners.forEach(e -> e.onFavoriteChanged(media, newValue));
+        }
     }
 
     @FXML

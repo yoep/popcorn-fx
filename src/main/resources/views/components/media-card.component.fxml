@@ -28,7 +28,8 @@
             <Icon AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7" sizeFactor="1.5" styleClass="view">
                 <Icon fx:constant="EYE_UNICODE"/>
             </Icon>
-            <Icon AnchorPane.topAnchor="7" AnchorPane.rightAnchor="7" sizeFactor="1.5" styleClass="like">
+            <Icon fx:id="favorite" sizeFactor="1.5" styleClass="like" onMouseClicked="#onFavoriteClicked"
+                  AnchorPane.topAnchor="7" AnchorPane.rightAnchor="7">
                 <Icon fx:constant="HEART_UNICODE"/>
             </Icon>
 

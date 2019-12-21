@@ -178,14 +178,16 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             return;
 
         // filter out all the subtitles that don't have a flag
-        List<Subtitle> subtitles = activity.getSubtitles().stream()
+        final List<Subtitle> subtitles = activity.getSubtitles().stream()
                 .filter(e -> e.getFlagResource().isPresent())
                 .sorted()
                 .collect(Collectors.toList());
 
-        languageSelection.getItems().clear();
-        languageSelection.getItems().addAll(subtitles);
-        languageSelection.getSelectionModel().select(0);
+        Platform.runLater(() -> {
+            languageSelection.getItems().clear();
+            languageSelection.getItems().addAll(subtitles);
+            languageSelection.getSelectionModel().select(0);
+        });
     }
 
     private String getHealthTooltip(Torrent torrent, TorrentHealth health) {

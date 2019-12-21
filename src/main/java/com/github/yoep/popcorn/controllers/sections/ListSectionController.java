@@ -4,13 +4,15 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.controllers.components.ItemListener;
 import com.github.yoep.popcorn.controllers.components.MediaCardComponent;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
+import com.github.yoep.popcorn.favorites.FavoriteService;
+import com.github.yoep.popcorn.media.providers.ProviderService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.media.providers.ProviderService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
@@ -33,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 public class ListSectionController extends ScaleAwareImpl implements Initializable {
     private final ActivityManager activityManager;
     private final List<ProviderService<? extends Media>> providerServices;
+    private final FavoriteService favoriteService;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
     private final LocaleText localeText;
@@ -133,13 +136,32 @@ public class ListSectionController extends ScaleAwareImpl implements Initializab
         // offload to a thread which we can cancel later on
         currentProcessingThread = new Thread(() -> {
             mediaList.forEach(media -> {
-                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, this::onItemClicked);
+                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, createItemListener());
                 Pane component = viewLoader.loadComponent("media-card.component.fxml", mediaCardComponent);
 
+                mediaCardComponent.setIsFavorite(favoriteService.isFavorite(media));
                 scrollPane.addItem(component);
             });
         });
         taskExecutor.execute(currentProcessingThread);
+    }
+
+    private ItemListener createItemListener() {
+        return new ItemListener() {
+            @Override
+            public void onClicked(Media media) {
+                onItemClicked(media);
+            }
+
+            @Override
+            public void onFavoriteChanged(Media media, boolean newValue) {
+                if (newValue) {
+                    favoriteService.addToFavorites(media);
+                } else {
+                    favoriteService.removeFromFavorites(media);
+                }
+            }
+        };
     }
 
     private void onItemClicked(Media media) {

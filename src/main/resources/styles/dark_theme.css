@@ -370,6 +370,11 @@
     -fx-opacity: 1;
 }
 
+.root .poster-item .poster .overlay .like.liked {
+    -fx-text-fill: #df2d37;
+    -fx-opacity: 1.0;
+}
+
 .root .poster-item .poster .overlay Label {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;

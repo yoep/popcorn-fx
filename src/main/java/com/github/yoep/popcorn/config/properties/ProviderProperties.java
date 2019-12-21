@@ -11,7 +11,6 @@ public class ProviderProperties {
     /**
      * The base url of the API that should be used by the provider.
      */
-    @NotNull
     private URI url;
 
     /**

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.torrent.listeners;
 
-import com.github.yoep.popcorn.torrent.Torrent;
+import com.github.yoep.popcorn.torrent.models.Torrent;
 
 public interface TorrentCreationListener {
     /**

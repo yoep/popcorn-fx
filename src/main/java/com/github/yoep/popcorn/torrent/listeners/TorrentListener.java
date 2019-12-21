@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.torrent.listeners;
 
-import com.github.yoep.popcorn.torrent.StreamStatus;
-import com.github.yoep.popcorn.torrent.Torrent;
+import com.github.yoep.popcorn.torrent.models.StreamStatus;
+import com.github.yoep.popcorn.torrent.models.Torrent;
 
 public interface TorrentListener {
     /**

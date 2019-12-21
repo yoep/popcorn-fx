@@ -22,9 +22,10 @@ Add the following VM option when your experiencing white boxes in the UI.
 
 ## TODO features
 
-- Add subtitles
+- Add language selection
 - Add stream stats to player
 - Add settings
-- Add favorites
+- Implement favorites
+- Implement viewed
 - Mark as watched when the video is at 90%
 - Resume video on last view time

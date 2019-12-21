@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
-import com.github.yoep.popcorn.services.TorrentService;
+import com.github.yoep.popcorn.torrent.TorrentService;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;

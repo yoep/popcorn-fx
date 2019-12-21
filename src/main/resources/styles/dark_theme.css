@@ -454,6 +454,10 @@
     -fx-background-radius: 5em;
 }
 
+.root .movie-details .subtitle-section {
+
+}
+
 .root .show-details-section .show-header .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;

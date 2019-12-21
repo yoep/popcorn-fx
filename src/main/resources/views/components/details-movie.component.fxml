@@ -48,6 +48,7 @@
             <columnConstraints>
                 <ColumnConstraints/>
                 <ColumnConstraints/>
+                <ColumnConstraints/>
             </columnConstraints>
             <rowConstraints>
                 <RowConstraints/>
@@ -57,9 +58,10 @@
             </rowConstraints>
 
             <Label fx:id="title" styleClass="title"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-            <HBox styleClass="metadata" GridPane.columnIndex="0" GridPane.rowIndex="1" alignment="CENTER">
+            <HBox styleClass="metadata"
+                  GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1" alignment="CENTER_LEFT">
                 <Label fx:id="year"/>
                 <Icon styleClass="separator">
                     <Icon fx:constant="CIRCLE_UNICODE"/>
@@ -75,7 +77,7 @@
                 <Stars fx:id="ratingStars" alignment="CENTER"/>
             </HBox>
 
-            <HBox GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.halignment="RIGHT" alignment="CENTER_RIGHT">
+            <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT" alignment="CENTER_RIGHT">
                 <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
                     <Icon fx:constant="MAGNET_UNICODE"/>
                 </Icon>
@@ -85,15 +87,24 @@
             </HBox>
 
             <Label fx:id="overview" styleClass="overview" wrapText="true"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
 
-            <HBox GridPane.columnIndex="0" GridPane.rowIndex="3" alignment="CENTER_LEFT" spacing="5">
-                <SplitMenuButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
+            <HBox alignment="CENTER_LEFT" spacing="5"
+                  GridPane.columnIndex="0" GridPane.rowIndex="3">
+                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
+
                 <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
             </HBox>
-            <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_RIGHT" spacing="5"
+            <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
                   GridPane.columnIndex="1" GridPane.rowIndex="3">
+                <padding>
+                    <Insets left="15" right="15"/>
+                </padding>
+            </HBox>
 
+            <HBox styleClass="subtitle-section" GridPane.columnIndex="2" GridPane.rowIndex="3" alignment="CENTER_RIGHT">
+                <Label text="%details_subtitle" onMouseClicked="#onSubtitleLabelClicked" />
+                <ComboBox fx:id="languageSelection" />
             </HBox>
         </GridPane>
     </GridPane>

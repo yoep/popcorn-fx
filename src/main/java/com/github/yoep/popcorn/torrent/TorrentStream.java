@@ -1,9 +1,10 @@
 package com.github.yoep.popcorn.torrent;
 
 import com.frostwire.jlibtorrent.*;
-import com.github.yoep.popcorn.services.SettingsService;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListenerHolder;
+import com.github.yoep.popcorn.torrent.models.Torrent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -107,7 +108,7 @@ public class TorrentStream {
     }
 
     public void stopStream() {
-        if (this.torrentFactory.getCurrentTorrent().map(e -> e.getState() == Torrent.State.PAUSED).orElse(true))
+        if (this.torrentFactory == null || this.torrentFactory.getCurrentTorrent().map(e -> e.getState() == Torrent.State.PAUSED).orElse(true))
             return;
 
         log.debug("Stopping current torrent stream");

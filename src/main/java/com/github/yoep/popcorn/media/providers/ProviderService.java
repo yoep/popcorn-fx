@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.services;
+package com.github.yoep.popcorn.media.providers;
 
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.models.Category;

@@ -8,6 +8,7 @@ import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.github.yoep.popcorn.torrent.listeners.TorrentCreationListener;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListenerHolder;
+import com.github.yoep.popcorn.torrent.models.Torrent;
 import org.springframework.util.Assert;
 
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.torrent;
+package com.github.yoep.popcorn.torrent.models;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

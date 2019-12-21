@@ -7,14 +7,17 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.DetailsMessage;
-import com.github.yoep.popcorn.models.TorrentHealth;
-import com.github.yoep.popcorn.services.TorrentService;
+import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.torrent.models.TorrentHealth;
+import com.github.yoep.popcorn.torrent.TorrentService;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -64,11 +67,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     @FXML
     private Icon health;
     @FXML
-    private SplitMenuButton watchNowButton;
-    @FXML
     private Button watchTrailerButton;
     @FXML
     private Pane qualitySelectionPane;
+    @FXML
+    private ComboBox<Subtitle> languageSelection;
 
     public MovieDetailsComponent(ActivityManager activityManager, LocaleText localeText, Application application, TaskExecutor taskExecutor, TorrentService torrentService) {
         super(taskExecutor);
@@ -120,6 +123,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         loadButtons();
         loadQualitySelection();
         loadPosterImage();
+        loadSubtitles();
     }
 
     private void loadText() {
@@ -142,6 +146,22 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
         qualitySelectionPane.getChildren().addAll(qualities);
         switchActiveQuality(qualities.get(qualities.size() - 1).getText());
+    }
+
+    private void loadSubtitles() {
+        ObservableList<Subtitle> subtitles = media.getSubtitles();
+
+        if (subtitles.size() > 0) {
+            languageSelection.getItems().addAll(subtitles);
+        } else {
+            subtitles.addListener((ListChangeListener<Subtitle>) subtitleChange -> {
+                while (subtitleChange.next()) {
+                    if (subtitleChange.wasAdded()) {
+                        languageSelection.getItems().addAll(subtitleChange.getAddedSubList());
+                    }
+                }
+            });
+        }
     }
 
     private String getHealthTooltip(Torrent torrent, TorrentHealth health) {
@@ -265,6 +285,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
                 return Optional.empty();
             }
         });
+    }
+
+    @FXML
+    private void onSubtitleLabelClicked() {
+        languageSelection.show();
     }
 
     @FXML

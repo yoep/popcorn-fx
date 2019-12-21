@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.services.providers;
+package com.github.yoep.popcorn.media.providers;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowMovieDetailsActivity;
@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.services.SubtitleService;
+import com.github.yoep.popcorn.subtitle.SubtitleService;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;

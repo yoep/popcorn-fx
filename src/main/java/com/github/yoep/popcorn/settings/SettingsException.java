@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.services;
+package com.github.yoep.popcorn.settings;
 
 public class SettingsException extends RuntimeException {
     public SettingsException(String message) {

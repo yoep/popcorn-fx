@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.torrent;
 import com.frostwire.jlibtorrent.AlertListener;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
+import com.github.yoep.popcorn.torrent.models.Torrent;
 
 import java.io.FilterInputStream;
 import java.io.IOException;

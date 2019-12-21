@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.models.settings;
+package com.github.yoep.popcorn.settings.models;
 
 import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.media.providers.models.Media;

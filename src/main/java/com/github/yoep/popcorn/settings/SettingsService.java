@@ -1,8 +1,8 @@
-package com.github.yoep.popcorn.services;
+package com.github.yoep.popcorn.settings;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.PopcornTimeApplication;
-import com.github.yoep.popcorn.models.settings.Settings;
+import com.github.yoep.popcorn.settings.models.Settings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;

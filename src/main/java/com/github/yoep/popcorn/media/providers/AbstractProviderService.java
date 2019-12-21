@@ -1,10 +1,10 @@
-package com.github.yoep.popcorn.services.providers;
+package com.github.yoep.popcorn.media.providers;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.services.ProviderService;
+import com.github.yoep.popcorn.media.providers.ProviderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;

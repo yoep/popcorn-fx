@@ -8,8 +8,8 @@ import com.github.yoep.popcorn.activities.PlayerCloseActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.TorrentMessage;
-import com.github.yoep.popcorn.services.TorrentService;
-import com.github.yoep.popcorn.torrent.StreamStatus;
+import com.github.yoep.popcorn.torrent.TorrentService;
+import com.github.yoep.popcorn.torrent.models.StreamStatus;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -68,18 +68,18 @@ public class LoaderComponent {
             }
 
             @Override
-            public void onStreamStarted(com.github.yoep.popcorn.torrent.Torrent torrent) {
+            public void onStreamStarted(com.github.yoep.popcorn.torrent.models.Torrent torrent) {
                 log.debug("Torrent is starting");
                 Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.STARTING)));
             }
 
             @Override
-            public void onStreamError(com.github.yoep.popcorn.torrent.Torrent torrent, Exception e) {
+            public void onStreamError(com.github.yoep.popcorn.torrent.models.Torrent torrent, Exception e) {
                 log.warn("Torrent stream error: " + e.getMessage(), e);
             }
 
             @Override
-            public void onStreamReady(com.github.yoep.popcorn.torrent.Torrent torrent) {
+            public void onStreamReady(com.github.yoep.popcorn.torrent.models.Torrent torrent) {
                 log.debug("Torrent is ready to be displayed");
                 Platform.runLater(() -> {
                     statusText.setText(localeText.get(TorrentMessage.READY));
@@ -109,7 +109,7 @@ public class LoaderComponent {
             }
 
             @Override
-            public void onStreamProgress(com.github.yoep.popcorn.torrent.Torrent torrent, StreamStatus status) {
+            public void onStreamProgress(com.github.yoep.popcorn.torrent.models.Torrent torrent, StreamStatus status) {
                 Platform.runLater(() -> {
                     progressStatus.setVisible(true);
                     progressBar.setProgress(status.getProgress());

@@ -10,7 +10,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.services.ProviderService;
+import com.github.yoep.popcorn.media.providers.ProviderService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;

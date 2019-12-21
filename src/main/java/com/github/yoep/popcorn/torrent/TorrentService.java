@@ -1,8 +1,8 @@
-package com.github.yoep.popcorn.services;
+package com.github.yoep.popcorn.torrent;
 
-import com.github.yoep.popcorn.models.TorrentHealth;
-import com.github.yoep.popcorn.models.settings.Settings;
-import com.github.yoep.popcorn.torrent.TorrentStream;
+import com.github.yoep.popcorn.torrent.models.TorrentHealth;
+import com.github.yoep.popcorn.settings.models.Settings;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;

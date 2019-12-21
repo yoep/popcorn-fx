@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.models;
+package com.github.yoep.popcorn.torrent.models;
 
 import lombok.Getter;
 

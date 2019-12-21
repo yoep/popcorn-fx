@@ -61,12 +61,4 @@ public interface Media {
     boolean isMovie();
 
     Images getImages();
-
-    /**
-     * Get the subtitles for this media.
-     * This map is an observable as they it's async loaded from the media information and can be empty when first requested.
-     *
-     * @return Returns the observable map of subtitles.
-     */
-    ObservableList<Subtitle> getSubtitles();
 }

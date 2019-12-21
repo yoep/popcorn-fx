@@ -102,9 +102,9 @@
                 </padding>
             </HBox>
 
-            <HBox styleClass="subtitle-section" GridPane.columnIndex="2" GridPane.rowIndex="3" alignment="CENTER_RIGHT">
+            <HBox styleClass="subtitle-group" GridPane.columnIndex="2" GridPane.rowIndex="3" alignment="CENTER_RIGHT">
                 <Label text="%details_subtitle" onMouseClicked="#onSubtitleLabelClicked" />
-                <ComboBox fx:id="languageSelection" />
+                <ComboBox fx:id="languageSelection" minHeight="20" />
             </HBox>
         </GridPane>
     </GridPane>

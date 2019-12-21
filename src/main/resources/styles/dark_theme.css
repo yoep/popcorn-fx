@@ -169,6 +169,10 @@
     -fx-background-color: #d53f3f;
 }
 
+.root ComboBox {
+    -fx-background-color: transparent;
+}
+
 .root .stars Icon {
     -fx-padding: 0 2 0 0;
     -fx-opacity: 1;
@@ -215,7 +219,8 @@
     -fx-border-color: #2d72d9;
 }
 
-.root .header .bar .filter-bar Label {
+.root .header .bar .filter-bar Label,
+.root .movie-details .subtitle-group Label {
     -fx-padding: 10 5 5 18;
 }
 
@@ -224,30 +229,36 @@
     -fx-max-width: 100;
     -fx-padding: 6 0 0 0;
     -fx-cursor: hand;
-    -fx-background-color: transparent;
 }
 
-.root .header .bar .filter-bar ComboBox > .list-cell {
+.root .header .bar .filter-bar ComboBox > .list-cell,
+.root .movie-details .subtitle-group ComboBox > .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #2d72d9;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .arrow {
+.root .header .bar .filter-bar .filterGroup ComboBox .arrow,
+.root .movie-details .subtitle-group ComboBox .arrow {
     -fx-padding: 5 8 0 0;
     -fx-background-color: #c3c5c7;
 }
 
-.root .header .bar .filter-bar .filterGroup:hover ComboBox .arrow {
+.root .header .bar .filter-bar .filterGroup:hover ComboBox .arrow,
+.root .movie-details .subtitle-group:hover ComboBox .arrow {
     -fx-background-color: #fff;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar {
+.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar,
+.root .movie-details .subtitle-group ComboBox .scroll-bar {
     -fx-padding: 0 0 0 0;
 }
 
 .root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar,
 .root .header .bar .filter-bar .filterGroup ComboBox .list-view,
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell {
+.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell,
+.root .movie-details .subtitle-group ComboBox .scroll-bar,
+.root .movie-details .subtitle-group ComboBox .list-view,
+.root .movie-details .subtitle-group ComboBox .list-view .list-cell {
     -fx-background-color: rgba(23, 24, 27, 0.8);
 }
 
@@ -454,8 +465,15 @@
     -fx-background-radius: 5em;
 }
 
-.root .movie-details .subtitle-section {
+.root .movie-details .subtitle-group Label {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: fff;
+    -fx-cursor: hand;
+}
 
+.root .movie-details .subtitle-group ComboBox {
+    -fx-min-width: 50;
+    -fx-max-width: 50;
 }
 
 .root .show-details-section .show-header .title {

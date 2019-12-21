@@ -8,17 +8,14 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
-import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import com.github.yoep.popcorn.torrent.TorrentService;
+import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
@@ -31,6 +28,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Comparator;
 import java.util.List;
@@ -85,6 +83,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     public void initialize(URL location, ResourceBundle resources) {
         initializePoster();
         initializeTooltips();
+        initializeLanguageSelection();
     }
 
     @PostConstruct
@@ -101,6 +100,33 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private void initializeListeners() {
         activityManager.register(ShowMovieDetailsActivity.class, activity ->
                 Platform.runLater(() -> load(activity.getMedia())));
+        activityManager.register(SubtitlesRetrievedActivity.class, this::loadSubtitles);
+    }
+
+    private void initializeLanguageSelection() {
+        ListCell<Subtitle> cell = new ListCell<>() {
+            @Override
+            protected void updateItem(Subtitle item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty && item.getFlagResource().isPresent()) {
+                    try {
+                        Image image = new Image(item.getFlagResource().get().getInputStream());
+                        ImageView imageView = new ImageView(image);
+                        imageView.setFitHeight(20);
+                        imageView.setPreserveRatio(true);
+
+                        setText("a");
+                        setGraphic(imageView);
+                    } catch (IOException ex) {
+                        log.error(ex.getMessage(), ex);
+                    }
+                }
+            }
+        };
+
+        languageSelection.setCellFactory(param -> cell);
+        languageSelection.setButtonCell(cell);
     }
 
     private void reset() {
@@ -123,7 +149,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         loadButtons();
         loadQualitySelection();
         loadPosterImage();
-        loadSubtitles();
     }
 
     private void loadText() {
@@ -148,20 +173,19 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         switchActiveQuality(qualities.get(qualities.size() - 1).getText());
     }
 
-    private void loadSubtitles() {
-        ObservableList<Subtitle> subtitles = media.getSubtitles();
+    private void loadSubtitles(SubtitlesRetrievedActivity activity) {
+        if (!activity.getImdbId().equals(media.getImdbId()))
+            return;
 
-        if (subtitles.size() > 0) {
-            languageSelection.getItems().addAll(subtitles);
-        } else {
-            subtitles.addListener((ListChangeListener<Subtitle>) subtitleChange -> {
-                while (subtitleChange.next()) {
-                    if (subtitleChange.wasAdded()) {
-                        languageSelection.getItems().addAll(subtitleChange.getAddedSubList());
-                    }
-                }
-            });
-        }
+        // filter out all the subtitles that don't have a flag
+        List<Subtitle> subtitles = activity.getSubtitles().stream()
+                .filter(e -> e.getFlagResource().isPresent())
+                .sorted()
+                .collect(Collectors.toList());
+
+        languageSelection.getItems().clear();
+        languageSelection.getItems().addAll(subtitles);
+        languageSelection.getSelectionModel().select(0);
     }
 
     private String getHealthTooltip(Torrent torrent, TorrentHealth health) {

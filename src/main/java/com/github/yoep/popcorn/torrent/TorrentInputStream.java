@@ -14,7 +14,7 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
     private boolean stopped;
     private long location;
 
-    TorrentInputStream(Torrent torrent, InputStream inputStream) {
+    public TorrentInputStream(Torrent torrent, InputStream inputStream) {
         super(inputStream);
 
         this.torrent = torrent;

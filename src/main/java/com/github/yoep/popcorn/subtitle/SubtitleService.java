@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.subtitle;
 
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.SubtitlesRetrievedActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.SubtitleProperties;
 import com.github.yoep.popcorn.media.providers.models.Episode;
@@ -22,34 +24,32 @@ import org.springframework.web.client.RestTemplate;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SubtitleService {
     private final List<Long> ongoingCalls = new ArrayList<>();
+    private final Map<String, List<Subtitle>> cachedSubtitles = new HashMap<>();
     private final PopcornProperties popcornProperties;
+    private final ActivityManager activityManager;
     private final RestTemplate restTemplate;
     private final XMLRPCClient client;
 
     @Async
-    public void download(final Media media, final String languageCode) {
-        media.getSubtitles().stream()
-                .filter(e -> e.getLanguage().equalsIgnoreCase(languageCode))
-                .findFirst()
-                .ifPresent(subtitle -> {
-                    restTemplate.execute(subtitle.getUrl(), HttpMethod.GET, null, response -> {
-                        File ret = File.createTempFile("download", "tmp");
-                        StreamUtils.copy(response.getBody(), new FileOutputStream(ret));
-                        return ret;
-                    });
-                });
+    public void download(final Subtitle subtitle) {
+        restTemplate.execute(subtitle.getUrl(), HttpMethod.GET, null, response -> {
+            File ret = File.createTempFile("download", "tmp");
+            StreamUtils.copy(response.getBody(), new FileOutputStream(ret));
+            return ret;
+        });
     }
 
     @Async
-    public CompletableFuture<List<Subtitle>> getList(final Movie movie) {
-        CompletableFuture<List<Subtitle>> completableFuture = new CompletableFuture<>();
+    public void retrieveSubtitles(final Movie movie) {
+        // check if the subtitles were already cached
+        if (cachedSubtitles.containsKey(movie.getImdbId()))
+            onSubtitlesRetrieved(movie, cachedSubtitles.get(movie.getImdbId()));
 
         login(new XMLRPCCallback() {
             @Override
@@ -106,51 +106,62 @@ public class SubtitleService {
                                             sub.setDownloads(downloads);
                                         }
                                     } else {
-                                        subtitles.add(new Subtitle(lang, url, score, downloads));
+                                        subtitles.add(new Subtitle(movie.getImdbId(), lang, url, score, downloads));
                                     }
                                 }
 
                                 log.debug("Found {} subtitles for \"{}\" movie ({})", subtitles.size(), movie.getTitle(), movie.getImdbId());
-                                completableFuture.complete(subtitles);
+                                cachedSubtitles.put(movie.getImdbId(), subtitles);
+                                onSubtitlesRetrieved(movie, subtitles);
                             } else {
-                                completableFuture.completeExceptionally(new XMLRPCException("No subs found"));
                                 removeCall(id);
+                                log.error("No subtitles found for \"{}\" movie ({})", movie.getTitle(), movie.getImdbId());
                             }
                         }
 
                         @Override
                         public void onError(long id, XMLRPCException error) {
-                            completableFuture.completeExceptionally(error);
+                            log.error(error.getMessage(), error);
                             removeCall(id);
                         }
 
                         @Override
                         public void onServerError(long id, XMLRPCServerException error) {
-                            completableFuture.completeExceptionally(error);
+                            log.error(error.getMessage(), error);
                             removeCall(id);
                         }
                     });
                 } else {
-                    completableFuture.completeExceptionally(new XMLRPCException("Token not correct"));
+                    log.error("Failed to retrieve subtitles, login token is not correct");
                 }
             }
 
             @Override
             public void onError(long id, XMLRPCException error) {
                 log.error(error.getMessage(), error);
-                completableFuture.completeExceptionally(error);
                 removeCall(id);
             }
 
             @Override
             public void onServerError(long id, XMLRPCServerException error) {
                 log.error(error.getMessage(), error);
-                completableFuture.completeExceptionally(error);
                 removeCall(id);
             }
         });
+    }
 
-        return completableFuture;
+    private void onSubtitlesRetrieved(final Media media, final List<Subtitle> subtitles) {
+        activityManager.register(new SubtitlesRetrievedActivity() {
+            @Override
+            public String getImdbId() {
+                return media.getImdbId();
+            }
+
+            @Override
+            public List<Subtitle> getSubtitles() {
+                return subtitles;
+            }
+        });
     }
 
     private void removeCall(long callId) {

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.torrent;
 
-import com.github.yoep.popcorn.torrent.models.TorrentHealth;
-import com.github.yoep.popcorn.settings.models.Settings;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.Settings;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.task.TaskExecutor;

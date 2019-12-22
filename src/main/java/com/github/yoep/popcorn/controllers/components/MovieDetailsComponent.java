@@ -7,15 +7,16 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
@@ -28,7 +29,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
 import java.net.URL;
 import java.util.Comparator;
 import java.util.List;
@@ -47,7 +47,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private final Application application;
     private final TorrentService torrentService;
 
-    private Tooltip healthTooltip;
     private String quality;
 
     @FXML
@@ -69,7 +68,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     @FXML
     private Pane qualitySelectionPane;
     @FXML
-    private ComboBox<Subtitle> languageSelection;
+    private LanguageSelection<Subtitle> languageSelection;
 
     public MovieDetailsComponent(ActivityManager activityManager, LocaleText localeText, Application application, TaskExecutor taskExecutor, TorrentService torrentService) {
         super(taskExecutor);
@@ -104,29 +103,29 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     }
 
     private void initializeLanguageSelection() {
-        ListCell<Subtitle> cell = new ListCell<>() {
-            @Override
-            protected void updateItem(Subtitle item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (!empty && item.getFlagResource().isPresent()) {
-                    try {
-                        Image image = new Image(item.getFlagResource().get().getInputStream());
-                        ImageView imageView = new ImageView(image);
-                        imageView.setFitHeight(20);
-                        imageView.setPreserveRatio(true);
-
-                        setText("a");
-                        setGraphic(imageView);
-                    } catch (IOException ex) {
-                        log.error(ex.getMessage(), ex);
-                    }
-                }
-            }
-        };
-
-        languageSelection.setCellFactory(param -> cell);
-        languageSelection.setButtonCell(cell);
+        //        ListCell<Subtitle> cell = new ListCell<>() {
+        //            @Override
+        //            protected void updateItem(Subtitle item, boolean empty) {
+        //                super.updateItem(item, empty);
+        //
+        //                if (!empty && item.getFlagResource().isPresent()) {
+        //                    try {
+        //                        Image image = new Image(item.getFlagResource().get().getInputStream());
+        //                        ImageView imageView = new ImageView(image);
+        //                        imageView.setFitHeight(20);
+        //                        imageView.setPreserveRatio(true);
+        //
+        //                        setText("a");
+        //                        setGraphic(imageView);
+        //                    } catch (IOException ex) {
+        //                        log.error(ex.getMessage(), ex);
+        //                    }
+        //                }
+        //            }
+        //        };
+        //
+        //        languageSelection.setCellFactory(param -> cell);
+        //        languageSelection.setButtonCell(cell);
     }
 
     private void reset() {
@@ -186,7 +185,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Platform.runLater(() -> {
             languageSelection.getItems().clear();
             languageSelection.getItems().addAll(subtitles);
-            languageSelection.getSelectionModel().select(0);
+            languageSelection.select(0);
         });
     }
 
@@ -227,10 +226,10 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         TorrentHealth health = torrentService.calculateHealth(torrent.getSeed(), torrent.getPeer());
 
         this.health.getStyleClass().add(health.getStatus().getStyleClass());
-        this.healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
-        this.healthTooltip.setWrapText(true);
-        setInstantTooltip(this.healthTooltip);
-        Tooltip.install(this.health, this.healthTooltip);
+        Tooltip healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
+        healthTooltip.setWrapText(true);
+        setInstantTooltip(healthTooltip);
+        Tooltip.install(this.health, healthTooltip);
     }
 
     private void switchActiveQuality(String quality) {

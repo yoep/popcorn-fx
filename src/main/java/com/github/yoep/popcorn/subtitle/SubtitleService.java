@@ -65,6 +65,9 @@ public class SubtitleService {
                             List<Subtitle> subtitles = new ArrayList<>();
                             Map<String, Object> subData = (Map<String, Object>) result;
 
+                            // add default subtitle
+                            subtitles.add(getDefaultSubtitle());
+
                             if (subData != null && subData.get("data") != null && subData.get("data") instanceof Object[]) {
                                 Object[] dataList = (Object[]) subData.get("data");
                                 for (Object dataItem : dataList) {
@@ -216,5 +219,11 @@ public class SubtitleService {
         synchronized (ongoingCalls) {
             ongoingCalls.add(callId);
         }
+    }
+
+    private Subtitle getDefaultSubtitle() {
+        return Subtitle.builder()
+                .language(Subtitle.NONE_KEYWORD)
+                .build();
     }
 }

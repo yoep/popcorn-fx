@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.subtitle.models;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
+import lombok.Builder;
 import lombok.Data;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -23,6 +24,7 @@ public class Subtitle implements Comparable<Subtitle> {
         this.url = url;
     }
 
+    @Builder
     public Subtitle(String imdbId, String language, String url, int score, int downloads) {
         this.imdbId = imdbId;
         this.language = language;

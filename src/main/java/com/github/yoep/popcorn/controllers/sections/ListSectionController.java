@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.controllers.components.ItemListener;
@@ -33,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Controller
 @RequiredArgsConstructor
-public class ListSectionController extends ScaleAwareImpl implements Initializable {
+public class ListSectionController implements Initializable {
     private final ActivityManager activityManager;
     private final List<ProviderService<? extends Media>> providerServices;
     private final FavoriteService favoriteService;

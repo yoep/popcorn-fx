@@ -25,4 +25,9 @@ public class Settings {
      */
     @Builder.Default
     private boolean torrentDirectoryCleaningEnabled = true;
+    /**
+     * The ui settings of the application.
+     */
+    @Builder.Default
+    private UISettings uiSettings = UISettings.builder().build();
 }

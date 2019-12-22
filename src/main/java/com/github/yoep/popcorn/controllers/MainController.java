@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.controllers;
 
+import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.yoep.popcorn.activities.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -13,7 +14,7 @@ import java.util.ResourceBundle;
 
 @Controller
 @RequiredArgsConstructor
-public class MainController implements Initializable {
+public class MainController extends ScaleAwareImpl implements Initializable {
     private final ActivityManager activityManager;
 
     @FXML

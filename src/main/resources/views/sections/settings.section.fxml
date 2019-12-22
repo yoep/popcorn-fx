@@ -1,32 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.controllers.sections.SettingsSectionController" styleClass="settings-section">
-    <columnConstraints>
-        <ColumnConstraints/>
-        <ColumnConstraints hgrow="ALWAYS"/>
-        <ColumnConstraints minWidth="40" maxWidth="40"/>
-    </columnConstraints>
-    <rowConstraints>
-        <RowConstraints/>
-        <RowConstraints/>
-        <RowConstraints/>
-    </rowConstraints>
+<?import javafx.geometry.Insets?>
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.github.yoep.popcorn.controllers.sections.SettingsSectionController" styleClass="settings-section">
+    <ScrollPane hbarPolicy="NEVER">
+        <VBox>
+            <!-- Title -->
+            <Label styleClass="settings-title" text="%settings"/>
+
+            <!-- User interface -->
+            <GridPane>
+                <columnConstraints>
+                    <ColumnConstraints/>
+                    <ColumnConstraints/>
+                    <ColumnConstraints/>
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints/>
+                    <RowConstraints/>
+                </rowConstraints>
+                <hgap>5</hgap>
+
+                <!-- User interface title -->
+                <Label styleClass="subsection-title" text="%settings_user_interface"
+                       GridPane.rowSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+                <Label text="%settings_ui_scale"
+                       GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="uiScale"
+                          GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+            </GridPane>
+
+            <!-- Subtitles -->
+            <Label styleClass="subsection-title" text="%settings_subtitles"/>
+
+            <!-- Trakt.tv -->
+            <Label styleClass="subsection-title" text="%settings_trakt_tv"/>
+        </VBox>
+    </ScrollPane>
 
     <!-- Close -->
     <Icon onMouseClicked="#onClose" styleClass="close-button" sizeFactor="2"
-          GridPane.columnIndex="2" GridPane.rowIndex="0">
+          StackPane.alignment="TOP_RIGHT">
+        <padding>
+            <Insets top="10" right="15" />
+        </padding>
         <Icon fx:constant="CROSS_UNICODE"/>
     </Icon>
-
-    <!-- Title -->
-    <Label styleClass="settings-title" text="%settings"
-           GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-
-    <!-- User interface -->
-    <Label styleClass="subsection-title" text="%settings"
-           GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-</GridPane>
+</StackPane>

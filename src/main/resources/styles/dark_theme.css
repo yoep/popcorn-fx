@@ -27,6 +27,9 @@
 .root InfiniteScrollPane,
 .root InfiniteScrollPane > .viewport,
 .root InfiniteScrollPane .scroll-bar,
+.root ScrollPane,
+.root ScrollPane > .viewport,
+.root ScrollPane .scroll-bar,
 .root ComboBox .scroll-bar,
 .root ListView,
 .root ListView .list-cell,
@@ -673,8 +676,13 @@
     -fx-font-size: 1.2em;
 }
 
+.root .settings-section Label {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+}
+
 .root .settings-section .settings-title {
-    -fx-font-family: "Open Sans";
+    -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-font-size: 22;
     -fx-padding: 8 30 5 30;

@@ -118,11 +118,6 @@
             <artifactId>jlibtorrent</artifactId>
             <version>${jlibtorrent.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.frostwire</groupId>
-            <artifactId>jlibtorrent-windows</artifactId>
-            <version>${jlibtorrent.version}</version>
-        </dependency>
 
         <!-- VLC player -->
         <dependency>
@@ -224,4 +219,48 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>windows</id>
+
+            <dependencies>
+                <!-- JLibtorrent -->
+                <dependency>
+                    <groupId>com.frostwire</groupId>
+                    <artifactId>jlibtorrent-windows</artifactId>
+                    <version>${jlibtorrent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>linux</id>
+
+            <dependencies>
+                <!-- JLibtorrent -->
+                <dependency>
+                    <groupId>com.frostwire</groupId>
+                    <artifactId>jlibtorrent-linux</artifactId>
+                    <version>${jlibtorrent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>arm</id>
+
+            <dependencies>
+                <!-- JLibtorrent -->
+                <dependency>
+                    <groupId>com.frostwire</groupId>
+                    <artifactId>jlibtorrent-android-arm</artifactId>
+                    <version>${jlibtorrent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.frostwire</groupId>
+                    <artifactId>jlibtorrent-android-x86</artifactId>
+                    <version>${jlibtorrent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

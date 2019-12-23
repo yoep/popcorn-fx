@@ -9,6 +9,7 @@ import org.springframework.util.Assert;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
+import java.util.Locale;
 import java.util.Objects;
 
 @Data
@@ -21,6 +22,11 @@ public class UISettings {
     @JsonIgnore
     protected final PropertyChangeSupport changes = new PropertyChangeSupport(this);
 
+    /**
+     * The default language of the application.
+     */
+    @Builder.Default
+    private Locale defaultLanguage = Locale.getDefault();
     /**
      * The ui scale of the application.
      */

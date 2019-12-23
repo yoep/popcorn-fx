@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.controllers.components.SettingsUIComponent">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints prefWidth="150"/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <!-- User interface title -->
+    <Label styleClass="subsection-title" text="%settings_user_interface"
+           GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <!-- Default language -->
+    <Label text="%settings_ui_language"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <ComboBox fx:id="defaultLanguage"
+              GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <!-- UI scale -->
+    <Label text="%settings_ui_scale" labelFor="$uiScale"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <ComboBox fx:id="uiScale"
+              GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+
+    <!-- Start screen -->
+    <Label text="%settings_start_screen" labelFor="$startScreen"
+           GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    <ComboBox fx:id="startScreen"
+              GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+
+    <!-- Separator -->
+    <Separator
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+</GridPane>

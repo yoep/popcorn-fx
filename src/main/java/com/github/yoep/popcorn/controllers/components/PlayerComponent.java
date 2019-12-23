@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 public class PlayerComponent implements Initializable {
     private static final int OVERLAY_FADE_DURATION = 1500;
 
-    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(5));
+    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(3));
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
     private final TorrentService torrentService;

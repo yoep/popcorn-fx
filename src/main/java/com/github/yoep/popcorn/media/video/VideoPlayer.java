@@ -225,19 +225,29 @@ public class VideoPlayer {
 
         @Override
         public void allocatedBuffers(ByteBuffer[] buffers) {
-            // This is the new magic sauce, the native video buffer is used directly for the image buffer - there is no
-            // full-frame buffer copy here
-            videoPixelBuffer = new PixelBuffer(bufferWidth, bufferHeight, buffers[0], pixelFormat);
-            videoImage = new WritableImage(videoPixelBuffer);
-            // Since for every frame the entire buffer will be updated, we can optimise by caching the result here
-            updatedBuffer = new Rectangle2D(0, 0, bufferWidth, bufferHeight);
+            try {
+                // This is the new magic sauce, the native video buffer is used directly for the image buffer - there is no
+                // full-frame buffer copy here
+                videoPixelBuffer = new PixelBuffer<>(bufferWidth, bufferHeight, buffers[0], pixelFormat);
+                videoImage = new WritableImage(videoPixelBuffer);
+                // Since for every frame the entire buffer will be updated, we can optimise by caching the result here
+                updatedBuffer = new Rectangle2D(0, 0, bufferWidth, bufferHeight);
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
         }
     }
 
     private class FXRenderCallback implements RenderCallback {
         @Override
         public void display(MediaPlayer mediaPlayer, ByteBuffer[] nativeBuffers, BufferFormat bufferFormat) {
-            Platform.runLater(() -> videoPixelBuffer.updateBuffer(pixBuf -> updatedBuffer));
+            Platform.runLater(() -> {
+                try {
+                    videoPixelBuffer.updateBuffer(pixBuf -> updatedBuffer);
+                } catch (Exception ex) {
+                    log.error(ex.getMessage(), ex);
+                }
+            });
         }
     }
 }

@@ -102,6 +102,7 @@ public class SettingsService {
             }
         }
 
+        log.debug("Using default application settings");
         return Optional.empty();
     }
 

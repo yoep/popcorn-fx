@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -110,6 +111,7 @@ public class SearchField extends StackPane {
      * This will reset the search to nothing.
      */
     public void clear() {
+        Platform.runLater(() -> textField.setText(""));
         onCleared();
     }
 
@@ -192,8 +194,7 @@ public class SearchField extends StackPane {
     }
 
     private void onClearClicked(MouseEvent event) {
-        textField.setText("");
-        onCleared();
+        clear();
     }
 
     private void createWatcher() {

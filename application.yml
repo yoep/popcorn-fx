@@ -2,4 +2,6 @@ logging:
   level:
     org.springframework: INFO
     com.github.yoep.popcorn: DEBUG
-    com.github.yoep.popcorn.torrent: TRACE
+    com.github.yoep.popcorn.subtitle: DEBUG
+    com.github.yoep.popcorn.torrent: DEBUG
+    com.github.yoep.popcorn.watched: DEBUG

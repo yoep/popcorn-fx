@@ -69,7 +69,7 @@
             <Icon>
                 <Icon fx:constant="HEART_UNICODE"/>
             </Icon>
-            <Label fx:id="bookmark" text="%details_add_to_bookmark"/>
+            <Label fx:id="bookmark" text="%details_add_to_bookmarks"/>
         </HBox>
     </GridPane>
 

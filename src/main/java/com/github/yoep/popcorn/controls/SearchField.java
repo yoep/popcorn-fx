@@ -105,6 +105,14 @@ public class SearchField extends StackPane {
         }
     }
 
+    /**
+     * Clear the current search value.
+     * This will reset the search to nothing.
+     */
+    public void clear() {
+        onCleared();
+    }
+
     private void init() {
         initializeTextField();
         initializeSearchIcon();
@@ -207,7 +215,7 @@ public class SearchField extends StackPane {
                     Thread.sleep(100);
                 }
             } catch (InterruptedException ex) {
-               log.error(ex.getMessage(), ex);
+                log.error(ex.getMessage(), ex);
             }
         });
     }

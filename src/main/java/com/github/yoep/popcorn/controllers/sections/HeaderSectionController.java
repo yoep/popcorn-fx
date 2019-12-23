@@ -124,6 +124,9 @@ public class HeaderSectionController implements Initializable {
         log.trace("Category is being changed to \"{}\"", category.get());
         activityManager.register((CategoryChangedActivity) category::get);
 
+        // clear the current search
+        search.clear();
+
         // set the category specific genres and sort by filters
         setGenres(category.get());
         setSortBy(category.get());

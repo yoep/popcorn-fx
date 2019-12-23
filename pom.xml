@@ -255,11 +255,11 @@
                     <artifactId>jlibtorrent-android-arm</artifactId>
                     <version>${jlibtorrent.version}</version>
                 </dependency>
-                <dependency>
+                <!--<dependency>
                     <groupId>com.frostwire</groupId>
                     <artifactId>jlibtorrent-android-x86</artifactId>
                     <version>${jlibtorrent.version}</version>
-                </dependency>
+                </dependency>-->
             </dependencies>
         </profile>
     </profiles>

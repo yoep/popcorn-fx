@@ -4,9 +4,9 @@ import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.Settings;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -15,18 +15,10 @@ import java.io.IOException;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TorrentService {
     private final TorrentStream torrentStream;
     private final SettingsService settingsService;
-
-    //region Constructors
-
-    public TorrentService(TaskExecutor taskExecutor, SettingsService settingsService) {
-        this.settingsService = settingsService;
-        this.torrentStream = new TorrentStream(taskExecutor, settingsService);
-    }
-
-    //endregion
 
     //region Getters
 

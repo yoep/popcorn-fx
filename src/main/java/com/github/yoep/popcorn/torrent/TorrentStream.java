@@ -1,17 +1,20 @@
 package com.github.yoep.popcorn.torrent;
 
 import com.frostwire.jlibtorrent.*;
+import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListenerHolder;
 import com.github.yoep.popcorn.torrent.models.Torrent;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -25,7 +28,11 @@ import java.util.Arrays;
 import java.util.Optional;
 
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class TorrentStream {
+    private static final String JNI_PATH = "jlibtorrent.jni.path";
+
     private final TorrentListenerHolder listenerHolder = new TorrentListenerHolder();
     private final TaskExecutor taskExecutor;
     private final SettingsService settingsService;
@@ -34,21 +41,6 @@ public class TorrentStream {
     private TorrentFactory torrentFactory;
     private Thread currentStream;
     private boolean initialized;
-
-    //region Constructors
-
-    /**
-     * Initialize a new instance of {@link TorrentStream}.
-     *
-     * @param taskExecutor    The task executor to use for delegating tasks to new threads.
-     * @param settingsService The application settings service to use.
-     */
-    public TorrentStream(TaskExecutor taskExecutor, SettingsService settingsService) {
-        this.taskExecutor = taskExecutor;
-        this.settingsService = settingsService;
-    }
-
-    //endregion
 
     //region Getters & Setters
 
@@ -145,17 +137,26 @@ public class TorrentStream {
     }
 
     private void initNativeLibraries() {
+        log.trace("Initializing native libraries for jlibtorrent");
         try {
             PathMatchingResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
             Resource[] resources = resourcePatternResolver.getResources("classpath*:**/*jlibtorrent-*");
-            String workingDir = System.getProperty("user.dir");
 
-            for (Resource resource : resources) {
+            if (ArrayUtils.isNotEmpty(resources)) {
+                Resource resource = resources[0];
                 String filename = resource.getFilename();
-                File destination = new File(workingDir + File.separator + "jlibtorrent-1.2.0.18." + FilenameUtils.getExtension(filename));
+                File destination = new File(PopcornTimeApplication.APP_DIR + File.separator + filename);
+                String absolutePath = destination.getAbsolutePath();
 
-                if (!destination.exists())
+                if (!destination.exists()) {
+                    log.trace("Copying resource {} to {}", filename, absolutePath);
                     FileUtils.copyInputStreamToFile(resource.getInputStream(), destination);
+                }
+
+                log.trace("Updating system property \"{}\" to \"{}\"", JNI_PATH, absolutePath);
+                System.setProperty(JNI_PATH, absolutePath);
+            } else {
+                log.error("Unable to find any jlibtorrent resources in the classpath");
             }
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);

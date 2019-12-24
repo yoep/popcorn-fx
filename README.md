@@ -33,3 +33,9 @@ Add the following VM option to enable the virtual keyboard
 - Add settings
 - Mark as watched when the video is at 90%
 - Resume video on last view time
+
+## System Requirements
+
+- Java 11+
+- OpenJFX 13
+- VLC Media Player

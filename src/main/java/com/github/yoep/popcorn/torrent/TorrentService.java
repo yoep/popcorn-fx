@@ -118,7 +118,7 @@ public class TorrentService {
     public void destroy() {
         Settings settings = settingsService.getSettings();
 
-        if (settings.isTorrentDirectoryCleaningEnabled()) {
+        if (settings.isTorrentDirectoryCleaningEnabled() && settings.getTorrentDirectory().exists()) {
             try {
                 log.info("Cleaning torrent directory {}", settings.getTorrentDirectory());
                 FileUtils.cleanDirectory(settings.getTorrentDirectory());

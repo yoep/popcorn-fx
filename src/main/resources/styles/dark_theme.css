@@ -490,15 +490,29 @@
     -fx-background-radius: 5em;
 }
 
-.root .movie-details .subtitle-group Label {
-    -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: fff;
+.root .movie-details .subtitle-group {
     -fx-cursor: hand;
 }
 
-.root .movie-details .subtitle-group ComboBox {
-    -fx-min-width: 50;
-    -fx-max-width: 50;
+.root .movie-details .subtitle-group Label {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: fff;
+}
+
+.root .movie-details .subtitle-group .arrow {
+    -fx-text-fill: #fff;
+    -fx-padding: 0 5 0 5;
+}
+
+.root .movie-details .subtitle-group .language-popup {
+    -fx-max-width: 100;
+    -fx-min-width: 100;
+    -fx-background-color: rgba(23, 24, 27, 0.8);
+    -fx-padding: 10 10 10 10;
+}
+
+.root .movie-details .subtitle-group .language-popup .language-flag {
+    -fx-padding: 2 2 2 2;
 }
 
 .root .movie-details .favorite-section,

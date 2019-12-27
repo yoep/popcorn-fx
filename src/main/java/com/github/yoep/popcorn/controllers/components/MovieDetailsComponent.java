@@ -8,15 +8,16 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +27,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
@@ -62,7 +62,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     @FXML
     private Button watchTrailerButton;
     @FXML
-    private ComboBox<Subtitle> languageSelection;
+    private LanguageSelection languageSelection;
 
     //region Constructors
 
@@ -110,30 +110,9 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     }
 
     private void initializeLanguageSelection() {
-        ListCell<Subtitle> cell = new ListCell<>() {
-            @Override
-            protected void updateItem(Subtitle item, boolean empty) {
-                super.updateItem(item, empty);
+        languageSelection.addListener(newValue -> {
 
-                if (!empty && item.getFlagResource().isPresent()) {
-                    try {
-                        Image image = new Image(item.getFlagResource().get().getInputStream());
-                        ImageView imageView = new ImageView(image);
-                        imageView.setFitHeight(20);
-                        imageView.setFitHeight(20);
-                        imageView.setPreserveRatio(true);
-
-                        setText("");
-                        setGraphic(imageView);
-                    } catch (IOException ex) {
-                        log.error(ex.getMessage(), ex);
-                    }
-                }
-            }
-        };
-
-        languageSelection.setCellFactory(param -> cell);
-        languageSelection.setButtonCell(cell);
+        });
     }
 
     private void reset() {
@@ -191,7 +170,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Platform.runLater(() -> {
             languageSelection.getItems().clear();
             languageSelection.getItems().addAll(subtitles);
-            languageSelection.getSelectionModel().select(0);
         });
     }
 

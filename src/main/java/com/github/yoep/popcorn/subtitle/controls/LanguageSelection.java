@@ -15,6 +15,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
+import javafx.util.Duration;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -79,6 +81,10 @@ public class LanguageSelection extends HBox {
         }
     }
 
+    public void select(int index) {
+        selectItem(items.get(0));
+    }
+
     /**
      * Show the language selection popup of this control.
      */
@@ -140,16 +146,15 @@ public class LanguageSelection extends HBox {
         subtitle.getFlagResource().ifPresent(e -> {
             Flag flag = new Flag(subtitle);
 
-            flag.setFitHeight(FLAG_HEIGHT);
-            flag.setFitWidth(FLAG_WIDTH);
-            flag.setPreserveRatio(true);
             flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);
             flag.setOnMouseClicked(event -> selectItem(subtitle));
 
-            Tooltip.install(flag, new Tooltip(subtitle.getLanguage()));
-            popup.getContent().add(flag);
+            Tooltip tooltip = new Tooltip(subtitle.getLanguage());
+            tooltip.setShowDelay(Duration.ZERO);
+            Tooltip.install(flag, tooltip);
 
-            loadImage(flag, e);
+            popup.getContent().add(flag);
+            loadImage(flag.getImageView(), e);
         });
     }
 
@@ -177,11 +182,26 @@ public class LanguageSelection extends HBox {
     }
 
     @Getter
-    private static class Flag extends ImageView {
+    private static class Flag extends StackPane {
+        private final ImageView imageView = new ImageView();
         private final Subtitle subtitle;
 
         private Flag(Subtitle subtitle) {
             this.subtitle = subtitle;
+
+            init();
+        }
+
+        public ImageView getImageView() {
+            return imageView;
+        }
+
+        private void init() {
+            imageView.setFitHeight(FLAG_HEIGHT);
+            imageView.setFitWidth(FLAG_WIDTH);
+            imageView.setPreserveRatio(true);
+
+            this.getChildren().add(imageView);
         }
     }
 

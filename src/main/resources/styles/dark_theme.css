@@ -505,14 +505,15 @@
 }
 
 .root .movie-details .subtitle-group .language-popup {
-    -fx-max-width: 100;
-    -fx-min-width: 100;
+    -fx-max-width: 140;
+    -fx-min-width: 140;
     -fx-background-color: rgba(23, 24, 27, 0.8);
     -fx-padding: 10 10 10 10;
 }
 
 .root .movie-details .subtitle-group .language-popup .language-flag {
     -fx-padding: 2 2 2 2;
+    -fx-cursor: hand;
 }
 
 .root .movie-details .favorite-section,

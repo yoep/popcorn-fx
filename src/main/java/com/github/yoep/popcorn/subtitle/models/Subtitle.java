@@ -50,8 +50,11 @@ public class Subtitle implements Comparable<Subtitle> {
 
     @Override
     public int compareTo(Subtitle compare) {
-        if (this.getLanguage().equals(NONE_KEYWORD))
+        if (this.getLanguage().equalsIgnoreCase(NONE_KEYWORD))
             return -1;
+
+        if (compare.getLanguage().equalsIgnoreCase(NONE_KEYWORD))
+            return 1;
 
         return this.getLanguage().compareTo(compare.getLanguage());
     }

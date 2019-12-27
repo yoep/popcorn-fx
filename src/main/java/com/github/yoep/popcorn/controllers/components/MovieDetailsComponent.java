@@ -170,6 +170,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Platform.runLater(() -> {
             languageSelection.getItems().clear();
             languageSelection.getItems().addAll(subtitles);
+            languageSelection.select(0);
         });
     }
 

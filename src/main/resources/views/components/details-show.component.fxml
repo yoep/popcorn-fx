@@ -66,24 +66,24 @@
         <Label fx:id="overview" styleClass="overview" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
 
         <HBox alignment="CENTER_LEFT" styleClass="bookmark" GridPane.columnIndex="1" GridPane.rowIndex="3">
-            <Icon>
+            <Icon fx:id="favoriteIcon" styleClass="like">
                 <Icon fx:constant="HEART_UNICODE"/>
             </Icon>
-            <Label fx:id="bookmark" text="%details_add_to_bookmarks"/>
+            <Label fx:id="favoriteText" text="%details_add_to_bookmarks"/>
         </HBox>
     </GridPane>
 
     <GridPane styleClass="show-details" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="215">
         <columnConstraints>
-            <ColumnConstraints maxWidth="200"/>
+            <ColumnConstraints minWidth="200" maxWidth="200"/>
             <ColumnConstraints hgrow="ALWAYS"/>
-            <ColumnConstraints minWidth="250" percentWidth="25"/>
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="300" percentWidth="30"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints vgrow="ALWAYS"/>
         </rowConstraints>
 
-        <VBox fx:id="seasonsSection" GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="0">
             <padding>
                 <Insets left="20" top="10"/>
             </padding>
@@ -104,5 +104,56 @@
                 </columnResizePolicy>
             </Episodes>
         </VBox>
+
+        <GridPane styleClass="episode-overview" GridPane.columnIndex="2" GridPane.rowIndex="0">
+            <columnConstraints>
+                <ColumnConstraints/>
+                <ColumnConstraints halignment="RIGHT"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints vgrow="ALWAYS" valignment="TOP"/>
+                <RowConstraints/>
+            </rowConstraints>
+
+            <!-- Episode title -->
+            <Label fx:id="episodeTitle" styleClass="episode-title"
+                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+            <!-- Metadata -->
+            <Label fx:id="episodeSeason" styleClass="episode-meta"
+                   GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <Label fx:id="airDate" styleClass="episode-meta"
+                   GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+
+            <!-- Magnet & Health -->
+            <HBox alignment="TOP_RIGHT"
+                  GridPane.rowSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
+                    <Icon fx:constant="MAGNET_UNICODE"/>
+                </Icon>
+                <Icon fx:id="health" styleClass="health">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+            </HBox>
+
+            <!-- Overview -->
+            <Label fx:id="episodeOverview" styleClass="episode-synopsis" wrapText="true"
+                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+
+            <StackPane GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="4">
+                <!-- Quality selection -->
+                <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5">
+                    <padding>
+                        <Insets right="15"/>
+                    </padding>
+                </HBox>
+
+                <!-- Play actions -->
+                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked" StackPane.alignment="CENTER_RIGHT" />
+            </StackPane>
+        </GridPane>
     </GridPane>
 </AnchorPane>

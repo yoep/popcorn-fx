@@ -1,19 +1,28 @@
 package com.github.yoep.popcorn.controllers.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseDetailsActivity;
+import com.github.yoep.popcorn.activities.LoadMovieActivity;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.controls.Episodes;
+import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Episode;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.media.providers.models.Torrent;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
+import com.github.yoep.popcorn.torrent.TorrentService;
+import com.github.yoep.popcorn.watched.WatchedService;
+import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
-import javafx.scene.layout.Pane;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
@@ -21,16 +30,26 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
+    private static final DateTimeFormatter AIRED_DATE_PATTERN = DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy hh:mm a");
+
     private final ActivityManager activityManager;
-    private final LocaleText localeText;
+    private final FavoriteService favoriteService;
+    private final WatchedService watchedService;
+
+    private Episode episode;
 
     @FXML
     private Label title;
@@ -45,17 +64,38 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     @FXML
     private Label overview;
     @FXML
-    private Pane seasonsSection;
+    private Icon bookmarkIcon;
+    @FXML
+    private Label bookmark;
     @FXML
     private ListView<Season> seasons;
     @FXML
     private Episodes episodes;
+    @FXML
+    private Label episodeTitle;
+    @FXML
+    private Label episodeSeason;
+    @FXML
+    private Label airDate;
+    @FXML
+    private Label episodeOverview;
 
-    public ShowDetailsComponent(ActivityManager activityManager, TaskExecutor taskExecutor, LocaleText localeText) {
-        super(taskExecutor);
+    //region Constructors
+
+    public ShowDetailsComponent(ActivityManager activityManager,
+                                TaskExecutor taskExecutor,
+                                LocaleText localeText,
+                                TorrentService torrentService,
+                                Application application,
+                                FavoriteService favoriteService,
+                                WatchedService watchedService) {
+        super(taskExecutor, localeText, torrentService, application);
         this.activityManager = activityManager;
-        this.localeText = localeText;
+        this.favoriteService = favoriteService;
+        this.watchedService = watchedService;
     }
+
+    //endregion
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -74,7 +114,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     private void initializeListViews() {
         seasons.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
-
+        episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
     }
 
     private void load(Show media) {
@@ -84,6 +124,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         loadText();
         loadStars();
         loadSeasons();
+        loadFavorite();
         loadPosterImage();
     }
 
@@ -97,13 +138,21 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     }
 
     private void loadSeasons() {
-        seasonsSection.setVisible(media.getNumberOfSeasons() > 1);
-
         for (int i = 1; i <= media.getNumberOfSeasons(); i++) {
             seasons.getItems().add(new Season(i, localeText.get(DetailsMessage.SEASON, i)));
         }
 
         seasons.getSelectionModel().select(0);
+    }
+
+    private void loadFavorite() {
+        switchFavorite(favoriteService.isFavorite(media));
+    }
+
+    @Override
+    protected void switchActiveQuality(String quality) {
+        super.switchActiveQuality(quality);
+        switchHealth(episode.getTorrents().get(quality));
     }
 
     private void switchSeason(Season newSeason) {
@@ -119,6 +168,21 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         episodes.getSelectionModel().select(0);
     }
 
+    private void switchEpisode(Episode episode) {
+        if (episode == null)
+            return;
+
+        this.episode = episode;
+
+        LocalDateTime airDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(episode.getFirstAired()), ZoneOffset.UTC);
+
+        episodeTitle.setText(episode.getTitle());
+        episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
+        airDate.setText(localeText.get(DetailsMessage.AIR_DATE, AIRED_DATE_PATTERN.format(airDateTime)));
+        episodeOverview.setText(episode.getOverview());
+        loadQualitySelection(episode.getTorrents());
+    }
+
     private void reset() {
         title.setText(StringUtils.EMPTY);
         overview.setText(StringUtils.EMPTY);
@@ -129,6 +193,37 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         seasons.getItems().clear();
         episodes.getItems().clear();
         poster.setImage(null);
+    }
+
+    @FXML
+    private void onMagnetClicked(MouseEvent event) {
+        Torrent torrent = episode.getTorrents().get(quality);
+
+        if (event.getButton() == MouseButton.SECONDARY) {
+            copyMagnetLink(torrent);
+        } else {
+            openMagnetLink(torrent);
+        }
+    }
+
+    @FXML
+    private void onWatchNowClicked() {
+        activityManager.register(new LoadMovieActivity() {
+            @Override
+            public String getQuality() {
+                return quality;
+            }
+
+            @Override
+            public Media getMedia() {
+                return media;
+            }
+
+            @Override
+            public Optional<Torrent> getTorrent() {
+                return Optional.of(episode.getTorrents().get(quality));
+            }
+        });
     }
 
     @FXML

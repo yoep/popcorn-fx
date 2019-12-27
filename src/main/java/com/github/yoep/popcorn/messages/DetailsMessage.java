@@ -10,7 +10,9 @@ public enum DetailsMessage implements Message {
     ADD_TO_BOOKMARKS("details_add_to_bookmarks"),
     REMOVE_FROM_BOOKMARKS("details_remove_from_bookmarks"),
     NOT_SEEN("details_not_seen"),
-    SEEN("details_seen");
+    SEEN("details_seen"),
+    EPISODE_SEASON("details_episode_season"),
+    AIR_DATE("details_air_date");
 
     private final String key;
 

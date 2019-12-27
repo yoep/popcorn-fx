@@ -2,7 +2,6 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.controls.Stars?>
-<?import com.github.yoep.popcorn.subtitle.controls.LanguageSelection?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
@@ -133,7 +132,7 @@
 
             <HBox styleClass="subtitle-group" GridPane.columnIndex="2" GridPane.rowIndex="4" alignment="CENTER_RIGHT">
                 <Label text="%details_subtitle" onMouseClicked="#onSubtitleLabelClicked"/>
-                <LanguageSelection fx:id="languageSelection"/>
+                <ComboBox fx:id="languageSelection"/>
             </HBox>
         </GridPane>
     </GridPane>

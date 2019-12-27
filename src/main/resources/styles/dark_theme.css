@@ -375,7 +375,8 @@
 }
 
 .root .poster-item .poster .overlay .like.liked,
-.root .movie-details .favorite-section .like.liked {
+.root .movie-details .favorite-section .like.liked,
+.root .show-details-section .show-header .bookmark .like.liked {
     -fx-text-fill: #df2d37;
     -fx-opacity: 1.0;
 }
@@ -437,45 +438,54 @@
     -fx-font-size: 1em;
 }
 
-.root .movie-details .magnet-link {
+.root .movie-details .magnet-link,
+.root .show-details-section .show-details .episode-overview .magnet-link {
     -fx-text-fill: #ddd;
     -fx-cursor: hand;
     -fx-padding: 0 8 0 8;
 }
 
-.root .movie-details .magnet-link:hover {
+.root .movie-details .magnet-link:hover,
+.root .show-details-section .show-details .episode-overview .magnet-link:hover {
     -fx-text-fill: #fff;
 }
 
-.root .movie-details .health {
+.root .movie-details .health,
+.root .show-details-section .show-details .episode-overview .health {
     -fx-text-fill: #737577;
     -fx-cursor: hand;
 }
 
-.root .movie-details .health.bad {
+.root .movie-details .health.bad,
+.root .show-details-section .show-details .episode-overview .health.bad {
     -fx-text-fill: #d53f3f;
 }
 
-.root .movie-details .health.medium {
+.root .movie-details .health.medium,
+.root .show-details-section .show-details .episode-overview .health.medium {
     -fx-text-fill: #ece523;
 }
 
-.root .movie-details .health.good {
+.root .movie-details .health.good,
+.root .show-details-section .show-details .episode-overview .health.good {
     -fx-text-fill: #a3e147;
 }
 
-.root .movie-details .health.excellent {
+.root .movie-details .health.excellent,
+.root .show-details-section .show-details .episode-overview .health.excellent {
     -fx-text-fill: #2ad942;
 }
 
-.root .movie-details .quality-selection .quality {
+.root .movie-details .quality-selection .quality,
+.root .show-details-section .show-details .episode-overview .quality-selection .quality {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-cursor: hand;
     -fx-padding: 2 10 2 10;
 }
 
-.root .movie-details .quality-selection .quality.active {
+.root .movie-details .quality-selection .quality.active,
+.root .show-details-section .show-details .episode-overview .quality-selection .quality.active {
     -fx-background-color: rgba(43, 110, 210, 0.84);
     -fx-background-radius: 5em;
 }
@@ -546,7 +556,7 @@
     -fx-font-size: 1.2em;
 }
 
-.root .show-details-section .show-header .bookmark Icon {
+.root .show-details-section .show-header .bookmark .like {
     -fx-padding: 0 5 0 0;
 }
 
@@ -599,11 +609,46 @@
     -fx-opacity: 0;
 }
 
+.root .show-details-section .show-details Episodes LabeledText {
+    -fx-font-family: "Open Sans Semibold";
+}
+
 .root .show-details-section .show-details Episodes TableHeaderRow {
     -fx-min-height: 0;
     -fx-max-height: 0;
     -fx-pref-height: 0;
     visibility: false;
+}
+
+.root .show-details-section .show-details Episodes .icon {
+    -fx-font-size: 1em;
+    -fx-text-fill: rgba(255, 255, 255, 0.2);
+}
+
+.root .show-details-section .show-details Episodes .icon.viewed {
+    -fx-text-fill: #fff;
+}
+
+.root .show-details-section .show-details .episode-overview {
+    -fx-background-color: #1f2025;
+    -fx-padding: 10 10 10 10;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 24px;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-meta {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #8d9296;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-synopsis {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-padding: 10 0 0 0;
 }
 
 .root .player {

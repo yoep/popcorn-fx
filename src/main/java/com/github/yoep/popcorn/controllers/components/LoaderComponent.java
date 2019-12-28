@@ -2,12 +2,14 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.LoadMovieActivity;
+import com.github.yoep.popcorn.activities.LoadTorrentActivity;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.activities.PlayerCloseActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.media.providers.models.Torrent;
+import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.TorrentMessage;
+import com.github.yoep.popcorn.subtitle.SubtitleService;
+import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.StreamStatus;
@@ -32,11 +34,14 @@ public class LoaderComponent {
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
     private final TorrentService torrentService;
+    private final SubtitleService subtitleService;
     private final LocaleText localeText;
 
     private Media media;
-    private Torrent mediaTorrent;
+    private Subtitle subtitle;
+    private TorrentInfo mediaTorrent;
     private String quality;
+    private Thread torrentThread;
 
     @FXML
     private Label statusText;
@@ -55,8 +60,12 @@ public class LoaderComponent {
 
     @PostConstruct
     private void init() {
-        activityManager.register(LoadMovieActivity.class, this::startTorrent);
-        torrentService.addListener(new TorrentListener() {
+        activityManager.register(LoadTorrentActivity.class, this::startTorrent);
+        torrentService.addListener(createTorrentListener());
+    }
+
+    private TorrentListener createTorrentListener() {
+        return new TorrentListener() {
             @Override
             public void onLoadError(String message) {
                 log.warn("Torrent loading failed: {}", message);
@@ -85,27 +94,7 @@ public class LoaderComponent {
                     statusText.setText(localeText.get(TorrentMessage.READY));
                     progressBar.setProgress(1);
                 });
-                activityManager.register(new PlayVideoActivity() {
-                    @Override
-                    public String getUrl() {
-                        return torrent.getVideoFile().getAbsolutePath();
-                    }
-
-                    @Override
-                    public Optional<String> getQuality() {
-                        return Optional.ofNullable(quality);
-                    }
-
-                    @Override
-                    public Media getMedia() {
-                        return media;
-                    }
-
-                    @Override
-                    public Optional<Torrent> getTorrent() {
-                        return Optional.of(mediaTorrent);
-                    }
-                });
+                invokePlayMediaActivity(torrent);
             }
 
             @Override
@@ -125,37 +114,40 @@ public class LoaderComponent {
             public void onStreamStopped() {
                 log.debug("Torrent stream has stopped");
             }
-        });
+        };
     }
 
-    private void startTorrent(LoadMovieActivity activity) {
+    private void startTorrent(LoadTorrentActivity activity) {
         // store the requested media locally for later use
         this.media = activity.getMedia();
+        this.subtitle = activity.getSubtitle().orElse(null);
         this.quality = activity.getQuality();
+        this.mediaTorrent = activity.getTorrent();
 
-        activity.getTorrent().ifPresentOrElse(
-                torrent -> {
-                    this.mediaTorrent = torrent;
-                    taskExecutor.execute(() -> {
-                        Platform.runLater(() -> {
-                            progressStatus.setVisible(false);
-                            progressBar.setProgress(-1);
-                            progressBar.getStyleClass().remove("error");
-                        });
+        this.torrentThread = new Thread(() -> {
+            // reset the progress bar to "infinite" animation
+            Platform.runLater(() -> {
+                progressStatus.setVisible(false);
+                progressBar.setProgress(-1);
+                progressBar.getStyleClass().remove("error");
+            });
 
-                        if (!torrentService.isInitialized())
-                            waitForTorrentStream();
+            // check if the torrent stream is initialized, of not, wait for it to be initialized before proceeding
+            if (!torrentService.isInitialized())
+                waitForTorrentStream();
 
-                        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
+            // check if the subtitles need to be downloaded
+            if (subtitle != null)
+                downloadSubtitles();
 
-                        // go to a separate thread to unblock the activityManager
-                        taskExecutor.execute(() -> torrentService.startStream(mediaTorrent.getUrl()));
-                    });
-                },
-                () -> {
-                    log.error("Failed to load torrent, no torrent present");
-                    close();
-                });
+            // update the status text to "connecting"
+            Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
+
+            log.trace("Starting torrent service stream for \"{}\"", mediaTorrent.getUrl());
+            torrentService.startStream(mediaTorrent.getUrl());
+        });
+
+        taskExecutor.execute(this.torrentThread);
     }
 
     private void waitForTorrentStream() {
@@ -170,10 +162,72 @@ public class LoaderComponent {
         }
     }
 
+    private void invokePlayMediaActivity(com.github.yoep.popcorn.torrent.models.Torrent torrent) {
+        activityManager.register(new PlayVideoActivity() {
+            @Override
+            public String getUrl() {
+                return torrent.getVideoFile().getAbsolutePath();
+            }
+
+            @Override
+            public Optional<String> getQuality() {
+                return Optional.ofNullable(quality);
+            }
+
+            @Override
+            public Media getMedia() {
+                return media;
+            }
+
+            @Override
+            public Optional<Subtitle> getSubtitle() {
+                return Optional.ofNullable(subtitle);
+            }
+        });
+    }
+
+    private void downloadSubtitles() {
+        // check if the given subtitle is the special "none" subtitle, if so, ignore the subtitle download
+        if (subtitle.isNone())
+            return;
+
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLES)));
+
+        subtitleService.download(subtitle);
+    }
+
+    private void reset() {
+        this.media = null;
+        this.subtitle = null;
+        this.mediaTorrent = null;
+        this.quality = null;
+        this.torrentThread = null;
+    }
+
     private void close() {
+        // stop the current torrent operation thread if one is present & alive
+        if (torrentThread != null && torrentThread.isAlive())
+            torrentThread.interrupt();
+
         torrentService.stopStream();
         activityManager.register(new PlayerCloseActivity() {
+            @Override
+            public Media getMedia() {
+                return media;
+            }
+
+            @Override
+            public long getTime() {
+                return PlayerCloseActivity.UNKNOWN;
+            }
+
+            @Override
+            public long getLength() {
+                return PlayerCloseActivity.UNKNOWN;
+            }
         });
+
+        reset();
     }
 
     @FXML

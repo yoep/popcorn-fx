@@ -11,7 +11,7 @@ import java.util.Map;
 @Data
 public class Movie extends AbstractMedia {
     private String trailer;
-    private Map<String, Map<String, Torrent>> torrents;
+    private Map<String, Map<String, TorrentInfo>> torrents;
 
     @Override
     public boolean isMovie() {

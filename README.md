@@ -26,10 +26,19 @@ Add the following VM option to enable the virtual keyboard
 
     -Dcom.sun.javafx.virtualKeyboard=javafx 
 
-## TODO features
+## TODO features (MoSCoW)
 
-- Add language selection
+### Must
+
+- Add subtitle selection to series details
+- Add subtitle selection to video player
 - Add stream stats to player
-- Add settings
 - Mark as watched when the video is at 90%
+
+### Should
+
 - Resume video on last view time
+
+### Could
+
+- Update video time slider to show video loading progress (custom control)

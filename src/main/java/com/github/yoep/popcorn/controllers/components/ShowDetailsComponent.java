@@ -4,16 +4,17 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseDetailsActivity;
-import com.github.yoep.popcorn.activities.LoadMovieActivity;
+import com.github.yoep.popcorn.activities.LoadTorrentActivity;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.controls.Episodes;
 import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
-import com.github.yoep.popcorn.media.providers.models.Torrent;
+import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
+import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.application.Application;
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
@@ -97,6 +99,27 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     //endregion
 
+    //region AbstractDetailsComponent
+
+    @Override
+    protected void reset() {
+        super.reset();
+
+        title.setText(StringUtils.EMPTY);
+        overview.setText(StringUtils.EMPTY);
+        year.setText(StringUtils.EMPTY);
+        duration.setText(StringUtils.EMPTY);
+        status.setText(StringUtils.EMPTY);
+        genres.setText(StringUtils.EMPTY);
+        seasons.getItems().clear();
+        episodes.getItems().clear();
+        poster.setImage(null);
+    }
+
+    //endregion
+
+    //region Functions
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePoster();
@@ -118,9 +141,9 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     }
 
     private void load(Show media) {
+        Assert.notNull(media, "media cannot be null");
         this.media = media;
 
-        reset();
         loadText();
         loadStars();
         loadSeasons();
@@ -183,32 +206,20 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         loadQualitySelection(episode.getTorrents());
     }
 
-    private void reset() {
-        title.setText(StringUtils.EMPTY);
-        overview.setText(StringUtils.EMPTY);
-        year.setText(StringUtils.EMPTY);
-        duration.setText(StringUtils.EMPTY);
-        status.setText(StringUtils.EMPTY);
-        genres.setText(StringUtils.EMPTY);
-        seasons.getItems().clear();
-        episodes.getItems().clear();
-        poster.setImage(null);
-    }
-
     @FXML
     private void onMagnetClicked(MouseEvent event) {
-        Torrent torrent = episode.getTorrents().get(quality);
+        TorrentInfo torrentInfo = episode.getTorrents().get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {
-            copyMagnetLink(torrent);
+            copyMagnetLink(torrentInfo);
         } else {
-            openMagnetLink(torrent);
+            openMagnetLink(torrentInfo);
         }
     }
 
     @FXML
     private void onWatchNowClicked() {
-        activityManager.register(new LoadMovieActivity() {
+        activityManager.register(new LoadTorrentActivity() {
             @Override
             public String getQuality() {
                 return quality;
@@ -220,8 +231,13 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             }
 
             @Override
-            public Optional<Torrent> getTorrent() {
-                return Optional.of(episode.getTorrents().get(quality));
+            public TorrentInfo getTorrent() {
+                return episode.getTorrents().get(quality);
+            }
+
+            @Override
+            public Optional<Subtitle> getSubtitle() {
+                return Optional.ofNullable(subtitle);
             }
         });
     }
@@ -232,4 +248,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         });
         reset();
     }
+
+    //endregion
 }

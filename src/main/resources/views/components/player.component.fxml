@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.github.yoep.popcorn.controllers.components.PlayerComponent"
@@ -16,35 +16,8 @@
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
     <!-- Player Header -->
-    <GridPane fx:id="playerHeader" styleClass="player-header"
-              AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0">
-        <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS"/>
-            <ColumnConstraints minWidth="10" maxWidth="10"/>
-            <ColumnConstraints minWidth="40"/>
-        </columnConstraints>
-        <rowConstraints>
-            <RowConstraints/>
-        </rowConstraints>
-
-        <Label fx:id="title" styleClass="player-title"
-               GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <padding>
-                <Insets left="15"/>
-            </padding>
-        </Label>
-
-        <HBox styleClass="stats" GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.valignment="TOP" GridPane.halignment="RIGHT" alignment="CENTER_RIGHT">
-            <Label fx:id="quality" styleClass="player-quality" />
-            <Icon fx:id="playerStats" styleClass="player-stats" />
-            <Icon styleClass="close-button" onMouseClicked="#close">
-                <padding>
-                    <Insets right="15"/>
-                </padding>
-                <Icon fx:constant="CROSS_UNICODE"/>
-            </Icon>
-        </HBox>
-    </GridPane>
+    <fx:include source="player-header.component.fxml" fx:id="playerHeader"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0"/>
 
     <!-- Player Controls -->
     <GridPane fx:id="playerControls" styleClass="player-controls"
@@ -83,12 +56,12 @@
 
         <!-- Subtitle -->
         <Icon styleClass="player-button, subtitle, subtitle-smaller"
-               GridPane.columnIndex="4" GridPane.rowIndex="0">
-            <Icon fx:constant="FONT_UNICODE" />
+              GridPane.columnIndex="4" GridPane.rowIndex="0">
+            <Icon fx:constant="FONT_UNICODE"/>
         </Icon>
         <Icon styleClass="player-button, subtitle"
-               GridPane.columnIndex="5" GridPane.rowIndex="0">
-            <Icon fx:constant="FONT_UNICODE" />
+              GridPane.columnIndex="5" GridPane.rowIndex="0">
+            <Icon fx:constant="FONT_UNICODE"/>
         </Icon>
         <Icon styleClass="player-button, subtitle"
               GridPane.columnIndex="6" GridPane.rowIndex="0">

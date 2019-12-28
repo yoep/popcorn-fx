@@ -18,6 +18,8 @@ public class Subtitle implements Comparable<Subtitle> {
     private int score;
     private int downloads;
 
+    //region Constructors
+
     public Subtitle(String imdbId, String language, String url) {
         this.imdbId = imdbId;
         this.language = language;
@@ -31,6 +33,19 @@ public class Subtitle implements Comparable<Subtitle> {
         this.url = url;
         this.score = score;
         this.downloads = downloads;
+    }
+
+    //endregion
+
+    //region Getters
+
+    /**
+     * Check if this subtitle is the special "none" subtitle.
+     *
+     * @return Returns true if this subtitle is the "none" subtitle, else false.
+     */
+    public boolean isNone() {
+        return getLanguage().equals(NONE_KEYWORD);
     }
 
     /**
@@ -48,14 +63,20 @@ public class Subtitle implements Comparable<Subtitle> {
         }
     }
 
+    //endregion
+
+    //region Comparable
+
     @Override
     public int compareTo(Subtitle compare) {
-        if (this.getLanguage().equalsIgnoreCase(NONE_KEYWORD))
+        if (this.getLanguage().equals(NONE_KEYWORD))
             return -1;
 
-        if (compare.getLanguage().equalsIgnoreCase(NONE_KEYWORD))
+        if (compare.getLanguage().equals(NONE_KEYWORD))
             return 1;
 
         return this.getLanguage().compareTo(compare.getLanguage());
     }
+
+    //endregion
 }

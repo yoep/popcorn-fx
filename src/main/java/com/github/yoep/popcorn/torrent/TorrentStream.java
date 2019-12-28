@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.torrent;
 import com.frostwire.jlibtorrent.*;
 import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListenerHolder;
 import com.github.yoep.popcorn.torrent.models.Torrent;
@@ -88,7 +89,7 @@ public class TorrentStream {
 
                             Arrays.fill(priorities, Priority.IGNORE);
 
-                            this.torrentSession.download(torrentInfo, settingsService.getSettings().getTorrentDirectory(), null, priorities, null);
+                            this.torrentSession.download(torrentInfo, getSettings().getDirectory(), null, priorities, null);
                         }, () -> listenerHolder.onLoadError("Failed to retrieve torrent information"));
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
@@ -185,7 +186,7 @@ public class TorrentStream {
     }
 
     private void initSaveDirectory() {
-        File directory = settingsService.getSettings().getTorrentDirectory();
+        File directory = getSettings().getDirectory();
 
         if (directory.mkdirs()) {
             log.info("Created torrent save directory in {}", directory.getAbsolutePath());
@@ -270,5 +271,9 @@ public class TorrentStream {
         }
 
         return Optional.empty();
+    }
+
+    private TorrentSettings getSettings() {
+        return settingsService.getSettings().getTorrentSettings();
     }
 }

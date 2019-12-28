@@ -6,6 +6,8 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
+import com.github.yoep.popcorn.subtitle.SubtitleService;
+import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
@@ -39,7 +41,9 @@ public class PlayerComponent implements Initializable {
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
     private final TorrentService torrentService;
+    private final SubtitleService subtitleService;
 
+    private Media media;
     private VideoPlayer videoPlayer;
     private long videoChangeTime;
 
@@ -53,12 +57,6 @@ public class PlayerComponent implements Initializable {
     private Pane playerControls;
     @FXML
     private Pane videoView;
-    @FXML
-    private Label title;
-    @FXML
-    private Label quality;
-    @FXML
-    private Icon playerStats;
     @FXML
     private Label currentTime;
     @FXML
@@ -76,7 +74,32 @@ public class PlayerComponent implements Initializable {
         initializeSceneEvents();
         initializeVideoPlayer();
         initializeSlider();
-        initializeHeader();
+    }
+
+    /**
+     * Close the video player.
+     * This will create a {@link PlayerCloseActivity} with the last known information about the video player state.
+     */
+    void close() {
+        log.trace("Video player is being closed");
+        activityManager.register(new PlayerCloseActivity() {
+            @Override
+            public Media getMedia() {
+                return media;
+            }
+
+            @Override
+            public long getTime() {
+                return 0;
+            }
+
+            @Override
+            public long getLength() {
+                return 0;
+            }
+        });
+
+        onClose();
     }
 
     @PostConstruct
@@ -174,28 +197,38 @@ public class PlayerComponent implements Initializable {
         slider.setOnMouseReleased(event -> setVideoTime(slider.getValue() + 1));
     }
 
-    private void initializeHeader() {
-        quality.setVisible(false);
-        playerStats.setVisible(false);
-    }
-
     private void onPlayVideo(PlayVideoActivity activity) {
         log.debug("Received play video activity for url {}, quality {} and media {}", activity.getUrl(), activity.getQuality().orElse("-"), activity.getMedia());
-        videoChangeTime = System.currentTimeMillis();
-        videoPlayer.play(activity.getUrl());
+        this.media = activity.getMedia();
+        this.videoChangeTime = System.currentTimeMillis();
 
-        Platform.runLater(() -> {
-            Media media = activity.getMedia();
+        // check if a subtitle was selected
+        if (activity.getSubtitle().isPresent()) {
+            // download the subtitle before starting the playback
+            Subtitle subtitle = activity.getSubtitle().get();
 
-            title.setText(media.getTitle());
+            subtitleService.download(subtitle).whenComplete((file, throwable) -> {
+                if (throwable != null) {
+                    log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
+                } else {
+                    //TODO: add subtitle
+                    playUrl(activity.getUrl());
+                }
+            });
+        } else {
+            // instant play video
+            playUrl(activity.getUrl());
+        }
+    }
 
-            activity.getQuality().ifPresentOrElse(
-                    quality -> {
-                        this.quality.setText(quality);
-                        this.quality.setVisible(true);
-                    },
-                    () -> this.quality.setVisible(false));
-        });
+    private void onClose() {
+        reset();
+
+        torrentService.stopStream();
+    }
+
+    private void playUrl(String url) {
+        this.videoPlayer.play(url);
     }
 
     private void onFullscreenChanged(FullscreenActivity activity) {
@@ -244,11 +277,11 @@ public class PlayerComponent implements Initializable {
     }
 
     private void reset() {
+        this.media = null;
+
         slider.setValue(0);
         currentTime.setText(formatTime(0));
         duration.setText(formatTime(0));
-        quality.setVisible(false);
-        playerStats.setVisible(false);
 
         taskExecutor.execute(() -> videoPlayer.stop());
     }
@@ -303,14 +336,5 @@ public class PlayerComponent implements Initializable {
     @FXML
     private void onFullscreenClicked() {
         toggleFullscreen();
-    }
-
-    @FXML
-    private void close() {
-        log.trace("Closing video player component");
-        reset();
-        torrentService.stopStream();
-        activityManager.register(new PlayerCloseActivity() {
-        });
     }
 }

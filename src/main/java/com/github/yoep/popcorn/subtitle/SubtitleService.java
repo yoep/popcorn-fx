@@ -8,6 +8,8 @@ import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
@@ -15,15 +17,21 @@ import de.timroes.axmlrpc.XMLRPCException;
 import de.timroes.axmlrpc.XMLRPCServerException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.http.HttpMethod;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -33,16 +41,41 @@ public class SubtitleService {
     private final Map<String, List<Subtitle>> cachedSubtitles = new HashMap<>();
     private final PopcornProperties popcornProperties;
     private final ActivityManager activityManager;
+    private final SettingsService settingsService;
     private final RestTemplate restTemplate;
     private final XMLRPCClient client;
 
+    //region Methods
+
     @Async
-    public void download(final Subtitle subtitle) {
-        restTemplate.execute(subtitle.getUrl(), HttpMethod.GET, null, response -> {
-            File ret = File.createTempFile("download", "tmp");
-            StreamUtils.copy(response.getBody(), new FileOutputStream(ret));
-            return ret;
-        });
+    public CompletableFuture<File> download(final Subtitle subtitle) {
+        Assert.notNull(subtitle, "subtitle cannot be null");
+
+        // check if the given subtitle is the special "none" subtitle, if so, ignore the download
+        if (subtitle.isNone()) {
+            String message = "subtitle is special type \"none\"";
+
+            log.debug("Skipping subtitle download, {}", message);
+            return CompletableFuture.failedFuture(new SubtitleException("Failed to download subtitle, " + message));
+        }
+
+        SubtitleSettings settings = getSettings();
+        File storageFile = getStorageFile(subtitle);
+        File subtitleFile;
+
+        // check if the subtitle file was already downloaded before, if so, return the cached file
+        if (storageFile.exists()) {
+            log.debug("Returning cached subtitle file \"{}\"", storageFile.getAbsolutePath());
+            subtitleFile = storageFile;
+        } else {
+            log.debug("Downloading subtitle file \"{}\" to \"{}\"", subtitle.getUrl(), storageFile.getAbsolutePath());
+            subtitleFile = restTemplate.execute(subtitle.getUrl(), HttpMethod.GET, null, response -> {
+                StreamUtils.copy(response.getBody(), new FileOutputStream(storageFile));
+                return storageFile;
+            });
+        }
+
+        return CompletableFuture.completedFuture(subtitleFile);
     }
 
     @Async
@@ -153,6 +186,24 @@ public class SubtitleService {
         });
     }
 
+    //endregion
+
+    //region Functions
+
+    @PreDestroy
+    private void destroy() {
+        var settings = getSettings();
+
+        if (settings.isAutoCleaningEnabled() && settings.getDirectory().exists()) {
+            try {
+                log.info("Cleaning subtitles directory {}", settings.getDirectory());
+                FileUtils.cleanDirectory(settings.getDirectory());
+            } catch (IOException ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        }
+    }
+
     private void onSubtitlesRetrieved(final Media media, final List<Subtitle> subtitles) {
         activityManager.register(new SubtitlesRetrievedActivity() {
             @Override
@@ -226,4 +277,20 @@ public class SubtitleService {
                 .language(Subtitle.NONE_KEYWORD)
                 .build();
     }
+
+    private SubtitleSettings getSettings() {
+        return settingsService.getSettings().getSubtitleSettings();
+    }
+
+    private File getStorageFile(Subtitle subtitle) {
+        String filename = FilenameUtils.getName(subtitle.getUrl());
+        File subtitleDirectory = getSettings().getDirectory();
+
+        // make sure the subtitle directory exists
+        subtitleDirectory.mkdirs();
+
+        return new File(subtitleDirectory.getAbsolutePath() + File.separator + filename);
+    }
+
+    //endregion
 }

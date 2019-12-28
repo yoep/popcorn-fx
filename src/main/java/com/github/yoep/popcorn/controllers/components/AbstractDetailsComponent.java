@@ -5,8 +5,9 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.media.providers.models.Torrent;
+import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import javafx.application.Application;
@@ -48,6 +49,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected final Application application;
 
     protected T media;
+    protected Subtitle subtitle;
     protected boolean liked;
     protected String quality;
 
@@ -116,7 +118,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         });
     }
 
-    protected void loadQualitySelection(Map<String, Torrent> torrents) {
+    protected void loadQualitySelection(Map<String, TorrentInfo> torrents) {
         List<Label> qualities = torrents.keySet().stream()
                 .filter(e -> !e.equals("0")) // filter out the 0 quality
                 .sorted(Comparator.comparing(o -> Integer.parseInt(o.replaceAll("[a-z]", ""))))
@@ -148,34 +150,34 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         tooltip.setHideDelay(Duration.ZERO);
     }
 
-    protected void switchHealth(Torrent torrent) {
+    protected void switchHealth(TorrentInfo torrentInfo) {
         health.getStyleClass().removeIf(e -> !e.equals("health"));
-        TorrentHealth health = torrentService.calculateHealth(torrent.getSeed(), torrent.getPeer());
+        TorrentHealth health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
 
         this.health.getStyleClass().add(health.getStatus().getStyleClass());
-        Tooltip healthTooltip = new Tooltip(getHealthTooltip(torrent, health));
+        Tooltip healthTooltip = new Tooltip(getHealthTooltip(torrentInfo, health));
         healthTooltip.setWrapText(true);
         setInstantTooltip(healthTooltip);
         Tooltip.install(this.health, healthTooltip);
     }
 
-    protected String getHealthTooltip(Torrent torrent, TorrentHealth health) {
+    protected String getHealthTooltip(TorrentInfo torrentInfo, TorrentHealth health) {
         return localeText.get(health.getStatus().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
-                "Seeds: " + torrent.getSeed() + " - Peers: " + torrent.getPeer();
+                "Seeds: " + torrentInfo.getSeed() + " - Peers: " + torrentInfo.getPeer();
     }
 
-    protected void openMagnetLink(Torrent torrent) {
+    protected void openMagnetLink(TorrentInfo torrentInfo) {
         try {
-            application.getHostServices().showDocument(torrent.getUrl());
+            application.getHostServices().showDocument(torrentInfo.getUrl());
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }
     }
 
-    protected void copyMagnetLink(Torrent torrent) {
+    protected void copyMagnetLink(TorrentInfo torrentInfo) {
         ClipboardContent clipboardContent = new ClipboardContent();
-        clipboardContent.putUrl(torrent.getUrl());
-        clipboardContent.putString(torrent.getUrl());
+        clipboardContent.putUrl(torrentInfo.getUrl());
+        clipboardContent.putString(torrentInfo.getUrl());
         Clipboard.getSystemClipboard().setContent(clipboardContent);
     }
 
@@ -193,6 +195,17 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
                 .filter(e -> e.getText().equalsIgnoreCase(quality))
                 .findFirst()
                 .ifPresent(e -> e.getStyleClass().add(QUALITY_ACTIVE_CLASS));
+    }
+
+    /**
+     * Reset the details component information to nothing.
+     * This will allow the GC to dispose the items when the media details are no longer needed.
+     */
+    protected void reset() {
+        this.media = null;
+        this.subtitle = null;
+        this.liked = false;
+        this.quality = null;
     }
 
     //region Functions

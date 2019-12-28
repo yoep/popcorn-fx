@@ -8,7 +8,7 @@ import java.util.Map;
 @Data
 public class Episode {
     private int tvdbId;
-    private Map<String, Torrent> torrents;
+    private Map<String, TorrentInfo> torrents;
     /**
      * The first air time of the episode
      */

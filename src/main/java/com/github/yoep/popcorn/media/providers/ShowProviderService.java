@@ -55,14 +55,14 @@ public class ShowProviderService extends AbstractProviderService<Show> {
                 .path("{resource}/{imdb_id}")
                 .build("show", media.getImdbId());
 
-        log.debug("Loading show details for {} IMDB ID", media.getImdbId());
+        log.debug("Loading show details for \"{}\" IMDB ID", media.getImdbId());
         ResponseEntity<Show> show = restTemplate.getForEntity(uri, Show.class);
         int statusCodeValue = show.getStatusCodeValue();
 
         if (statusCodeValue >= 200 && statusCodeValue < 300) {
             activityManager.register((ShowSerieDetailsActivity) show::getBody);
         } else {
-            log.error("Failed to load the show details with {} status", show.getStatusCode());
+            log.error("Failed to load the show details with \"{}\" status", show.getStatusCode());
         }
     }
 

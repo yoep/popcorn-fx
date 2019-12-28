@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
-import com.github.yoep.popcorn.media.providers.models.Torrent;
+import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
@@ -92,6 +92,27 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     //endregion
 
+    //region AbstractDetailsComponent
+
+    @Override
+    protected void reset() {
+        super.reset();
+
+        title.setText(StringUtils.EMPTY);
+        overview.setText(StringUtils.EMPTY);
+        year.setText(StringUtils.EMPTY);
+        duration.setText(StringUtils.EMPTY);
+        genres.setText(StringUtils.EMPTY);
+        favoriteIcon.getStyleClass().remove(LIKED_STYLE_CLASS);
+        watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
+        qualitySelectionPane.getChildren().clear();
+        poster.setImage(null);
+    }
+
+    //endregion
+
+    //region Functions
+
     @PostConstruct
     private void init() {
         initializeListeners();
@@ -110,28 +131,13 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     }
 
     private void initializeLanguageSelection() {
-        languageSelection.addListener(newValue -> {
-
-        });
-    }
-
-    private void reset() {
-        title.setText(StringUtils.EMPTY);
-        overview.setText(StringUtils.EMPTY);
-        year.setText(StringUtils.EMPTY);
-        duration.setText(StringUtils.EMPTY);
-        genres.setText(StringUtils.EMPTY);
-        favoriteIcon.getStyleClass().remove(LIKED_STYLE_CLASS);
-        watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
-        qualitySelectionPane.getChildren().clear();
-        poster.setImage(null);
+        languageSelection.addListener(newValue -> this.subtitle = newValue);
     }
 
     private void load(Movie media) {
         Assert.notNull(media, "media cannot be null");
         this.media = media;
 
-        reset();
         loadText();
         loadStars();
         loadButtons();
@@ -196,18 +202,18 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     @FXML
     private void onMagnetClicked(MouseEvent event) {
-        Torrent torrent = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+        TorrentInfo torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {
-            copyMagnetLink(torrent);
+            copyMagnetLink(torrentInfo);
         } else {
-            openMagnetLink(torrent);
+            openMagnetLink(torrentInfo);
         }
     }
 
     @FXML
     private void onWatchNowClicked() {
-        activityManager.register(new LoadMovieActivity() {
+        activityManager.register(new LoadTorrentActivity() {
             @Override
             public String getQuality() {
                 return quality;
@@ -219,8 +225,13 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             }
 
             @Override
-            public Optional<Torrent> getTorrent() {
-                return Optional.of(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality));
+            public TorrentInfo getTorrent() {
+                return media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+            }
+
+            @Override
+            public Optional<Subtitle> getSubtitle() {
+                return Optional.ofNullable(subtitle);
             }
         });
     }
@@ -244,7 +255,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             }
 
             @Override
-            public Optional<Torrent> getTorrent() {
+            public Optional<Subtitle> getSubtitle() {
                 return Optional.empty();
             }
         });
@@ -287,4 +298,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         activityManager.register(new CloseDetailsActivity() {
         });
     }
+
+    //endregion
 }

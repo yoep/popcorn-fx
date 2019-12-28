@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.torrent;
 
 import com.github.yoep.popcorn.settings.SettingsService;
-import com.github.yoep.popcorn.settings.models.Settings;
+import com.github.yoep.popcorn.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import lombok.RequiredArgsConstructor;
@@ -116,16 +116,20 @@ public class TorrentService {
 
     @PreDestroy
     public void destroy() {
-        Settings settings = settingsService.getSettings();
+        var settings = getSettings();
 
-        if (settings.isTorrentDirectoryCleaningEnabled() && settings.getTorrentDirectory().exists()) {
+        if (settings.isAutoCleaningEnabled() && settings.getDirectory().exists()) {
             try {
-                log.info("Cleaning torrent directory {}", settings.getTorrentDirectory());
-                FileUtils.cleanDirectory(settings.getTorrentDirectory());
+                log.info("Cleaning torrent directory {}", settings.getDirectory());
+                FileUtils.cleanDirectory(settings.getDirectory());
             } catch (IOException ex) {
                 log.error(ex.getMessage(), ex);
             }
         }
+    }
+
+    private TorrentSettings getSettings() {
+        return settingsService.getSettings().getTorrentSettings();
     }
 
     //endregion

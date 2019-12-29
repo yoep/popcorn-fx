@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
-import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
+import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -62,7 +62,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     @FXML
     private Button watchTrailerButton;
     @FXML
-    private LanguageSelection languageSelection;
+    private LanguageFlagSelection languageSelection;
 
     //region Constructors
 

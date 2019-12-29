@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.controls.SubtitleTrack;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
+import com.github.yoep.popcorn.media.video.time.TimeListener;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
@@ -21,6 +22,7 @@ import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -81,6 +83,17 @@ public class PlayerComponent implements Initializable {
     private void initializeListeners() {
         activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
         playerHeader.addListener(this::close);
+        playerControls.addListener(new PlayerControlsListener() {
+            @Override
+            public void onSubtitleChanged(SubtitleInfo subtitle) {
+                PlayerComponent.this.onSubtitleChanged(subtitle);
+            }
+
+            @Override
+            public void onSubtitleSizeChanged(int pixelChange) {
+                subtitleTrack.setFontSizeProperty(subtitleTrack.getFontSizeProperty() + pixelChange);
+            }
+        });
     }
 
     //endregion
@@ -136,6 +149,17 @@ public class PlayerComponent implements Initializable {
                     break;
             }
         });
+        this.videoPlayer.addListener(new TimeListener() {
+            @Override
+            public void onLengthChanged(long newLength) {
+                // no-op
+            }
+
+            @Override
+            public void onTimeChanged(long newTime) {
+                subtitleTrack.onTimeChanged(newTime);
+            }
+        });
         this.playerControls.setVideoPlayer(this.videoPlayer);
     }
 
@@ -143,22 +167,13 @@ public class PlayerComponent implements Initializable {
         log.debug("Received play video activity for url {}, quality {} and media {}", activity.getUrl(), activity.getQuality().orElse("-"), activity.getMedia());
         this.media = activity.getMedia();
         this.videoChangeTime = System.currentTimeMillis();
+        var activitySubtitle = activity.getSubtitle();
 
         // check if a subtitle was selected
-        if (activity.getSubtitle().isPresent()) {
+        if (activitySubtitle.isPresent() && !activitySubtitle.get().isNone()) {
             // download the subtitle before starting the playback
-            SubtitleInfo subtitle = activity.getSubtitle().get();
-            log.debug("Downloading subtitle \"{}\" for video playback", subtitle);
-
-            subtitleService.downloadAndParse(subtitle).whenComplete((subtitles, throwable) -> {
-                if (throwable != null) {
-                    log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
-                } else {
-                    log.debug("Successfully retrieved parsed subtitle");
-                    subtitleTrack.setSubtitles(subtitles);
-                    playUrl(activity.getUrl());
-                }
-            });
+            SubtitleInfo subtitle = activitySubtitle.get();
+            onSubtitleChanged(subtitle, activity.getUrl());
         } else {
             // instant play video
             playUrl(activity.getUrl());
@@ -171,8 +186,28 @@ public class PlayerComponent implements Initializable {
         torrentService.stopStream();
     }
 
-    private void playUrl(String url) {
-        this.videoPlayer.play(url);
+    private void onSubtitleChanged(SubtitleInfo subtitle) {
+        onSubtitleChanged(subtitle, null);
+    }
+
+    private void onSubtitleChanged(SubtitleInfo subtitle, String playbackUrl) {
+        if (subtitle == null || subtitle.isNone()) {
+            subtitleTrack.clear();
+        } else {
+            log.debug("Downloading subtitle \"{}\" for video playback", subtitle);
+
+            subtitleService.downloadAndParse(subtitle).whenComplete((subtitles, throwable) -> {
+                if (throwable != null) {
+                    log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
+                } else {
+                    log.debug("Successfully retrieved parsed subtitle");
+                    subtitleTrack.setSubtitles(subtitles);
+                }
+
+                if (StringUtils.isNotEmpty(playbackUrl))
+                    playUrl(playbackUrl);
+            });
+        }
     }
 
     private void onHideOverlay() {
@@ -210,6 +245,10 @@ public class PlayerComponent implements Initializable {
             return;
 
         close();
+    }
+
+    private void playUrl(String url) {
+        this.videoPlayer.play(url);
     }
 
     private void reset() {

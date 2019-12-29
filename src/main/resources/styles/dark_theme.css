@@ -32,6 +32,7 @@
 .root ScrollPane .scroll-bar,
 .root ComboBox .scroll-bar,
 .root ListView,
+.root ListView .scroll-bar,
 .root ListView .list-cell,
 .root TableView,
 .root TableView .table-row-cell,
@@ -670,10 +671,8 @@
     -fx-background-color: #000;
 }
 
-.root .player .video-subtitle Label {
-    -fx-font-family: "Arial";
+.root .player .subtitle-track .track-line {
     -fx-text-fill: #fff;
-    -fx-font-size: 24px;
 }
 
 .root .player .player-header {
@@ -715,7 +714,8 @@
 }
 
 .root .player .player-controls Icon,
-.root .player .player-controls Label {
+.root .player .player-controls Label,
+.root .player .player-controls LanguageSelection {
     -fx-text-fill: #f9fafc;
 }
 
@@ -735,6 +735,30 @@
 .root .player .player-controls .subtitle-smaller {
     -fx-font-size: 9;
     -fx-padding: 13 8 10 8;
+}
+
+.root .player .player-controls LanguageSelection .list-view {
+    -fx-min-width: 150;
+    -fx-max-width: 150;
+}
+
+.root .player .player-controls LanguageSelection .list-view .list-cell {
+    -fx-padding: 3 8 3 8;
+    -fx-cursor: hand;
+}
+
+.root .player .player-controls LanguageSelection .list-view .list-cell:selected {
+    -fx-font-family: "Open Sans Bold";
+    -fx-background-color: #0b131f;
+    -fx-font-weight: bold;
+}
+
+.root .player .player-controls LanguageSelection .list-view .list-cell:hover {
+    -fx-background-color: #2d72d9;
+}
+
+.root .player .player-controls LanguageSelection .list-view .list-cell:empty {
+    -fx-background-color: #17181b;
 }
 
 .root .player .player-controls .time {

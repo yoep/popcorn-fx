@@ -6,7 +6,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import com.github.yoep.popcorn.subtitle.controls.LanguageSelection?>
+<?import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.controllers.components.MovieDetailsComponent" styleClass="movie-details">
     <columnConstraints>
@@ -134,7 +134,7 @@
             <HBox styleClass="subtitle-group" GridPane.columnIndex="2" GridPane.rowIndex="4" alignment="CENTER_RIGHT">
                 <Label text="%details_subtitle" onMouseClicked="#onSubtitleLabelClicked"/>
 
-                <LanguageSelection fx:id="languageSelection"/>
+                <LanguageFlagSelection fx:id="languageSelection"/>
             </HBox>
         </GridPane>
     </GridPane>

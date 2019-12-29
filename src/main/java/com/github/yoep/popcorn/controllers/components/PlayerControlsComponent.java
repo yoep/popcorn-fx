@@ -1,33 +1,48 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.FullscreenActivity;
-import com.github.yoep.popcorn.activities.PlayerCloseActivity;
-import com.github.yoep.popcorn.activities.ToggleFullscreenActivity;
+import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
+import com.github.yoep.popcorn.messages.MediaMessage;
+import com.github.yoep.popcorn.subtitle.Language;
+import com.github.yoep.popcorn.subtitle.SubtitleService;
+import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.Slider;
+import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class PlayerControlsComponent implements Initializable {
-    private final ActivityManager activityManager;
+    private final List<PlayerControlsListener> listeners = new ArrayList<>();
 
+    private final ActivityManager activityManager;
+    private final SubtitleService subtitleService;
+    private final LocaleText localeText;
+
+    @FXML
+    private Icon playPauseIcon;
     @FXML
     private Label currentTime;
     @FXML
@@ -35,17 +50,36 @@ public class PlayerControlsComponent implements Initializable {
     @FXML
     private Slider slider;
     @FXML
-    private Icon playPauseIcon;
+    private Pane subtitleSection;
+    @FXML
+    private LanguageSelection languageSelection;
     @FXML
     private Icon fullscreenIcon;
 
     private VideoPlayer videoPlayer;
+    private Media media;
+    private SubtitleInfo subtitle;
 
     //region Methods
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeSlider();
+        initializeLanguageSelection();
+    }
+
+    public void addListener(PlayerControlsListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        synchronized (listeners) {
+            listeners.add(listener);
+        }
+    }
+
+    public void removeListener(PlayerControlsListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        synchronized (listeners) {
+            listeners.remove(listener);
+        }
     }
 
     /**
@@ -95,8 +129,10 @@ public class PlayerControlsComponent implements Initializable {
     }
 
     private void initializeListeners() {
+        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
         activityManager.register(PlayerCloseActivity.class, activity -> reset());
         activityManager.register(FullscreenActivity.class, this::onFullscreenChanged);
+        activityManager.register(SubtitlesRetrievedActivity.class, this::onSubtitlesRetrieved);
     }
 
     //endregion
@@ -149,6 +185,48 @@ public class PlayerControlsComponent implements Initializable {
         slider.setOnMouseReleased(event -> setVideoTime(slider.getValue() + 1));
     }
 
+    private void initializeLanguageSelection() {
+        languageSelection.getListView().setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(SubtitleInfo item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty) {
+                    if (item.isNone()) {
+                        setText(localeText.get(MediaMessage.SUBTITLE_NONE));
+                    } else {
+                        Language language = Language.valueOf(item.getLanguage());
+
+                        if (language != null) {
+                            setText(language.getNativeName());
+                        } else {
+                            setText(item.getLanguage());
+                        }
+                    }
+                }
+            }
+        });
+        languageSelection.addListener(this::onSubtitleChanged);
+    }
+
+    private void onPlayVideo(PlayVideoActivity activity) {
+        this.media = activity.getMedia();
+
+        Platform.runLater(() -> subtitleSection.setVisible(activity.getQuality().isPresent()));
+
+        activity.getSubtitle().ifPresentOrElse(
+                subtitle -> this.subtitle = subtitle,
+                () -> {
+                    this.subtitle = SubtitleInfo.none();
+                    setSubtitles(Collections.singletonList(this.subtitle));
+                }
+        );
+
+        if (media instanceof Movie) {
+            subtitleService.retrieveSubtitles((Movie) activity.getMedia());
+        }
+    }
+
     private void onFullscreenChanged(FullscreenActivity activity) {
         if (activity.isFullscreen()) {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.COLLAPSE_UNICODE));
@@ -157,10 +235,41 @@ public class PlayerControlsComponent implements Initializable {
         }
     }
 
+    public void onSubtitlesRetrieved(SubtitlesRetrievedActivity activity) {
+        if (this.media == null || !Objects.equals(activity.getImdbId(), media.getImdbId()))
+            return;
+
+        setSubtitles(activity.getSubtitles());
+    }
+
+    private void onSubtitleChanged(SubtitleInfo newValue) {
+        synchronized (listeners) {
+            listeners.forEach(e -> e.onSubtitleChanged(newValue));
+        }
+    }
+
+    private void onSubtitleSizeChanged(int pixelChange) {
+        synchronized (listeners) {
+            listeners.forEach(e -> e.onSubtitleSizeChanged(pixelChange));
+        }
+    }
+
     private void setVideoTime(double time) {
         slider.setValueChanging(true);
         slider.setValue(time);
         slider.setValueChanging(false);
+    }
+
+    private void setSubtitles(List<SubtitleInfo> subtitles) {
+        final var filteredSubtitles = subtitles.stream()
+                .filter(e -> e.getFlagResource().isPresent())
+                .collect(Collectors.toList());
+
+        Platform.runLater(() -> {
+            languageSelection.getItems().clear();
+            languageSelection.getItems().addAll(filteredSubtitles);
+            languageSelection.select(this.subtitle);
+        });
     }
 
     private String formatTime(long time) {
@@ -171,6 +280,9 @@ public class PlayerControlsComponent implements Initializable {
 
     private void reset() {
         log.trace("Video player controls are being reset");
+        this.media = null;
+        this.subtitle = null;
+
         Platform.runLater(() -> {
             slider.setValue(0);
             currentTime.setText(formatTime(0));
@@ -186,6 +298,16 @@ public class PlayerControlsComponent implements Initializable {
     @FXML
     private void onFullscreenClicked() {
         toggleFullscreen();
+    }
+
+    @FXML
+    private void onSubtitleSmaller() {
+        onSubtitleSizeChanged(-4);
+    }
+
+    @FXML
+    private void onSubtitleLarger() {
+        onSubtitleSizeChanged(4);
     }
 
     //endregion

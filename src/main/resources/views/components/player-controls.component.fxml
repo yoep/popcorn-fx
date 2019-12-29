@@ -4,14 +4,13 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.subtitle.controls.LanguageSelection?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.controllers.components.PlayerControlsComponent" styleClass="player-controls">
     <columnConstraints>
         <ColumnConstraints/>
         <ColumnConstraints/>
         <ColumnConstraints hgrow="ALWAYS"/>
-        <ColumnConstraints/>
-        <ColumnConstraints/>
         <ColumnConstraints/>
         <ColumnConstraints/>
         <ColumnConstraints/>
@@ -39,22 +38,21 @@
            GridPane.columnIndex="3" GridPane.rowIndex="0"/>
 
     <!-- Subtitle -->
-    <Icon styleClass="player-button, subtitle, subtitle-smaller"
-          GridPane.columnIndex="4" GridPane.rowIndex="0">
-        <Icon fx:constant="FONT_UNICODE"/>
-    </Icon>
-    <Icon styleClass="player-button, subtitle"
-          GridPane.columnIndex="5" GridPane.rowIndex="0">
-        <Icon fx:constant="FONT_UNICODE"/>
-    </Icon>
-    <Icon styleClass="player-button, subtitle"
-          GridPane.columnIndex="6" GridPane.rowIndex="0">
-        <Icon fx:constant="COMMENT_UNICODE"/>
-    </Icon>
+    <HBox fx:id="subtitleSection" GridPane.columnIndex="4" GridPane.rowIndex="0">
+        <Icon styleClass="player-button, subtitle, subtitle-smaller" onMouseClicked="#onSubtitleSmaller">
+            <Icon fx:constant="FONT_UNICODE"/>
+        </Icon>
+        <Icon styleClass="player-button, subtitle" onMouseClicked="#onSubtitleLarger">
+            <Icon fx:constant="FONT_UNICODE"/>
+        </Icon>
+        <LanguageSelection fx:id="languageSelection" styleClass="player-button, subtitle">
+            <Icon fx:constant="COMMENT_UNICODE"/>
+        </LanguageSelection>
+    </HBox>
 
     <!-- Fullscreen -->
     <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked"
-          GridPane.columnIndex="7" GridPane.rowIndex="0">
+          GridPane.columnIndex="5" GridPane.rowIndex="0">
         <Icon fx:constant="EXPAND_UNICODE"/>
     </Icon>
 </GridPane>

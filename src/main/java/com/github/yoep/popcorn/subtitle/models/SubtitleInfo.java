@@ -10,7 +10,8 @@ import java.util.Optional;
 
 @Data
 public class SubtitleInfo implements Comparable<SubtitleInfo> {
-    public static final String NONE_KEYWORD = "none";
+    private static final String NONE_KEYWORD = "none";
+    private static final SubtitleInfo NONE = new SubtitleInfo(SubtitleInfo.NONE_KEYWORD);
 
     private final String imdbId;
     private final String language;
@@ -19,6 +20,11 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
     private int downloads;
 
     //region Constructors
+
+    private SubtitleInfo(String language) {
+        this.imdbId = null;
+        this.language = language;
+    }
 
     public SubtitleInfo(String imdbId, String language, String url) {
         this.imdbId = imdbId;
@@ -38,6 +44,15 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
     //endregion
 
     //region Getters
+
+    /**
+     * Get the special "none" subtitle instance.
+     *
+     * @return Returns the special none subtitle.
+     */
+    public static SubtitleInfo none() {
+        return NONE;
+    }
 
     /**
      * Check if this subtitle is the special "none" subtitle.

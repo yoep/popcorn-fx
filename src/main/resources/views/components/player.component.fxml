@@ -10,7 +10,7 @@
           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
     <!-- Video Player subtitle -->
-    <SubtitleTrack fx:id="subtitleTrack" styleClass="video-subtitle"
+    <SubtitleTrack fx:id="subtitleTrack"
                    AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="50" AnchorPane.leftAnchor="0"/>
 
     <!-- Video Player Cover -->

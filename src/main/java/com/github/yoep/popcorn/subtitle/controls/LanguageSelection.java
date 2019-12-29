@@ -6,47 +6,38 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Bounds;
-import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.control.ListView;
 import javafx.scene.control.PopupControl;
 import javafx.scene.control.Skin;
-import javafx.scene.control.Tooltip;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
-import javafx.util.Duration;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Control for selecting the language through a list of text as a popup above the control.
+ * The list popup is shown when the control is clicked.
+ */
 @Slf4j
-public class LanguageSelection extends HBox {
-    private static final String ITEM_STYLE_CLASS = "item";
-    private static final String ARROW_STYLE_CLASS = "arrow";
-    private static final String POPUP_STYLE_CLASS = "language-popup";
-    private static final String POPUP_IMAGE_STYLE_CLASS = "language-flag";
-    private static final int FLAG_WIDTH = 20;
-    private static final int FLAG_HEIGHT = 20;
-
-    private final ImageView imageView = new ImageView();
-    private final Icon arrow = new Icon(Icon.CARET_UP_UNICODE);
-    private final FlagPopup popup = new FlagPopup();
-
-    private final List<LanguageSelectionListener> listeners = new ArrayList<>();
+public class LanguageSelection extends Icon {
+    private final ListPopup popup = new ListPopup();
     private final ObservableList<SubtitleInfo> items = FXCollections.observableArrayList();
+    private final List<LanguageSelectionListener> listeners = new ArrayList<>();
 
     private SubtitleInfo selectedItem;
 
     public LanguageSelection() {
-        init();
+        super();
+        initializeLanguageSelection();
+    }
+
+    public LanguageSelection(String unicode) {
+        super(unicode);
+        initializeLanguageSelection();
     }
 
     /**
@@ -67,6 +58,15 @@ public class LanguageSelection extends HBox {
         return Optional.ofNullable(selectedItem);
     }
 
+    /**
+     * Get the {@link ListView} that is being shown in the popup.
+     *
+     * @return Returns the list view from the popup.
+     */
+    public ListView<SubtitleInfo> getListView() {
+        return popup.getListView();
+    }
+
     public void addListener(LanguageSelectionListener listener) {
         Assert.notNull(listener, "listener cannot be null");
         synchronized (listeners) {
@@ -81,8 +81,22 @@ public class LanguageSelection extends HBox {
         }
     }
 
+    /**
+     * Select the item through the given index.
+     *
+     * @param index The index of the item to select.
+     */
     public void select(int index) {
-        selectItem(items.get(0));
+        getListView().getSelectionModel().select(index);
+    }
+
+    /**
+     * Select the given item in the list view.
+     *
+     * @param subtitle The subtitle item to select.
+     */
+    public void select(SubtitleInfo subtitle) {
+        getListView().getSelectionModel().select(subtitle);
     }
 
     /**
@@ -93,170 +107,93 @@ public class LanguageSelection extends HBox {
         double x = screenBounds.getMaxX();
         double y = screenBounds.getMinY();
 
-        y -= popup.getContentPane().getHeight();
-        x -= popup.getContentPane().getWidth();
+        y -= popup.getListView().getHeight();
+        x -= popup.getListView().getWidth();
 
         popup.show(this, x, y);
     }
 
-    private void init() {
-        initializeImageView();
-        initializeArrow();
+    private void initializeLanguageSelection() {
+        initializeControl();
         initializePopup();
         initializeEvents();
-
-        this.setAlignment(Pos.CENTER);
     }
 
-    private void initializeImageView() {
-        imageView.getStyleClass().add(ITEM_STYLE_CLASS);
-        imageView.setFitHeight(FLAG_HEIGHT);
-        imageView.setFitWidth(FLAG_WIDTH);
-        imageView.setPreserveRatio(true);
-
-        getChildren().add(imageView);
-    }
-
-    private void initializeArrow() {
-        arrow.getStyleClass().add(ARROW_STYLE_CLASS);
-
-        getChildren().add(arrow);
+    private void initializeControl() {
+        this.setCursor(Cursor.HAND);
     }
 
     private void initializePopup() {
-        popup.getContentPane().getStyleClass().add(POPUP_STYLE_CLASS);
-
         popup.setAutoHide(true);
+        popup.setAutoFix(true);
     }
 
     private void initializeEvents() {
-        this.setOnMouseClicked(event -> show());
+        setOnMouseClicked(event -> onClicked());
         items.addListener((ListChangeListener<SubtitleInfo>) change -> {
             while (change.next()) {
                 if (change.wasAdded()) {
-                    change.getAddedSubList().forEach(this::addNewFlag);
+                    popup.getListView().getItems().addAll(change.getAddedSubList());
                 } else if (change.wasRemoved()) {
-                    change.getRemoved().forEach(this::removeFlag);
+                    popup.getListView().getItems().removeAll(change.getRemoved());
                 }
             }
         });
-    }
-
-    private void addNewFlag(final SubtitleInfo subtitle) {
-        subtitle.getFlagResource().ifPresent(e -> {
-            Flag flag = new Flag(subtitle);
-
-            flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);
-            flag.setOnMouseClicked(event -> selectItem(subtitle));
-
-            Tooltip tooltip = new Tooltip(subtitle.getLanguage());
-            tooltip.setShowDelay(Duration.ZERO);
-            Tooltip.install(flag, tooltip);
-
-            popup.getContent().add(flag);
-            loadImage(flag.getImageView(), e);
+        popup.getListView().getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            selectItem(newValue);
         });
     }
 
-    private void removeFlag(SubtitleInfo subtitle) {
-        popup.getContent().removeIf(e -> ((Flag) e).getSubtitle() == subtitle);
+    private void onClicked() {
+        if (popup.isShowing()) {
+            popup.hide();
+        } else {
+            show();
+        }
     }
 
-    private void selectItem(final SubtitleInfo subtitle) {
-        this.selectedItem = subtitle;
-
-        subtitle.getFlagResource().ifPresent(e -> loadImage(this.imageView, e));
-        popup.hide();
+    private void selectItem(SubtitleInfo newValue) {
+        this.selectedItem = newValue;
 
         synchronized (listeners) {
-            listeners.forEach(e -> e.onItemChanged(subtitle));
+            listeners.forEach(e -> e.onItemChanged(newValue));
         }
     }
 
-    private void loadImage(ImageView imageView, Resource imageResource) {
-        try {
-            imageView.setImage(new Image(imageResource.getInputStream()));
-        } catch (IOException ex) {
-            log.error(ex.getMessage(), ex);
-        }
-    }
+    private class ListPopup extends PopupControl {
+        private final ListView<SubtitleInfo> listView = new ListView<>();
 
-    @Getter
-    private static class Flag extends StackPane {
-        private final ImageView imageView = new ImageView();
-        private final SubtitleInfo subtitle;
-
-        private Flag(SubtitleInfo subtitle) {
-            this.subtitle = subtitle;
-
-            init();
-        }
-
-        public ImageView getImageView() {
-            return imageView;
-        }
-
-        private void init() {
-            imageView.setFitHeight(FLAG_HEIGHT);
-            imageView.setFitWidth(FLAG_WIDTH);
-            imageView.setPreserveRatio(true);
-
-            this.getChildren().add(imageView);
-        }
-    }
-
-    private static class FlagPopup extends PopupControl {
-        private final FlowPane content = new FlowPane();
-
-        public FlagPopup() {
-            init();
-        }
-
-        /**
-         * Get the content of this flag popup.
-         *
-         * @return Returns the content nodes of this popup.
-         */
-        ObservableList<Node> getContent() {
-            return content.getChildren();
-        }
-
-        FlowPane getContentPane() {
-            return content;
+        public ListView<SubtitleInfo> getListView() {
+            return listView;
         }
 
         @Override
         protected Skin<?> createDefaultSkin() {
-            return new FlagPopupSkin(this, content);
-        }
-
-        private void init() {
-            bridge.getChildren().add(content);
+            return new ListPopupSkin(this, listView);
         }
     }
 
-    private static class FlagPopupSkin implements Skin<FlagPopup> {
-        private final FlagPopup flagPopup;
-        private final FlowPane contentPane;
+    private class ListPopupSkin implements Skin<ListPopup> {
+        private final ListPopup popup;
+        private final ListView<SubtitleInfo> listView;
 
-        public FlagPopupSkin(FlagPopup flagPopup, FlowPane content) {
-            this.flagPopup = flagPopup;
-            contentPane = content;
+        private ListPopupSkin(ListPopup popup, ListView<SubtitleInfo> listView) {
+            this.popup = popup;
+            this.listView = listView;
         }
 
         @Override
-        public FlagPopup getSkinnable() {
-            return flagPopup;
+        public ListPopup getSkinnable() {
+            return popup;
         }
 
         @Override
         public Node getNode() {
-            return contentPane;
+            return listView;
         }
 
         @Override
         public void dispose() {
-
         }
     }
 }

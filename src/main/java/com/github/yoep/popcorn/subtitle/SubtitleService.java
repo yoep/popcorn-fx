@@ -61,6 +61,12 @@ public class SubtitleService {
         return CompletableFuture.completedFuture(internalDownload(subtitle));
     }
 
+    /**
+     * Retrieve the subtitle for the given movie.
+     * This method creates a {@link SubtitlesRetrievedActivity} when completed.
+     *
+     * @param movie The movie to retrieve the subtitles of.
+     */
     @Async
     public void retrieveSubtitles(final Movie movie) {
         // check if the subtitles were already cached
@@ -82,7 +88,7 @@ public class SubtitleService {
                             Map<String, Object> subData = (Map<String, Object>) result;
 
                             // add default subtitle
-                            subtitles.add(getDefaultSubtitle());
+                            subtitles.add(SubtitleInfo.none());
 
                             if (subData != null && subData.get("data") != null && subData.get("data") instanceof Object[]) {
                                 Object[] dataList = (Object[]) subData.get("data");
@@ -315,12 +321,6 @@ public class SubtitleService {
 
     private List<Subtitle> internalParse(File file) {
         return SrtParser.parse(file);
-    }
-
-    private SubtitleInfo getDefaultSubtitle() {
-        return SubtitleInfo.builder()
-                .language(SubtitleInfo.NONE_KEYWORD)
-                .build();
     }
 
     private SubtitleSettings getSettings() {

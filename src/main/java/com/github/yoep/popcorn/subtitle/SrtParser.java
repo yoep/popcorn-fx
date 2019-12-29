@@ -26,18 +26,20 @@ public class SrtParser {
 
     private final List<Subtitle> subtitles = new ArrayList<>();
     private final File file;
+    private final Charset charset;
 
     private Stage stage = Stage.INDEX;
     private Subtitle.SubtitleBuilder subtitleBuilder;
     private List<SubtitleLine> lines;
 
-    private SrtParser(File file) {
+    private SrtParser(File file, Charset charset) {
         this.file = file;
+        this.charset = charset;
     }
 
-    public static List<Subtitle> parse(File file) {
+    public static List<Subtitle> parse(File file, Charset charset) {
         Assert.notNull(file, "file cannot be null");
-        SrtParser parser = new SrtParser(file);
+        SrtParser parser = new SrtParser(file, charset);
 
         try {
             return parser.read();
@@ -47,7 +49,7 @@ public class SrtParser {
     }
 
     private List<Subtitle> read() throws IOException {
-        List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
+        List<String> lines = FileUtils.readLines(file, charset);
 
         for (String line : lines) {
             // check if we've reached the end of the current subtitle

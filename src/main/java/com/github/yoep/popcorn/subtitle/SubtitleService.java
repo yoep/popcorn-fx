@@ -31,6 +31,7 @@ import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -182,13 +183,13 @@ public class SubtitleService {
      * @return Returns the parsed SRT file.
      */
     @Async
-    public CompletableFuture<List<Subtitle>> parse(File file) {
+    public CompletableFuture<List<Subtitle>> parse(File file, Charset encoding) {
         Assert.notNull(file, "file cannot be null");
         if (!file.exists())
             return CompletableFuture.failedFuture(
                     new SubtitleException(String.format("Failed to parse subtitle file, file \"%s\" does not exist", file.getAbsolutePath())));
 
-        return CompletableFuture.completedFuture(internalParse(file));
+        return CompletableFuture.completedFuture(internalParse(file, encoding));
     }
 
     /**
@@ -201,8 +202,9 @@ public class SubtitleService {
     public CompletableFuture<List<Subtitle>> downloadAndParse(SubtitleInfo subtitleInfo) {
         Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
         File file = internalDownload(subtitleInfo);
+        Language language = Language.valueOf(subtitleInfo.getLanguage());
 
-        return CompletableFuture.completedFuture(internalParse(file));
+        return CompletableFuture.completedFuture(internalParse(file, language.getEncoding()));
     }
 
     //endregion
@@ -319,8 +321,8 @@ public class SubtitleService {
         return subtitleFile;
     }
 
-    private List<Subtitle> internalParse(File file) {
-        return SrtParser.parse(file);
+    private List<Subtitle> internalParse(File file, Charset encoding) {
+        return SrtParser.parse(file, encoding);
     }
 
     private SubtitleSettings getSettings() {

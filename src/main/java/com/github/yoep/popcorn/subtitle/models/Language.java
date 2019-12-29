@@ -1,8 +1,7 @@
-package com.github.yoep.popcorn.subtitle;
+package com.github.yoep.popcorn.subtitle.models;
 
 import lombok.Getter;
 
-import java.nio.charset.Charset;
 import java.util.Arrays;
 
 @Getter
@@ -16,7 +15,7 @@ public class Language {
             new Language("da", "Dansk"),
             new Language("de", "Deutsch"),
             new Language("el", "Ελληνικά"),
-            new Language("en", "English", "iso-8859-1"),
+            new Language("en", "English"),
             new Language("es", "Español"),
             new Language("et", "Eesti"),
             new Language("eu", "Euskara"),
@@ -47,18 +46,10 @@ public class Language {
 
     private final String code;
     private final String nativeName;
-    private final Charset encoding;
 
     private Language(String code, String nativeName) {
         this.code = code;
         this.nativeName = nativeName;
-        this.encoding = Charset.defaultCharset();
-    }
-
-    public Language(String code, String nativeName, String encoding) {
-        this.code = code;
-        this.nativeName = nativeName;
-        this.encoding = Charset.forName(encoding);
     }
 
     public static Language valueOf(String code) {

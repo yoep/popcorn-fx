@@ -2,8 +2,7 @@ package com.github.yoep.popcorn.subtitle.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
+import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.geometry.Bounds;
 import javafx.scene.Cursor;
@@ -16,7 +15,6 @@ import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Control for selecting the language through a list of text as a popup above the control.
@@ -25,10 +23,7 @@ import java.util.Optional;
 @Slf4j
 public class LanguageSelection extends Icon {
     private final ListPopup popup = new ListPopup();
-    private final ObservableList<SubtitleInfo> items = FXCollections.observableArrayList();
     private final List<LanguageSelectionListener> listeners = new ArrayList<>();
-
-    private SubtitleInfo selectedItem;
 
     public LanguageSelection() {
         super();
@@ -46,16 +41,7 @@ public class LanguageSelection extends Icon {
      * @return Returns the items of this instance.
      */
     public ObservableList<SubtitleInfo> getItems() {
-        return items;
-    }
-
-    /**
-     * Get the selected item of this language selection.
-     *
-     * @return Returns the selected item if present, else {@link Optional#empty()}.
-     */
-    public Optional<SubtitleInfo> getSelectedItem() {
-        return Optional.ofNullable(selectedItem);
+        return getListView().getItems();
     }
 
     /**
@@ -96,7 +82,7 @@ public class LanguageSelection extends Icon {
      * @param subtitle The subtitle item to select.
      */
     public void select(SubtitleInfo subtitle) {
-        getListView().getSelectionModel().select(subtitle);
+        Platform.runLater(() -> getListView().getSelectionModel().select(subtitle));
     }
 
     /**
@@ -130,15 +116,6 @@ public class LanguageSelection extends Icon {
 
     private void initializeEvents() {
         setOnMouseClicked(event -> onClicked());
-        items.addListener((ListChangeListener<SubtitleInfo>) change -> {
-            while (change.next()) {
-                if (change.wasAdded()) {
-                    popup.getListView().getItems().addAll(change.getAddedSubList());
-                } else if (change.wasRemoved()) {
-                    popup.getListView().getItems().removeAll(change.getRemoved());
-                }
-            }
-        });
         popup.getListView().getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             selectItem(newValue);
         });
@@ -153,8 +130,6 @@ public class LanguageSelection extends Icon {
     }
 
     private void selectItem(SubtitleInfo newValue) {
-        this.selectedItem = newValue;
-
         synchronized (listeners) {
             listeners.forEach(e -> e.onItemChanged(newValue));
         }

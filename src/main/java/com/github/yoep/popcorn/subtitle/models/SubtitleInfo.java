@@ -3,12 +3,14 @@ package com.github.yoep.popcorn.subtitle.models;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import java.util.Optional;
 
 @Data
+@EqualsAndHashCode(of = {"imdbId", "language"})
 public class SubtitleInfo implements Comparable<SubtitleInfo> {
     private static final String NONE_KEYWORD = "none";
     private static final SubtitleInfo NONE = new SubtitleInfo(SubtitleInfo.NONE_KEYWORD);

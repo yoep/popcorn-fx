@@ -17,6 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SrtParser {
+    private static final Pattern INDEX_PATTERN = Pattern.compile("([0-9]+)");
     private static final Pattern TIME_PATTERN = Pattern.compile("(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})");
     private static final Pattern TEXT_PATTERN = Pattern.compile("<([a-z])>(.+)</([a-z])>");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
@@ -26,20 +27,18 @@ public class SrtParser {
 
     private final List<Subtitle> subtitles = new ArrayList<>();
     private final File file;
-    private final Charset charset;
 
     private Stage stage = Stage.INDEX;
     private Subtitle.SubtitleBuilder subtitleBuilder;
     private List<SubtitleLine> lines;
 
-    private SrtParser(File file, Charset charset) {
+    private SrtParser(File file) {
         this.file = file;
-        this.charset = charset;
     }
 
-    public static List<Subtitle> parse(File file, Charset charset) {
+    public static List<Subtitle> parse(File file) {
         Assert.notNull(file, "file cannot be null");
-        SrtParser parser = new SrtParser(file, charset);
+        SrtParser parser = new SrtParser(file);
 
         try {
             return parser.read();
@@ -49,7 +48,7 @@ public class SrtParser {
     }
 
     private List<Subtitle> read() throws IOException {
-        List<String> lines = FileUtils.readLines(file, charset);
+        List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
 
         for (String line : lines) {
             // check if we've reached the end of the current subtitle
@@ -85,13 +84,20 @@ public class SrtParser {
     }
 
     private void readIndex(String line) {
-        try {
-            subtitleBuilder.index(Long.parseLong(line));
-        } catch (NumberFormatException ex) {
-            throw new SubtitleParsingException("Failed to parse subtitle index, " + ex.getMessage(), ex);
-        }
+        // remove hidden characters with regex
+        Matcher matcher = INDEX_PATTERN.matcher(line);
 
-        nextStage();
+        // check if any index number can be found in the line
+        if (matcher.find()) {
+            try {
+                subtitleBuilder.index(Long.parseLong(matcher.group(0)));
+                nextStage();
+            } catch (NumberFormatException ex) {
+                throw new SubtitleParsingException("Failed to parse subtitle index, " + ex.getMessage(), ex);
+            }
+        } else {
+            throw new SubtitleParsingException("Failed to read subtitle index, \"" + line + "\" has no index number");
+        }
     }
 
     private void readTime(String line) {

@@ -7,6 +7,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection?>
 <AnchorPane styleClass="show-details-section" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.github.yoep.popcorn.controllers.components.ShowDetailsComponent">
     <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
@@ -116,6 +117,7 @@
                 <RowConstraints/>
                 <RowConstraints vgrow="ALWAYS" valignment="TOP"/>
                 <RowConstraints/>
+                <RowConstraints/>
             </rowConstraints>
 
             <!-- Episode title -->
@@ -143,7 +145,14 @@
             <Label fx:id="episodeOverview" styleClass="episode-synopsis" wrapText="true"
                    GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
 
-            <StackPane GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="4">
+            <HBox styleClass="subtitle-group"
+                  GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="4" alignment="CENTER_RIGHT">
+                <Label text="%details_subtitle" onMouseClicked="#onSubtitleLabelClicked"/>
+
+                <LanguageFlagSelection fx:id="languageSelection"/>
+            </HBox>
+
+            <StackPane GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="5">
                 <!-- Quality selection -->
                 <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5">
                     <padding>
@@ -152,7 +161,7 @@
                 </HBox>
 
                 <!-- Play actions -->
-                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked" StackPane.alignment="CENTER_RIGHT" />
+                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked" StackPane.alignment="CENTER_RIGHT"/>
             </StackPane>
         </GridPane>
     </GridPane>

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.controls;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.media.providers.models.Rating;
 import javafx.geometry.Pos;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import org.springframework.util.Assert;
@@ -61,18 +62,21 @@ public class Stars extends HBox {
 
     private static Icon getFilledStar() {
         Icon star = new Icon(Icon.STAR_UNICODE);
+        star.setTextOverrun(OverrunStyle.CLIP);
         star.getStyleClass().add("filled");
         return star;
     }
 
     private static Icon getHalfStar() {
         Icon star = new Icon(Icon.STAR_HALF_UNICODE);
+        star.setTextOverrun(OverrunStyle.CLIP);
         star.getStyleClass().add("filled");
         return star;
     }
 
     private static Icon getEmptyStar() {
         Icon star = new Icon(Icon.STAR_UNICODE);
+        star.setTextOverrun(OverrunStyle.CLIP);
         star.getStyleClass().add("empty");
         return star;
     }

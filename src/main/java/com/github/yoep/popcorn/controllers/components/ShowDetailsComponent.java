@@ -14,6 +14,7 @@ import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
+import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -81,6 +82,8 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private Label airDate;
     @FXML
     private Label episodeOverview;
+    @FXML
+    private LanguageFlagSelection languageSelection;
 
     //region Constructors
 
@@ -142,6 +145,8 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     private void load(Show media) {
         Assert.notNull(media, "media cannot be null");
+        reset();
+
         this.media = media;
 
         loadText();
@@ -240,6 +245,11 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                 return Optional.ofNullable(subtitle);
             }
         });
+    }
+
+    @FXML
+    private void onSubtitleLabelClicked() {
+
     }
 
     @FXML

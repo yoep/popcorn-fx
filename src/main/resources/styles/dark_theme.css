@@ -224,7 +224,8 @@
 }
 
 .root .header .bar .filter-bar Label,
-.root .movie-details .subtitle-group Label {
+.root .movie-details .subtitle-group Label,
+.root .show-details-section .show-details .subtitle-group Label {
     -fx-padding: 10 5 5 18;
 }
 
@@ -235,25 +236,21 @@
     -fx-cursor: hand;
 }
 
-.root .header .bar .filter-bar ComboBox > .list-cell,
-.root .movie-details .subtitle-group ComboBox > .list-cell {
+.root .header .bar .filter-bar ComboBox > .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #2d72d9;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .arrow,
-.root .movie-details .subtitle-group ComboBox .arrow {
+.root .header .bar .filter-bar .filterGroup ComboBox .arrow {
     -fx-padding: 5 8 0 0;
     -fx-background-color: #c3c5c7;
 }
 
-.root .header .bar .filter-bar .filterGroup:hover ComboBox .arrow,
-.root .movie-details .subtitle-group:hover ComboBox .arrow {
+.root .header .bar .filter-bar .filterGroup:hover ComboBox .arrow {
     -fx-background-color: #fff;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar,
-.root .movie-details .subtitle-group ComboBox .scroll-bar {
+.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar {
     -fx-padding: 0 0 0 0;
 }
 
@@ -491,28 +488,33 @@
     -fx-background-radius: 5em;
 }
 
-.root .movie-details .subtitle-group {
+.root .movie-details .subtitle-group,
+.root .show-details-section .show-details .subtitle-group {
     -fx-cursor: hand;
 }
 
-.root .movie-details .subtitle-group Label {
+.root .movie-details .subtitle-group Label,
+.root .show-details-section .show-details .subtitle-group Label {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: fff;
 }
 
-.root .movie-details .subtitle-group .language-selection .arrow {
+.root .movie-details .subtitle-group .language-selection .arrow,
+.root .show-details-section .show-details .subtitle-group .arrow {
     -fx-text-fill: #fff;
     -fx-padding: 0 5 0 5;
 }
 
-.root .movie-details .subtitle-group .language-selection .language-popup {
+.root .movie-details .subtitle-group .language-selection .language-popup,
+.root .show-details-section .show-details .subtitle-group .language-selection .language-popup {
     -fx-max-width: 140;
     -fx-min-width: 140;
     -fx-background-color: rgba(23, 24, 27, 0.8);
     -fx-padding: 10 10 10 10;
 }
 
-.root .movie-details .subtitle-group .language-selection .language-popup .language-flag {
+.root .movie-details .subtitle-group .language-selection .language-popup .language-flag,
+.root .show-details-section .show-details .subtitle-group .language-selection .language-popup .language-flag {
     -fx-padding: 2 2 2 2;
     -fx-cursor: hand;
 }

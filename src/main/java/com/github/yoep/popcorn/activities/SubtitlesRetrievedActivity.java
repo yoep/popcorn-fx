@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 
 import java.util.List;
 
@@ -17,5 +17,5 @@ public interface SubtitlesRetrievedActivity extends Activity {
      *
      * @return Returns the subtitles that were retrieved.
      */
-    List<Subtitle> getSubtitles();
+    List<SubtitleInfo> getSubtitles();
 }

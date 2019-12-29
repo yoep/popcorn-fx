@@ -14,7 +14,7 @@ import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.application.Application;
@@ -236,7 +236,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             }
 
             @Override
-            public Optional<Subtitle> getSubtitle() {
+            public Optional<SubtitleInfo> getSubtitle() {
                 return Optional.ofNullable(subtitle);
             }
         });

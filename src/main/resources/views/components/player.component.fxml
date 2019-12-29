@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.media.video.controls.SubtitleTrack?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.layout.*?>
@@ -10,6 +11,10 @@
     <!-- Video Player -->
     <Pane fx:id="videoView"
           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <!-- Video Player subtitle -->
+    <SubtitleTrack fx:id="subtitleTrack" styleClass="video-subtitle"
+                   AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="50" AnchorPane.leftAnchor="0"/>
 
     <!-- Video Player Cover -->
     <BorderPane fx:id="playerVideoOverlay" styleClass="player-overlay" onMouseClicked="#onPlayerClick"

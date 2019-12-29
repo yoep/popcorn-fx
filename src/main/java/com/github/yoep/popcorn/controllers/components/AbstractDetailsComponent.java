@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import javafx.application.Application;
@@ -49,7 +49,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected final Application application;
 
     protected T media;
-    protected Subtitle subtitle;
+    protected SubtitleInfo subtitle;
     protected boolean liked;
     protected String quality;
 

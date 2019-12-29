@@ -50,10 +50,12 @@ public class PlayerHeaderComponent {
     }
 
     private void reset() {
-        title.setText(null);
-        quality.setText(null);
-        quality.setVisible(false);
-        playerStats.setVisible(false);
+       Platform.runLater(() -> {
+           title.setText(null);
+           quality.setText(null);
+           quality.setVisible(false);
+           playerStats.setVisible(false);
+       });
     }
 
     @FXML

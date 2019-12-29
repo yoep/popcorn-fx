@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 
 import java.util.Optional;
 
@@ -24,5 +24,5 @@ public interface PlayVideoActivity extends PlayMediaActivity {
      *
      * @return Returns the subtitle for the playback if present, else {@link Optional#empty()}.
      */
-    Optional<Subtitle> getSubtitle();
+    Optional<SubtitleInfo> getSubtitle();
 }

@@ -4,10 +4,11 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
+import com.github.yoep.popcorn.media.video.controls.SubtitleTrack;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
@@ -57,6 +58,8 @@ public class PlayerComponent implements Initializable {
     private Pane playerControls;
     @FXML
     private Pane videoView;
+    @FXML
+    private SubtitleTrack subtitleTrack;
     @FXML
     private Label currentTime;
     @FXML
@@ -160,6 +163,7 @@ public class PlayerComponent implements Initializable {
         this.videoPlayer.addListener(new TimeListener() {
             @Override
             public void onTimeChanged(long newTime) {
+                subtitleTrack.onTimeChanged(newTime);
                 Platform.runLater(() -> {
                     currentTime.setText(formatTime(newTime));
                     slider.setValue(newTime);
@@ -205,13 +209,15 @@ public class PlayerComponent implements Initializable {
         // check if a subtitle was selected
         if (activity.getSubtitle().isPresent()) {
             // download the subtitle before starting the playback
-            Subtitle subtitle = activity.getSubtitle().get();
+            SubtitleInfo subtitle = activity.getSubtitle().get();
+            log.debug("Downloading subtitle \"{}\" for video playback", subtitle);
 
-            subtitleService.download(subtitle).whenComplete((file, throwable) -> {
+            subtitleService.downloadAndParse(subtitle).whenComplete((subtitles, throwable) -> {
                 if (throwable != null) {
                     log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                 } else {
-                    //TODO: add subtitle
+                    log.debug("Successfully retrieved parsed subtitle");
+                    subtitleTrack.setSubtitles(subtitles);
                     playUrl(activity.getUrl());
                 }
             });
@@ -277,19 +283,26 @@ public class PlayerComponent implements Initializable {
     }
 
     private void reset() {
+        log.trace("Video player component is being reset");
         this.media = null;
+        this.videoChangeTime = 0;
 
-        slider.setValue(0);
-        currentTime.setText(formatTime(0));
-        duration.setText(formatTime(0));
+        Platform.runLater(() -> {
+            slider.setValue(0);
+            currentTime.setText(formatTime(0));
+            duration.setText(formatTime(0));
+            subtitleTrack.clear();
+        });
 
         taskExecutor.execute(() -> videoPlayer.stop());
     }
 
     private void changePlayPauseState() {
         if (videoPlayer.getPlayerState() == PlayerState.PAUSED) {
+            log.trace("Video player state is being changed to \"resume\"");
             videoPlayer.resume();
         } else {
+            log.trace("Video player state is being changed to \"paused\"");
             videoPlayer.pause();
         }
     }

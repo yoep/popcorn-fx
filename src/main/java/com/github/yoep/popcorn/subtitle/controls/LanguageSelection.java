@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.subtitle.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -41,9 +41,9 @@ public class LanguageSelection extends HBox {
     private final FlagPopup popup = new FlagPopup();
 
     private final List<LanguageSelectionListener> listeners = new ArrayList<>();
-    private final ObservableList<Subtitle> items = FXCollections.observableArrayList();
+    private final ObservableList<SubtitleInfo> items = FXCollections.observableArrayList();
 
-    private Subtitle selectedItem;
+    private SubtitleInfo selectedItem;
 
     public LanguageSelection() {
         init();
@@ -54,7 +54,7 @@ public class LanguageSelection extends HBox {
      *
      * @return Returns the items of this instance.
      */
-    public ObservableList<Subtitle> getItems() {
+    public ObservableList<SubtitleInfo> getItems() {
         return items;
     }
 
@@ -63,7 +63,7 @@ public class LanguageSelection extends HBox {
      *
      * @return Returns the selected item if present, else {@link Optional#empty()}.
      */
-    public Optional<Subtitle> getSelectedItem() {
+    public Optional<SubtitleInfo> getSelectedItem() {
         return Optional.ofNullable(selectedItem);
     }
 
@@ -131,7 +131,7 @@ public class LanguageSelection extends HBox {
 
     private void initializeEvents() {
         this.setOnMouseClicked(event -> show());
-        items.addListener((ListChangeListener<Subtitle>) change -> {
+        items.addListener((ListChangeListener<SubtitleInfo>) change -> {
             while (change.next()) {
                 if (change.wasAdded()) {
                     change.getAddedSubList().forEach(this::addNewFlag);
@@ -142,7 +142,7 @@ public class LanguageSelection extends HBox {
         });
     }
 
-    private void addNewFlag(final Subtitle subtitle) {
+    private void addNewFlag(final SubtitleInfo subtitle) {
         subtitle.getFlagResource().ifPresent(e -> {
             Flag flag = new Flag(subtitle);
 
@@ -158,11 +158,11 @@ public class LanguageSelection extends HBox {
         });
     }
 
-    private void removeFlag(Subtitle subtitle) {
+    private void removeFlag(SubtitleInfo subtitle) {
         popup.getContent().removeIf(e -> ((Flag) e).getSubtitle() == subtitle);
     }
 
-    private void selectItem(final Subtitle subtitle) {
+    private void selectItem(final SubtitleInfo subtitle) {
         this.selectedItem = subtitle;
 
         subtitle.getFlagResource().ifPresent(e -> loadImage(this.imageView, e));
@@ -184,9 +184,9 @@ public class LanguageSelection extends HBox {
     @Getter
     private static class Flag extends StackPane {
         private final ImageView imageView = new ImageView();
-        private final Subtitle subtitle;
+        private final SubtitleInfo subtitle;
 
-        private Flag(Subtitle subtitle) {
+        private Flag(SubtitleInfo subtitle) {
             this.subtitle = subtitle;
 
             init();

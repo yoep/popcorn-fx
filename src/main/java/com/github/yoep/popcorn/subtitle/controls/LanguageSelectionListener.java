@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.subtitle.controls;
 
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 
 public interface LanguageSelectionListener {
     /**
@@ -8,5 +8,5 @@ public interface LanguageSelectionListener {
      *
      * @param newValue The new selected item.
      */
-    void onItemChanged(Subtitle newValue);
+    void onItemChanged(SubtitleInfo newValue);
 }

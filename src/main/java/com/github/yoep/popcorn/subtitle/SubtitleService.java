@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;
@@ -38,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class SubtitleService {
     private final List<Long> ongoingCalls = new ArrayList<>();
-    private final Map<String, List<Subtitle>> cachedSubtitles = new HashMap<>();
+    private final Map<String, List<SubtitleInfo>> cachedSubtitles = new HashMap<>();
     private final PopcornProperties popcornProperties;
     private final ActivityManager activityManager;
     private final SettingsService settingsService;
@@ -47,35 +48,17 @@ public class SubtitleService {
 
     //region Methods
 
+    /**
+     * Download the SRT file for the given {@link SubtitleInfo}.
+     *
+     * @param subtitle The subtitle information file to download.
+     * @return Returns the downloaded SRT file.
+     */
     @Async
-    public CompletableFuture<File> download(final Subtitle subtitle) {
+    public CompletableFuture<File> download(final SubtitleInfo subtitle) {
         Assert.notNull(subtitle, "subtitle cannot be null");
 
-        // check if the given subtitle is the special "none" subtitle, if so, ignore the download
-        if (subtitle.isNone()) {
-            String message = "subtitle is special type \"none\"";
-
-            log.debug("Skipping subtitle download, {}", message);
-            return CompletableFuture.failedFuture(new SubtitleException("Failed to download subtitle, " + message));
-        }
-
-        SubtitleSettings settings = getSettings();
-        File storageFile = getStorageFile(subtitle);
-        File subtitleFile;
-
-        // check if the subtitle file was already downloaded before, if so, return the cached file
-        if (storageFile.exists()) {
-            log.debug("Returning cached subtitle file \"{}\"", storageFile.getAbsolutePath());
-            subtitleFile = storageFile;
-        } else {
-            log.debug("Downloading subtitle file \"{}\" to \"{}\"", subtitle.getUrl(), storageFile.getAbsolutePath());
-            subtitleFile = restTemplate.execute(subtitle.getUrl(), HttpMethod.GET, null, response -> {
-                StreamUtils.copy(response.getBody(), new FileOutputStream(storageFile));
-                return storageFile;
-            });
-        }
-
-        return CompletableFuture.completedFuture(subtitleFile);
+        return CompletableFuture.completedFuture(internalDownload(subtitle));
     }
 
     @Async
@@ -95,7 +78,7 @@ public class SubtitleService {
                     search(movie, token, new XMLRPCCallback() {
                         @Override
                         public void onResponse(long id, Object result) {
-                            List<Subtitle> subtitles = new ArrayList<>();
+                            List<SubtitleInfo> subtitles = new ArrayList<>();
                             Map<String, Object> subData = (Map<String, Object>) result;
 
                             // add default subtitle
@@ -129,12 +112,12 @@ public class SubtitleService {
                                         score += 100;
                                     }
 
-                                    Optional<Subtitle> subtitle = subtitles.stream()
+                                    Optional<SubtitleInfo> subtitle = subtitles.stream()
                                             .filter(e -> e.getLanguage().equalsIgnoreCase(lang))
                                             .findAny();
 
                                     if (subtitle.isPresent()) {
-                                        Subtitle sub = subtitle.get();
+                                        SubtitleInfo sub = subtitle.get();
 
                                         if (score > sub.getScore() || (score == sub.getScore() && downloads > sub.getDownloads())) {
                                             sub.setUrl(url);
@@ -142,7 +125,7 @@ public class SubtitleService {
                                             sub.setDownloads(downloads);
                                         }
                                     } else {
-                                        subtitles.add(new Subtitle(movie.getImdbId(), lang, url, score, downloads));
+                                        subtitles.add(new SubtitleInfo(movie.getImdbId(), lang, url, score, downloads));
                                     }
                                 }
 
@@ -186,6 +169,36 @@ public class SubtitleService {
         });
     }
 
+    /**
+     * Parse the given SRT file to a list of {@link Subtitle}'s.
+     *
+     * @param file The SRT file to parse.
+     * @return Returns the parsed SRT file.
+     */
+    @Async
+    public CompletableFuture<List<Subtitle>> parse(File file) {
+        Assert.notNull(file, "file cannot be null");
+        if (!file.exists())
+            return CompletableFuture.failedFuture(
+                    new SubtitleException(String.format("Failed to parse subtitle file, file \"%s\" does not exist", file.getAbsolutePath())));
+
+        return CompletableFuture.completedFuture(internalParse(file));
+    }
+
+    /**
+     * Download and parse the SRT file for the given {@link SubtitleInfo}.
+     *
+     * @param subtitleInfo The subtitle info to download and parse.
+     * @return Returns the subtitles of the given subtitle info.
+     */
+    @Async
+    public CompletableFuture<List<Subtitle>> downloadAndParse(SubtitleInfo subtitleInfo) {
+        Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
+        File file = internalDownload(subtitleInfo);
+
+        return CompletableFuture.completedFuture(internalParse(file));
+    }
+
     //endregion
 
     //region Functions
@@ -204,7 +217,7 @@ public class SubtitleService {
         }
     }
 
-    private void onSubtitlesRetrieved(final Media media, final List<Subtitle> subtitles) {
+    private void onSubtitlesRetrieved(final Media media, final List<SubtitleInfo> subtitles) {
         activityManager.register(new SubtitlesRetrievedActivity() {
             @Override
             public String getImdbId() {
@@ -212,7 +225,7 @@ public class SubtitleService {
             }
 
             @Override
-            public List<Subtitle> getSubtitles() {
+            public List<SubtitleInfo> getSubtitles() {
                 return subtitles;
             }
         });
@@ -272,9 +285,41 @@ public class SubtitleService {
         }
     }
 
-    private Subtitle getDefaultSubtitle() {
-        return Subtitle.builder()
-                .language(Subtitle.NONE_KEYWORD)
+    private File internalDownload(SubtitleInfo subtitle) {
+        // check if the given subtitle is the special "none" subtitle, if so, ignore the download
+        if (subtitle.isNone()) {
+            String message = "subtitle is special type \"none\"";
+
+            log.debug("Skipping subtitle download, {}", message);
+            throw new SubtitleException("Failed to download subtitle, " + message);
+        }
+
+        SubtitleSettings settings = getSettings();
+        File storageFile = getStorageFile(subtitle);
+        File subtitleFile;
+
+        // check if the subtitle file was already downloaded before, if so, return the cached file
+        if (storageFile.exists()) {
+            log.debug("Returning cached subtitle file \"{}\"", storageFile.getAbsolutePath());
+            subtitleFile = storageFile;
+        } else {
+            log.debug("Downloading subtitle file \"{}\" to \"{}\"", subtitle.getUrl(), storageFile.getAbsolutePath());
+            subtitleFile = restTemplate.execute(subtitle.getUrl(), HttpMethod.GET, null, response -> {
+                StreamUtils.copy(response.getBody(), new FileOutputStream(storageFile));
+                return storageFile;
+            });
+        }
+
+        return subtitleFile;
+    }
+
+    private List<Subtitle> internalParse(File file) {
+        return SrtParser.parse(file);
+    }
+
+    private SubtitleInfo getDefaultSubtitle() {
+        return SubtitleInfo.builder()
+                .language(SubtitleInfo.NONE_KEYWORD)
                 .build();
     }
 
@@ -282,7 +327,7 @@ public class SubtitleService {
         return settingsService.getSettings().getSubtitleSettings();
     }
 
-    private File getStorageFile(Subtitle subtitle) {
+    private File getStorageFile(SubtitleInfo subtitle) {
         String filename = FilenameUtils.getName(subtitle.getUrl());
         File subtitleDirectory = getSettings().getDirectory();
 

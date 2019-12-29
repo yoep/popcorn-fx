@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.application.Application;
@@ -168,7 +168,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             return;
 
         // filter out all the subtitles that don't have a flag
-        final List<Subtitle> subtitles = activity.getSubtitles().stream()
+        final List<SubtitleInfo> subtitles = activity.getSubtitles().stream()
                 .filter(e -> e.getFlagResource().isPresent())
                 .sorted()
                 .collect(Collectors.toList());
@@ -230,7 +230,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             }
 
             @Override
-            public Optional<Subtitle> getSubtitle() {
+            public Optional<SubtitleInfo> getSubtitle() {
                 return Optional.ofNullable(subtitle);
             }
         });
@@ -255,7 +255,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             }
 
             @Override
-            public Optional<Subtitle> getSubtitle() {
+            public Optional<SubtitleInfo> getSubtitle() {
                 return Optional.empty();
             }
         });

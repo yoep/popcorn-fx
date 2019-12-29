@@ -6,7 +6,6 @@ logging:
   level:
     org.springframework: WARN
     com.github.yoep.popcorn: INFO
-    com.github.yoep.popcorn.media.video: TRACE
 
 popcorn:
   providers:

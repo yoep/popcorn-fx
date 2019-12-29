@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
-import com.github.yoep.popcorn.subtitle.models.Subtitle;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.StreamStatus;
@@ -38,7 +38,7 @@ public class LoaderComponent {
     private final LocaleText localeText;
 
     private Media media;
-    private Subtitle subtitle;
+    private SubtitleInfo subtitle;
     private TorrentInfo mediaTorrent;
     private String quality;
     private Thread torrentThread;
@@ -180,7 +180,7 @@ public class LoaderComponent {
             }
 
             @Override
-            public Optional<Subtitle> getSubtitle() {
+            public Optional<SubtitleInfo> getSubtitle() {
                 return Optional.ofNullable(subtitle);
             }
         });

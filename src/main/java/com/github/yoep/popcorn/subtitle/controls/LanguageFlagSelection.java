@@ -6,6 +6,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Bounds;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.PopupControl;
@@ -35,6 +36,7 @@ import java.util.Optional;
  */
 @Slf4j
 public class LanguageFlagSelection extends HBox {
+    private static final String STYLE_CLASS = "language-selection";
     private static final String ITEM_STYLE_CLASS = "item";
     private static final String ARROW_STYLE_CLASS = "arrow";
     private static final String POPUP_STYLE_CLASS = "language-popup";
@@ -88,22 +90,22 @@ public class LanguageFlagSelection extends HBox {
         }
     }
 
+    /**
+     * Select the given item index.
+     *
+     * @param index The index of the item to select.
+     */
     public void select(int index) {
-        selectItem(items.get(0));
+        selectItem(items.get(index));
     }
 
     /**
      * Show the language selection popup of this control.
      */
     public void show() {
-        Bounds screenBounds = this.localToScreen(this.getBoundsInLocal());
-        double x = screenBounds.getMaxX();
-        double y = screenBounds.getMinY();
+        Point2D position = calculatePopupPosition();
 
-        y -= popup.getContentPane().getHeight();
-        x -= popup.getContentPane().getWidth();
-
-        popup.show(this, x, y);
+        popup.show(this, position.getX(), position.getY());
 
         if (firstRender) {
             firstRender = false;
@@ -117,14 +119,14 @@ public class LanguageFlagSelection extends HBox {
         initializePopup();
         initializeEvents();
 
+        this.getStyleClass().add(STYLE_CLASS);
         this.setAlignment(Pos.CENTER);
     }
 
     private void initializeImageView() {
         imageView.getStyleClass().add(ITEM_STYLE_CLASS);
-        imageView.setFitHeight(FLAG_HEIGHT);
-        imageView.setFitWidth(FLAG_WIDTH);
         imageView.setPreserveRatio(true);
+        imageView.fitHeightProperty().bind(heightProperty());
 
         getChildren().add(imageView);
     }
@@ -140,6 +142,9 @@ public class LanguageFlagSelection extends HBox {
 
         popup.setAutoHide(true);
         popup.setAutoFix(true);
+
+        popup.getContentPane().heightProperty().addListener((observable, oldValue, newValue) -> movePopup());
+        popup.getContentPane().widthProperty().addListener((observable, oldValue, newValue) -> movePopup());
     }
 
     private void initializeEvents() {
@@ -163,6 +168,21 @@ public class LanguageFlagSelection extends HBox {
         }
     }
 
+    private Point2D calculatePopupPosition() {
+        Bounds screenBounds = this.localToScreen(this.getBoundsInLocal());
+        double x = screenBounds.getMaxX() - popup.getContentPane().getWidth();
+        double y = screenBounds.getMinY() - popup.getContentPane().getHeight();
+
+        return new Point2D(x, y);
+    }
+
+    private void movePopup() {
+        Point2D position = calculatePopupPosition();
+
+        popup.setAnchorX(position.getX());
+        popup.setAnchorY(position.getY());
+    }
+
     private void addNewFlag(final SubtitleInfo subtitle) {
         subtitle.getFlagResource().ifPresent(e -> {
             Flag flag = new Flag(subtitle);
@@ -184,10 +204,16 @@ public class LanguageFlagSelection extends HBox {
     }
 
     private void selectItem(final SubtitleInfo subtitle) {
-        this.selectedItem = subtitle;
+        if (selectedItem == subtitle)
+            return;
+
+        selectedItem = subtitle;
+        popup.hide();
 
         subtitle.getFlagResource().ifPresent(e -> loadImage(this.imageView, e));
-        popup.hide();
+        Tooltip tooltip = new Tooltip(subtitle.getLanguage());
+        tooltip.setShowDelay(Duration.ZERO);
+        Tooltip.install(this.imageView, tooltip);
 
         synchronized (listeners) {
             listeners.forEach(e -> e.onItemChanged(subtitle));

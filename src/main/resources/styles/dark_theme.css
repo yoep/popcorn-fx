@@ -500,19 +500,19 @@
     -fx-text-fill: fff;
 }
 
-.root .movie-details .subtitle-group .arrow {
+.root .movie-details .subtitle-group .language-selection .arrow {
     -fx-text-fill: #fff;
     -fx-padding: 0 5 0 5;
 }
 
-.root .movie-details .subtitle-group .language-popup {
+.root .movie-details .subtitle-group .language-selection .language-popup {
     -fx-max-width: 140;
     -fx-min-width: 140;
     -fx-background-color: rgba(23, 24, 27, 0.8);
     -fx-padding: 10 10 10 10;
 }
 
-.root .movie-details .subtitle-group .language-popup .language-flag {
+.root .movie-details .subtitle-group .language-selection .language-popup .language-flag {
     -fx-padding: 2 2 2 2;
     -fx-cursor: hand;
 }

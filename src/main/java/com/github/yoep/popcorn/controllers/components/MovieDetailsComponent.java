@@ -97,6 +97,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     @Override
     protected void reset() {
         super.reset();
+        resetLanguageSelection();
 
         title.setText(StringUtils.EMPTY);
         overview.setText(StringUtils.EMPTY);
@@ -107,6 +108,12 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
         qualitySelectionPane.getChildren().clear();
         poster.setImage(null);
+    }
+
+    private void resetLanguageSelection() {
+        languageSelection.getItems().clear();
+        languageSelection.getItems().add(SubtitleInfo.none());
+        languageSelection.select(0);
     }
 
     //endregion
@@ -132,6 +139,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     private void initializeLanguageSelection() {
         languageSelection.addListener(newValue -> this.subtitle = newValue);
+        resetLanguageSelection();
     }
 
     private void load(Movie media) {

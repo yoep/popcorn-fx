@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.controllers.components.PlayerControlsComponent" styleClass="player-controls">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints valignment="CENTER"/>
+    </rowConstraints>
+
+    <!-- Play/Pause -->
+    <Icon fx:id="playPauseIcon" styleClass="player-button" onMouseClicked="#onPlayPauseClicked"
+          GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <Icon fx:constant="PLAY_UNICODE"/>
+    </Icon>
+
+    <!-- Current Time -->
+    <Label fx:id="currentTime" styleClass="time" text="00:00"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+    <!-- Time picker -->
+    <Slider fx:id="slider" styleClass="slider"
+            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <!-- Duration -->
+    <Label fx:id="duration" styleClass="time" text="00:00"
+           GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+
+    <!-- Subtitle -->
+    <Icon styleClass="player-button, subtitle, subtitle-smaller"
+          GridPane.columnIndex="4" GridPane.rowIndex="0">
+        <Icon fx:constant="FONT_UNICODE"/>
+    </Icon>
+    <Icon styleClass="player-button, subtitle"
+          GridPane.columnIndex="5" GridPane.rowIndex="0">
+        <Icon fx:constant="FONT_UNICODE"/>
+    </Icon>
+    <Icon styleClass="player-button, subtitle"
+          GridPane.columnIndex="6" GridPane.rowIndex="0">
+        <Icon fx:constant="COMMENT_UNICODE"/>
+    </Icon>
+
+    <!-- Fullscreen -->
+    <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked"
+          GridPane.columnIndex="7" GridPane.rowIndex="0">
+        <Icon fx:constant="EXPAND_UNICODE"/>
+    </Icon>
+</GridPane>

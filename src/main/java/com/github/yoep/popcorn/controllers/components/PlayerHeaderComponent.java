@@ -10,15 +10,18 @@ import javafx.scene.control.Label;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class PlayerHeaderComponent {
+    private final List<PlayerHeaderListener> listeners = new ArrayList<>();
     private final ActivityManager activityManager;
-    private final PlayerComponent playerComponent;
 
     @FXML
     private Label title;
@@ -26,6 +29,30 @@ public class PlayerHeaderComponent {
     private Label quality;
     @FXML
     private Icon playerStats;
+
+    /**
+     * Register a new listener to this instance.
+     *
+     * @param listener The listener to register.
+     */
+    public void addListener(PlayerHeaderListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        synchronized (listeners) {
+            listeners.add(listener);
+        }
+    }
+
+    /**
+     * Remove the given listener from this instance.
+     *
+     * @param listener The listener to remove.
+     */
+    public void removeListener(PlayerHeaderListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        synchronized (listeners) {
+            listeners.remove(listener);
+        }
+    }
 
     @PostConstruct
     private void init() {
@@ -50,16 +77,18 @@ public class PlayerHeaderComponent {
     }
 
     private void reset() {
-       Platform.runLater(() -> {
-           title.setText(null);
-           quality.setText(null);
-           quality.setVisible(false);
-           playerStats.setVisible(false);
-       });
+        Platform.runLater(() -> {
+            title.setText(null);
+            quality.setText(null);
+            quality.setVisible(false);
+            playerStats.setVisible(false);
+        });
     }
 
     @FXML
     private void close() {
-        playerComponent.close();
+        synchronized (listeners) {
+            listeners.forEach(PlayerHeaderListener::onClose);
+        }
     }
 }

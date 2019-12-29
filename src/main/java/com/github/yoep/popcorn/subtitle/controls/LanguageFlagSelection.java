@@ -50,6 +50,7 @@ public class LanguageFlagSelection extends HBox {
     private final ObservableList<SubtitleInfo> items = FXCollections.observableArrayList();
 
     private SubtitleInfo selectedItem;
+    private boolean firstRender = true;
 
     public LanguageFlagSelection() {
         init();
@@ -103,6 +104,11 @@ public class LanguageFlagSelection extends HBox {
         x -= popup.getContentPane().getWidth();
 
         popup.show(this, x, y);
+
+        if (firstRender) {
+            firstRender = false;
+            show();
+        }
     }
 
     private void init() {

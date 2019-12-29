@@ -25,6 +25,8 @@ public class LanguageSelection extends Icon {
     private final ListPopup popup = new ListPopup();
     private final List<LanguageSelectionListener> listeners = new ArrayList<>();
 
+    private boolean firstRender = true;
+
     public LanguageSelection() {
         super();
         initializeLanguageSelection();
@@ -97,6 +99,11 @@ public class LanguageSelection extends Icon {
         x -= popup.getListView().getWidth();
 
         popup.show(this, x, y);
+
+        if (firstRender) {
+            firstRender = false;
+            show();
+        }
     }
 
     private void initializeLanguageSelection() {

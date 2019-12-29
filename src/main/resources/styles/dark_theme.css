@@ -743,14 +743,16 @@
 }
 
 .root .player .player-controls LanguageSelection .list-view .list-cell {
+    -fx-font-family: Arial;
     -fx-padding: 3 8 3 8;
+    -fx-border-width: 0 0 0 2;
     -fx-cursor: hand;
 }
 
 .root .player .player-controls LanguageSelection .list-view .list-cell:selected {
-    -fx-font-family: "Open Sans Bold";
     -fx-background-color: #0b131f;
     -fx-font-weight: bold;
+    -fx-border-color: #fff;
 }
 
 .root .player .player-controls LanguageSelection .list-view .list-cell:hover {

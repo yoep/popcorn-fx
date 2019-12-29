@@ -98,6 +98,7 @@ public class SubtitleTrack extends VBox {
             return;
 
         log.trace("Clearing subtitle track");
+        activeSubtitle = null;
         Platform.runLater(() -> this.getChildren().clear());
     }
 }

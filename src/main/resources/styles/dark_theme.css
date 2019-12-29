@@ -671,7 +671,7 @@
 }
 
 .root .player .video-subtitle Label {
-    -fx-font-family: "Open Sans Semibold";
+    -fx-font-family: "Arial";
     -fx-text-fill: #fff;
     -fx-font-size: 24px;
 }

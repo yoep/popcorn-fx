@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 
 public class SrtParser {
     private static final Pattern TIME_PATTERN = Pattern.compile("(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})");
-    private static final Pattern TEXT_PATTERN = Pattern.compile("(<[a-z]>)(.+)(</[a-z]>)");
+    private static final Pattern TEXT_PATTERN = Pattern.compile("<([a-z])>(.+)</([a-z])>");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
     private static final String STYLE_ITALIC = "i";
     private static final String STYLE_BOLD = "b";

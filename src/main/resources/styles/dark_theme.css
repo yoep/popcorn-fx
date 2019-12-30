@@ -626,6 +626,7 @@
 .root .show-details-section .show-details ListView .list-cell:empty,
 .root .show-details-section .show-details Episodes .table-row-cell:empty {
     -fx-opacity: 0;
+    -fx-cursor: default;
 }
 
 .root .show-details-section .show-details Episodes LabeledText {
@@ -644,7 +645,7 @@
     -fx-text-fill: rgba(255, 255, 255, 0.2);
 }
 
-.root .show-details-section .show-details Episodes .icon.viewed {
+.root .show-details-section .show-details Episodes .icon.watched {
     -fx-text-fill: #fff;
 }
 

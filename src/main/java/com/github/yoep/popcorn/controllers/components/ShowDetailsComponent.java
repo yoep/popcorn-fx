@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseDetailsActivity;
 import com.github.yoep.popcorn.activities.LoadTorrentActivity;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
+import com.github.yoep.popcorn.controls.EpisodeWatchedCellFactory;
 import com.github.yoep.popcorn.controls.Episodes;
 import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Episode;
@@ -42,10 +43,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -133,6 +131,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePoster();
         initializeListViews();
+        initializeEpisodes();
         initializeLanguageSelection();
     }
 
@@ -162,6 +161,31 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private void initializeListViews() {
         seasons.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
         episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
+    }
+
+    private void initializeEpisodes() {
+        episodes.setWatchedFactory(() -> new EpisodeWatchedCellFactory() {
+            @Override
+            protected void updateItem(Icon item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty)
+                    setWatched(watchedService.isWatched(getEpisode()));
+            }
+
+            @Override
+            protected void init() {
+                super.init();
+
+                watchedProperty().addListener((observable, oldValue, newValue) -> {
+                    if (newValue) {
+                        watchedService.addToWatchList(getEpisode());
+                    } else {
+                        watchedService.removeFromWatchList(getEpisode());
+                    }
+                });
+            }
+        });
     }
 
     private void initializeLanguageSelection() {
@@ -226,13 +250,19 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         if (newSeason == null)
             return;
 
-        episodes.getItems().clear();
-        episodes.getItems().addAll(media.getEpisodes().stream()
+        List<Episode> episodes = media.getEpisodes();
+
+        this.episodes.getItems().clear();
+        this.episodes.getItems().addAll(episodes.stream()
                 .filter(Objects::nonNull)
                 .filter(e -> e.getSeason() == newSeason.getSeason())
                 .sorted(Comparator.comparing(Episode::getEpisode))
                 .collect(Collectors.toList()));
-        episodes.getSelectionModel().select(0);
+        this.episodes.getSelectionModel().select(episodes.stream()
+                .filter(Objects::nonNull)
+                .filter(e -> !watchedService.isWatched(e))
+                .findFirst()
+                .orElse(episodes.get(episodes.size() - 1)));
     }
 
     private void switchEpisode(Episode episode) {

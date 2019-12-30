@@ -25,4 +25,41 @@ public class Settings {
      */
     @Builder.Default
     private UISettings uiSettings = UISettings.builder().build();
+    /**
+     * The logging settings of the application.
+     */
+    @Builder.Default
+    private LoggingSettings loggingSettings = LoggingSettings.builder().build();
+
+    //region Getters
+
+    public TorrentSettings getTorrentSettings() {
+        if (torrentSettings == null)
+            torrentSettings = TorrentSettings.builder().build();
+
+        return torrentSettings;
+    }
+
+    public SubtitleSettings getSubtitleSettings() {
+        if (subtitleSettings == null)
+            subtitleSettings = SubtitleSettings.builder().build();
+
+        return subtitleSettings;
+    }
+
+    public UISettings getUiSettings() {
+        if (uiSettings == null)
+            uiSettings = UISettings.builder().build();
+
+        return uiSettings;
+    }
+
+    public LoggingSettings getLoggingSettings() {
+        if (loggingSettings == null)
+            loggingSettings = LoggingSettings.builder().build();
+
+        return loggingSettings;
+    }
+
+    //endregion
 }

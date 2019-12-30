@@ -28,13 +28,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private Pane playerPane;
 
     @FXML
-    private Pane pane;
+    private Pane rootPane;
 
     //region Methods
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        switchSection(ActiveSection.CONTENT);
+        switchSection(SectionType.CONTENT);
     }
 
     //endregion
@@ -58,20 +58,20 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     private void initializeListeners() {
-        activityManager.register(PlayMediaActivity.class, activity -> switchSection(ActiveSection.PLAYER));
-        activityManager.register(ShowSettingsActivity.class, activity -> switchSection(ActiveSection.SETTINGS));
-        activityManager.register(CloseSettingsActivity.class, activity -> switchSection(ActiveSection.CONTENT));
-        activityManager.register(PlayerCloseActivity.class, activity -> switchSection(ActiveSection.CONTENT));
+        activityManager.register(PlayMediaActivity.class, activity -> switchSection(SectionType.PLAYER));
+        activityManager.register(ShowSettingsActivity.class, activity -> switchSection(SectionType.SETTINGS));
+        activityManager.register(CloseSettingsActivity.class, activity -> switchSection(SectionType.CONTENT));
+        activityManager.register(PlayerCloseActivity.class, activity -> switchSection(SectionType.CONTENT));
     }
 
     //endregion
 
     //region Functions
 
-    private void switchSection(ActiveSection activeSection) {
+    private void switchSection(SectionType sectionType) {
         AtomicReference<Pane> content = new AtomicReference<>();
 
-        switch (activeSection) {
+        switch (sectionType) {
             case CONTENT:
                 content.set(contentPane);
                 break;
@@ -84,14 +84,14 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         }
 
         Platform.runLater(() -> {
-            pane.getChildren().clear();
-            pane.getChildren().add(content.get());
+            rootPane.getChildren().clear();
+            rootPane.getChildren().add(content.get());
         });
     }
 
     //endregion
 
-    private enum ActiveSection {
+    private enum SectionType {
         CONTENT,
         SETTINGS,
         PLAYER

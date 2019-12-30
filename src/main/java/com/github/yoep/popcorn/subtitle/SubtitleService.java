@@ -33,11 +33,14 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SubtitleService {
+    private static final Pattern QUALITY_PATTERN = Pattern.compile("([0-9]+p)");
+
     private final Map<String, List<SubtitleInfo>> cachedSubtitles = new HashMap<>();
     private final PopcornProperties popcornProperties;
     private final SettingsService settingsService;

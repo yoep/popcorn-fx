@@ -196,7 +196,7 @@ public class LanguageFlagSelection extends StackPane {
      */
     protected void onSelectedItemChanged(final SubtitleInfo newValue) {
         // always hide the popup when an item has been clicked in the popup
-        popup.hide();
+        Platform.runLater(popup::hide);
 
         if (getSelectedItem() == newValue)
             return;

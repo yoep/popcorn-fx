@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
-import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -29,10 +28,8 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -63,8 +60,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private Label watchedText;
     @FXML
     private Button watchTrailerButton;
-    @FXML
-    private LanguageFlagSelection languageSelection;
 
     //region Constructors
 
@@ -113,12 +108,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         poster.setImage(null);
     }
 
-    private void resetLanguageSelection() {
-        languageSelection.getItems().clear();
-        languageSelection.getItems().add(SubtitleInfo.none());
-        languageSelection.select(0);
-    }
-
     //endregion
 
     //region Functions
@@ -137,7 +126,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private void initializeListeners() {
         activityManager.register(ShowMovieDetailsActivity.class, activity ->
                 Platform.runLater(() -> load(activity.getMedia())));
-        activityManager.register(SubtitlesRetrievedActivity.class, this::loadSubtitles);
     }
 
     private void initializeLanguageSelection() {
@@ -149,7 +137,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Assert.notNull(media, "media cannot be null");
         this.media = media;
 
-        retrieveSubtitles();
+        loadSubtitles();
         loadText();
         loadStars();
         loadButtons();
@@ -175,25 +163,9 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         switchWatched(watchedService.isWatched(media));
     }
 
-    private void loadSubtitles(SubtitlesRetrievedActivity activity) {
-        if (!activity.getImdbId().equals(media.getImdbId()))
-            return;
-
-        // filter out all the subtitles that don't have a flag
-        final List<SubtitleInfo> subtitles = activity.getSubtitles().stream()
-                .filter(e -> e.getFlagResource().isPresent())
-                .sorted()
-                .collect(Collectors.toList());
-
-        Platform.runLater(() -> {
-            languageSelection.getItems().clear();
-            languageSelection.getItems().addAll(subtitles);
-            languageSelection.select(0);
-        });
-    }
-
-    private void retrieveSubtitles() {
-        subtitleService.retrieveSubtitles(media);
+    private void loadSubtitles() {
+        resetLanguageSelection();
+        subtitleService.retrieveSubtitles(media).whenComplete(this::handleSubtitlesResponse);
     }
 
     @Override

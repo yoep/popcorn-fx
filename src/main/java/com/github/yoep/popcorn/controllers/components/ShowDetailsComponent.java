@@ -15,7 +15,6 @@ import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
-import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -84,8 +83,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private Label airDate;
     @FXML
     private Label episodeOverview;
-    @FXML
-    private LanguageFlagSelection languageSelection;
 
     //region Constructors
 
@@ -110,6 +107,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     @Override
     protected void reset() {
         super.reset();
+        resetLanguageSelection();
 
         title.setText(StringUtils.EMPTY);
         overview.setText(StringUtils.EMPTY);
@@ -225,7 +223,8 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     }
 
     private void loadSubtitles(Episode episode) {
-        subtitleService.retrieveSubtitles(media, episode);
+        resetLanguageSelection();
+        subtitleService.retrieveSubtitles(media, episode).whenComplete(this::handleSubtitlesResponse);
     }
 
     @FXML
@@ -266,7 +265,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     @FXML
     private void onSubtitleLabelClicked() {
-
+        languageSelection.show();
     }
 
     @FXML

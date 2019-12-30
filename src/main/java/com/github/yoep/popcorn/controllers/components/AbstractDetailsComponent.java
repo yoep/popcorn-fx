@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
@@ -27,10 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.TaskExecutor;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -69,6 +67,8 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected Icon health;
     @FXML
     protected Pane qualitySelectionPane;
+    @FXML
+    protected LanguageFlagSelection languageSelection;
 
     //region Constructors
 
@@ -198,6 +198,31 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     }
 
     /**
+     * Handle the subtitles response from the subtitle service.
+     *
+     * @param subtitles The subtitles to process.
+     * @param throwable the exception error to process.
+     */
+    protected void handleSubtitlesResponse(List<SubtitleInfo> subtitles, Throwable throwable) {
+        if (throwable == null) {
+            // filter out all the subtitles that don't have a flag
+            final List<SubtitleInfo> filteredSubtitles = subtitles.stream()
+                    .filter(e -> e.isNone() || Objects.equals(e.getImdbId(), media.getImdbId()))
+                    .filter(e -> e.getFlagResource().isPresent())
+                    .sorted()
+                    .collect(Collectors.toList());
+
+            Platform.runLater(() -> {
+                languageSelection.getItems().clear();
+                languageSelection.getItems().addAll(filteredSubtitles);
+                languageSelection.select(0);
+            });
+        } else {
+            log.error(throwable.getMessage(), throwable);
+        }
+    }
+
+    /**
      * Reset the details component information to nothing.
      * This will allow the GC to dispose the items when the media details are no longer needed.
      */
@@ -206,6 +231,15 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         this.subtitle = null;
         this.liked = false;
         this.quality = null;
+    }
+
+    /**
+     * Reset the language selection to the special type {@link SubtitleInfo#none()}.
+     */
+    protected void resetLanguageSelection() {
+        languageSelection.getItems().clear();
+        languageSelection.getItems().add(SubtitleInfo.none());
+        languageSelection.select(0);
     }
 
     //region Functions

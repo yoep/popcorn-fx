@@ -5,6 +5,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
@@ -27,7 +28,10 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -132,7 +136,6 @@ public class PlayerControlsComponent implements Initializable {
         activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
         activityManager.register(PlayerCloseActivity.class, activity -> reset());
         activityManager.register(FullscreenActivity.class, this::onFullscreenChanged);
-        activityManager.register(SubtitlesRetrievedActivity.class, this::onSubtitlesRetrieved);
     }
 
     //endregion
@@ -218,12 +221,16 @@ public class PlayerControlsComponent implements Initializable {
                 subtitle -> this.subtitle = subtitle,
                 () -> {
                     this.subtitle = SubtitleInfo.none();
-                    setSubtitles(Collections.singletonList(this.subtitle));
+                    handleSubtitlesResponse(Collections.singletonList(this.subtitle), null);
                 }
         );
 
         if (media instanceof Movie) {
-            subtitleService.retrieveSubtitles((Movie) activity.getMedia());
+            Movie movie = (Movie) activity.getMedia();
+            subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
+        } else {
+            Show media = (Show) activity.getMedia();
+            subtitleService.retrieveSubtitles(media, null).whenComplete(this::handleSubtitlesResponse);
         }
     }
 
@@ -233,13 +240,6 @@ public class PlayerControlsComponent implements Initializable {
         } else {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
         }
-    }
-
-    public void onSubtitlesRetrieved(SubtitlesRetrievedActivity activity) {
-        if (this.media == null || !Objects.equals(activity.getImdbId(), media.getImdbId()))
-            return;
-
-        setSubtitles(activity.getSubtitles());
     }
 
     private void onSubtitleChanged(SubtitleInfo newValue) {
@@ -260,16 +260,20 @@ public class PlayerControlsComponent implements Initializable {
         slider.setValueChanging(false);
     }
 
-    private void setSubtitles(List<SubtitleInfo> subtitles) {
-        final var filteredSubtitles = subtitles.stream()
-                .filter(e -> e.getFlagResource().isPresent())
-                .collect(Collectors.toList());
+    private void handleSubtitlesResponse(List<SubtitleInfo> subtitles, Throwable throwable) {
+        if (throwable == null) {
+            var filteredSubtitles = subtitles.stream()
+                    .filter(e -> e.getFlagResource().isPresent())
+                    .collect(Collectors.toList());
 
-        Platform.runLater(() -> {
-            languageSelection.getItems().clear();
-            languageSelection.getItems().addAll(filteredSubtitles);
-            languageSelection.select(this.subtitle);
-        });
+            Platform.runLater(() -> {
+                languageSelection.getItems().clear();
+                languageSelection.getItems().addAll(filteredSubtitles);
+                languageSelection.select(this.subtitle);
+            });
+        } else {
+            log.error(throwable.getMessage(), throwable);
+        }
     }
 
     private String formatTime(long time) {

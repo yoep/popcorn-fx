@@ -699,7 +699,7 @@
 .root .show-details-section .show-details .episode-overview .quality-selection .quality {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
-    -fx-padding: 3 8 3 8;
+    -fx-padding: 3 10 3 10;
 }
 
 .root .show-details-section .show-details .episode-overview .quality-selection .quality.active {

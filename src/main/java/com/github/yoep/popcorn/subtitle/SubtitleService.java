@@ -203,10 +203,7 @@ public class SubtitleService {
                             continue;
                         }
 
-                        // imdb & year check
-                        if (Integer.parseInt(item.get("IDMovieImdb")) != Integer.parseInt(media.getImdbId().replace("tt", ""))) {
-                            continue;
-                        }
+                        // check if the media year matches the returned item
                         if (!item.get("MovieYear").equals(media.getYear())) {
                             continue;
                         }
@@ -280,8 +277,8 @@ public class SubtitleService {
     private void search(Show show, Episode episode, String token, XMLRPCCallback callback) {
         Map<String, String> option = new HashMap<>();
         option.put("imdbid", show.getImdbId().replace("tt", ""));
-        option.put("season", String.format(Locale.US, "%d", episode.getSeason()));
-        option.put("episode", String.format(Locale.US, "%d", episode.getEpisode()));
+        option.put("season", String.valueOf(episode.getSeason()));
+        option.put("episode", String.valueOf(episode.getEpisode()));
         option.put("sublanguageid", "all");
 
         client.callAsync(callback, "SearchSubtitles", token, new Object[]{option});

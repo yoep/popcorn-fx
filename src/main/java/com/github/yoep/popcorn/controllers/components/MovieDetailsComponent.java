@@ -9,6 +9,8 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
+import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
+import com.github.yoep.popcorn.subtitle.models.Language;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -18,6 +20,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +31,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -129,6 +134,32 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     }
 
     private void initializeLanguageSelection() {
+        languageSelection.setFactory(new LanguageFlagCell() {
+            @Override
+            public void updateItem(SubtitleInfo item) {
+                if (item == null)
+                    return;
+
+                setText(null);
+                item.getFlagResource().ifPresent(e -> {
+                    try {
+                        var image = new ImageView(new Image(e.getInputStream()));
+
+                        image.setFitHeight(20);
+                        image.setPreserveRatio(true);
+
+                        Tooltip tooltip = new Tooltip(Language.valueOf(item.getLanguage()).getNativeName());
+                        setInstantTooltip(tooltip);
+                        Tooltip.install(image, tooltip);
+
+                        setGraphic(image);
+                    } catch (IOException ex) {
+                        log.error(ex.getMessage(), ex);
+                    }
+                });
+            }
+        });
+
         languageSelection.addListener(newValue -> this.subtitle = newValue);
         resetLanguageSelection();
     }

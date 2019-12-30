@@ -223,9 +223,7 @@
     -fx-border-color: #2d72d9;
 }
 
-.root .header .bar .filter-bar Label,
-.root .movie-details .subtitle-group Label,
-.root .show-details-section .show-details .subtitle-group Label {
+.root .header .bar .filter-bar Label {
     -fx-padding: 10 5 5 18;
 }
 
@@ -474,18 +472,20 @@
     -fx-text-fill: #2ad942;
 }
 
-.root .movie-details .quality-selection .quality,
-.root .show-details-section .show-details .episode-overview .quality-selection .quality {
+.root .movie-details .quality-selection .quality {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-cursor: hand;
     -fx-padding: 2 10 2 10;
 }
 
-.root .movie-details .quality-selection .quality.active,
-.root .show-details-section .show-details .episode-overview .quality-selection .quality.active {
+.root .movie-details .quality-selection .quality.active {
     -fx-background-color: rgba(43, 110, 210, 0.84);
     -fx-background-radius: 5em;
+}
+
+.root .movie-details .subtitle-group Tooltip {
+    -fx-font-size: 1em;
 }
 
 .root .movie-details .subtitle-group,
@@ -497,16 +497,17 @@
 .root .show-details-section .show-details .subtitle-group Label {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: fff;
+    -fx-padding: 0 5 0 0;
 }
 
 .root .movie-details .subtitle-group .language-selection .arrow,
-.root .show-details-section .show-details .subtitle-group .arrow {
+.root .show-details-section .show-details .episode-overview .language-selection .arrow {
     -fx-text-fill: #fff;
     -fx-padding: 0 5 0 5;
 }
 
 .root .movie-details .subtitle-group .language-selection .language-popup,
-.root .show-details-section .show-details .subtitle-group .language-selection .language-popup {
+.root .show-details-section .show-details .episode-overview .language-selection .language-popup {
     -fx-max-width: 140;
     -fx-min-width: 140;
     -fx-background-color: rgba(23, 24, 27, 0.8);
@@ -514,7 +515,7 @@
 }
 
 .root .movie-details .subtitle-group .language-selection .language-popup .language-flag,
-.root .show-details-section .show-details .subtitle-group .language-selection .language-popup .language-flag {
+.root .show-details-section .show-details .episode-overview .language-selection .language-popup .language-flag {
     -fx-padding: 2 2 2 2;
     -fx-cursor: hand;
 }
@@ -667,6 +668,42 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-padding: 10 0 0 0;
+}
+
+.root .show-details-section .show-details .episode-overview .language-selection,
+.root .show-details-section .show-details .episode-overview .quality-selection .quality {
+    -fx-background-color: #1f375f;
+    -fx-border-color: #1f264b;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+    -fx-padding: 3 3 3 3;
+}
+
+.root .show-details-section .show-details .episode-overview .language-selection:hover {
+    -fx-background-color: #225694;
+}
+
+.root .show-details-section .show-details .episode-overview .language-selection .graphic {
+    -fx-padding: 0 5 0 5;
+}
+
+.root .show-details-section .show-details .episode-overview .language-selection .name {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+}
+
+.root .show-details-section .show-details .episode-overview .language-selection .arrow {
+    -fx-text-alignment: center;
+}
+
+.root .show-details-section .show-details .episode-overview .quality-selection .quality {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-padding: 3 8 3 8;
+}
+
+.root .show-details-section .show-details .episode-overview .quality-selection .quality.active {
+    -fx-background-color: rgba(43, 110, 210, 0.84);
 }
 
 .root .player {

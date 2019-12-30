@@ -3,11 +3,11 @@
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.controls.Episodes?>
 <?import com.github.yoep.popcorn.controls.Stars?>
+<?import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection?>
 <AnchorPane styleClass="show-details-section" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.github.yoep.popcorn.controllers.components.ShowDetailsComponent">
     <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
@@ -119,6 +119,7 @@
                 <RowConstraints/>
                 <RowConstraints/>
             </rowConstraints>
+            <vgap>2</vgap>
 
             <!-- Episode title -->
             <Label fx:id="episodeTitle" styleClass="episode-title"
@@ -145,24 +146,31 @@
             <Label fx:id="episodeOverview" styleClass="episode-synopsis" wrapText="true"
                    GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
 
-            <HBox styleClass="subtitle-group"
-                  GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="4" alignment="CENTER_RIGHT">
-                <Label text="%details_subtitle" onMouseClicked="#onSubtitleLabelClicked"/>
+            <!-- Actions -->
+            <GridPane GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="4">
+                <columnConstraints>
+                    <ColumnConstraints/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                    <ColumnConstraints/>
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints/>
+                    <RowConstraints/>
+                </rowConstraints>
+                <vgap>2</vgap>
 
-                <LanguageFlagSelection fx:id="languageSelection"/>
-            </HBox>
+                <!-- Subtitle selection -->
+                <LanguageFlagSelection fx:id="languageSelection"
+                                       GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-            <StackPane GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="5">
                 <!-- Quality selection -->
-                <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5">
-                    <padding>
-                        <Insets right="15"/>
-                    </padding>
-                </HBox>
+                <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
+                      GridPane.columnIndex="0" GridPane.rowIndex="1" />
 
                 <!-- Play actions -->
-                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked" StackPane.alignment="CENTER_RIGHT"/>
-            </StackPane>
+                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked"
+                                 GridPane.rowSpan="2" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+            </GridPane>
         </GridPane>
     </GridPane>
 </AnchorPane>

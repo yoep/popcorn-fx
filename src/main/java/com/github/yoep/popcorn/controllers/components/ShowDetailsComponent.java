@@ -15,6 +15,8 @@ import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
+import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
+import com.github.yoep.popcorn.subtitle.models.Language;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -23,6 +25,8 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +36,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.net.URL;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -128,6 +133,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePoster();
         initializeListViews();
+        initializeLanguageSelection();
     }
 
     //endregion
@@ -156,6 +162,30 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private void initializeListViews() {
         seasons.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
         episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
+    }
+
+    private void initializeLanguageSelection() {
+        languageSelection.setFactory(new LanguageFlagCell() {
+            @Override
+            public void updateItem(SubtitleInfo item) {
+                if (item == null)
+                    return;
+
+                setText(Language.valueOf(item.getLanguage()).getNativeName());
+                item.getFlagResource().ifPresent(e -> {
+                    try {
+                        var image = new ImageView(new Image(e.getInputStream()));
+
+                        image.setFitHeight(15);
+                        image.setPreserveRatio(true);
+
+                        setGraphic(image);
+                    } catch (IOException ex) {
+                        log.error(ex.getMessage(), ex);
+                    }
+                });
+            }
+        });
     }
 
     private void load(Show media) {
@@ -261,11 +291,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                 return Optional.ofNullable(subtitle);
             }
         });
-    }
-
-    @FXML
-    private void onSubtitleLabelClicked() {
-        languageSelection.show();
     }
 
     @FXML

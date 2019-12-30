@@ -33,6 +33,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 @Slf4j
 @Service
@@ -62,117 +63,44 @@ public class SubtitleService {
     }
 
     /**
-     * Retrieve the subtitle for the given movie.
+     * Retrieve the subtitle for the given media.
      * This method creates a {@link SubtitlesRetrievedActivity} when completed.
      *
-     * @param movie The movie to retrieve the subtitles of.
+     * @param media The media to retrieve the subtitles of.
      */
     @Async
-    public void retrieveSubtitles(final Movie movie) {
+    public void retrieveSubtitles(final Movie media) {
         // check if the subtitles were already cached
-        if (cachedSubtitles.containsKey(movie.getImdbId()))
-            onSubtitlesRetrieved(movie, cachedSubtitles.get(movie.getImdbId()));
+        if (cachedSubtitles.containsKey(media.getImdbId())) {
+            onSubtitlesRetrieved(media, cachedSubtitles.get(media.getImdbId()));
+            return;
+        }
 
-        login(new XMLRPCCallback() {
-            @Override
-            public void onResponse(long id, Object result) {
-                log.trace("Received login response from {}", popcornProperties.getSubtitle().getUrl());
-                Map<String, Object> response = (Map<String, Object>) result;
-                String token = (String) response.get("token");
+        var searchHandler = createSearchCallbackHandler(media);
+        var loginHandler = createLoginCallbackHandler(token -> search(media, token, searchHandler));
 
-                if (token != null && !token.isEmpty()) {
-                    search(movie, token, new XMLRPCCallback() {
-                        @Override
-                        public void onResponse(long id, Object result) {
-                            List<SubtitleInfo> subtitles = new ArrayList<>();
-                            Map<String, Object> subData = (Map<String, Object>) result;
+        login(loginHandler);
+    }
 
-                            // add default subtitle
-                            subtitles.add(SubtitleInfo.none());
+    /**
+     * Retrieve the subtitle for the given media.
+     * This method creates a {@link SubtitlesRetrievedActivity} when completed.
+     *
+     * @param media   The media to retrieve the subtitles of.
+     * @param episode The episode of the media to retrieve the subtitle of.
+     */
+    @Async
+    public void retrieveSubtitles(final Show media, final Episode episode) {
+        // check if the subtitles were already cached
+        if (cachedSubtitles.containsKey(media.getImdbId())) {
+            onSubtitlesRetrieved(media, cachedSubtitles.get(media.getImdbId()));
+            return;
+        }
 
-                            if (subData != null && subData.get("data") != null && subData.get("data") instanceof Object[]) {
-                                Object[] dataList = (Object[]) subData.get("data");
-                                for (Object dataItem : dataList) {
-                                    Map<String, String> item = (Map<String, String>) dataItem;
-                                    if (!item.get("SubFormat").equals("srt")) {
-                                        continue;
-                                    }
+        var searchHandler = createSearchCallbackHandler(media);
+        var loginHandler = createLoginCallbackHandler(token -> search(media, episode, token, searchHandler));
 
-                                    // imdb & year check
-                                    if (Integer.parseInt(item.get("IDMovieImdb")) != Integer.parseInt(movie.getImdbId().replace("tt", ""))) {
-                                        continue;
-                                    }
-                                    if (!item.get("MovieYear").equals(movie.getYear())) {
-                                        continue;
-                                    }
-
-                                    String url = item.get("SubDownloadLink").replace(".gz", ".srt");
-                                    String lang = item.get("ISO639").replace("pb", "pt-br");
-                                    int downloads = Integer.parseInt(item.get("SubDownloadsCnt"));
-                                    int score = 0;
-
-                                    if (item.get("MatchedBy").equals("tag")) {
-                                        score += 50;
-                                    }
-                                    if (item.get("UserRank").equals("trusted")) {
-                                        score += 100;
-                                    }
-
-                                    Optional<SubtitleInfo> subtitle = subtitles.stream()
-                                            .filter(e -> e.getLanguage().equalsIgnoreCase(lang))
-                                            .findAny();
-
-                                    if (subtitle.isPresent()) {
-                                        SubtitleInfo sub = subtitle.get();
-
-                                        if (score > sub.getScore() || (score == sub.getScore() && downloads > sub.getDownloads())) {
-                                            sub.setUrl(url);
-                                            sub.setScore(score);
-                                            sub.setDownloads(downloads);
-                                        }
-                                    } else {
-                                        subtitles.add(new SubtitleInfo(movie.getImdbId(), lang, url, score, downloads));
-                                    }
-                                }
-
-                                log.debug("Found {} subtitles for \"{}\" movie ({})", subtitles.size(), movie.getTitle(), movie.getImdbId());
-                                cachedSubtitles.put(movie.getImdbId(), subtitles);
-                                onSubtitlesRetrieved(movie, subtitles);
-                            } else {
-                                removeCall(id);
-                                log.error("No subtitles found for \"{}\" movie ({})", movie.getTitle(), movie.getImdbId());
-                            }
-                        }
-
-                        @Override
-                        public void onError(long id, XMLRPCException error) {
-                            log.error(error.getMessage(), error);
-                            removeCall(id);
-                        }
-
-                        @Override
-                        public void onServerError(long id, XMLRPCServerException error) {
-                            log.error(error.getMessage(), error);
-                            removeCall(id);
-                        }
-                    });
-                } else {
-                    log.error("Failed to retrieve subtitles, login token is not correct");
-                }
-            }
-
-            @Override
-            public void onError(long id, XMLRPCException error) {
-                log.error(error.getMessage(), error);
-                removeCall(id);
-            }
-
-            @Override
-            public void onServerError(long id, XMLRPCServerException error) {
-                log.error(error.getMessage(), error);
-                removeCall(id);
-            }
-        });
+        login(loginHandler);
     }
 
     /**
@@ -207,7 +135,7 @@ public class SubtitleService {
 
     //endregion
 
-    //region Functions
+    //region PreDestroy
 
     @PreDestroy
     private void destroy() {
@@ -222,6 +150,10 @@ public class SubtitleService {
             }
         }
     }
+
+    //endregion
+
+    //region Functions
 
     private void onSubtitlesRetrieved(final Media media, final List<SubtitleInfo> subtitles) {
         activityManager.register(new SubtitlesRetrievedActivity() {
@@ -241,6 +173,113 @@ public class SubtitleService {
         synchronized (ongoingCalls) {
             ongoingCalls.remove(callId);
         }
+    }
+
+    private XMLRPCCallback createLoginCallbackHandler(Consumer<String> onResponse) {
+        return new XMLRPCCallback() {
+            @Override
+            public void onResponse(long id, Object result) {
+                log.trace("Received login response from {}", popcornProperties.getSubtitle().getUrl());
+                Map<String, Object> response = (Map<String, Object>) result;
+                String token = (String) response.get("token");
+
+                if (token != null && !token.isEmpty()) {
+                    onResponse.accept(token);
+                } else {
+                    log.error("Failed to retrieve subtitles, login token is not correct");
+                }
+            }
+
+            @Override
+            public void onError(long id, XMLRPCException error) {
+                log.error(error.getMessage(), error);
+                removeCall(id);
+            }
+
+            @Override
+            public void onServerError(long id, XMLRPCServerException error) {
+                log.error(error.getMessage(), error);
+                removeCall(id);
+            }
+        };
+    }
+
+    private XMLRPCCallback createSearchCallbackHandler(Media media) {
+        return new XMLRPCCallback() {
+            @Override
+            public void onResponse(long id, Object result) {
+                List<SubtitleInfo> subtitles = new ArrayList<>();
+                Map<String, Object> subData = (Map<String, Object>) result;
+
+                // add default subtitle
+                subtitles.add(SubtitleInfo.none());
+
+                if (subData != null && subData.get("data") != null && subData.get("data") instanceof Object[]) {
+                    Object[] dataList = (Object[]) subData.get("data");
+                    for (Object dataItem : dataList) {
+                        Map<String, String> item = (Map<String, String>) dataItem;
+                        if (!item.get("SubFormat").equals("srt")) {
+                            continue;
+                        }
+
+                        // imdb & year check
+                        if (Integer.parseInt(item.get("IDMovieImdb")) != Integer.parseInt(media.getImdbId().replace("tt", ""))) {
+                            continue;
+                        }
+                        if (!item.get("MovieYear").equals(media.getYear())) {
+                            continue;
+                        }
+
+                        String url = item.get("SubDownloadLink").replace(".gz", ".srt");
+                        String lang = item.get("ISO639").replace("pb", "pt-br");
+                        int downloads = Integer.parseInt(item.get("SubDownloadsCnt"));
+                        int score = 0;
+
+                        if (item.get("MatchedBy").equals("tag")) {
+                            score += 50;
+                        }
+                        if (item.get("UserRank").equals("trusted")) {
+                            score += 100;
+                        }
+
+                        Optional<SubtitleInfo> subtitle = subtitles.stream()
+                                .filter(e -> e.getLanguage().equalsIgnoreCase(lang))
+                                .findAny();
+
+                        if (subtitle.isPresent()) {
+                            SubtitleInfo sub = subtitle.get();
+
+                            if (score > sub.getScore() || (score == sub.getScore() && downloads > sub.getDownloads())) {
+                                sub.setUrl(url);
+                                sub.setScore(score);
+                                sub.setDownloads(downloads);
+                            }
+                        } else {
+                            subtitles.add(new SubtitleInfo(media.getImdbId(), lang, url, score, downloads));
+                        }
+                    }
+
+                    log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size(), media.getTitle(), media.getImdbId());
+                    cachedSubtitles.put(media.getImdbId(), subtitles);
+                    onSubtitlesRetrieved(media, subtitles);
+                } else {
+                    removeCall(id);
+                    log.error("No subtitles found for \"{}\" media ({})", media.getTitle(), media.getImdbId());
+                }
+            }
+
+            @Override
+            public void onError(long id, XMLRPCException error) {
+                log.error(error.getMessage(), error);
+                removeCall(id);
+            }
+
+            @Override
+            public void onServerError(long id, XMLRPCServerException error) {
+                log.error(error.getMessage(), error);
+                removeCall(id);
+            }
+        };
     }
 
     /**

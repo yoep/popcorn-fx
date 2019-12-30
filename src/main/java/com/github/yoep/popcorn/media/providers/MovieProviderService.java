@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.subtitle.SubtitleService;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -26,12 +25,10 @@ import java.util.concurrent.CompletableFuture;
 public class MovieProviderService extends AbstractProviderService<Movie> {
     private static final Category CATEGORY = Category.MOVIES;
     private final ProviderProperties providerConfig;
-    private final SubtitleService subtitleService;
 
-    public MovieProviderService(RestTemplate restTemplate, ActivityManager activityManager, PopcornProperties popcornConfig, SubtitleService subtitleService) {
+    public MovieProviderService(RestTemplate restTemplate, ActivityManager activityManager, PopcornProperties popcornConfig) {
         super(restTemplate, activityManager);
         this.providerConfig = popcornConfig.getProvider(CATEGORY.getProviderName());
-        this.subtitleService = subtitleService;
     }
 
     @Override
@@ -54,7 +51,6 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
         final Movie movie = (Movie) media;
 
         activityManager.register((ShowMovieDetailsActivity) () -> movie);
-        subtitleService.retrieveSubtitles(movie);
     }
 
     public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

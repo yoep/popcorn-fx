@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
@@ -42,6 +43,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private final ActivityManager activityManager;
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
+    private final SubtitleService subtitleService;
 
     private boolean watched;
 
@@ -72,11 +74,12 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
                                  TaskExecutor taskExecutor,
                                  TorrentService torrentService,
                                  FavoriteService favoriteService,
-                                 WatchedService watchedService) {
+                                 WatchedService watchedService, SubtitleService subtitleService) {
         super(taskExecutor, localeText, torrentService, application);
         this.activityManager = activityManager;
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
+        this.subtitleService = subtitleService;
     }
 
     //endregion
@@ -146,6 +149,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Assert.notNull(media, "media cannot be null");
         this.media = media;
 
+        retrieveSubtitles();
         loadText();
         loadStars();
         loadButtons();
@@ -186,6 +190,10 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             languageSelection.getItems().addAll(subtitles);
             languageSelection.select(0);
         });
+    }
+
+    private void retrieveSubtitles() {
+        subtitleService.retrieveSubtitles(media);
     }
 
     @Override

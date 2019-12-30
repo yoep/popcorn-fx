@@ -14,6 +14,7 @@ import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
+import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
@@ -51,6 +52,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private final ActivityManager activityManager;
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
+    private final SubtitleService subtitleService;
 
     private Episode episode;
 
@@ -93,11 +95,12 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                                 TorrentService torrentService,
                                 Application application,
                                 FavoriteService favoriteService,
-                                WatchedService watchedService) {
+                                WatchedService watchedService, SubtitleService subtitleService) {
         super(taskExecutor, localeText, torrentService, application);
         this.activityManager = activityManager;
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
+        this.subtitleService = subtitleService;
     }
 
     //endregion
@@ -121,13 +124,17 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     //endregion
 
-    //region Functions
+    //region Methods
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePoster();
         initializeListViews();
     }
+
+    //endregion
+
+    //region PostConstruct
 
     @PostConstruct
     public void init() {
@@ -136,6 +143,16 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     private void initializeListeners() {
         activityManager.register(ShowSerieDetailsActivity.class, activity -> Platform.runLater(() -> load(activity.getMedia())));
+    }
+
+    //endregion
+
+    //region Functions
+
+    @Override
+    protected void switchActiveQuality(String quality) {
+        super.switchActiveQuality(quality);
+        switchHealth(episode.getTorrents().get(quality));
     }
 
     private void initializeListViews() {
@@ -177,12 +194,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         switchFavorite(favoriteService.isFavorite(media));
     }
 
-    @Override
-    protected void switchActiveQuality(String quality) {
-        super.switchActiveQuality(quality);
-        switchHealth(episode.getTorrents().get(quality));
-    }
-
     private void switchSeason(Season newSeason) {
         if (newSeason == null)
             return;
@@ -208,7 +219,13 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, AIRED_DATE_PATTERN.format(airDateTime)));
         episodeOverview.setText(episode.getOverview());
+
         loadQualitySelection(episode.getTorrents());
+        loadSubtitles(episode);
+    }
+
+    private void loadSubtitles(Episode episode) {
+        subtitleService.retrieveSubtitles(media, episode);
     }
 
     @FXML

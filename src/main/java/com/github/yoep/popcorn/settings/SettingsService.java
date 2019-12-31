@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.settings;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.PopcornTimeApplication;
-import com.github.yoep.popcorn.settings.models.Settings;
+import com.github.yoep.popcorn.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.settings.models.UIScale;
 import com.github.yoep.popcorn.settings.models.UISettings;
 import lombok.RequiredArgsConstructor;
@@ -26,14 +26,14 @@ public class SettingsService {
     private final ObjectMapper objectMapper;
     private final ViewLoader viewLoader;
 
-    private Settings currentSettings;
+    private ApplicationSettings currentSettings;
 
     /**
      * Get the application settings.
      *
      * @return Returns the application settings.
      */
-    public Settings getSettings() {
+    public ApplicationSettings getSettings() {
         return currentSettings;
     }
 
@@ -50,7 +50,7 @@ public class SettingsService {
      *
      * @param settings The application settings to save.
      */
-    public void save(Settings settings) {
+    public void save(ApplicationSettings settings) {
         File settingsFile = getSettingsFile();
 
         if (settings != currentSettings)
@@ -76,7 +76,7 @@ public class SettingsService {
     }
 
     private void initializeSettings() {
-        this.currentSettings = loadSettingsFromFile().orElse(Settings.builder().build());
+        this.currentSettings = loadSettingsFromFile().orElse(ApplicationSettings.builder().build());
         UISettings uiSettings = this.currentSettings.getUiSettings();
 
         uiSettings.addListener(event -> {
@@ -89,14 +89,14 @@ public class SettingsService {
         viewLoader.setScale(uiSettings.getUiScale().getValue());
     }
 
-    private Optional<Settings> loadSettingsFromFile() {
+    private Optional<ApplicationSettings> loadSettingsFromFile() {
         File settingsFile = getSettingsFile();
 
         if (settingsFile.exists()) {
             try {
                 log.info("Loading application settings from {}", settingsFile.getAbsolutePath());
 
-                return Optional.of(objectMapper.readValue(settingsFile, Settings.class));
+                return Optional.of(objectMapper.readValue(settingsFile, ApplicationSettings.class));
             } catch (IOException ex) {
                 throw new SettingsException("Unable to read settings file at " + settingsFile.getAbsolutePath(), ex);
             }

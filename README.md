@@ -26,19 +26,25 @@ Add the following VM option to enable the virtual keyboard
 
     -Dcom.sun.javafx.virtualKeyboard=javafx 
 
-## TODO features (MoSCoW)
+## TODO features
 
 ### Must
 
-- Add subtitle selection to series details
-- Add subtitle selection to video player
 - Add stream stats to player
 - Mark as watched when the video is at 90%
+- Update torrent buffering when seeking through the video
+- Add fallback to native JavaFX media player
 
 ### Should
 
 - Resume video on last view time
+- Paste magnet links in the application
+- Implement watchlist
+- Implement torrent collection
 
 ### Could
 
+- Add loading card to the list view while loading
+- Add loading indicator to the player
 - Update video time slider to show video loading progress (custom control)
+- Trakt.tv integration

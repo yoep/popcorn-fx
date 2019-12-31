@@ -1,19 +1,30 @@
 package com.github.yoep.popcorn.settings.models;
 
 import com.github.yoep.popcorn.PopcornTimeApplication;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.io.File;
+import java.util.Objects;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubtitleSettings {
+public class SubtitleSettings extends AbstractSettings {
+    public static final String DIRECTORY_PROPERTY = "directory";
+    public static final String AUTO_CLEANING_PROPERTY = "autoCleaningEnabled";
+    public static final String FONT_FAMILY_PROPERTY = "fontFamily";
+    public static final String DECORATION_PROPERTY = "decoration";
+    public static final String SIZE_PROPERTY = "size";
+    public static final String BOLD_PROPERTY = "bold";
+
     private static final String DEFAULT_SUBTITLE_DIRECTORY = "subtitles";
+    private static final String DEFAULT_FONT_FAMILY = "Arial";
+    private static final DecorationType DEFAULT_DECORATION = DecorationType.OUTLINE;
+    private static final int DEFAULT_SIZE = 24;
+
+    //region Properties
 
     /**
      * The directory to save the subtitles to.
@@ -25,4 +36,83 @@ public class SubtitleSettings {
      */
     @Builder.Default
     private boolean autoCleaningEnabled = true;
+    /**
+     * The font family to use for the subtitles.
+     */
+    @Builder.Default
+    private String fontFamily = DEFAULT_FONT_FAMILY;
+    /**
+     * The subtitle decoration type.
+     */
+    @Builder.Default
+    private DecorationType decoration = DEFAULT_DECORATION;
+    /**
+     * The size of the subtitle font.
+     */
+    @Builder.Default
+    private int size = DEFAULT_SIZE;
+    /**
+     * The indication if the subtitle must always be in the style "bold".
+     */
+    private boolean bold;
+
+    //endregion
+
+    //region Setters
+
+    public void setDirectory(File directory) {
+        if (Objects.equals(this.directory, directory))
+            return;
+
+        var oldValue = this.directory;
+        this.directory = directory;
+        changes.firePropertyChange(DIRECTORY_PROPERTY, oldValue, directory);
+    }
+
+    public void setAutoCleaningEnabled(boolean autoCleaningEnabled) {
+        if (Objects.equals(this.autoCleaningEnabled, autoCleaningEnabled))
+            return;
+
+        var oldValue = this.autoCleaningEnabled;
+        this.autoCleaningEnabled = autoCleaningEnabled;
+        changes.firePropertyChange(AUTO_CLEANING_PROPERTY, oldValue, autoCleaningEnabled);
+    }
+
+    public void setFontFamily(String fontFamily) {
+        if (Objects.equals(this.fontFamily, fontFamily))
+            return;
+
+        var oldValue = this.fontFamily;
+        this.fontFamily = fontFamily;
+        changes.firePropertyChange(FONT_FAMILY_PROPERTY, oldValue, fontFamily);
+    }
+
+    public void setDecoration(DecorationType decoration) {
+        if (Objects.equals(this.decoration, decoration))
+            return;
+
+        var oldValue = this.decoration;
+        this.decoration = decoration;
+        changes.firePropertyChange(DECORATION_PROPERTY, oldValue, decoration);
+    }
+
+    public void setSize(int size) {
+        if (Objects.equals(this.size, size))
+            return;
+
+        var oldValue = this.size;
+        this.size = size;
+        changes.firePropertyChange(SIZE_PROPERTY, oldValue, size);
+    }
+
+    public void setBold(boolean bold) {
+        if (Objects.equals(this.bold, bold))
+            return;
+
+        var oldValue = this.bold;
+        this.bold = bold;
+        changes.firePropertyChange(BOLD_PROPERTY, oldValue, bold);
+    }
+
+    //endregion
 }

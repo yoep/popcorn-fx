@@ -1,65 +1,30 @@
 package com.github.yoep.popcorn.settings.models;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.beans.PropertyChangeListener;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Settings {
+public interface Settings {
     /**
-     * The torrent settings of the application.
+     * Add a PropertyChangeListener to settings instance.
+     * The listener is registered for all properties.
+     * The same listener object may be added more than once, and will be called
+     * as many times as it is added.
+     * If {@code listener} is null, no exception is thrown and no action
+     * is taken.
+     *
+     * @param listener  The PropertyChangeListener to be added
      */
-    @Builder.Default
-    private TorrentSettings torrentSettings = TorrentSettings.builder().build();
+    void addListener(PropertyChangeListener listener);
+
     /**
-     * The subtitle settings of the application.
+     * Remove a PropertyChangeListener from settings instance.
+     * This removes a PropertyChangeListener that was registered
+     * for all properties.
+     * If {@code listener} was added more than once to the same event
+     * source, it will be notified one less time after being removed.
+     * If {@code listener} is null, or was never added, no exception is
+     * thrown and no action is taken.
+     *
+     * @param listener  The PropertyChangeListener to be removed
      */
-    @Builder.Default
-    private SubtitleSettings subtitleSettings = SubtitleSettings.builder().build();
-    /**
-     * The ui settings of the application.
-     */
-    @Builder.Default
-    private UISettings uiSettings = UISettings.builder().build();
-    /**
-     * The logging settings of the application.
-     */
-    @Builder.Default
-    private LoggingSettings loggingSettings = LoggingSettings.builder().build();
-
-    //region Getters
-
-    public TorrentSettings getTorrentSettings() {
-        if (torrentSettings == null)
-            torrentSettings = TorrentSettings.builder().build();
-
-        return torrentSettings;
-    }
-
-    public SubtitleSettings getSubtitleSettings() {
-        if (subtitleSettings == null)
-            subtitleSettings = SubtitleSettings.builder().build();
-
-        return subtitleSettings;
-    }
-
-    public UISettings getUiSettings() {
-        if (uiSettings == null)
-            uiSettings = UISettings.builder().build();
-
-        return uiSettings;
-    }
-
-    public LoggingSettings getLoggingSettings() {
-        if (loggingSettings == null)
-            loggingSettings = LoggingSettings.builder().build();
-
-        return loggingSettings;
-    }
-
-    //endregion
+    void removeListener(PropertyChangeListener listener);
 }

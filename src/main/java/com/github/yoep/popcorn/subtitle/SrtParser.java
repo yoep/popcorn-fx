@@ -50,14 +50,14 @@ public class SrtParser {
 
     private List<Subtitle> read() throws IOException {
         // read the subtitle file to a string an remove the empty lines at the end
-        String[] lines = FileUtils.readFileToString(file, Charset.defaultCharset()).trim().split("\\r?\\n");
+        List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
 
-        for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-            String line = lines[lineIndex];
+        for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+            String line = lines.get(lineIndex);
 
             // check if we've reached the end of the current subtitle
-            if (StringUtils.isEmpty(line))
-                nextStage();
+            if (StringUtils.isBlank(line))
+                stage = Stage.FINISH;
 
             switch (stage) {
                 case INDEX:
@@ -97,11 +97,11 @@ public class SrtParser {
                 subtitleBuilder.index(Long.parseLong(matcher.group(0)));
                 nextStage();
             } catch (NumberFormatException ex) {
-                String message = MessageFormat.format("Failed to parse subtitle index at line \"{0}\", {1}", lineIndex, ex.getMessage());
+                String message = MessageFormat.format("Failed to parse subtitle index at line {0}, {1}", lineIndex, ex.getMessage());
                 throw new SubtitleParsingException(message, ex);
             }
         } else {
-            String message = MessageFormat.format("Failed to read subtitle index at line \"{0}\", \"{1}\" has no index number", lineIndex, line);
+            String message = MessageFormat.format("Failed to read subtitle index at line {0}, \"{1}\" has no index number", lineIndex, line);
             throw new SubtitleParsingException(message);
         }
     }

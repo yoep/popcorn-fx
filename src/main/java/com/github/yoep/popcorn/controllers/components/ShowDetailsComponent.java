@@ -210,6 +210,9 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                 });
             }
         });
+
+        languageSelection.addListener(newValue -> this.subtitle = newValue);
+        resetLanguageSelection();
     }
 
     private void load(Show media) {
@@ -314,6 +317,11 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             @Override
             public TorrentInfo getTorrent() {
                 return episode.getTorrents().get(quality);
+            }
+
+            @Override
+            public Optional<Episode> getEpisode() {
+                return Optional.of(episode);
             }
 
             @Override

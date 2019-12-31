@@ -9,6 +9,7 @@ import org.springframework.util.Assert;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.text.MessageFormat;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -48,9 +49,12 @@ public class SrtParser {
     }
 
     private List<Subtitle> read() throws IOException {
-        List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
+        // read the subtitle file to a string an remove the empty lines at the end
+        String[] lines = FileUtils.readFileToString(file, Charset.defaultCharset()).trim().split("\\r?\\n");
 
-        for (String line : lines) {
+        for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            String line = lines[lineIndex];
+
             // check if we've reached the end of the current subtitle
             if (StringUtils.isEmpty(line))
                 nextStage();
@@ -58,10 +62,10 @@ public class SrtParser {
             switch (stage) {
                 case INDEX:
                     createNewSubtitle();
-                    readIndex(line);
+                    readIndex(lineIndex, line);
                     break;
                 case TIME:
-                    readTime(line);
+                    readTime(lineIndex, line);
                     break;
                 case TEXT:
                     readText(line);
@@ -83,7 +87,7 @@ public class SrtParser {
         subtitleBuilder = Subtitle.builder();
     }
 
-    private void readIndex(String line) {
+    private void readIndex(int lineIndex, String line) {
         // remove hidden characters with regex
         Matcher matcher = INDEX_PATTERN.matcher(line);
 
@@ -93,14 +97,16 @@ public class SrtParser {
                 subtitleBuilder.index(Long.parseLong(matcher.group(0)));
                 nextStage();
             } catch (NumberFormatException ex) {
-                throw new SubtitleParsingException("Failed to parse subtitle index, " + ex.getMessage(), ex);
+                String message = MessageFormat.format("Failed to parse subtitle index at line \"{0}\", {1}", lineIndex, ex.getMessage());
+                throw new SubtitleParsingException(message, ex);
             }
         } else {
-            throw new SubtitleParsingException("Failed to read subtitle index, \"" + line + "\" has no index number");
+            String message = MessageFormat.format("Failed to read subtitle index at line \"{0}\", \"{1}\" has no index number", lineIndex, line);
+            throw new SubtitleParsingException(message);
         }
     }
 
-    private void readTime(String line) {
+    private void readTime(int lineIndex, String line) {
         Matcher matcher = TIME_PATTERN.matcher(line);
 
         if (matcher.matches()) {
@@ -110,7 +116,8 @@ public class SrtParser {
 
             nextStage();
         } else {
-            throw new SubtitleParsingException("Failed to parse subtitle time, invalid time line format \"" + line + "\"");
+            String message = MessageFormat.format("Failed to parse subtitle time at line {0}, invalid time line format \"{1}\"", lineIndex, line);
+            throw new SubtitleParsingException(message);
         }
     }
 

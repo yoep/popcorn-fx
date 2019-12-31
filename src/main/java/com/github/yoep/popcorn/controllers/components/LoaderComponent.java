@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.LoadTorrentActivity;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.activities.PlayerCloseActivity;
+import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.TorrentMessage;
@@ -38,6 +39,7 @@ public class LoaderComponent {
     private final LocaleText localeText;
 
     private Media media;
+    private Episode episode;
     private SubtitleInfo subtitle;
     private TorrentInfo mediaTorrent;
     private String quality;
@@ -120,6 +122,7 @@ public class LoaderComponent {
     private void startTorrent(LoadTorrentActivity activity) {
         // store the requested media locally for later use
         this.media = activity.getMedia();
+        this.episode = activity.getEpisode().orElse(null);
         this.subtitle = activity.getSubtitle().orElse(null);
         this.quality = activity.getQuality();
         this.mediaTorrent = activity.getTorrent();
@@ -175,6 +178,11 @@ public class LoaderComponent {
             }
 
             @Override
+            public Optional<Episode> getEpisode() {
+                return Optional.ofNullable(episode);
+            }
+
+            @Override
             public Media getMedia() {
                 return media;
             }
@@ -198,6 +206,7 @@ public class LoaderComponent {
 
     private void reset() {
         this.media = null;
+        this.episode = null;
         this.subtitle = null;
         this.mediaTorrent = null;
         this.quality = null;

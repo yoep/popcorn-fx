@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
+import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 
@@ -19,6 +20,13 @@ public interface LoadTorrentActivity extends PlayMediaActivity {
      * @return Returns the torrent that needs to be loaded.
      */
     TorrentInfo getTorrent();
+
+    /**
+     * Get the episode of the media that is being played.
+     *
+     * @return The media episode if available, else {@link Optional#empty()}.
+     */
+    Optional<Episode> getEpisode();
 
     /**
      * Get the subtitle that needs to be preloaded for the playback.

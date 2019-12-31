@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.favorites.FavoriteService;
+import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
@@ -249,6 +250,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             }
 
             @Override
+            public Optional<Episode> getEpisode() {
+                return Optional.empty();
+            }
+
+            @Override
             public Optional<SubtitleInfo> getSubtitle() {
                 return Optional.ofNullable(subtitle);
             }
@@ -265,6 +271,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
             @Override
             public Optional<String> getQuality() {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<Episode> getEpisode() {
                 return Optional.empty();
             }
 

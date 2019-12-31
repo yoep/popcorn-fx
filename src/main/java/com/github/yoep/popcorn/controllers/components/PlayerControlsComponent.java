@@ -228,17 +228,12 @@ public class PlayerControlsComponent implements Initializable {
         if (media instanceof Movie) {
             Movie movie = (Movie) activity.getMedia();
             subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
-        } else if (activity.getQuality().isPresent()) {
+        } else if (activity.getEpisode().isPresent()) {
             Show media = (Show) activity.getMedia();
 
-            media.getEpisodes().stream()
-                    .filter(e -> e.getTorrents().get(activity.getQuality().get()).getUrl().equals(activity.getUrl()))
-                    .findFirst()
-                    .ifPresentOrElse(
-                            e -> subtitleService.retrieveSubtitles(media, e).whenComplete(this::handleSubtitlesResponse),
-                            () -> log.warn("Failed to retrieve subtitles, unable to determine the episode that is being played"));
+            subtitleService.retrieveSubtitles(media, activity.getEpisode().get()).whenComplete(this::handleSubtitlesResponse);
         } else {
-            log.error("Failed to play media, missing quality information?");
+            log.error("Failed to retrieve subtitles, missing episode information");
         }
     }
 

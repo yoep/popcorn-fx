@@ -715,6 +715,10 @@
     -fx-text-fill: #fff;
 }
 
+.root .player .subtitle-track .track-line.outline .text {
+    -fx-effect: dropshadow(one-pass-box, #000, 20, 0, 0, 0);
+}
+
 .root .player .player-header {
     -fx-background-color: linear-gradient(rgba(0, 0, 0, 1) 0%, rgba(255, 255, 255, 0) 100%);
     -fx-padding: 10 0 20 0;

@@ -15,8 +15,8 @@ public class SubtitleSettings extends AbstractSettings {
     public static final String DIRECTORY_PROPERTY = "directory";
     public static final String AUTO_CLEANING_PROPERTY = "autoCleaningEnabled";
     public static final String FONT_FAMILY_PROPERTY = "fontFamily";
+    public static final String FONT_SIZE_PROPERTY = "fontSize";
     public static final String DECORATION_PROPERTY = "decoration";
-    public static final String SIZE_PROPERTY = "size";
     public static final String BOLD_PROPERTY = "bold";
 
     private static final String DEFAULT_SUBTITLE_DIRECTORY = "subtitles";
@@ -42,15 +42,15 @@ public class SubtitleSettings extends AbstractSettings {
     @Builder.Default
     private String fontFamily = DEFAULT_FONT_FAMILY;
     /**
+     * The size of the subtitle font.
+     */
+    @Builder.Default
+    private int fontSize = DEFAULT_SIZE;
+    /**
      * The subtitle decoration type.
      */
     @Builder.Default
     private DecorationType decoration = DEFAULT_DECORATION;
-    /**
-     * The size of the subtitle font.
-     */
-    @Builder.Default
-    private int size = DEFAULT_SIZE;
     /**
      * The indication if the subtitle must always be in the style "bold".
      */
@@ -87,6 +87,15 @@ public class SubtitleSettings extends AbstractSettings {
         changes.firePropertyChange(FONT_FAMILY_PROPERTY, oldValue, fontFamily);
     }
 
+    public void setFontSize(int fontSize) {
+        if (Objects.equals(this.fontSize, fontSize))
+            return;
+
+        var oldValue = this.fontSize;
+        this.fontSize = fontSize;
+        changes.firePropertyChange(FONT_SIZE_PROPERTY, oldValue, fontSize);
+    }
+
     public void setDecoration(DecorationType decoration) {
         if (Objects.equals(this.decoration, decoration))
             return;
@@ -94,15 +103,6 @@ public class SubtitleSettings extends AbstractSettings {
         var oldValue = this.decoration;
         this.decoration = decoration;
         changes.firePropertyChange(DECORATION_PROPERTY, oldValue, decoration);
-    }
-
-    public void setSize(int size) {
-        if (Objects.equals(this.size, size))
-            return;
-
-        var oldValue = this.size;
-        this.size = size;
-        changes.firePropertyChange(SIZE_PROPERTY, oldValue, size);
     }
 
     public void setBold(boolean bold) {

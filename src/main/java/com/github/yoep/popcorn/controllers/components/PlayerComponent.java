@@ -5,10 +5,13 @@ import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.activities.PlayerCloseActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.video.VideoPlayer;
-import com.github.yoep.popcorn.media.video.controls.SubtitleTrack;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
+import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.DecorationType;
+import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
+import com.github.yoep.popcorn.subtitle.controls.SubtitleTrack;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import javafx.animation.FadeTransition;
@@ -19,6 +22,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Cursor;
 import javafx.scene.layout.Pane;
+import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +46,7 @@ public class PlayerComponent implements Initializable {
     private final TaskExecutor taskExecutor;
     private final TorrentService torrentService;
     private final SubtitleService subtitleService;
+    private final SettingsService settingsService;
     private final PlayerHeaderComponent playerHeader;
     private final PlayerControlsComponent playerControls;
 
@@ -69,6 +74,7 @@ public class PlayerComponent implements Initializable {
         log.trace("Initializing video player component for JavaFX");
         initializeSceneEvents();
         initializeVideoPlayer();
+        initializeSubtitleTrack();
     }
 
     //endregion
@@ -91,7 +97,7 @@ public class PlayerComponent implements Initializable {
 
             @Override
             public void onSubtitleSizeChanged(int pixelChange) {
-                subtitleTrack.setFontSizeProperty(subtitleTrack.getFontSizeProperty() + pixelChange);
+                subtitleTrack.setFontSize(subtitleTrack.getFontSize() + pixelChange);
             }
         });
     }
@@ -163,8 +169,38 @@ public class PlayerComponent implements Initializable {
         this.playerControls.setVideoPlayer(this.videoPlayer);
     }
 
+    private void initializeSubtitleTrack() {
+        SubtitleSettings subtitleSettings = settingsService.getSettings().getSubtitleSettings();
+
+        subtitleTrack.setFontFamily(subtitleSettings.getFontFamily());
+        subtitleTrack.setFontSize(subtitleSettings.getFontSize());
+        subtitleTrack.setFontWeight(getFontWeight(subtitleSettings.isBold()));
+        subtitleTrack.setOutline(subtitleSettings.getDecoration() == DecorationType.OUTLINE);
+
+        subtitleSettings.addListener(evt -> {
+            switch (evt.getPropertyName()) {
+                case SubtitleSettings.FONT_FAMILY_PROPERTY:
+                    subtitleTrack.setFontFamily((String) evt.getNewValue());
+                    break;
+                case SubtitleSettings.FONT_SIZE_PROPERTY:
+                    subtitleTrack.setFontSize((Integer) evt.getNewValue());
+                    break;
+                case SubtitleSettings.BOLD_PROPERTY:
+                    var bold = (Boolean) evt.getNewValue();
+                    subtitleTrack.setFontWeight(getFontWeight(bold));
+                    break;
+                case SubtitleSettings.DECORATION_PROPERTY:
+                    DecorationType type = (DecorationType) evt.getNewValue();
+
+                    subtitleTrack.setOutline(type == DecorationType.OUTLINE);
+                    break;
+            }
+        });
+    }
+
     private void onPlayVideo(PlayVideoActivity activity) {
-        log.debug("Received play video activity for url {}, quality {} and media {}", activity.getUrl(), activity.getQuality().orElse("-"), activity.getMedia());
+        log.debug("Received play video activity for url {}, quality {} and media {}", activity.getUrl(), activity.getQuality().orElse("-"),
+                activity.getMedia());
         this.media = activity.getMedia();
         this.videoChangeTime = System.currentTimeMillis();
         var activitySubtitle = activity.getSubtitle();
@@ -258,6 +294,10 @@ public class PlayerComponent implements Initializable {
 
         Platform.runLater(() -> subtitleTrack.clear());
         taskExecutor.execute(() -> videoPlayer.stop());
+    }
+
+    private FontWeight getFontWeight(boolean isBold) {
+        return isBold ? FontWeight.BOLD : FontWeight.NORMAL;
     }
 
     /**

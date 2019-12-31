@@ -15,11 +15,13 @@
         <RowConstraints/>
         <RowConstraints/>
         <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
     </rowConstraints>
 
     <!-- Subtitles title -->
     <Label styleClass="subsection-title" text="%settings_subtitles" GridPane.valignment="TOP"
-           GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+           GridPane.rowSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
     <!-- Default language -->
     <Label text="%settings_subtitles_default"
@@ -27,7 +29,25 @@
     <ComboBox fx:id="defaultSubtitle"
               GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
+    <!-- Font family -->
+    <Label text="%settings_subtitles_font_family"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <ComboBox fx:id="fontFamily"
+              GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+
+    <!-- Decoration -->
+    <Label text="%settings_subtitles_decoration"
+           GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    <ComboBox fx:id="decoration"
+              GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+
+    <!-- Font size -->
+    <Label text="%settings_subtitles_font_size"
+           GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+    <ComboBox fx:id="fontSize" styleClass="small"
+              GridPane.columnIndex="2" GridPane.rowIndex="3"/>
+
     <!-- Separator -->
     <Separator
-            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 </GridPane>

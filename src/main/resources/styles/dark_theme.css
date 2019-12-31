@@ -715,8 +715,16 @@
     -fx-text-fill: #fff;
 }
 
-.root .player .subtitle-track .track-line.outline .text {
+.root .player .subtitle-track .track-line.outline {
     -fx-effect: dropshadow(one-pass-box, #000, 20, 0, 0, 0);
+}
+
+.root .player .subtitle-track .track-line.opaque {
+    -fx-background-color: #000;
+}
+
+.root .player .subtitle-track .track-line.see-through {
+    -fx-background-color: rgba(0, 0, 0, 0.4);
 }
 
 .root .player .player-header {

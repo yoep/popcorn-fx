@@ -32,7 +32,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -128,10 +127,10 @@ public class PlayerControlsComponent implements Initializable {
 
     @PostConstruct
     private void init() {
-        initializeListeners();
+        initializeActivityListeners();
     }
 
-    private void initializeListeners() {
+    private void initializeActivityListeners() {
         activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
         activityManager.register(PlayerCloseActivity.class, activity -> reset());
         activityManager.register(FullscreenActivity.class, this::onFullscreenChanged);

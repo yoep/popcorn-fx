@@ -8,10 +8,10 @@ import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
 import com.github.yoep.popcorn.settings.SettingsService;
-import com.github.yoep.popcorn.subtitle.models.DecorationType;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.SubtitleTrack;
+import com.github.yoep.popcorn.subtitle.models.DecorationType;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import javafx.animation.FadeTransition;
@@ -175,7 +175,7 @@ public class PlayerComponent implements Initializable {
         subtitleTrack.setFontFamily(subtitleSettings.getFontFamily().getFamily());
         subtitleTrack.setFontSize(subtitleSettings.getFontSize());
         subtitleTrack.setFontWeight(getFontWeight(subtitleSettings.isBold()));
-        subtitleTrack.setOutline(subtitleSettings.getDecoration() == DecorationType.OUTLINE);
+        subtitleTrack.setDecoration(subtitleSettings.getDecoration());
 
         subtitleSettings.addListener(evt -> {
             switch (evt.getPropertyName()) {
@@ -190,9 +190,7 @@ public class PlayerComponent implements Initializable {
                     subtitleTrack.setFontWeight(getFontWeight(bold));
                     break;
                 case SubtitleSettings.DECORATION_PROPERTY:
-                    DecorationType type = (DecorationType) evt.getNewValue();
-
-                    subtitleTrack.setOutline(type == DecorationType.OUTLINE);
+                    subtitleTrack.setDecoration((DecorationType) evt.getNewValue());
                     break;
             }
         });

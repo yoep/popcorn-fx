@@ -12,11 +12,13 @@ import java.util.Arrays;
 @ToString
 @EqualsAndHashCode(of = {"flag"})
 public class TrackFlags {
-    public static final TrackFlags NORMAL = new TrackFlags(0);      // 0000 0000
-    public static final TrackFlags ITALIC = new TrackFlags(1);      // 0000 0001
-    public static final TrackFlags BOLD = new TrackFlags(2);        // 0000 0010
-    public static final TrackFlags UNDERLINE = new TrackFlags(4);   // 0000 0100
-    public static final TrackFlags OUTLINE = new TrackFlags(8);     // 0000 1000
+    public static final TrackFlags NORMAL = new TrackFlags(0);                  // 0000 0000
+    public static final TrackFlags ITALIC = new TrackFlags(1);                  // 0000 0001
+    public static final TrackFlags BOLD = new TrackFlags(2);                    // 0000 0010
+    public static final TrackFlags UNDERLINE = new TrackFlags(4);               // 0000 0100
+    public static final TrackFlags OUTLINE = new TrackFlags(8);                 // 0000 1000
+    public static final TrackFlags OPAQUE_BACKGROUND = new TrackFlags(16);      // 0001 0000
+    public static final TrackFlags SEE_THROUGH_BACKGROUND = new TrackFlags(32); // 0010 0000
 
     private int flag;
 

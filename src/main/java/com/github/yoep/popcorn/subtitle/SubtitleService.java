@@ -26,6 +26,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -142,6 +143,27 @@ public class SubtitleService {
 
     //endregion
 
+    //region PostConstruct
+
+    @PostConstruct
+    private void init() {
+        initializeListeners();
+    }
+
+    private void initializeListeners() {
+        SubtitleSettings settings = getSettings();
+
+        settings.addListener(evt -> {
+            if (SubtitleSettings.DIRECTORY_PROPERTY.equals(evt.getPropertyName())) {
+                // clean old directory
+                if (settings.isAutoCleaningEnabled())
+                    cleanCacheDirectory((File) evt.getOldValue());
+            }
+        });
+    }
+
+    //endregion
+
     //region PreDestroy
 
     @PreDestroy
@@ -149,12 +171,7 @@ public class SubtitleService {
         var settings = getSettings();
 
         if (settings.isAutoCleaningEnabled() && settings.getDirectory().exists()) {
-            try {
-                log.info("Cleaning subtitles directory {}", settings.getDirectory());
-                FileUtils.cleanDirectory(settings.getDirectory());
-            } catch (IOException ex) {
-                log.error(ex.getMessage(), ex);
-            }
+            cleanCacheDirectory(settings.getDirectory());
         }
     }
 
@@ -352,6 +369,15 @@ public class SubtitleService {
         subtitleDirectory.mkdirs();
 
         return new File(subtitleDirectory.getAbsolutePath() + File.separator + filename);
+    }
+
+    private void cleanCacheDirectory(File directory) {
+        try {
+            log.info("Cleaning subtitles directory {}", directory);
+            FileUtils.cleanDirectory(directory);
+        } catch (IOException ex) {
+            log.error(ex.getMessage(), ex);
+        }
     }
 
     //endregion

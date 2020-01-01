@@ -29,14 +29,15 @@ public class VideoPlayerYoutube implements VideoPlayer {
     private static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
     private static final String YOUTUBE_URL_INDICATOR = "youtu";
 
-    protected final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
-    protected final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
-    protected final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
+    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
+    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
+    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
     private final YoutubePlayerBridge playerBridge = new YoutubePlayerBridge();
 
     private Pane videoPane;
     private WebView webView;
     private boolean initialized;
+    private boolean bridgeInitialized;
 
     //region Properties
 
@@ -227,6 +228,7 @@ public class VideoPlayerYoutube implements VideoPlayer {
             if (newValue == Worker.State.RUNNING) {
                 JSObject window = (JSObject) engine.executeScript("window");
                 window.setMember("VPY", playerBridge);
+                bridgeInitialized = true;
             }
         });
 
@@ -243,7 +245,17 @@ public class VideoPlayerYoutube implements VideoPlayer {
         show();
         String videoId = getVideoId(url);
 
-        Platform.runLater(() -> getEngine().executeScript("window.play('" + videoId + "');"));
+        new Thread(() -> {
+            try {
+                while (!bridgeInitialized) {
+                    Thread.sleep(100);
+                }
+
+                Platform.runLater(() -> getEngine().executeScript("window.play('" + videoId + "');"));
+            } catch (InterruptedException ex) {
+                log.error("Unexpectedly quit of wait for webview worker monitor", ex);
+            }
+        }, "YoutubePlayer-monitor").start();
     }
 
     private String getVideoId(String url) {

@@ -155,6 +155,9 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                        <configuration>
+                            <finalName>popcorn-time</finalName>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.controllers.components.LoaderComponent"
+          styleClass="loader">
+    <columnConstraints>
+        <ColumnConstraints minWidth="20" percentWidth="20"/>
+        <ColumnConstraints minWidth="400" percentWidth="60" hgrow="ALWAYS"/>
+        <ColumnConstraints minWidth="20" percentWidth="20"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="20" percentHeight="20"/>
+        <RowConstraints minHeight="300" percentHeight="60" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="20" percentHeight="20"/>
+    </rowConstraints>
+
+    <fx:include source="background.component.fxml"
+                GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <VBox GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="20" alignment="CENTER">
+        <!-- Label -->
+        <Label fx:id="statusText" styleClass="status-text"/>
+
+        <!-- Progress -->
+        <ProgressBar fx:id="progressBar" maxWidth="Infinity"/>
+        <GridPane fx:id="progressStatus" styleClass="progress-status">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="50"/>
+                <ColumnConstraints percentWidth="50"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+            <vgap>2</vgap>
+            <hgap>2</hgap>
+            <padding>
+                <Insets topRightBottomLeft="10" />
+            </padding>
+
+            <!-- Percentage -->
+            <Label fx:id="progressPercentage" GridPane.halignment="CENTER"
+                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+            <Label text="%torrent_download"
+                   GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <Label text="%torrent_upload"
+                   GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+            <Label text="%torrent_active_peers"
+                   GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+
+            <Label fx:id="downloadText"
+                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            <Label fx:id="uploadText"
+                   GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+            <Label fx:id="activePeersText"
+                   GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+        </GridPane>
+
+        <!-- Cancel -->
+        <Button text="%torrent_cancel" onMouseClicked="#onCancelClicked"/>
+    </VBox>
+</GridPane>

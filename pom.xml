@@ -13,6 +13,14 @@
     <groupId>com.github.yoep</groupId>
     <artifactId>popcorn-time</artifactId>
     <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>popcorn-time-application</module>
+        <module>video-adapter</module>
+        <module>video-javafx</module>
+        <module>video-vlc</module>
+    </modules>
 
     <repositories>
         <repository>
@@ -33,8 +41,31 @@
         </repository>
     </repositories>
 
+    <properties>
+        <java.version>11</java.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+
+        <spring-boot-starter-javafx.version>1.0.0</spring-boot-starter-javafx.version>
+        <commons-io.version>2.6</commons-io.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
+            <!-- JavaFX -->
+            <dependency>
+                <groupId>com.github.yoep</groupId>
+                <artifactId>spring-boot-starter-javafx</artifactId>
+                <version>${spring-boot-starter-javafx.version}</version>
+            </dependency>
+
+            <!-- Apache -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>net.java.dev.jna</groupId>
                 <artifactId>jna</artifactId>
@@ -47,134 +78,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <properties>
-        <java.version>11</java.version>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-
-        <commons-text.version>1.8</commons-text.version>
-        <commons-io.version>2.6</commons-io.version>
-        <jlibtorrent.version>1.2.0.18</jlibtorrent.version>
-        <vlc.version>4.2.0</vlc.version>
-    </properties>
-
-    <dependencies>
-        <!-- Apache -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>${commons-io.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-text</artifactId>
-            <version>${commons-text.version}</version>
-        </dependency>
-
-        <!-- Spring -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
-            <exclusions>
-                <exclusion>
-                    <artifactId>spring-boot-starter-logging</artifactId>
-                    <groupId>org.springframework.boot</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-log4j2</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- JavaFX -->
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>spring-boot-starter-javafx</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
-        <!-- JLibtorrent -->
-        <dependency>
-            <groupId>com.frostwire</groupId>
-            <artifactId>jlibtorrent</artifactId>
-            <version>${jlibtorrent.version}</version>
-        </dependency>
-
-        <!-- VLC player -->
-        <dependency>
-            <groupId>uk.co.caprica</groupId>
-            <artifactId>vlcj</artifactId>
-            <version>${vlc.version}</version>
-        </dependency>
-
-        <!-- OpenSubtitles -->
-        <dependency>
-            <groupId>de.timroes</groupId>
-            <artifactId>aXMLRPC</artifactId>
-            <version>1.8.0</version>
-        </dependency>
-
-        <!-- Jackson -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jdk8</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
-        </dependency>
-
-        <!-- Compilation -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-
-        <!-- Testing -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
 
     <build>
         <plugins>
@@ -195,19 +98,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -224,48 +114,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>windows</id>
-
-            <dependencies>
-                <!-- JLibtorrent -->
-                <dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent-windows</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
-        <profile>
-            <id>linux</id>
-
-            <dependencies>
-                <!-- JLibtorrent -->
-                <dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent-linux</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
-        <profile>
-            <id>arm</id>
-
-            <dependencies>
-                <!-- JLibtorrent -->
-                <dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent-android-arm</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                </dependency>
-                <!--<dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent-android-x86</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                </dependency>-->
-            </dependencies>
-        </profile>
-    </profiles>
 </project>

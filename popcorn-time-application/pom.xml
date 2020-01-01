@@ -33,11 +33,11 @@
             <artifactId>video-javafx</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!--<dependency>
+        <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>video-vlc</artifactId>
             <version>${project.version}</version>
-        </dependency>-->
+        </dependency>
 
         <!-- Apache -->
         <dependency>

@@ -1,4 +1,4 @@
-package com.github.yoep.video.vlc;
+package com.github.yoep.video.youtube;
 
 import javafx.animation.AnimationTimer;
 

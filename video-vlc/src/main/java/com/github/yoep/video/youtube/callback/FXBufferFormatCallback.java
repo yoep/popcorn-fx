@@ -1,4 +1,4 @@
-package com.github.yoep.video.vlc.callback;
+package com.github.yoep.video.youtube.callback;
 
 import javafx.geometry.Rectangle2D;
 import javafx.scene.image.PixelBuffer;

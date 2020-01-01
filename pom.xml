@@ -20,6 +20,7 @@
         <module>video-adapter</module>
         <module>video-javafx</module>
         <module>video-vlc</module>
+        <module>video-youtube</module>
     </modules>
 
     <repositories>

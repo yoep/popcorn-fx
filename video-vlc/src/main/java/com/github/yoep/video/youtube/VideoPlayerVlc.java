@@ -1,15 +1,9 @@
-package com.github.yoep.video.vlc;
+package com.github.yoep.video.youtube;
 
-import com.github.yoep.video.adapter.VideoPlayer;
-import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
-import com.github.yoep.video.vlc.callback.FXBufferFormatCallback;
-import com.github.yoep.video.vlc.callback.FXCallbackVideoSurface;
-import com.github.yoep.video.vlc.callback.FXRenderCallback;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import com.github.yoep.video.youtube.callback.FXBufferFormatCallback;
+import com.github.yoep.video.youtube.callback.FXCallbackVideoSurface;
+import com.github.yoep.video.youtube.callback.FXRenderCallback;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
@@ -20,18 +14,13 @@ import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
 @Slf4j
-public class VideoPlayerVlc implements VideoPlayer {
+public class VideoPlayerVlc extends VideoPlayerYoutube {
     private final Canvas canvas = new Canvas();
-    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
-    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
-    private final LongProperty length = new SimpleLongProperty(this, DURATION_PROPERTY);
 
     private final FXCallbackVideoSurface surface;
     private final MediaPlayerFactory mediaPlayerFactory;
     private final EmbeddedMediaPlayer mediaPlayer;
     private final VideoAnimationTimer timer;
-
-    private boolean initialized;
 
     //region Constructors
 
@@ -49,85 +38,18 @@ public class VideoPlayerVlc implements VideoPlayer {
 
     //endregion
 
-    //region Properties
-
-    @Override
-    public PlayerState getPlayerState() {
-        return playerState.get();
-    }
-
-    @Override
-    public ObjectProperty<PlayerState> playerStateProperty() {
-        return playerState;
-    }
-
-    /**
-     * Set the state of the video player.
-     *
-     * @param playerState The new state of the video player.
-     */
-    private void setPlayerState(PlayerState playerState) {
-        this.playerState.set(playerState);
-    }
-
-    @Override
-    public long getTime() {
-        return time.get();
-    }
-
-    @Override
-    public LongProperty timeProperty() {
-        return time;
-    }
-
-    /**
-     * Set the current time of the media playback.
-     *
-     * @param time The time of the playback.
-     */
-    private void setTime(long time) {
-        this.time.set(time);
-    }
-
-    @Override
-    public long getDuration() {
-        return length.get();
-    }
-
-    @Override
-    public LongProperty durationProperty() {
-        return length;
-    }
-
-    /**
-     * Set the length of the current media playback.
-     *
-     * @param length The length in milliseconds.
-     */
-    private void setLength(long length) {
-        this.length.set(length);
-    }
-
-    //endregion
-
-    //region Getters & Setters
-
-    @Override
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    //endregion
-
     //region VideoPlayer
 
     @Override
     public void initialize(Pane videoPane) {
+        super.initialize(videoPane);
         init(videoPane);
     }
 
     @Override
     public void dispose() {
+        super.dispose();
+
         stop();
         mediaPlayer.release();
         mediaPlayerFactory.release();
@@ -135,15 +57,22 @@ public class VideoPlayerVlc implements VideoPlayer {
 
     @Override
     public void play(String url) {
-        checkInitialized();
+        super.play(url);
 
-        timer.start();
-        mediaPlayer.submit(() -> mediaPlayer.media().play(url));
+        if (!isYoutubeUrl(url)) {
+            hide();
+
+            timer.start();
+            mediaPlayer.submit(() -> mediaPlayer.media().play(url));
+        }
     }
 
     @Override
     public void pause() {
-        checkInitialized();
+        super.pause();
+
+        if (isYoutubePlayerActive())
+            return;
 
         timer.stop();
         mediaPlayer.submit(() -> mediaPlayer.controls().pause());
@@ -151,7 +80,10 @@ public class VideoPlayerVlc implements VideoPlayer {
 
     @Override
     public void resume() {
-        checkInitialized();
+        super.resume();
+
+        if (isYoutubePlayerActive())
+            return;
 
         timer.start();
         mediaPlayer.submit(() -> mediaPlayer.controls().play());
@@ -159,16 +91,23 @@ public class VideoPlayerVlc implements VideoPlayer {
 
     @Override
     public void seek(long time) {
-        checkInitialized();
+        super.seek(time);
+
+        if (isYoutubePlayerActive())
+            return;
 
         mediaPlayer.submit(() -> mediaPlayer.controls().setTime(time));
     }
 
     @Override
     public void stop() {
-        timer.stop();
+        super.stop();
+
+        if (isYoutubePlayerActive())
+            return;
 
         mediaPlayer.submit(() -> mediaPlayer.controls().stop());
+        timer.stop();
         surface.reset();
     }
 
@@ -215,7 +154,7 @@ public class VideoPlayerVlc implements VideoPlayer {
 
             @Override
             public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
-                setLength(newLength);
+                setDuration(newLength);
             }
         });
     }
@@ -227,12 +166,6 @@ public class VideoPlayerVlc implements VideoPlayer {
         this.canvas.heightProperty().bind(videoPane.heightProperty());
         videoPane.getChildren().add(this.canvas);
         this.mediaPlayer.videoSurface().set(surface);
-        this.initialized = true;
-    }
-
-    private void checkInitialized() {
-        if (!initialized)
-            throw new VideoPlayerNotInitializedException(this);
     }
 
     //endregion

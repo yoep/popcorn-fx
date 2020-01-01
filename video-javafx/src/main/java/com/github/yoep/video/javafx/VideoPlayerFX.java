@@ -1,117 +1,31 @@
 package com.github.yoep.video.javafx;
 
-import com.github.yoep.video.adapter.VideoPlayer;
-import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
+import com.github.yoep.video.youtube.VideoPlayerYoutube;
 import javafx.application.Platform;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.layout.Pane;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaException;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
-import javafx.scene.web.WebEngine;
-import javafx.scene.web.WebView;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
-import netscape.javascript.JSObject;
-import org.apache.commons.io.IOUtils;
-import org.springframework.core.io.ClassPathResource;
-
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
-public class VideoPlayerFX implements VideoPlayer {
-    private static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
-
-    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
-    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
-    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
-
+public class VideoPlayerFX extends VideoPlayerYoutube {
     private MediaView mediaView;
     private MediaPlayer mediaPlayer;
-    private WebView webView;
-    private boolean initialized;
-
-    //region Properties
-
-    @Override
-    public PlayerState getPlayerState() {
-        return playerState.get();
-    }
-
-    @Override
-    public ObjectProperty<PlayerState> playerStateProperty() {
-        return playerState;
-    }
-
-    private void setPlayerState(PlayerState playerState) {
-        this.playerState.set(playerState);
-    }
-
-    @Override
-    public long getTime() {
-        return time.get();
-    }
-
-    @Override
-    public LongProperty timeProperty() {
-        return time;
-    }
-
-    private void setTime(long time) {
-        this.time.set(time);
-    }
-
-    @Override
-    public long getDuration() {
-        return duration.get();
-    }
-
-    @Override
-    public LongProperty durationProperty() {
-        return duration;
-    }
-
-    private void setDuration(long duration) {
-        this.duration.set(duration);
-    }
-
-
-    //endregion
-
-    //region Getters
-
-    @Override
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    //endregion
 
     //region VideoPlayer
 
     @Override
     public void initialize(Pane videoPane) {
+        super.initialize(videoPane);
+
         Platform.runLater(() -> {
             mediaView = new MediaView();
-            webView = new WebView();
-
-            webView.prefWidthProperty().bind(videoPane.widthProperty());
-            webView.prefHeightProperty().bind(videoPane.heightProperty());
-            initializeWebviewEvents();
-
-            videoPane.getChildren().add(webView);
             videoPane.getChildren().add(mediaView);
-
-            initialized = true;
         });
     }
 
@@ -123,12 +37,11 @@ public class VideoPlayerFX implements VideoPlayer {
 
     @Override
     public void play(String url) throws VideoPlayerNotInitializedException {
-        checkInitialized();
+        super.play(url);
 
-        if (isYoutubeUrl(url)) {
-            playYoutubeUrl(url);
-        } else {
-            switchView(false);
+        if (!isYoutubeUrl(url)) {
+            hide();
+
             mediaPlayer = new MediaPlayer(new Media(url));
             initializeMediaPlayerEvents();
             mediaPlayer.play();
@@ -137,31 +50,43 @@ public class VideoPlayerFX implements VideoPlayer {
 
     @Override
     public void pause() throws VideoPlayerNotInitializedException {
-        checkInitialized();
+        super.pause();
+
+        if (isYoutubePlayerActive())
+            return;
 
         mediaPlayer.pause();
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
-        checkInitialized();
+        super.resume();
+
+        if (isYoutubePlayerActive())
+            return;
 
         mediaPlayer.play();
     }
 
     @Override
     public void seek(long time) throws VideoPlayerNotInitializedException {
-        checkInitialized();
+        super.seek(time);
+
+        if (isYoutubePlayerActive())
+            return;
 
         mediaPlayer.seek(Duration.millis(time));
     }
 
     @Override
     public void stop() {
-        if (mediaPlayer == null)
+        super.stop();
+
+        if (isYoutubePlayerActive() || mediaPlayer == null)
             return;
 
         mediaPlayer.stop();
+        mediaPlayer = null;
     }
 
     //endregion
@@ -183,15 +108,6 @@ public class VideoPlayerFX implements VideoPlayer {
         mediaPlayer.setOnError(this::onError);
     }
 
-    private void initializeWebviewEvents() {
-        WebEngine engine = webView.getEngine();
-
-        engine.documentProperty().addListener((observable, oldValue, newValue) -> {
-            JSObject window = (JSObject) engine.executeScript("window");
-            //            window.setMember("OpenDoc", );
-        });
-    }
-
     private PlayerState convertStatus(MediaPlayer.Status status) {
         switch (status) {
             case PLAYING:
@@ -203,48 +119,6 @@ public class VideoPlayerFX implements VideoPlayer {
             case UNKNOWN:
             default:
                 return PlayerState.UNKNOWN;
-        }
-    }
-
-    private void checkInitialized() {
-        if (!initialized)
-            throw new VideoPlayerNotInitializedException(this);
-    }
-
-    private String getVideoId(String url) {
-        Matcher matcher = VIDEO_ID_PATTERN.matcher(url);
-
-        if (matcher.find()) {
-            return matcher.group(1);
-        } else {
-            throw new VideoPlayerException("Failed to play youtube url, unable to retrieve video id");
-        }
-    }
-
-    private boolean isYoutubeUrl(String url) {
-        return url.toLowerCase().contains("youtu");
-    }
-
-    private void switchView(boolean isWebViewVisible) {
-        Platform.runLater(() -> {
-            mediaView.setVisible(!isWebViewVisible);
-            webView.setVisible(isWebViewVisible);
-        });
-    }
-
-    private void playYoutubeUrl(String url) {
-        switchView(true);
-        ClassPathResource resource = new ClassPathResource("embed_youtube.html");
-
-        try {
-            String content = IOUtils.toString(resource.getInputStream(), Charset.defaultCharset()).replace("[[VIDEO_ID]]", getVideoId(url));
-
-            Platform.runLater(() -> {
-                webView.getEngine().setJavaScriptEnabled(true);
-                webView.getEngine().loadContent(content);
-            });
-        } catch (IOException e) {
-            throw new VideoPlayerException(e.getMessage(), e);
         }
     }
 

@@ -289,7 +289,7 @@ public class VideoPlayerYoutube implements VideoPlayer {
         }
 
         public void log(String message) {
-            log.debug("[WebView] " + message);
+            log.trace("[WebView] " + message);
         }
     }
 }

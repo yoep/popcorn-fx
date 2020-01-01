@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.controllers.components;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.models.DecorationType;
@@ -10,6 +11,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.DirectoryChooser;
@@ -28,6 +30,7 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class SettingsSubtitlesComponent implements Initializable {
     private final SettingsService settingsService;
+    private final LocaleText localeText;
 
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
 
@@ -76,6 +79,9 @@ public class SettingsSubtitlesComponent implements Initializable {
     private void initializeDecoration() {
         SubtitleSettings settings = getSettings();
 
+        decoration.setCellFactory(param -> getDecorationCell());
+        decoration.setButtonCell(getDecorationCell());
+
         decoration.getItems().addAll(DecorationType.values());
         decoration.getSelectionModel().select(settings.getDecoration());
         decoration.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> settings.setDecoration(newValue));
@@ -121,6 +127,19 @@ public class SettingsSubtitlesComponent implements Initializable {
 
     private SubtitleSettings getSettings() {
         return settingsService.getSettings().getSubtitleSettings();
+    }
+
+    private ListCell<DecorationType> getDecorationCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(DecorationType item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty) {
+                    setText(localeText.get("settings_subtitles_style_" + item.toString().toLowerCase()));
+                }
+            }
+        };
     }
 
     private static List<Integer> getFontSizes() {

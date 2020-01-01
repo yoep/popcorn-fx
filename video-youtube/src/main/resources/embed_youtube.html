@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script
+            src="https://code.jquery.com/jquery-3.4.1.min.js"
+            integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+            crossorigin="anonymous"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+
+<div id="player"></div>
+
+<!-- Youtube script -->
+<script type="text/javascript">
+    // 2. This code loads the IFrame Player API code asynchronously.
+    var tag = document.createElement('script');
+
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    // 3. This function creates an <iframe> (and YouTube player)
+    //    after the API code downloads.
+    var player;
+
+    function onYouTubeIframeAPIReady() {
+        console.log("Youtube Iframe API is ready");
+        player = new YT.Player('player', {
+            height: window.innerHeight,
+            width: window.innerWidth,
+            playerVars: {
+                'autoplay': 1,
+                'controls': 0,
+                'modestbranding': 1
+            },
+            events: {
+                'onStateChange': onPlayerStateChange,
+                'onError': onPlayerError
+            }
+        });
+    }
+
+    function onPlayerStateChange(event) {
+        var state = event.data;
+
+        console.log("Youtube Player state changed to " + state);
+        if (state === YT.PlayerState.PLAYING) {
+            VPY.state("playing");
+            startListener();
+        } else if (state === YT.PlayerState.PAUSED) {
+            VPY.state("paused");
+        } else if (state === YT.PlayerState.ENDED) {
+            VPY.state("ended");
+            stopListener();
+        }
+    }
+
+    function onPlayerError(event) {
+        console.log("The Youtube Player encountered an issue: " + event.data);
+    }
+
+    /**
+     * Play the given video ID in the player.
+     *
+     * @param id The video ID.
+     */
+    function play(id) {
+        player.loadVideoById(id, 0);
+    }
+
+    function pause() {
+        player.pauseVideo();
+    }
+
+    function resume() {
+        player.playVideo();
+    }
+
+    function seek(time) {
+        player.seekTo(time, true);
+    }
+
+    /**
+     * Stop the current playback.
+     */
+    function stop() {
+        player.stopVideo();
+        stopListener();
+    }
+</script>
+
+<!-- Webpage script -->
+<script>
+    var playerListener;
+
+    console.log = function (message) {
+        VPY.log(message);
+    };
+
+    $(window).resize(function () {
+        if (player === undefined)
+            return;
+
+        var iframe = $(player.getIframe());
+
+        iframe.width($(window).width());
+        iframe.height($(window).height());
+    });
+
+    function startListener() {
+        console.log("Starting Youtube Player listener");
+        VPY.duration(player.getDuration());
+
+        playerListener = setInterval(function () {
+            VPY.time(player.getCurrentTime());
+        }, 100);
+    }
+
+    function stopListener() {
+        console.log("Starting Youtube Player listener");
+        clearInterval(playerListener);
+    }
+</script>
+</body>
+</html>

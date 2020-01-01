@@ -12,7 +12,7 @@ missing from the modules causing an `IllegalAccessException` when trying to run 
 
 Add the following options to the `VM Options` in the run configuration of IntelliJ to fix this issue. 
 
-    -p "<PATH TO JAVAFX SDK>\lib" --add-modules javafx.controls,javafx.fxml,javafx.swing
+    -p "<PATH TO JAVAFX SDK>\lib" --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.swing
 
 ## White box glitch
 
@@ -28,14 +28,23 @@ Add the following VM option to enable the virtual keyboard
 
 ## TODO features
 
-- Add language selection
+### Must
+
 - Add stream stats to player
-- Add settings
 - Mark as watched when the video is at 90%
+- Update torrent buffering when seeking through the video
+- Add fallback to native JavaFX media player
+
+### Should
+
 - Resume video on last view time
+- Paste magnet links in the application
+- Implement watchlist
+- Implement torrent collection
 
-## System Requirements
+### Could
 
-- Java 11+
-- OpenJFX 13
-- VLC Media Player
+- Add loading card to the list view while loading
+- Add loading indicator to the player
+- Update video time slider to show video loading progress (custom control)
+- Trakt.tv integration

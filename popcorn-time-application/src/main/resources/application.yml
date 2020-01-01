@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: Popcorn Time
+
+logging:
+  level:
+    org.springframework: WARN
+    com.github.yoep.popcorn: INFO
+
+popcorn:
+  providers:
+    movies:
+      url: https://tv-v2.api-fetch.website/
+      genres:
+        - all
+        - action
+        - adventure
+        - animation
+        - comedy
+        - crime
+        - disaster
+        - documentary
+        - drama
+        - family
+        - fantasy
+        - history
+        - holiday
+        - horror
+        - music
+        - mystery
+        - romance
+        - science-fiction
+        - short
+        - suspense
+        - thriller
+        - war
+        - western
+      sort-by:
+        - trending
+        - popularity
+        - last added
+        - year
+        - title
+        - rating
+    series:
+      url: https://tv-v2.api-fetch.website/
+      genres:
+        - all
+        - action
+        - adventure
+        - animation
+        - children
+        - comedy
+        - crime
+        - documentary
+        - drama
+        - family
+        - fantasy
+        - horror
+        - mini Series
+        - mystery
+        - news
+        - reality
+        - romance
+        - science-fiction
+        - soap
+        - special Interest
+        - sport
+        - suspense
+        - talk Show
+        - thriller
+        - western
+      sort-by:
+        - trending
+        - popularity
+        - updated
+        - year
+        - name
+        - rating
+    favorites:
+      genres:
+        - all
+        - movies
+        - tv
+      sort-by:
+        - trending
+        - popularity
+        - last added
+        - year
+        - title
+        - rating
+  subtitle:
+    url: http://api.opensubtitles.org/xml-rpc
+    user-agent: Popcorn Time v1

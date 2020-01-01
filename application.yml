@@ -5,3 +5,6 @@ logging:
     com.github.yoep.popcorn.subtitle: DEBUG
     com.github.yoep.popcorn.torrent: DEBUG
     com.github.yoep.popcorn.watched: DEBUG
+    com.github.yoep.video.youtube: DEBUG
+    com.github.yoep.video.javafx: DEBUG
+    com.github.yoep.video.vlc: DEBUG

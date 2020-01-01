@@ -17,7 +17,6 @@ import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
-import com.github.yoep.popcorn.subtitle.models.Language;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -195,19 +194,17 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                 if (item == null)
                     return;
 
-                setText(Language.valueOf(item.getLanguage()).getNativeName());
-                item.getFlagResource().ifPresent(e -> {
-                    try {
-                        var image = new ImageView(new Image(e.getInputStream()));
+                setText(item.getLanguage().getNativeName());
+                try {
+                    var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
 
-                        image.setFitHeight(15);
-                        image.setPreserveRatio(true);
+                    image.setFitHeight(15);
+                    image.setPreserveRatio(true);
 
-                        setGraphic(image);
-                    } catch (IOException ex) {
-                        log.error(ex.getMessage(), ex);
-                    }
-                });
+                    setGraphic(image);
+                } catch (IOException ex) {
+                    log.error(ex.getMessage(), ex);
+                }
             }
         });
 

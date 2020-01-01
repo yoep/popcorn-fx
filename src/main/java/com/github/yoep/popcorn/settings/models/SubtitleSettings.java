@@ -1,6 +1,9 @@
 package com.github.yoep.popcorn.settings.models;
 
 import com.github.yoep.popcorn.PopcornTimeApplication;
+import com.github.yoep.popcorn.subtitle.models.DecorationType;
+import com.github.yoep.popcorn.subtitle.models.SubtitleFamily;
+import com.github.yoep.popcorn.subtitle.models.SubtitleLanguage;
 import lombok.*;
 
 import java.io.File;
@@ -37,10 +40,15 @@ public class SubtitleSettings extends AbstractSettings {
     @Builder.Default
     private boolean autoCleaningEnabled = true;
     /**
+     * The default subtitle language to select for the media playback.
+     */
+    @Builder.Default
+    private SubtitleLanguage defaultSubtitle = SubtitleLanguage.NONE;
+    /**
      * The font family to use for the subtitles.
      */
     @Builder.Default
-    private String fontFamily = DEFAULT_FONT_FAMILY;
+    private SubtitleFamily fontFamily = SubtitleFamily.ARIAL;
     /**
      * The size of the subtitle font.
      */
@@ -78,7 +86,7 @@ public class SubtitleSettings extends AbstractSettings {
         changes.firePropertyChange(AUTO_CLEANING_PROPERTY, oldValue, autoCleaningEnabled);
     }
 
-    public void setFontFamily(String fontFamily) {
+    public void setFontFamily(SubtitleFamily fontFamily) {
         if (Objects.equals(this.fontFamily, fontFamily))
             return;
 

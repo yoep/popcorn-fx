@@ -18,9 +18,6 @@
 
             <!-- Subtitles -->
             <fx:include source="../components/settings-subtitles.component.fxml"/>
-
-            <!-- Trakt.tv -->
-            <Label styleClass="subsection-title" text="%settings_trakt_tv"/>
         </VBox>
     </ScrollPane>
 

@@ -30,15 +30,13 @@ public class LanguageFlagCell extends Control {
      */
     public void updateItem(SubtitleInfo item) {
         if (item != null) {
-            setText(item.getLanguage());
+            setText(item.getLanguage().getNativeName());
 
-            item.getFlagResource().ifPresent(e -> {
-                try {
-                    setGraphic(new ImageView(new Image(e.getInputStream())));
-                } catch (IOException ex) {
-                    log.error(ex.getMessage(), ex);
-                }
-            });
+            try {
+                setGraphic(new ImageView(new Image(item.getFlagResource().getInputStream())));
+            } catch (IOException e) {
+                log.error(e.getMessage(), e);
+            }
         } else {
             setText(null);
             setGraphic(null);

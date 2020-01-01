@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.settings.models;
+package com.github.yoep.popcorn.subtitle.models;
 
 public enum DecorationType {
     NONE,

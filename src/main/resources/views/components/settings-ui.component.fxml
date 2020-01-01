@@ -3,7 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.controllers.components.SettingsUIComponent">
+          fx:controller="com.github.yoep.popcorn.controllers.components.SettingsUIComponent" styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
         <ColumnConstraints prefWidth="150"/>

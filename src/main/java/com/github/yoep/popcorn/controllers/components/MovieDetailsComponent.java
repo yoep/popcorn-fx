@@ -11,7 +11,6 @@ import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
-import com.github.yoep.popcorn.subtitle.models.Language;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
@@ -142,22 +141,21 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
                     return;
 
                 setText(null);
-                item.getFlagResource().ifPresent(e -> {
-                    try {
-                        var image = new ImageView(new Image(e.getInputStream()));
 
-                        image.setFitHeight(20);
-                        image.setPreserveRatio(true);
+                try {
+                    var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
 
-                        Tooltip tooltip = new Tooltip(Language.valueOf(item.getLanguage()).getNativeName());
-                        setInstantTooltip(tooltip);
-                        Tooltip.install(image, tooltip);
+                    image.setFitHeight(20);
+                    image.setPreserveRatio(true);
 
-                        setGraphic(image);
-                    } catch (IOException ex) {
-                        log.error(ex.getMessage(), ex);
-                    }
-                });
+                    Tooltip tooltip = new Tooltip(item.getLanguage().getNativeName());
+                    setInstantTooltip(tooltip);
+                    Tooltip.install(image, tooltip);
+
+                    setGraphic(image);
+                } catch (IOException ex) {
+                    log.error(ex.getMessage(), ex);
+                }
             }
         });
 

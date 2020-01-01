@@ -12,7 +12,6 @@ import com.github.yoep.popcorn.media.video.time.TimeListener;
 import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
-import com.github.yoep.popcorn.subtitle.models.Language;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -198,13 +197,7 @@ public class PlayerControlsComponent implements Initializable {
                     if (item.isNone()) {
                         setText(localeText.get(MediaMessage.SUBTITLE_NONE));
                     } else {
-                        Language language = Language.valueOf(item.getLanguage());
-
-                        if (language != null) {
-                            setText(language.getNativeName());
-                        } else {
-                            setText(item.getLanguage());
-                        }
+                        setText(item.getLanguage().getNativeName());
                     }
                 }
             }
@@ -265,13 +258,9 @@ public class PlayerControlsComponent implements Initializable {
 
     private void handleSubtitlesResponse(List<SubtitleInfo> subtitles, Throwable throwable) {
         if (throwable == null) {
-            var filteredSubtitles = subtitles.stream()
-                    .filter(e -> e.getFlagResource().isPresent())
-                    .collect(Collectors.toList());
-
             Platform.runLater(() -> {
                 languageSelection.getItems().clear();
-                languageSelection.getItems().addAll(filteredSubtitles);
+                languageSelection.getItems().addAll(subtitles);
                 languageSelection.select(this.subtitle);
             });
         } else {

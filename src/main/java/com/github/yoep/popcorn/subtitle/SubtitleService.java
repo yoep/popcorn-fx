@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
+import com.github.yoep.popcorn.subtitle.models.SubtitleLanguage;
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;
@@ -212,7 +213,13 @@ public class SubtitleService {
                         }
 
                         String url = item.get("SubDownloadLink").replace(".gz", ".srt");
-                        String lang = item.get("ISO639").replace("pb", "pt-br");
+                        SubtitleLanguage language = SubtitleLanguage.valueOfCode(item.get("ISO639").replace("pb", "pt-br"));
+
+                        // check if language is known within the subtitle languages
+                        // if not known, ignore this subtitle and continue with the next one
+                        if (language == null)
+                            continue;
+
                         int downloads = Integer.parseInt(item.get("SubDownloadsCnt"));
                         int score = 0;
 
@@ -224,7 +231,7 @@ public class SubtitleService {
                         }
 
                         Optional<SubtitleInfo> subtitle = subtitles.stream()
-                                .filter(e -> e.getLanguage().equalsIgnoreCase(lang))
+                                .filter(e -> e.getLanguage() == language)
                                 .findAny();
 
                         if (subtitle.isPresent()) {
@@ -236,7 +243,7 @@ public class SubtitleService {
                                 sub.setDownloads(downloads);
                             }
                         } else {
-                            subtitles.add(new SubtitleInfo(media.getImdbId(), lang, url, score, downloads));
+                            subtitles.add(new SubtitleInfo(media.getImdbId(), language, url, score, downloads));
                         }
                     }
 

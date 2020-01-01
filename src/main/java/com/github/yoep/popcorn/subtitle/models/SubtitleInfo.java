@@ -7,35 +7,32 @@ import lombok.EqualsAndHashCode;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
-import java.util.Optional;
-
 @Data
 @EqualsAndHashCode(of = {"imdbId", "language"})
 public class SubtitleInfo implements Comparable<SubtitleInfo> {
-    private static final String NONE_KEYWORD = "none";
-    private static final SubtitleInfo NONE = new SubtitleInfo(SubtitleInfo.NONE_KEYWORD);
+    private static final SubtitleInfo NONE = new SubtitleInfo(SubtitleLanguage.NONE);
 
     private final String imdbId;
-    private final String language;
+    private final SubtitleLanguage language;
     private String url;
     private int score;
     private int downloads;
 
     //region Constructors
 
-    private SubtitleInfo(String language) {
+    private SubtitleInfo(SubtitleLanguage language) {
         this.imdbId = null;
         this.language = language;
     }
 
-    public SubtitleInfo(String imdbId, String language, String url) {
+    public SubtitleInfo(String imdbId, SubtitleLanguage language, String url) {
         this.imdbId = imdbId;
         this.language = language;
         this.url = url;
     }
 
     @Builder
-    public SubtitleInfo(String imdbId, String language, String url, int score, int downloads) {
+    public SubtitleInfo(String imdbId, SubtitleLanguage language, String url, int score, int downloads) {
         this.imdbId = imdbId;
         this.language = language;
         this.url = url;
@@ -62,22 +59,17 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
      * @return Returns true if this subtitle is the "none" subtitle, else false.
      */
     public boolean isNone() {
-        return getLanguage().equals(NONE_KEYWORD);
+        return getLanguage() == SubtitleLanguage.NONE;
     }
 
     /**
      * Get the flag resource for this subtitle.
+     * The flag resource should exist as the "unknown"/"not supported" languages are already filtered by the {@link SubtitleLanguage}.
      *
-     * @return Returns the flag resource if found, else {@link Optional#empty()}.
+     * @return Returns the flag class path resource.
      */
-    public Optional<Resource> getFlagResource() {
-        ClassPathResource resource = new ClassPathResource(ViewLoader.IMAGE_DIRECTORY + "/flags/" + language + ".png");
-
-        if (resource.exists()) {
-            return Optional.of(resource);
-        } else {
-            return Optional.empty();
-        }
+    public Resource getFlagResource() {
+        return new ClassPathResource(ViewLoader.IMAGE_DIRECTORY + "/flags/" + language.getCode() + ".png");
     }
 
     //endregion
@@ -86,10 +78,10 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
 
     @Override
     public int compareTo(SubtitleInfo compare) {
-        if (this.getLanguage().equals(NONE_KEYWORD))
+        if (getLanguage() == SubtitleLanguage.NONE)
             return -1;
 
-        if (compare.getLanguage().equals(NONE_KEYWORD))
+        if (compare.getLanguage() == SubtitleLanguage.NONE)
             return 1;
 
         return this.getLanguage().compareTo(compare.getLanguage());

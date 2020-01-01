@@ -269,19 +269,18 @@ public class LanguageFlagSelection extends StackPane {
     }
 
     private void addNewFlag(final SubtitleInfo subtitle) {
-        subtitle.getFlagResource().ifPresent(e -> {
-            Flag flag = new Flag(subtitle);
+        Resource flagResource = subtitle.getFlagResource();
+        Flag flag = new Flag(subtitle);
 
-            flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);
-            flag.setOnMouseClicked(event -> onSelectedItemChanged(subtitle));
+        flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);
+        flag.setOnMouseClicked(event -> onSelectedItemChanged(subtitle));
 
-            Tooltip tooltip = new Tooltip(subtitle.getLanguage());
-            tooltip.setShowDelay(Duration.ZERO);
-            Tooltip.install(flag, tooltip);
+        Tooltip tooltip = new Tooltip(subtitle.getLanguage().getNativeName());
+        tooltip.setShowDelay(Duration.ZERO);
+        Tooltip.install(flag, tooltip);
 
-            popup.getContent().add(flag);
-            loadImage(flag.getImageView(), e);
-        });
+        popup.getContent().add(flag);
+        loadImage(flag.getImageView(), flagResource);
     }
 
     private void removeFlag(SubtitleInfo subtitle) {

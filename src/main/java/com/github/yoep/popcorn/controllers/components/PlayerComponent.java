@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.media.video.VideoPlayer;
 import com.github.yoep.popcorn.media.video.state.PlayerState;
 import com.github.yoep.popcorn.media.video.time.TimeListener;
 import com.github.yoep.popcorn.settings.SettingsService;
-import com.github.yoep.popcorn.settings.models.DecorationType;
+import com.github.yoep.popcorn.subtitle.models.DecorationType;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.SubtitleTrack;
@@ -172,7 +172,7 @@ public class PlayerComponent implements Initializable {
     private void initializeSubtitleTrack() {
         SubtitleSettings subtitleSettings = settingsService.getSettings().getSubtitleSettings();
 
-        subtitleTrack.setFontFamily(subtitleSettings.getFontFamily());
+        subtitleTrack.setFontFamily(subtitleSettings.getFontFamily().getFamily());
         subtitleTrack.setFontSize(subtitleSettings.getFontSize());
         subtitleTrack.setFontWeight(getFontWeight(subtitleSettings.isBold()));
         subtitleTrack.setOutline(subtitleSettings.getDecoration() == DecorationType.OUTLINE);

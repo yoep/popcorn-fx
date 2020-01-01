@@ -208,7 +208,6 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
             // filter out all the subtitles that don't have a flag
             final List<SubtitleInfo> filteredSubtitles = subtitles.stream()
                     .filter(e -> e.isNone() || Objects.equals(e.getImdbId(), media.getImdbId()))
-                    .filter(e -> e.getFlagResource().isPresent())
                     .sorted()
                     .collect(Collectors.toList());
 

@@ -846,12 +846,6 @@
     -fx-font-size: 1.2em;
 }
 
-.root .settings-section Label {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
-    -fx-padding: 0 8 0 15;
-}
-
 .root .settings-section GridPane {
     -fx-vgap: 5;
 }
@@ -873,7 +867,24 @@
     -fx-padding: 8 30 5 30;
 }
 
-.root .settings-section .subsection-title {
+.root .settings-section .sub-section Label,
+.root .settings-section .sub-section CheckBox .text {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+}
+
+.root .settings-section .sub-section Icon {
+    -fx-text-fill: #fff;
+    -fx-cursor: hand;
+    -fx-padding: 0 0 0 8;
+}
+
+.root .settings-section .sub-section Label,
+.root .settings-section .sub-section CheckBox {
+    -fx-padding: 0 8 0 15;
+}
+
+.root .settings-section .sub-section .subsection-title {
     -fx-min-width: 200;
     -fx-max-height: Infinity;
     -fx-font-family: "Open Sans";
@@ -887,19 +898,39 @@
     -fx-alignment: TOP_LEFT;
 }
 
-.root .settings-section ComboBox {
+.root .settings-section .sub-section ComboBox {
     -fx-min-width: 150;
     -fx-max-width: 150;
     -fx-background-color: #393b3d;
 }
 
-.root .settings-section ComboBox .arrow {
+.root .settings-section .sub-section ComboBox .arrow {
     -fx-background-color: #c3c5c7;
 }
 
-.root .settings-section ComboBox > .list-cell,
-.root .settings-section ComboBox .list-view .list-cell {
+.root .settings-section .sub-section ComboBox > .list-cell,
+.root .settings-section .sub-section ComboBox .list-view .list-cell {
     -fx-font-family: "Open Sans";
     -fx-text-fill: #c3c5c7;
     -fx-background-color: #393b3d;
+}
+
+.root .settings-section .sub-section ComboBox.small {
+    -fx-min-width: 75;
+    -fx-max-width: 75;
+}
+
+.root .settings-section .sub-section CheckBox .box {
+    -fx-background-color: #545454;
+}
+
+.root .settings-section .sub-section CheckBox:selected .mark {
+    -fx-background-color: #4bfff4;
+}
+
+.root .settings-section .sub-section TextField {
+    -fx-min-width: 250;
+    -fx-font-family: "Open Sans";
+    -fx-background-color: #393b3d;
+    -fx-text-fill: #c3c5c7;
 }

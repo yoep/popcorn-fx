@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.favorites;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.favorites.models.Favorites;
 import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.PopcornTimeApplication;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -64,6 +64,11 @@ public class FavoriteService {
      */
     public void addToFavorites(Media media) {
         Assert.notNull(media, "media cannot be null");
+        // check if the media is already a favorite
+        // if so, ignore the action of adding the favorite
+        if (isFavorite(media))
+            return;
+
         synchronized (cache) {
             cache.add(media.getImdbId());
         }
@@ -85,7 +90,7 @@ public class FavoriteService {
         }
 
         Favorites favorites = loadFavorites();
-        favorites.add(media);
+        favorites.remove(media);
         save(favorites);
     }
 

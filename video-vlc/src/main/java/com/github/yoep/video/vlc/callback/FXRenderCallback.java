@@ -1,4 +1,4 @@
-package com.github.yoep.video.youtube.callback;
+package com.github.yoep.video.vlc.callback;
 
 import javafx.application.Platform;
 import javafx.scene.canvas.Canvas;

@@ -1,9 +1,10 @@
-package com.github.yoep.video.youtube;
+package com.github.yoep.video.vlc;
 
 import com.github.yoep.video.adapter.state.PlayerState;
-import com.github.yoep.video.youtube.callback.FXBufferFormatCallback;
-import com.github.yoep.video.youtube.callback.FXCallbackVideoSurface;
-import com.github.yoep.video.youtube.callback.FXRenderCallback;
+import com.github.yoep.video.vlc.callback.FXBufferFormatCallback;
+import com.github.yoep.video.vlc.callback.FXCallbackVideoSurface;
+import com.github.yoep.video.vlc.callback.FXRenderCallback;
+import com.github.yoep.video.youtube.VideoPlayerYoutube;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;

@@ -1,8 +1,8 @@
-package com.github.yoep.video.youtube.config;
+package com.github.yoep.video.vlc.config;
 
 import com.github.yoep.video.adapter.VideoPlayer;
-import com.github.yoep.video.youtube.VideoPlayerVlc;
-import com.github.yoep.video.youtube.condition.ConditionalOnVlcInstall;
+import com.github.yoep.video.vlc.VideoPlayerVlc;
+import com.github.yoep.video.vlc.condition.ConditionalOnVlcInstall;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

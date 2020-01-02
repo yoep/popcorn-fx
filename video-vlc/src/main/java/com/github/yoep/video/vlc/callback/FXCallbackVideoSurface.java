@@ -1,4 +1,4 @@
-package com.github.yoep.video.youtube.callback;
+package com.github.yoep.video.vlc.callback;
 
 import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.player.embedded.videosurface.CallbackVideoSurface;

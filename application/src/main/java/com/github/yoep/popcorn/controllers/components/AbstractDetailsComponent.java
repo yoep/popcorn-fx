@@ -97,7 +97,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected void loadStars() {
         ratingStars.setRating(media.getRating());
         Tooltip tooltip = new Tooltip(media.getRating().getPercentage() / 10 + "/10");
-        setInstantTooltip(tooltip);
+        instantTooltip(tooltip);
         Tooltip.install(ratingStars, tooltip);
     }
 
@@ -144,10 +144,17 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         }
     }
 
-    protected void setInstantTooltip(Tooltip tooltip) {
+    /**
+     * Update the given tooltip so it's shown instantly.
+     *
+     * @param tooltip The tooltip to update.
+     * @return Returns same tooltip instance..
+     */
+    protected Tooltip instantTooltip(Tooltip tooltip) {
         tooltip.setShowDelay(Duration.ZERO);
         tooltip.setShowDuration(Duration.INDEFINITE);
         tooltip.setHideDelay(Duration.ZERO);
+        return tooltip;
     }
 
     protected void switchHealth(TorrentInfo torrentInfo) {
@@ -157,7 +164,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         this.health.getStyleClass().add(health.getStatus().getStyleClass());
         Tooltip healthTooltip = new Tooltip(getHealthTooltip(torrentInfo, health));
         healthTooltip.setWrapText(true);
-        setInstantTooltip(healthTooltip);
+        instantTooltip(healthTooltip);
         Tooltip.install(this.health, healthTooltip);
     }
 

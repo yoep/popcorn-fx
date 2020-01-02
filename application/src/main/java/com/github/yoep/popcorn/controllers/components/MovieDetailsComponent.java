@@ -124,7 +124,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     private void initializeTooltips() {
         Tooltip tooltip = new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK));
-        setInstantTooltip(tooltip);
+        instantTooltip(tooltip);
         Tooltip.install(magnetLink, tooltip);
     }
 
@@ -149,7 +149,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
                     image.setPreserveRatio(true);
 
                     Tooltip tooltip = new Tooltip(item.getLanguage().getNativeName());
-                    setInstantTooltip(tooltip);
+                    instantTooltip(tooltip);
                     Tooltip.install(image, tooltip);
 
                     setGraphic(image);

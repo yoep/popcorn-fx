@@ -12,7 +12,9 @@ public enum DetailsMessage implements Message {
     NOT_SEEN("details_not_seen"),
     SEEN("details_seen"),
     EPISODE_SEASON("details_episode_season"),
-    AIR_DATE("details_air_date");
+    AIR_DATE("details_air_date"),
+    MARK_AS_WATCHED("details_mark_as_watched"),
+    UNMARK_AS_WATCHED("details_unmark_as_watched");
 
     private final String key;
 

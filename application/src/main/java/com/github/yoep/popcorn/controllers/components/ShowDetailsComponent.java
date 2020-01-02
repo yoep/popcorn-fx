@@ -26,6 +26,7 @@ import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
@@ -168,9 +169,18 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             @Override
             protected void updateItem(Icon item, boolean empty) {
                 super.updateItem(item, empty);
+                Season season = getWatchableItem();
 
-                if (!empty && getWatchableItem() != null) {
-                    setWatched(isSeasonWatched(getWatchableItem()));
+                if (!empty && season != null) {
+                    if (!isSeasonEmpty(season)) {
+                        boolean watched = isSeasonWatched(getWatchableItem());
+                        String tooltip = localeText.get(watched ? DetailsMessage.UNMARK_AS_WATCHED : DetailsMessage.MARK_AS_WATCHED);
+
+                        setWatched(watched);
+                        Tooltip.install(getIcon(), instantTooltip(new Tooltip(localeText.get(tooltip))));
+                    } else {
+                        setGraphic(null);
+                    }
                 }
             }
 
@@ -196,8 +206,13 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             protected void updateItem(Icon item, boolean empty) {
                 super.updateItem(item, empty);
 
-                if (!empty && getWatchableItem() != null)
-                    setWatched(watchedService.isWatched(getWatchableItem()));
+                if (!empty && getWatchableItem() != null) {
+                    boolean watched = watchedService.isWatched(getWatchableItem());
+                    String tooltip = localeText.get(watched ? DetailsMessage.UNMARK_AS_WATCHED : DetailsMessage.MARK_AS_WATCHED);
+
+                    setWatched(watched);
+                    Tooltip.install(getIcon(), instantTooltip(new Tooltip(localeText.get(tooltip))));
+                }
             }
 
             @Override
@@ -210,6 +225,9 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                     } else {
                         watchedService.removeFromWatchList(getWatchableItem());
                     }
+
+                    // navigate to the next unwatched episode
+                    selectUnwatchedEpisode();
                 });
             }
         });

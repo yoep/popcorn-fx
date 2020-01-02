@@ -88,6 +88,10 @@ public class WatchedCell<T extends Watchable> extends TableCell<T, Icon> {
 
     //region Functions
 
+    protected Icon getIcon() {
+        return icon;
+    }
+
     protected void init() {
         initializeIcon();
         initializeListeners();
@@ -110,8 +114,12 @@ public class WatchedCell<T extends Watchable> extends TableCell<T, Icon> {
 
     private void initializeEvents() {
         setOnMouseClicked(event -> {
-            event.consume();
-            setWatched(!isWatched());
+            // check if graphic is being shown
+            // if not, ignore the mouse click
+            if (getGraphic() != null) {
+                event.consume();
+                setWatched(!isWatched());
+            }
         });
     }
 

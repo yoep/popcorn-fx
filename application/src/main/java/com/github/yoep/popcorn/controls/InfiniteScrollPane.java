@@ -124,10 +124,10 @@ public class InfiniteScrollPane extends ScrollPane {
         updating = false;
 
         if (loader != null) {
-//            Platform.runLater(() -> {
-//                itemsPane.getChildren().remove(loader);
-//                loader = null;
-//            });
+            Platform.runLater(() -> {
+                itemsPane.getChildren().remove(loader);
+                loader = null;
+            });
         }
     }
 

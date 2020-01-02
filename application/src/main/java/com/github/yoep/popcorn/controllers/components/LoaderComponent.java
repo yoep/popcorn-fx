@@ -107,8 +107,8 @@ public class LoaderComponent {
                     progressBar.setProgress(status.getProgress());
                     statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
                     progressPercentage.setText(String.format("%1$,.2f", status.getProgress() * 100) + "%");
-                    downloadText.setText(FileUtils.byteCountToDisplaySize(status.getDownloadSpeed()) + "/s");
-                    uploadText.setText(FileUtils.byteCountToDisplaySize(status.getUploadSpeed()) + "/s");
+                    downloadText.setText(StreamStatus.toDisplaySize(status.getDownloadSpeed()) + "/s");
+                    uploadText.setText(StreamStatus.toDisplaySize(status.getUploadSpeed()) + "/s");
                     activePeersText.setText(String.valueOf(status.getSeeds()));
                 });
             }

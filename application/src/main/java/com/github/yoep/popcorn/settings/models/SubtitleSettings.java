@@ -25,7 +25,7 @@ public class SubtitleSettings extends AbstractSettings {
     private static final String DEFAULT_SUBTITLE_DIRECTORY = "subtitles";
     private static final String DEFAULT_FONT_FAMILY = "Arial";
     private static final DecorationType DEFAULT_DECORATION = DecorationType.OUTLINE;
-    private static final int DEFAULT_SIZE = 24;
+    private static final int DEFAULT_SIZE = 28;
 
     //region Properties
 

@@ -454,10 +454,11 @@ public class Torrent implements AlertListener {
         if (listener != null && prepareProgress >= 1) {
             listener.onStreamProgress(this, StreamStatus.builder()
                     .progress(status.progress())
-                    .bufferProgress(prepareProgress.intValue())
                     .downloadSpeed(status.downloadRate())
                     .uploadSpeed(status.uploadRate())
                     .seeds(status.numSeeds())
+                    .downloaded(status.totalWantedDone())
+                    .totalSize(status.totalWanted())
                     .build());
         }
     }

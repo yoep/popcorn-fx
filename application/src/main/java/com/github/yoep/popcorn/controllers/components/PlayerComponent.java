@@ -230,7 +230,7 @@ public class PlayerComponent implements Initializable {
     }
 
     private void onHideOverlay() {
-        if (videoPlayer.getPlayerState() != PlayerState.PLAYING)
+        if (videoPlayer.getPlayerState() != PlayerState.PLAYING || playerHeader.isStreamInfoShowing())
             return;
 
         log.debug("Hiding video player overlay");

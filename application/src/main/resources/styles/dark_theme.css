@@ -739,12 +739,14 @@
     -fx-font-size: 1.8em;
 }
 
-.root .player .player-header .stats Icon {
+.root .player .player-header .stats Icon,
+.root .player .player-header .stats .stream-info {
     -fx-text-fill: #fff;
     -fx-font-size: 2em;
 }
 
-.root .player .player-header .stats Icon {
+.root .player .player-header .stats Icon,
+.root .player .player-header .stats .stream-info {
     -fx-cursor: hand;
 }
 
@@ -754,8 +756,20 @@
     -fx-font-weight: bold;
 }
 
-.root .player .player-header .stats .player-stats {
-    -fx-padding: 0 8 0 8;
+.root .player .player-header .stats .stream-info {
+    -fx-padding: 0 15 0 15;
+}
+
+.root .player .player-header .stats .stream-info .info-popup {
+    -fx-background-color: rgba(23, 24, 27, 0.6);
+    -fx-padding: 8 8 8 8;
+}
+
+.root .player .player-header .stats .stream-info .info-popup .cell,
+.root .player .player-header .stats .stream-info .info-popup .value {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 12px;
 }
 
 .root .player .player-overlay {

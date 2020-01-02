@@ -1,13 +1,13 @@
 package com.github.yoep.popcorn.media.providers;
 
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.models.Category;
-import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.models.Genre;
+import com.github.yoep.popcorn.models.SortBy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;

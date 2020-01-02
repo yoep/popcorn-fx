@@ -1,15 +1,15 @@
 package com.github.yoep.popcorn.controllers.components;
 
-import com.github.yoep.popcorn.activities.PlayerCloseActivity;
-import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
+import com.github.yoep.popcorn.activities.PlayerCloseActivity;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.SubtitleTrack;
 import com.github.yoep.popcorn.subtitle.models.DecorationType;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.state.PlayerState;

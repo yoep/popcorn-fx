@@ -2,6 +2,7 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.controls.Episodes?>
+<?import com.github.yoep.popcorn.controls.Seasons?>
 <?import com.github.yoep.popcorn.controls.Stars?>
 <?import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection?>
 <?import javafx.geometry.Insets?>
@@ -74,7 +75,8 @@
         </HBox>
     </GridPane>
 
-    <GridPane styleClass="show-details" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="215">
+    <GridPane styleClass="show-details"
+              AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="215">
         <columnConstraints>
             <ColumnConstraints minWidth="200" maxWidth="200"/>
             <ColumnConstraints hgrow="ALWAYS"/>
@@ -90,7 +92,11 @@
             </padding>
 
             <Label styleClass="section-title" text="%details_seasons"/>
-            <ListView fx:id="seasons" VBox.vgrow="ALWAYS"/>
+            <Seasons fx:id="seasons" VBox.vgrow="ALWAYS">
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                </columnResizePolicy>
+            </Seasons>
         </VBox>
 
         <VBox GridPane.columnIndex="1" GridPane.rowIndex="0">
@@ -100,13 +106,17 @@
 
             <Label styleClass="section-title" text="%details_episodes"/>
             <Episodes fx:id="episodes" VBox.vgrow="ALWAYS">
+                <placeholder>
+                    <Label text="%details_episodes_placeholder" styleClass="placeholder"/>
+                </placeholder>
                 <columnResizePolicy>
                     <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
                 </columnResizePolicy>
             </Episodes>
         </VBox>
 
-        <GridPane styleClass="episode-overview" GridPane.columnIndex="2" GridPane.rowIndex="0">
+        <GridPane fx:id="episodeDetails" styleClass="episode-overview"
+                  GridPane.columnIndex="2" GridPane.rowIndex="0">
             <columnConstraints>
                 <ColumnConstraints/>
                 <ColumnConstraints halignment="RIGHT"/>
@@ -165,7 +175,7 @@
 
                 <!-- Quality selection -->
                 <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
-                      GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                      GridPane.columnIndex="0" GridPane.rowIndex="1"/>
 
                 <!-- Play actions -->
                 <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked"

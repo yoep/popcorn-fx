@@ -2,11 +2,12 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseDetailsActivity;
 import com.github.yoep.popcorn.activities.LoadTorrentActivity;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
-import com.github.yoep.popcorn.controls.EpisodeWatchedCellFactory;
 import com.github.yoep.popcorn.controls.Episodes;
+import com.github.yoep.popcorn.controls.Seasons;
 import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
@@ -17,23 +18,25 @@ import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
-import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
+import com.github.yoep.popcorn.watched.controls.WatchedCell;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -74,7 +77,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     @FXML
     private Label bookmark;
     @FXML
-    private ListView<Season> seasons;
+    private Seasons seasons;
     @FXML
     private Episodes episodes;
     @FXML
@@ -85,6 +88,8 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private Label airDate;
     @FXML
     private Label episodeOverview;
+    @FXML
+    private GridPane episodeDetails;
 
     //region Constructors
 
@@ -129,7 +134,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePoster();
-        initializeListViews();
+        initializeSeasons();
         initializeEpisodes();
         initializeLanguageSelection();
     }
@@ -157,19 +162,16 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         switchHealth(episode.getTorrents().get(quality));
     }
 
-    private void initializeListViews() {
+    private void initializeSeasons() {
         seasons.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
-        episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
-    }
-
-    private void initializeEpisodes() {
-        episodes.setWatchedFactory(() -> new EpisodeWatchedCellFactory() {
+        seasons.setWatchedFactory(() -> new WatchedCell<>() {
             @Override
             protected void updateItem(Icon item, boolean empty) {
                 super.updateItem(item, empty);
 
-                if (!empty)
-                    setWatched(watchedService.isWatched(getEpisode()));
+                if (!empty && getWatchableItem() != null) {
+                    setWatched(isSeasonWatched(getWatchableItem()));
+                }
             }
 
             @Override
@@ -178,9 +180,35 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
                 watchedProperty().addListener((observable, oldValue, newValue) -> {
                     if (newValue) {
-                        watchedService.addToWatchList(getEpisode());
+                        markSeasonAsWatched(getWatchableItem());
                     } else {
-                        watchedService.removeFromWatchList(getEpisode());
+                        unmarkSeasonAsWatched(getWatchableItem());
+                    }
+                });
+            }
+        });
+    }
+
+    private void initializeEpisodes() {
+        episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
+        episodes.setWatchedFactory(() -> new WatchedCell<>() {
+            @Override
+            protected void updateItem(Icon item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty && getWatchableItem() != null)
+                    setWatched(watchedService.isWatched(getWatchableItem()));
+            }
+
+            @Override
+            protected void init() {
+                super.init();
+
+                watchedProperty().addListener((observable, oldValue, newValue) -> {
+                    if (newValue) {
+                        watchedService.addToWatchList(getWatchableItem());
+                    } else {
+                        watchedService.removeFromWatchList(getWatchableItem());
                     }
                 });
             }
@@ -239,7 +267,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             seasons.getItems().add(new Season(i, localeText.get(DetailsMessage.SEASON, i)));
         }
 
-        seasons.getSelectionModel().select(0);
+        selectUnwatchedSeason();
     }
 
     private void loadFavorite() {
@@ -250,19 +278,17 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         if (newSeason == null)
             return;
 
-        List<Episode> episodes = media.getEpisodes();
+        List<Episode> episodes = getSeasonEpisodes(newSeason);
 
         this.episodes.getItems().clear();
-        this.episodes.getItems().addAll(episodes.stream()
-                .filter(Objects::nonNull)
-                .filter(e -> e.getSeason() == newSeason.getSeason())
-                .sorted(Comparator.comparing(Episode::getEpisode))
-                .collect(Collectors.toList()));
-        this.episodes.getSelectionModel().select(episodes.stream()
-                .filter(Objects::nonNull)
-                .filter(e -> !watchedService.isWatched(e))
-                .findFirst()
-                .orElse(episodes.get(episodes.size() - 1)));
+
+        if (episodes.size() > 0) {
+            this.episodeDetails.getChildren().forEach(e -> e.setVisible(true));
+            this.episodes.getItems().addAll(episodes);
+            selectUnwatchedEpisode();
+        } else {
+            this.episodeDetails.getChildren().forEach(e -> e.setVisible(false));
+        }
     }
 
     private void switchEpisode(Episode episode) {
@@ -285,6 +311,54 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private void loadSubtitles(Episode episode) {
         resetLanguageSelection();
         subtitleService.retrieveSubtitles(media, episode).whenComplete(this::handleSubtitlesResponse);
+    }
+
+    private List<Episode> getSeasonEpisodes(Season season) {
+        return media.getEpisodes().stream()
+                .filter(Objects::nonNull)
+                .filter(e -> e.getSeason() == season.getSeason())
+                .sorted(Comparator.comparing(Episode::getEpisode))
+                .collect(Collectors.toList());
+    }
+
+    private boolean isSeasonEmpty(Season season) {
+        return getSeasonEpisodes(season).size() == 0;
+    }
+
+    private boolean isSeasonWatched(Season season) {
+        return getSeasonEpisodes(season).stream()
+                .allMatch(watchedService::isWatched);
+    }
+
+    private void markSeasonAsWatched(Season season) {
+        getSeasonEpisodes(season).forEach(watchedService::addToWatchList);
+        selectUnwatchedSeason();
+    }
+
+    private void unmarkSeasonAsWatched(Season season) {
+        getSeasonEpisodes(season).forEach(watchedService::removeFromWatchList);
+        selectUnwatchedSeason();
+    }
+
+    private void selectUnwatchedSeason() {
+        ObservableList<Season> seasons = this.seasons.getItems();
+        Season season = seasons.stream()
+                .filter(e -> !isSeasonWatched(e))
+                .findFirst()
+                .orElseGet(() -> CollectionUtils.lastElement(seasons));
+
+        Platform.runLater(() -> this.seasons.getSelectionModel().select(season));
+    }
+
+    private void selectUnwatchedEpisode() {
+        ObservableList<Episode> episodes = this.episodes.getItems();
+        Episode episode = episodes.stream()
+                .filter(Objects::nonNull)
+                .filter(e -> !watchedService.isWatched(e))
+                .findFirst()
+                .orElseGet(() -> CollectionUtils.lastElement(episodes));
+
+        Platform.runLater(() -> this.episodes.getSelectionModel().select(episode));
     }
 
     @FXML

@@ -2,11 +2,11 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.messages.MediaMessage;
-import com.github.yoep.popcorn.controls.Stars;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.fxml.FXML;
@@ -15,10 +15,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.*;
+import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.util.Assert;
 
@@ -31,9 +30,7 @@ import java.util.ResourceBundle;
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class MediaCardComponent implements Initializable, DisposableBean {
-    private static final int POSTER_WIDTH = 134;
-    private static final int POSTER_HEIGHT = 196;
+public class MediaCardComponent extends AbstractCardComponent implements Initializable, DisposableBean {
     private static final String LIKED_STYLE_CLASS = "liked";
     private static final String WATCHED_STYLE_CLASS = "watched";
 
@@ -48,8 +45,6 @@ public class MediaCardComponent implements Initializable, DisposableBean {
 
     @FXML
     private Pane posterItem;
-    @FXML
-    private BorderPane poster;
     @FXML
     private Label title;
     @FXML
@@ -119,13 +114,14 @@ public class MediaCardComponent implements Initializable, DisposableBean {
         imageLoadingThread = new Thread(() -> {
             try {
                 // set as default the poster holder image
-                setBackgroundImage(new Image(new ClassPathResource("/images/posterholder.png").getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true));
+                Image image = new Image(getPosterHolderResource().getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
+                setBackgroundImage(image, false);
 
                 //try to load the actual image
                 Optional.ofNullable(media.getImages())
                         .map(Images::getPoster)
                         .filter(e -> !e.equalsIgnoreCase("n/a"))
-                        .ifPresent(e -> setBackgroundImage(new Image(e, POSTER_WIDTH, POSTER_HEIGHT, true, true)));
+                        .ifPresent(e -> setBackgroundImage(new Image(e, POSTER_WIDTH, POSTER_HEIGHT, true, true), true));
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }
@@ -133,12 +129,6 @@ public class MediaCardComponent implements Initializable, DisposableBean {
 
         // run this on a separate thread for easier UI loading
         taskExecutor.execute(imageLoadingThread);
-    }
-
-    private void setBackgroundImage(Image image) {
-        BackgroundSize size = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true);
-        BackgroundImage backgroundImage = new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, size);
-        poster.setBackground(new Background(backgroundImage));
     }
 
     private void initializeText() {

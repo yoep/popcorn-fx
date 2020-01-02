@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.controllers.components;
 
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.PlayMediaActivity;
 import com.github.yoep.popcorn.activities.ShowDetailsActivity;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.PlayMediaActivity;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

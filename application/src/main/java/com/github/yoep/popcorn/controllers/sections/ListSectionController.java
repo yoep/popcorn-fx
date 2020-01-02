@@ -3,24 +3,28 @@ package com.github.yoep.popcorn.controllers.sections;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.controllers.components.ItemListener;
 import com.github.yoep.popcorn.controllers.components.MediaCardComponent;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
 import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.ProviderService;
 import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.messages.ListMessage;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.controllers.components.ItemListener;
 import com.github.yoep.popcorn.watched.WatchedService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.client.HttpStatusCodeException;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
@@ -28,6 +32,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Controller
@@ -46,15 +51,20 @@ public class ListSectionController implements Initializable {
     private SortBy sortBy;
     private String search;
 
-    private CompletableFuture currentLoadRequest;
+    private CompletableFuture<?> currentLoadRequest;
     private Thread currentProcessingThread;
 
     @FXML
     private InfiniteScrollPane scrollPane;
+    @FXML
+    private Pane failedPane;
+    @FXML
+    private Label failedText;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeListeners();
+        initializeScrollPane();
+        initializeFailedPane();
     }
 
     @PostConstruct
@@ -65,8 +75,13 @@ public class ListSectionController implements Initializable {
         activityManager.register(SearchActivity.class, this::onSearchChanged);
     }
 
-    private void initializeListeners() {
-        scrollPane.addListener((previousPage, newPage) -> loadMovies(newPage));
+    private void initializeScrollPane() {
+        scrollPane.setLoaderFactory(() -> viewLoader.load("components/loading-card.component.fxml"));
+        scrollPane.pageProperty().addListener((observable, oldValue, newValue) -> loadMovies(newValue.intValue()));
+    }
+
+    private void initializeFailedPane() {
+        failedPane.setVisible(false);
     }
 
     private void onCategoryChange(CategoryChangedActivity categoryActivity) {
@@ -82,13 +97,13 @@ public class ListSectionController implements Initializable {
     private void onGenreChange(GenreChangeActivity genreActivity) {
         this.genre = genreActivity.getGenre();
         reset();
-        scrollPane.loadNewPage();
+        invokeNewPageLoad();
     }
 
     private void onSortByChange(SortByChangeActivity sortByActivity) {
         this.sortBy = sortByActivity.getSortBy();
         reset();
-        scrollPane.loadNewPage();
+        invokeNewPageLoad();
     }
 
     private void onSearchChanged(SearchActivity activity) {
@@ -99,13 +114,21 @@ public class ListSectionController implements Initializable {
 
         this.search = newValue;
         reset();
-        scrollPane.loadNewPage();
+        invokeNewPageLoad();
+    }
+
+    private void invokeNewPageLoad() {
+        if (category != null && genre != null && sortBy != null)
+            scrollPane.loadNewPage();
     }
 
     private void loadMovies(final int page) {
         // wait for all filters to be known
         if (category == null || genre == null || sortBy == null)
             return;
+
+        // hide the failed pane in case it might be visible from the last failure
+        Platform.runLater(() -> failedPane.setVisible(false));
 
         // cancel the current load request if present
         if (currentLoadRequest != null)
@@ -130,20 +153,28 @@ public class ListSectionController implements Initializable {
             providerPage = provider.getPage(genre, sortBy, page, search);
         }
 
-        currentLoadRequest = providerPage.thenAccept(this::processMediaPage);
+        currentLoadRequest = providerPage.whenComplete((mediaList, throwable) -> {
+            if (throwable == null) {
+                this.processMediaPage(mediaList);
+            } else {
+                onFailed(throwable);
+            }
+        });
     }
 
     private void processMediaPage(final List<? extends Media> mediaList) {
         // offload to a thread which we can cancel later on
         currentProcessingThread = new Thread(() -> {
-            mediaList.forEach(media -> {
+            for (Media media : mediaList) {
                 MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, createItemListener());
-                Pane component = viewLoader.loadComponent("media-card.component.fxml", mediaCardComponent);
+                Pane component = viewLoader.load("components/media-card.component.fxml", mediaCardComponent);
 
                 mediaCardComponent.setIsFavorite(favoriteService.isFavorite(media));
                 mediaCardComponent.setIsWatched(watchedService.isWatched(media));
                 scrollPane.addItem(component);
-            });
+            }
+
+            scrollPane.finished();
         });
         taskExecutor.execute(currentProcessingThread);
     }
@@ -176,10 +207,29 @@ public class ListSectionController implements Initializable {
     }
 
     private void onItemClicked(Media media) {
-        providerServices.stream()
+        // run on a separate thread instead of the main one
+        taskExecutor.execute(() -> providerServices.stream()
                 .filter(e -> e.supports(category))
                 .findFirst()
-                .ifPresent(provider -> provider.showDetails(media));
+                .ifPresent(provider -> provider.showDetails(media)));
+    }
+
+    private void onFailed(Throwable throwable) {
+        log.error("Failed to retrieve media list, " + throwable.getMessage(), throwable);
+        scrollPane.finished();
+
+        Throwable rootCause = throwable.getCause();
+        AtomicReference<String> message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
+
+        if (rootCause instanceof HttpStatusCodeException) {
+            HttpStatusCodeException ex = (HttpStatusCodeException) rootCause;
+            message.set(localeText.get(ListMessage.API_UNAVAILABLE, ex.getStatusCode()));
+        }
+
+        Platform.runLater(() -> {
+            failedText.setText(message.get());
+            failedPane.setVisible(true);
+        });
     }
 
     private void reset() {

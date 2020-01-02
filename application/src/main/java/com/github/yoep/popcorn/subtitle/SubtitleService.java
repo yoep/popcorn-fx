@@ -1,16 +1,16 @@
 package com.github.yoep.popcorn.subtitle;
 
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.config.properties.SubtitleProperties;
+import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.subtitle.models.SubtitleLanguage;
-import com.github.yoep.popcorn.config.properties.SubtitleProperties;
-import com.github.yoep.popcorn.media.providers.models.Episode;
-import com.github.yoep.popcorn.settings.SettingsService;
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;

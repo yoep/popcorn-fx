@@ -1,12 +1,17 @@
-package com.github.yoep.popcorn.controls;
+package com.github.yoep.popcorn.watched.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.media.providers.models.Episode;
+import com.github.yoep.popcorn.watched.models.Watchable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.TableCell;
 
-public class EpisodeWatchedCellFactory extends TableCell<Episode, Icon> {
+/**
+ * An extension on the {@link TableCell} for controlling the "watched" property of a table row.
+ *
+ * @param <T> The {@link Watchable} item of the cell.
+ */
+public class WatchedCell<T extends Watchable> extends TableCell<T, Icon> {
     private static final String STYLE_CLASS = "icon";
     private static final String WATCHED_STYLE_CLASS = "watched";
 
@@ -15,7 +20,10 @@ public class EpisodeWatchedCellFactory extends TableCell<Episode, Icon> {
 
     //region Constructors
 
-    public EpisodeWatchedCellFactory() {
+    /**
+     * Initialize a new instance of {@link WatchedCell}.
+     */
+    public WatchedCell() {
         init();
     }
 
@@ -24,38 +32,42 @@ public class EpisodeWatchedCellFactory extends TableCell<Episode, Icon> {
     //region Properties
 
     /**
-     * Get if this episode cell has been watched.
+     * Check if this watchable item has been watched.
      *
-     * @return Returns true if this episode has been watched, else false.
+     * @return Returns true if the item has been watched, else false.
      */
     public boolean isWatched() {
         return watched.get();
     }
 
     /**
-     * Get the watched property of this cell.
+     * Get the watched property of the watchable item.
      *
-     * @return Returns the watched property.
+     * @return Returns the watched property of the item.
      */
     public BooleanProperty watchedProperty() {
         return watched;
     }
 
     /**
-     * Set if the episode has been watched.
+     * Set if the watchable item has been watched.
      *
-     * @param watched Set the watched value of the episode.
+     * @param watched The watched value for the item.
      */
     public void setWatched(boolean watched) {
         this.watched.set(watched);
     }
 
+    //endregion
+
+    //region Getters & Setters
+
     /**
-     * Get the episode of this cell.
+     * Get the item of this watched cell.
      *
-     * @return Returns the episode of this cell.
+     * @return Returns the item of this cell.
      */
-    public Episode getEpisode() {
+    public T getWatchableItem() {
         return getTableRow().getItem();
     }
 
@@ -65,6 +77,8 @@ public class EpisodeWatchedCellFactory extends TableCell<Episode, Icon> {
 
     @Override
     protected void updateItem(Icon item, boolean empty) {
+        super.updateItem(item, empty);
+
         if (!empty) {
             setGraphic(icon);
         }

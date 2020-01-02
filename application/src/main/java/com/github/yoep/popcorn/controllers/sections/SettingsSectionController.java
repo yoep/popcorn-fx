@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.controllers.sections;
 
-import com.github.yoep.popcorn.activities.CloseSettingsActivity;
 import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.CloseSettingsActivity;
 import javafx.fxml.FXML;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;

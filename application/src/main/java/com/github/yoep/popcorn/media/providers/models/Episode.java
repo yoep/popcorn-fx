@@ -1,13 +1,26 @@
 package com.github.yoep.popcorn.media.providers.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.github.yoep.popcorn.watched.models.Watchable;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import lombok.Data;
 import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.Map;
 
 @Data
-public class Episode {
+public class Episode implements Watchable {
+    @JsonIgnore
+    private BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
+
+    /**
+     * The TV DB ID.
+     */
     private int tvdbId;
+    /**
+     * The available torrents for the episode.
+     */
     private Map<String, TorrentInfo> torrents;
     /**
      * The first air time of the episode
@@ -30,6 +43,27 @@ public class Episode {
      */
     private int season;
 
+    //region Properties
+
+    @Override
+    public boolean isWatched() {
+        return watched.get();
+    }
+
+    @Override
+    public BooleanProperty watchedProperty() {
+        return watched;
+    }
+
+    @Override
+    public void setWatched(boolean watched) {
+        this.watched.set(watched);
+    }
+
+    //endregion
+
+    //region Getters
+
     /**
      * Get the escaped title of the episode.
      *
@@ -47,4 +81,6 @@ public class Episode {
     public String getOverview() {
         return StringEscapeUtils.unescapeHtml4(overview);
     }
+
+    //endregion
 }

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.watched;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.media.providers.models.Episode;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -26,8 +26,11 @@ import static java.util.Arrays.asList;
 @RequiredArgsConstructor
 public class WatchedService {
     private static final String NAME = "watched.json";
+
     private final List<String> cache = new ArrayList<>();
     private final ObjectMapper objectMapper;
+
+    //region Methods
 
     /**
      * Check if the given media has been watched already.
@@ -37,9 +40,9 @@ public class WatchedService {
      */
     public boolean isWatched(Media media) {
         Assert.notNull(media, "media cannot be null");
-        synchronized (cache) {
-            return cache.contains(media.getImdbId());
-        }
+        String key = media.getImdbId();
+
+        return isWatched(key);
     }
 
     /**
@@ -50,9 +53,9 @@ public class WatchedService {
      */
     public boolean isWatched(Episode episode) {
         Assert.notNull(episode, "episode cannot be null");
-        synchronized (cache) {
-            return cache.contains(String.valueOf(episode.getTvdbId()));
-        }
+        String key = String.valueOf(episode.getTvdbId());
+
+        return isWatched(key);
     }
 
     /**
@@ -64,13 +67,7 @@ public class WatchedService {
         Assert.notNull(media, "media cannot be null");
         String key = media.getImdbId();
 
-        // prevent media item from added twice
-        if (cache.contains(key))
-            return;
-
-        synchronized (cache) {
-            cache.add(key);
-        }
+        addToWatchList(key);
     }
 
     /**
@@ -82,13 +79,7 @@ public class WatchedService {
         Assert.notNull(episode, "episode cannot be null");
         String key = String.valueOf(episode.getTvdbId());
 
-        // prevent media item from added twice
-        if (cache.contains(key))
-            return;
-
-        synchronized (cache) {
-            cache.add(key);
-        }
+        addToWatchList(key);
     }
 
     /**
@@ -115,14 +106,42 @@ public class WatchedService {
         }
     }
 
+    //endregion
+
+    //region PostConstruct
+
     @PostConstruct
     private void init() {
         cache.addAll(loadWatched());
     }
 
+    //endregion
+
+    //region PreDestroy
+
     @PreDestroy
     private void destroy() {
         save(cache);
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void addToWatchList(String key) {
+        // prevent keys from being added twice
+        if (cache.contains(key))
+            return;
+
+        synchronized (cache) {
+            cache.add(key);
+        }
+    }
+
+    private boolean isWatched(String key) {
+        synchronized (cache) {
+            return cache.contains(key);
+        }
     }
 
     private void save(List<String> watched) {
@@ -155,4 +174,6 @@ public class WatchedService {
     private File getFile() {
         return new File(PopcornTimeApplication.APP_DIR + NAME);
     }
+
+    //endregion
 }

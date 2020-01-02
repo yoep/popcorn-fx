@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.subtitle.controls;
 
+import com.github.yoep.popcorn.subtitle.models.DecorationType;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.subtitle.models.SubtitleLine;
-import com.github.yoep.popcorn.subtitle.models.DecorationType;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.geometry.Pos;

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.settings.models;
 
-import com.github.yoep.popcorn.subtitle.models.SubtitleLanguage;
 import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.subtitle.models.DecorationType;
 import com.github.yoep.popcorn.subtitle.models.SubtitleFamily;
+import com.github.yoep.popcorn.subtitle.models.SubtitleLanguage;
 import lombok.*;
 
 import java.io.File;

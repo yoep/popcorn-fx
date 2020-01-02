@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.fullscreen;
 
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.activities.ToggleFullscreenActivity;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.FullscreenActivity;
+import com.github.yoep.popcorn.activities.ToggleFullscreenActivity;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;

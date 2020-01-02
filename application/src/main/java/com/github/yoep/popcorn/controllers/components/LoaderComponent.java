@@ -1,16 +1,16 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.LoadTorrentActivity;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.activities.PlayerCloseActivity;
+import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.TorrentMessage;
-import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
+import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.StreamStatus;
@@ -22,7 +22,6 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 

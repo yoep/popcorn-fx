@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.controllers.components;
 
-import com.github.yoep.popcorn.settings.models.UIScale;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.UIScale;
 import com.github.yoep.popcorn.settings.models.UISettings;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

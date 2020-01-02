@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.layout.StackPane?>
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.github.yoep.popcorn.controllers.components.LoadingCardComponent" styleClass="poster-item">
+    <StackPane fx:id="poster" styleClass="poster-image" cache="true"/>
+    <ProgressIndicator/>
+</StackPane>

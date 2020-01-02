@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.controls;
 
-
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.media.providers.models.Episode;
+import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.watched.controls.WatchedCell;
 import com.github.yoep.popcorn.watched.controls.WatchedCellFactory;
 import javafx.beans.property.ObjectProperty;
@@ -12,21 +11,18 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import org.springframework.util.Assert;
 
-import java.util.Optional;
-
-public class Episodes extends TableView<Episode> {
+public class Seasons extends TableView<Season> {
     private static final String WATCHED_FACTORY_PROPERTY = "watchedFactory";
 
-    private final ObjectProperty<WatchedCellFactory<Episode>> watchedFactory =
+    private final ObjectProperty<WatchedCellFactory<Season>> watchedFactory =
             new SimpleObjectProperty<>(this, WATCHED_FACTORY_PROPERTY, WatchedCell::new);
 
-    private final TableColumn<Episode, String> episodeColumn = new TableColumn<>();
-    private final TableColumn<Episode, String> titleColumn = new TableColumn<>();
-    private final TableColumn<Episode, Icon> watchedColumn = new TableColumn<>();
+    private final TableColumn<Season, String> seasonColumn = new TableColumn<>();
+    private final TableColumn<Season, Icon> watchedColumn = new TableColumn<>();
 
     //region Constructors
 
-    public Episodes() {
+    public Seasons() {
         init();
     }
 
@@ -39,7 +35,7 @@ public class Episodes extends TableView<Episode> {
      *
      * @return Returns the watched cell factory.
      */
-    public WatchedCellFactory<Episode> getWatchedFactory() {
+    public WatchedCellFactory<Season> getWatchedFactory() {
         return watchedFactory.get();
     }
 
@@ -48,7 +44,7 @@ public class Episodes extends TableView<Episode> {
      *
      * @return Returns the watched cell factory property.
      */
-    public ObjectProperty<WatchedCellFactory<Episode>> watchedFactoryProperty() {
+    public ObjectProperty<WatchedCellFactory<Season>> watchedFactoryProperty() {
         return watchedFactory;
     }
 
@@ -57,14 +53,11 @@ public class Episodes extends TableView<Episode> {
      *
      * @param watchedFactory The new factory for creating watched cells (non-null).
      */
-    public void setWatchedFactory(WatchedCellFactory<Episode> watchedFactory) {
+    public void setWatchedFactory(WatchedCellFactory<Season> watchedFactory) {
         Assert.notNull(watchedFactory, "watchedFactory cannot be null");
         this.watchedFactory.set(watchedFactory);
     }
 
-    //endregion
-
-    //region Methods
 
     //endregion
 
@@ -76,40 +69,25 @@ public class Episodes extends TableView<Episode> {
     }
 
     private void initializeColumns() {
-        episodeColumn.setMinWidth(50);
-        episodeColumn.setMaxWidth(50);
         watchedColumn.setMinWidth(40);
         watchedColumn.setMaxWidth(40);
 
-        episodeColumn.setCellFactory(param -> new TableCell<>() {
+        seasonColumn.setCellFactory(param -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
+                Season rowItem = getTableRow().getItem();
 
-                if (!empty) {
-                    Optional.ofNullable(getTableRow().getItem())
-                            .map(Episode::getEpisode)
-                            .map(String::valueOf)
-                            .ifPresent(this::setText);
-                }
-            }
-        });
-        titleColumn.setCellFactory(param -> new TableCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (!empty) {
-                    Optional.ofNullable(getTableRow().getItem())
-                            .map(Episode::getTitle)
-                            .ifPresent(this::setText);
+                if (rowItem != null) {
+                    setText(rowItem.getText());
+                } else {
+                    setText(null);
                 }
             }
         });
         watchedColumn.setCellFactory(param -> getWatchedFactory().get());
 
-        getColumns().add(episodeColumn);
-        getColumns().add(titleColumn);
+        getColumns().add(seasonColumn);
         getColumns().add(watchedColumn);
     }
 

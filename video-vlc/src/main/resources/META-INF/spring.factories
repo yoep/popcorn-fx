@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-    com.github.yoep.video.youtube.AutoConfiguration
+    com.github.yoep.video.vlc.AutoConfiguration

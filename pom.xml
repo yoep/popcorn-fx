@@ -16,7 +16,7 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>popcorn-time-application</module>
+        <module>application</module>
         <module>video-adapter</module>
         <module>video-javafx</module>
         <module>video-vlc</module>

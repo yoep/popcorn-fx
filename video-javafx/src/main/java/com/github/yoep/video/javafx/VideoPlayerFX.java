@@ -12,6 +12,9 @@ import javafx.scene.media.MediaView;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
+import java.net.URI;
+
 @Slf4j
 public class VideoPlayerFX extends VideoPlayerYoutube {
     private MediaView mediaView;
@@ -23,16 +26,14 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
     public void initialize(Pane videoPane) {
         super.initialize(videoPane);
 
-        Platform.runLater(() -> {
-            mediaView = new MediaView();
-            videoPane.getChildren().add(mediaView);
-        });
+        initializeMediaView(videoPane);
     }
 
     @Override
     public void dispose() {
         mediaPlayer.dispose();
         mediaView = null;
+        mediaPlayer = null;
     }
 
     @Override
@@ -40,14 +41,23 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
         super.play(url);
 
         if (!isYoutubeUrl(url)) {
+            if (mediaView == null) {
+                log.error("Unable to play the given url, media view failed to initialize");
+                return;
+            }
+
             hide();
 
             try {
-                mediaPlayer = new MediaPlayer(new Media(url));
+                URI uri = new File(url).toURI();
+                Media media = new Media(uri.toString());
+
+                mediaPlayer = new MediaPlayer(media);
                 initializeMediaPlayerEvents();
+                mediaView.setMediaPlayer(mediaPlayer);
                 mediaPlayer.play();
             } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
+                log.error("JavaFX video playback failed, " + ex.getMessage(), ex);
             }
         }
     }
@@ -96,6 +106,22 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
     //endregion
 
     //region Functions
+
+    private void initializeMediaView(Pane videoPane) {
+        Platform.runLater(() -> {
+            try {
+                mediaView = new MediaView();
+
+                mediaView.fitHeightProperty().bind(videoPane.heightProperty());
+                mediaView.fitWidthProperty().bind(videoPane.widthProperty());
+                mediaView.setPreserveRatio(true);
+
+                videoPane.getChildren().add(mediaView);
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        });
+    }
 
     private void initializeMediaPlayerEvents() {
         if (mediaPlayer == null)

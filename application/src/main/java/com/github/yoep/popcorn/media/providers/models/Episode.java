@@ -1,25 +1,39 @@
 package com.github.yoep.popcorn.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.yoep.popcorn.watched.models.Watchable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.commons.text.StringEscapeUtils;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @Data
-@ToString(exclude = {"watched"})
-public class Episode implements Watchable {
+@EqualsAndHashCode(exclude = {"watched", "show"})
+@ToString(exclude = {"watched", "show"})
+public class Episode implements Media, Watchable {
     @JsonIgnore
     private BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
 
     /**
-     * The TV DB ID.
+     * The unique video ID of the {@link Episode}.
+     * This value is based on the ID of TVDB.
      */
-    private int tvdbId;
+    @JsonProperty("tvdb_id")
+    private String id;
+    /**
+     * The show parent of the episode.
+     */
+    private Show show;
     /**
      * The available torrents for the episode.
      */
@@ -33,9 +47,10 @@ public class Episode implements Watchable {
      */
     private String title;
     /**
-     * The overview text of the episode
+     * The description text of the episode
      */
-    private String overview;
+    @JsonProperty("overview")
+    private String synopsis;
     /**
      * The episode number
      */
@@ -66,22 +81,48 @@ public class Episode implements Watchable {
 
     //region Getters
 
-    /**
-     * Get the escaped title of the episode.
-     *
-     * @return Returns the title of the episode.
-     */
+    @Override
     public String getTitle() {
         return StringEscapeUtils.unescapeHtml4(title);
     }
 
+    @Override
+    public String getSynopsis() {
+        return StringEscapeUtils.unescapeHtml4(synopsis);
+    }
+
+    @Override
+    public String getYear() {
+        return String.valueOf(getAirDate().getYear());
+    }
+
+    @Override
+    public Integer getRuntime() {
+        return show.getRuntime();
+    }
+
+    @Override
+    public List<String> getGenres() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Rating getRating() {
+        return null;
+    }
+
+    @Override
+    public Images getImages() {
+        return show.getImages();
+    }
+
     /**
-     * Get the escaped overview of the episode.
+     * Get the local date time of the air date from this episode.
      *
-     * @return Returns the overview of the episode.
+     * @return Returns the air date as local date time.
      */
-    public String getOverview() {
-        return StringEscapeUtils.unescapeHtml4(overview);
+    public LocalDateTime getAirDate() {
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(firstAired), ZoneOffset.UTC);
     }
 
     //endregion

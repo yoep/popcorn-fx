@@ -2,21 +2,17 @@ package com.github.yoep.popcorn.media.providers.models;
 
 import java.util.List;
 
+/**
+ * Interface definition of media items of the Popcorn Time API.
+ */
 public interface Media {
     /**
-     * Get the video ID of the media.
+     * Get the unique ID of the media.
+     * This can be a IMDB ID or TVDB ID value that is returned.
      *
-     * @return Returns the video ID of the media.
+     * @return Returns the unique ID of the media (non-null).
      */
-    String getVideoId();
-
-    /**
-     * Get the IMDB ID of the media.
-     * Use this ID to retrieve the show details.
-     *
-     * @return Returns the IMDB ID.
-     */
-    String getImdbId();
+    String getId();
 
     /**
      * Get the unescaped title of the media.
@@ -53,9 +49,17 @@ public interface Media {
      */
     List<String> getGenres();
 
+    /**
+     * Get the rating of the media item.
+     *
+     * @return Returns the rating of the media.
+     */
     Rating getRating();
 
-    boolean isMovie();
-
+    /**
+     * Get the images of the media item.
+     *
+     * @return Returns the images of the media.
+     */
     Images getImages();
 }

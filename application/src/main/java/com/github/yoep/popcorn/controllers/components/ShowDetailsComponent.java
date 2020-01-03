@@ -42,9 +42,7 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URL;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -289,12 +287,12 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
         this.episode = episode;
 
-        LocalDateTime airDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(episode.getFirstAired()), ZoneOffset.UTC);
+        LocalDateTime airDateTime = episode.getAirDate();
 
         episodeTitle.setText(episode.getTitle());
         episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, AIRED_DATE_PATTERN.format(airDateTime)));
-        episodeOverview.setText(episode.getOverview());
+        episodeOverview.setText(episode.getSynopsis());
 
         loadQualitySelection(episode.getTorrents());
         loadSubtitles(episode);
@@ -402,17 +400,12 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
             @Override
             public Media getMedia() {
-                return media;
+                return episode;
             }
 
             @Override
             public TorrentInfo getTorrent() {
                 return episode.getTorrents().get(quality);
-            }
-
-            @Override
-            public Optional<Episode> getEpisode() {
-                return Optional.of(episode);
             }
 
             @Override

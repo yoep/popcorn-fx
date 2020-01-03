@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.activities;
 
 import com.github.yoep.popcorn.media.providers.models.Media;
 
-public interface PlayerCloseActivity extends Activity {
+public interface ClosePlayerActivity extends Activity {
     /**
      * The unknown value for the {@link #getTime()} and {@link #getLength()}.
      */

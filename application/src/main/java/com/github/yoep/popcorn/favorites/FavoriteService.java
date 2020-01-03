@@ -35,7 +35,7 @@ public class FavoriteService {
     public boolean isFavorite(Media media) {
         Assert.notNull(media, "media cannot be null");
         synchronized (cache) {
-            return cache.contains(media.getImdbId());
+            return cache.contains(media.getId());
         }
     }
 
@@ -70,7 +70,7 @@ public class FavoriteService {
             return;
 
         synchronized (cache) {
-            cache.add(media.getImdbId());
+            cache.add(media.getId());
         }
 
         Favorites favorites = loadFavorites();
@@ -86,7 +86,7 @@ public class FavoriteService {
     public void removeFromFavorites(Media media) {
         Assert.notNull(media, "media cannot be null");
         synchronized (cache) {
-            cache.remove(media.getImdbId());
+            cache.remove(media.getId());
         }
 
         Favorites favorites = loadFavorites();
@@ -100,7 +100,7 @@ public class FavoriteService {
         log.trace("Caching favorites ID's");
         synchronized (cache) {
             cache.addAll(loadFavorites().getAll().stream()
-                    .map(Media::getImdbId)
+                    .map(Media::getId)
                     .collect(Collectors.toList()));
         }
     }

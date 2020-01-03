@@ -61,7 +61,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         activityManager.register(PlayMediaActivity.class, activity -> switchSection(SectionType.PLAYER));
         activityManager.register(ShowSettingsActivity.class, activity -> switchSection(SectionType.SETTINGS));
         activityManager.register(CloseSettingsActivity.class, activity -> switchSection(SectionType.CONTENT));
-        activityManager.register(PlayerCloseActivity.class, activity -> switchSection(SectionType.CONTENT));
+        activityManager.register(ClosePlayerActivity.class, activity -> switchSection(SectionType.CONTENT));
     }
 
     //endregion

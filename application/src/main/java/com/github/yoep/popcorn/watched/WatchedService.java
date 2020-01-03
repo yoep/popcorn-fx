@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.watched;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.PopcornTimeApplication;
-import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,20 +39,7 @@ public class WatchedService {
      */
     public boolean isWatched(Media media) {
         Assert.notNull(media, "media cannot be null");
-        String key = media.getImdbId();
-
-        return isWatched(key);
-    }
-
-    /**
-     * Check if the given episode has been watched already.
-     *
-     * @param episode The episode to verify.
-     * @return Returns true if the episode has been watched, else false.
-     */
-    public boolean isWatched(Episode episode) {
-        Assert.notNull(episode, "episode cannot be null");
-        String key = String.valueOf(episode.getTvdbId());
+        String key = media.getId();
 
         return isWatched(key);
     }
@@ -65,19 +51,7 @@ public class WatchedService {
      */
     public void addToWatchList(Media media) {
         Assert.notNull(media, "media cannot be null");
-        String key = media.getImdbId();
-
-        addToWatchList(key);
-    }
-
-    /**
-     * Add the episode item to the watched list.
-     *
-     * @param episode The episode to add.
-     */
-    public void addToWatchList(Episode episode) {
-        Assert.notNull(episode, "episode cannot be null");
-        String key = String.valueOf(episode.getTvdbId());
+        String key = media.getId();
 
         addToWatchList(key);
     }
@@ -90,19 +64,7 @@ public class WatchedService {
     public void removeFromWatchList(Media media) {
         Assert.notNull(media, "media cannot be null");
         synchronized (cache) {
-            cache.remove(media.getImdbId());
-        }
-    }
-
-    /**
-     * Remove the episode from the watched list.
-     *
-     * @param episode The episode to remove.
-     */
-    public void removeFromWatchList(Episode episode) {
-        Assert.notNull(episode, "episode cannot be null");
-        synchronized (cache) {
-            cache.remove(String.valueOf(episode.getTvdbId()));
+            cache.remove(media.getId());
         }
     }
 

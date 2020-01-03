@@ -3,9 +3,9 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
-import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
@@ -122,7 +122,7 @@ public class PlayerControlsComponent implements Initializable {
 
     private void initializeActivityListeners() {
         activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
-        activityManager.register(PlayerCloseActivity.class, activity -> reset());
+        activityManager.register(ClosePlayerActivity.class, activity -> reset());
         activityManager.register(FullscreenActivity.class, this::onFullscreenChanged);
     }
 
@@ -201,10 +201,10 @@ public class PlayerControlsComponent implements Initializable {
         if (media instanceof Movie) {
             Movie movie = (Movie) activity.getMedia();
             subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
-        } else if (activity.getEpisode().isPresent()) {
-            Show media = (Show) activity.getMedia();
+        } else if (media instanceof Episode) {
+            Episode episode = (Episode) activity.getMedia();
 
-            subtitleService.retrieveSubtitles(media, activity.getEpisode().get()).whenComplete(this::handleSubtitlesResponse);
+            subtitleService.retrieveSubtitles(episode.getShow(), episode).whenComplete(this::handleSubtitlesResponse);
         } else {
             log.error("Failed to retrieve subtitles, missing episode information");
         }

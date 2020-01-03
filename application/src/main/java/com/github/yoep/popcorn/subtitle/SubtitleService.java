@@ -73,14 +73,14 @@ public class SubtitleService {
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final Movie media) {
         // check if the subtitles were already cached
-        if (cachedSubtitles.containsKey(media.getImdbId()))
-            return CompletableFuture.completedFuture(cachedSubtitles.get(media.getImdbId()));
+        if (cachedSubtitles.containsKey(media.getId()))
+            return CompletableFuture.completedFuture(cachedSubtitles.get(media.getId()));
 
         var completableFuture = new CompletableFuture<List<SubtitleInfo>>();
         var searchHandler = createSearchCallbackHandler(media, completableFuture);
         var loginHandler = createLoginCallbackHandler(token -> search(media, token, searchHandler), completableFuture);
 
-        completableFuture.thenAccept(e -> cachedSubtitles.put(media.getImdbId(), e));
+        completableFuture.thenAccept(e -> cachedSubtitles.put(media.getId(), e));
 
         login(loginHandler);
         return completableFuture;
@@ -95,7 +95,7 @@ public class SubtitleService {
      */
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final Show media, final Episode episode) {
-        var cacheId = String.valueOf(episode.getTvdbId());
+        var cacheId = String.valueOf(episode.getId());
 
         // check if the subtitles were already cached
         if (cachedSubtitles.containsKey(cacheId))
@@ -260,15 +260,15 @@ public class SubtitleService {
                                 sub.setDownloads(downloads);
                             }
                         } else {
-                            subtitles.add(new SubtitleInfo(media.getImdbId(), language, url, score, downloads));
+                            subtitles.add(new SubtitleInfo(media.getId(), language, url, score, downloads));
                         }
                     }
 
                     // always subtract the "none" subtitle from the count
-                    log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size() - 1, media.getTitle(), media.getImdbId());
+                    log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size() - 1, media.getTitle(), media.getId());
                     completableFuture.complete(subtitles);
                 } else {
-                    String message = MessageFormat.format("No subtitles found for \"{0}\" media ({1})", media.getTitle(), media.getImdbId());
+                    String message = MessageFormat.format("No subtitles found for \"{0}\" media ({1})", media.getTitle(), media.getId());
                     completableFuture.completeExceptionally(new SubtitleException(message));
                 }
             }
@@ -304,7 +304,7 @@ public class SubtitleService {
      */
     private void search(Show show, Episode episode, String token, XMLRPCCallback callback) {
         Map<String, String> option = new HashMap<>();
-        option.put("imdbid", show.getImdbId().replace("tt", ""));
+        option.put("imdbid", show.getId().replace("tt", ""));
         option.put("season", String.valueOf(episode.getSeason()));
         option.put("episode", String.valueOf(episode.getEpisode()));
         option.put("sublanguageid", "all");
@@ -318,9 +318,9 @@ public class SubtitleService {
      * @param callback XML RPC callback callback
      */
     private void search(Movie movie, String token, XMLRPCCallback callback) {
-        log.trace("Searching for \"{}\" movie subtitles ({})", movie.getTitle(), movie.getImdbId());
+        log.trace("Searching for \"{}\" movie subtitles ({})", movie.getTitle(), movie.getId());
         Map<String, String> option = new HashMap<>();
-        option.put("imdbid", movie.getImdbId().replace("tt", ""));
+        option.put("imdbid", movie.getId().replace("tt", ""));
         option.put("sublanguageid", "all");
 
         client.callAsync(callback, "SearchSubtitles", token, new Object[]{option});

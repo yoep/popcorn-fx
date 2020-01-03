@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 
@@ -11,13 +12,38 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class Show extends AbstractMedia {
+    /**
+     * The unique TVDB ID of the show.
+     */
+    private String tvdbId;
+    /**
+     * The number of seasons for the show.
+     */
     @JsonProperty("num_seasons")
     private int numberOfSeasons;
+    /**
+     * The status of the show.
+     */
     private String status;
+    /**
+     * The episodes available for the show.
+     */
     private List<Episode> episodes;
+    /**
+     * The timestamp of the last update for the show.
+     */
+    private long lastUpdated;
 
-    @Override
-    public boolean isMovie() {
-        return false;
+    /**
+     * Set the episodes of the show.
+     *
+     * @param episodes The available episodes for the show.
+     */
+    public void setEpisodes(List<Episode> episodes) {
+        this.episodes = episodes;
+
+        // link the episode to this show
+        if (!CollectionUtils.isEmpty(this.episodes))
+            this.episodes.forEach(e -> e.setShow(this));
     }
 }

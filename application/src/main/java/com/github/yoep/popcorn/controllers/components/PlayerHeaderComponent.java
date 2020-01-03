@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
-import com.github.yoep.popcorn.activities.PlayerCloseActivity;
+import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.controls.StreamInfo;
 import com.github.yoep.popcorn.torrent.controls.StreamInfoCell;
@@ -88,7 +88,7 @@ public class PlayerHeaderComponent implements Initializable {
 
     private void initializeActivityListeners() {
         activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
-        activityManager.register(PlayerCloseActivity.class, this::onClose);
+        activityManager.register(ClosePlayerActivity.class, this::onClose);
     }
 
     private void initializeTorrentListeners() {
@@ -110,7 +110,7 @@ public class PlayerHeaderComponent implements Initializable {
 
             @Override
             public void onStreamReady(Torrent torrent) {
-                // no-op
+                Platform.runLater(() -> streamInfo.setVisible(true));
             }
 
             @Override
@@ -127,8 +127,11 @@ public class PlayerHeaderComponent implements Initializable {
 
     //endregion
 
+    //region Functions
+
     private void initializeStreamInfo() {
         streamInfo.setFactory(cell -> new StreamInfoCell(localeText.get("torrent_" + cell)));
+        streamInfo.setVisible(false);
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
@@ -143,7 +146,7 @@ public class PlayerHeaderComponent implements Initializable {
         });
     }
 
-    private void onClose(PlayerCloseActivity activity) {
+    private void onClose(ClosePlayerActivity activity) {
         reset();
     }
 
@@ -162,4 +165,6 @@ public class PlayerHeaderComponent implements Initializable {
             listeners.forEach(PlayerHeaderListener::onClose);
         }
     }
+
+    //endregion
 }

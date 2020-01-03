@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.fullscreen;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.FullscreenActivity;
+import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.activities.ToggleFullscreenActivity;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
@@ -25,7 +26,12 @@ public class FullscreenService {
 
     @PostConstruct
     private void init() {
-        activityManager.register(ToggleFullscreenActivity.class, activity -> viewManager.getPrimaryStage()
+        activityManager.register(ToggleFullscreenActivity.class, activity -> onToggleFullscreen());
+        activityManager.register(ClosePlayerActivity.class, activity -> onClosePlayer());
+    }
+
+    private void onToggleFullscreen() {
+        viewManager.getPrimaryStage()
                 .ifPresent(stage -> {
                     if (!listenerRegistered)
                         registerListener();
@@ -38,7 +44,12 @@ public class FullscreenService {
                         lastChange = System.currentTimeMillis();
                         stage.setFullScreen(!stage.isFullScreen());
                     });
-                }));
+                });
+    }
+
+    private void onClosePlayer() {
+        viewManager.getPrimaryStage()
+                .ifPresent(stage -> Platform.runLater(() -> stage.setFullScreen(false)));
     }
 
     private void registerListener() {

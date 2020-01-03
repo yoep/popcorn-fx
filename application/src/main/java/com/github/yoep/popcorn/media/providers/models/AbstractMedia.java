@@ -14,8 +14,15 @@ import java.util.Optional;
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class AbstractMedia implements Media {
+    /**
+     * The unique ID of the media item.
+     * This ID is most of the time the IMDB ID.
+     */
     @JsonProperty("_id")
-    private String videoId;
+    private String id;
+    /**
+     * The IMDB ID of the media.
+     */
     private String imdbId;
     private String title;
     private String year;

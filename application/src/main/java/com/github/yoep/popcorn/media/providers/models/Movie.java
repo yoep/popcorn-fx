@@ -12,9 +12,4 @@ import java.util.Map;
 public class Movie extends AbstractMedia {
     private String trailer;
     private Map<String, Map<String, TorrentInfo>> torrents;
-
-    @Override
-    public boolean isMovie() {
-        return true;
-    }
 }

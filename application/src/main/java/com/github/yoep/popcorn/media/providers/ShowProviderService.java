@@ -53,9 +53,9 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     public void showDetails(Media media) {
         URI uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())
                 .path("{resource}/{imdb_id}")
-                .build("show", media.getImdbId());
+                .build("show", media.getId());
 
-        log.debug("Loading show details for \"{}\" IMDB ID", media.getImdbId());
+        log.debug("Loading show details for \"{}\" IMDB ID", media.getId());
         ResponseEntity<Show> show = restTemplate.getForEntity(uri, Show.class);
         int statusCodeValue = show.getStatusCodeValue();
 

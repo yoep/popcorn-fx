@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
-import com.github.yoep.popcorn.activities.PlayerCloseActivity;
+import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
@@ -285,11 +285,11 @@ public class PlayerComponent implements Initializable {
 
     /**
      * Close the video player.
-     * This will create a {@link PlayerCloseActivity} with the last known information about the video player state.
+     * This will create a {@link ClosePlayerActivity} with the last known information about the video player state.
      */
     private void close() {
         log.trace("Video player is being closed");
-        activityManager.register(new PlayerCloseActivity() {
+        activityManager.register(new ClosePlayerActivity() {
             @Override
             public Media getMedia() {
                 return media;

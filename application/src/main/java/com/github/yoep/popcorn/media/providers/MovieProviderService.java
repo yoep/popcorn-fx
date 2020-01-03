@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Service
 public class MovieProviderService extends AbstractProviderService<Movie> {
     private static final Category CATEGORY = Category.MOVIES;
@@ -56,6 +58,7 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         URI uri = getUriFor(providerConfig.getUrl(), "movies", genre, sortBy, keywords, page);
 
+        log.debug("Retrieving movie provider page \"{}\"", uri);
         ResponseEntity<Movie[]> items = restTemplate.getForEntity(uri, Movie[].class);
 
         return Optional.ofNullable(items.getBody())

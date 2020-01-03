@@ -69,6 +69,7 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     public List<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         URI uri = getUriFor(providerConfig.getUrl(), "shows", genre, sortBy, keywords, page);
 
+        log.debug("Retrieving show provider page \"{}\"", uri);
         ResponseEntity<Show[]> shows = restTemplate.getForEntity(uri, Show[].class);
 
         return Optional.ofNullable(shows.getBody())

@@ -136,6 +136,7 @@ public class InfiniteScrollPane extends ScrollPane {
      * This will reset the page to "0" and remove all items from this control.
      */
     public void reset() {
+        updating = true;
         setPage(0);
         Platform.runLater(() -> itemsPane.getChildren().clear());
         updating = false;
@@ -161,7 +162,7 @@ public class InfiniteScrollPane extends ScrollPane {
 
     private void initializeScrollBars() {
         this.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        this.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
+        this.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 
         this.vvalueProperty().addListener((observable, oldValue, newValue) -> onScroll());
     }
@@ -173,22 +174,21 @@ public class InfiniteScrollPane extends ScrollPane {
     }
 
     private void initializeListeners() {
-        pageProperty().addListener((observable, oldValue, newValue) -> onPageChanged(oldValue.intValue(), newValue.intValue()));
+        pageProperty().addListener((observable, oldValue, newValue) -> onPageChanged());
     }
 
     private void onScroll() {
         double vPercentage = (this.getVvalue() / this.getVmax()) * 100;
 
-        if (vPercentage > SCROLLBAR_THRESHOLD && !updating) {
-            increasePage();
-        }
+        if (vPercentage > SCROLLBAR_THRESHOLD && !updating)
+            loadNewPage();
     }
 
     private void increasePage() {
         setPage(getPage() + 1);
     }
 
-    private void onPageChanged(int oldValue, int newValue) {
+    private void onPageChanged() {
         // check if the content is already being updated
         // if so, ignore this page change
         if (updating)

@@ -31,6 +31,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -51,7 +52,7 @@ public class ListSectionController implements Initializable {
     private SortBy sortBy;
     private String search;
 
-    private CompletableFuture<?> currentLoadRequest;
+    private CompletableFuture<? extends List<? extends Media>> currentLoadRequest;
     private Thread currentProcessingThread;
 
     @FXML
@@ -86,12 +87,12 @@ public class ListSectionController implements Initializable {
 
     private void onCategoryChange(CategoryChangedActivity categoryActivity) {
         this.category = categoryActivity.getCategory();
-        reset();
-
         // reset the genre & sort by as they might be different in the new category
         // these will be automatically filled in again as the category change also triggers a GenreChangeActivity & SortByChangeActivity
         this.genre = null;
         this.sortBy = null;
+
+        reset();
     }
 
     private void onGenreChange(GenreChangeActivity genreActivity) {
@@ -124,8 +125,11 @@ public class ListSectionController implements Initializable {
 
     private void loadMovies(final int page) {
         // wait for all filters to be known
-        if (category == null || genre == null || sortBy == null)
+        // and the page to be bigger than 0
+        if (page == 0 || category == null || genre == null || sortBy == null) {
+            scrollPane.finished();
             return;
+        }
 
         // hide the failed pane in case it might be visible from the last failure
         Platform.runLater(() -> failedPane.setVisible(false));
@@ -133,7 +137,7 @@ public class ListSectionController implements Initializable {
         // cancel the current load request if present
         if (currentLoadRequest != null)
             currentLoadRequest.cancel(true);
-        if (currentProcessingThread != null && currentProcessingThread.isAlive())
+        if (currentProcessingThread != null)
             currentProcessingThread.interrupt();
 
         log.trace("Retrieving media page {} for {} category", page, category);
@@ -145,38 +149,19 @@ public class ListSectionController implements Initializable {
     }
 
     private void retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
-        CompletableFuture<? extends List<? extends Media>> providerPage;
-
         if (StringUtils.isEmpty(search)) {
-            providerPage = provider.getPage(genre, sortBy, page);
+            currentLoadRequest = provider.getPage(genre, sortBy, page);
         } else {
-            providerPage = provider.getPage(genre, sortBy, page, search);
+            currentLoadRequest = provider.getPage(genre, sortBy, page, search);
         }
 
-        currentLoadRequest = providerPage.whenComplete((mediaList, throwable) -> {
+        currentLoadRequest.whenComplete((mediaList, throwable) -> {
             if (throwable == null) {
-                this.processMediaPage(mediaList);
+                onMediaRequestCompleted(mediaList);
             } else {
-                onFailed(throwable);
+                onMediaRequestFailed(throwable);
             }
         });
-    }
-
-    private void processMediaPage(final List<? extends Media> mediaList) {
-        // offload to a thread which we can cancel later on
-        currentProcessingThread = new Thread(() -> {
-            for (Media media : mediaList) {
-                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, createItemListener());
-                Pane component = viewLoader.load("components/media-card.component.fxml", mediaCardComponent);
-
-                mediaCardComponent.setIsFavorite(favoriteService.isFavorite(media));
-                mediaCardComponent.setIsWatched(watchedService.isWatched(media));
-                scrollPane.addItem(component);
-            }
-
-            scrollPane.finished();
-        });
-        taskExecutor.execute(currentProcessingThread);
     }
 
     private ItemListener createItemListener() {
@@ -214,12 +199,35 @@ public class ListSectionController implements Initializable {
                 .ifPresent(provider -> provider.showDetails(media)));
     }
 
-    private void onFailed(Throwable throwable) {
-        log.error("Failed to retrieve media list, " + throwable.getMessage(), throwable);
+    private void onMediaRequestCompleted(final List<? extends Media> mediaList) {
+        // offload to a thread which we can cancel later on
+        currentProcessingThread = new Thread(() -> {
+            for (Media media : mediaList) {
+                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, createItemListener());
+                Pane component = viewLoader.load("components/media-card.component.fxml", mediaCardComponent);
+
+                mediaCardComponent.setIsFavorite(favoriteService.isFavorite(media));
+                mediaCardComponent.setIsWatched(watchedService.isWatched(media));
+                scrollPane.addItem(component);
+            }
+
+            scrollPane.finished();
+        });
+        taskExecutor.execute(currentProcessingThread);
+    }
+
+    private void onMediaRequestFailed(Throwable throwable) {
+        // always finish the scroll pane update
         scrollPane.finished();
+
+        // check if the media request was cancelled
+        // if so, ignore this failure
+        if (throwable instanceof CancellationException)
+            return;
 
         Throwable rootCause = throwable.getCause();
         AtomicReference<String> message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
+        log.error("Failed to retrieve media list, " + rootCause.getMessage(), throwable);
 
         if (rootCause instanceof HttpStatusCodeException) {
             HttpStatusCodeException ex = (HttpStatusCodeException) rootCause;

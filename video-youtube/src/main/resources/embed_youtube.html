@@ -48,7 +48,7 @@
     }
 
     function onPlayerStateChange(event) {
-        var state = event.data;
+        let state = event.data;
 
         console.log("Youtube Player state changed to " + state);
         if (state === YT.PlayerState.PLAYING) {
@@ -84,7 +84,9 @@
     }
 
     function seek(time) {
-        player.seekTo(time, true);
+        let seconds = time / 1000;
+
+        player.seekTo(seconds, true);
     }
 
     /**

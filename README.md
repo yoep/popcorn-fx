@@ -30,7 +30,6 @@ Add the following VM option to enable the virtual keyboard
 
 ### Must
 
-- Mark as watched when the video is at 90%
 - Update torrent buffering when seeking through the video
 
 ### Should

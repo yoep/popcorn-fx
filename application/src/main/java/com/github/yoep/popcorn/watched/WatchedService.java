@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.watched;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.PopcornTimeApplication;
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +27,10 @@ import static java.util.Arrays.asList;
 @RequiredArgsConstructor
 public class WatchedService {
     private static final String NAME = "watched.json";
+    private static final int WATCHED_PERCENTAGE_THRESHOLD = 90;
 
     private final List<String> cache = new ArrayList<>();
+    private final ActivityManager activityManager;
     private final ObjectMapper objectMapper;
 
     //region Methods
@@ -74,7 +78,40 @@ public class WatchedService {
 
     @PostConstruct
     private void init() {
+        initializeCache();
+        initializeListeners();
+    }
+
+    private void initializeCache() {
         cache.addAll(loadWatched());
+    }
+
+    private void initializeListeners() {
+        activityManager.register(ClosePlayerActivity.class, activity -> {
+            // check if the quality is present of the media
+            // if not, the played video was the trailer of the media
+            if (activity.getQuality().isEmpty())
+                return;
+
+            long time = activity.getTime();
+            long duration = activity.getDuration();
+
+            // check if both the time and duration of the video are known
+            // if not, the close activity media is not eligible for being auto marked as watched
+            if (time == ClosePlayerActivity.UNKNOWN || duration == ClosePlayerActivity.UNKNOWN)
+                return;
+
+            long percentageWatched = (time / duration) * 100;
+            Media media = activity.getMedia();
+
+            // check if the media has been watched for the percentage threshold
+            // if so, mark the media as watched
+            log.trace("Media playback of \"{}\" ({}) has been watched for {}%", media.getTitle(), media.getId(), percentageWatched);
+            if (percentageWatched >= WATCHED_PERCENTAGE_THRESHOLD) {
+                log.debug("Marking media \"{}\" ({}) automatically as watched", media.getTitle(), media.getId());
+                addToWatchList(media);
+            }
+        });
     }
 
     //endregion

@@ -301,7 +301,7 @@ public class PlayerComponent implements Initializable {
             }
 
             @Override
-            public long getLength() {
+            public long getDuration() {
                 return 0;
             }
         });

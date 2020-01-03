@@ -222,7 +222,7 @@ public class LoaderComponent {
             }
 
             @Override
-            public long getLength() {
+            public long getDuration() {
                 return ClosePlayerActivity.UNKNOWN;
             }
         });

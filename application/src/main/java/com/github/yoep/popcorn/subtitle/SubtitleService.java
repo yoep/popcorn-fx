@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 public class SubtitleService {
+    //TODO: implement torrent quality based subtitle selection
     private static final Pattern QUALITY_PATTERN = Pattern.compile("([0-9]+p)");
 
     private final Map<String, List<SubtitleInfo>> cachedSubtitles = new HashMap<>();

@@ -234,6 +234,7 @@ public class StreamInfo extends Icon {
 
             content.getColumnConstraints().addAll(createColumn(), createColumn());
             content.getRowConstraints().addAll(new RowConstraints(), new RowConstraints(), new RowConstraints(), new RowConstraints());
+            content.setHgap(10);
         }
 
         private void initializeDownload() {

@@ -42,7 +42,6 @@ Add the following VM option to enable the virtual keyboard
 
 ### Could
 
-- Add loading card to the list view while loading
 - Add loading indicator to the player
 - Update video time slider to show video loading progress (custom control)
 - Trakt.tv integration

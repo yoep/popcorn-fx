@@ -11,10 +11,10 @@ import org.springframework.core.annotation.Order;
 @Slf4j
 @Configuration
 public class VideoConfig {
-    @Bean
     @Order
-    @ConditionalOnMissingBean
-    public VideoPlayer video() {
+    @ConditionalOnMissingBean(VideoPlayer.class)
+    @Bean
+    public VideoPlayer videoPlayer() {
         log.warn("Using JavaFX video player as fallback");
         return new VideoPlayerFX();
     }

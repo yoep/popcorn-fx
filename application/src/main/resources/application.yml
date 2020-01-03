@@ -1,6 +1,8 @@
 spring:
   application:
     name: Popcorn Time
+  main:
+    allow-bean-definition-overriding: true
 
 logging:
   level:

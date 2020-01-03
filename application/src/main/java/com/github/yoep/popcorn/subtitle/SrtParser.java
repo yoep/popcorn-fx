@@ -121,6 +121,9 @@ public class SrtParser {
         }
     }
 
+    //TODO: fix special parsing of "style" indication being split over more than one line
+    // e.g.: <i>And break the frozen heart
+    // Hup, ho</i>
     private void readText(String line) {
         if (lines == null)
             lines = new ArrayList<>();

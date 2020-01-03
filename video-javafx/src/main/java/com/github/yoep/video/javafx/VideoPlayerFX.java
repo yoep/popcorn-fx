@@ -42,9 +42,13 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
         if (!isYoutubeUrl(url)) {
             hide();
 
-            mediaPlayer = new MediaPlayer(new Media(url));
-            initializeMediaPlayerEvents();
-            mediaPlayer.play();
+            try {
+                mediaPlayer = new MediaPlayer(new Media(url));
+                initializeMediaPlayerEvents();
+                mediaPlayer.play();
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
         }
     }
 

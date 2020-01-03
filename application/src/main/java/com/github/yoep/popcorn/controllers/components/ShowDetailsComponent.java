@@ -58,6 +58,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private final SubtitleService subtitleService;
 
     private Episode episode;
+    private boolean batchUpdating;
 
     @FXML
     private Label title;
@@ -321,11 +322,15 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     }
 
     private void markSeasonAsWatched(Season season) {
+        batchUpdating = true;
         getSeasonEpisodes(season).forEach(e -> e.setWatched(true));
+        batchUpdating = false;
     }
 
     private void unmarkSeasonAsWatched(Season season) {
+        batchUpdating = true;
         getSeasonEpisodes(season).forEach(e -> e.setWatched(false));
+        batchUpdating = false;
     }
 
     private void selectUnwatchedSeason() {
@@ -375,8 +380,12 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             watchedService.removeFromWatchList(episode);
         }
 
-        // navigate to the next unwatched episode
-        selectUnwatchedEpisode();
+        // check if a batch update is running
+        // if so, do not go to the next unwatched episode
+        if (!batchUpdating) {
+            // navigate to the next unwatched episode
+            selectUnwatchedEpisode();
+        }
     }
 
     @FXML

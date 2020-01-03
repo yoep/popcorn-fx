@@ -297,9 +297,10 @@ public class StreamInfo extends Icon {
             content.add(downloaded, 0, 3);
         }
 
+        //TODO: cleanup
         private ColumnConstraints createColumn() {
             ColumnConstraints column = new ColumnConstraints();
-            column.setPercentWidth(50);
+//            column.setPercentWidth(50);
             return column;
         }
     }

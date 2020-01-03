@@ -138,6 +138,7 @@ public class InfiniteScrollPane extends ScrollPane {
     public void reset() {
         setPage(0);
         Platform.runLater(() -> itemsPane.getChildren().clear());
+        updating = false;
     }
 
     /**

@@ -167,34 +167,22 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         seasons.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
         seasons.setWatchedFactory(() -> new WatchedCell<>() {
             @Override
-            protected void updateItem(Icon item, boolean empty) {
-                super.updateItem(item, empty);
-                Season season = getWatchableItem();
+            protected void onItemChanged(Season oldItem, Season newItem) {
+                super.onItemChanged(oldItem, newItem);
 
-                if (!empty && season != null) {
-                    if (!isSeasonEmpty(season)) {
+                if (newItem != null) {
+                    if (!isSeasonEmpty(newItem)) {
                         boolean watched = isSeasonWatched(getWatchableItem());
-                        String tooltip = localeText.get(watched ? DetailsMessage.UNMARK_AS_WATCHED : DetailsMessage.MARK_AS_WATCHED);
 
                         setWatched(watched);
-                        Tooltip.install(getIcon(), instantTooltip(new Tooltip(localeText.get(tooltip))));
+                        updateIcon(watched);
+                        Tooltip.install(getIcon(), instantTooltip(getWatchedTooltip(watched)));
+
+                        registerWatchedListener((observable, oldValue, newValue) -> onSeasonWatchedChanged(newValue, getWatchableItem(), getIcon()), newItem);
                     } else {
                         setGraphic(null);
                     }
                 }
-            }
-
-            @Override
-            protected void init() {
-                super.init();
-
-                watchedProperty().addListener((observable, oldValue, newValue) -> {
-                    if (newValue) {
-                        markSeasonAsWatched(getWatchableItem());
-                    } else {
-                        unmarkSeasonAsWatched(getWatchableItem());
-                    }
-                });
             }
         });
     }
@@ -203,32 +191,18 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
         episodes.setWatchedFactory(() -> new WatchedCell<>() {
             @Override
-            protected void updateItem(Icon item, boolean empty) {
-                super.updateItem(item, empty);
+            protected void onItemChanged(Episode oldItem, Episode newItem) {
+                super.onItemChanged(oldItem, newItem);
 
-                if (!empty && getWatchableItem() != null) {
+                if (newItem != null) {
                     boolean watched = watchedService.isWatched(getWatchableItem());
-                    String tooltip = localeText.get(watched ? DetailsMessage.UNMARK_AS_WATCHED : DetailsMessage.MARK_AS_WATCHED);
 
                     setWatched(watched);
-                    Tooltip.install(getIcon(), instantTooltip(new Tooltip(localeText.get(tooltip))));
+                    updateIcon(watched);
+                    Tooltip.install(getIcon(), instantTooltip(getWatchedTooltip(watched)));
+
+                    registerWatchedListener((observable, oldValue, newValue) -> onEpisodeWatchedChanged(newValue, getWatchableItem(), getIcon()), newItem);
                 }
-            }
-
-            @Override
-            protected void init() {
-                super.init();
-
-                watchedProperty().addListener((observable, oldValue, newValue) -> {
-                    if (newValue) {
-                        watchedService.addToWatchList(getWatchableItem());
-                    } else {
-                        watchedService.removeFromWatchList(getWatchableItem());
-                    }
-
-                    // navigate to the next unwatched episode
-                    selectUnwatchedEpisode();
-                });
             }
         });
     }
@@ -349,13 +323,11 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     }
 
     private void markSeasonAsWatched(Season season) {
-        getSeasonEpisodes(season).forEach(watchedService::addToWatchList);
-        selectUnwatchedSeason();
+        getSeasonEpisodes(season).forEach(e -> e.setWatched(true));
     }
 
     private void unmarkSeasonAsWatched(Season season) {
-        getSeasonEpisodes(season).forEach(watchedService::removeFromWatchList);
-        selectUnwatchedSeason();
+        getSeasonEpisodes(season).forEach(e -> e.setWatched(false));
     }
 
     private void selectUnwatchedSeason() {
@@ -377,6 +349,36 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                 .orElseGet(() -> CollectionUtils.lastElement(episodes));
 
         Platform.runLater(() -> this.episodes.getSelectionModel().select(episode));
+    }
+
+    private String getWatchedTooltip(boolean watched) {
+        return localeText.get(watched ? DetailsMessage.UNMARK_AS_WATCHED : DetailsMessage.MARK_AS_WATCHED);
+    }
+
+    private void onSeasonWatchedChanged(Boolean newValue, Season season, Icon icon) {
+        Tooltip.install(icon, instantTooltip(getWatchedTooltip(newValue)));
+
+        if (newValue) {
+            markSeasonAsWatched(season);
+        } else {
+            unmarkSeasonAsWatched(season);
+        }
+
+        // navigate to the next unwatched season
+        selectUnwatchedSeason();
+    }
+
+    private void onEpisodeWatchedChanged(Boolean newValue, Episode episode, Icon icon) {
+        Tooltip.install(icon, instantTooltip(getWatchedTooltip(newValue)));
+
+        if (newValue) {
+            watchedService.addToWatchList(episode);
+        } else {
+            watchedService.removeFromWatchList(episode);
+        }
+
+        // navigate to the next unwatched episode
+        selectUnwatchedEpisode();
     }
 
     @FXML

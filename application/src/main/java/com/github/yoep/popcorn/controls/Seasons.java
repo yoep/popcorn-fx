@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.watched.controls.WatchedCell;
 import com.github.yoep.popcorn.watched.controls.WatchedCellFactory;
@@ -18,7 +17,7 @@ public class Seasons extends TableView<Season> {
             new SimpleObjectProperty<>(this, WATCHED_FACTORY_PROPERTY, WatchedCell::new);
 
     private final TableColumn<Season, String> seasonColumn = new TableColumn<>();
-    private final TableColumn<Season, Icon> watchedColumn = new TableColumn<>();
+    private final TableColumn<Season, String> watchedColumn = new TableColumn<>();
 
     //region Constructors
 

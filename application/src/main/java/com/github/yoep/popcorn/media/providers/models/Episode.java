@@ -5,11 +5,13 @@ import com.github.yoep.popcorn.watched.models.Watchable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import lombok.Data;
+import lombok.ToString;
 import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.Map;
 
 @Data
+@ToString(exclude = {"watched"})
 public class Episode implements Watchable {
     @JsonIgnore
     private BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);

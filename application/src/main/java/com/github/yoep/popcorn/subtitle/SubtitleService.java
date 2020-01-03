@@ -264,7 +264,8 @@ public class SubtitleService {
                         }
                     }
 
-                    log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size(), media.getTitle(), media.getImdbId());
+                    // always subtract the "none" subtitle from the count
+                    log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size() - 1, media.getTitle(), media.getImdbId());
                     completableFuture.complete(subtitles);
                 } else {
                     String message = MessageFormat.format("No subtitles found for \"{0}\" media ({1})", media.getTitle(), media.getImdbId());
@@ -334,7 +335,6 @@ public class SubtitleService {
             throw new SubtitleException("Failed to download subtitle, " + message);
         }
 
-        SubtitleSettings settings = getSettings();
         File storageFile = getStorageFile(subtitle);
         File subtitleFile;
 

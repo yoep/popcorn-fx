@@ -22,7 +22,7 @@ public class Episodes extends TableView<Episode> {
 
     private final TableColumn<Episode, String> episodeColumn = new TableColumn<>();
     private final TableColumn<Episode, String> titleColumn = new TableColumn<>();
-    private final TableColumn<Episode, Icon> watchedColumn = new TableColumn<>();
+    private final TableColumn<Episode, String> watchedColumn = new TableColumn<>();
 
     //region Constructors
 
@@ -91,6 +91,9 @@ public class Episodes extends TableView<Episode> {
                             .map(Episode::getEpisode)
                             .map(String::valueOf)
                             .ifPresent(this::setText);
+                } else {
+                    setText(null);
+                    setGraphic(null);
                 }
             }
         });
@@ -103,6 +106,9 @@ public class Episodes extends TableView<Episode> {
                     Optional.ofNullable(getTableRow().getItem())
                             .map(Episode::getTitle)
                             .ifPresent(this::setText);
+                } else {
+                    setText(null);
+                    setGraphic(null);
                 }
             }
         });

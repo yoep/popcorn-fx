@@ -145,7 +145,23 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     }
 
     /**
+     * Create a new instant {@link Tooltip} for the given text.
+     * This will create a {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
+     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
+     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
+     *
+     * @param text The text of the tooltip.
+     * @return Returns the instant Tooltip.
+     */
+    protected Tooltip instantTooltip(String text) {
+        return instantTooltip(new Tooltip(text));
+    }
+
+    /**
      * Update the given tooltip so it's shown instantly.
+     * This will update the {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
+     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
+     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
      *
      * @param tooltip The tooltip to update.
      * @return Returns same tooltip instance..

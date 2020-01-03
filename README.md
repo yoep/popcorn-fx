@@ -1,5 +1,8 @@
 # Popcorn Time Desktop Java
 
+Popcorn Time Desktop application based on the original Popcorn Time Desktop and Popcorn Time Android versions.
+This version was created to work with embedded devices such as the Raspberry PI.
+
 ## Startup options
 
     -Dsun.awt.disablegrab=true -XX:+UseG1GC -Dprism.lcdtext=false -Xmx1G
@@ -30,6 +33,7 @@ Add the following VM option to enable the virtual keyboard
 
 ### Must
 
+- Set default subtitle when loading the details or playing the media
 - Update torrent buffering when seeking through the video
 
 ### Should

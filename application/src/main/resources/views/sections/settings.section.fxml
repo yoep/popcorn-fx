@@ -18,6 +18,9 @@
 
             <!-- Subtitles -->
             <fx:include source="../components/settings-subtitles.component.fxml"/>
+
+            <!-- Torrent -->
+            <fx:include source="../components/settings-torrent.component.fxml"/>
         </VBox>
     </ScrollPane>
 

@@ -428,7 +428,6 @@ public class Torrent implements AlertListener {
                 startSequentialMode();
 
                 prepareProgress = 100d;
-                sendStreamProgress();
                 state = State.STREAMING;
 
                 if (listener != null) {
@@ -445,8 +444,6 @@ public class Torrent implements AlertListener {
                 break;
             }
         }
-
-        sendStreamProgress();
     }
 
     private void sendStreamProgress() {

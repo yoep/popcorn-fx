@@ -103,8 +103,8 @@ public class SettingsSubtitlesComponent implements Initializable {
     }
 
     private void initializeCacheDirectory() {
-        SubtitleSettings settings = getSettings();
-        File directory = settings.getDirectory();
+        var settings = getSettings();
+        var directory = settings.getDirectory();
 
         cacheChooser.setInitialDirectory(directory);
         cacheDirectory.setText(directory.getAbsolutePath());
@@ -119,7 +119,7 @@ public class SettingsSubtitlesComponent implements Initializable {
     }
 
     private void initializeClearCache() {
-        SubtitleSettings settings = getSettings();
+        var settings = getSettings();
 
         clearCache.setSelected(settings.isAutoCleaningEnabled());
         clearCache.selectedProperty().addListener((observable, oldValue, newValue) -> settings.setAutoCleaningEnabled(newValue));

@@ -46,9 +46,9 @@ public class PlayerControlsComponent implements Initializable {
     @FXML
     private Icon playPauseIcon;
     @FXML
-    private Label currentTime;
+    private Label timeLabel;
     @FXML
-    private Label duration;
+    private Label durationLabel;
     @FXML
     private Slider slider;
     @FXML
@@ -60,6 +60,31 @@ public class PlayerControlsComponent implements Initializable {
 
     private Media media;
     private SubtitleInfo subtitle;
+    private Long time;
+    private Long duration;
+
+    //region Getters
+
+    /**
+     * Get the last known time of the video playback.
+     *
+     * @return Returns the last time if known, else null.
+     */
+    Long getTime() {
+        return time;
+    }
+
+    /**
+     * Get the last known duration of the video.
+     *
+     * @return Returns the last duration if known, else null.
+     */
+    Long getDuration() {
+        return duration;
+    }
+
+
+    //endregion
 
     //region Methods
 
@@ -138,12 +163,18 @@ public class PlayerControlsComponent implements Initializable {
             }
         });
         videoPlayer.timeProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
-            currentTime.setText(formatTime(newValue.longValue()));
-            slider.setValue(newValue.longValue());
+            long time = newValue.longValue();
+
+            timeLabel.setText(formatTime(time));
+            slider.setValue(time);
+            this.time = time;
         }));
         videoPlayer.durationProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
-            duration.setText(formatTime(newValue.longValue()));
-            slider.setMax(newValue.longValue());
+            long duration = newValue.longValue();
+
+            durationLabel.setText(formatTime(duration));
+            slider.setMax(duration);
+            this.duration = duration;
         }));
     }
 
@@ -258,11 +289,13 @@ public class PlayerControlsComponent implements Initializable {
         log.trace("Video player controls are being reset");
         this.media = null;
         this.subtitle = null;
+        this.time = null;
+        this.duration = null;
 
         Platform.runLater(() -> {
             slider.setValue(0);
-            currentTime.setText(formatTime(0));
-            duration.setText(formatTime(0));
+            timeLabel.setText(formatTime(0));
+            durationLabel.setText(formatTime(0));
         });
     }
 

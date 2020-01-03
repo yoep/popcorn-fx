@@ -217,6 +217,11 @@ public class LoaderComponent {
             }
 
             @Override
+            public Optional<String> getQuality() {
+                return Optional.ofNullable(quality);
+            }
+
+            @Override
             public long getTime() {
                 return ClosePlayerActivity.UNKNOWN;
             }

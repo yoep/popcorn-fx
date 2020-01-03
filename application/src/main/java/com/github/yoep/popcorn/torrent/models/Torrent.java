@@ -467,7 +467,8 @@ public class Torrent implements AlertListener {
     public int[] types() {
         return new int[]{
                 AlertType.PIECE_FINISHED.swig(),
-                AlertType.BLOCK_FINISHED.swig()
+                AlertType.BLOCK_FINISHED.swig(),
+                AlertType.STATS.swig()
         };
     }
 
@@ -479,6 +480,9 @@ public class Torrent implements AlertListener {
                 break;
             case BLOCK_FINISHED:
                 blockFinished((BlockFinishedAlert) alert);
+                break;
+            case STATS:
+                sendStreamProgress();
                 break;
             default:
                 break;

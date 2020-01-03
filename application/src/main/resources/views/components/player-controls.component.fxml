@@ -26,7 +26,7 @@
     </Icon>
 
     <!-- Current Time -->
-    <Label fx:id="currentTime" styleClass="time" text="00:00"
+    <Label fx:id="timeLabel" styleClass="time" text="00:00"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
     <!-- Time picker -->
@@ -34,7 +34,7 @@
             GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
     <!-- Duration -->
-    <Label fx:id="duration" styleClass="time" text="00:00"
+    <Label fx:id="durationLabel" styleClass="time" text="00:00"
            GridPane.columnIndex="3" GridPane.rowIndex="0"/>
 
     <!-- Subtitle -->

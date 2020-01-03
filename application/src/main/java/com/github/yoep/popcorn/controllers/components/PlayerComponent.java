@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -51,6 +52,7 @@ public class PlayerComponent implements Initializable {
     private final VideoPlayer videoPlayer;
 
     private Media media;
+    private String quality;
     private long videoChangeTime;
 
     @FXML
@@ -185,6 +187,7 @@ public class PlayerComponent implements Initializable {
         log.debug("Received play video activity for url {}, quality {} and media {}", activity.getUrl(), activity.getQuality().orElse("-"),
                 activity.getMedia());
         this.media = activity.getMedia();
+        this.quality = activity.getQuality().orElse(null);
         this.videoChangeTime = System.currentTimeMillis();
         var activitySubtitle = activity.getSubtitle();
 
@@ -273,10 +276,11 @@ public class PlayerComponent implements Initializable {
     private void reset() {
         log.trace("Video player component is being reset");
         this.media = null;
+        this.quality = null;
         this.videoChangeTime = 0;
 
         Platform.runLater(() -> subtitleTrack.clear());
-        taskExecutor.execute(() -> videoPlayer.stop());
+        taskExecutor.execute(videoPlayer::stop);
     }
 
     private FontWeight getFontWeight(boolean isBold) {
@@ -296,13 +300,20 @@ public class PlayerComponent implements Initializable {
             }
 
             @Override
+            public Optional<String> getQuality() {
+                return Optional.ofNullable(quality);
+            }
+
+            @Override
             public long getTime() {
-                return 0;
+                return Optional.ofNullable(playerControls.getTime())
+                        .orElse(UNKNOWN);
             }
 
             @Override
             public long getDuration() {
-                return 0;
+                return Optional.ofNullable(playerControls.getDuration())
+                        .orElse(UNKNOWN);
             }
         });
 

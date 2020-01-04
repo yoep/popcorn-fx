@@ -186,7 +186,10 @@ public class VideoPlayerYoutube implements VideoPlayer {
         if (!isYoutubePlayerActive())
             return;
 
-        Platform.runLater(() -> getEngine().executeScript("stop()"));
+        Platform.runLater(() -> {
+            getEngine().executeScript("stop()");
+            reset();
+        });
     }
 
     //endregion
@@ -213,6 +216,14 @@ public class VideoPlayerYoutube implements VideoPlayer {
     //endregion
 
     //region Functions
+
+    /**
+     * Reset the video player information.
+     */
+    protected void reset() {
+        setTime(0);
+        setDuration(0);
+    }
 
     private void checkInitialized() {
         if (!initialized)

@@ -64,7 +64,7 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
             hide();
 
             timer.start();
-            mediaPlayer.submit(() -> mediaPlayer.media().play(url));
+            invokeOnVlc(() -> mediaPlayer.media().play(url));
         }
     }
 
@@ -76,7 +76,7 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
             return;
 
         timer.stop();
-        mediaPlayer.submit(() -> mediaPlayer.controls().pause());
+        invokeOnVlc(() -> mediaPlayer.controls().pause());
     }
 
     @Override
@@ -87,7 +87,7 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
             return;
 
         timer.start();
-        mediaPlayer.submit(() -> mediaPlayer.controls().play());
+        invokeOnVlc(() -> mediaPlayer.controls().play());
     }
 
     @Override
@@ -97,7 +97,7 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
         if (isYoutubePlayerActive())
             return;
 
-        mediaPlayer.submit(() -> mediaPlayer.controls().setTime(time));
+        invokeOnVlc(() -> mediaPlayer.controls().setTime(time));
     }
 
     @Override
@@ -107,9 +107,10 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
         if (isYoutubePlayerActive())
             return;
 
-        mediaPlayer.submit(() -> mediaPlayer.controls().stop());
+        invokeOnVlc(() -> mediaPlayer.controls().stop());
         timer.stop();
         surface.reset();
+        reset();
     }
 
     //endregion
@@ -167,6 +168,16 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
         this.canvas.heightProperty().bind(videoPane.heightProperty());
         videoPane.getChildren().add(this.canvas);
         this.mediaPlayer.videoSurface().set(surface);
+    }
+
+    private void invokeOnVlc(Runnable runnable) {
+        mediaPlayer.submit(() -> {
+            try {
+                runnable.run();
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        });
     }
 
     //endregion

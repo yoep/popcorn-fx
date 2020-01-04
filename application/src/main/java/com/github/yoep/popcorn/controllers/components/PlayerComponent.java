@@ -292,7 +292,17 @@ public class PlayerComponent implements Initializable {
      * This will create a {@link ClosePlayerActivity} with the last known information about the video player state.
      */
     private void close() {
+        // check if the player has already been closed
+        if (media == null)
+            return;
+
         log.trace("Video player is being closed");
+        // keep a copy of the information for later use in the activity
+        var media = this.media;
+        var quality = this.quality;
+        var time = playerControls.getTime();
+        var duration = playerControls.getDuration();
+
         activityManager.register(new ClosePlayerActivity() {
             @Override
             public Media getMedia() {
@@ -306,13 +316,13 @@ public class PlayerComponent implements Initializable {
 
             @Override
             public long getTime() {
-                return Optional.ofNullable(playerControls.getTime())
+                return Optional.ofNullable(time)
                         .orElse(UNKNOWN);
             }
 
             @Override
             public long getDuration() {
-                return Optional.ofNullable(playerControls.getDuration())
+                return Optional.ofNullable(duration)
                         .orElse(UNKNOWN);
             }
         });

@@ -883,10 +883,6 @@
     -fx-font-size: 1.2em;
 }
 
-.root .settings-section GridPane {
-    -fx-vgap: 5;
-}
-
 .root .settings-section GridPane Separator {
     -fx-padding: 10 30 15 15;
 }
@@ -902,6 +898,10 @@
     -fx-text-fill: #fff;
     -fx-font-size: 22;
     -fx-padding: 8 30 5 30;
+}
+
+.root .settings-section .sub-section {
+    -fx-vgap: 8;
 }
 
 .root .settings-section .sub-section Label,

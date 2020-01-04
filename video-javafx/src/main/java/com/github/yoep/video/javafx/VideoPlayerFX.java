@@ -101,6 +101,7 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
 
         mediaPlayer.stop();
         mediaPlayer = null;
+        reset();
     }
 
     //endregion

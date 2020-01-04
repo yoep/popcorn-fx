@@ -101,7 +101,7 @@ public class WatchedService {
             if (time == ClosePlayerActivity.UNKNOWN || duration == ClosePlayerActivity.UNKNOWN)
                 return;
 
-            long percentageWatched = (time / duration) * 100;
+            double percentageWatched = ((double) time / duration) * 100;
             Media media = activity.getMedia();
 
             // check if the media has been watched for the percentage threshold

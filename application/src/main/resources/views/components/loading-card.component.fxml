@@ -3,7 +3,7 @@
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.layout.StackPane?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.controllers.components.LoadingCardComponent" styleClass="poster-item">
-    <StackPane fx:id="poster" styleClass="poster-image" cache="true"/>
+           fx:controller="com.github.yoep.popcorn.controllers.components.LoadingCardComponent" styleClass="poster-item" cache="true" cacheHint="SPEED">
+    <StackPane fx:id="poster" styleClass="poster-image"/>
     <ProgressIndicator/>
 </StackPane>

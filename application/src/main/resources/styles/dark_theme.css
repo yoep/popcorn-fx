@@ -1,22 +1,16 @@
 @font-face {
-    font-family: 'Open Sans';
+    font-family: "Open Sans";
     src: url("../fonts/OpenSans-Regular.woff");
-    font-weight: normal;
-    font-style: normal;
 }
 
 @font-face {
-    font-family: 'Open Sans Bold';
+    font-family: "Open Sans Bold";
     src: url("../fonts/OpenSans-Bold.woff");
-    font-weight: normal;
-    font-style: normal;
 }
 
 @font-face {
-    font-family: 'Open Sans Semibold';
+    font-family: "Open Sans Semibold";
     src: url("../fonts/OpenSans-Semibold.woff");
-    font-weight: normal;
-    font-style: normal;
 }
 
 .root,

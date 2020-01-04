@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.StackPane?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
            fx:controller="com.github.yoep.popcorn.controllers.components.BackgroundComponent"
-           styleClass="background-image">
+           styleClass="background-image" cache="true" cacheHint="SPEED">
     <BorderPane fx:id="backgroundImage"/>
     <BorderPane styleClass="background-cover"/>
 </StackPane>

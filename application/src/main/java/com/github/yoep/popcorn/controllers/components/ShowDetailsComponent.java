@@ -55,7 +55,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private final ActivityManager activityManager;
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
-    private final SubtitleService subtitleService;
 
     private Episode episode;
     private boolean batchUpdating;
@@ -97,14 +96,14 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                                 TaskExecutor taskExecutor,
                                 LocaleText localeText,
                                 TorrentService torrentService,
+                                SubtitleService subtitleService,
                                 Application application,
                                 FavoriteService favoriteService,
-                                WatchedService watchedService, SubtitleService subtitleService) {
-        super(taskExecutor, localeText, torrentService, application);
+                                WatchedService watchedService) {
+        super(taskExecutor, localeText, torrentService, subtitleService, application);
         this.activityManager = activityManager;
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
-        this.subtitleService = subtitleService;
     }
 
     //endregion

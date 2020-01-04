@@ -44,7 +44,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private final ActivityManager activityManager;
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
-    private final SubtitleService subtitleService;
 
     private boolean watched;
 
@@ -72,13 +71,13 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
                                  Application application,
                                  TaskExecutor taskExecutor,
                                  TorrentService torrentService,
+                                 SubtitleService subtitleService,
                                  FavoriteService favoriteService,
-                                 WatchedService watchedService, SubtitleService subtitleService) {
-        super(taskExecutor, localeText, torrentService, application);
+                                 WatchedService watchedService) {
+        super(taskExecutor, localeText, torrentService, subtitleService, application);
         this.activityManager = activityManager;
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
-        this.subtitleService = subtitleService;
     }
 
     //endregion

@@ -33,7 +33,6 @@ Add the following VM option to enable the virtual keyboard
 
 ### Must
 
-- Set default subtitle when loading the details or playing the media
 - Update torrent buffering when seeking through the video
 
 ### Should

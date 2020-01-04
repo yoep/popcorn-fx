@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
@@ -44,6 +45,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected final TaskExecutor taskExecutor;
     protected final LocaleText localeText;
     protected final TorrentService torrentService;
+    protected final SubtitleService subtitleService;
     protected final Application application;
 
     protected T media;
@@ -72,10 +74,12 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
 
     //region Constructors
 
-    public AbstractDetailsComponent(TaskExecutor taskExecutor, LocaleText localeText, TorrentService torrentService, Application application) {
+    public AbstractDetailsComponent(TaskExecutor taskExecutor, LocaleText localeText, TorrentService torrentService, SubtitleService subtitleService,
+                                    Application application) {
         this.taskExecutor = taskExecutor;
         this.localeText = localeText;
         this.torrentService = torrentService;
+        this.subtitleService = subtitleService;
         this.application = application;
     }
 
@@ -237,7 +241,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
             Platform.runLater(() -> {
                 languageSelection.getItems().clear();
                 languageSelection.getItems().addAll(filteredSubtitles);
-                languageSelection.select(0);
+                languageSelection.select(subtitleService.getDefault(filteredSubtitles));
             });
         } else {
             log.error(throwable.getMessage(), throwable);

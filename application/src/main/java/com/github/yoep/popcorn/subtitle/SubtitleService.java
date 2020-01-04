@@ -142,6 +142,26 @@ public class SubtitleService {
         return CompletableFuture.completedFuture(internalParse(file));
     }
 
+    /**
+     * Get the subtitle that needs to be selected by default for the given subtitles list.
+     * This is based on the subtitle settings and tries to find the user's preferred language if it exist.
+     * If the user's preferred language doesn't exist in the list, it returns the default {@link SubtitleInfo#none()} subtitle.
+     *
+     * @param subtitles The subtitle list to search for the preferred language.
+     * @return Returns the subtitle that needs to be selected by default.
+     */
+    public SubtitleInfo getDefault(List<SubtitleInfo> subtitles) {
+        Assert.notNull(subtitles, "subtitles cannot be null");
+        SubtitleSettings settings = getSettings();
+
+        // try to find the subtitle language from settings if it exists in the list
+        // if not found, return the special none subtitle
+        return subtitles.stream()
+                .filter(e -> e.getLanguage() == settings.getDefaultSubtitle())
+                .findFirst()
+                .orElseGet(SubtitleInfo::none);
+    }
+
     //endregion
 
     //region PostConstruct

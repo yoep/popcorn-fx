@@ -172,6 +172,15 @@ public class LanguageFlagSelection extends StackPane {
     }
 
     /**
+     * Select the given item.
+     *
+     * @param subtitle The subtitle to select.
+     */
+    public void select(SubtitleInfo subtitle) {
+        onSelectedItemChanged(subtitle);
+    }
+
+    /**
      * Show the language selection popup of this control.
      */
     public void show() {

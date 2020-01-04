@@ -27,7 +27,6 @@ import org.springframework.util.Assert;
 import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
@@ -221,23 +220,23 @@ public class PlayerControlsComponent implements Initializable {
 
         Platform.runLater(() -> subtitleSection.setVisible(activity.getQuality().isPresent()));
 
-        activity.getSubtitle().ifPresentOrElse(
-                subtitle -> this.subtitle = subtitle,
-                () -> {
-                    this.subtitle = SubtitleInfo.none();
-                    handleSubtitlesResponse(Collections.singletonList(this.subtitle), null);
-                }
-        );
+        // check if a quality is known for the media
+        // if not, the current playback is a trailer and we're not going to retrieve the subtitles
+        if (activity.getQuality().isPresent()) {
+            // set the subtitle for the playback
+            this.subtitle = activity.getSubtitle()
+                    .orElse(SubtitleInfo.none());
 
-        if (media instanceof Movie) {
-            Movie movie = (Movie) activity.getMedia();
-            subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
-        } else if (media instanceof Episode) {
-            Episode episode = (Episode) activity.getMedia();
+            if (media instanceof Movie) {
+                Movie movie = (Movie) activity.getMedia();
+                subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
+            } else if (media instanceof Episode) {
+                Episode episode = (Episode) activity.getMedia();
 
-            subtitleService.retrieveSubtitles(episode.getShow(), episode).whenComplete(this::handleSubtitlesResponse);
-        } else {
-            log.error("Failed to retrieve subtitles, missing episode information");
+                subtitleService.retrieveSubtitles(episode.getShow(), episode).whenComplete(this::handleSubtitlesResponse);
+            } else {
+                log.error("Failed to retrieve subtitles, missing episode information");
+            }
         }
     }
 
@@ -267,15 +266,17 @@ public class PlayerControlsComponent implements Initializable {
         slider.setValueChanging(false);
     }
 
-    private void handleSubtitlesResponse(List<SubtitleInfo> subtitles, Throwable throwable) {
+    private void handleSubtitlesResponse(final List<SubtitleInfo> subtitles, Throwable throwable) {
         if (throwable == null) {
+            final SubtitleInfo subtitle = this.subtitle != null ? this.subtitle : subtitleService.getDefault(subtitles);
+
             Platform.runLater(() -> {
                 languageSelection.getItems().clear();
                 languageSelection.getItems().addAll(subtitles);
-                languageSelection.select(this.subtitle);
+                languageSelection.select(subtitle);
             });
         } else {
-            log.error(throwable.getMessage(), throwable);
+            log.error("Failed to retrieve subtitles, " + throwable.getMessage(), throwable);
         }
     }
 

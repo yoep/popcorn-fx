@@ -69,9 +69,9 @@ public interface VideoPlayer {
     boolean isInitialized();
 
     /**
-     * Get the last error that occurred in the media player.
+     * Get the last error that occurred in the video player.
      *
-     * @return Returns the last error of the media player (can be null).
+     * @return Returns the last error of the video player (can be null).
      */
     Throwable getError();
 

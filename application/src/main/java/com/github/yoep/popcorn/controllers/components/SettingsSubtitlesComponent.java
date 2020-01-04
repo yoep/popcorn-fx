@@ -145,7 +145,8 @@ public class SettingsSubtitlesComponent implements Initializable {
     private static List<Integer> getFontSizes() {
         var sizes = new ArrayList<Integer>();
 
-        for (int i = 20; i <= 80; i++) {
+        // increase sizes always by 2
+        for (int i = 20; i <= 80; i += 2) {
             sizes.add(i);
         }
 

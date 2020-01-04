@@ -143,9 +143,17 @@ public class PlayerComponent implements Initializable {
     private void initializeVideoPlayer() {
         videoPlayer.initialize(videoView);
         videoPlayer.playerStateProperty().addListener((observable, oldValue, newValue) -> {
-            log.debug("Video player state changed to {}", newValue);
+            if (newValue != PlayerState.ERROR)
+                log.debug("Video player state changed to {}", newValue);
 
             switch (newValue) {
+                case ERROR:
+                    log.error("Video player state changed to {}", newValue);
+                    Throwable error = videoPlayer.getError();
+
+                    if (error != null)
+                        log.error(error.getMessage(), error);
+                    break;
                 case FINISHED:
                     break;
                 case STOPPED:

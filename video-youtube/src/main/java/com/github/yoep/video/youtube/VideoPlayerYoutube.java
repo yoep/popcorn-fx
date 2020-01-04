@@ -39,7 +39,14 @@ public class VideoPlayerYoutube implements VideoPlayer {
     private boolean initialized;
     private boolean bridgeInitialized;
 
+    private Throwable error;
+
     //region Properties
+
+    @Override
+    public Throwable getError() {
+        return error;
+    }
 
     @Override
     public PlayerState getPlayerState() {
@@ -219,8 +226,13 @@ public class VideoPlayerYoutube implements VideoPlayer {
 
     /**
      * Reset the video player information.
+     * This will reset the last error that occurred and reset the time & duration so the event are correctly fired on next video play.
+     *
+     * (Fixes the duration event not firing if the video has the same duration as the last video)
      */
     protected void reset() {
+        error = null;
+
         setTime(0);
         setDuration(0);
     }
@@ -313,6 +325,11 @@ public class VideoPlayerYoutube implements VideoPlayer {
 
         public void log(String message) {
             log.trace("[WebView] " + message);
+        }
+
+        public void error(String code) {
+            error = new VideoPlayerException("Youtube Player encountered an issue, error code " + code);
+            setPlayerState(PlayerState.ERROR);
         }
     }
 }

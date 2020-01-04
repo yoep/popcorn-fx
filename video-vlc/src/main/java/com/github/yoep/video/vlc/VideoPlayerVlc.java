@@ -1,5 +1,6 @@
 package com.github.yoep.video.vlc;
 
+import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import com.github.yoep.video.vlc.callback.FXBufferFormatCallback;
 import com.github.yoep.video.vlc.callback.FXCallbackVideoSurface;
@@ -14,6 +15,8 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
+import java.util.Objects;
+
 @Slf4j
 public class VideoPlayerVlc extends VideoPlayerYoutube {
     private final Canvas canvas = new Canvas();
@@ -22,6 +25,8 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
     private final MediaPlayerFactory mediaPlayerFactory;
     private final EmbeddedMediaPlayer mediaPlayer;
     private final VideoAnimationTimer timer;
+
+    private Throwable error;
 
     //region Constructors
 
@@ -40,6 +45,11 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
     //endregion
 
     //region VideoPlayer
+
+    @Override
+    public Throwable getError() {
+        return error != null ? error : super.getError();
+    }
 
     @Override
     public void initialize(Pane videoPane) {
@@ -117,6 +127,13 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
 
     //region Functions
 
+
+    @Override
+    protected void reset() {
+        super.reset();
+        error = null;
+    }
+
     private void initialize() {
         initializeEvents();
     }
@@ -145,8 +162,7 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
 
             @Override
             public void error(MediaPlayer mediaPlayer) {
-                log.warn("Media player went into error state");
-                setPlayerState(PlayerState.ERROR);
+                setError(new VideoPlayerException("VLC media player went into error state"));
             }
 
             @Override
@@ -176,8 +192,14 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
                 runnable.run();
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
+                setError(new VideoPlayerException(ex.getMessage(), ex));
             }
         });
+    }
+
+    private void setError(Throwable throwable) {
+        this.error = throwable;
+        setPlayerState(PlayerState.ERROR);
     }
 
     //endregion

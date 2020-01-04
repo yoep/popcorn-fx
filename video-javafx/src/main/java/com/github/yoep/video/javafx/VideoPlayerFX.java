@@ -1,5 +1,6 @@
 package com.github.yoep.video.javafx;
 
+import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import com.github.yoep.video.youtube.VideoPlayerYoutube;
@@ -20,7 +21,14 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
     private MediaView mediaView;
     private MediaPlayer mediaPlayer;
 
+    private Throwable error;
+
     //region VideoPlayer
+
+    @Override
+    public Throwable getError() {
+        return error != null ? error : super.getError();
+    }
 
     @Override
     public void initialize(Pane videoPane) {
@@ -57,7 +65,7 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
                 mediaView.setMediaPlayer(mediaPlayer);
                 mediaPlayer.play();
             } catch (Exception ex) {
-                log.error("JavaFX video playback failed, " + ex.getMessage(), ex);
+                setError(new VideoPlayerException("JavaFX video playback failed, " + ex.getMessage(), ex));
             }
         }
     }
@@ -108,6 +116,12 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
 
     //region Functions
 
+    @Override
+    protected void reset() {
+        super.reset();
+        error = null;
+    }
+
     private void initializeMediaView(Pane videoPane) {
         Platform.runLater(() -> {
             try {
@@ -120,6 +134,7 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
                 videoPane.getChildren().add(mediaView);
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
+                setError(new VideoPlayerException(ex.getMessage(), ex));
             }
         });
     }
@@ -157,6 +172,11 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
         MediaException error = mediaPlayer.getError();
         log.error("JavaFX player encountered an error, " + error.getMessage(), error);
 
+        setError(error);
+    }
+
+    private void setError(Throwable throwable) {
+        this.error = throwable;
         setPlayerState(PlayerState.ERROR);
     }
 

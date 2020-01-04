@@ -68,6 +68,13 @@ public interface VideoPlayer {
      */
     boolean isInitialized();
 
+    /**
+     * Get the last error that occurred in the media player.
+     *
+     * @return Returns the last error of the media player (can be null).
+     */
+    Throwable getError();
+
     //endregion
 
     //region Methods

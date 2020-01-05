@@ -50,66 +50,37 @@
     -fx-text-fill: #fff;
 }
 
-.root .scroll-bar,
-.root .list-view .scroll-bar {
+.root .scroll-bar {
     -fx-padding: 0 3 0 0;
 }
 
-.root InfiniteScrollPane .increment-arrow,
-.root InfiniteScrollPane .decrement-arrow,
-.root ListView .increment-arrow,
-.root ListView .decrement-arrow,
-.root Episodes .increment-arrow,
-.root Episodes .decrement-arrow,
-.root Seasons .increment-arrow,
-.root Seasons .decrement-arrow,
-.root ComboBox .list-view .increment-arrow,
-.root ComboBox .list-view .decrement-arrow {
+.root .scroll-bar .increment-arrow,
+.root .scroll-bar .decrement-arrow {
     -fx-shape: " ";
     -fx-padding: 0em 0.0;
 }
 
-.root InfiniteScrollPane .track,
-.root ListView .track,
-.root Episodes .track,
-.root Seasons .track,
-.root ComboBox .list-view .track {
+.root .scroll-bar .track{
     -fx-background-color: #30333c;
     -fx-border-color: transparent;
     -fx-background-radius: 2em;
     -fx-border-radius: 0em;
 }
 
-.root InfiniteScrollPane .increment-button,
-.root InfiniteScrollPane .decrement-button,
-.root ListView .increment-button,
-.root ListView .decrement-button,
-.root Episodes .increment-button,
-.root Episodes .decrement-button,
-.root Seasons .increment-button,
-.root Seasons .decrement-button,
-.root ComboBox .list-view .increment-button,
-.root ComboBox .list-view .decrement-button {
+.root .scroll-bar .increment-button,
+.root .scroll-bar .decrement-button {
     -fx-background-color: transparent;
     -fx-background-radius: 0.0em;
     -fx-padding: 0 8 0 0;
 }
 
-.root InfiniteScrollPane .thumb,
-.root ListView .thumb,
-.root Episodes .thumb,
-.root Saesons .thumb,
-.root ComboBox .list-view .thumb {
+.root .scroll-bar .thumb {
     -fx-background-color: #83888c;
     -fx-background-insets: 2.0, 0.0, 0.0;
     -fx-background-radius: 2.0em;
 }
 
-.root InfiniteScrollPane .thumb:hover,
-.root ListView .thumb:hover,
-.root Episodes .thumb:hover,
-.root Seasons .thumb:hover,
-.root ComboBox .list-view .thumb:hover {
+.root .scroll-bar .thumb:hover {
     -fx-background-color: #93989c;
 }
 

@@ -97,9 +97,9 @@ popcorn:
   trakt:
     url: https://api.trakt.tv
     client:
-      client-id: 647c69e4ed1ad13393bf6edd9d8f9fb6fe9faf405b44320a6b71ab960b4540a2
-      client-secret: f55b0a53c63af683588b47f6de94226b7572a6f83f40bd44c58a7c83fe1f2cb1
-      user-authorization-uri: https://api.trakt.tv/oauth/token
+      client-id: 62a497cb224dc3d4c71a9da940fb9ef1b20ff8ab148c0ffb38b228e0a58ef246
+      client-secret: 5dddda26c750b108990025e2d3a4fb4c0d348eb5c927c99622ca8edd5ca8c202
+      user-authorization-uri: https://trakt.tv/oauth/authorize
       access-token-uri: https://api.trakt.tv/oauth/token
       pre-established-redirect-uri: http://localhost:9999
       token-name: oauth_token

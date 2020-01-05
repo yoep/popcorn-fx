@@ -1,8 +1,13 @@
 package com.github.yoep.popcorn.trakt.authorization;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewProperties;
-import com.github.yoep.popcorn.controllers.LoginController;
+import com.github.yoep.popcorn.controllers.components.AuthorizationComponent;
+import com.github.yoep.popcorn.controllers.components.AuthorizationRequest;
+import com.github.yoep.popcorn.messages.SettingsMessage;
+import javafx.application.Platform;
+import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -19,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class AuthorizationService {
     private final ViewLoader viewLoader;
-    private final LoginController loginController;
+    private final LocaleText localeText;
 
     //region Methods
 
@@ -33,17 +38,36 @@ public class AuthorizationService {
     @Async
     public CompletableFuture<String> startAuthorization(UserRedirectRequiredException userRedirectRequired, String expectedRedirectUri) {
         log.debug("User has not been authorized yet, starting authorization process");
-        var completableFuture = new CompletableFuture<String>();
+        final var completableFuture = new CompletableFuture<String>();
+        final var controller = new AuthorizationComponent();
 
-        openLoginDialog();
-        loginController.startAuthorization(getRedirectUrl(userRedirectRequired), expectedRedirectUri)
-                .whenComplete((url, throwable) -> {
-                    if (throwable == null) {
-                        completableFuture.complete(authorize(url));
-                    } else {
-                        completableFuture.completeExceptionally(new AccessTokenException("Authorization failed, " + throwable.getMessage(), throwable));
-                    }
-                });
+        Platform.runLater(() ->{
+            Pane pane = viewLoader.load("components/authorization.component.fxml", controller);
+
+            controller.startAuthorization(new AuthorizationRequest() {
+                @Override
+                public String getAuthorizationUrl() {
+                    return AuthorizationService.this.getRedirectUrl(userRedirectRequired);
+                }
+
+                @Override
+                public String getRedirectUrl() {
+                    return expectedRedirectUri;
+                }
+
+                @Override
+                public void onComplete(String url) {
+                    completableFuture.complete(authorize(url));
+                }
+            });
+
+            viewLoader.showWindow(pane, controller, ViewProperties.builder()
+                    .icon("icon.png")
+                    .title(localeText.get(SettingsMessage.TRAKT_LOGIN_TITLE))
+                    .maximizable(false)
+                    .dialog(true)
+                    .build());
+        });
 
         return completableFuture;
     }
@@ -76,7 +100,7 @@ public class AuthorizationService {
         }
 
         builder.queryParam("show_dialog", "true");
-        return builder.build().encode().toUriString();
+        return builder.toUriString();
     }
 
     private Map<String, String> getParameters(String url) {
@@ -89,15 +113,6 @@ public class AuthorizationService {
         }
 
         return params;
-    }
-
-    private void openLoginDialog() {
-        log.debug("Showing trakt.tv login window");
-        viewLoader.showWindow("login.fxml", ViewProperties.builder()
-                .icon("icon.png")
-                .maximizable(false)
-                .dialog(true)
-                .build());
     }
 
     //endregion

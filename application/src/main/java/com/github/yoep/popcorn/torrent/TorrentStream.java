@@ -170,11 +170,12 @@ public class TorrentStream {
     }
 
     private void initSettings() {
+        TorrentSettings settings = getSettings();
         SettingsPack settingsPack = (new SettingsPack())
                 .anonymousMode(true)
-                .connectionsLimit(200)
-                .downloadRateLimit(0)
-                .uploadRateLimit(0)
+                .connectionsLimit(settings.getConnectionsLimit())
+                .downloadRateLimit(settings.getDownloadRateLimit())
+                .uploadRateLimit(settings.getUploadRateLimit())
                 .sendBufferWatermark(16)
                 .activeDhtLimit(88);
 

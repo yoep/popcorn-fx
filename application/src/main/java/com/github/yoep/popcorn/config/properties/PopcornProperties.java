@@ -29,6 +29,13 @@ public class PopcornProperties {
     private SubtitleProperties subtitle;
 
     /**
+     * The trakt properties for Popcorn Time.
+     */
+    @Valid
+    @NotNull
+    private TraktProperties trakt;
+
+    /**
      * Get the provider with the given name.
      *
      * @param name The name of the provider to retrieve.

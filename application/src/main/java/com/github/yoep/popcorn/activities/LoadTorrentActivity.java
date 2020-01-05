@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-import com.github.yoep.popcorn.media.providers.models.TorrentInfo;
+import com.github.yoep.popcorn.providers.models.TorrentInfo;
 
 public interface LoadTorrentActivity extends PlayMediaActivity {
     /**

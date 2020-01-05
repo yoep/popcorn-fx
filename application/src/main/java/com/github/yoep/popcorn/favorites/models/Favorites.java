@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.favorites.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.media.providers.models.Movie;
-import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Movie;
+import com.github.yoep.popcorn.providers.models.Show;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -60,7 +60,7 @@
     -fx-padding: 0em 0.0;
 }
 
-.root .scroll-bar .track{
+.root .scroll-bar .track {
     -fx-background-color: #30333c;
     -fx-border-color: transparent;
     -fx-background-radius: 2em;
@@ -882,7 +882,8 @@
 }
 
 .root .settings-section .sub-section Label,
-.root .settings-section .sub-section CheckBox {
+.root .settings-section .sub-section CheckBox,
+.root .settings-section .sub-section .button-holder {
     -fx-padding: 0 8 0 15;
 }
 

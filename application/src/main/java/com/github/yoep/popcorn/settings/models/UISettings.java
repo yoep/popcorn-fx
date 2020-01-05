@@ -5,7 +5,7 @@ import lombok.*;
 import java.util.Locale;
 import java.util.Objects;
 
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = false)
 @Data
 @Builder
 @NoArgsConstructor

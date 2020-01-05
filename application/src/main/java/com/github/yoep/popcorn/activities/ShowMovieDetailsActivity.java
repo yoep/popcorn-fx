@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.providers.models.Movie;
 
 public interface ShowMovieDetailsActivity extends ShowDetailsActivity {
     /**

@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.config;
+package com.github.yoep.popcorn.subtitle.config;
 
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.SubtitleProperties;

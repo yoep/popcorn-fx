@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.media.providers.models;
+package com.github.yoep.popcorn.providers.models;
 
 import com.github.yoep.popcorn.torrent.models.Torrent;
 import lombok.Data;

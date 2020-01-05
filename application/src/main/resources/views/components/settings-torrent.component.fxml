@@ -19,7 +19,7 @@
         <RowConstraints/>
     </rowConstraints>
 
-    <!-- Torrent title -->
+    <!-- Title -->
     <Label styleClass="subsection-title" text="%settings_torrent" GridPane.valignment="TOP"
            GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 

@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.favorites;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.favorites.models.Favorites;
-import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Media;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;

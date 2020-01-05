@@ -21,6 +21,9 @@
 
             <!-- Torrent -->
             <fx:include source="../components/settings-torrent.component.fxml"/>
+
+            <!-- Trakt -->
+            <fx:include source="../components/settings-trakt.component.fxml"/>
         </VBox>
     </ScrollPane>
 

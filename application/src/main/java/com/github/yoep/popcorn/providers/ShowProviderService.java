@@ -1,11 +1,11 @@
-package com.github.yoep.popcorn.media.providers;
+package com.github.yoep.popcorn.providers;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
-import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Show;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;

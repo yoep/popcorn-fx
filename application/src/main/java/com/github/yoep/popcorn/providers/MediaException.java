@@ -1,6 +1,6 @@
-package com.github.yoep.popcorn.media.providers;
+package com.github.yoep.popcorn.providers;
 
-import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Media;
 import lombok.Getter;
 
 @Getter

@@ -4,15 +4,17 @@ import lombok.*;
 
 import java.util.Objects;
 
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = false)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@SuppressWarnings("unused")
 public class ApplicationSettings extends AbstractSettings {
     public static final String TORRENT_PROPERTY = "torrentSettings";
     public static final String SUBTITLE_PROPERTY = "subtitleSettings";
     public static final String UI_PROPERTY = "uiSettings";
+    public static final String TRAKT_PROPERTY = "traktSettings";
     public static final String LOGGING_PROPERTY = "loggingSettings";
 
     /**
@@ -30,6 +32,11 @@ public class ApplicationSettings extends AbstractSettings {
      */
     @Builder.Default
     private UISettings uiSettings = UISettings.builder().build();
+    /**
+     * The trakt.tv settings of the application.
+     */
+    @Builder.Default
+    private TraktSettings traktSettings = TraktSettings.builder().build();
     /**
      * The logging settings of the application.
      */
@@ -63,6 +70,15 @@ public class ApplicationSettings extends AbstractSettings {
         var oldValue = this.uiSettings;
         this.uiSettings = uiSettings;
         changes.firePropertyChange(UI_PROPERTY, oldValue, this.uiSettings);
+    }
+
+    public void setTraktSettings(TraktSettings traktSettings) {
+        if (Objects.equals(this.traktSettings, traktSettings))
+            return;
+
+        var oldValue = this.traktSettings;
+        this.traktSettings = traktSettings;
+        changes.firePropertyChange(TRAKT_PROPERTY, oldValue, this.traktSettings);
     }
 
     public void setLoggingSettings(LoggingSettings loggingSettings) {

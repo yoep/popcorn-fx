@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 
 import java.util.Optional;

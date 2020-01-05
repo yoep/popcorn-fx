@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
-import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitle.SubtitleService;

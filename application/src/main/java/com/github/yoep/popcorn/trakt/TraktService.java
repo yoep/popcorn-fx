@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TraktSettings;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.oauth2.client.OAuth2RestOperations;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TraktService {
@@ -36,10 +38,13 @@ public class TraktService {
      */
     @Async
     public CompletableFuture<Boolean> authorize() {
+        log.trace("Trying to authorize on trakt.tv");
         try {
             getWatched();
+            log.debug("Trakt.tv authorization succeeded");
             return CompletableFuture.completedFuture(true);
         } catch (RestClientException ex) {
+            log.debug("Trakt.tv authorization failed");
             return CompletableFuture.completedFuture(false);
         } catch (Exception ex) {
             return CompletableFuture.failedFuture(ex);
@@ -51,6 +56,7 @@ public class TraktService {
      * This will remove the access token from the settings.
      */
     public void forget() {
+        log.trace("Forgetting the authorization of trakt.tv");
         getSettings().setAccessToken(null);
     }
 

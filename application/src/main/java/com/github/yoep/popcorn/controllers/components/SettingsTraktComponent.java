@@ -62,5 +62,6 @@ public class SettingsTraktComponent implements Initializable {
     @FXML
     private void onDisconnectClicked() {
         traktService.forget();
+        switchButtons(false);
     }
 }

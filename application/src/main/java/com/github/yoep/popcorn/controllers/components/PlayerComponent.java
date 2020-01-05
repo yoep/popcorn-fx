@@ -84,6 +84,7 @@ public class PlayerComponent implements Initializable {
 
     @PostConstruct
     private void init() {
+        log.trace("Initializing video player component for Spring");
         initializeListeners();
     }
 
@@ -167,12 +168,14 @@ public class PlayerComponent implements Initializable {
     private void initializeSubtitleTrack() {
         SubtitleSettings subtitleSettings = settingsService.getSettings().getSubtitleSettings();
 
+        log.trace("Setting subtitle track defaults to \"{}\"", subtitleSettings);
         subtitleTrack.setFontFamily(subtitleSettings.getFontFamily().getFamily());
         subtitleTrack.setFontSize(subtitleSettings.getFontSize());
         subtitleTrack.setFontWeight(getFontWeight(subtitleSettings.isBold()));
         subtitleTrack.setDecoration(subtitleSettings.getDecoration());
 
         subtitleSettings.addListener(evt -> {
+            log.trace("Subtitle setting \"{}\" is being changed, updating subtitle track", evt.getPropertyName());
             switch (evt.getPropertyName()) {
                 case SubtitleSettings.FONT_FAMILY_PROPERTY:
                     subtitleTrack.setFontFamily((String) evt.getNewValue());

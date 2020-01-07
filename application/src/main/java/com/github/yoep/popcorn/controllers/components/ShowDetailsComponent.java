@@ -9,12 +9,12 @@ import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.controls.Episodes;
 import com.github.yoep.popcorn.controls.Seasons;
 import com.github.yoep.popcorn.favorites.FavoriteService;
+import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.providers.models.Episode;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.Show;
 import com.github.yoep.popcorn.providers.models.TorrentInfo;
-import com.github.yoep.popcorn.messages.DetailsMessage;
-import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
@@ -348,7 +348,12 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                 .filter(Objects::nonNull)
                 .filter(e -> !watchedService.isWatched(e))
                 .findFirst()
-                .orElseGet(() -> CollectionUtils.lastElement(episodes));
+                .orElseGet(() -> {
+                    // check if the current season should be marked as watched
+                    updateSeasonIfNeeded(this.seasons.getSelectionModel().getSelectedItem());
+
+                    return CollectionUtils.lastElement(episodes);
+                });
 
         Platform.runLater(() -> this.episodes.getSelectionModel().select(episode));
     }
@@ -385,6 +390,11 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             // navigate to the next unwatched episode
             selectUnwatchedEpisode();
         }
+    }
+
+    private void updateSeasonIfNeeded(Season season) {
+        if (isSeasonWatched(season))
+            season.setWatched(true);
     }
 
     @FXML

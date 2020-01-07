@@ -82,3 +82,4 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Add loading indicator to the player
 - Update video time slider to show video loading progress (custom control)
 - Trakt.tv integration
+- Continue to watch show with next episode

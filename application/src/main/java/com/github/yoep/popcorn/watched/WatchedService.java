@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.watched.models.Watchable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -36,39 +37,41 @@ public class WatchedService {
     //region Methods
 
     /**
-     * Check if the given media has been watched already.
+     * Check if the given watchable has been watched already.
      *
-     * @param media The media to check the watched state for.
-     * @return Returns true if the media has already been watched, else false.
+     * @param watchable The watchable to check the watched state for.
+     * @return Returns true if the watchable has already been watched, else false.
      */
-    public boolean isWatched(Media media) {
-        Assert.notNull(media, "media cannot be null");
-        String key = media.getId();
+    public boolean isWatched(Watchable watchable) {
+        Assert.notNull(watchable, "watchable cannot be null");
+        String key = watchable.getId();
 
         return isWatched(key);
     }
 
     /**
-     * Add the media item to the watched list.
+     * Add the watchable item to the watched list.
      *
-     * @param media the media item to add.
+     * @param watchable the watchable item to add.
      */
-    public void addToWatchList(Media media) {
-        Assert.notNull(media, "media cannot be null");
-        String key = media.getId();
+    public void addToWatchList(Watchable watchable) {
+        Assert.notNull(watchable, "watchable cannot be null");
+        String key = watchable.getId();
 
         addToWatchList(key);
+        watchable.setWatched(true);
     }
 
     /**
-     * Remove the media item from the watched list.
+     * Remove the watchable item from the watched list.
      *
-     * @param media The media item to remove.
+     * @param watchable The watchable item to remove.
      */
-    public void removeFromWatchList(Media media) {
-        Assert.notNull(media, "media cannot be null");
+    public void removeFromWatchList(Watchable watchable) {
+        Assert.notNull(watchable, "watchable cannot be null");
         synchronized (cache) {
-            cache.remove(media.getId());
+            cache.remove(watchable.getId());
+            watchable.setWatched(false);
         }
     }
 

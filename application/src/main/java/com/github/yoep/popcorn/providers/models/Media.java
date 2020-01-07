@@ -1,11 +1,13 @@
 package com.github.yoep.popcorn.providers.models;
 
+import com.github.yoep.popcorn.watched.models.Watchable;
+
 import java.util.List;
 
 /**
  * Interface definition of media items of the Popcorn Time API.
  */
-public interface Media {
+public interface Media extends Watchable {
     /**
      * Get the unique ID of the media.
      * This can be a IMDB ID or TVDB ID value that is returned.

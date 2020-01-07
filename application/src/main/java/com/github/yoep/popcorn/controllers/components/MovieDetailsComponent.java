@@ -4,10 +4,10 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.favorites.FavoriteService;
+import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.Movie;
 import com.github.yoep.popcorn.providers.models.TorrentInfo;
-import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
@@ -15,6 +15,7 @@ import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -45,7 +46,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
 
-    private boolean watched;
+    private ChangeListener<Boolean> watchedListener;
 
     @FXML
     private Label title;
@@ -97,6 +98,8 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     @Override
     protected void reset() {
+        media.watchedProperty().removeListener(watchedListener);
+
         super.reset();
         resetLanguageSelection();
 
@@ -189,6 +192,9 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private void loadFavoriteAndWatched() {
         switchFavorite(favoriteService.isFavorite(media));
         switchWatched(watchedService.isWatched(media));
+
+        watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
+        media.watchedProperty().addListener(watchedListener);
     }
 
     private void loadSubtitles() {
@@ -203,8 +209,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     }
 
     private void switchWatched(boolean isWatched) {
-        this.watched = isWatched;
-
         if (isWatched) {
             watchedIcon.setText(Icon.CHECK_UNICODE);
             watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
@@ -297,11 +301,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     @FXML
     private void onWatchedClicked() {
-        boolean newValue = !watched;
-
-        switchWatched(newValue);
-
-        if (newValue) {
+        if (!media.isWatched()) {
             watchedService.addToWatchList(media);
         } else {
             watchedService.removeFromWatchList(media);

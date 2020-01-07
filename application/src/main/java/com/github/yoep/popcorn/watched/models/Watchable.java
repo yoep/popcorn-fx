@@ -28,4 +28,12 @@ public interface Watchable {
      * @param watched The watched value.
      */
     void setWatched(boolean watched);
+
+    /**
+     * Get the unique ID of the watchable.
+     * This is most of the time the IMDB ID or TVDB ID from the {@link com.github.yoep.popcorn.providers.models.Media}.
+     *
+     * @return The unique ID of the watchable.
+     */
+    String getId();
 }

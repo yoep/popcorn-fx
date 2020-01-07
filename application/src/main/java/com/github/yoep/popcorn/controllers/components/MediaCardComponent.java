@@ -3,12 +3,13 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.controls.Stars;
+import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.providers.models.Images;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.Show;
-import com.github.yoep.popcorn.messages.MediaMessage;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -17,7 +18,6 @@ import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.util.Assert;
 
@@ -30,18 +30,18 @@ import java.util.ResourceBundle;
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class MediaCardComponent extends AbstractCardComponent implements Initializable, DisposableBean {
+public class MediaCardComponent extends AbstractCardComponent implements Initializable {
     private static final String LIKED_STYLE_CLASS = "liked";
     private static final String WATCHED_STYLE_CLASS = "watched";
 
     private final List<ItemListener> listeners = new ArrayList<>();
     private final BooleanProperty favoriteProperty = new SimpleBooleanProperty();
-    private final BooleanProperty watchedProperty = new SimpleBooleanProperty();
     private final LocaleText localeText;
     private final TaskExecutor taskExecutor;
     private final Media media;
 
     private Thread imageLoadingThread;
+    private ChangeListener<Boolean> listener;
 
     @FXML
     private Pane posterItem;
@@ -84,15 +84,6 @@ public class MediaCardComponent extends AbstractCardComponent implements Initial
     }
 
     /**
-     * Set if this media card is already watched by the user.
-     *
-     * @param value The watched/viewed value.
-     */
-    public void setIsWatched(boolean value) {
-        watchedProperty.set(value);
-    }
-
-    /**
      * Add a listener to this instance.
      *
      * @param listener The listener to add.
@@ -102,12 +93,6 @@ public class MediaCardComponent extends AbstractCardComponent implements Initial
         synchronized (listeners) {
             listeners.add(listener);
         }
-    }
-
-    @Override
-    public void destroy() {
-        Optional.ofNullable(imageLoadingThread)
-                .ifPresent(Thread::interrupt);
     }
 
     private void initializeImage() {
@@ -162,8 +147,10 @@ public class MediaCardComponent extends AbstractCardComponent implements Initial
     }
 
     private void initializeView() {
-        switchWatched(watchedProperty.get());
-        watchedProperty.addListener((observable, oldValue, newValue) -> switchWatched(newValue));
+        switchWatched(media.watchedProperty().get());
+        listener = (observable, oldValue, newValue) -> switchWatched(newValue);
+
+        media.watchedProperty().addListener(listener);
     }
 
     private void switchFavorite(boolean isFavorite) {
@@ -185,9 +172,8 @@ public class MediaCardComponent extends AbstractCardComponent implements Initial
     @FXML
     private void onWatchedClicked(MouseEvent event) {
         event.consume();
-        boolean newValue = !watchedProperty.get();
+        boolean newValue = !media.isWatched();
 
-        watchedProperty.set(newValue);
         synchronized (listeners) {
             listeners.forEach(e -> e.onWatchedChanged(media, newValue));
         }

@@ -203,11 +203,15 @@ public class ListSectionController implements Initializable {
         // offload to a thread which we can cancel later on
         currentProcessingThread = new Thread(() -> {
             for (Media media : mediaList) {
+                // update the watched state of the media with the latest information
+                media.setWatched(watchedService.isWatched(media));
+
+                // load a new media card controller and inject it into the view
                 MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, createItemListener());
                 Pane component = viewLoader.load("components/media-card.component.fxml", mediaCardComponent);
 
+                // update the media favorite information
                 mediaCardComponent.setIsFavorite(favoriteService.isFavorite(media));
-                mediaCardComponent.setIsWatched(watchedService.isWatched(media));
                 scrollPane.addItem(component);
             }
 

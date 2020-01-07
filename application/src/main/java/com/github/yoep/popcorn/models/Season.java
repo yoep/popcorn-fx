@@ -33,6 +33,11 @@ public class Season implements Watchable {
         this.watched.set(watched);
     }
 
+    @Override
+    public String getId() {
+        return null;
+    }
+
     //endregion
 
     @Override

@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.regex.Pattern;
 
 @Slf4j
 public class AuthorizationComponent extends ScaleAwareImpl implements Initializable {
@@ -58,7 +59,7 @@ public class AuthorizationComponent extends ScaleAwareImpl implements Initializa
     }
 
     private void verifyIfRedirectIsCallback(String url) {
-        if (url.contains(authorizationRequest.getRedirectUrl())) {
+        if (url.startsWith(authorizationRequest.getRedirectUrl())) {
             authorizationRequest.onComplete(url);
 
             closeWindow();

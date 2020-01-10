@@ -7,15 +7,14 @@ import com.github.yoep.popcorn.subtitle.models.SubtitleText;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontPosture;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.TextFlow;
+import javafx.scene.text.*;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -190,7 +189,7 @@ public class SubtitleTrack extends VBox {
                 decoration.get() == DecorationType.SEE_THROUGH_BACKGROUND ? TrackFlags.SEE_THROUGH_BACKGROUND : TrackFlags.NORMAL,
         };
         var lines = subtitle.getLines().stream()
-                .map(line -> new TextFlow(parseSubtitleLine(line, flags)))
+                .map(line -> new TrackLine(flags, parseSubtitleLine(line, flags)))
                 .collect(Collectors.toList());
 
         activeSubtitle = subtitle;
@@ -203,12 +202,20 @@ public class SubtitleTrack extends VBox {
 
     private TrackLabel[] parseSubtitleLine(SubtitleLine line, TrackFlags[] flags) {
         return line.getTexts().stream()
-                .map(text -> {
-                    var label = new TrackLabel(text, fontFamily.get(), fontSize.get(), fontWeight.get(), flags);
-                    labels.add(label);
-                    return label;
-                })
+                .map(text -> createLabel(text, flags))
                 .toArray(TrackLabel[]::new);
+    }
+
+    private TrackLabel createLabel(SubtitleText text, TrackFlags[] flags) {
+        var label = new TrackLabel(text, fontFamily.get(), fontSize.get(), fontWeight.get(), flags);
+
+        if (labels == null)
+            labels = new ArrayList<>();
+
+        // store the label in case the style changes later on
+        labels.add(label);
+
+        return label;
     }
 
     private void clearSubtitleTrack() {
@@ -222,16 +229,18 @@ public class SubtitleTrack extends VBox {
     }
 
     private void onFontChanged() {
+        if (labels == null)
+            return;
+
         // update current labels with new font
-        getChildren().stream()
-                .map(e -> (TrackLabel) e)
-                .forEach(e -> e.update(fontFamily.get(), fontSize.get(), fontWeight.get()));
+        labels.forEach(e -> e.update(fontFamily.get(), fontSize.get(), fontWeight.get()));
     }
 
     private void onDecorationChanged(DecorationType newValue) {
-        getChildren().stream()
-                .map(e -> (TrackLabel) e)
-                .forEach(e -> updateTrackLabelFlags(newValue, e));
+        if (labels == null)
+            return;
+
+        labels.forEach(e -> updateTrackLabelFlags(newValue, e));
     }
 
     private void updateTrackLabelFlags(DecorationType newValue, TrackLabel trackLabel) {
@@ -255,6 +264,42 @@ public class SubtitleTrack extends VBox {
     }
 
     //endregion
+
+    private static class TrackLine extends TextFlow {
+        private final TrackFlags flags = TrackFlags.NORMAL;
+
+        public TrackLine(TrackFlags[] flags, Node... children) {
+            super(children);
+            this.flags.addFlags(flags);
+
+            init();
+        }
+
+        private void init() {
+            getStyleClass().add(TRACK_LINE_STYLE_CLASS);
+            setTextAlignment(TextAlignment.CENTER);
+
+            initializeFlags();
+        }
+
+        private void initializeFlags() {
+            if (flags.hasFlag(TrackFlags.OUTLINE)) {
+                getStyleClass().add(OUTLINE_STYLE_CLASS);
+            } else {
+                getStyleClass().remove(OUTLINE_STYLE_CLASS);
+            }
+            if (flags.hasFlag(TrackFlags.OPAQUE_BACKGROUND)) {
+                getStyleClass().add(OPAQUE_STYLE_CLASS);
+            } else {
+                getStyleClass().remove(OPAQUE_STYLE_CLASS);
+            }
+            if (flags.hasFlag(TrackFlags.SEE_THROUGH_BACKGROUND)) {
+                getStyleClass().add(SEE_THROUGH_STYLE_CLASS);
+            } else {
+                getStyleClass().remove(SEE_THROUGH_STYLE_CLASS);
+            }
+        }
+    }
 
     private static class TrackLabel extends Label {
         private final TrackFlags flags;
@@ -305,28 +350,11 @@ public class SubtitleTrack extends VBox {
                 border = new Border(borderStroke);
             }
 
-            if (flags.hasFlag(TrackFlags.OUTLINE)) {
-                getStyleClass().add(OUTLINE_STYLE_CLASS);
-            } else {
-                getStyleClass().remove(OUTLINE_STYLE_CLASS);
-            }
-            if (flags.hasFlag(TrackFlags.OPAQUE_BACKGROUND)) {
-                getStyleClass().add(OPAQUE_STYLE_CLASS);
-            } else {
-                getStyleClass().remove(OPAQUE_STYLE_CLASS);
-            }
-            if (flags.hasFlag(TrackFlags.SEE_THROUGH_BACKGROUND)) {
-                getStyleClass().add(SEE_THROUGH_STYLE_CLASS);
-            } else {
-                getStyleClass().remove(SEE_THROUGH_STYLE_CLASS);
-            }
-
             update(this.family, size, fontWeight, fontPosture, border);
         }
 
         private void init(TrackFlags[] flags) {
             this.flags.addFlags(flags);
-            getStyleClass().add(TRACK_LINE_STYLE_CLASS);
         }
 
         private void update(String family, int size, FontWeight fontWeight, FontPosture fontPosture, Border border) {

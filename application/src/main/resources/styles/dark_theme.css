@@ -699,11 +699,14 @@
 }
 
 .root .player .subtitle-track .track-line {
-    -fx-text-fill: #fff;
     -fx-padding: 2 8 2 8;
 }
 
-.root .player .subtitle-track .track-line.outline {
+.root .player .subtitle-track .track-line .label {
+    -fx-text-fill: #fff;
+}
+
+.root .player .subtitle-track .track-line.outline .label {
     -fx-effect: dropshadow(one-pass-box, #000, 10, 1.0, 0, 0);
 }
 

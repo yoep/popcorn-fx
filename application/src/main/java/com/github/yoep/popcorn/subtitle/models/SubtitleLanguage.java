@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.subtitle.models;
 
 import lombok.Getter;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
 
 @Getter
@@ -14,7 +15,7 @@ public enum SubtitleLanguage {
     DANISH("da", "Dansk"),
     GERMAN("de", "Deutsch"),
     MODERN_GREEK("el", "Ελληνικά"),
-    ENGLISH("en", "English"),
+    ENGLISH("en", "English", "iso-8859-1"),
     SPANISH("es", "Español"),
     ESTONIAN("et", "Eesti"),
     BASQUE("eu", "Euskara"),
@@ -27,7 +28,7 @@ public enum SubtitleLanguage {
     INDONESIAN("id", "Bahasa Indonesia"),
     ITALIAN("it", "Italiano"),
     LITHUANIAN("lt", "lietuvių kalba"),
-    DUTCH("nl", "Nederlands"),
+    DUTCH("nl", "Nederlands", "iso-8859-1"),
     NORWEGIAN("no", "Norsk"),
     POLISH("pl", "Polski"),
     PORTUGUESE("pt", "Português"),
@@ -44,10 +45,18 @@ public enum SubtitleLanguage {
 
     private final String code;
     private final String nativeName;
+    private final Charset encoding;
 
     SubtitleLanguage(String code, String nativeName) {
         this.code = code;
         this.nativeName = nativeName;
+        this.encoding = Charset.defaultCharset();
+    }
+
+    SubtitleLanguage(String code, String nativeName, String encoding) {
+        this.code = code;
+        this.nativeName = nativeName;
+        this.encoding = Charset.forName(encoding);
     }
 
     /**

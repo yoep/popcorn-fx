@@ -223,6 +223,7 @@ public class PlayerComponent implements Initializable {
         onSubtitleChanged(subtitle, null);
     }
 
+    //TODO: Fix double invocation when starting a playback
     private void onSubtitleChanged(SubtitleInfo subtitle, String playbackUrl) {
         if (subtitle == null || subtitle.isNone()) {
             subtitleTrack.clear();

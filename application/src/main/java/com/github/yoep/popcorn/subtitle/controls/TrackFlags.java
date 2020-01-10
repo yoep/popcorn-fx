@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.subtitle.controls;
 
 import com.github.yoep.popcorn.subtitle.models.SubtitleLine;
+import com.github.yoep.popcorn.subtitle.models.SubtitleText;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -32,7 +33,7 @@ public class TrackFlags {
      * @param line The line to create tracks flags of.
      * @return Returns track flags with the flags for the given {@link SubtitleLine}.
      */
-    public static TrackFlags from(SubtitleLine line) {
+    public static TrackFlags from(SubtitleText line) {
         int flags = 0;
 
         if (line.isItalic())

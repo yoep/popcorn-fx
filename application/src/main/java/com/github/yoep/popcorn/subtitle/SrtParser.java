@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.subtitle;
 
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.subtitle.models.SubtitleLine;
+import com.github.yoep.popcorn.subtitle.models.SubtitleText;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.Assert;
@@ -14,13 +15,14 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SrtParser {
     private static final Pattern INDEX_PATTERN = Pattern.compile("([0-9]+)");
     private static final Pattern TIME_PATTERN = Pattern.compile("(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})");
-    private static final Pattern TEXT_PATTERN = Pattern.compile("<([a-z])>(.+)</([a-z])>");
+    private static final Pattern TEXT_PATTERN = Pattern.compile("(<([a-z])>)?([^<]+)(</([a-z])>)?");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
     private static final String STYLE_ITALIC = "i";
     private static final String STYLE_BOLD = "b";
@@ -28,18 +30,20 @@ public class SrtParser {
 
     private final List<Subtitle> subtitles = new ArrayList<>();
     private final File file;
+    private final Charset encoding;
 
     private Stage stage = Stage.INDEX;
     private Subtitle.SubtitleBuilder subtitleBuilder;
     private List<SubtitleLine> lines;
 
-    private SrtParser(File file) {
+    private SrtParser(File file, Charset encoding) {
         this.file = file;
+        this.encoding = encoding;
     }
 
-    public static List<Subtitle> parse(File file) {
+    public static List<Subtitle> parse(File file, Charset encoding) {
         Assert.notNull(file, "file cannot be null");
-        SrtParser parser = new SrtParser(file);
+        SrtParser parser = new SrtParser(file, encoding);
 
         try {
             return parser.read();
@@ -50,7 +54,7 @@ public class SrtParser {
 
     private List<Subtitle> read() throws IOException {
         // read the subtitle file to a string an remove the empty lines at the end
-        List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
+        List<String> lines = FileUtils.readLines(file, encoding);
 
         for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
             String line = lines.get(lineIndex);
@@ -121,29 +125,26 @@ public class SrtParser {
         }
     }
 
-    //TODO: fix special parsing of "style" indication being split over more than one line
-    // e.g.: <i>And break the frozen heart
-    // Hup, ho</i>
     private void readText(String line) {
         if (lines == null)
             lines = new ArrayList<>();
 
-        Matcher matcher = TEXT_PATTERN.matcher(line);
+        var matcher = TEXT_PATTERN.matcher(line);
+        var subtitleTexts = new ArrayList<SubtitleText>();
 
-        if (matcher.matches()) {
-            String style = matcher.group(1);
+        while (matcher.find()) {
+            var text = matcher.group(3);
+            var style = getStyle(matcher);
 
-            lines.add(SubtitleLine.builder()
-                    .text(matcher.group(2))
+            subtitleTexts.add(SubtitleText.builder()
+                    .text(text)
                     .italic(style.equals(STYLE_ITALIC))
                     .bold(style.equals(STYLE_BOLD))
                     .underline(style.equals(STYLE_UNDERLINE))
                     .build());
-        } else {
-            lines.add(SubtitleLine.builder()
-                    .text(line)
-                    .build());
         }
+
+        lines.add(new SubtitleLine(subtitleTexts));
     }
 
     private void finishSubtitle() {
@@ -164,6 +165,15 @@ public class SrtParser {
         int seconds = (minutes * 60) + time.getSecond();
 
         return (seconds * 1000) + (time.getNano() / 1000000);
+    }
+
+    private String getStyle(Matcher matcher) {
+        final var firstStylePosition = matcher.group(2);
+        final var lastStylePosition = matcher.group(5);
+
+        return Optional.ofNullable(firstStylePosition)
+                .orElse(Optional.ofNullable(lastStylePosition)
+                        .orElse(StringUtils.EMPTY));
     }
 
     private void nextStage() {

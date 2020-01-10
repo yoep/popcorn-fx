@@ -31,6 +31,7 @@ import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -115,17 +116,18 @@ public class SubtitleService {
     /**
      * Parse the given SRT file to a list of {@link Subtitle}'s.
      *
-     * @param file The SRT file to parse.
+     * @param file     The SRT file to parse.
+     * @param encoding The encoding of the SRT file.
      * @return Returns the parsed SRT file.
      */
     @Async
-    public CompletableFuture<List<Subtitle>> parse(File file) {
+    public CompletableFuture<List<Subtitle>> parse(File file, Charset encoding) {
         Assert.notNull(file, "file cannot be null");
         if (!file.exists())
             return CompletableFuture.failedFuture(
                     new SubtitleException(String.format("Failed to parse subtitle file, file \"%s\" does not exist", file.getAbsolutePath())));
 
-        return CompletableFuture.completedFuture(internalParse(file));
+        return CompletableFuture.completedFuture(internalParse(file, encoding));
     }
 
     /**
@@ -137,9 +139,10 @@ public class SubtitleService {
     @Async
     public CompletableFuture<List<Subtitle>> downloadAndParse(SubtitleInfo subtitleInfo) {
         Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
-        File file = internalDownload(subtitleInfo);
+        var file = internalDownload(subtitleInfo);
+        var encoding = subtitleInfo.getLanguage().getEncoding();
 
-        return CompletableFuture.completedFuture(internalParse(file));
+        return CompletableFuture.completedFuture(internalParse(file, encoding));
     }
 
     /**
@@ -374,8 +377,8 @@ public class SubtitleService {
         return subtitleFile;
     }
 
-    private List<Subtitle> internalParse(File file) {
-        return SrtParser.parse(file);
+    private List<Subtitle> internalParse(File file, Charset encoding) {
+        return SrtParser.parse(file, encoding);
     }
 
     private SubtitleSettings getSettings() {

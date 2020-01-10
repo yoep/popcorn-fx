@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.subtitle.controls;
 import com.github.yoep.popcorn.subtitle.models.DecorationType;
 import com.github.yoep.popcorn.subtitle.models.Subtitle;
 import com.github.yoep.popcorn.subtitle.models.SubtitleLine;
+import com.github.yoep.popcorn.subtitle.models.SubtitleText;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.geometry.Pos;
@@ -12,6 +13,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextFlow;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -37,6 +39,7 @@ public class SubtitleTrack extends VBox {
     private final ObjectProperty<DecorationType> decoration = new SimpleObjectProperty<>(this, DECORATION_PROPERTY);
     private final ObjectProperty<Subtitle> subtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY);
 
+    private List<TrackLabel> labels;
     private List<Subtitle> subtitles;
     private Subtitle activeSubtitle;
 
@@ -146,6 +149,7 @@ public class SubtitleTrack extends VBox {
      * Clear the current subtitle track.
      */
     public void clear() {
+        this.labels = null;
         this.subtitles = null;
         this.activeSubtitle = null;
 
@@ -185,16 +189,26 @@ public class SubtitleTrack extends VBox {
                 decoration.get() == DecorationType.OPAQUE_BACKGROUND ? TrackFlags.OPAQUE_BACKGROUND : TrackFlags.NORMAL,
                 decoration.get() == DecorationType.SEE_THROUGH_BACKGROUND ? TrackFlags.SEE_THROUGH_BACKGROUND : TrackFlags.NORMAL,
         };
-        List<Label> labels = subtitle.getLines().stream()
-                .map(line -> new TrackLabel(line, fontFamily.get(), fontSize.get(), fontWeight.get(), flags))
+        var lines = subtitle.getLines().stream()
+                .map(line -> new TextFlow(parseSubtitleLine(line, flags)))
                 .collect(Collectors.toList());
 
         activeSubtitle = subtitle;
 
         Platform.runLater(() -> {
             this.getChildren().clear();
-            this.getChildren().addAll(labels);
+            this.getChildren().addAll(lines);
         });
+    }
+
+    private TrackLabel[] parseSubtitleLine(SubtitleLine line, TrackFlags[] flags) {
+        return line.getTexts().stream()
+                .map(text -> {
+                    var label = new TrackLabel(text, fontFamily.get(), fontSize.get(), fontWeight.get(), flags);
+                    labels.add(label);
+                    return label;
+                })
+                .toArray(TrackLabel[]::new);
     }
 
     private void clearSubtitleTrack() {
@@ -202,6 +216,7 @@ public class SubtitleTrack extends VBox {
             return;
 
         log.trace("Clearing subtitle track");
+        labels = null;
         activeSubtitle = null;
         Platform.runLater(() -> this.getChildren().clear());
     }
@@ -242,16 +257,14 @@ public class SubtitleTrack extends VBox {
     //endregion
 
     private static class TrackLabel extends Label {
-        private final SubtitleLine line;
         private final TrackFlags flags;
 
         private String family;
         private int size;
         private FontWeight weight;
 
-        private TrackLabel(SubtitleLine line, String family, int size, FontWeight weight, TrackFlags... flags) {
+        private TrackLabel(SubtitleText line, String family, int size, FontWeight weight, TrackFlags... flags) {
             super(line.getText());
-            this.line = line;
             this.flags = TrackFlags.from(line);
             this.family = family;
             this.size = size;

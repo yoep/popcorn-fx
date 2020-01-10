@@ -8,4 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TraktShow {
+    private String title;
+    private int year;
+    private TraktShowIds ids;
 }

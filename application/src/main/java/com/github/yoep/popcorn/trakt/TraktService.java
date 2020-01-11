@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TraktSettings;
 import com.github.yoep.popcorn.trakt.models.WatchedMovie;
 import com.github.yoep.popcorn.trakt.models.WatchedShow;
+import com.github.yoep.popcorn.watched.WatchedService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
@@ -27,6 +28,7 @@ public class TraktService {
     private final OAuth2RestOperations traktTemplate;
     private final PopcornProperties popcornProperties;
     private final SettingsService settingsService;
+    private final WatchedService watchedService;
     private final TaskExecutor taskExecutor;
 
     //region Methods
@@ -75,7 +77,7 @@ public class TraktService {
         return asList(getWatched("movies", WatchedMovie[].class));
     }
 
-    public List<WatchedShow> getWatchedShow() {
+    public List<WatchedShow> getWatchedShows() {
         log.trace("Retrieving watched shows from trakt.tv");
         return asList(getWatched("shows", WatchedShow[].class));
     }
@@ -94,7 +96,16 @@ public class TraktService {
 
     private void synchronize() {
         log.debug("Starting Trakt.tv synchronisation");
-        List<WatchedMovie> movies = getWatchedMovies();
+        var movies = getWatchedMovies();
+        var shows = getWatchedShows();
+
+        // synchronize movies locally
+        movies.stream()
+                .map(WatchedMovie::getMovie)
+                .forEach(watchedService::addToWatchList);
+
+        // synchronize movies to remote
+
     }
 
     //endregion

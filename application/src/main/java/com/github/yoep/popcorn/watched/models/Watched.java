@@ -55,21 +55,12 @@ public class Watched {
     }
 
     /**
-     * Remove the given movie key from the watched items.
+     * Remove the given key from the watched items.
      *
-     * @param key The key to add.
+     * @param key The key to remove.
      */
-    public void removeMovie(String key) {
+    public void remove(String key) {
         movies.remove(key);
-    }
-
-    /**
-     * Remove the given show/episode key from the watched items.
-     *
-     * @param key The key to add.
-     */
-    public void removeShow(String key) {
-        Assert.notNull(key, "key cannot be null");
         shows.remove(key);
     }
 }

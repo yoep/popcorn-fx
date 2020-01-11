@@ -28,12 +28,17 @@ import java.nio.charset.Charset;
 public class WatchedService {
     private static final String NAME = "watched.json";
     private static final int WATCHED_PERCENTAGE_THRESHOLD = 90;
+    private static final int IDLE_TIME = 10;
 
-    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(5));
+    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
     private final ActivityManager activityManager;
     private final ObjectMapper objectMapper;
     private final Object cacheLock = new Object();
 
+    /**
+     * The currently loaded watched cache.
+     * This cache is saved and unloaded after {@link #IDLE_TIME} seconds to free up memory.
+     */
     private Watched cache;
 
     //region Methods
@@ -75,12 +80,7 @@ public class WatchedService {
         Watched watched = loadWatched();
 
         synchronized (cacheLock) {
-            if (watchable.getType() == MediaType.MOVIE) {
-                watched.removeMovie(key);
-            } else {
-                watched.removeShow(key);
-            }
-
+            watched.remove(key);
             watchable.setWatched(false);
         }
     }
@@ -180,8 +180,10 @@ public class WatchedService {
 
         // check if cache is still present
         // if so, return the cache
-        if (cache != null)
+        if (cache != null) {
+            log.trace("Using cache for watched items");
             return cache;
+        }
 
         File file = getFile();
 

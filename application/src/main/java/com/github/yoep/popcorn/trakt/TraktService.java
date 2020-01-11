@@ -3,8 +3,7 @@ package com.github.yoep.popcorn.trakt;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TraktSettings;
-import com.github.yoep.popcorn.trakt.models.WatchedMovie;
-import com.github.yoep.popcorn.trakt.models.WatchedShow;
+import com.github.yoep.popcorn.trakt.models.*;
 import com.github.yoep.popcorn.watched.WatchedService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +17,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 
@@ -100,12 +100,19 @@ public class TraktService {
         var shows = getWatchedShows();
 
         // synchronize movies locally
+        log.trace("Synchronizing {} trakt.tv movies to local DB", movies.size());
         movies.stream()
                 .map(WatchedMovie::getMovie)
                 .forEach(watchedService::addToWatchList);
 
         // synchronize movies to remote
+        List<String> moviesToSync = watchedService.getWatchedMovies().stream()
+                .filter(key -> movies.stream()
+                        .noneMatch(movie -> movie.getMovie().getId().equals(key)))
+                .collect(Collectors.toList());
 
+        if (moviesToSync.size() > 0)
+            addMoviesToWatchlist(moviesToSync);
     }
 
     //endregion
@@ -118,7 +125,30 @@ public class TraktService {
                 .buildAndExpand(item)
                 .toUriString();
 
+        log.trace("Requesting watched trakt.tv items from {}", url);
         return traktTemplate.getForEntity(url, type).getBody();
+    }
+
+    private void addMoviesToWatchlist(List<String> keys) {
+        log.trace("Synchronizing {} local DB movies to trakt.tv", keys.size());
+        String url = UriComponentsBuilder.fromUri(popcornProperties.getTrakt().getUrl())
+                .path("/sync/watchlist")
+                .toUriString();
+        AddToWatchlistRequest request = AddToWatchlistRequest.builder()
+                .movies(keys.stream()
+                        .map(this::toMovie)
+                        .collect(Collectors.toList()))
+                .build();
+
+        traktTemplate.postForEntity(url, request, Void.class);
+    }
+
+    private TraktMovie toMovie(String key) {
+        return TraktMovie.builder()
+                .ids(TraktMovieIds.builder()
+                        .imdb(key)
+                        .build())
+                .build();
     }
 
     private TraktSettings getSettings() {

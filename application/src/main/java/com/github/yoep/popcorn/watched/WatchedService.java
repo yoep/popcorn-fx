@@ -21,6 +21,8 @@ import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -57,6 +59,22 @@ public class WatchedService {
     }
 
     /**
+     * Get the watched movie items.
+     *
+     * @return Returns a list of movie ID's that have been watched.
+     */
+    public List<String> getWatchedMovies() {
+        loadWatchedFileToCache();
+        List<String> movies;
+
+        synchronized (cacheLock) {
+            movies = new ArrayList<>(cache.getMovies());
+        }
+
+        return movies;
+    }
+
+    /**
      * Add the watchable item to the watched list.
      *
      * @param watchable the watchable item to add.
@@ -77,10 +95,10 @@ public class WatchedService {
     public void removeFromWatchList(Watchable watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
         String key = watchable.getId();
-        Watched watched = loadWatched();
+        loadWatchedFileToCache();
 
         synchronized (cacheLock) {
-            watched.remove(key);
+            cache.remove(key);
             watchable.setWatched(false);
         }
     }
@@ -141,26 +159,26 @@ public class WatchedService {
     //region Functions
 
     private void addToWatchList(String key, MediaType type) {
-        Watched watched = loadWatched();
-
-        // prevent keys from being added twice
-        if (watched.contains(key))
-            return;
+        loadWatchedFileToCache();
 
         synchronized (cacheLock) {
+            // prevent keys from being added twice
+            if (cache.contains(key))
+                return;
+
             if (type == MediaType.MOVIE) {
-                watched.addMovie(key);
+                cache.addMovie(key);
             } else {
-                watched.addShow(key);
+                cache.addShow(key);
             }
         }
     }
 
     private boolean isWatched(String key) {
-        Watched watched = loadWatched();
+        loadWatchedFileToCache();
 
         synchronized (cacheLock) {
-            return watched.contains(key);
+            return cache.contains(key);
         }
     }
 
@@ -175,14 +193,14 @@ public class WatchedService {
         }
     }
 
-    private Watched loadWatched() {
+    private void loadWatchedFileToCache() {
         idleTimer.playFromStart();
 
         // check if cache is still present
         // if so, return the cache
         if (cache != null) {
-            log.trace("Using cache for watched items");
-            return cache;
+            log.trace("Not updating cache as it's already present");
+            return;
         }
 
         File file = getFile();
@@ -202,8 +220,6 @@ public class WatchedService {
                 cache = Watched.builder().build();
             }
         }
-
-        return cache;
     }
 
     private File getFile() {

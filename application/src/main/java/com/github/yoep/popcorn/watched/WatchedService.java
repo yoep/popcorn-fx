@@ -5,7 +5,11 @@ import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.MediaType;
 import com.github.yoep.popcorn.watched.models.Watchable;
+import com.github.yoep.popcorn.watched.models.Watched;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -17,11 +21,6 @@ import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import static java.util.Arrays.asList;
 
 @Slf4j
 @Service
@@ -30,9 +29,12 @@ public class WatchedService {
     private static final String NAME = "watched.json";
     private static final int WATCHED_PERCENTAGE_THRESHOLD = 90;
 
-    private final List<String> cache = new ArrayList<>();
+    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(5));
     private final ActivityManager activityManager;
     private final ObjectMapper objectMapper;
+    private final Object cacheLock = new Object();
+
+    private Watched cache;
 
     //region Methods
 
@@ -58,7 +60,7 @@ public class WatchedService {
         Assert.notNull(watchable, "watchable cannot be null");
         String key = watchable.getId();
 
-        addToWatchList(key);
+        addToWatchList(key, watchable.getType());
         watchable.setWatched(true);
     }
 
@@ -69,8 +71,16 @@ public class WatchedService {
      */
     public void removeFromWatchList(Watchable watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
-        synchronized (cache) {
-            cache.remove(watchable.getId());
+        String key = watchable.getId();
+        Watched watched = loadWatched();
+
+        synchronized (cacheLock) {
+            if (watchable.getType() == MediaType.MOVIE) {
+                watched.removeMovie(key);
+            } else {
+                watched.removeShow(key);
+            }
+
             watchable.setWatched(false);
         }
     }
@@ -81,12 +91,12 @@ public class WatchedService {
 
     @PostConstruct
     private void init() {
-        initializeCache();
+        initializeIdleTimer();
         initializeListeners();
     }
 
-    private void initializeCache() {
-        cache.addAll(loadWatched());
+    private void initializeIdleTimer() {
+        idleTimer.setOnFinished(e -> onSave());
     }
 
     private void initializeListeners() {
@@ -123,30 +133,38 @@ public class WatchedService {
 
     @PreDestroy
     private void destroy() {
-        save(cache);
+        onSave();
     }
 
     //endregion
 
     //region Functions
 
-    private void addToWatchList(String key) {
+    private void addToWatchList(String key, MediaType type) {
+        Watched watched = loadWatched();
+
         // prevent keys from being added twice
-        if (cache.contains(key))
+        if (watched.contains(key))
             return;
 
-        synchronized (cache) {
-            cache.add(key);
+        synchronized (cacheLock) {
+            if (type == MediaType.MOVIE) {
+                watched.addMovie(key);
+            } else {
+                watched.addShow(key);
+            }
         }
     }
 
     private boolean isWatched(String key) {
-        synchronized (cache) {
-            return cache.contains(key);
+        Watched watched = loadWatched();
+
+        synchronized (cacheLock) {
+            return watched.contains(key);
         }
     }
 
-    private void save(List<String> watched) {
+    private void save(Watched watched) {
         File file = getFile();
 
         try {
@@ -157,24 +175,47 @@ public class WatchedService {
         }
     }
 
-    private List<String> loadWatched() {
+    private Watched loadWatched() {
+        idleTimer.playFromStart();
+
+        // check if cache is still present
+        // if so, return the cache
+        if (cache != null)
+            return cache;
+
         File file = getFile();
 
         if (file.exists()) {
             try {
                 log.debug("Loading watched items from {}", file.getAbsolutePath());
 
-                return asList(objectMapper.readValue(file, String[].class));
+                synchronized (cacheLock) {
+                    cache = objectMapper.readValue(file, Watched.class);
+                }
             } catch (IOException ex) {
                 log.error("Unable to read watched items file at " + file.getAbsolutePath(), ex);
             }
+        } else {
+            synchronized (cacheLock) {
+                cache = Watched.builder().build();
+            }
         }
 
-        return Collections.emptyList();
+        return cache;
     }
 
     private File getFile() {
         return new File(PopcornTimeApplication.APP_DIR + NAME);
+    }
+
+    private void onSave() {
+        if (cache == null)
+            return;
+
+        synchronized (cacheLock) {
+            save(cache);
+            cache = null;
+        }
     }
 
     //endregion

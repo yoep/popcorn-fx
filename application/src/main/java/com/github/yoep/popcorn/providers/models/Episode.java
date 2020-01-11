@@ -116,6 +116,12 @@ public class Episode implements Media, Watchable {
         return show.getImages();
     }
 
+    @Override
+    @JsonIgnore
+    public MediaType getType() {
+        return MediaType.SHOW;
+    }
+
     /**
      * Get the local date time of the air date from this episode.
      *

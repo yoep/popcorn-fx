@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.providers.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -45,5 +46,11 @@ public class Show extends AbstractMedia {
         // link the episode to this show
         if (!CollectionUtils.isEmpty(this.episodes))
             this.episodes.forEach(e -> e.setShow(this));
+    }
+
+    @Override
+    @JsonIgnore
+    public MediaType getType() {
+        return MediaType.SHOW;
     }
 }

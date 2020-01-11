@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.watched.models;
 
+import com.github.yoep.popcorn.providers.models.MediaType;
 import javafx.beans.property.BooleanProperty;
 
 public interface Watchable {
@@ -36,4 +37,11 @@ public interface Watchable {
      * @return The unique ID of the watchable.
      */
     String getId();
+
+    /**
+     * Get the media type of the watchable item.
+     *
+     * @return Returns the media type.
+     */
+    MediaType getType();
 }

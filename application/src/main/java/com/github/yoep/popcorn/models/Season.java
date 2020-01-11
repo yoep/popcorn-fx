@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.github.yoep.popcorn.providers.models.MediaType;
 import com.github.yoep.popcorn.watched.models.Watchable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -33,9 +34,19 @@ public class Season implements Watchable {
         this.watched.set(watched);
     }
 
+    //endregion
+
+    //region Getters
+
     @Override
     public String getId() {
         return null;
+    }
+
+    @Override
+    @JsonIgnore
+    public MediaType getType() {
+        return MediaType.SHOW;
     }
 
     //endregion

@@ -116,6 +116,69 @@ public class TorrentStream {
         }
     }
 
+    /**
+     * Get torrent metadata, either by downloading the .torrent or fetching the magnet
+     *
+     * @param torrentUrl {@link String} URL to .torrent or magnet link
+     * @return {@link TorrentInfo}
+     */
+    public Optional<TorrentInfo> getTorrentInfo(String torrentUrl) {
+        if (torrentUrl.startsWith("magnet")) {
+            byte[] data = torrentSession.fetchMagnet(torrentUrl, 60);
+            if (data != null)
+                try {
+                    return Optional.of(TorrentInfo.bdecode(data));
+                } catch (IllegalArgumentException e) {
+                    throw new TorrentException("No torrent info could be found or read", e);
+                }
+
+        } else if (torrentUrl.startsWith("http") || torrentUrl.startsWith("https")) {
+            try {
+                URL url = new URL(torrentUrl);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                connection.setRequestMethod("GET");
+                connection.setInstanceFollowRedirects(true);
+                connection.connect();
+
+                InputStream inputStream = connection.getInputStream();
+
+                byte[] responseByteArray = new byte[0];
+
+                if (connection.getResponseCode() == 200) {
+                    responseByteArray = IOUtils.toByteArray(inputStream);
+                }
+
+                inputStream.close();
+                connection.disconnect();
+
+                if (responseByteArray.length > 0) {
+                    return Optional.of(TorrentInfo.bdecode(responseByteArray));
+                }
+            } catch (IOException | IllegalArgumentException ex) {
+                throw new TorrentException("No torrent info could be found or read", ex);
+            }
+        } else if (torrentUrl.startsWith("file")) {
+            File file = new File(torrentUrl);
+
+            try {
+                FileInputStream fileInputStream = new FileInputStream(file);
+                byte[] responseByteArray = IOUtils.toByteArray(fileInputStream);
+                fileInputStream.close();
+
+                if (responseByteArray.length > 0) {
+                    return Optional.of(TorrentInfo.bdecode(responseByteArray));
+                }
+            } catch (IOException | IllegalArgumentException ex) {
+                throw new TorrentException("No torrent info could be found or read", ex);
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    //region PostConstruct
+
     @PostConstruct
     private void init() {
         taskExecutor.execute(() -> {
@@ -129,13 +192,21 @@ public class TorrentStream {
         });
     }
 
+    //endregion
+
+    //region PreDestroy
+
     @PreDestroy
-    public void destroy() {
+    private void destroy() {
         stopStream();
 
         if (this.torrentSession != null)
             this.torrentSession.stop();
     }
+
+    //endregion
+
+    //region Functions
 
     private void initNativeLibraries() {
         log.trace("Initializing native libraries for jlibtorrent");
@@ -213,68 +284,9 @@ public class TorrentStream {
         });
     }
 
-    /**
-     * Get torrent metadata, either by downloading the .torrent or fetching the magnet
-     *
-     * @param torrentUrl {@link String} URL to .torrent or magnet link
-     * @return {@link TorrentInfo}
-     */
-    private Optional<TorrentInfo> getTorrentInfo(String torrentUrl) {
-        if (torrentUrl.startsWith("magnet")) {
-            byte[] data = torrentSession.fetchMagnet(torrentUrl, 60);
-            if (data != null)
-                try {
-                    return Optional.of(TorrentInfo.bdecode(data));
-                } catch (IllegalArgumentException e) {
-                    throw new TorrentException("No torrent info could be found or read", e);
-                }
-
-        } else if (torrentUrl.startsWith("http") || torrentUrl.startsWith("https")) {
-            try {
-                URL url = new URL(torrentUrl);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                connection.setRequestMethod("GET");
-                connection.setInstanceFollowRedirects(true);
-                connection.connect();
-
-                InputStream inputStream = connection.getInputStream();
-
-                byte[] responseByteArray = new byte[0];
-
-                if (connection.getResponseCode() == 200) {
-                    responseByteArray = IOUtils.toByteArray(inputStream);
-                }
-
-                inputStream.close();
-                connection.disconnect();
-
-                if (responseByteArray.length > 0) {
-                    return Optional.of(TorrentInfo.bdecode(responseByteArray));
-                }
-            } catch (IOException | IllegalArgumentException ex) {
-                throw new TorrentException("No torrent info could be found or read", ex);
-            }
-        } else if (torrentUrl.startsWith("file")) {
-            File file = new File(torrentUrl);
-
-            try {
-                FileInputStream fileInputStream = new FileInputStream(file);
-                byte[] responseByteArray = IOUtils.toByteArray(fileInputStream);
-                fileInputStream.close();
-
-                if (responseByteArray.length > 0) {
-                    return Optional.of(TorrentInfo.bdecode(responseByteArray));
-                }
-            } catch (IOException | IllegalArgumentException ex) {
-                throw new TorrentException("No torrent info could be found or read", ex);
-            }
-        }
-
-        return Optional.empty();
-    }
-
     private TorrentSettings getSettings() {
         return settingsService.getSettings().getTorrentSettings();
     }
+
+    //endregion
 }

@@ -13,9 +13,9 @@ public interface ClosePlayerActivity extends Activity {
     /**
      * Get the media that was being played.
      *
-     * @return Returns the media that was being played.
+     * @return Returns the media that was being played if known, else {@link Optional#empty()}.
      */
-    Media getMedia();
+    Optional<Media> getMedia();
 
     /**
      * Get the video quality of the media that was being played.

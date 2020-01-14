@@ -1,19 +1,17 @@
 package com.github.yoep.popcorn.activities;
 
-import java.util.Optional;
-
-public interface PlayVideoActivity extends PlayMediaActivity {
+public interface PlayVideoActivity extends Activity {
     /**
-     * Get the url to play the media of.
+     * Get the url of the video to play.
      *
-     * @return Return the media url.
+     * @return Returns the video url.
      */
     String getUrl();
 
     /**
-     * Get the video quality of the media.
+     * Get the title of the video.
      *
-     * @return Returns the quality if known for the media, else {@link Optional#empty()}.
+     * @return Returns the title of the video.
      */
-    Optional<String> getQuality();
+    String getTitle();
 }

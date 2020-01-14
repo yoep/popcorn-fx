@@ -49,6 +49,7 @@ public class ShowProviderService extends AbstractProviderService<Show> {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
+    //TODO: add UI feedback for the user if the API call fails
     @Override
     public void showDetails(Media media) {
         URI uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())

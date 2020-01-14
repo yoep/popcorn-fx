@@ -412,8 +412,8 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private void onWatchNowClicked() {
         activityManager.register(new LoadTorrentActivity() {
             @Override
-            public String getQuality() {
-                return quality;
+            public TorrentInfo getTorrent() {
+                return episode.getTorrents().get(quality);
             }
 
             @Override
@@ -422,8 +422,8 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
             }
 
             @Override
-            public TorrentInfo getTorrent() {
-                return episode.getTorrents().get(quality);
+            public String getQuality() {
+                return quality;
             }
 
             @Override

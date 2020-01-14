@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.LoadTorrentActivity;
-import com.github.yoep.popcorn.activities.PlayVideoActivity;
-import com.github.yoep.popcorn.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.TorrentInfo;
 import com.github.yoep.popcorn.messages.TorrentMessage;
@@ -163,20 +160,25 @@ public class LoaderComponent {
     }
 
     private void invokePlayMediaActivity(Torrent torrent) {
-        activityManager.register(new PlayVideoActivity() {
+        activityManager.register(new PlayMediaActivity() {
             @Override
             public String getUrl() {
                 return torrent.getVideoFile().getAbsolutePath();
             }
 
             @Override
-            public Optional<String> getQuality() {
-                return Optional.ofNullable(quality);
+            public String getTitle() {
+                return media.getTitle();
             }
 
             @Override
             public Media getMedia() {
                 return media;
+            }
+
+            @Override
+            public String getQuality() {
+                return quality;
             }
 
             @Override
@@ -212,8 +214,8 @@ public class LoaderComponent {
         torrentService.stopStream();
         activityManager.register(new ClosePlayerActivity() {
             @Override
-            public Media getMedia() {
-                return media;
+            public Optional<Media> getMedia() {
+                return Optional.ofNullable(media);
             }
 
             @Override

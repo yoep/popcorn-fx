@@ -3,10 +3,10 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.providers.models.Episode;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.Movie;
-import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageSelection;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
@@ -69,7 +69,7 @@ public class PlayerControlsComponent implements Initializable {
      *
      * @return Returns the last time if known, else null.
      */
-    Long getTime() {
+    public Long getTime() {
         return time;
     }
 
@@ -78,10 +78,9 @@ public class PlayerControlsComponent implements Initializable {
      *
      * @return Returns the last duration if known, else null.
      */
-    Long getDuration() {
+    public Long getDuration() {
         return duration;
     }
-
 
     //endregion
 
@@ -107,7 +106,7 @@ public class PlayerControlsComponent implements Initializable {
         }
     }
 
-    void increaseVideoTime(double amount) {
+    public void increaseVideoTime(double amount) {
         log.trace("Increasing video time with {}", amount);
         double newSliderValue = slider.getValue() + amount;
         double maxSliderValue = slider.getMax();
@@ -118,7 +117,7 @@ public class PlayerControlsComponent implements Initializable {
         setVideoTime(newSliderValue);
     }
 
-    void changePlayPauseState() {
+    public void changePlayPauseState() {
         if (videoPlayer.getPlayerState() == PlayerState.PAUSED) {
             log.trace("Video player state is being changed to \"resume\"");
             videoPlayer.resume();
@@ -128,7 +127,7 @@ public class PlayerControlsComponent implements Initializable {
         }
     }
 
-    void toggleFullscreen() {
+    public void toggleFullscreen() {
         log.trace("Toggling full screen mode");
         activityManager.register(new ToggleFullscreenActivity() {
         });
@@ -216,27 +215,33 @@ public class PlayerControlsComponent implements Initializable {
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
+        Platform.runLater(() -> subtitleSection.setVisible(false));
+
+        // check if the activity contains media information
+        if (activity instanceof PlayMediaActivity) {
+            var mediaActivity = (PlayMediaActivity) activity;
+            onPlayMedia(mediaActivity);
+        }
+    }
+
+    private void onPlayMedia(PlayMediaActivity activity) {
         this.media = activity.getMedia();
 
-        Platform.runLater(() -> subtitleSection.setVisible(activity.getQuality().isPresent()));
+        Platform.runLater(() -> subtitleSection.setVisible(true));
 
-        // check if a quality is known for the media
-        // if not, the current playback is a trailer and we're not going to retrieve the subtitles
-        if (activity.getQuality().isPresent()) {
-            // set the subtitle for the playback
-            this.subtitle = activity.getSubtitle()
-                    .orElse(SubtitleInfo.none());
+        // set the subtitle for the playback
+        this.subtitle = activity.getSubtitle()
+                .orElse(SubtitleInfo.none());
 
-            if (media instanceof Movie) {
-                Movie movie = (Movie) activity.getMedia();
-                subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
-            } else if (media instanceof Episode) {
-                Episode episode = (Episode) activity.getMedia();
+        if (media instanceof Movie) {
+            Movie movie = (Movie) activity.getMedia();
+            subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
+        } else if (media instanceof Episode) {
+            Episode episode = (Episode) activity.getMedia();
 
-                subtitleService.retrieveSubtitles(episode.getShow(), episode).whenComplete(this::handleSubtitlesResponse);
-            } else {
-                log.error("Failed to retrieve subtitles, missing episode information");
-            }
+            subtitleService.retrieveSubtitles(episode.getShow(), episode).whenComplete(this::handleSubtitlesResponse);
+        } else {
+            log.error("Failed to retrieve subtitles, missing episode information");
         }
     }
 

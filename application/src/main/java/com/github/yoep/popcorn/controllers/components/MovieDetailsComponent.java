@@ -265,18 +265,8 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             }
 
             @Override
-            public Optional<String> getQuality() {
-                return Optional.empty();
-            }
-
-            @Override
-            public Media getMedia() {
-                return media;
-            }
-
-            @Override
-            public Optional<SubtitleInfo> getSubtitle() {
-                return Optional.empty();
+            public String getTitle() {
+                return media.getTitle();
             }
         });
     }

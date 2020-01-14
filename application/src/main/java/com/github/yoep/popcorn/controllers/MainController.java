@@ -3,9 +3,6 @@ package com.github.yoep.popcorn.controllers;
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
-import com.github.yoep.popcorn.providers.models.FileMedia;
-import com.github.yoep.popcorn.providers.models.Media;
-import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -25,7 +22,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,6 +38,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private Pane contentPane;
     private Pane settingsPane;
     private Pane playerPane;
+    private Pane loaderPane;
 
     @FXML
     private Pane rootPane;
@@ -72,10 +69,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         // load the other panes on a different thread
         taskExecutor.execute(() -> settingsPane = viewLoader.load("sections/settings.section.fxml"));
         taskExecutor.execute(() -> playerPane = viewLoader.load("sections/player.section.fxml"));
+        taskExecutor.execute(() -> loaderPane = viewLoader.load("sections/loader.section.fxml"));
     }
 
     private void initializeListeners() {
-        activityManager.register(PlayMediaActivity.class, activity -> switchSection(SectionType.PLAYER));
+        activityManager.register(PlayVideoActivity.class, activity -> switchSection(SectionType.PLAYER));
         activityManager.register(ShowSettingsActivity.class, activity -> switchSection(SectionType.SETTINGS));
         activityManager.register(CloseSettingsActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(ClosePlayerActivity.class, activity -> switchSection(SectionType.CONTENT));
@@ -88,6 +86,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private void initializeSceneEvents() {
         rootPane.setOnKeyReleased(event -> {
             if (PASTE_KEY_COMBINATION.match(event)) {
+                event.consume();
                 onContentPasted();
             }
         });
@@ -109,6 +108,9 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             case PLAYER:
                 content.set(playerPane);
                 break;
+            case LOADER:
+                content.set(loaderPane);
+                break;
         }
 
         Platform.runLater(() -> {
@@ -127,7 +129,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             processFiles(files);
         } else if (StringUtils.isNotEmpty(url)) {
             log.trace("Processing clipboard url");
-
+            activityManager.register((LoadUrlActivity) () -> url);
         }
     }
 
@@ -169,20 +171,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             }
 
             @Override
-            public Optional<String> getQuality() {
-                return Optional.empty();
-            }
-
-            @Override
-            public Media getMedia() {
-                return FileMedia.builder()
-                        .title(title)
-                        .build();
-            }
-
-            @Override
-            public Optional<SubtitleInfo> getSubtitle() {
-                return Optional.empty();
+            public String getTitle() {
+                return title;
             }
         });
     }
@@ -192,6 +182,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private enum SectionType {
         CONTENT,
         SETTINGS,
-        PLAYER
+        PLAYER,
+        LOADER
     }
 }

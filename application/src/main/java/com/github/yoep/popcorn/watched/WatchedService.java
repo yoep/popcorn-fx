@@ -119,9 +119,9 @@ public class WatchedService {
 
     private void initializeListeners() {
         activityManager.register(ClosePlayerActivity.class, activity -> {
-            // check if the quality is present of the media
-            // if not, the played video was the trailer of the media
-            if (activity.getQuality().isEmpty())
+            // check if the media is present
+            // if not, the played video might have been a trailer or video file
+            if (activity.getMedia().isEmpty())
                 return;
 
             long time = activity.getTime();
@@ -133,7 +133,7 @@ public class WatchedService {
                 return;
 
             double percentageWatched = ((double) time / duration) * 100;
-            Media media = activity.getMedia();
+            Media media = activity.getMedia().get();
 
             // check if the media has been watched for the percentage threshold
             // if so, mark the media as watched

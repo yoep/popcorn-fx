@@ -2,8 +2,9 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.activities.PlayMediaActivity;
+import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.controls.StreamInfo;
 import com.github.yoep.popcorn.torrent.controls.StreamInfoCell;
@@ -135,14 +136,24 @@ public class PlayerHeaderComponent implements Initializable {
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
-        // update information
+        // set the title of the video as it should be always present
         Platform.runLater(() -> {
-            title.setText(activity.getMedia().getTitle());
+            this.title.setText(activity.getTitle());
+            this.quality.setVisible(false);
+        });
 
-            activity.getQuality().ifPresent(quality -> {
-                this.quality.setText(quality);
-                this.quality.setVisible(true);
-            });
+        // check if the video contains media information
+        // if so, update additional information of the media
+        if (activity instanceof PlayMediaActivity) {
+            var mediaActivity = (PlayMediaActivity) activity;
+            onPlayMedia(mediaActivity);
+        }
+    }
+
+    private void onPlayMedia(PlayMediaActivity activity) {
+        Platform.runLater(() -> {
+            this.quality.setText(activity.getQuality());
+            this.quality.setVisible(true);
         });
     }
 

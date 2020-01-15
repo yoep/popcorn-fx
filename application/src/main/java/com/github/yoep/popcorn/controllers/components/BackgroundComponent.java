@@ -21,7 +21,6 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
@@ -50,6 +49,10 @@ public class BackgroundComponent implements Initializable {
     }
 
     private void loadBackgroundImage(final Media media) {
+        // check if the media is know before trying to load a background image
+        if (media == null)
+            return;
+
         taskExecutor.execute(() -> {
             // set black background first
             Platform.runLater(() -> this.backgroundImage.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY))));

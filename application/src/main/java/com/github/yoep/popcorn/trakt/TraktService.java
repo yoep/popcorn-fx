@@ -72,16 +72,6 @@ public class TraktService {
         getSettings().setAccessToken(null);
     }
 
-    public List<WatchedMovie> getWatchedMovies() {
-        log.trace("Retrieving watched movies from trakt.tv");
-        return asList(getWatched("movies", WatchedMovie[].class));
-    }
-
-    public List<WatchedShow> getWatchedShows() {
-        log.trace("Retrieving watched shows from trakt.tv");
-        return asList(getWatched("shows", WatchedShow[].class));
-    }
-
     //endregion
 
     //region PostConstructor
@@ -96,28 +86,32 @@ public class TraktService {
 
     private void synchronize() {
         log.debug("Starting Trakt.tv synchronisation");
-        var movies = getWatchedMovies();
-        var shows = getWatchedShows();
+        try {
+            syncMovies();
+        } catch (Exception ex) {
+            log.error("Failed to sync trakt.tv movies, " + ex.getMessage(), ex);
+        }
 
-        // synchronize movies locally
-        log.trace("Synchronizing {} trakt.tv movies to local DB", movies.size());
-        movies.stream()
-                .map(WatchedMovie::getMovie)
-                .forEach(watchedService::addToWatchList);
-
-        // synchronize movies to remote
-        List<String> moviesToSync = watchedService.getWatchedMovies().stream()
-                .filter(key -> movies.stream()
-                        .noneMatch(movie -> movie.getMovie().getId().equals(key)))
-                .collect(Collectors.toList());
-
-        if (moviesToSync.size() > 0)
-            addMoviesToWatchlist(moviesToSync);
+        try {
+            syncShows();
+        } catch (Exception ex) {
+            log.error("Failed to sync trakt.tv shows, " + ex.getMessage(), ex);
+        }
     }
 
     //endregion
 
     //region Functions
+
+    private List<WatchedMovie> getWatchedMovies() {
+        log.trace("Retrieving watched movies from trakt.tv");
+        return asList(getWatched("movies", WatchedMovie[].class));
+    }
+
+    private List<WatchedShow> getWatchedShows() {
+        log.trace("Retrieving watched shows from trakt.tv");
+        return asList(getWatched("shows", WatchedShow[].class));
+    }
 
     private <T> T getWatched(String item, Class<T> type) {
         String url = UriComponentsBuilder.fromUri(popcornProperties.getTrakt().getUrl())
@@ -141,6 +135,33 @@ public class TraktService {
                 .build();
 
         traktTemplate.postForEntity(url, request, Void.class);
+    }
+
+    private void syncMovies() {
+        var movies = getWatchedMovies();
+
+        // synchronize movies locally
+        log.trace("Synchronizing {} trakt.tv movies to local DB", movies.size());
+        movies.stream()
+                .map(WatchedMovie::getMovie)
+                .forEach(watchedService::addToWatchList);
+
+        // synchronize movies to remote
+        List<String> moviesToSync = watchedService.getWatchedMovies().stream()
+                .filter(key -> movies.stream()
+                        .noneMatch(movie -> movie.getMovie().getId().equals(key)))
+                .collect(Collectors.toList());
+
+        if (moviesToSync.size() > 0)
+            addMoviesToWatchlist(moviesToSync);
+
+        log.info("Trakt.tv movie synchronisation completed");
+    }
+
+    private void syncShows() {
+        var shows = getWatchedShows();
+
+        log.info("Trakt.tv show synchronisation completed");
     }
 
     private TraktMovie toMovie(String key) {

@@ -4,6 +4,9 @@ import com.github.yoep.popcorn.providers.models.Media;
 
 import java.util.Optional;
 
+/**
+ * Activity indicating that the video player is being closed by the user.
+ */
 public interface ClosePlayerActivity extends Activity {
     /**
      * The unknown value for the {@link #getTime()} and {@link #getDuration()}.

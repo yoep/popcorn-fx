@@ -39,6 +39,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private Pane settingsPane;
     private Pane playerPane;
     private Pane loaderPane;
+    private Pane overlayPane;
 
     @FXML
     private Pane rootPane;
@@ -70,13 +71,19 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         taskExecutor.execute(() -> settingsPane = viewLoader.load("sections/settings.section.fxml"));
         taskExecutor.execute(() -> playerPane = viewLoader.load("sections/player.section.fxml"));
         taskExecutor.execute(() -> loaderPane = viewLoader.load("sections/loader.section.fxml"));
+        taskExecutor.execute(() -> overlayPane = viewLoader.load("sections/overlay.section.fxml"));
     }
 
     private void initializeListeners() {
         activityManager.register(PlayVideoActivity.class, activity -> switchSection(SectionType.PLAYER));
         activityManager.register(ShowSettingsActivity.class, activity -> switchSection(SectionType.SETTINGS));
+        activityManager.register(LoadActivity.class, activity -> switchSection(SectionType.LOADER));
+        activityManager.register(OverlayActivity.class, activity -> switchSection(SectionType.OVERLAY));
+
         activityManager.register(CloseSettingsActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(ClosePlayerActivity.class, activity -> switchSection(SectionType.CONTENT));
+        activityManager.register(CloseLoadActivity.class, activity -> switchSection(SectionType.CONTENT));
+        activityManager.register(CloseOverlayActivity.class, activity -> switchSection(SectionType.CONTENT));
     }
 
     //endregion
@@ -84,7 +91,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     //region Functions
 
     private void initializeSceneEvents() {
-        rootPane.setOnKeyReleased(event -> {
+        rootPane.setOnKeyPressed(event -> {
             if (PASTE_KEY_COMBINATION.match(event)) {
                 event.consume();
                 onContentPasted();
@@ -111,6 +118,9 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             case LOADER:
                 content.set(loaderPane);
                 break;
+            case OVERLAY:
+                content.set(overlayPane);
+                break;
         }
 
         Platform.runLater(() -> {
@@ -130,6 +140,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         } else if (StringUtils.isNotEmpty(url)) {
             log.trace("Processing clipboard url");
             activityManager.register((LoadUrlActivity) () -> url);
+        } else {
+            log.trace("Processing clipboard string");
+            String text = clipboard.getString();
+
+            if (text.startsWith("magnet")) {
+                activityManager.register((LoadUrlActivity) () -> text);
+            }
         }
     }
 
@@ -183,6 +200,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         CONTENT,
         SETTINGS,
         PLAYER,
-        LOADER
+        LOADER,
+        OVERLAY
     }
 }

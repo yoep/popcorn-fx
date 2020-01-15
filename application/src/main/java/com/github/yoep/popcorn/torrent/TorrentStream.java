@@ -80,6 +80,10 @@ public class TorrentStream {
         if (isStreaming())
             stopStream();
 
+        // update the factory file index to null
+        // this will reset the torrent creation to automatically selected the largest file
+        torrentFactory.setFileIndex(null);
+
         this.currentStream = new Thread(() -> {
             try {
                 log.debug("DHT contains {} nodes", torrentSession.stats().dhtNodes());
@@ -91,6 +95,38 @@ public class TorrentStream {
 
                             this.torrentSession.download(torrentInfo, getSettings().getDirectory(), null, priorities, null);
                         }, () -> listenerHolder.onLoadError("Failed to retrieve torrent information"));
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        });
+
+        // start a new thread
+        taskExecutor.execute(this.currentStream);
+    }
+
+    public void startStream(TorrentInfo torrentInfo, int fileIndex) {
+        if (!initialized)
+            throw new TorrentException("TorrentStream is not yet initialized");
+
+        if (isStreaming())
+            stopStream();
+
+        torrentFactory.setFileIndex(fileIndex);
+
+        this.currentStream = new Thread(() -> {
+            try {
+                log.debug("DHT contains {} nodes", torrentSession.stats().dhtNodes());
+                Priority[] priorities = new Priority[torrentInfo.numFiles()];
+
+                for (int i = 0; i < torrentInfo.numFiles(); i++) {
+                    if (i == fileIndex) {
+                        priorities[i] = Priority.NORMAL;
+                    } else {
+                        priorities[i] = Priority.IGNORE;
+                    }
+                }
+
+                this.torrentSession.download(torrentInfo, getSettings().getDirectory(), null, priorities, null);
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }

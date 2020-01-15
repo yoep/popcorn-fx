@@ -5,7 +5,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.providers.models.Images;
 import com.github.yoep.popcorn.providers.models.Media;
-import com.github.yoep.popcorn.providers.models.TorrentInfo;
+import com.github.yoep.popcorn.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection;
@@ -122,7 +122,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         });
     }
 
-    protected void loadQualitySelection(Map<String, TorrentInfo> torrents) {
+    protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {
         List<Label> qualities = torrents.keySet().stream()
                 .filter(e -> !e.equals("0")) // filter out the 0 quality
                 .sorted(Comparator.comparing(o -> Integer.parseInt(o.replaceAll("[a-z]", ""))))
@@ -177,7 +177,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         return tooltip;
     }
 
-    protected void switchHealth(TorrentInfo torrentInfo) {
+    protected void switchHealth(MediaTorrentInfo torrentInfo) {
         health.getStyleClass().removeIf(e -> !e.equals("health"));
         TorrentHealth health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
 
@@ -188,12 +188,12 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         Tooltip.install(this.health, healthTooltip);
     }
 
-    protected String getHealthTooltip(TorrentInfo torrentInfo, TorrentHealth health) {
+    protected String getHealthTooltip(MediaTorrentInfo torrentInfo, TorrentHealth health) {
         return localeText.get(health.getStatus().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
                 "Seeds: " + torrentInfo.getSeed() + " - Peers: " + torrentInfo.getPeer();
     }
 
-    protected void openMagnetLink(TorrentInfo torrentInfo) {
+    protected void openMagnetLink(MediaTorrentInfo torrentInfo) {
         try {
             application.getHostServices().showDocument(torrentInfo.getUrl());
         } catch (Exception ex) {
@@ -201,7 +201,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         }
     }
 
-    protected void copyMagnetLink(TorrentInfo torrentInfo) {
+    protected void copyMagnetLink(MediaTorrentInfo torrentInfo) {
         ClipboardContent clipboardContent = new ClipboardContent();
         clipboardContent.putUrl(torrentInfo.getUrl());
         clipboardContent.putString(torrentInfo.getUrl());

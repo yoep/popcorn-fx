@@ -2,8 +2,7 @@ package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.LoadTorrentActivity;
-import com.github.yoep.popcorn.activities.LoadUrlActivity;
+import com.github.yoep.popcorn.activities.ShowTorrentDetailsActivity;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.layout.Pane;
@@ -18,13 +17,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @Controller
 @RequiredArgsConstructor
-public class LoaderSectionController {
+public class OverlaySectionController {
     private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
 
-    private Pane torrentLoaderPane;
-    private Pane urlLoaderPane;
+    private Pane torrentDetailsPane;
 
     @FXML
     private Pane rootPane;
@@ -38,25 +36,22 @@ public class LoaderSectionController {
     }
 
     private void initializePanes() {
-        taskExecutor.execute(() -> torrentLoaderPane = viewLoader.load("components/loader-torrent.component.fxml"));
-        taskExecutor.execute(() -> urlLoaderPane = viewLoader.load("components/loader-url.component.fxml"));
+        taskExecutor.execute(() -> torrentDetailsPane = viewLoader.load("components/details-torrent.component.fxml"));
     }
 
     private void initializeListeners() {
-        activityManager.register(LoadTorrentActivity.class, activity -> switchPane(Type.TORRENT_LOADER));
-        activityManager.register(LoadUrlActivity.class, activity -> switchPane(Type.URL_LOADER));
+        activityManager.register(ShowTorrentDetailsActivity.class, activity -> switchContent(Type.TORRENT_DETAILS));
     }
 
-    private void switchPane(Type type) {
+    //endregion
+
+    //region Functions
+
+    private void switchContent(Type type) {
         AtomicReference<Pane> pane = new AtomicReference<>();
 
-        switch (type) {
-            case TORRENT_LOADER:
-                pane.set(torrentLoaderPane);
-                break;
-            case URL_LOADER:
-                pane.set(urlLoaderPane);
-                break;
+        if (type == Type.TORRENT_DETAILS) {
+            pane.set(torrentDetailsPane);
         }
 
         Platform.runLater(() -> {
@@ -65,10 +60,9 @@ public class LoaderSectionController {
         });
     }
 
-    //endregion
-
     private enum Type {
-        TORRENT_LOADER,
-        URL_LOADER
+        TORRENT_DETAILS
     }
+
+    //endregion
 }

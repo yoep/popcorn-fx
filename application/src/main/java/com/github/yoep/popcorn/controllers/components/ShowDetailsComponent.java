@@ -4,7 +4,7 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseDetailsActivity;
-import com.github.yoep.popcorn.activities.LoadTorrentActivity;
+import com.github.yoep.popcorn.activities.LoadMediaTorrentActivity;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.controls.Episodes;
 import com.github.yoep.popcorn.controls.Seasons;
@@ -14,7 +14,7 @@ import com.github.yoep.popcorn.models.Season;
 import com.github.yoep.popcorn.providers.models.Episode;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.Show;
-import com.github.yoep.popcorn.providers.models.TorrentInfo;
+import com.github.yoep.popcorn.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
@@ -399,7 +399,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     @FXML
     private void onMagnetClicked(MouseEvent event) {
-        TorrentInfo torrentInfo = episode.getTorrents().get(quality);
+        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {
             copyMagnetLink(torrentInfo);
@@ -410,9 +410,9 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     @FXML
     private void onWatchNowClicked() {
-        activityManager.register(new LoadTorrentActivity() {
+        activityManager.register(new LoadMediaTorrentActivity() {
             @Override
-            public TorrentInfo getTorrent() {
+            public MediaTorrentInfo getTorrent() {
                 return episode.getTorrents().get(quality);
             }
 

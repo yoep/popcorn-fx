@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.controllers.components.LoaderComponent"
+          fx:controller="com.github.yoep.popcorn.controllers.components.LoaderTorrentComponent"
           styleClass="loader">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="20"/>

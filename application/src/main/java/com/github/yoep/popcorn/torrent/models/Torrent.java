@@ -55,9 +55,19 @@ public class Torrent implements AlertListener {
 
         torrentStreamReferences = new ArrayList<>();
 
-        if (selectedFileIndex == -1)
-            setLargestFile();
+        setLargestFile();
+        startDownload();
+    }
 
+    public Torrent(TorrentHandle torrentHandle, TorrentListener listener, Long prepareSize, int fileIndex) {
+        log.debug("Creating new torrent for \"{}\"", torrentHandle.name());
+        this.torrentHandle = torrentHandle;
+        this.listener = listener;
+        this.prepareSize = prepareSize;
+
+        torrentStreamReferences = new ArrayList<>();
+
+        setSelectedFileIndex(fileIndex);
         startDownload();
     }
 
@@ -328,7 +338,8 @@ public class Torrent implements AlertListener {
     /**
      * Checks if the interesting pieces are downloaded already
      *
-     * @return {@code true} if the 5 pieces that were selected using `setInterestedBytes` are all reported complete including the `nextPieces`, {@code false} if not
+     * @return {@code true} if the 5 pieces that were selected using `setInterestedBytes` are all reported complete including the `nextPieces`, {@code false}
+     * if not
      */
     public boolean hasInterestedBytes(int nextPieces) {
         for (int i = 0; i < 5 + nextPieces; i++) {

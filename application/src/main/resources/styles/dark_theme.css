@@ -21,7 +21,9 @@
 .root .scroll-pane,
 .root .list-view,
 .root .table-view,
-.root .header .bar {
+.root .header .bar,
+.root .loader,
+.root .overlay {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
 }
@@ -950,4 +952,31 @@
     -fx-font-family: "Open Sans";
     -fx-background-color: #393b3d;
     -fx-text-fill: #c3c5c7;
+}
+
+.root .torrent-details .title {
+    -fx-font-family: sans-serif;
+    -fx-font-size: 24px;
+    -fx-text-fill: #fff;
+}
+
+.root .torrent-details .files .list-cell {
+    -fx-background-color: rgba(255,255,255,0.05);
+    -fx-border-width: 0 0 1 0;
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-border-style: solid;
+    -fx-padding: 5 15 5 15;
+    -fx-cursor: hand;
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #eee;
+    -fx-font-size: 1.2em;
+}
+
+.root .torrent-details .files .list-cell:hover {
+    -fx-text-fill: #2d72d9;
+}
+
+.root .torrent-details .files .list-cell:empty {
+    -fx-opacity: 0;
+    -fx-cursor: default;
 }

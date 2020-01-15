@@ -73,9 +73,9 @@ Add the following VM option if you're experiencing white boxes in the UI.
 ### Prio 2
 
 - Resume video on last view time
-- Paste magnet links in the application
 - Implement watchlist
 - Implement torrent collection
+- Add ability to store a pasted magnet link
 
 ### Prio 3
 

@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.torrent;
 
+import com.frostwire.jlibtorrent.TorrentInfo;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
@@ -12,6 +13,7 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PreDestroy;
 import java.io.IOException;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -46,6 +48,10 @@ public class TorrentService {
         torrentStream.addListener(listener);
     }
 
+    public Optional<TorrentInfo> getTorrentInfo(String url) {
+        return torrentStream.getTorrentInfo(url);
+    }
+
     /**
      * Start a new torrent stream for the given torrent url.
      *
@@ -54,6 +60,17 @@ public class TorrentService {
     public void startStream(String torrentUrl) {
         Assert.hasText(torrentUrl, "torrentUrl cannot be empty");
         torrentStream.startStream(torrentUrl);
+    }
+
+    /**
+     * Start a new torrent stream for the given torrent and file index.
+     *
+     * @param torrent   The torrent to stream.
+     * @param fileIndex The file index within the torrent to stream.
+     */
+    public void startStream(TorrentInfo torrent, int fileIndex) {
+        Assert.notNull(torrent, "torrent cannot be null");
+        torrentStream.startStream(torrent, fileIndex);
     }
 
     /**
@@ -115,7 +132,7 @@ public class TorrentService {
     //region Functions
 
     @PreDestroy
-    public void destroy() {
+    private void destroy() {
         var settings = getSettings();
 
         if (settings.isAutoCleaningEnabled() && settings.getDirectory().exists()) {

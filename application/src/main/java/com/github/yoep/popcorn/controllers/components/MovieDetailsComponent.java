@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.Movie;
-import com.github.yoep.popcorn.providers.models.TorrentInfo;
+import com.github.yoep.popcorn.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.subtitle.SubtitleService;
 import com.github.yoep.popcorn.subtitle.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
@@ -222,7 +222,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     @FXML
     private void onMagnetClicked(MouseEvent event) {
-        TorrentInfo torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+        MediaTorrentInfo torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {
             copyMagnetLink(torrentInfo);
@@ -233,7 +233,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     @FXML
     private void onWatchNowClicked() {
-        activityManager.register(new LoadTorrentActivity() {
+        activityManager.register(new LoadMediaTorrentActivity() {
             @Override
             public String getQuality() {
                 return quality;
@@ -245,7 +245,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             }
 
             @Override
-            public TorrentInfo getTorrent() {
+            public MediaTorrentInfo getTorrent() {
                 return media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
             }
 

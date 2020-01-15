@@ -8,7 +8,7 @@ import lombok.Data;
  * This model is primarily used for displaying media details.
  */
 @Data
-public class TorrentInfo {
+public class MediaTorrentInfo {
     private String provider;
     private String filesize;
     private long size;

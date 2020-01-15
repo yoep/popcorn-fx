@@ -21,7 +21,9 @@ public class TorrentFactory implements AlertListener {
     private final List<TorrentCreationListener> listeners = new ArrayList<>();
     private final SessionManager torrentSession;
     private final TorrentListenerHolder torrentListenerHolder;
+
     private Torrent currentTorrent;
+    private Integer fileIndex;
 
     /**
      * Initialize a new instance of the torrent factory for creating torrents.
@@ -47,6 +49,15 @@ public class TorrentFactory implements AlertListener {
         return Optional.ofNullable(currentTorrent);
     }
 
+    /**
+     * Set the index of the file that should be downloaded.
+     *
+     * @param fileIndex The index of the file to download.
+     */
+    void setFileIndex(Integer fileIndex) {
+        this.fileIndex = fileIndex;
+    }
+
     @Override
     public int[] types() {
         return new int[]{
@@ -59,7 +70,14 @@ public class TorrentFactory implements AlertListener {
         AddTorrentAlert addTorrentAlert = (AddTorrentAlert) alert;
         TorrentHandle torrentHandle = this.torrentSession.find(addTorrentAlert.handle().infoHash());
         getCurrentTorrent().ifPresent(this.torrentSession::removeListener);
-        currentTorrent = new Torrent(torrentHandle, torrentListenerHolder, 15 * 1024L * 1024L);
+        long prepareSize = 15 * 1024L * 1024L;
+
+        if (fileIndex == null) {
+            currentTorrent = new Torrent(torrentHandle, torrentListenerHolder, prepareSize);
+        } else {
+            currentTorrent = new Torrent(torrentHandle, torrentListenerHolder, prepareSize, fileIndex);
+        }
+
         this.torrentSession.addListener(currentTorrent);
         torrentHandle.resume();
 

@@ -37,7 +37,7 @@ public class Episode implements Media, Watchable {
     /**
      * The available torrents for the episode.
      */
-    private Map<String, TorrentInfo> torrents;
+    private Map<String, MediaTorrentInfo> torrents;
     /**
      * The first air time of the episode
      */

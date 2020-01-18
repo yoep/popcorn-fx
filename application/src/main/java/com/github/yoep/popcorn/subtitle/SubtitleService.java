@@ -74,6 +74,8 @@ public class SubtitleService {
      */
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final Movie media) {
+        Assert.notNull(media, "media cannot be null");
+
         // check if the subtitles were already cached
         if (cachedSubtitles.containsKey(media.getId()))
             return CompletableFuture.completedFuture(cachedSubtitles.get(media.getId()));
@@ -97,6 +99,8 @@ public class SubtitleService {
      */
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final Show media, final Episode episode) {
+        Assert.notNull(media, "media cannot be null");
+        Assert.notNull(episode, "episode cannot be null");
         var cacheId = String.valueOf(episode.getId());
 
         // check if the subtitles were already cached
@@ -108,6 +112,23 @@ public class SubtitleService {
         var loginHandler = createLoginCallbackHandler(token -> search(media, episode, token, searchHandler), completableFuture);
 
         completableFuture.thenAccept(e -> cachedSubtitles.put(cacheId, e));
+
+        login(loginHandler);
+        return completableFuture;
+    }
+
+    /**
+     * Retrieve the subtitles for the given filename.
+     *
+     * @param filename The filename to retrieve the subtitle for.
+     * @return Returns the list of available subtitles for the given file.
+     */
+    @Async
+    public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final String filename) {
+        Assert.hasText(filename, "filename cannot be empty");
+        var completableFuture = new CompletableFuture<List<SubtitleInfo>>();
+        var searchHandler = createSearchCallbackHandler(completableFuture);
+        var loginHandler = createLoginCallbackHandler(token -> search(filename, token, searchHandler), completableFuture);
 
         login(loginHandler);
         return completableFuture;
@@ -230,6 +251,10 @@ public class SubtitleService {
         };
     }
 
+    private XMLRPCCallback createSearchCallbackHandler(final CompletableFuture<List<SubtitleInfo>> completableFuture) {
+        return createSearchCallbackHandler(null, completableFuture);
+    }
+
     private XMLRPCCallback createSearchCallbackHandler(final Media media, final CompletableFuture<List<SubtitleInfo>> completableFuture) {
         return new XMLRPCCallback() {
             @Override
@@ -244,17 +269,21 @@ public class SubtitleService {
                     Object[] dataList = (Object[]) subData.get("data");
                     for (Object dataItem : dataList) {
                         Map<String, String> item = (Map<String, String>) dataItem;
+
+                        // check if the subtitle file format is srt
+                        // if not, skip this item
                         if (!item.get("SubFormat").equals("srt")) {
                             continue;
                         }
 
                         // check if the media year matches the returned item
-                        if (!item.get("MovieYear").equals(media.getYear())) {
+                        if (media != null && !item.get("MovieYear").equals(media.getYear())) {
                             continue;
                         }
 
-                        String url = item.get("SubDownloadLink").replace(".gz", ".srt");
-                        SubtitleLanguage language = SubtitleLanguage.valueOfCode(item.get("ISO639").replace("pb", "pt-br"));
+                        var mediaId = media != null ? media.getId() : "tt" + item.get("IDMovieImdb");
+                        var url = item.get("SubDownloadLink").replace(".gz", ".srt");
+                        var language = SubtitleLanguage.valueOfCode(item.get("ISO639").replace("pb", "pt-br"));
 
                         // check if language is known within the subtitle languages
                         // if not known, ignore this subtitle and continue with the next one
@@ -284,15 +313,27 @@ public class SubtitleService {
                                 sub.setDownloads(downloads);
                             }
                         } else {
-                            subtitles.add(new SubtitleInfo(media.getId(), language, url, score, downloads));
+                            subtitles.add(new SubtitleInfo(mediaId, language, url, score, downloads));
                         }
                     }
 
                     // always subtract the "none" subtitle from the count
-                    log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size() - 1, media.getTitle(), media.getId());
+                    if (media != null) {
+                        log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size() - 1, media.getTitle(), media.getId());
+                    } else {
+                        log.debug("Found {} subtitles", subtitles.size() - 1);
+                    }
+
                     completableFuture.complete(subtitles);
                 } else {
-                    String message = MessageFormat.format("No subtitles found for \"{0}\" media ({1})", media.getTitle(), media.getId());
+                    String message;
+
+                    if (media != null) {
+                        message = MessageFormat.format("No subtitles found for \"{0}\" media ({1})", media.getTitle(), media.getId());
+                    } else {
+                        message = "No subtitles could be found";
+                    }
+
                     completableFuture.completeExceptionally(new SubtitleException(message));
                 }
             }
@@ -321,11 +362,6 @@ public class SubtitleService {
         client.callAsync(callback, "LogIn", "", "", "en", subtitleProperties.getUserAgent());
     }
 
-    /**
-     * @param episode  Episode
-     * @param token    Login token
-     * @param callback XML RPC callback callback
-     */
     private void search(Show show, Episode episode, String token, XMLRPCCallback callback) {
         Map<String, String> option = new HashMap<>();
         option.put("imdbid", show.getId().replace("tt", ""));
@@ -336,16 +372,19 @@ public class SubtitleService {
         client.callAsync(callback, "SearchSubtitles", token, new Object[]{option});
     }
 
-    /**
-     * @param movie    Movie
-     * @param token    Login token
-     * @param callback XML RPC callback callback
-     */
     private void search(Movie movie, String token, XMLRPCCallback callback) {
         log.trace("Searching for \"{}\" movie subtitles ({})", movie.getTitle(), movie.getId());
         Map<String, String> option = new HashMap<>();
         option.put("imdbid", movie.getId().replace("tt", ""));
         option.put("sublanguageid", "all");
+
+        client.callAsync(callback, "SearchSubtitles", token, new Object[]{option});
+    }
+
+    private void search(String filename, String token, XMLRPCCallback callback) {
+        log.trace("Searching for \"{}\" filename subtitles", filename);
+        Map<String, String> option = new HashMap<>();
+        option.put("tag", filename);
 
         client.callAsync(callback, "SearchSubtitles", token, new Object[]{option});
     }

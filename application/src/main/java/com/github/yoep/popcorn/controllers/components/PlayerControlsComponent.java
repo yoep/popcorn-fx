@@ -21,12 +21,14 @@ import javafx.scene.control.Slider;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
@@ -80,6 +82,15 @@ public class PlayerControlsComponent implements Initializable {
      */
     public Long getDuration() {
         return duration;
+    }
+
+    /**
+     * Check if the subtitles list is currently shown.
+     *
+     * @return Returns true if the list is being shown, else false.
+     */
+    public boolean isSubtitlesShowing() {
+        return languageSelection.isShowing();
     }
 
     //endregion
@@ -215,19 +226,30 @@ public class PlayerControlsComponent implements Initializable {
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
-        Platform.runLater(() -> subtitleSection.setVisible(false));
+        // update the visibility of the subtitles section
+        Platform.runLater(() -> subtitleSection.setVisible(activity.isSubtitlesEnabled()));
 
         // check if the activity contains media information
         if (activity instanceof PlayMediaActivity) {
             var mediaActivity = (PlayMediaActivity) activity;
             onPlayMedia(mediaActivity);
+            return;
+        }
+
+        if (activity.isSubtitlesEnabled()) {
+            // set the default subtitle to "none" when loading
+            SubtitleInfo defaultSubtitle = SubtitleInfo.none();
+            updateAvailableSubtitles(Collections.singletonList(defaultSubtitle), defaultSubtitle);
+
+            String filename = FilenameUtils.getName(activity.getUrl());
+
+            log.debug("Retrieving subtitles for \"{}\"", filename);
+            subtitleService.retrieveSubtitles(filename).whenComplete(this::handleSubtitlesResponse);
         }
     }
 
     private void onPlayMedia(PlayMediaActivity activity) {
         this.media = activity.getMedia();
-
-        Platform.runLater(() -> subtitleSection.setVisible(true));
 
         // set the subtitle for the playback
         this.subtitle = activity.getSubtitle()
@@ -275,14 +297,19 @@ public class PlayerControlsComponent implements Initializable {
         if (throwable == null) {
             final SubtitleInfo subtitle = this.subtitle != null ? this.subtitle : subtitleService.getDefault(subtitles);
 
-            Platform.runLater(() -> {
-                languageSelection.getItems().clear();
-                languageSelection.getItems().addAll(subtitles);
-                languageSelection.select(subtitle);
-            });
+            updateAvailableSubtitles(subtitles, subtitle);
         } else {
             log.error("Failed to retrieve subtitles, " + throwable.getMessage(), throwable);
         }
+    }
+
+    private void updateAvailableSubtitles(List<SubtitleInfo> subtitles, SubtitleInfo subtitle) {
+        log.trace("Updating available subtitles to {}", subtitles.size());
+        Platform.runLater(() -> {
+            languageSelection.getItems().clear();
+            languageSelection.getItems().addAll(subtitles);
+            languageSelection.select(subtitle);
+        });
     }
 
     private String formatTime(long time) {
@@ -302,6 +329,7 @@ public class PlayerControlsComponent implements Initializable {
             slider.setValue(0);
             timeLabel.setText(formatTime(0));
             durationLabel.setText(formatTime(0));
+            languageSelection.getItems().clear();
         });
     }
 

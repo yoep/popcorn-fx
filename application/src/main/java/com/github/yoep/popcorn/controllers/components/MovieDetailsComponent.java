@@ -268,6 +268,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
             public String getTitle() {
                 return media.getTitle();
             }
+
+            @Override
+            public boolean isSubtitlesEnabled() {
+                return false;
+            }
         });
     }
 
@@ -300,9 +305,9 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     @FXML
     private void close() {
-        reset();
         activityManager.register(new CloseDetailsActivity() {
         });
+        reset();
     }
 
     //endregion

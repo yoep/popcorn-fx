@@ -49,14 +49,14 @@ public class BackgroundComponent implements Initializable {
     }
 
     private void loadBackgroundImage(final Media media) {
+        // always set a black background
+        Platform.runLater(() -> this.backgroundImage.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY))));
+
         // check if the media is know before trying to load a background image
         if (media == null)
             return;
 
         taskExecutor.execute(() -> {
-            // set black background first
-            Platform.runLater(() -> this.backgroundImage.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY))));
-
             // try to load the background image
             try {
                 Optional.ofNullable(media.getImages())

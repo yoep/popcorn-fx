@@ -191,6 +191,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             public String getTitle() {
                 return title;
             }
+
+            @Override
+            public boolean isSubtitlesEnabled() {
+                return true;
+            }
         });
     }
 

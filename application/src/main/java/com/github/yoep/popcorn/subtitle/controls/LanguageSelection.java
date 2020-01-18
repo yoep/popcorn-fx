@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.subtitle.controls;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Bounds;
 import javafx.scene.Cursor;
@@ -53,6 +54,15 @@ public class LanguageSelection extends Icon {
      */
     public ListView<SubtitleInfo> getListView() {
         return popup.getListView();
+    }
+
+    /**
+     * Check if the popup is currently being shown.
+     *
+     * @return Returns true if the popup is showing, else false.
+     */
+    public boolean isShowing() {
+        return popup.isShowing();
     }
 
     public void addListener(LanguageSelectionListener listener) {
@@ -145,6 +155,10 @@ public class LanguageSelection extends Icon {
     private class ListPopup extends PopupControl {
         private final ListView<SubtitleInfo> listView = new ListView<>();
 
+        public ListPopup() {
+            init();
+        }
+
         public ListView<SubtitleInfo> getListView() {
             return listView;
         }
@@ -152,6 +166,22 @@ public class LanguageSelection extends Icon {
         @Override
         protected Skin<?> createDefaultSkin() {
             return new ListPopupSkin(this, listView);
+        }
+
+        private void init() {
+            listView.getItems().addListener((ListChangeListener<? super SubtitleInfo>) c -> {
+                int height;
+
+                if (listView.getItems().size() > 1) {
+                    height = 200;
+                } else {
+                    height = 25;
+                }
+
+                listView.setPrefHeight(height);
+                listView.setMaxHeight(height);
+                listView.setMinHeight(height);
+            });
         }
     }
 

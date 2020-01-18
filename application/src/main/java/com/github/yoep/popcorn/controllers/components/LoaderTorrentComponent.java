@@ -217,6 +217,11 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
             public String getTitle() {
                 return title;
             }
+
+            @Override
+            public boolean isSubtitlesEnabled() {
+                return true;
+            }
         });
     }
 
@@ -237,6 +242,11 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
             @Override
             public String getTitle() {
                 return title;
+            }
+
+            @Override
+            public boolean isSubtitlesEnabled() {
+                return true;
             }
 
             @Override

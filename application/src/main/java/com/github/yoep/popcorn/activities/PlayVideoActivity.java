@@ -14,4 +14,12 @@ public interface PlayVideoActivity extends Activity {
      * @return Returns the title of the video.
      */
     String getTitle();
+
+    /**
+     * Check if the subtitles should be enabled for this video playback.
+     * If true, the player will show the subtitle UI section, otherwise it will be hidden.
+     *
+     * @return Returns true if the subtitles should be enabled, else false.
+     */
+    boolean isSubtitlesEnabled();
 }

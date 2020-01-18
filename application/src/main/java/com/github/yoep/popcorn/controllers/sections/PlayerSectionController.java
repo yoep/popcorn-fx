@@ -263,10 +263,10 @@ public class PlayerSectionController implements Initializable {
     }
 
     private void onHideOverlay() {
-        if (videoPlayer.getPlayerState() != PlayerState.PLAYING || playerHeader.isStreamInfoShowing())
+        if (videoPlayer.getPlayerState() != PlayerState.PLAYING || playerHeader.isStreamInfoShowing() || playerControls.isSubtitlesShowing())
             return;
 
-        log.debug("Hiding video player overlay");
+        log.trace("Hiding video player overlay");
         playerPane.setCursor(Cursor.NONE);
         playerVideoOverlay.setCursor(Cursor.NONE);
 

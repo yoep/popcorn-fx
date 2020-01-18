@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpMethod;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -161,7 +163,7 @@ public class SubtitleService {
     public CompletableFuture<List<Subtitle>> downloadAndParse(SubtitleInfo subtitleInfo) {
         Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
         var file = internalDownload(subtitleInfo);
-        var encoding = subtitleInfo.getLanguage().getEncoding();
+        var encoding = subtitleInfo.getEncoding();
 
         return CompletableFuture.completedFuture(internalParse(file, encoding));
     }
@@ -284,6 +286,7 @@ public class SubtitleService {
                         var mediaId = media != null ? media.getId() : "tt" + item.get("IDMovieImdb");
                         var url = item.get("SubDownloadLink").replace(".gz", ".srt");
                         var language = SubtitleLanguage.valueOfCode(item.get("ISO639").replace("pb", "pt-br"));
+                        var encoding = parseSubEncoding(item.get("SubEncoding"));
 
                         // check if language is known within the subtitle languages
                         // if not known, ignore this subtitle and continue with the next one
@@ -311,9 +314,10 @@ public class SubtitleService {
                                 sub.setUrl(url);
                                 sub.setScore(score);
                                 sub.setDownloads(downloads);
+                                sub.setEncoding(encoding);
                             }
                         } else {
-                            subtitles.add(new SubtitleInfo(mediaId, language, url, score, downloads));
+                            subtitles.add(new SubtitleInfo(mediaId, language, url, score, downloads, encoding));
                         }
                     }
 
@@ -418,6 +422,20 @@ public class SubtitleService {
 
     private List<Subtitle> internalParse(File file, Charset encoding) {
         return SrtParser.parse(file, encoding);
+    }
+
+    private Charset parseSubEncoding(String encoding) {
+        // check if the charset encoding is not empty
+        // if it is empty, return the default charset instead
+        if (StringUtils.isEmpty(encoding))
+            return Charset.defaultCharset();
+
+        try {
+            return Charset.forName(encoding);
+        } catch (IllegalCharsetNameException ex) {
+            log.warn("Failed to parse subtitle encoding, " + ex.getCharsetName(), ex);
+            return Charset.defaultCharset();
+        }
     }
 
     private SubtitleSettings getSettings() {

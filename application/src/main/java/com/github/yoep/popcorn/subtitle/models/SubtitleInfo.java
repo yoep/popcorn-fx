@@ -7,6 +7,8 @@ import lombok.EqualsAndHashCode;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
+import java.nio.charset.Charset;
+
 @Data
 @EqualsAndHashCode(of = {"imdbId", "language"})
 public class SubtitleInfo implements Comparable<SubtitleInfo> {
@@ -17,6 +19,7 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
     private String url;
     private int score;
     private int downloads;
+    private Charset encoding;
 
     //region Constructors
 
@@ -32,12 +35,13 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
     }
 
     @Builder
-    public SubtitleInfo(String imdbId, SubtitleLanguage language, String url, int score, int downloads) {
+    public SubtitleInfo(String imdbId, SubtitleLanguage language, String url, int score, int downloads, Charset encoding) {
         this.imdbId = imdbId;
         this.language = language;
         this.url = url;
         this.score = score;
         this.downloads = downloads;
+        this.encoding = encoding;
     }
 
     //endregion

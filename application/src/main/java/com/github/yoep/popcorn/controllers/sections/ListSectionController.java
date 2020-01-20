@@ -199,6 +199,7 @@ public class ListSectionController implements Initializable {
                 .ifPresent(provider -> provider.showDetails(media)));
     }
 
+    //TODO: rework to factory setup in the scroll pane
     private void onMediaRequestCompleted(final List<? extends Media> mediaList) {
         // offload to a thread which we can cancel later on
         currentProcessingThread = new Thread(() -> {

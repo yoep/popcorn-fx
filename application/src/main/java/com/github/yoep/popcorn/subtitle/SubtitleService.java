@@ -34,6 +34,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -432,8 +433,8 @@ public class SubtitleService {
 
         try {
             return Charset.forName(encoding);
-        } catch (IllegalCharsetNameException ex) {
-            log.warn("Failed to parse subtitle encoding, " + ex.getCharsetName(), ex);
+        } catch (IllegalCharsetNameException | UnsupportedCharsetException ex) {
+            log.warn("Failed to parse subtitle encoding, " + ex.getMessage(), ex);
             return Charset.defaultCharset();
         }
     }

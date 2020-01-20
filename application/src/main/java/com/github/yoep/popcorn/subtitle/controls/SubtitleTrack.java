@@ -25,6 +25,7 @@ public class SubtitleTrack extends VBox {
     public static final String FONT_WEIGHT_PROPERTY = "fontWeight";
     public static final String SUBTITLE_PROPERTY = "subtitle";
     public static final String DECORATION_PROPERTY = "decoration";
+    public static final String OFFSET_PROPERTY = "offset";
 
     private static final String STYLE_CLASS = "subtitle-track";
     private static final String TRACK_LINE_STYLE_CLASS = "track-line";
@@ -37,6 +38,7 @@ public class SubtitleTrack extends VBox {
     private final ObjectProperty<FontWeight> fontWeight = new SimpleObjectProperty<>(this, FONT_WEIGHT_PROPERTY, FontWeight.NORMAL);
     private final ObjectProperty<DecorationType> decoration = new SimpleObjectProperty<>(this, DECORATION_PROPERTY);
     private final ObjectProperty<Subtitle> subtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY);
+    private final DoubleProperty offset = new SimpleDoubleProperty(this, OFFSET_PROPERTY);
 
     private List<TrackLabel> labels;
     private List<Subtitle> subtitles;
@@ -112,6 +114,18 @@ public class SubtitleTrack extends VBox {
         this.decoration.set(decoration);
     }
 
+    public double getOffset() {
+        return offset.get();
+    }
+
+    public DoubleProperty offsetProperty() {
+        return offset;
+    }
+
+    public void setOffset(double offset) {
+        this.offset.set(offset);
+    }
+
     //endregion
 
     //region Setters
@@ -137,9 +151,10 @@ public class SubtitleTrack extends VBox {
     public void onTimeChanged(long time) {
         if (subtitles == null)
             return;
+        var offset = (long) (getOffset() * 1000);
 
         subtitles.stream()
-                .filter(e -> time >= e.getStartTime() && time <= e.getEndTime())
+                .filter(e -> time >= (e.getStartTime() + offset) && time <= (e.getEndTime() + offset))
                 .findFirst()
                 .ifPresentOrElse(this::updateSubtitleTrack, this::clearSubtitleTrack);
     }
@@ -176,6 +191,7 @@ public class SubtitleTrack extends VBox {
         fontSize.addListener((observable, oldValue, newValue) -> onFontChanged());
         fontWeight.addListener((observable, oldValue, newValue) -> onFontChanged());
         decoration.addListener((observable, oldValue, newValue) -> onDecorationChanged(newValue));
+        offset.addListener((observable, oldValue, newValue) -> onOffsetChanged());
     }
 
     private void updateSubtitleTrack(Subtitle subtitle) {
@@ -241,6 +257,10 @@ public class SubtitleTrack extends VBox {
             return;
 
         labels.forEach(e -> updateTrackLabelFlags(newValue, e));
+    }
+
+    private void onOffsetChanged() {
+
     }
 
     private void updateTrackLabelFlags(DecorationType newValue, TrackLabel trackLabel) {

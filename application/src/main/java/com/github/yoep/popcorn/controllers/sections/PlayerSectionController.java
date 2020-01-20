@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.controllers.sections;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
 import com.github.yoep.popcorn.activities.PlayMediaActivity;
@@ -7,6 +8,7 @@ import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.controllers.components.PlayerControlsComponent;
 import com.github.yoep.popcorn.controllers.components.PlayerControlsListener;
 import com.github.yoep.popcorn.controllers.components.PlayerHeaderComponent;
+import com.github.yoep.popcorn.messages.VideoMessage;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
@@ -24,6 +26,8 @@ import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Cursor;
+import javafx.scene.control.Label;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
@@ -44,8 +48,11 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class PlayerSectionController implements Initializable {
     private static final int OVERLAY_FADE_DURATION = 1500;
+    private static final int INFO_FADE_DURATION = 2000;
 
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(3));
+    private final PauseTransition offsetTimer = new PauseTransition(Duration.seconds(2));
+
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
     private final TorrentService torrentService;
@@ -54,6 +61,7 @@ public class PlayerSectionController implements Initializable {
     private final PlayerHeaderComponent playerHeader;
     private final PlayerControlsComponent playerControls;
     private final VideoPlayer videoPlayer;
+    private final LocaleText localeText;
 
     private Media media;
     private String quality;
@@ -69,6 +77,8 @@ public class PlayerSectionController implements Initializable {
     private Pane playerControlsPane;
     @FXML
     private Pane videoView;
+    @FXML
+    private Label subtitleOffset;
     @FXML
     private SubtitleTrack subtitleTrack;
 
@@ -141,6 +151,17 @@ public class PlayerSectionController implements Initializable {
                     break;
             }
         });
+        playerPane.setOnKeyPressed(event -> {
+            switch (event.getCode()) {
+                case G:
+                    updateSubtitleOffset(event, false);
+                    break;
+                case H:
+                    updateSubtitleOffset(event, true);
+                    break;
+            }
+        });
+
         idleTimer.setOnFinished(e -> onHideOverlay());
         playerPane.addEventHandler(Event.ANY, e -> onShowOverlay());
     }
@@ -195,6 +216,18 @@ public class PlayerSectionController implements Initializable {
                     subtitleTrack.setDecoration((DecorationType) evt.getNewValue());
                     break;
             }
+        });
+
+        offsetTimer.setOnFinished(event -> {
+            FadeTransition fadeTransition = new FadeTransition(Duration.millis(INFO_FADE_DURATION), subtitleOffset);
+            fadeTransition.setToValue(0);
+            fadeTransition.play();
+        });
+
+        subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> {
+            subtitleOffset.setText(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
+            subtitleOffset.setOpacity(1);
+            offsetTimer.playFromStart();
         });
     }
 
@@ -308,9 +341,30 @@ public class PlayerSectionController implements Initializable {
         this.media = null;
         this.quality = null;
         this.videoChangeTime = 0;
+        this.subtitleTrack.setOffset(0.0);
 
         Platform.runLater(() -> subtitleTrack.clear());
         taskExecutor.execute(videoPlayer::stop);
+    }
+
+    private void updateSubtitleOffset(KeyEvent event, boolean increaseOffset) {
+        double offset = 0.1;
+
+        if (event.isControlDown() && event.isShiftDown()) {
+            offset = 10.0;
+        } else if (event.isControlDown()) {
+            offset = 5.0;
+        } else if (event.isShiftDown()) {
+            offset = 1.0;
+        }
+
+        double currentOffset = subtitleTrack.getOffset();
+
+        if (increaseOffset) {
+            subtitleTrack.setOffset(currentOffset + offset);
+        } else {
+            subtitleTrack.setOffset(currentOffset - offset);
+        }
     }
 
     private FontWeight getFontWeight(boolean isBold) {

@@ -516,10 +516,10 @@
     -fx-text-fill: #299000;
 }
 
-.root .movie-details .favorite-section:hover Icon,
-.root .movie-details .watched-section:hover Icon,
-.root .show-details-section .show-header .bookmark:hover Icon {
+.root .movie-details .favorite-section:hover Label,
+.root .movie-details .watched-section:hover Label {
     -fx-text-fill: #2468cc;
+    -fx-font-size: 1.2em;
 }
 
 .root .movie-details .favorite-section Label,
@@ -552,6 +552,10 @@
 .root .show-details-section .show-header .bookmark Label {
     -fx-text-fill: #fff;
     -fx-font-size: 1.2em;
+}
+
+.root .show-details-section .show-header .bookmark:hover Icon {
+    -fx-text-fill: #2468cc;
 }
 
 .root .show-details-section .show-header .bookmark .like {
@@ -766,6 +770,12 @@
 
 .root .player .player-overlay {
     -fx-cursor: hand;
+}
+
+.root .player .video-info {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.5em;
 }
 
 .root .player .player-controls {

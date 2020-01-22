@@ -64,22 +64,19 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
     -Dprism.dirtyopts=false
 
-## TODO features
+## Features
 
-### Prio 1
+### v1.0.0
+
+### Upcoming features
 
 - Update torrent buffering when seeking through the video
-
-### Prio 2
-
 - Resume video on last view time
 - Implement watchlist
 - Implement torrent collection
 - Add ability to store a pasted magnet link
-
-### Prio 3
-
 - Add loading indicator to the player
 - Update video time slider to show video loading progress (custom control)
 - Trakt.tv integration
 - Continue to watch show with next episode
+- Convert project from unnamed to modules setup for smaller bundled JRE

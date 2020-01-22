@@ -160,16 +160,26 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>fvarrui.maven</groupId>
+                <artifactId>javapackager</artifactId>
+                <version>0.8.8</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
-                            <goal>repackage</goal>
+                            <goal>package</goal>
                         </goals>
                         <configuration>
-                            <finalName>popcorn-time</finalName>
+                            <mainClass>com.github.yoep.popcorn.PopcornTimeApplication</mainClass>
+                            <bundleJre>true</bundleJre>
+                            <generateInstaller>true</generateInstaller>
+                            <platform>auto</platform>
+                            <customizedJre>false</customizedJre>
+                            <displayName>Popcorn Time</displayName>
+                            <organizationName>Popcorn Time</organizationName>
+                            <licenseFile>../LICENSE</licenseFile>
+                            <version>1.0.0</version>
+                            <vmArgs>-Dsun.awt.disablegrab=true -Dprism.dirtyopts=false -Dprism.lcdtext=false -XX:+UseG1GC</vmArgs>
                         </configuration>
                     </execution>
                 </executions>

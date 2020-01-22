@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.controls;
 
-
 import com.github.yoep.popcorn.providers.models.Episode;
 import com.github.yoep.popcorn.watched.controls.WatchedCell;
 import com.github.yoep.popcorn.watched.controls.WatchedCellFactory;

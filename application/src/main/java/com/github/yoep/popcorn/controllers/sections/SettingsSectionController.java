@@ -4,9 +4,9 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseSettingsActivity;
 import javafx.fxml.FXML;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Component;
 
-@Controller
+@Component
 @RequiredArgsConstructor
 public class SettingsSectionController {
     private final ActivityManager activityManager;

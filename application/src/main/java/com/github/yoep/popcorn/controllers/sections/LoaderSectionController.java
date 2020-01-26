@@ -10,13 +10,13 @@ import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@Controller
+@Component
 @RequiredArgsConstructor
 public class LoaderSectionController {
     private final ActivityManager activityManager;

@@ -7,12 +7,12 @@ import com.github.yoep.popcorn.controllers.components.ItemListener;
 import com.github.yoep.popcorn.controllers.components.MediaCardComponent;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
 import com.github.yoep.popcorn.favorites.FavoriteService;
-import com.github.yoep.popcorn.providers.ProviderService;
-import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.messages.ListMessage;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.providers.ProviderService;
+import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 
 import javax.annotation.PostConstruct;
@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@Controller
+@Component
 @RequiredArgsConstructor
 public class ListSectionController implements Initializable {
     private final ActivityManager activityManager;

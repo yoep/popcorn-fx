@@ -14,6 +14,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 
 import javax.annotation.PostConstruct;
@@ -26,7 +27,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@Controller
+@Component
 @RequiredArgsConstructor
 public class MainController extends ScaleAwareImpl implements Initializable {
     private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);

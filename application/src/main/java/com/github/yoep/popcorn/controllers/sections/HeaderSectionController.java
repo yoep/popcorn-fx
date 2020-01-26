@@ -16,7 +16,7 @@ import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Component;
 
 import java.net.URL;
 import java.util.List;
@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Controller
+@Component
 @RequiredArgsConstructor
 public class HeaderSectionController implements Initializable {
     private static final String STYLE_ACTIVE = "active";

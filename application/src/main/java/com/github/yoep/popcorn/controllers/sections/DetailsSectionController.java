@@ -8,13 +8,13 @@ import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Component;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@Controller
+@Component
 @RequiredArgsConstructor
 public class DetailsSectionController implements Initializable {
     private final ActivityManager activityManager;

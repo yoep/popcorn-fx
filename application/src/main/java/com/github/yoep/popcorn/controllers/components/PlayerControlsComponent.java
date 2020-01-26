@@ -63,6 +63,7 @@ public class PlayerControlsComponent implements Initializable {
     private SubtitleInfo subtitle;
     private Long time;
     private Long duration;
+    private boolean sliderHovered;
 
     //region Getters
 
@@ -85,12 +86,12 @@ public class PlayerControlsComponent implements Initializable {
     }
 
     /**
-     * Check if the subtitles list is currently shown.
+     * Check if the controls are currently active and the hiding should be blocked.
      *
-     * @return Returns true if the list is being shown, else false.
+     * @return Returns true if the controls are showing, else false.
      */
-    public boolean isSubtitlesShowing() {
-        return languageSelection.isShowing();
+    public boolean isBlocked() {
+        return languageSelection.isShowing() || sliderHovered;
     }
 
     //endregion
@@ -204,7 +205,10 @@ public class PlayerControlsComponent implements Initializable {
                 videoPlayer.seek(newValue.longValue());
             }
         });
+
         slider.setOnMouseReleased(event -> setVideoTime(slider.getValue() + 1));
+        slider.setOnMouseEntered(event -> sliderHovered = true);
+        slider.setOnMouseExited(event -> sliderHovered = false);
     }
 
     private void initializeLanguageSelection() {

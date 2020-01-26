@@ -42,15 +42,24 @@ public class PlayerHeaderComponent implements Initializable {
     @FXML
     private StreamInfo streamInfo;
 
+    //region Getters
+
+    /**
+     * Check if the header is currently active and the hiding should be blocked.
+     *
+     * @return Returns true if blocked, else false.
+     */
+    public boolean isBlocked() {
+        return streamInfo.isShowing();
+    }
+
+    //endregion
+
     //region Methods
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeStreamInfo();
-    }
-
-    public boolean isStreamInfoShowing() {
-        return streamInfo.isShowing();
     }
 
     /**

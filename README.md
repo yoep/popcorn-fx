@@ -68,6 +68,17 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
 ### v1.0.0
 
+- List & filter movies
+- Play movie
+- List & filter shows
+- Play episode
+- Select video quality
+- Select video subtitle
+- Increase/decrease subtitle offset
+- Mark media as watched
+- Add media to favorites
+- Paste magnet link
+
 ### Upcoming features
 
 - Update torrent buffering when seeking through the video
@@ -80,3 +91,4 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Trakt.tv integration
 - Continue to watch show with next episode
 - Convert project from unnamed to modules setup for smaller bundled JRE
+- Add option for custom subtitle files

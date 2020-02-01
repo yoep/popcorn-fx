@@ -5,6 +5,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.controllers.components.ItemListener;
 import com.github.yoep.popcorn.controllers.components.MediaCardComponent;
+import com.github.yoep.popcorn.controls.InfiniteScrollItemFactory;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
 import com.github.yoep.popcorn.favorites.FavoriteService;
 import com.github.yoep.popcorn.messages.ListMessage;
@@ -17,6 +18,7 @@ import com.github.yoep.popcorn.watched.WatchedService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
@@ -28,9 +30,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.List;
-import java.util.Objects;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,11 +52,10 @@ public class ListSectionController implements Initializable {
     private SortBy sortBy;
     private String search;
 
-    private CompletableFuture<? extends List<? extends Media>> currentLoadRequest;
-    private Thread currentProcessingThread;
+    private CompletableFuture<? extends Media[]> currentLoadRequest;
 
     @FXML
-    private InfiniteScrollPane scrollPane;
+    private InfiniteScrollPane<Media> scrollPane;
     @FXML
     private Pane failedPane;
     @FXML
@@ -78,7 +77,18 @@ public class ListSectionController implements Initializable {
 
     private void initializeScrollPane() {
         scrollPane.setLoaderFactory(() -> viewLoader.load("components/loading-card.component.fxml"));
-        scrollPane.pageProperty().addListener((observable, oldValue, newValue) -> loadMovies(newValue.intValue()));
+        scrollPane.setItemFactory(new InfiniteScrollItemFactory<>() {
+            @Override
+            public CompletableFuture<List<Media>> loadPage(int page) {
+                return loadItems(page)
+                        .thenApply(Arrays::asList);
+            }
+
+            @Override
+            public Node createCell(Media item) {
+                return creatItemNode(item);
+            }
+        });
     }
 
     private void initializeFailedPane() {
@@ -123,12 +133,11 @@ public class ListSectionController implements Initializable {
             scrollPane.loadNewPage();
     }
 
-    private void loadMovies(final int page) {
+    private CompletableFuture<Media[]> loadItems(final int page) {
         // wait for all filters to be known
         // and the page to be bigger than 0
         if (page == 0 || category == null || genre == null || sortBy == null) {
-            scrollPane.finished();
-            return;
+            return CompletableFuture.completedFuture(new Media[0]);
         }
 
         // hide the failed pane in case it might be visible from the last failure
@@ -137,31 +146,44 @@ public class ListSectionController implements Initializable {
         // cancel the current load request if present
         if (currentLoadRequest != null)
             currentLoadRequest.cancel(true);
-        if (currentProcessingThread != null)
-            currentProcessingThread.interrupt();
 
         log.trace("Retrieving media page {} for {} category", page, category);
-        providerServices.stream()
+        Optional<ProviderService<? extends Media>> provider = providerServices.stream()
                 .filter(e -> e.supports(category))
-                .findFirst()
-                .ifPresentOrElse(provider -> retrieveMediaPage(provider, page),
-                        () -> log.error("No provider service found for \"{}\" category", category));
+                .findFirst();
+
+        if (provider.isPresent()) {
+            return retrieveMediaPage(provider.get(), page);
+        } else {
+            log.error("No provider service found for \"{}\" category", category);
+            return CompletableFuture.completedFuture(new Media[0]);
+        }
     }
 
-    private void retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
+    private CompletableFuture<Media[]> retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
         if (StringUtils.isEmpty(search)) {
             currentLoadRequest = provider.getPage(genre, sortBy, page);
         } else {
             currentLoadRequest = provider.getPage(genre, sortBy, page, search);
         }
 
-        currentLoadRequest.whenComplete((mediaList, throwable) -> {
-            if (throwable == null) {
-                onMediaRequestCompleted(mediaList);
-            } else {
-                onMediaRequestFailed(throwable);
-            }
-        });
+        return currentLoadRequest
+//                .exceptionally(this::onMediaRequestFailed)
+                .thenApply(this::onMediaRequestCompleted);
+    }
+
+    private Node creatItemNode(Media item) {
+        // update the watched state of the media with the latest information
+        item.setWatched(watchedService.isWatched(item));
+
+        // load a new media card controller and inject it into the view
+        MediaCardComponent mediaCardComponent = new MediaCardComponent(item, localeText, taskExecutor, createItemListener());
+        Pane node = viewLoader.load("components/media-card.component.fxml", mediaCardComponent);
+
+        // update the media favorite information
+        mediaCardComponent.setIsFavorite(favoriteService.isFavorite(item));
+
+        return node;
     }
 
     private ItemListener createItemListener() {
@@ -199,36 +221,18 @@ public class ListSectionController implements Initializable {
                 .ifPresent(provider -> provider.showDetails(media)));
     }
 
-    //TODO: rework to factory setup in the scroll pane
-    private void onMediaRequestCompleted(final List<? extends Media> mediaList) {
-        // offload to a thread which we can cancel later on
-        currentProcessingThread = new Thread(() -> {
-            for (Media media : mediaList) {
-                // update the watched state of the media with the latest information
-                media.setWatched(watchedService.isWatched(media));
-
-                // load a new media card controller and inject it into the view
-                MediaCardComponent mediaCardComponent = new MediaCardComponent(media, localeText, taskExecutor, createItemListener());
-                Pane component = viewLoader.load("components/media-card.component.fxml", mediaCardComponent);
-
-                // update the media favorite information
-                mediaCardComponent.setIsFavorite(favoriteService.isFavorite(media));
-                scrollPane.addItem(component);
-            }
-
-            scrollPane.finished();
-        });
-        taskExecutor.execute(currentProcessingThread);
+    private Media[] onMediaRequestCompleted(final Media[] items) {
+        // filter out any duplicate items
+        return Arrays.stream(items)
+                .filter(e -> !scrollPane.getItems().containsKey(e))
+                .toArray(Media[]::new);
     }
 
-    private void onMediaRequestFailed(Throwable throwable) {
-        // always finish the scroll pane update
-        scrollPane.finished();
-
+    private Media[] onMediaRequestFailed(Throwable throwable) {
         // check if the media request was cancelled
         // if so, ignore this failure
         if (throwable instanceof CancellationException)
-            return;
+            return new Media[0];
 
         Throwable rootCause = throwable.getCause();
         AtomicReference<String> message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
@@ -243,6 +247,8 @@ public class ListSectionController implements Initializable {
             failedText.setText(message.get());
             failedPane.setVisible(true);
         });
+
+        return new Media[0];
     }
 
     private void reset() {

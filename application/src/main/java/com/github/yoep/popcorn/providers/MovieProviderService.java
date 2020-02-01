@@ -4,11 +4,11 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowMovieDetailsActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
-import com.github.yoep.popcorn.providers.models.Media;
-import com.github.yoep.popcorn.providers.models.Movie;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Movie;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,12 +36,12 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     @Override
-    public CompletableFuture<List<Movie>> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Movie[]> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, Strings.EMPTY, page));
     }
 
     @Override
-    public CompletableFuture<List<Movie>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Movie[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
@@ -55,14 +52,13 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
         activityManager.register((ShowMovieDetailsActivity) () -> movie);
     }
 
-    public List<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
+    public Movie[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         URI uri = getUriFor(providerConfig.getUrl(), "movies", genre, sortBy, keywords, page);
 
         log.debug("Retrieving movie provider page \"{}\"", uri);
         ResponseEntity<Movie[]> items = restTemplate.getForEntity(uri, Movie[].class);
 
         return Optional.ofNullable(items.getBody())
-                .map(Arrays::asList)
-                .orElse(Collections.emptyList());
+                .orElse(new Movie[0]);
     }
 }

@@ -78,6 +78,7 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Mark media as watched
 - Add media to favorites
 - Paste magnet link
+- Trakt.tv integration
 
 ### Upcoming features
 
@@ -88,7 +89,6 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Add ability to store a pasted magnet link
 - Add loading indicator to the player
 - Update video time slider to show video loading progress (custom control)
-- Trakt.tv integration
 - Continue to watch show with next episode
 - Convert project from unnamed to modules setup for smaller bundled JRE
 - Add option for custom subtitle files

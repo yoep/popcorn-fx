@@ -4,11 +4,11 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
-import com.github.yoep.popcorn.providers.models.Media;
-import com.github.yoep.popcorn.providers.models.Show;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Show;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +17,6 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -40,12 +37,12 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     @Override
-    public CompletableFuture<List<Show>> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Show[]> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, StringUtils.EMPTY, page));
     }
 
     @Override
-    public CompletableFuture<List<Show>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Show[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
@@ -67,14 +64,13 @@ public class ShowProviderService extends AbstractProviderService<Show> {
         }
     }
 
-    public List<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
+    public Show[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         URI uri = getUriFor(providerConfig.getUrl(), "shows", genre, sortBy, keywords, page);
 
         log.debug("Retrieving show provider page \"{}\"", uri);
         ResponseEntity<Show[]> shows = restTemplate.getForEntity(uri, Show[].class);
 
         return Optional.ofNullable(shows.getBody())
-                .map(Arrays::asList)
-                .orElse(Collections.emptyList());
+                .orElse(new Show[0]);
     }
 }

@@ -2,20 +2,18 @@ package com.github.yoep.popcorn.providers;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.favorites.FavoriteService;
-import com.github.yoep.popcorn.providers.models.Media;
-import com.github.yoep.popcorn.providers.models.Movie;
-import com.github.yoep.popcorn.providers.models.Show;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.providers.models.Movie;
+import com.github.yoep.popcorn.providers.models.Show;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -24,7 +22,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     private final FavoriteService favoriteService;
     //TODO: cleanup this autowired field
     @Autowired
-    private List<ProviderService> providers;
+    private List<ProviderService<?>> providers;
 
     public FavoriteProviderService(RestTemplate restTemplate,
                                    ActivityManager activityManager,
@@ -39,9 +37,9 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     }
 
     @Override
-    public CompletableFuture<List<Media>> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Media[]> getPage(Genre genre, SortBy sortBy, int page) {
         if (page > 1)
-            return CompletableFuture.completedFuture(Collections.emptyList());
+            return CompletableFuture.completedFuture(new Media[0]);
 
         Stream<Media> mediaStream = favoriteService.getAll().stream();
 
@@ -56,18 +54,18 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         }
 
         //TODO: implement sort filtering
-        return CompletableFuture.completedFuture(mediaStream.collect(Collectors.toList()));
+        return CompletableFuture.completedFuture(mediaStream.toArray(Media[]::new));
 
     }
 
     @Override
-    public CompletableFuture<List<Media>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Media[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         List<Media> mediaList = favoriteService.getAll();
 
         //TODO: implement filtering of favorites
         return CompletableFuture.completedFuture(mediaList.stream()
                 .filter(e -> e.getTitle().toLowerCase().contains(keywords.toLowerCase()))
-                .collect(Collectors.toList()));
+                .toArray(Media[]::new));
     }
 
     @Override

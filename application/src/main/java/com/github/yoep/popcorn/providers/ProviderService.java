@@ -1,12 +1,11 @@
 package com.github.yoep.popcorn.providers;
 
-import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.providers.models.Media;
 import org.springframework.scheduling.annotation.Async;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface ProviderService<T extends Media> {
@@ -27,7 +26,7 @@ public interface ProviderService<T extends Media> {
      * @return Returns the list of {@link Media} items for the given page.
      */
     @Async
-    CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page);
+    CompletableFuture<T[]> getPage(Genre genre, SortBy sortBy, int page);
 
     /**
      * Get the given page with search criteria for this media provider service.
@@ -39,7 +38,7 @@ public interface ProviderService<T extends Media> {
      * @return Returns the list of {@link Media} items for the given page.
      */
     @Async
-    CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page, String keywords);
+    CompletableFuture<T[]> getPage(Genre genre, SortBy sortBy, int page, String keywords);
 
     /**
      * Show the details of the given media item.

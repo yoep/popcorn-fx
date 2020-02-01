@@ -64,7 +64,7 @@ public class AuthorizationService {
             viewLoader.showWindow(pane, controller, ViewProperties.builder()
                     .icon("icon.png")
                     .title(localeText.get(SettingsMessage.TRAKT_LOGIN_TITLE))
-                    .maximizable(false)
+                    .resizable(false)
                     .dialog(true)
                     .build());
         });

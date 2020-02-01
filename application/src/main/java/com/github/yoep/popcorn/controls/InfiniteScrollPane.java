@@ -158,11 +158,17 @@ public class InfiniteScrollPane<T> extends ScrollPane {
         // cancel the content updater if it is still alive
         cancelContentUpdater();
 
+        // reset the page
+        updating = true;
+        synchronized (contentUpdaterLock) {
+            getItems().clear();
+            setPage(0);
+        }
+        updating = false;
+
         runOnFx(() -> {
             synchronized (contentUpdaterLock) {
-                getItems().clear();
                 itemsPane.getChildren().clear();
-                setPage(0);
             }
         });
     }

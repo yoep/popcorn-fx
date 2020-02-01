@@ -158,7 +158,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
         // cancel the content updater if it is still alive
         cancelContentUpdater();
 
-        Platform.runLater(() -> {
+        runOnFx(() -> {
             synchronized (contentUpdaterLock) {
                 getItems().clear();
                 itemsPane.getChildren().clear();
@@ -211,7 +211,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     }
 
     private void addNode(Node node) {
-        Platform.runLater(() -> {
+        runOnFx(() -> {
             synchronized (loaderLock) {
                 ObservableList<Node> children = itemsPane.getChildren();
                 int loaderIndex = children.indexOf(loader);
@@ -227,7 +227,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     }
 
     private void removeNode(Node node) {
-        Platform.runLater(() -> itemsPane.getChildren().remove(node));
+        runOnFx(() -> itemsPane.getChildren().remove(node));
     }
 
     private void finished() {
@@ -235,7 +235,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
 
         synchronized (loaderLock) {
             if (loader != null) {
-                Platform.runLater(() -> {
+                runOnFx(() -> {
                     itemsPane.getChildren().remove(loader);
                     loader = null;
                 });
@@ -261,7 +261,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
         // add the loader node if the load factory has been set
         synchronized (loaderLock) {
             if (loaderFactory != null && loader == null) {
-                Platform.runLater(() -> {
+                runOnFx(() -> {
                     loader = loaderFactory.get();
                     itemsPane.getChildren().add(loader);
                 });
@@ -284,8 +284,17 @@ public class InfiniteScrollPane<T> extends ScrollPane {
                                 }
                             }
 
-                            // remove the loader
-                            finished();
+                            runOnFx(() -> {
+                                // check if enough items were loaded for the scrollbar to be scrollable
+                                if (items.size() > 0 && itemsPane.getHeight() < (this.getHeight() * 1.5)) {
+                                    // load an additional page
+                                    updating = false;
+                                    increasePage();
+                                } else {
+                                    // remove the loader
+                                    finished();
+                                }
+                            });
                         }, "InfiniteScrollPane-contentUpdater");
                         log.trace("Starting new content updater thread");
                         contentUpdater.start();
@@ -307,6 +316,18 @@ public class InfiniteScrollPane<T> extends ScrollPane {
                 log.trace("Cancelling the current content updater");
                 contentUpdater.interrupt();
             }
+        }
+    }
+
+    private void runOnFx(Runnable runnable) {
+        if (Platform.isFxApplicationThread()) {
+            try {
+                runnable.run();
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+            }
+        } else {
+            Platform.runLater(runnable);
         }
     }
 

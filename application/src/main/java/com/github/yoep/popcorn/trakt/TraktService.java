@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.watched.WatchedService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.oauth2.client.OAuth2RestOperations;
 import org.springframework.stereotype.Service;
@@ -123,37 +124,35 @@ public class TraktService {
         return traktTemplate.getForEntity(url, type).getBody();
     }
 
-    private void addMoviesToWatchlist(List<String> keys) {
-        log.trace("Synchronizing {} local DB movies to trakt.tv", keys.size());
-        String url = UriComponentsBuilder.fromUri(popcornProperties.getTrakt().getUrl())
-                .path("/sync/watchlist")
-                .toUriString();
-        AddToWatchlistRequest request = AddToWatchlistRequest.builder()
-                .movies(keys.stream()
-                        .map(this::toMovie)
-                        .collect(Collectors.toList()))
-                .build();
-
-        traktTemplate.postForEntity(url, request, Void.class);
-    }
-
     private void syncMovies() {
         var movies = getWatchedMovies();
 
         // synchronize movies locally
-        log.trace("Synchronizing {} trakt.tv movies to local DB", movies.size());
-        movies.stream()
-                .map(WatchedMovie::getMovie)
-                .forEach(watchedService::addToWatchList);
+        try {
+            log.trace("Synchronizing {} trakt.tv movies to local DB", movies.size());
+            movies.stream()
+                    .map(WatchedMovie::getMovie)
+                    .forEach(watchedService::addToWatchList);
+            log.debug("Trakt.tv movies to local DB sync completed");
+        } catch (Exception ex) {
+            log.error("Failed to synchronize movies to local DB with error: " + ex.getMessage(), ex);
+        }
 
         // synchronize movies to remote
-        List<String> moviesToSync = watchedService.getWatchedMovies().stream()
-                .filter(key -> movies.stream()
-                        .noneMatch(movie -> movie.getMovie().getId().equals(key)))
-                .collect(Collectors.toList());
+        try {
+            log.trace("Gathering movies that need to be synced to trakt.tv");
+            List<String> moviesToSync = watchedService.getWatchedMovies().stream()
+                    .filter(key -> movies.stream()
+                            .noneMatch(movie -> movie.getMovie().getId().equals(key)))
+                    .collect(Collectors.toList());
 
-        if (moviesToSync.size() > 0)
-            addMoviesToWatchlist(moviesToSync);
+            if (moviesToSync.size() > 0) {
+                addMoviesToTraktWatchlist(moviesToSync);
+                log.debug("Local DB movies to trakt.tv sync completed");
+            }
+        } catch (Exception ex) {
+            log.error("Failed to synchronize movies to trakt.tv with error: " + ex.getMessage(), ex);
+        }
 
         log.info("Trakt.tv movie synchronisation completed");
     }
@@ -161,13 +160,68 @@ public class TraktService {
     private void syncShows() {
         var shows = getWatchedShows();
 
+        // synchronize shows to remote
+        try {
+            log.trace("Gathering shows that need to be synced to trakt.tv");
+            List<String> showsToSync = watchedService.getWatchedShows().stream()
+                    .filter(key -> shows.stream()
+                            .noneMatch(show -> key.equals(String.valueOf(show.getShow().getIds().getTvdb()))))
+                    .collect(Collectors.toList());
+
+            if (showsToSync.size() > 0) {
+                addShowsToTraktWatchlist(showsToSync);
+                log.debug("Local DB shows to trakt.tv sync completed");
+            }
+        } catch (Exception ex) {
+            log.error("Failed to synchronize shows to trakt.tv with error: " + ex.getMessage(), ex);
+        }
+
         log.info("Trakt.tv show synchronisation completed");
+    }
+
+    private void addMoviesToTraktWatchlist(List<String> keys) {
+        log.trace("Synchronizing {} local DB movies to trakt.tv", keys.size());
+        AddToWatchlistRequest request = AddToWatchlistRequest.builder()
+                .movies(keys.stream()
+                        .map(this::toMovie)
+                        .collect(Collectors.toList()))
+                .build();
+
+        executeWatchlistRequest(request);
+    }
+
+    private void addShowsToTraktWatchlist(List<String> keys) {
+        log.trace("Synchronizing {} local DB shows to trakt.tv", keys.size());
+        AddToWatchlistRequest request = AddToWatchlistRequest.builder()
+                .shows(keys.stream()
+                        .map(this::toShow)
+                        .collect(Collectors.toList()))
+                .build();
+
+        executeWatchlistRequest(request);
+    }
+
+    private void executeWatchlistRequest(AddToWatchlistRequest request) {
+        String url = UriComponentsBuilder.fromUri(popcornProperties.getTrakt().getUrl())
+                .path("/sync/watchlist")
+                .toUriString();
+
+        ResponseEntity<Void> response = traktTemplate.postForEntity(url, request, Void.class);
+        log.debug("Trakt.tv responded with status code {}", response.getStatusCodeValue());
     }
 
     private TraktMovie toMovie(String key) {
         return TraktMovie.builder()
                 .ids(TraktMovieIds.builder()
                         .imdb(key)
+                        .build())
+                .build();
+    }
+
+    private TraktShow toShow(String key) {
+        return TraktShow.builder()
+                .ids(TraktShowIds.builder()
+                        .tvdb(Integer.parseInt(key))
                         .build())
                 .build();
     }

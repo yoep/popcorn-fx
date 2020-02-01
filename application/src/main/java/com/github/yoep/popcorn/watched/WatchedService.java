@@ -75,6 +75,22 @@ public class WatchedService {
     }
 
     /**
+     * Get the watched show items.
+     *
+     * @return Returns a list of show ID's that have been watched.
+     */
+    public List<String> getWatchedShows() {
+        loadWatchedFileToCache();
+        List<String> movies;
+
+        synchronized (cacheLock) {
+            movies = new ArrayList<>(cache.getShows());
+        }
+
+        return movies;
+    }
+
+    /**
      * Add the watchable item to the watched list.
      *
      * @param watchable the watchable item to add.

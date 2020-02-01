@@ -13,4 +13,5 @@ import java.util.List;
 @AllArgsConstructor
 public class AddToWatchlistRequest {
     public List<TraktMovie> movies;
+    public List<TraktShow> shows;
 }

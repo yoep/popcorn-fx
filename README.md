@@ -92,3 +92,4 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Continue to watch show with next episode
 - Convert project from unnamed to modules setup for smaller bundled JRE
 - Add option for custom subtitle files
+- TV remote support

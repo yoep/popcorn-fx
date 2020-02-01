@@ -27,8 +27,6 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         loader.show(primaryStage, "main.fxml", ViewProperties.builder()
                 .title("Popcorn Time")
                 .icon("icon.png")
-                .centerOnScreen(true)
-                .maximizable(true)
                 .build());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
     }

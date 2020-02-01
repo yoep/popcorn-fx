@@ -168,8 +168,8 @@ public class ListSectionController implements Initializable {
         }
 
         return currentLoadRequest
-//                .exceptionally(this::onMediaRequestFailed)
-                .thenApply(this::onMediaRequestCompleted);
+                .thenApply(this::onMediaRequestCompleted)
+                .exceptionally(this::onMediaRequestFailed);
     }
 
     private Node creatItemNode(Media item) {

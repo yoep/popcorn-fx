@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.models.SortBy;
 import com.github.yoep.popcorn.providers.models.Media;
 import com.github.yoep.popcorn.providers.models.Movie;
 import com.github.yoep.popcorn.providers.models.Show;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 public class FavoriteProviderService extends AbstractProviderService<Media> {
     private static final Category CATEGORY = Category.FAVORITES;
@@ -38,6 +40,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
 
     @Override
     public CompletableFuture<Media[]> getPage(Genre genre, SortBy sortBy, int page) {
+        log.debug("Retrieving favorite provider page {}", page);
         if (page > 1)
             return CompletableFuture.completedFuture(new Media[0]);
 
@@ -55,11 +58,11 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
 
         //TODO: implement sort filtering
         return CompletableFuture.completedFuture(mediaStream.toArray(Media[]::new));
-
     }
 
     @Override
     public CompletableFuture<Media[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+        log.debug("Retrieving favorite provider page {}", page);
         List<Media> mediaList = favoriteService.getAll();
 
         //TODO: implement filtering of favorites

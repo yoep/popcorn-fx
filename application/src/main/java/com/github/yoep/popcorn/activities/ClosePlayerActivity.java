@@ -14,6 +14,13 @@ public interface ClosePlayerActivity extends Activity {
     long UNKNOWN = -1;
 
     /**
+     * Get the url of the video that was being played.
+     *
+     * @return Returns the url of the video.
+     */
+    String getUrl();
+
+    /**
      * Get the media that was being played.
      *
      * @return Returns the media that was being played if known, else {@link Optional#empty()}.

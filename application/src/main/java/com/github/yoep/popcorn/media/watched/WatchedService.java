@@ -24,6 +24,10 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The watched service maintains all the watched {@link Media} items of the application.
+ * This is done through the {@link Watchable} items that are received from events and marking them as watched in the {@link #NAME} file.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -140,16 +144,16 @@ public class WatchedService {
             if (activity.getMedia().isEmpty())
                 return;
 
-            long time = activity.getTime();
-            long duration = activity.getDuration();
+            var time = activity.getTime();
+            var duration = activity.getDuration();
 
             // check if both the time and duration of the video are known
             // if not, the close activity media is not eligible for being auto marked as watched
             if (time == ClosePlayerActivity.UNKNOWN || duration == ClosePlayerActivity.UNKNOWN)
                 return;
 
-            double percentageWatched = ((double) time / duration) * 100;
-            Media media = activity.getMedia().get();
+            var percentageWatched = ((double) time / duration) * 100;
+            var media = activity.getMedia().get();
 
             // check if the media has been watched for the percentage threshold
             // if so, mark the media as watched
@@ -205,7 +209,7 @@ public class WatchedService {
             log.debug("Saving watched items to {}", file.getAbsolutePath());
             FileUtils.writeStringToFile(file, objectMapper.writeValueAsString(watched), Charset.defaultCharset());
         } catch (IOException ex) {
-            log.error("Failed to save the watched items with error" + ex.getMessage(), ex);
+            log.error("Failed to save the watched items with error " + ex.getMessage(), ex);
         }
     }
 

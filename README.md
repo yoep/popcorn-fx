@@ -78,10 +78,10 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Paste magnet link
 - Trakt.tv integration
 - Dynamic torrent buffering when seeking through video
+- Resume video from last known timestamp
 
 ### Upcoming features
 
-- Resume video on last view time
 - Implement watchlist
 - Implement torrent collection
 - Add ability to store a pasted magnet link

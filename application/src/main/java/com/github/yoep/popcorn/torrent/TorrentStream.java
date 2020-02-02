@@ -43,14 +43,14 @@ public class TorrentStream {
     private Thread currentStream;
     private boolean initialized;
 
-    //region Getters & Setters
+    //region Properties
 
     /**
      * Get if this torrent stream instance is initialized.
      *
      * @return Returns true if this instance is initialized and ready for use, else false.
      */
-    public boolean isInitialized() {
+    boolean isInitialized() {
         return initialized;
     }
 
@@ -59,21 +59,32 @@ public class TorrentStream {
      *
      * @return Returns true if this instance is streaming, else false.
      */
-    public boolean isStreaming() {
+    boolean isStreaming() {
         return currentStream != null && currentStream.isAlive();
+    }
+
+    /**
+     * Get the current torrent that is being streamed.
+     *
+     * @return Returns the current torrent if one is present, else {@link Optional#empty()}.
+     */
+    Optional<Torrent> getCurrentTorrent() {
+        return torrentFactory.getCurrentTorrent();
     }
 
     //endregion
 
-    public void addListener(TorrentListener listener) {
+    //region Methods
+
+    void addListener(TorrentListener listener) {
         listenerHolder.addListener(listener);
     }
 
-    public void removeListener(TorrentListener listener) {
+    void removeListener(TorrentListener listener) {
         listenerHolder.removeListener(listener);
     }
 
-    public void startStream(String torrentUrl) {
+    void startStream(String torrentUrl) {
         if (!initialized)
             throw new TorrentException("TorrentStream is not yet initialized");
 
@@ -104,7 +115,7 @@ public class TorrentStream {
         taskExecutor.execute(this.currentStream);
     }
 
-    public void startStream(TorrentInfo torrentInfo, int fileIndex) {
+    void startStream(TorrentInfo torrentInfo, int fileIndex) {
         if (!initialized)
             throw new TorrentException("TorrentStream is not yet initialized");
 
@@ -136,7 +147,7 @@ public class TorrentStream {
         taskExecutor.execute(this.currentStream);
     }
 
-    public void stopStream() {
+    void stopStream() {
         if (this.torrentFactory == null || this.torrentFactory.getCurrentTorrent().map(e -> e.getState() == Torrent.State.PAUSED).orElse(true))
             return;
 
@@ -158,7 +169,7 @@ public class TorrentStream {
      * @param torrentUrl {@link String} URL to .torrent or magnet link
      * @return {@link TorrentInfo}
      */
-    public Optional<TorrentInfo> getTorrentInfo(String torrentUrl) {
+    Optional<TorrentInfo> getTorrentInfo(String torrentUrl) {
         if (torrentUrl.startsWith("magnet")) {
             byte[] data = torrentSession.fetchMagnet(torrentUrl, 60);
             if (data != null)
@@ -212,6 +223,8 @@ public class TorrentStream {
 
         return Optional.empty();
     }
+
+    //endregion
 
     //region PostConstruct
 

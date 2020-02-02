@@ -49,10 +49,6 @@
                 <enabled>true</enabled>
             </releases>
         </pluginRepository>
-        <pluginRepository>
-            <id>gluon-releases</id>
-            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
-        </pluginRepository>
     </pluginRepositories>
 
     <properties>

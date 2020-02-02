@@ -17,6 +17,10 @@
     <Label fx:id="subtitleOffset" styleClass="video-info"
             AnchorPane.topAnchor="50"  AnchorPane.rightAnchor="0"  AnchorPane.leftAnchor="15"/>
 
+    <!-- Subtitle offset info -->
+    <Label fx:id="errorText" styleClass="video-info" textAlignment="CENTER" alignment="CENTER"
+            AnchorPane.topAnchor="100"  AnchorPane.rightAnchor="15"  AnchorPane.leftAnchor="15" AnchorPane.bottomAnchor="100"/>
+
     <!-- Video Player Cover -->
     <BorderPane fx:id="playerVideoOverlay" styleClass="player-overlay" onMouseClicked="#onPlayerClick"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>

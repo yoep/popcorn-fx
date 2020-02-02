@@ -204,7 +204,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
 
     private void invokePlayVideoActivity(Torrent torrent) {
         // store information locally
-        var url = torrent.getVideoFile().getAbsolutePath();
+        var url = torrentService.getStreamUrl(torrent);
         var title = this.title;
 
         activityManager.register(new PlayVideoActivity() {
@@ -227,7 +227,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
 
     private void invokePlayMediaActivity(Torrent torrent) {
         // store information locally
-        var url = torrent.getVideoFile().getAbsolutePath();
+        var url = torrentService.getStreamUrl(torrent);
         var title = this.title;
         var media = this.media;
         var quality = this.quality;

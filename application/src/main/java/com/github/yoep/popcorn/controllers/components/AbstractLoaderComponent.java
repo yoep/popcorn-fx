@@ -34,6 +34,9 @@ public abstract class AbstractLoaderComponent {
         Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
 
         try {
+            if (!torrentService.isInitialized())
+                log.trace("Waiting for the torrent service to be initialized");
+
             while (!torrentService.isInitialized()) {
                 Thread.sleep(100);
             }

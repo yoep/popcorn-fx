@@ -79,10 +79,10 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Add media to favorites
 - Paste magnet link
 - Trakt.tv integration
+- Dynamic torrent buffering when seeking through video
 
 ### Upcoming features
 
-- Update torrent buffering when seeking through the video
 - Resume video on last view time
 - Implement watchlist
 - Implement torrent collection

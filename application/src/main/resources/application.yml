@@ -4,6 +4,10 @@ spring:
   main:
     allow-bean-definition-overriding: true
 
+server:
+  tomcat:
+    min-spare-threads: 3
+
 logging:
   level:
     org.springframework: WARN

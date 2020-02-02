@@ -80,6 +80,8 @@ public class PlayerSectionController implements Initializable {
     @FXML
     private Label subtitleOffset;
     @FXML
+    private Label errorText;
+    @FXML
     private SubtitleTrack subtitleTrack;
 
     //region Methods
@@ -179,6 +181,8 @@ public class PlayerSectionController implements Initializable {
 
                     if (error != null)
                         log.error(error.getMessage(), error);
+
+                    Platform.runLater(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
                     break;
                 case FINISHED:
                     break;
@@ -343,7 +347,10 @@ public class PlayerSectionController implements Initializable {
         this.videoChangeTime = 0;
         this.subtitleTrack.setOffset(0.0);
 
-        Platform.runLater(() -> subtitleTrack.clear());
+        Platform.runLater(() -> {
+            subtitleTrack.clear();
+            errorText.setText("");
+        });
         taskExecutor.execute(videoPlayer::stop);
     }
 

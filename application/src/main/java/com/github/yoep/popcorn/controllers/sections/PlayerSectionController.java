@@ -347,13 +347,15 @@ public class PlayerSectionController implements Initializable {
         var filename = FilenameUtils.getName(url);
 
         // check if we need to auto resume the current video playback
-        if (media != null) {
-            autoResumeService.getResumeTimestamp(media.getId(), filename)
-                    .ifPresent(videoPlayer::seek);
-        } else {
-            autoResumeService.getResumeTimestamp(filename)
-                    .ifPresent(videoPlayer::seek);
-        }
+        Platform.runLater(() -> {
+            if (media != null) {
+                autoResumeService.getResumeTimestamp(media.getId(), filename)
+                        .ifPresent(videoPlayer::seek);
+            } else {
+                autoResumeService.getResumeTimestamp(filename)
+                        .ifPresent(videoPlayer::seek);
+            }
+        });
     }
 
     private void reset() {

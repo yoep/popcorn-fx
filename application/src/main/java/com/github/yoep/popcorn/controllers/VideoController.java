@@ -21,8 +21,9 @@ public class VideoController {
 
     private final TorrentService torrentService;
 
-    @GetMapping("/{filename}")
+    @RequestMapping("/{filename}")
     public ResponseEntity<ResourceRegion> videoPart(@RequestHeader HttpHeaders headers,
+                                                    HttpMethod method,
                                                     @PathVariable String filename) throws IOException {
         var torrentFile = torrentService.getTorrentFile(filename);
 
@@ -37,21 +38,28 @@ public class VideoController {
         var video = new FileSystemResource(torrentFile);
         var videoLength = video.contentLength();
         var range = headers.getRange().stream().findFirst().orElse(null);
+        var etag = Integer.toHexString((torrentFile.getAbsolutePath() + torrentFile.lastModified() + videoLength).hashCode());
+        var defaultChunkSize = ObjectUtils.min(DEFAULT_CHUNK_SIZE, videoLength);
 
         if (range == null) {
-            region = new ResourceRegion(video, 0, ObjectUtils.min(DEFAULT_CHUNK_SIZE, videoLength));
+            region = new ResourceRegion(video, 0, defaultChunkSize);
         } else {
-            region = range.toResourceRegion(video);
+            var start = range.getRangeStart(videoLength);
+            var end = range.getRangeEnd(videoLength);
+            var chunkSize = ObjectUtils.min(defaultChunkSize, end);
+
+            region = new ResourceRegion(video, start, chunkSize);
         }
 
         // update the interested parts of the torrent
         torrent.setInterestedBytes(region.getPosition());
 
-        log.trace("Serving video chunk \"{}-{}\" for torrent stream \"{}\"", region.getPosition(), region.getCount(), filename);
+        log.debug("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"", region.getPosition(), region.getCount(), videoLength, filename);
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                 .contentType(MediaTypeFactory.getMediaType(video)
                         .orElse(MediaType.APPLICATION_OCTET_STREAM))
+                .eTag(etag)
                 .body(region);
     }
 }

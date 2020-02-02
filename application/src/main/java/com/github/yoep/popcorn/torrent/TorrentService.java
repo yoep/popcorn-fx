@@ -94,7 +94,7 @@ public class TorrentService {
         if (streamCache.containsKey(filename)) {
             return streamCache.get(filename);
         } else {
-            throw new TorrentException(MessageFormat.format("Unknown torrent file stream \"{}\"", filename));
+            throw new TorrentException(MessageFormat.format("Unknown torrent file stream \"{0}\"", filename));
         }
     }
 

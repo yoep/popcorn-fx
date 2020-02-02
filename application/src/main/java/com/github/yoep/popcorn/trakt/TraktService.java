@@ -4,7 +4,7 @@ import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TraktSettings;
 import com.github.yoep.popcorn.trakt.models.*;
-import com.github.yoep.popcorn.watched.WatchedService;
+import com.github.yoep.popcorn.media.watched.WatchedService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;

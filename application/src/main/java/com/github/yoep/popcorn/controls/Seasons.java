@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.controls;
 
 import com.github.yoep.popcorn.models.Season;
-import com.github.yoep.popcorn.watched.controls.WatchedCell;
-import com.github.yoep.popcorn.watched.controls.WatchedCellFactory;
+import com.github.yoep.popcorn.media.watched.controls.WatchedCell;
+import com.github.yoep.popcorn.media.watched.controls.WatchedCellFactory;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.control.TableCell;

@@ -4,7 +4,7 @@
 <?import com.github.yoep.popcorn.controls.Episodes?>
 <?import com.github.yoep.popcorn.controls.Seasons?>
 <?import com.github.yoep.popcorn.controls.Stars?>
-<?import com.github.yoep.popcorn.subtitle.controls.LanguageFlagSelection?>
+<?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>

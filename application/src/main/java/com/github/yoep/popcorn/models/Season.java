@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.github.yoep.popcorn.providers.models.MediaType;
-import com.github.yoep.popcorn.watched.models.Watchable;
+import com.github.yoep.popcorn.media.providers.models.MediaType;
+import com.github.yoep.popcorn.media.watched.models.Watchable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import lombok.AllArgsConstructor;

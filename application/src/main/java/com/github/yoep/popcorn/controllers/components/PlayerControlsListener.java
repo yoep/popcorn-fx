@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.controllers.components;
 
-import com.github.yoep.popcorn.subtitle.models.SubtitleInfo;
+import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 
 public interface PlayerControlsListener {
     /**

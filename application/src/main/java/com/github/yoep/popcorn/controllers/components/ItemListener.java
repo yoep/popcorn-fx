@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.controllers.components;
 
-import com.github.yoep.popcorn.providers.models.Media;
+import com.github.yoep.popcorn.media.providers.models.Media;
 
 /**
  * Item poster listener.

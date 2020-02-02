@@ -68,10 +68,8 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
 ### v1.0.0
 
-- List & filter movies
-- Play movie
-- List & filter shows
-- Play episode
+- List, filter & play movies
+- List, filter & play shows
 - Select video quality
 - Select video subtitle
 - Increase/decrease subtitle offset

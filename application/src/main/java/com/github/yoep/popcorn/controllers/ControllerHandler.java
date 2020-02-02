@@ -18,6 +18,6 @@ public class ControllerHandler {
 
     @ExceptionHandler
     public void handle(ClientAbortException ex) {
-        log.warn(ex.getMessage(), ex);
+        log.trace(ex.getMessage(), ex);
     }
 }

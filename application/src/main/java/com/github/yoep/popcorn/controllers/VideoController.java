@@ -7,7 +7,10 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 
@@ -16,8 +19,8 @@ import java.io.IOException;
 @RequestMapping("/video")
 @RequiredArgsConstructor
 public class VideoController {
-    // set the default chunk size to 2 MB
-    private static final long DEFAULT_CHUNK_SIZE = 2 * 1024 * 1024;
+    // set the default chunk size to 1 MB
+    private static final long DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024;
 
     private final TorrentService torrentService;
 
@@ -45,8 +48,35 @@ public class VideoController {
             region = new ResourceRegion(video, 0, defaultChunkSize);
         } else {
             var start = range.getRangeStart(videoLength);
+
+            // check if the requested start is larger than the file size
+            // if so, return that the request cannot be fulfilled
+            if (start > videoLength) {
+                log.warn("Requested content range is invalid, start offset [{}] is larger than the file size [{}]", start, videoLength);
+                return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .eTag(etag)
+                        .build();
+            }
+
             var end = range.getRangeEnd(videoLength);
             var chunkSize = ObjectUtils.min(defaultChunkSize, end);
+
+            // check that the chunk size is not larger than the video size
+            // if so, return only the remaining bytes
+            if (start + chunkSize > videoLength) {
+                chunkSize = videoLength - start;
+            }
+
+            // check if the chunk size contains any data
+            // if not, return that the content has not been modified
+            if (chunkSize == 0) {
+                log.debug("Requested range contains [0] remaining bytes of the [{}] video file size", videoLength);
+                return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                        .contentType(getContentType(video))
+                        .eTag(etag)
+                        .build();
+            }
 
             region = new ResourceRegion(video, start, chunkSize);
         }
@@ -54,12 +84,19 @@ public class VideoController {
         // update the interested parts of the torrent
         torrent.setInterestedBytes(region.getPosition());
 
-        log.debug("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"", region.getPosition(), region.getCount(), videoLength, filename);
+        log.trace("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"", region.getPosition(), region.getCount(), videoLength, filename);
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .contentType(MediaTypeFactory.getMediaType(video)
-                        .orElse(MediaType.APPLICATION_OCTET_STREAM))
+                .contentType(getContentType(video))
                 .eTag(etag)
                 .body(region);
+    }
+
+    private MediaType getContentType(FileSystemResource video) {
+        MediaType mediaType = MediaTypeFactory.getMediaType(video)
+                .orElse(MediaType.APPLICATION_OCTET_STREAM);
+
+        log.trace("Resolved video file \"{}\" as content type \"{}\"", video.getFilename(), mediaType);
+        return mediaType;
     }
 }

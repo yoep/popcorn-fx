@@ -2,7 +2,7 @@ logging:
   level:
     org.springframework: INFO
     com.github.yoep.popcorn: DEBUG
-    com.github.yoep.popcorn.controllers: DEBUG
+    com.github.yoep.popcorn.controllers: TRACE
     com.github.yoep.popcorn.controls: DEBUG
     com.github.yoep.popcorn.media: DEBUG
     com.github.yoep.popcorn.subtitles: DEBUG

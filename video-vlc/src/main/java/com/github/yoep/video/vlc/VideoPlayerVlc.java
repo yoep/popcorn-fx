@@ -15,8 +15,6 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
-import java.util.Objects;
-
 @Slf4j
 public class VideoPlayerVlc extends VideoPlayerYoutube {
     private final Canvas canvas = new Canvas();
@@ -158,6 +156,16 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
             @Override
             public void finished(MediaPlayer mediaPlayer) {
                 setPlayerState(PlayerState.FINISHED);
+            }
+
+            @Override
+            public void buffering(MediaPlayer mediaPlayer, float newCache) {
+                log.trace("VLC buffer is now {}%", newCache);
+                if (newCache < 100) {
+                    setPlayerState(PlayerState.BUFFERING);
+                } else {
+                    setPlayerState(PlayerState.PLAYING);
+                }
             }
 
             @Override

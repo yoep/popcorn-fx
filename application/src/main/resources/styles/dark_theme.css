@@ -704,6 +704,14 @@
     -fx-background-color: #000;
 }
 
+.root .player .buffer {
+    -fx-max-width: 75;
+    -fx-max-height: 75;
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-background-radius: 1em;
+    -fx-padding: 10 10 10 10;
+}
+
 .root .player .subtitle-track .track-line {
     -fx-padding: 2 8 2 8;
 }
@@ -971,9 +979,9 @@
 }
 
 .root .torrent-details .files .list-cell {
-    -fx-background-color: rgba(255,255,255,0.05);
+    -fx-background-color: rgba(255, 255, 255, 0.05);
     -fx-border-width: 0 0 1 0;
-    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
     -fx-border-style: solid;
     -fx-padding: 5 15 5 15;
     -fx-cursor: hand;

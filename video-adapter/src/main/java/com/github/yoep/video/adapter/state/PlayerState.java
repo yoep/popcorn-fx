@@ -6,5 +6,6 @@ public enum PlayerState {
     STOPPED,
     FINISHED,
     ERROR,
+    BUFFERING,
     UNKNOWN
 }

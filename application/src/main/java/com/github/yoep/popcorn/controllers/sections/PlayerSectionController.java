@@ -28,6 +28,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Cursor;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.FontWeight;
@@ -85,6 +86,8 @@ public class PlayerSectionController implements Initializable {
     private Label subtitleOffset;
     @FXML
     private Label errorText;
+    @FXML
+    private Pane bufferIndicator;
     @FXML
     private SubtitleTrack subtitleTrack;
 
@@ -178,6 +181,8 @@ public class PlayerSectionController implements Initializable {
             if (newValue != PlayerState.ERROR)
                 log.debug("Video player state changed to {}", newValue);
 
+            bufferIndicator.setVisible(newValue == PlayerState.BUFFERING);
+
             switch (newValue) {
                 case ERROR:
                     log.error("Video player state changed to {}", newValue);
@@ -187,8 +192,6 @@ public class PlayerSectionController implements Initializable {
                         log.error(error.getMessage(), error);
 
                     Platform.runLater(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
-                    break;
-                case FINISHED:
                     break;
                 case STOPPED:
                     onVideoStopped();

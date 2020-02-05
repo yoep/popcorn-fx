@@ -54,7 +54,7 @@ public class TorrentService {
         Assert.notNull(torrent, "torrent cannot be null");
         var url = UriComponentsBuilder.newInstance()
                 .scheme("http")
-                .host("localhost")
+                .host("127.0.0.1")
                 .port(8080)
                 .path("/video/{filename}");
         var torrentFilePath = torrent.getVideoFile().getAbsolutePath();

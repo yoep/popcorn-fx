@@ -1,6 +1,9 @@
 package com.github.yoep.popcorn.controllers;
 
+import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.config.properties.StreamingProperties;
 import com.github.yoep.popcorn.torrent.TorrentService;
+import com.github.yoep.popcorn.torrent.models.Torrent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -19,14 +22,11 @@ import java.io.IOException;
 @RequestMapping("/video")
 @RequiredArgsConstructor
 public class VideoController {
-    // set the default chunk size to 1 MB
-    private static final long DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024;
-
+    private final PopcornProperties properties;
     private final TorrentService torrentService;
 
     @RequestMapping("/{filename}")
     public ResponseEntity<ResourceRegion> videoPart(@RequestHeader HttpHeaders headers,
-                                                    HttpMethod method,
                                                     @PathVariable String filename) throws IOException {
         var torrentFile = torrentService.getTorrentFile(filename);
 
@@ -41,8 +41,7 @@ public class VideoController {
         var video = new FileSystemResource(torrentFile);
         var videoLength = video.contentLength();
         var range = headers.getRange().stream().findFirst().orElse(null);
-        var etag = Integer.toHexString((torrentFile.getAbsolutePath() + torrentFile.lastModified() + videoLength).hashCode());
-        var defaultChunkSize = ObjectUtils.min(DEFAULT_CHUNK_SIZE, videoLength);
+        var defaultChunkSize = ObjectUtils.min(streamingProperties().getChunkSize(), videoLength);
 
         if (range == null) {
             region = new ResourceRegion(video, 0, defaultChunkSize);
@@ -55,7 +54,6 @@ public class VideoController {
                 log.warn("Requested content range is invalid, start offset [{}] is larger than the file size [{}]", start, videoLength);
                 return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
                         .contentType(MediaType.TEXT_PLAIN)
-                        .eTag(etag)
                         .build();
             }
 
@@ -68,28 +66,28 @@ public class VideoController {
                 chunkSize = videoLength - start;
             }
 
-            // check if the chunk size contains any data
-            // if not, return that the content has not been modified
-            if (chunkSize == 0) {
-                log.debug("Requested range contains [0] remaining bytes of the [{}] video file size", videoLength);
-                return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
-                        .contentType(getContentType(video))
-                        .eTag(etag)
-                        .build();
-            }
-
             region = new ResourceRegion(video, start, chunkSize);
         }
 
-        // update the interested parts of the torrent
-        torrent.setInterestedBytes(region.getPosition());
+        // request the torrent to prioritize the requested bytes
+        updateTorrentPriorityAndWait(torrent, region);
 
-        log.trace("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"", region.getPosition(), region.getCount(), videoLength, filename);
+        log.trace("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"",
+                region.getPosition(), region.getCount(), videoLength, filename);
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                 .contentType(getContentType(video))
-                .eTag(etag)
                 .body(region);
+    }
+
+    private void updateTorrentPriorityAndWait(Torrent torrent, ResourceRegion region) {
+        // update the interested parts of the torrent
+        torrent.setInterestedBytes(region.getPosition());
+
+        // block the response until the requested parts are present
+        //        while (!torrent.hasBytes(region.getPosition())) {
+        //            // do nothing and wait for the torrent to download them
+        //        }
     }
 
     private MediaType getContentType(FileSystemResource video) {
@@ -98,5 +96,9 @@ public class VideoController {
 
         log.trace("Resolved video file \"{}\" as content type \"{}\"", video.getFilename(), mediaType);
         return mediaType;
+    }
+
+    private StreamingProperties streamingProperties() {
+        return properties.getStreaming();
     }
 }

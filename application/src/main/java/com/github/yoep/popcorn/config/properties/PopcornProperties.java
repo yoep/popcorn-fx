@@ -36,6 +36,13 @@ public class PopcornProperties {
     private TraktProperties trakt;
 
     /**
+     * The streaming properties for the Popcorn Time web services.
+     */
+    @Valid
+    @NotNull
+    private StreamingProperties streaming = new StreamingProperties();
+
+    /**
      * Get the provider with the given name.
      *
      * @param name The name of the provider to retrieve.

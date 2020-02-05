@@ -14,6 +14,9 @@ logging:
     com.github.yoep.popcorn: INFO
 
 popcorn:
+#  streaming:
+#    chunk-size: 5242880
+#    chunk-size: 999999999999
   providers:
     movies:
       url: https://tv-v2.api-fetch.website/

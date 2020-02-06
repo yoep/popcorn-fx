@@ -1,13 +1,17 @@
 package com.github.yoep.popcorn.controllers.components;
 
 import com.frostwire.jlibtorrent.TorrentInfo;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseOverlayActivity;
 import com.github.yoep.popcorn.activities.LoadUrlTorrentActivity;
 import com.github.yoep.popcorn.activities.ShowTorrentDetailsActivity;
+import com.github.yoep.popcorn.messages.TorrentMessage;
+import com.github.yoep.popcorn.torrent.TorrentCollectionService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.InnerShadow;
@@ -33,13 +37,18 @@ import static java.util.Arrays.asList;
 public class DetailsTorrentComponent implements Initializable {
     private static final List<String> SUPPORTED_FILES = asList("mp4", "m4v", "avi", "mov", "mkv", "wmv");
     private final ActivityManager activityManager;
+    private final TorrentCollectionService torrentCollectionService;
+    private final LocaleText localeText;
 
+    private String magnetUri;
     private TorrentInfo torrentInfo;
 
     @FXML
     private ListView<String> fileList;
     @FXML
     private Pane fileShadow;
+    @FXML
+    private Button storeTorrentButton;
 
     //region Methods
 
@@ -87,7 +96,8 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void onShowTorrentDetails(ShowTorrentDetailsActivity activity) {
-        log.debug("Processing details of torrent info {}", activity.getTorrentInfo());
+        log.debug("Processing details of torrent info {}", activity.getTorrentInfo().name());
+        this.magnetUri = activity.getMagnetUri();
         this.torrentInfo = activity.getTorrentInfo();
         var fileNames = new ArrayList<String>();
         var files = torrentInfo.files();
@@ -107,6 +117,8 @@ public class DetailsTorrentComponent implements Initializable {
             fileList.getItems().clear();
             fileList.getItems().addAll(fileNames);
         });
+
+        updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
     }
 
     private void onFileClicked(String filename, int fileIndex) {
@@ -128,8 +140,22 @@ public class DetailsTorrentComponent implements Initializable {
         });
     }
 
+    private void updateStoreTorrent(boolean isStored) {
+        String text;
+
+        if (isStored) {
+            text = localeText.get(TorrentMessage.REMOVE_COLLECTION);
+        } else {
+            text = localeText.get(TorrentMessage.STORE_COLLECTION);
+        }
+
+        Platform.runLater(() -> storeTorrentButton.setText(text));
+    }
+
     private void reset() {
+        this.magnetUri = null;
         this.torrentInfo = null;
+
         Platform.runLater(() -> fileList.getItems().clear());
     }
 
@@ -143,6 +169,17 @@ public class DetailsTorrentComponent implements Initializable {
     @FXML
     private void onClose() {
         close();
+    }
+
+    @FXML
+    private void onStoreClicked() {
+        if (torrentCollectionService.isStored(magnetUri)) {
+            torrentCollectionService.removeTorrent(magnetUri);
+            updateStoreTorrent(false);
+        } else {
+            torrentCollectionService.addTorrent(magnetUri, torrentInfo);
+            updateStoreTorrent(true);
+        }
     }
 
     //endregion

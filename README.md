@@ -75,7 +75,7 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Increase/decrease subtitle offset
 - Mark media as watched
 - Add media to favorites
-- Paste magnet link
+- Paste & store magnet link
 - Trakt.tv integration
 - Dynamic torrent buffering when seeking through video
 - Resume video from last known timestamp
@@ -84,7 +84,6 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
 - Implement watchlist
 - Implement torrent collection
-- Add ability to store a pasted magnet link
 - Update video time slider to show video loading progress (custom control)
 - Continue to watch show with next episode
 - Convert project from unnamed to modules setup for smaller bundled JRE

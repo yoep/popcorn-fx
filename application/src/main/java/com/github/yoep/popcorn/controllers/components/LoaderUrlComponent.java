@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.controllers.components;
 
+import com.frostwire.jlibtorrent.TorrentInfo;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseLoadActivity;
@@ -49,6 +50,8 @@ public class LoaderUrlComponent extends AbstractLoaderComponent {
     //region Functions
 
     private void onLoadUrl(LoadUrlActivity activity) {
+        var magnetUri = activity.getUrl();
+
         this.torrentThread = new Thread(() -> {
             // reset the progress bar to infinite
             resetProgress();
@@ -60,9 +63,19 @@ public class LoaderUrlComponent extends AbstractLoaderComponent {
             // update the status text to "connecting"
             Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
 
-            log.debug("Resolving torrent information for \"{}\"", activity.getUrl());
-            torrentService.getTorrentInfo(activity.getUrl()).ifPresentOrElse(
-                    torrentInfo -> activityManager.register((ShowTorrentDetailsActivity) () -> torrentInfo),
+            log.debug("Resolving torrent information for \"{}\"", magnetUri);
+            torrentService.getTorrentInfo(magnetUri).ifPresentOrElse(
+                    torrentInfo -> activityManager.register(new ShowTorrentDetailsActivity() {
+                        @Override
+                        public String getMagnetUri() {
+                            return magnetUri;
+                        }
+
+                        @Override
+                        public TorrentInfo getTorrentInfo() {
+                            return torrentInfo;
+                        }
+                    }),
                     this::updateProgressToErrorState);
         });
 

@@ -168,7 +168,9 @@
                         </goals>
                         <configuration>
                             <mainClass>com.github.yoep.popcorn.PopcornTimeApplication</mainClass>
+                            <runnableJar>${project.build.directory}/popcorn-time.jar</runnableJar>
                             <bundleJre>true</bundleJre>
+                            <copyDependencies>false</copyDependencies>
                             <generateInstaller>true</generateInstaller>
                             <administratorRequired>false</administratorRequired>
                             <platform>auto</platform>

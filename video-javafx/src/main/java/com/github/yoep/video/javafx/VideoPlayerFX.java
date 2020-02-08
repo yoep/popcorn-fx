@@ -13,9 +13,6 @@ import javafx.scene.media.MediaView;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
-import java.net.URI;
-
 @Slf4j
 public class VideoPlayerFX extends VideoPlayerYoutube {
     private MediaView mediaView;
@@ -57,8 +54,7 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
             hide();
 
             try {
-                URI uri = new File(url).toURI();
-                Media media = new Media(uri.toString());
+                Media media = new Media(url);
 
                 mediaPlayer = new MediaPlayer(media);
                 initializeMediaPlayerEvents();

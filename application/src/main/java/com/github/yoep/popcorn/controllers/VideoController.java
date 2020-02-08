@@ -10,10 +10,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.*;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 
@@ -25,7 +22,7 @@ public class VideoController {
     private final PopcornProperties properties;
     private final TorrentService torrentService;
 
-    @RequestMapping("/{filename}")
+    @RequestMapping(value = "/{filename}", method = RequestMethod.GET)
     public ResponseEntity<ResourceRegion> videoPart(@RequestHeader HttpHeaders headers,
                                                     @PathVariable String filename) throws IOException {
         var torrentFile = torrentService.getTorrentFile(filename);

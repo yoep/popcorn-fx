@@ -7,7 +7,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
@@ -34,6 +33,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
 
     private Pane loader;
     private boolean updating;
+    private boolean endOfItems;
     private Thread contentUpdater;
 
     //region Constructors
@@ -159,6 +159,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
         cancelContentUpdater();
 
         // reset the page
+        endOfItems = false;
         updating = true;
         synchronized (contentUpdaterLock) {
             getItems().clear();
@@ -217,19 +218,11 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     }
 
     private void addNode(Node node) {
-        runOnFx(() -> {
-            synchronized (loaderLock) {
-                ObservableList<Node> children = itemsPane.getChildren();
-                int loaderIndex = children.indexOf(loader);
+        // remove the loader if it still present
+        removeLoaderItem();
 
-                if (loaderIndex != -1) {
-                    // add node before the loader node
-                    children.add(loaderIndex, node);
-                } else {
-                    children.add(node);
-                }
-            }
-        });
+        // add the new node to the list
+        runOnFx(() -> itemsPane.getChildren().add(node));
     }
 
     private void removeNode(Node node) {
@@ -239,6 +232,10 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     private void finished() {
         updating = false;
 
+        removeLoaderItem();
+    }
+
+    private void removeLoaderItem() {
         synchronized (loaderLock) {
             if (loader != null) {
                 runOnFx(() -> {
@@ -281,6 +278,9 @@ public class InfiniteScrollPane<T> extends ScrollPane {
                     synchronized (contentUpdaterLock) {
                         log.trace("Creating new content updater");
                         contentUpdater = new Thread(() -> {
+                            if (items.size() == 0)
+                                endOfItems = true;
+
                             for (T item : items) {
                                 // safely iterate over the new item and add it to the infinite scroll pane
                                 try {
@@ -292,7 +292,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
 
                             runOnFx(() -> {
                                 // check if enough items were loaded for the scrollbar to be scrollable
-                                if (items.size() > 0 && itemsPane.getHeight() < (this.getHeight() * 1.5)) {
+                                if (!endOfItems && itemsPane.getHeight() < (this.getHeight() * 1.5)) {
                                     // load an additional page
                                     updating = false;
                                     increasePage();

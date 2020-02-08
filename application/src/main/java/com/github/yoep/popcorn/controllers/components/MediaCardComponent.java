@@ -106,7 +106,7 @@ public class MediaCardComponent extends AbstractCardComponent implements Initial
                 Optional.ofNullable(media.getImages())
                         .map(Images::getPoster)
                         .filter(e -> !e.equalsIgnoreCase("n/a"))
-                        .ifPresent(e -> setBackgroundImage(new Image(e, POSTER_WIDTH, POSTER_HEIGHT, true, true, true), true));
+                        .ifPresent(e -> setBackgroundImage(new Image(e, POSTER_WIDTH, POSTER_HEIGHT, true, true), true));
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }

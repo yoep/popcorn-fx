@@ -33,12 +33,24 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-logging</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>spring-boot-starter-javafx</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Javax -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
             <scope>provided</scope>
         </dependency>
 

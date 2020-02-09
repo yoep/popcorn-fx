@@ -161,6 +161,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <finalName>popcorn-time</finalName>
+                    <includeSystemScope>true</includeSystemScope>
                 </configuration>
                 <executions>
                     <execution>
@@ -206,6 +207,13 @@
             <id>windows</id>
 
             <dependencies>
+                <!-- Youtube player -->
+                <dependency>
+                    <groupId>com.github.yoep</groupId>
+                    <artifactId>video-youtube</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+
                 <!-- JLibtorrent -->
                 <dependency>
                     <groupId>com.frostwire</groupId>
@@ -218,6 +226,13 @@
             <id>linux</id>
 
             <dependencies>
+                <!-- Youtube player -->
+                <dependency>
+                    <groupId>com.github.yoep</groupId>
+                    <artifactId>video-youtube</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+
                 <!-- JLibtorrent -->
                 <dependency>
                     <groupId>com.frostwire</groupId>
@@ -229,12 +244,25 @@
         <profile>
             <id>arm</id>
 
+            <properties>
+                <jlibtorrent.version>1.2.3.0</jlibtorrent.version>
+            </properties>
+
             <dependencies>
                 <!-- JLibtorrent -->
                 <dependency>
                     <groupId>com.frostwire</groupId>
+                    <artifactId>jlibtorrent</artifactId>
+                    <version>${jlibtorrent.version}</version>
+                    <scope>system</scope>
+                    <systemPath>${project.basedir}/lib/jlibtorrent-${jlibtorrent.version}.jar</systemPath>
+                </dependency>
+                <dependency>
+                    <groupId>com.frostwire</groupId>
                     <artifactId>jlibtorrent-android-arm</artifactId>
                     <version>${jlibtorrent.version}</version>
+                    <scope>system</scope>
+                    <systemPath>${project.basedir}/lib/jlibtorrent-linux-arm-${jlibtorrent.version}.jar</systemPath>
                 </dependency>
             </dependencies>
         </profile>

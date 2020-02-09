@@ -42,7 +42,8 @@
             },
             events: {
                 'onStateChange': onPlayerStateChange,
-                'onError': onPlayerError
+                'onError': onPlayerError,
+                'onReady': onPlayerReady
             }
         });
     }
@@ -65,6 +66,11 @@
     function onPlayerError(event) {
         console.log("The Youtube Player encountered an issue: " + event.data);
         VPY.error(event.data);
+    }
+
+    function onPlayerReady(event) {
+        console.log("Youtube player is ready");
+        VPY.ready();
     }
 
     /**

@@ -13,6 +13,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.task.TaskExecutor;
@@ -263,14 +264,18 @@ public class TorrentStream {
         log.trace("Initializing native libraries for jlibtorrent");
         try {
             PathMatchingResourcePatternResolver resourcePatternResolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
-            Resource[] resources = resourcePatternResolver.getResources("classpath*:**/*jlibtorrent-*");
+            Resource[] resources = resourcePatternResolver.getResources("classpath*:**/*jlibtorrent*");
 
             if (ArrayUtils.isNotEmpty(resources)) {
-                Resource resource = resources[0];
-                String filename = resource.getFilename();
-                String extension = FilenameUtils.getExtension(filename);
-                File destination = new File(PopcornTimeApplication.APP_DIR + File.separator + LIB_NAME + "." + extension);
-                String absolutePath = destination.getAbsolutePath();
+                var resource = Arrays.stream(resources)
+                        .filter(e -> StringUtils.isNotEmpty(e.getFilename()))
+                        .filter(e -> !FilenameUtils.getExtension(e.getFilename()).equalsIgnoreCase("jar"))
+                        .findFirst()
+                        .orElseThrow(() -> new TorrentException("Unable to find jlibtorrent resource in classpath"));
+                var filename = resource.getFilename();
+                var extension = FilenameUtils.getExtension(filename);
+                var destination = new File(PopcornTimeApplication.APP_DIR + File.separator + LIB_NAME + "." + extension);
+                var absolutePath = destination.getAbsolutePath();
 
                 if (!destination.exists()) {
                     log.debug("Copying library resource {} to {}", filename, absolutePath);

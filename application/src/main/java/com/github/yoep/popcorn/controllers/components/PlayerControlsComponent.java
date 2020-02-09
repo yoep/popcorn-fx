@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.LanguageSelection;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
-import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.state.PlayerState;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -42,7 +41,6 @@ public class PlayerControlsComponent implements Initializable {
     private final ActivityManager activityManager;
     private final SubtitleService subtitleService;
     private final LocaleText localeText;
-    private final VideoPlayer videoPlayer;
 
     @FXML
     private Icon playPauseIcon;
@@ -65,7 +63,7 @@ public class PlayerControlsComponent implements Initializable {
     private Long duration;
     private boolean sliderHovered;
 
-    //region Getters
+    //region Getters & Setters
 
     /**
      * Get the last known time of the video playback.
@@ -118,30 +116,40 @@ public class PlayerControlsComponent implements Initializable {
         }
     }
 
-    public void increaseVideoTime(double amount) {
-        log.trace("Increasing video time with {}", amount);
-        double newSliderValue = slider.getValue() + amount;
-        double maxSliderValue = slider.getMax();
-
-        if (newSliderValue > maxSliderValue)
-            newSliderValue = maxSliderValue;
-
-        setVideoTime(newSliderValue);
-    }
-
-    public void changePlayPauseState() {
-        if (videoPlayer.getPlayerState() == PlayerState.PAUSED) {
-            log.trace("Video player state is being changed to \"resume\"");
-            videoPlayer.resume();
-        } else {
-            log.trace("Video player state is being changed to \"paused\"");
-            videoPlayer.pause();
-        }
-    }
-
     public void toggleFullscreen() {
         log.trace("Toggling full screen mode");
         activityManager.register(new ToggleFullscreenActivity() {
+        });
+    }
+
+    public void onPlayerStateChanged(PlayerState newValue) {
+        switch (newValue) {
+            case PLAYING:
+                Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
+                break;
+            case PAUSED:
+                Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
+                break;
+        }
+    }
+
+    public void onTimeChanged(Number newValue) {
+        Platform.runLater(() -> {
+            long time = newValue.longValue();
+
+            timeLabel.setText(formatTime(time));
+            slider.setValue(time);
+            this.time = time;
+        });
+    }
+
+    public void onDurationChanged(Number newValue) {
+        Platform.runLater(() -> {
+            long duration = newValue.longValue();
+
+            durationLabel.setText(formatTime(duration));
+            slider.setMax(duration);
+            this.duration = duration;
         });
     }
 
@@ -152,7 +160,6 @@ public class PlayerControlsComponent implements Initializable {
     @PostConstruct
     private void init() {
         initializeActivityListeners();
-        initializeVideoPlayer();
     }
 
     private void initializeActivityListeners() {
@@ -161,48 +168,15 @@ public class PlayerControlsComponent implements Initializable {
         activityManager.register(FullscreenActivity.class, this::onFullscreenChanged);
     }
 
-    private void initializeVideoPlayer() {
-        videoPlayer.playerStateProperty().addListener((observable, oldValue, newValue) -> {
-            switch (newValue) {
-                case PLAYING:
-                    Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
-                    break;
-                case PAUSED:
-                    Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
-                    break;
-            }
-        });
-        videoPlayer.timeProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
-            long time = newValue.longValue();
-
-            timeLabel.setText(formatTime(time));
-            slider.setValue(time);
-            this.time = time;
-        }));
-        videoPlayer.durationProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
-            long duration = newValue.longValue();
-
-            durationLabel.setText(formatTime(duration));
-            slider.setMax(duration);
-            this.duration = duration;
-        }));
-    }
-
     //endregion
 
     //region Functions
 
     private void initializeSlider() {
-        slider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue) {
-                videoPlayer.pause();
-            } else {
-                videoPlayer.resume();
-            }
-        });
+        slider.valueChangingProperty().addListener((observable, oldValue, newValue) -> listeners.forEach(PlayerControlsListener::onPlayPauseClicked));
         slider.valueProperty().addListener((observableValue, oldValue, newValue) -> {
             if (slider.isValueChanging()) {
-                videoPlayer.seek(newValue.longValue());
+                listeners.forEach(e -> e.onTimeChanged(newValue.longValue()));
             }
         });
 
@@ -339,7 +313,7 @@ public class PlayerControlsComponent implements Initializable {
 
     @FXML
     private void onPlayPauseClicked() {
-        changePlayPauseState();
+        this.listeners.forEach(PlayerControlsListener::onPlayPauseClicked);
     }
 
     @FXML

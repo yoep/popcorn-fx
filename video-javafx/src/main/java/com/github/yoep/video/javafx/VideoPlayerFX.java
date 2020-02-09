@@ -1,38 +1,112 @@
 package com.github.yoep.video.javafx;
 
+import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
-import com.github.yoep.video.youtube.VideoPlayerYoutube;
 import javafx.application.Platform;
-import javafx.scene.layout.Pane;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.Node;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaException;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.util.Duration;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
+
+import javax.annotation.PostConstruct;
 
 @Slf4j
-public class VideoPlayerFX extends VideoPlayerYoutube {
+@ToString
+@EqualsAndHashCode
+public class VideoPlayerFX implements VideoPlayer {
     private MediaView mediaView;
     private MediaPlayer mediaPlayer;
 
-    private Throwable error;
+    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
+    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
+    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
 
-    //region VideoPlayer
+    private Throwable error;
+    private boolean initialized;
+
+    //region Properties
+
+    @Override
+    public PlayerState getPlayerState() {
+        return playerState.get();
+    }
+
+    @Override
+    public ObjectProperty<PlayerState> playerStateProperty() {
+        return playerState;
+    }
+
+    protected void setPlayerState(PlayerState playerState) {
+        this.playerState.set(playerState);
+    }
+
+    @Override
+    public long getTime() {
+        return time.get();
+    }
+
+    @Override
+    public LongProperty timeProperty() {
+        return time;
+    }
+
+    protected void setTime(long time) {
+        this.time.set(time);
+    }
+
+    @Override
+    public long getDuration() {
+        return duration.get();
+    }
+
+    @Override
+    public LongProperty durationProperty() {
+        return duration;
+    }
+
+    protected void setDuration(long duration) {
+        this.duration.set(duration);
+    }
+
+    //endregion
+
+    //region Getters
+
+    @Override
+    public boolean supports(String url) {
+        return !StringUtils.isEmpty(url);
+    }
+
+    @Override
+    public boolean isInitialized() {
+        return initialized;
+    }
 
     @Override
     public Throwable getError() {
-        return error != null ? error : super.getError();
+        return error;
     }
 
     @Override
-    public void initialize(Pane videoPane) {
-        super.initialize(videoPane);
-
-        initializeMediaView(videoPane);
+    public Node getVideoSurface() {
+        return mediaView;
     }
+
+    //endregion
+
+    //region VideoPlayer
 
     @Override
     public void dispose() {
@@ -43,65 +117,44 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
 
     @Override
     public void play(String url) throws VideoPlayerNotInitializedException {
-        super.play(url);
+        checkInitialized();
 
-        if (!isYoutubeUrl(url)) {
-            if (mediaView == null) {
-                log.error("Unable to play the given url, media view failed to initialize");
-                return;
-            }
+        try {
+            Media media = new Media(url);
 
-            hide();
-
-            try {
-                Media media = new Media(url);
-
-                mediaPlayer = new MediaPlayer(media);
-                initializeMediaPlayerEvents();
-                mediaView.setMediaPlayer(mediaPlayer);
-                mediaPlayer.play();
-            } catch (Exception ex) {
-                setError(new VideoPlayerException("JavaFX video playback failed, " + ex.getMessage(), ex));
-            }
+            mediaPlayer = new MediaPlayer(media);
+            initializeMediaPlayerEvents();
+            mediaView.setMediaPlayer(mediaPlayer);
+            mediaPlayer.play();
+        } catch (Exception ex) {
+            setError(new VideoPlayerException("JavaFX video playback failed, " + ex.getMessage(), ex));
         }
     }
 
     @Override
     public void pause() throws VideoPlayerNotInitializedException {
-        super.pause();
-
-        if (isYoutubePlayerActive())
-            return;
+        checkInitialized();
 
         mediaPlayer.pause();
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
-        super.resume();
-
-        if (isYoutubePlayerActive())
-            return;
+        checkInitialized();
 
         mediaPlayer.play();
     }
 
     @Override
     public void seek(long time) throws VideoPlayerNotInitializedException {
-        super.seek(time);
-
-        if (isYoutubePlayerActive())
-            return;
+        checkInitialized();
 
         mediaPlayer.seek(Duration.millis(time));
     }
 
     @Override
     public void stop() {
-        super.stop();
-
-        if (isYoutubePlayerActive() || mediaPlayer == null)
-            return;
+        checkInitialized();
 
         mediaPlayer.stop();
         mediaPlayer = null;
@@ -110,29 +163,32 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
 
     //endregion
 
-    //region Functions
+    //region PostConstruct
 
-    @Override
-    protected void reset() {
-        super.reset();
-        error = null;
-    }
-
-    private void initializeMediaView(Pane videoPane) {
+    @PostConstruct
+    private void init() {
+        log.trace("Initializing JavaFX player");
         Platform.runLater(() -> {
             try {
                 mediaView = new MediaView();
 
-                mediaView.fitHeightProperty().bind(videoPane.heightProperty());
-                mediaView.fitWidthProperty().bind(videoPane.widthProperty());
                 mediaView.setPreserveRatio(true);
 
-                videoPane.getChildren().add(mediaView);
+                initialized = true;
+                log.trace("JavaFX player initialization done");
             } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
+                log.error("Failed to initialize JavaFX player," + ex.getMessage(), ex);
                 setError(new VideoPlayerException(ex.getMessage(), ex));
             }
         });
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void reset() {
+        error = null;
     }
 
     private void initializeMediaPlayerEvents() {
@@ -174,6 +230,11 @@ public class VideoPlayerFX extends VideoPlayerYoutube {
     private void setError(Throwable throwable) {
         this.error = throwable;
         setPlayerState(PlayerState.ERROR);
+    }
+
+    private void checkInitialized() {
+        if (!initialized)
+            throw new VideoPlayerNotInitializedException(this);
     }
 
     //endregion

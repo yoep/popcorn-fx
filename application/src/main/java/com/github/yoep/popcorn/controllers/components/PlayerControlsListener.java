@@ -16,4 +16,16 @@ public interface PlayerControlsListener {
      * @param pixelChange The font size change of the subtitle.
      */
     void onSubtitleSizeChanged(int pixelChange);
+
+    /**
+     * Invoked when the time is being changed.
+     *
+     * @param time The new video time.
+     */
+    void onTimeChanged(long time);
+
+    /**
+     * Invoked when the play/pause button has been clicked.
+     */
+    void onPlayPauseClicked();
 }

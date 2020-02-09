@@ -1,22 +1,33 @@
 package com.github.yoep.video.vlc;
 
+import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
+import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import com.github.yoep.video.vlc.callback.FXBufferFormatCallback;
 import com.github.yoep.video.vlc.callback.FXCallbackVideoSurface;
 import com.github.yoep.video.vlc.callback.FXRenderCallback;
-import com.github.yoep.video.youtube.VideoPlayerYoutube;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
-import javafx.scene.layout.Pane;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
+import javax.annotation.PostConstruct;
+
 @Slf4j
-public class VideoPlayerVlc extends VideoPlayerYoutube {
+@ToString
+@EqualsAndHashCode
+public class VideoPlayerVlc implements VideoPlayer {
     private final Canvas canvas = new Canvas();
 
     private final FXCallbackVideoSurface surface;
@@ -24,7 +35,12 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
     private final EmbeddedMediaPlayer mediaPlayer;
     private final VideoAnimationTimer timer;
 
+    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
+    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
+    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
+
     private Throwable error;
+    private boolean initialized;
 
     //region Constructors
 
@@ -42,23 +58,80 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
 
     //endregion
 
-    //region VideoPlayer
+    //region Properties
+
+    @Override
+    public PlayerState getPlayerState() {
+        return playerState.get();
+    }
+
+    @Override
+    public ObjectProperty<PlayerState> playerStateProperty() {
+        return playerState;
+    }
+
+    protected void setPlayerState(PlayerState playerState) {
+        this.playerState.set(playerState);
+    }
+
+    @Override
+    public long getTime() {
+        return time.get();
+    }
+
+    @Override
+    public LongProperty timeProperty() {
+        return time;
+    }
+
+    protected void setTime(long time) {
+        this.time.set(time);
+    }
+
+    @Override
+    public long getDuration() {
+        return duration.get();
+    }
+
+    @Override
+    public LongProperty durationProperty() {
+        return duration;
+    }
+
+    protected void setDuration(long duration) {
+        this.duration.set(duration);
+    }
+
+    //endregion
+
+    //region Getters
+
+    @Override
+    public boolean supports(String url) {
+        return !StringUtils.isEmpty(url);
+    }
+
+    @Override
+    public boolean isInitialized() {
+        return initialized;
+    }
 
     @Override
     public Throwable getError() {
-        return error != null ? error : super.getError();
+        return error;
     }
 
     @Override
-    public void initialize(Pane videoPane) {
-        super.initialize(videoPane);
-        init(videoPane);
+    public Node getVideoSurface() {
+        return canvas;
     }
+
+    //endregion
+
+    //region VideoPlayer
 
     @Override
     public void dispose() {
-        super.dispose();
-
         stop();
         mediaPlayer.release();
         mediaPlayerFactory.release();
@@ -66,22 +139,15 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
 
     @Override
     public void play(String url) {
-        super.play(url);
+        checkInitialized();
 
-        if (!isYoutubeUrl(url)) {
-            hide();
-
-            timer.start();
-            invokeOnVlc(() -> mediaPlayer.media().play(url));
-        }
+        timer.start();
+        invokeOnVlc(() -> mediaPlayer.media().play(url));
     }
 
     @Override
     public void pause() {
-        super.pause();
-
-        if (isYoutubePlayerActive())
-            return;
+        checkInitialized();
 
         timer.stop();
         invokeOnVlc(() -> mediaPlayer.controls().pause());
@@ -89,10 +155,7 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
 
     @Override
     public void resume() {
-        super.resume();
-
-        if (isYoutubePlayerActive())
-            return;
+        checkInitialized();
 
         timer.start();
         invokeOnVlc(() -> mediaPlayer.controls().play());
@@ -100,35 +163,45 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
 
     @Override
     public void seek(long time) {
-        super.seek(time);
-
-        if (isYoutubePlayerActive())
-            return;
+        checkInitialized();
 
         invokeOnVlc(() -> mediaPlayer.controls().setTime(time));
     }
 
     @Override
     public void stop() {
-        super.stop();
-
-        if (isYoutubePlayerActive())
-            return;
+        checkInitialized();
 
         invokeOnVlc(() -> mediaPlayer.controls().stop());
-        timer.stop();
         surface.reset();
+        timer.stop();
         reset();
+    }
+
+    //endregion
+
+    //region PostConstruct
+
+    @PostConstruct
+    private void init() {
+        log.trace("Initializing VLC player");
+
+        try {
+            this.mediaPlayer.videoSurface().set(surface);
+
+            initialized = true;
+            log.trace("VLC player initialization done");
+        } catch (Exception ex) {
+            log.error("Failed to initialize VLC player, " + ex.getMessage(), ex);
+            setError(new VideoPlayerException(ex.getMessage(), ex));
+        }
     }
 
     //endregion
 
     //region Functions
 
-
-    @Override
-    protected void reset() {
-        super.reset();
+    private void reset() {
         error = null;
     }
 
@@ -185,15 +258,6 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
         });
     }
 
-    private void init(Pane videoPane) {
-        Assert.notNull(videoPane, "videoPane cannot be null");
-
-        this.canvas.widthProperty().bind(videoPane.widthProperty());
-        this.canvas.heightProperty().bind(videoPane.heightProperty());
-        videoPane.getChildren().add(this.canvas);
-        this.mediaPlayer.videoSurface().set(surface);
-    }
-
     private void invokeOnVlc(Runnable runnable) {
         mediaPlayer.submit(() -> {
             try {
@@ -208,6 +272,11 @@ public class VideoPlayerVlc extends VideoPlayerYoutube {
     private void setError(Throwable throwable) {
         this.error = throwable;
         setPlayerState(PlayerState.ERROR);
+    }
+
+    private void checkInitialized() {
+        if (!initialized)
+            throw new VideoPlayerNotInitializedException(this);
     }
 
     //endregion

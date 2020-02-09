@@ -10,21 +10,26 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Worker;
-import javafx.scene.layout.Pane;
+import javafx.scene.Node;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import netscape.javascript.JSObject;
 import org.apache.commons.io.IOUtils;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
+@ToString
+@EqualsAndHashCode
 public class VideoPlayerYoutube implements VideoPlayer {
     private static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
     private static final String YOUTUBE_URL_INDICATOR = "youtu";
@@ -34,19 +39,13 @@ public class VideoPlayerYoutube implements VideoPlayer {
     private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
     private final YoutubePlayerBridge playerBridge = new YoutubePlayerBridge();
 
-    private Pane videoPane;
     private WebView webView;
     private boolean initialized;
-    private boolean bridgeInitialized;
+    private boolean playerReady;
 
     private Throwable error;
 
     //region Properties
-
-    @Override
-    public Throwable getError() {
-        return error;
-    }
 
     @Override
     public PlayerState getPlayerState() {
@@ -95,51 +94,33 @@ public class VideoPlayerYoutube implements VideoPlayer {
     //region Getters
 
     @Override
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    /**
-     * Check if the given url is q youtube url.
-     *
-     * @param url The url to verify.
-     * @return Returns true if the url is a youtube url, else false.
-     */
-    public boolean isYoutubeUrl(String url) {
+    public boolean supports(String url) {
         if (StringUtils.isEmpty(url))
             return false;
 
         return url.toLowerCase().contains(YOUTUBE_URL_INDICATOR);
     }
 
-    /**
-     * Verify if the youtube player is active (shown).
-     *
-     * @return Returns true if the player is shown, else false.
-     */
-    public boolean isYoutubePlayerActive() {
-        return videoPane.getChildren().contains(webView);
+    @Override
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    @Override
+    public Throwable getError() {
+        return error;
+    }
+
+    @Override
+    public Node getVideoSurface() {
+        checkInitialized();
+
+        return webView;
     }
 
     //endregion
 
     //region VideoPlayer
-
-    @Override
-    public void initialize(Pane videoPane) {
-        this.videoPane = videoPane;
-
-        Platform.runLater(() -> {
-            webView = new WebView();
-
-            webView.prefWidthProperty().bind(videoPane.widthProperty());
-            webView.prefHeightProperty().bind(videoPane.heightProperty());
-            initializeWebviewEvents();
-
-            videoPane.getChildren().add(webView);
-            initialized = true;
-        });
-    }
 
     @Override
     public void dispose() {
@@ -149,21 +130,13 @@ public class VideoPlayerYoutube implements VideoPlayer {
     @Override
     public void play(String url) throws VideoPlayerNotInitializedException {
         checkInitialized();
-        boolean isYoutubeUrl = isYoutubeUrl(url);
 
-        // update the player bridge accordingly to the url
-        playerBridge.active(isYoutubeUrl);
-
-        if (isYoutubeUrl)
-            playYoutubeUrl(url);
+        playYoutubeUrl(url);
     }
 
     @Override
     public void pause() throws VideoPlayerNotInitializedException {
         checkInitialized();
-
-        if (!isYoutubePlayerActive())
-            return;
 
         Platform.runLater(() -> getEngine().executeScript("pause()"));
     }
@@ -172,9 +145,6 @@ public class VideoPlayerYoutube implements VideoPlayer {
     public void resume() throws VideoPlayerNotInitializedException {
         checkInitialized();
 
-        if (!isYoutubePlayerActive())
-            return;
-
         Platform.runLater(() -> getEngine().executeScript("resume()"));
     }
 
@@ -182,18 +152,12 @@ public class VideoPlayerYoutube implements VideoPlayer {
     public void seek(long time) throws VideoPlayerNotInitializedException {
         checkInitialized();
 
-        if (!isYoutubePlayerActive())
-            return;
-
         Platform.runLater(() -> getEngine().executeScript("seek(" + time + ")"));
     }
 
     @Override
     public void stop() {
         checkInitialized();
-
-        if (!isYoutubePlayerActive())
-            return;
 
         Platform.runLater(() -> {
             getEngine().executeScript("stop()");
@@ -203,23 +167,24 @@ public class VideoPlayerYoutube implements VideoPlayer {
 
     //endregion
 
-    //region Methods
+    //region PostConstruct
 
-    /**
-     * Show the youtube player.
-     */
-    public void show() {
-        if (isYoutubePlayerActive())
-            return;
+    @PostConstruct
+    private void init() {
+        log.trace("Initializing youtube player");
+        Platform.runLater(() -> {
+            try {
+                webView = new WebView();
 
-        Platform.runLater(() -> videoPane.getChildren().add(webView));
-    }
+                initializeWebviewEvents();
 
-    /**
-     * Hide the youtube player.
-     */
-    public void hide() {
-        Platform.runLater(() -> videoPane.getChildren().remove(webView));
+                initialized = true;
+                log.trace("Youtube player initialization done");
+            } catch (Exception ex) {
+                log.error("Failed to initialize youtube player, " + ex.getMessage(), ex);
+                setError(new VideoPlayerException(ex.getMessage(), ex));
+            }
+        });
     }
 
     //endregion
@@ -253,7 +218,6 @@ public class VideoPlayerYoutube implements VideoPlayer {
             if (newValue == Worker.State.RUNNING) {
                 JSObject window = (JSObject) engine.executeScript("window");
                 window.setMember("VPY", playerBridge);
-                bridgeInitialized = true;
             }
         });
 
@@ -267,12 +231,11 @@ public class VideoPlayerYoutube implements VideoPlayer {
     }
 
     private void playYoutubeUrl(String url) {
-        show();
         String videoId = getVideoId(url);
 
         new Thread(() -> {
             try {
-                while (!bridgeInitialized) {
+                while (!playerReady) {
                     Thread.sleep(100);
                 }
 
@@ -293,24 +256,24 @@ public class VideoPlayerYoutube implements VideoPlayer {
         }
     }
 
+    private void setError(Throwable throwable) {
+        this.error = throwable;
+        setPlayerState(PlayerState.ERROR);
+    }
+
     private WebEngine getEngine() {
         return webView.getEngine();
     }
 
     //endregion
 
+    @SuppressWarnings("unused")
     public class YoutubePlayerBridge {
-        private boolean active = true;
-
-        public void active(boolean active) {
-            log.trace("Updating youtube player bridge to {}", active ? "active" : "inactive");
-            this.active = active;
+        public void ready() {
+            playerReady = true;
         }
 
         public void state(String state) {
-            if (!active)
-                return;
-
             switch (state) {
                 case "playing":
                     setPlayerState(PlayerState.PLAYING);
@@ -328,13 +291,11 @@ public class VideoPlayerYoutube implements VideoPlayer {
         }
 
         public void time(long time) {
-            if (active)
-                setTime(time * 1000);
+            setTime(time * 1000);
         }
 
         public void duration(long time) {
-            if (active)
-                setDuration(time * 1000);
+            setDuration(time * 1000);
         }
 
         public void log(String message) {
@@ -342,11 +303,7 @@ public class VideoPlayerYoutube implements VideoPlayer {
         }
 
         public void error(String code) {
-            if (!active)
-                return;
-
-            error = new VideoPlayerException("Youtube Player encountered an issue, error code " + code);
-            setPlayerState(PlayerState.ERROR);
+            setError(new VideoPlayerException("Youtube Player encountered an issue, error code " + code));
         }
     }
 }

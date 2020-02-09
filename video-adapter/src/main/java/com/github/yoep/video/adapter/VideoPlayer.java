@@ -3,7 +3,7 @@ package com.github.yoep.video.adapter;
 import com.github.yoep.video.adapter.state.PlayerState;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.scene.layout.Pane;
+import javafx.scene.Node;
 
 /**
  * Adapter definition of a video player.
@@ -62,6 +62,14 @@ public interface VideoPlayer {
     //region Getters & Setters
 
     /**
+     * Check if the video player supports the given url.
+     *
+     * @param url The url to check the player compatibility of.
+     * @return Returns true if the player supports the given url, else false.
+     */
+    boolean supports(String url);
+
+    /**
      * Check if the video player has been initialized.
      *
      * @return Returns true if the video player has been initialized, else false.
@@ -75,17 +83,16 @@ public interface VideoPlayer {
      */
     Throwable getError();
 
+    /**
+     * Get the video surface of the video player.
+     *
+     * @return Returns the video surface of the video player.
+     */
+    Node getVideoSurface();
+
     //endregion
 
     //region Methods
-
-    /**
-     * Initialize the video player.
-     * This will use the video pane for rendering the video or adding additional controls.
-     *
-     * @param videoPane The pane that will be used by the video player for displaying the video.
-     */
-    void initialize(Pane videoPane);
 
     /**
      * Dispose the video player instance.

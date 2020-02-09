@@ -19,19 +19,24 @@ import com.github.yoep.popcorn.subtitles.models.DecorationType;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.media.MediaView;
 import javafx.scene.text.FontWeight;
+import javafx.scene.web.WebView;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +48,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.net.URL;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
@@ -64,8 +70,13 @@ public class PlayerSectionController implements Initializable {
     private final AutoResumeService autoResumeService;
     private final PlayerHeaderComponent playerHeader;
     private final PlayerControlsComponent playerControls;
-    private final VideoPlayer videoPlayer;
+    private final List<VideoPlayer> videoPlayers;
     private final LocaleText localeText;
+
+    private VideoPlayer videoPlayer;
+    private ChangeListener<PlayerState> playerStateListener;
+    private ChangeListener<Number> timeListener;
+    private ChangeListener<Number> durationListener;
 
     private String url;
     private Media media;
@@ -97,7 +108,6 @@ public class PlayerSectionController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         log.trace("Initializing video player component for JavaFX");
         initializeSceneEvents();
-        initializeVideoPlayer();
         initializeSubtitleTrack();
     }
 
@@ -109,6 +119,7 @@ public class PlayerSectionController implements Initializable {
     private void init() {
         log.trace("Initializing video player component for Spring");
         initializeListeners();
+        initializeVideoListeners();
     }
 
     private void initializeListeners() {
@@ -124,7 +135,49 @@ public class PlayerSectionController implements Initializable {
             public void onSubtitleSizeChanged(int pixelChange) {
                 subtitleTrack.setFontSize(subtitleTrack.getFontSize() + pixelChange);
             }
+
+            @Override
+            public void onTimeChanged(long time) {
+                videoPlayer.seek(time);
+            }
+
+            @Override
+            public void onPlayPauseClicked() {
+                changePlayPauseState();
+            }
         });
+    }
+
+    private void initializeVideoListeners() {
+        playerStateListener = (observable, oldValue, newValue) -> {
+            if (newValue != PlayerState.ERROR)
+                log.debug("Video player state changed to {}", newValue);
+
+            bufferIndicator.setVisible(newValue == PlayerState.BUFFERING);
+
+            switch (newValue) {
+                case ERROR:
+                    log.error("Video player state changed to {}", newValue);
+                    Throwable error = videoPlayer.getError();
+
+                    if (error != null)
+                        log.error(error.getMessage(), error);
+
+                    Platform.runLater(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
+                    break;
+                case STOPPED:
+                    onVideoStopped();
+                    break;
+            }
+
+            playerControls.onPlayerStateChanged(newValue);
+        };
+        timeListener = (observable, oldValue, newValue) -> {
+            subtitleTrack.onTimeChanged(newValue.longValue());
+
+            playerControls.onTimeChanged(newValue);
+        };
+        durationListener = (observableValue, oldValue, newValue) -> playerControls.onDurationChanged(newValue);
     }
 
     //endregion
@@ -145,15 +198,15 @@ public class PlayerSectionController implements Initializable {
             switch (event.getCode()) {
                 case LEFT:
                 case KP_LEFT:
-                    playerControls.increaseVideoTime(-5000);
+                    increaseVideoTime(-5000);
                     break;
                 case RIGHT:
                 case KP_RIGHT:
-                    playerControls.increaseVideoTime(5000);
+                    increaseVideoTime(5000);
                     break;
                 case SPACE:
                 case P:
-                    playerControls.changePlayPauseState();
+                    changePlayPauseState();
                     break;
                 case F11:
                     playerControls.toggleFullscreen();
@@ -173,32 +226,6 @@ public class PlayerSectionController implements Initializable {
 
         idleTimer.setOnFinished(e -> onHideOverlay());
         playerPane.addEventHandler(Event.ANY, e -> onShowOverlay());
-    }
-
-    private void initializeVideoPlayer() {
-        videoPlayer.initialize(videoView);
-        videoPlayer.playerStateProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != PlayerState.ERROR)
-                log.debug("Video player state changed to {}", newValue);
-
-            bufferIndicator.setVisible(newValue == PlayerState.BUFFERING);
-
-            switch (newValue) {
-                case ERROR:
-                    log.error("Video player state changed to {}", newValue);
-                    Throwable error = videoPlayer.getError();
-
-                    if (error != null)
-                        log.error(error.getMessage(), error);
-
-                    Platform.runLater(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
-                    break;
-                case STOPPED:
-                    onVideoStopped();
-                    break;
-            }
-        });
-        videoPlayer.timeProperty().addListener((observable, oldValue, newValue) -> subtitleTrack.onTimeChanged(newValue.longValue()));
     }
 
     private void initializeSubtitleTrack() {
@@ -337,13 +364,14 @@ public class PlayerSectionController implements Initializable {
     private void onVideoStopped() {
         // check if the video has been started for more than 1.5 sec before exiting the video player
         // this should fix the issue of the video player closing directly in some cases
-        if (System.currentTimeMillis() - videoChangeTime <= 1500)
+        if (System.currentTimeMillis() - videoChangeTime <= 30000)
             return;
 
         close();
     }
 
     private void playUrl(String url) {
+        updateActiveVideoPlayer(url);
         this.url = url;
         this.videoPlayer.play(url);
 
@@ -359,6 +387,64 @@ public class PlayerSectionController implements Initializable {
                         .ifPresent(videoPlayer::seek);
             }
         });
+    }
+
+    private void updateActiveVideoPlayer(String url) {
+        var videoPlayer = videoPlayers.stream()
+                .filter(e -> e.supports(url))
+                .findFirst()
+                .orElseThrow(() -> new VideoPlayerException("No compatible video player found for " + url));
+
+        // check if the video player is the same
+        // if so, do not update the active video player
+        if (videoPlayer == this.videoPlayer)
+            return;
+
+        // remove old video player listeners
+        if (this.videoPlayer != null) {
+            this.videoPlayer.playerStateProperty().removeListener(playerStateListener);
+            this.videoPlayer.timeProperty().removeListener(timeListener);
+            this.videoPlayer.durationProperty().removeListener(durationListener);
+        }
+
+        // add video player listeners to the new video player
+        videoPlayer.playerStateProperty().addListener(playerStateListener);
+        videoPlayer.timeProperty().addListener(timeListener);
+        videoPlayer.durationProperty().addListener(durationListener);
+
+        Platform.runLater(() -> {
+            videoView.getChildren().clear();
+            Node videoSurface = videoPlayer.getVideoSurface();
+
+            if (videoSurface instanceof Canvas) {
+                var canvas = (Canvas) videoSurface;
+                canvas.widthProperty().bind(videoView.widthProperty());
+                canvas.heightProperty().bind(videoView.heightProperty());
+            } else if (videoSurface instanceof WebView) {
+                var webview = (WebView) videoSurface;
+                webview.prefWidthProperty().bind(videoView.widthProperty());
+                webview.prefHeightProperty().bind(videoView.heightProperty());
+            } else if (videoSurface instanceof MediaView) {
+                var media = (MediaView) videoSurface;
+                media.fitWidthProperty().bind(videoView.widthProperty());
+                media.fitWidthProperty().bind(videoView.heightProperty());
+            }
+
+            videoView.getChildren().add(videoSurface);
+        });
+
+        this.videoPlayer = videoPlayer;
+    }
+
+    private void increaseVideoTime(long amount) {
+        log.trace("Increasing video time with {}", amount);
+        long newTime = videoPlayer.getTime() + amount;
+        long duration = videoPlayer.getDuration();
+
+        if (newTime > duration)
+            newTime = duration;
+
+        videoPlayer.seek(newTime);
     }
 
     private void reset() {
@@ -400,10 +486,16 @@ public class PlayerSectionController implements Initializable {
         return isBold ? FontWeight.BOLD : FontWeight.NORMAL;
     }
 
-    /**
-     * Close the video player.
-     * This will create a {@link ClosePlayerActivity} with the last known information about the video player state.
-     */
+    private void changePlayPauseState() {
+        if (videoPlayer.getPlayerState() == PlayerState.PAUSED) {
+            log.trace("Video player state is being changed to \"resume\"");
+            videoPlayer.resume();
+        } else {
+            log.trace("Video player state is being changed to \"paused\"");
+            videoPlayer.pause();
+        }
+    }
+
     private void close() {
         log.trace("Video player is being closed");
         // keep a copy of the information for later use in the activity
@@ -447,7 +539,7 @@ public class PlayerSectionController implements Initializable {
 
     @FXML
     private void onPlayerClick() {
-        playerControls.changePlayPauseState();
+        changePlayPauseState();
     }
 
     //endregion

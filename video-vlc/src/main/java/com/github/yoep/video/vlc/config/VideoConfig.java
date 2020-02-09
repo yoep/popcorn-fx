@@ -13,10 +13,10 @@ import org.springframework.core.annotation.Order;
 @Configuration
 public class VideoConfig {
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @Order(Ordered.HIGHEST_PRECEDENCE + 1)
     @ConditionalOnVlcInstall
-    public VideoPlayer videoPlayer() {
-        log.info("Using VLC player as video player");
+    public VideoPlayer vlcVideoPlayer() {
+        log.info("Using VLC player for torrent playbacks");
         return new VideoPlayerVlc();
     }
 }

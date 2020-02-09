@@ -23,11 +23,6 @@
             <artifactId>video-adapter</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>video-youtube</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <!-- VLC player -->
         <dependency>
@@ -55,6 +50,13 @@
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>spring-boot-starter-javafx</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Javax -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
             <scope>provided</scope>
         </dependency>
 

@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.torrent.models.Torrent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.core.io.Resource;
@@ -33,6 +34,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class TorrentStream {
     private static final String JNI_PATH = "jlibtorrent.jni.path";
+    private static final String LIB_NAME = "jlibtorrent";
 
     private final TorrentListenerHolder listenerHolder = new TorrentListenerHolder();
     private final TaskExecutor taskExecutor;
@@ -266,18 +268,21 @@ public class TorrentStream {
             if (ArrayUtils.isNotEmpty(resources)) {
                 Resource resource = resources[0];
                 String filename = resource.getFilename();
-                File destination = new File(PopcornTimeApplication.APP_DIR + File.separator + filename);
+                String extension = FilenameUtils.getExtension(filename);
+                File destination = new File(PopcornTimeApplication.APP_DIR + File.separator + LIB_NAME + "." + extension);
                 String absolutePath = destination.getAbsolutePath();
 
                 if (!destination.exists()) {
-                    log.trace("Copying resource {} to {}", filename, absolutePath);
+                    log.debug("Copying library resource {} to {}", filename, absolutePath);
                     FileUtils.copyInputStreamToFile(resource.getInputStream(), destination);
+                } else {
+                    log.trace("Library \"{}\" already exists, skipping library resource copy", absolutePath);
                 }
 
                 log.trace("Updating system property \"{}\" to \"{}\"", JNI_PATH, absolutePath);
                 System.setProperty(JNI_PATH, absolutePath);
             } else {
-                log.error("Unable to find any jlibtorrent resources in the classpath");
+                log.error("Unable to find any {} resources in the classpath", LIB_NAME);
             }
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
@@ -285,8 +290,12 @@ public class TorrentStream {
     }
 
     private void initSession() {
-        this.torrentSession = new SessionManager();
-        this.torrentFactory = new TorrentFactory(this.torrentSession, this.listenerHolder);
+        try {
+            this.torrentSession = new SessionManager();
+            this.torrentFactory = new TorrentFactory(this.torrentSession, this.listenerHolder);
+        } catch (Exception ex) {
+            log.error("Failed to initialize torrent session with error: " + ex.getMessage(), ex);
+        }
     }
 
     private void initSettings() {

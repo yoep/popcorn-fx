@@ -1,12 +1,9 @@
 package com.github.yoep.popcorn.controllers;
 
-import com.github.yoep.popcorn.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.config.properties.StreamingProperties;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.Torrent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.*;
@@ -19,7 +16,6 @@ import java.io.IOException;
 @RequestMapping("/video")
 @RequiredArgsConstructor
 public class VideoController {
-    private final PopcornProperties properties;
     private final TorrentService torrentService;
 
     @RequestMapping(value = "/{filename}", method = RequestMethod.GET)
@@ -33,15 +29,15 @@ public class VideoController {
             return ResponseEntity.notFound().build();
         }
 
+        log.trace("Received request headers {} for video {}", headers, filename);
         ResourceRegion region;
         var torrent = torrentService.getTorrent(filename);
         var video = new FileSystemResource(torrentFile);
         var videoLength = video.contentLength();
         var range = headers.getRange().stream().findFirst().orElse(null);
-        var defaultChunkSize = ObjectUtils.min(streamingProperties().getChunkSize(), videoLength);
 
         if (range == null) {
-            region = new ResourceRegion(video, 0, defaultChunkSize);
+            region = new ResourceRegion(video, 0, videoLength);
         } else {
             var start = range.getRangeStart(videoLength);
 
@@ -54,8 +50,7 @@ public class VideoController {
                         .build();
             }
 
-            var end = range.getRangeEnd(videoLength);
-            var chunkSize = ObjectUtils.min(defaultChunkSize, end);
+            var chunkSize = range.getRangeEnd(videoLength);
 
             // check that the chunk size is not larger than the video size
             // if so, return only the remaining bytes
@@ -71,20 +66,25 @@ public class VideoController {
 
         log.trace("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"",
                 region.getPosition(), region.getCount(), videoLength, filename);
-        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+        ResponseEntity<ResourceRegion> response = ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .header(HttpHeaders.CONNECTION, "keep-alive")
+                .header("TransferMode.dlna.org", "Streaming")
                 .contentType(getContentType(video))
                 .body(region);
+        log.trace("Responding to video request \"{}\" with status {} and headers {}", filename, response.getStatusCodeValue(), response.getHeaders());
+
+        return response;
     }
 
     private void updateTorrentPriorityAndWait(Torrent torrent, ResourceRegion region) {
         // update the interested parts of the torrent
         torrent.setInterestedBytes(region.getPosition());
 
-        // block the response until the requested parts are present
-        //        while (!torrent.hasBytes(region.getPosition())) {
-        //            // do nothing and wait for the torrent to download them
-        //        }
+        // TODO: use thread blocking instead of a loop
+        while (!torrent.hasBytes(region.getPosition())) {
+            // wait for the bytes
+        }
     }
 
     private MediaType getContentType(FileSystemResource video) {
@@ -93,9 +93,5 @@ public class VideoController {
 
         log.trace("Resolved video file \"{}\" as content type \"{}\"", video.getFilename(), mediaType);
         return mediaType;
-    }
-
-    private StreamingProperties streamingProperties() {
-        return properties.getStreaming();
     }
 }

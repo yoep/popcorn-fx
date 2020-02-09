@@ -149,11 +149,13 @@ public class VideoPlayerYoutube implements VideoPlayer {
     @Override
     public void play(String url) throws VideoPlayerNotInitializedException {
         checkInitialized();
+        boolean isYoutubeUrl = isYoutubeUrl(url);
 
-        if (!isYoutubeUrl(url))
-            return;
+        // update the player bridge accordingly to the url
+        playerBridge.active(isYoutubeUrl);
 
-        playYoutubeUrl(url);
+        if (isYoutubeUrl)
+            playYoutubeUrl(url);
     }
 
     @Override
@@ -227,7 +229,7 @@ public class VideoPlayerYoutube implements VideoPlayer {
     /**
      * Reset the video player information.
      * This will reset the last error that occurred and reset the time & duration so the event are correctly fired on next video play.
-     *
+     * <p>
      * (Fixes the duration event not firing if the video has the same duration as the last video)
      */
     protected void reset() {
@@ -298,7 +300,17 @@ public class VideoPlayerYoutube implements VideoPlayer {
     //endregion
 
     public class YoutubePlayerBridge {
+        private boolean active = true;
+
+        public void active(boolean active) {
+            log.trace("Updating youtube player bridge to {}", active ? "active" : "inactive");
+            this.active = active;
+        }
+
         public void state(String state) {
+            if (!active)
+                return;
+
             switch (state) {
                 case "playing":
                     setPlayerState(PlayerState.PLAYING);
@@ -316,11 +328,13 @@ public class VideoPlayerYoutube implements VideoPlayer {
         }
 
         public void time(long time) {
-            setTime(time * 1000);
+            if (active)
+                setTime(time * 1000);
         }
 
         public void duration(long time) {
-            setDuration(time * 1000);
+            if (active)
+                setDuration(time * 1000);
         }
 
         public void log(String message) {
@@ -328,6 +342,9 @@ public class VideoPlayerYoutube implements VideoPlayer {
         }
 
         public void error(String code) {
+            if (!active)
+                return;
+
             error = new VideoPlayerException("Youtube Player encountered an issue, error code " + code);
             setPlayerState(PlayerState.ERROR);
         }

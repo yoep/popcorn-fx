@@ -153,6 +153,12 @@ public class HeaderSectionController implements Initializable {
     }
 
     @FXML
+    private void onTorrentCollectionClicked() {
+        activityManager.register(new ShowTorrentCollectionActivity() {
+        });
+    }
+
+    @FXML
     private void onSettingsClicked() {
         activityManager.register(new ShowSettingsActivity() {
         });

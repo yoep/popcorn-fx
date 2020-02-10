@@ -7,6 +7,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.input.*;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +16,6 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Controller;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
@@ -124,6 +124,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
                 break;
         }
 
+        setAnchor(content.get());
+
         Platform.runLater(() -> {
             rootPane.getChildren().clear();
             rootPane.getChildren().add(content.get());
@@ -198,6 +200,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
                 return true;
             }
         });
+    }
+
+    private void setAnchor(Pane pane) {
+        AnchorPane.setTopAnchor(pane, 0d);
+        AnchorPane.setRightAnchor(pane, 0d);
+        AnchorPane.setBottomAnchor(pane, 0d);
+        AnchorPane.setLeftAnchor(pane, 0d);
     }
 
     //endregion

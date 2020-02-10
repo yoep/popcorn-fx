@@ -14,6 +14,7 @@ import org.springframework.util.Assert;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Objects;
 
 @Slf4j
@@ -37,10 +38,19 @@ public class TorrentCollectionService {
     }
 
     /**
+     * Get the current stored torrent collection.
+     *
+     * @return Returns the stored torrents.
+     */
+    public List<StoredTorrent> getStoredTorrents() {
+        return loadCollection().getTorrents();
+    }
+
+    /**
      * Add the given torrent to the torrent collection.
      *
      * @param magnetUri The magnet uri of the torrent.
-     * @param torrent The torrent info to add.
+     * @param torrent   The torrent info to add.
      */
     public void addTorrent(String magnetUri, TorrentInfo torrent) {
         Assert.notNull(torrent, "torrent cannot be null");

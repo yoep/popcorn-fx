@@ -82,7 +82,7 @@ public class VideoController {
         torrent.setInterestedBytes(region.getPosition());
 
         // TODO: use thread blocking instead of a loop
-        while (!torrent.hasBytes(region.getPosition())) {
+        while (!torrent.hasBytes(region.getPosition()) && !torrent.hasBytes(region.getPosition() + 2048)) {
             // wait for the bytes
         }
     }

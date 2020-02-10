@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.CategoryChangedActivity;
-import com.github.yoep.popcorn.activities.CloseDetailsActivity;
-import com.github.yoep.popcorn.activities.ShowDetailsActivity;
+import com.github.yoep.popcorn.activities.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -30,6 +27,7 @@ public class ContentSectionController implements Initializable {
 
     private Pane listPane;
     private Pane detailsPane;
+    private Pane torrentCollectionPane;
     private ContentType activeType;
 
     @FXML
@@ -55,6 +53,7 @@ public class ContentSectionController implements Initializable {
     private void initializeListeners() {
         activityManager.register(ShowDetailsActivity.class, activity -> switchContent(ContentType.DETAILS));
         activityManager.register(CloseDetailsActivity.class, activity -> switchContent(ContentType.LIST));
+        activityManager.register(ShowTorrentCollectionActivity.class, activity -> switchContent(ContentType.TORRENT_COLLECTION));
         activityManager.register(CategoryChangedActivity.class, activity -> switchContent(ContentType.LIST));
     }
 
@@ -67,7 +66,9 @@ public class ContentSectionController implements Initializable {
         // load the details pane on a different thread
         taskExecutor.execute(() -> {
             detailsPane = viewLoader.load("sections/details.section.fxml");
+            torrentCollectionPane = viewLoader.load("sections/torrent-collection.section.fxml");
             setAnchor(detailsPane);
+            setAnchor(torrentCollectionPane);
         });
     }
 
@@ -88,6 +89,9 @@ public class ContentSectionController implements Initializable {
                 break;
             case DETAILS:
                 pane.set(detailsPane);
+                break;
+            case TORRENT_COLLECTION:
+                pane.set(torrentCollectionPane);
                 break;
         }
 
@@ -110,6 +114,7 @@ public class ContentSectionController implements Initializable {
 
     private enum ContentType {
         LIST,
-        DETAILS
+        DETAILS,
+        TORRENT_COLLECTION
     }
 }

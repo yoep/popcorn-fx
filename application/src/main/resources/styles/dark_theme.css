@@ -23,7 +23,8 @@
 .root .table-view,
 .root .header .bar,
 .root .loader,
-.root .overlay {
+.root .overlay,
+.root .content-section {
     -fx-background-color: #17181b;
     -fx-border-width: 0;
 }
@@ -624,7 +625,8 @@
 }
 
 .root .show-details-section .show-details Episodes TableHeaderRow,
-.root .show-details-section .show-details Seasons TableHeaderRow {
+.root .show-details-section .show-details Seasons TableHeaderRow,
+.root .torrent-collection TableView TableHeaderRow {
     -fx-min-height: 0;
     -fx-max-height: 0;
     -fx-pref-height: 0;
@@ -970,6 +972,50 @@
     -fx-font-family: "Open Sans";
     -fx-background-color: #393b3d;
     -fx-text-fill: #c3c5c7;
+}
+
+.root .torrent-collection .torrent-list .table-cell {
+    -fx-border-width: 0 0 1 0;
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-border-style: solid;
+    -fx-cursor: hand;
+    -fx-padding: 10 15 10 15;
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #eee;
+    -fx-font-size: 1.2em;
+}
+
+.root .torrent-collection .torrent-list .table-cell:hover {
+    -fx-text-fill: #2d72d9;
+}
+
+.root .torrent-collection .torrent-list .table-row-cell:even {
+    -fx-background-color: rgba(255, 255, 255, 0.05);
+}
+
+.root .torrent-collection .torrent-list .placeholder {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.3em;
+}
+
+.root .torrent-collection Icon {
+    -fx-text-fill: #eee;
+    -fx-font-size: 1.2em;
+    -fx-cursor: hand;
+    -fx-opacity: 0.7;
+}
+
+.root .torrent-collection Icon:hover {
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.2em;
+    -fx-opacity: 1;
+}
+
+.root .torrent-collection .torrent-list .table-row-cell:empty,
+.root .torrent-collection .torrent-list .table-cell:empty {
+    -fx-opacity: 0;
+    -fx-cursor: default;
 }
 
 .root .torrent-details .title {

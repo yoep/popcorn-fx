@@ -44,7 +44,7 @@
                 <Insets right="10" />
             </padding>
             <SearchField fx:id="search" promptText="%header_search" />
-            <Icon styleClass="icon">
+            <Icon fx:id="watchlistIcon" styleClass="icon">
                 <Icon fx:constant="INBOX_UNICODE" />
                 <tooltip>
                     <Tooltip text="%header_watchlist" showDelay="200ms" showDuration="1h" />

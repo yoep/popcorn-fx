@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.controllers.sections;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
@@ -9,6 +10,9 @@ import com.github.yoep.popcorn.controls.SearchListener;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.ApplicationSettings;
+import com.github.yoep.popcorn.settings.models.TraktSettings;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
@@ -31,8 +35,9 @@ public class HeaderSectionController implements Initializable {
     private static final String STYLE_ACTIVE = "active";
 
     private final ActivityManager activityManager;
-    private final PopcornProperties popcornProperties;
+    private final PopcornProperties properties;
     private final LocaleText localeText;
+    private final SettingsService settingsService;
 
     @FXML
     private Label moviesCategory;
@@ -46,12 +51,15 @@ public class HeaderSectionController implements Initializable {
     private ComboBox<SortBy> sortByCombo;
     @FXML
     private SearchField search;
+    @FXML
+    private Icon watchlistIcon;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeComboListeners();
         initializeCategory();
         initializeSearchListener();
+        initializeIcons();
     }
 
     private void initializeComboListeners() {
@@ -78,8 +86,19 @@ public class HeaderSectionController implements Initializable {
         });
     }
 
+    private void initializeIcons() {
+        var traktSettings = getSettings().getTraktSettings();
+
+        watchlistIcon.setVisible(traktSettings.getAccessToken().isPresent());
+        traktSettings.addListener(evt -> {
+            if (evt.getPropertyName().equals(TraktSettings.ACCESS_TOKEN_PROPERTY)) {
+                watchlistIcon.setVisible(traktSettings.getAccessToken().isPresent());
+            }
+        });
+    }
+
     private void setGenres(Category category) {
-        ProviderProperties providerProperties = popcornProperties.getProvider(category.getProviderName());
+        ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
         List<Genre> genres = providerProperties.getGenres().stream()
                 .map(e -> new Genre(e, localeText.get("genre_" + e)))
                 .sorted()
@@ -91,7 +110,7 @@ public class HeaderSectionController implements Initializable {
     }
 
     private void setSortBy(Category category) {
-        ProviderProperties providerProperties = popcornProperties.getProvider(category.getProviderName());
+        ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
         List<SortBy> sortBy = providerProperties.getSortBy().stream()
                 .map(e -> new SortBy(e, localeText.get("sort-by_" + e)))
                 .collect(Collectors.toList());
@@ -140,6 +159,10 @@ public class HeaderSectionController implements Initializable {
     private void switchSortBy(SortBy sortBy) {
         log.trace("SortBy is being changed to \"{}\"", sortBy);
         activityManager.register((SortByChangeActivity) () -> sortBy);
+    }
+
+    private ApplicationSettings getSettings() {
+        return settingsService.getSettings();
     }
 
     @FXML

@@ -2,7 +2,10 @@ package com.github.yoep.popcorn.controllers;
 
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.UISettings;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -34,7 +37,9 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
+    private final ViewManager viewManager;
     private final TaskExecutor taskExecutor;
+    private final SettingsService settingsService;
 
     private Pane contentPane;
     private Pane settingsPane;
@@ -51,6 +56,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         switchSection(SectionType.CONTENT);
         initializeSceneEvents();
+        initializeStageListeners();
     }
 
     //endregion
@@ -101,6 +107,15 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
         rootPane.setOnDragOver(this::onDragOver);
         rootPane.setOnDragDropped(this::onDragDropped);
+    }
+
+    private void initializeStageListeners() {
+        viewManager.getPrimaryStage().ifPresent(stage -> stage.maximizedProperty().addListener((observable, oldValue, newValue) -> {
+            var uiSettings = getUiSettings();
+
+            log.trace("Stage maximized state is being changed from \"{}\" to \"{}\"", oldValue, newValue);
+            uiSettings.setMaximized(newValue);
+        }));
     }
 
     private void switchSection(SectionType sectionType) {
@@ -207,6 +222,10 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         AnchorPane.setRightAnchor(pane, 0d);
         AnchorPane.setBottomAnchor(pane, 0d);
         AnchorPane.setLeftAnchor(pane, 0d);
+    }
+
+    private UISettings getUiSettings() {
+        return settingsService.getSettings().getUiSettings();
     }
 
     //endregion

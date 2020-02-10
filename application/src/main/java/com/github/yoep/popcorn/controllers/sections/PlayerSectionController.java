@@ -186,7 +186,7 @@ public class PlayerSectionController implements Initializable {
 
     @PreDestroy
     private void dispose() {
-        videoPlayer.dispose();
+        videoPlayers.forEach(VideoPlayer::dispose);
     }
 
     //endregion

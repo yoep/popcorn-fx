@@ -13,6 +13,7 @@ import java.util.Objects;
 public class UISettings extends AbstractSettings {
     public static final String LANGUAGE_PROPERTY = "defaultLanguage";
     public static final String UI_SCALE_PROPERTY = "uiScale";
+    public static final String MAXIMIZED_PROPERTY = "maximized";
 
     private static final Locale DEFAULT_LANGUAGE = Locale.getDefault();
 
@@ -26,6 +27,12 @@ public class UISettings extends AbstractSettings {
      */
     @Builder.Default
     private UIScale uiScale = new UIScale(1f);
+    /**
+     * The indication if the UI was maximized the last time the application was closed.
+     */
+    private boolean maximized;
+
+    //region Setters
 
     public void setDefaultLanguage(Locale defaultLanguage) {
         if (Objects.equals(this.defaultLanguage, defaultLanguage))
@@ -44,4 +51,15 @@ public class UISettings extends AbstractSettings {
         this.uiScale = uiScale;
         changes.firePropertyChange(UI_SCALE_PROPERTY, oldValue, uiScale);
     }
+
+    public void setMaximized(boolean maximized) {
+        if (Objects.equals(this.maximized, maximized))
+            return;
+
+        var oldValue = this.maximized;
+        this.maximized = maximized;
+        changes.firePropertyChange(MAXIMIZED_PROPERTY, oldValue, maximized);
+    }
+
+    //endregion
 }

@@ -5,6 +5,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
+import com.github.yoep.popcorn.settings.SettingsService;
 import javafx.stage.Stage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -24,12 +25,15 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     @Override
     public void start(Stage primaryStage) throws Exception {
         super.start(primaryStage);
-        ViewLoader loader = applicationContext.getBean(ViewLoader.class);
-        ViewManager viewManager = applicationContext.getBean(ViewManager.class);
+        var loader = applicationContext.getBean(ViewLoader.class);
+        var viewManager = applicationContext.getBean(ViewManager.class);
+        var settingsService = applicationContext.getBean(SettingsService.class);
+        var uiSettings = settingsService.getSettings().getUiSettings();
 
         loader.show(primaryStage, "main.fxml", ViewProperties.builder()
                 .title("Popcorn Time")
                 .icon("icon.png")
+                .maximized(uiSettings.isMaximized())
                 .build());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
     }

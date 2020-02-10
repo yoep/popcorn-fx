@@ -182,14 +182,16 @@
     -fx-text-fill: #fff;
 }
 
+.root .header .bar .filter-nav-bar Label {
+    -fx-border-width: 0 0 4 0;
+    -fx-border-color: transparent;
+    -fx-padding: 10 5 5 18;
+}
+
 .root .header .bar .filter-nav-bar .active {
     -fx-text-fill: #fff;
     -fx-border-width: 0 0 4 0;
     -fx-border-color: #2d72d9;
-}
-
-.root .header .bar .filter-bar Label {
-    -fx-padding: 10 5 5 18;
 }
 
 .root .header .bar .filter-bar ComboBox {
@@ -257,6 +259,10 @@
     -fx-text-fill: #909498;
     -fx-cursor: hand;
     -fx-padding: 0 0 10 8;
+}
+
+.root .header .bar .filter-icon-bar .icon.active {
+    -fx-text-fill: #2d72d9;
 }
 
 .root .header .bar .filter-icon-bar .icon:hover {

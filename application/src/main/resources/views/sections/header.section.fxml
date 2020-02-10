@@ -44,13 +44,13 @@
                 <Insets right="10" />
             </padding>
             <SearchField fx:id="search" promptText="%header_search" />
-            <Icon fx:id="watchlistIcon" styleClass="icon">
+            <Icon fx:id="watchlistIcon" styleClass="icon" onMouseClicked="#onWatchlistClicked">
                 <Icon fx:constant="INBOX_UNICODE" />
                 <tooltip>
                     <Tooltip text="%header_watchlist" showDelay="200ms" showDuration="1h" />
                 </tooltip>
             </Icon>
-            <Icon styleClass="icon" onMouseClicked="#onTorrentCollectionClicked">
+            <Icon fx:id="torrentCollectionIcon" styleClass="icon" onMouseClicked="#onTorrentCollectionClicked">
                 <Icon fx:constant="FOLDER_OPEN_UNICODE" />
                 <tooltip>
                     <Tooltip text="%header_torrent_collection" showDelay="200ms" showDuration="1h" />

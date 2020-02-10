@@ -53,6 +53,8 @@ public class HeaderSectionController implements Initializable {
     private SearchField search;
     @FXML
     private Icon watchlistIcon;
+    @FXML
+    private Icon torrentCollectionIcon;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -123,10 +125,7 @@ public class HeaderSectionController implements Initializable {
     private void switchCategory(Label item) {
         final AtomicReference<Category> category = new AtomicReference<>();
 
-        moviesCategory.getStyleClass().remove(STYLE_ACTIVE);
-        seriesCategory.getStyleClass().remove(STYLE_ACTIVE);
-        favoritesCategory.getStyleClass().remove(STYLE_ACTIVE);
-
+        removeAllActiveStates();
         item.getStyleClass().add(STYLE_ACTIVE);
 
         if (item == moviesCategory) {
@@ -161,6 +160,23 @@ public class HeaderSectionController implements Initializable {
         activityManager.register((SortByChangeActivity) () -> sortBy);
     }
 
+    private void switchIcon(Icon icon) {
+        removeAllActiveStates();
+
+        icon.getStyleClass().add(STYLE_ACTIVE);
+    }
+
+    private void removeAllActiveStates() {
+        // categories
+        moviesCategory.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+        seriesCategory.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+        favoritesCategory.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+
+        // icons
+        watchlistIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+        torrentCollectionIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+    }
+
     private ApplicationSettings getSettings() {
         return settingsService.getSettings();
     }
@@ -176,7 +192,13 @@ public class HeaderSectionController implements Initializable {
     }
 
     @FXML
+    private void onWatchlistClicked() {
+        switchIcon(watchlistIcon);
+    }
+
+    @FXML
     private void onTorrentCollectionClicked() {
+        switchIcon(torrentCollectionIcon);
         activityManager.register(new ShowTorrentCollectionActivity() {
         });
     }

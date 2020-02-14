@@ -182,7 +182,7 @@
                             <goal>package</goal>
                         </goals>
                         <configuration>
-                            <mainClass>com.github.yoep.popcorn.PopcornTimeApplication</mainClass>
+                            <mainClass>org.springframework.boot.loader.JarLauncher</mainClass>
                             <runnableJar>${project.build.directory}/popcorn-time.jar</runnableJar>
                             <bundleJre>true</bundleJre>
                             <copyDependencies>false</copyDependencies>

@@ -32,8 +32,10 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.media.MediaView;
 import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebView;
@@ -58,6 +60,7 @@ import java.util.ResourceBundle;
 public class PlayerSectionController implements Initializable {
     private static final int OVERLAY_FADE_DURATION = 1500;
     private static final int INFO_FADE_DURATION = 2000;
+    private static final String BUFFER_STYLE_CLASS = "buffer";
 
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(3));
     private final PauseTransition offsetTimer = new PauseTransition(Duration.seconds(2));
@@ -74,6 +77,7 @@ public class PlayerSectionController implements Initializable {
     private final LocaleText localeText;
 
     private VideoPlayer videoPlayer;
+    private Pane bufferIndicator;
     private ChangeListener<PlayerState> playerStateListener;
     private ChangeListener<Number> timeListener;
     private ChangeListener<Number> durationListener;
@@ -98,7 +102,7 @@ public class PlayerSectionController implements Initializable {
     @FXML
     private Label errorText;
     @FXML
-    private Pane bufferIndicator;
+    private Pane bufferPane;
     @FXML
     private SubtitleTrack subtitleTrack;
 
@@ -153,7 +157,7 @@ public class PlayerSectionController implements Initializable {
             if (newValue != PlayerState.ERROR)
                 log.debug("Video player state changed to {}", newValue);
 
-            bufferIndicator.setVisible(newValue == PlayerState.BUFFERING);
+            updateBufferIndicator(newValue == PlayerState.BUFFERING);
 
             switch (newValue) {
                 case ERROR:
@@ -493,6 +497,24 @@ public class PlayerSectionController implements Initializable {
         } else {
             log.trace("Video player state is being changed to \"paused\"");
             videoPlayer.pause();
+        }
+    }
+
+    private void updateBufferIndicator(boolean showBuffer) {
+        // check if the buffer is already present and it should not be shown
+        if (!showBuffer && bufferIndicator != null) {
+            log.trace("Removing the buffer indicator from the player view");
+            Platform.runLater(() -> {
+                bufferPane.getChildren().clear();
+                bufferIndicator = null;
+            });
+        } else if (showBuffer && bufferIndicator == null) {
+            log.trace("Adding the buffer indicator to the player view");
+            bufferIndicator = new StackPane();
+            bufferIndicator.getStyleClass().add(BUFFER_STYLE_CLASS);
+            bufferIndicator.getChildren().add(new ProgressIndicator());
+
+            Platform.runLater(() -> bufferPane.getChildren().add(bufferIndicator));
         }
     }
 

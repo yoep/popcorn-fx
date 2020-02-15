@@ -284,6 +284,9 @@ public class VideoPlayerYoutube implements VideoPlayer {
                 case "ended":
                     setPlayerState(PlayerState.STOPPED);
                     break;
+                case "buffering":
+                    setPlayerState(PlayerState.BUFFERING);
+                    break;
                 default:
                     setPlayerState(PlayerState.UNKNOWN);
                     break;

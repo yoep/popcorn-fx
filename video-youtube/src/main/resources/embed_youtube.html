@@ -57,6 +57,8 @@
             startListener();
         } else if (state === YT.PlayerState.PAUSED) {
             VPY.state("paused");
+        } else if (state === YT.PlayerState.BUFFERING) {
+            VPY.state("buffering");
         } else if (state === YT.PlayerState.ENDED) {
             VPY.state("ended");
             stopListener();

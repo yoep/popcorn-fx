@@ -160,6 +160,12 @@ public class PlayerSectionController implements Initializable {
             updateBufferIndicator(newValue == PlayerState.BUFFERING);
 
             switch (newValue) {
+                case PLAYING:
+                    // start the idle timer when the video starts playing
+                    // no user feedback might be present when the video starts playing
+                    // causing the player overlay to never hide
+                    idleTimer.playFromStart();
+                    break;
                 case ERROR:
                     log.error("Video player state changed to {}", newValue);
                     Throwable error = videoPlayer.getError();

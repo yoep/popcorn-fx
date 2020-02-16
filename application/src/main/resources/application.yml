@@ -6,7 +6,7 @@ spring:
 
 server:
   tomcat:
-    min-spare-threads: 3
+    min-spare-threads: 1
   connection-timeout: 24h
 
 logging:

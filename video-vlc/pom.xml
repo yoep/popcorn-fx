@@ -13,7 +13,7 @@
     <artifactId>video-vlc</artifactId>
 
     <properties>
-        <vlc.version>4.2.0</vlc.version>
+        <vlc.version>4.3.0</vlc.version>
     </properties>
 
     <dependencies>

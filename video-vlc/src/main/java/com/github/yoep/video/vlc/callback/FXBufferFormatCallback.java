@@ -40,9 +40,6 @@ public class FXBufferFormatCallback implements BufferFormatCallback {
         bufferWidth = sourceWidth;
         bufferHeight = sourceHeight;
 
-        // This does not need to be done here, but you could set the video surface size to match the native video
-        // size
-
         return new RV32BufferFormat(sourceWidth, sourceHeight);
     }
 

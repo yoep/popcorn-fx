@@ -2,8 +2,8 @@ package com.github.yoep.video.vlc.callback;
 
 import javafx.application.Platform;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import javafx.scene.transform.Affine;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 @Data
 public class FXRenderCallback implements RenderCallback {
     private final Canvas canvas;
+    private final GraphicsContext graphicsContext;
     private final FXBufferFormatCallback bufferFormat;
 
     /**
@@ -26,6 +27,7 @@ public class FXRenderCallback implements RenderCallback {
      */
     public FXRenderCallback(Canvas canvas, FXBufferFormatCallback bufferFormat) {
         this.canvas = canvas;
+        this.graphicsContext = canvas.getGraphicsContext2D();
         this.bufferFormat = bufferFormat;
 
         initialize();
@@ -46,20 +48,17 @@ public class FXRenderCallback implements RenderCallback {
      * Render a black screen (frame) in the canvas.
      */
     public void renderBlackFrame() {
-        var g = canvas.getGraphicsContext2D();
-
         double width = canvas.getWidth();
         double height = canvas.getHeight();
 
-        g.setFill(Color.BLACK);
-        g.fillRect(0, 0, width, height);
+        graphicsContext.setFill(Color.BLACK);
+        graphicsContext.fillRect(0, 0, width, height);
     }
 
     /**
      * Render a new frame in the canvas.
      */
     public void renderFrame() {
-        var g = canvas.getGraphicsContext2D();
         var videoImage = bufferFormat.getVideoImage();
 
         double width = canvas.getWidth();
@@ -79,20 +78,16 @@ public class FXRenderCallback implements RenderCallback {
             double scaledW = imageWidth * sf;
             double scaledH = imageHeight * sf;
 
-            Affine ax = g.getTransform();
-
-            g.translate(
+            graphicsContext.translate(
                     (width - scaledW) / 2,
                     (height - scaledH) / 2
             );
 
             if (sf != 1.0) {
-                g.scale(sf, sf);
+                graphicsContext.scale(sf, sf);
             }
 
-            g.drawImage(videoImage, 0, 0);
-
-            g.setTransform(ax);
+            graphicsContext.drawImage(videoImage, 0, 0);
         }
     }
 

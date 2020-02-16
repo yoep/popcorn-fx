@@ -110,7 +110,9 @@ public class VideoPlayerFX implements VideoPlayer {
 
     @Override
     public void dispose() {
-        mediaPlayer.dispose();
+        if (mediaPlayer != null)
+            mediaPlayer.dispose();
+
         mediaView = null;
         mediaPlayer = null;
     }

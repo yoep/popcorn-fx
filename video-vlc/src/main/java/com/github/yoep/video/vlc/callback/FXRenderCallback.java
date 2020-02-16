@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Affine;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
@@ -78,6 +79,8 @@ public class FXRenderCallback implements RenderCallback {
             double scaledW = imageWidth * sf;
             double scaledH = imageHeight * sf;
 
+            Affine ax = graphicsContext.getTransform();
+
             graphicsContext.translate(
                     (width - scaledW) / 2,
                     (height - scaledH) / 2
@@ -88,6 +91,7 @@ public class FXRenderCallback implements RenderCallback {
             }
 
             graphicsContext.drawImage(videoImage, 0, 0);
+            graphicsContext.setTransform(ax);
         }
     }
 

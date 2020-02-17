@@ -2,7 +2,7 @@ package com.github.yoep.video.youtube.config;
 
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.youtube.VideoPlayerYoutube;
-import com.github.yoep.video.youtube.condition.ConditionalOnWebkitSupported;
+import com.github.yoep.video.youtube.conditions.ConditionalOnWebkitSupported;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

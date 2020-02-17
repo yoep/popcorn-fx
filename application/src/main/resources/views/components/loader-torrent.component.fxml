@@ -25,7 +25,7 @@
         <Label fx:id="statusText" styleClass="status-text"/>
 
         <!-- Progress -->
-        <ProgressBar fx:id="progressBar" maxWidth="Infinity"/>
+        <ProgressBar fx:id="progressBar" cache="true" cacheHint="SPEED" maxWidth="Infinity"/>
         <GridPane fx:id="progressStatus" styleClass="progress-status">
             <columnConstraints>
                 <ColumnConstraints percentWidth="50"/>

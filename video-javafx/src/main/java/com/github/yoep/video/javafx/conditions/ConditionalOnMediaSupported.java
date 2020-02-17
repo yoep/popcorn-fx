@@ -1,4 +1,4 @@
-package com.github.yoep.video.javafx.condition;
+package com.github.yoep.video.javafx.conditions;
 
 import org.springframework.context.annotation.Conditional;
 

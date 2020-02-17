@@ -1,4 +1,4 @@
-package com.github.yoep.video.youtube.condition;
+package com.github.yoep.video.youtube.conditions;
 
 import org.springframework.context.annotation.Conditional;
 

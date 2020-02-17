@@ -1,4 +1,4 @@
-package com.github.yoep.video.javafx.condition;
+package com.github.yoep.video.youtube.conditions;
 
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
@@ -8,7 +8,8 @@ import org.springframework.context.annotation.ConfigurationCondition;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
 @Slf4j
-public class OnMediaSupportedCondition implements ConfigurationCondition {
+public class OnWebkitSupportedCondition implements ConfigurationCondition {
+
     @Override
     public ConfigurationPhase getConfigurationPhase() {
         return ConfigurationPhase.REGISTER_BEAN;
@@ -19,7 +20,7 @@ public class OnMediaSupportedCondition implements ConfigurationCondition {
         boolean supported = Platform.isSupported(ConditionalFeature.WEB);
 
         if (!supported)
-            log.warn("JavaFX media is not supported on this platform, disabling JavaFX player as fallback option");
+            log.warn("JavaFX web is not supported on this platform, disabling Youtube video player");
 
         return supported;
     }

@@ -1,4 +1,4 @@
-package com.github.yoep.video.vlc.condition;
+package com.github.yoep.video.vlc.conditions;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.ConditionContext;
@@ -10,7 +10,7 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 class OnVlcCondition implements ConfigurationCondition {
     @Override
     public ConfigurationPhase getConfigurationPhase() {
-        return ConfigurationPhase.REGISTER_BEAN;
+        return ConfigurationPhase.PARSE_CONFIGURATION;
     }
 
     @Override

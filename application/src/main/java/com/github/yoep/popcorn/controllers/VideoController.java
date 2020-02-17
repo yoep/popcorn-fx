@@ -91,9 +91,13 @@ public class VideoController {
         // update the interested parts of the torrent
         torrent.setInterestedBytes(region.getPosition());
 
-        // TODO: use thread blocking instead of a loop
-        while (!torrent.hasBytes(region.getPosition()) && !torrent.hasBytes(region.getPosition() + 2048)) {
-            // wait for the bytes
+        // TODO: use thread blocking instead of a sleep loop
+        try {
+            while (!torrent.hasBytes(region.getPosition()) && !torrent.hasBytes(region.getPosition() + 5120)) {
+                Thread.sleep(50);
+            }
+        } catch (InterruptedException ex) {
+            log.error(ex.getMessage(), ex);
         }
     }
 

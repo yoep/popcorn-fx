@@ -36,7 +36,6 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.media.MediaView;
 import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebView;
 import javafx.util.Duration;
@@ -434,10 +433,11 @@ public class PlayerSectionController implements Initializable {
                 var webview = (WebView) videoSurface;
                 webview.prefWidthProperty().bind(videoView.widthProperty());
                 webview.prefHeightProperty().bind(videoView.heightProperty());
-            } else if (videoSurface instanceof MediaView) {
-                var media = (MediaView) videoSurface;
-                media.fitWidthProperty().bind(videoView.widthProperty());
-                media.fitWidthProperty().bind(videoView.heightProperty());
+            } else if (videoSurface instanceof StackPane) {
+                var pane = (StackPane) videoSurface;
+
+                pane.prefWidthProperty().bind(videoView.widthProperty());
+                pane.prefHeightProperty().bind(videoView.heightProperty());
             }
 
             videoView.getChildren().add(videoSurface);

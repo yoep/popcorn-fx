@@ -10,6 +10,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
+import javafx.scene.layout.StackPane;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaException;
 import javafx.scene.media.MediaPlayer;
@@ -29,6 +30,7 @@ public class VideoPlayerFX implements VideoPlayer {
     private MediaView mediaView;
     private MediaPlayer mediaPlayer;
 
+    private final StackPane stackPane = new StackPane();
     private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
     private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
     private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
@@ -101,7 +103,7 @@ public class VideoPlayerFX implements VideoPlayer {
 
     @Override
     public Node getVideoSurface() {
-        return mediaView;
+        return stackPane;
     }
 
     //endregion
@@ -122,9 +124,7 @@ public class VideoPlayerFX implements VideoPlayer {
         checkInitialized();
 
         try {
-            Media media = new Media(url);
-
-            mediaPlayer = new MediaPlayer(media);
+            mediaPlayer = new MediaPlayer(new Media(url));
             initializeMediaPlayerEvents();
             mediaView.setMediaPlayer(mediaPlayer);
             mediaPlayer.play();
@@ -175,11 +175,14 @@ public class VideoPlayerFX implements VideoPlayer {
                 mediaView = new MediaView();
 
                 mediaView.setPreserveRatio(true);
+                mediaView.fitWidthProperty().bind(stackPane.widthProperty());
+                mediaView.fitHeightProperty().bind(stackPane.heightProperty());
 
+                stackPane.getChildren().add(mediaView);
                 initialized = true;
                 log.trace("JavaFX player initialization done");
             } catch (Exception ex) {
-                log.error("Failed to initialize JavaFX player," + ex.getMessage(), ex);
+                log.error("Failed to initialize JavaFX player, " + ex.getMessage(), ex);
                 setError(new VideoPlayerException(ex.getMessage(), ex));
             }
         });

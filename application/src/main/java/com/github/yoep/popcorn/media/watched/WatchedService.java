@@ -33,7 +33,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WatchedService {
     private static final String NAME = "watched.json";
-    private static final int WATCHED_PERCENTAGE_THRESHOLD = 90;
+    private static final int WATCHED_PERCENTAGE_THRESHOLD = 85;
     private static final int IDLE_TIME = 10;
 
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));

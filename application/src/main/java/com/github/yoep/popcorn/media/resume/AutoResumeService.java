@@ -28,7 +28,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AutoResumeService {
     private static final String NAME = "auto-resume.json";
-    private static final int AUTO_RESUME_PERCENTAGE_THRESHOLD = 90;
+    private static final int AUTO_RESUME_PERCENTAGE_THRESHOLD = 85;
     private static final int IDLE_TIME = 10;
 
     private final ActivityManager activityManager;

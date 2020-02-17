@@ -16,6 +16,8 @@ import java.io.IOException;
 @RequestMapping("/video")
 @RequiredArgsConstructor
 public class VideoController {
+    private static final String JAVA_MEDIA_USER_AGENT = "Java";
+
     private final TorrentService torrentService;
 
     @RequestMapping(value = "/{filename}", method = RequestMethod.GET)
@@ -35,6 +37,8 @@ public class VideoController {
         var video = new FileSystemResource(torrentFile);
         var videoLength = video.contentLength();
         var range = headers.getRange().stream().findFirst().orElse(null);
+        var agent = headers.getFirst(HttpHeaders.USER_AGENT);
+        var status = HttpStatus.PARTIAL_CONTENT;
 
         if (range == null) {
             region = new ResourceRegion(video, 0, videoLength);
@@ -61,12 +65,18 @@ public class VideoController {
             region = new ResourceRegion(video, start, chunkSize);
         }
 
+        // check if the agent is Java media
+        // if so, return OK as status as the media player doesn't accept any other status as success
+        if (agent != null && agent.contains(JAVA_MEDIA_USER_AGENT)) {
+            status = HttpStatus.OK;
+        }
+
         // request the torrent to prioritize the requested bytes
         updateTorrentPriorityAndWait(torrent, region);
 
         log.trace("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"",
                 region.getPosition(), region.getCount(), videoLength, filename);
-        ResponseEntity<ResourceRegion> response = ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+        ResponseEntity<ResourceRegion> response = ResponseEntity.status(status)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                 .header(HttpHeaders.CONNECTION, "keep-alive")
                 .header("TransferMode.dlna.org", "Streaming")

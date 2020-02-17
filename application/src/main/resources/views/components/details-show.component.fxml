@@ -9,6 +9,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.controls.BackgroundImageCover?>
 <AnchorPane styleClass="show-details-section" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.github.yoep.popcorn.controllers.components.ShowDetailsComponent">
     <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
@@ -25,8 +26,8 @@
         </rowConstraints>
 
         <!-- Background -->
-        <fx:include source="background.component.fxml" GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="0"
-                    GridPane.rowSpan="4"/>
+        <BackgroundImageCover fx:id="backgroundImage"
+                GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="0" GridPane.rowSpan="4"/>
 
         <!-- Image -->
         <StackPane fx:id="posterHolder" styleClass="poster" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">

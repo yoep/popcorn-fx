@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
@@ -52,6 +53,8 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
     private ProgressBar progressBar;
     @FXML
     private Pane progressStatus;
+    @FXML
+    private BackgroundImageCover backgroundImage;
 
     //region Constructors
 
@@ -144,7 +147,10 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         this.torrentThread = new Thread(() -> {
             // reset the progress bar to "infinite" animation
             resetProgress();
-            Platform.runLater(() -> progressStatus.setVisible(false));
+            Platform.runLater(() -> {
+                loadBackgroundImage();
+                progressStatus.setVisible(false);
+            });
 
             // check if the torrent stream is initialized, of not, wait for it to be initialized before proceeding
             if (!torrentService.isInitialized())
@@ -276,6 +282,10 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         subtitleService.download(subtitle);
     }
 
+    private void loadBackgroundImage() {
+        backgroundImage.load(media);
+    }
+
     private void reset() {
         this.title = null;
         this.media = null;
@@ -283,6 +293,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         this.mediaTorrent = null;
         this.quality = null;
         this.torrentThread = null;
+        this.backgroundImage.reset();
     }
 
     private void close() {

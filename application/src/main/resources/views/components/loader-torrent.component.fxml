@@ -3,6 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
+<?import com.github.yoep.popcorn.controls.BackgroundImageCover?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.controllers.components.LoaderTorrentComponent"
           styleClass="loader">
@@ -17,7 +18,7 @@
         <RowConstraints minHeight="20" percentHeight="20"/>
     </rowConstraints>
 
-    <fx:include source="background.component.fxml"
+    <BackgroundImageCover fx:id="backgroundImage"
                 GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
     <VBox GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="20" alignment="CENTER">

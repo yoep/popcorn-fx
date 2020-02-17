@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.media.providers.models.Media;
@@ -64,6 +65,8 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private Label watchedText;
     @FXML
     private Button watchTrailerButton;
+    @FXML
+    private BackgroundImageCover backgroundImage;
 
     //region Constructors
 
@@ -112,6 +115,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
         qualitySelectionPane.getChildren().clear();
         poster.setImage(null);
+        backgroundImage.reset();
     }
 
     //endregion
@@ -168,13 +172,18 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         Assert.notNull(media, "media cannot be null");
         this.media = media;
 
-        loadSubtitles();
         loadText();
         loadStars();
         loadButtons();
+        loadSubtitles();
         loadFavoriteAndWatched();
         loadQualitySelection(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
+        loadBackgroundImage();
         loadPosterImage();
+    }
+
+    private void loadBackgroundImage() {
+        backgroundImage.load(media);
     }
 
     private void loadText() {

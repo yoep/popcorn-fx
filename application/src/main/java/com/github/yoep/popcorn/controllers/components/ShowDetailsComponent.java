@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseDetailsActivity;
 import com.github.yoep.popcorn.activities.LoadMediaTorrentActivity;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
+import com.github.yoep.popcorn.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.controls.Episodes;
 import com.github.yoep.popcorn.controls.Seasons;
 import com.github.yoep.popcorn.media.favorites.FavoriteService;
@@ -89,6 +90,8 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private Label episodeOverview;
     @FXML
     private GridPane episodeDetails;
+    @FXML
+    private BackgroundImageCover backgroundImage;
 
     //region Constructors
 
@@ -124,6 +127,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         seasons.getItems().clear();
         episodes.getItems().clear();
         poster.setImage(null);
+        backgroundImage.reset();
     }
 
     //endregion
@@ -240,7 +244,12 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         loadStars();
         loadSeasons();
         loadFavorite();
+        loadBackgroundImage();
         loadPosterImage();
+    }
+
+    private void loadBackgroundImage() {
+        backgroundImage.load(media);
     }
 
     private void loadText() {

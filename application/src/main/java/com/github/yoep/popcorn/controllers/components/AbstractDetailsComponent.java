@@ -112,7 +112,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
                 final Image posterImage = Optional.ofNullable(media.getImages())
                         .map(Images::getPoster)
                         .filter(e -> !e.equalsIgnoreCase("n/a"))
-                        .map(Image::new)
+                        .map(url -> new Image(url, true))
                         .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream()));
 
                 Platform.runLater(() -> poster.setImage(posterImage));

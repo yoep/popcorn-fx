@@ -142,7 +142,7 @@ public class VideoPlayerVlc implements VideoPlayer {
         checkInitialized();
 
         timer.start();
-        invokeOnVlc(() -> mediaPlayer.media().play(url));
+        invokeOnVlc(() -> mediaPlayer.media().play(url, "--network-caching=2048"));
     }
 
     @Override

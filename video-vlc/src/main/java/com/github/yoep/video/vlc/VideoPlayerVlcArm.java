@@ -11,6 +11,7 @@ import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 
 import javax.annotation.PostConstruct;
 import javax.swing.*;
+import java.awt.*;
 
 @Slf4j
 @ToString
@@ -54,6 +55,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
             frame = new JFrame();
             frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
             frame.setUndecorated(true);
+            frame.setType(Window.Type.UTILITY);
             frame.setContentPane(mediaPlayerComponent);
 
             mediaPlayer = mediaPlayerComponent.mediaPlayer();

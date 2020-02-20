@@ -194,6 +194,9 @@ public class VideoPlayerFX implements VideoPlayer {
 
     private void reset() {
         error = null;
+
+        setTime(0);
+        setDuration(0);
     }
 
     private void initializeMediaPlayerEvents() {

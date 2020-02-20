@@ -102,6 +102,9 @@ abstract class AbstractVideoPlayer implements VideoPlayer {
 
     protected void reset() {
         error = null;
+
+        setTime(0);
+        setDuration(0);
     }
 
     protected void setError(Throwable throwable) {

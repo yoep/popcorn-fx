@@ -1,7 +1,7 @@
-package com.github.yoep.popcorn.controllers;
+package com.github.yoep.popcorn.torrent.stream.controllers;
 
+import com.github.yoep.popcorn.torrent.stream.TorrentResource;
 import com.github.yoep.popcorn.torrent.TorrentService;
-import com.github.yoep.popcorn.torrent.models.Torrent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.FileSystemResource;
@@ -34,7 +34,7 @@ public class VideoController {
         log.trace("Received request headers {} for video {}", headers, filename);
         ResourceRegion region;
         var torrent = torrentService.getTorrent(filename);
-        var video = new FileSystemResource(torrentFile);
+        var video = new TorrentResource(torrent);
         var videoLength = video.contentLength();
         var range = headers.getRange().stream().findFirst().orElse(null);
         var agent = headers.getFirst(HttpHeaders.USER_AGENT);
@@ -71,9 +71,6 @@ public class VideoController {
             status = HttpStatus.OK;
         }
 
-        // request the torrent to prioritize the requested bytes
-        updateTorrentPriorityAndWait(torrent, region);
-
         log.trace("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"",
                 region.getPosition(), region.getCount(), videoLength, filename);
         ResponseEntity<ResourceRegion> response = ResponseEntity.status(status)
@@ -85,20 +82,6 @@ public class VideoController {
         log.trace("Responding to video request \"{}\" with status {} and headers {}", filename, response.getStatusCodeValue(), response.getHeaders());
 
         return response;
-    }
-
-    private void updateTorrentPriorityAndWait(Torrent torrent, ResourceRegion region) {
-        // update the interested parts of the torrent
-        torrent.setInterestedBytes(region.getPosition());
-
-        // TODO: use thread blocking instead of a sleep loop
-        try {
-            while (!torrent.hasBytes(region.getPosition()) && !torrent.hasBytes(region.getPosition() + 5120)) {
-                Thread.sleep(50);
-            }
-        } catch (InterruptedException ex) {
-            log.error(ex.getMessage(), ex);
-        }
     }
 
     private MediaType getContentType(FileSystemResource video) {

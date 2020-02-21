@@ -1,56 +1,44 @@
-package com.github.yoep.popcorn.torrent;
+package com.github.yoep.popcorn.torrent.stream;
 
 import com.frostwire.jlibtorrent.AlertListener;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.github.yoep.popcorn.torrent.models.Torrent;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Extension on top of {@link InputStream} which blocks the stream reading when the requested bytes are not yet available.
+ */
+@Slf4j
+@ToString
+@EqualsAndHashCode(callSuper = false)
 public class TorrentInputStream extends FilterInputStream implements AlertListener {
-    private Torrent torrent;
+    private final Torrent torrent;
+
     private boolean stopped;
     private long location;
 
+    /**
+     * Initialize a new instance of {@link TorrentInputStream}.
+     *
+     * @param torrent     The torrent this input stream provides.
+     * @param inputStream The parent input stream of this filtered stream.
+     */
     public TorrentInputStream(Torrent torrent, InputStream inputStream) {
         super(inputStream);
-
         this.torrent = torrent;
     }
 
     @Override
-    protected void finalize() throws Throwable {
-        synchronized (this) {
-            stopped = true;
-            notifyAll();
-        }
-
-        super.finalize();
-    }
-
-    private synchronized boolean waitForPiece(long offset) {
-        while (!Thread.currentThread().isInterrupted() && !stopped) {
-            try {
-                if (torrent.hasBytes(offset)) {
-                    return true;
-                }
-
-                wait();
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        return false;
-    }
-
-    @Override
     public synchronized int read() throws IOException {
-        if (!waitForPiece(location)) {
+        if (!waitForPiece(location))
             return -1;
-        }
 
         location++;
 
@@ -74,6 +62,7 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
 
     @Override
     public void close() throws IOException {
+        log.trace("Closing torrent input stream {}", this);
         synchronized (this) {
             stopped = true;
             notifyAll();
@@ -83,18 +72,15 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
     }
 
     @Override
-    public synchronized long skip(long n) throws IOException {
-        location += n;
-        return super.skip(n);
+    public synchronized long skip(long length) throws IOException {
+        log.trace("Skipping {} bytes in torrent input stream {}", length, this);
+        location += length;
+        return super.skip(length);
     }
 
     @Override
     public boolean markSupported() {
         return false;
-    }
-
-    private synchronized void pieceFinished() {
-        notifyAll();
     }
 
     @Override
@@ -113,5 +99,28 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
             default:
                 break;
         }
+    }
+
+    private synchronized boolean waitForPiece(long offset) {
+        while (!Thread.currentThread().isInterrupted() && !stopped) {
+            try {
+                if (torrent.hasBytes(offset)) {
+                    log.trace("Offset {} is present in torrent input stream {}, not waiting for bytes", offset, this);
+                    return true;
+                }
+
+                log.debug("Waiting for offset {} to be present in torrent input stream {}", offset, this);
+                wait();
+            } catch (InterruptedException ex) {
+                log.debug("Torrent input stream wait got interrupted for {}", this);
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        return false;
+    }
+
+    private synchronized void pieceFinished() {
+        notifyAll();
     }
 }

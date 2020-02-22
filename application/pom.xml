@@ -40,6 +40,11 @@
             <artifactId>video-vlc</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>video-youtube</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Apache -->
         <dependency>
@@ -207,13 +212,6 @@
             <id>windows</id>
 
             <dependencies>
-                <!-- Youtube player -->
-                <dependency>
-                    <groupId>com.github.yoep</groupId>
-                    <artifactId>video-youtube</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-
                 <!-- JLibtorrent -->
                 <dependency>
                     <groupId>com.frostwire</groupId>
@@ -226,13 +224,6 @@
             <id>linux</id>
 
             <dependencies>
-                <!-- Youtube player -->
-                <dependency>
-                    <groupId>com.github.yoep</groupId>
-                    <artifactId>video-youtube</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-
                 <!-- JLibtorrent -->
                 <dependency>
                     <groupId>com.frostwire</groupId>

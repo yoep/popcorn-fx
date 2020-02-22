@@ -57,6 +57,7 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <spring-boot-starter-javafx.version>1.0.1-SNAPSHOT</spring-boot-starter-javafx.version>
+        <javafx.version>13.0.2</javafx.version>
         <commons-io.version>2.6</commons-io.version>
     </properties>
 
@@ -67,6 +68,36 @@
                 <groupId>com.github.yoep</groupId>
                 <artifactId>spring-boot-starter-javafx</artifactId>
                 <version>${spring-boot-starter-javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-base</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-graphics</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-fxml</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-web</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-media</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-swing</artifactId>
+                <version>${javafx.version}</version>
             </dependency>
 
             <!-- Apache -->

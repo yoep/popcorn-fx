@@ -6,6 +6,7 @@ import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.settings.SettingsService;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -35,6 +36,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
                 .title("Popcorn Time")
                 .icon(ICON_NAME)
                 .maximized(uiSettings.isMaximized())
+                .background(Color.BLACK)
                 .build());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
     }

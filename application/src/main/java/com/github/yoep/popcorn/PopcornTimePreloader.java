@@ -1,6 +1,8 @@
 package com.github.yoep.popcorn;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
+import javafx.application.ConditionalFeature;
+import javafx.application.Platform;
 import javafx.application.Preloader;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -14,22 +16,22 @@ import org.springframework.core.io.ClassPathResource;
 import java.io.File;
 
 public class PopcornTimePreloader extends Preloader {
-    private static final String ICON_NAME = "icon.png";
     private Stage stage;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        Image icon = new Image(getIconResource().getInputStream());
-        Parent parent = new FXMLLoader(getPreloaderResource().getURL()).load();
-        Scene scene = new Scene(parent);
+        var icon = new Image(getIconResource().getInputStream());
+        var parent = new FXMLLoader(getPreloaderResource().getURL()).<Parent>load();
+        var scene = new Scene(parent);
 
         this.stage = primaryStage;
 
         primaryStage.setScene(scene);
         primaryStage.setIconified(false);
-        primaryStage.initStyle(StageStyle.TRANSPARENT);
         primaryStage.getIcons().add(icon);
-        scene.setFill(Color.TRANSPARENT);
+
+        updateBackground(primaryStage, scene);
+
         primaryStage.show();
     }
 
@@ -40,11 +42,25 @@ public class PopcornTimePreloader extends Preloader {
         }
     }
 
+    private void updateBackground(Stage stage, Scene scene) {
+        if (isTransparencySupported()) {
+            stage.initStyle(StageStyle.TRANSPARENT);
+            scene.setFill(Color.TRANSPARENT);
+        } else {
+            stage.initStyle(StageStyle.UNDECORATED);
+            scene.setFill(Color.BLACK);
+        }
+    }
+
     private ClassPathResource getIconResource() {
-        return new ClassPathResource(ViewLoader.IMAGE_DIRECTORY + File.separator + ICON_NAME);
+        return new ClassPathResource(ViewLoader.IMAGE_DIRECTORY + File.separator + PopcornTimeApplication.ICON_NAME);
     }
 
     private ClassPathResource getPreloaderResource() {
         return new ClassPathResource(ViewLoader.VIEW_DIRECTORY + "/preloader.fxml");
+    }
+
+    private static boolean isTransparencySupported() {
+        return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW);
     }
 }

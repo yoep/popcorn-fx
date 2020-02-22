@@ -16,6 +16,7 @@ import java.io.File;
         SecurityAutoConfiguration.class
 })
 public class PopcornTimeApplication extends SpringJavaFXApplication {
+    public static final String ICON_NAME = "icon_64.png";
     public static String APP_DIR = getDefaultAppDirLocation();
 
     public static void main(String[] args) {
@@ -32,7 +33,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         loader.show(primaryStage, "main.fxml", ViewProperties.builder()
                 .title("Popcorn Time")
-                .icon("icon.png")
+                .icon(ICON_NAME)
                 .maximized(uiSettings.isMaximized())
                 .build());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);

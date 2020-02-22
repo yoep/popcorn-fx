@@ -10,17 +10,28 @@ import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 
 import javax.annotation.PostConstruct;
-import javax.swing.*;
-import java.awt.*;
 
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class VideoPlayerVlcArm extends AbstractVideoPlayer {
-    private JFrame frame;
     private EmbeddedMediaPlayerComponent mediaPlayerComponent;
 
+    public VideoPlayerVlcArm() {
+        mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
+        mediaPlayer = mediaPlayerComponent.mediaPlayer();
+    }
+
     //region Getters
+
+    /**
+     * Get the media player component of VLC.
+     *
+     * @return Returns the embedded media player component.
+     */
+    public EmbeddedMediaPlayerComponent getMediaPlayerComponent() {
+        return mediaPlayerComponent;
+    }
 
     @Override
     public Node getVideoSurface() {
@@ -33,14 +44,11 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
 
     @Override
     public void dispose() {
-        if (frame != null)
-            frame.dispose();
         if (mediaPlayer != null)
             mediaPlayer.release();
         if (mediaPlayerComponent != null)
             mediaPlayerComponent.release();
 
-        this.frame = null;
         this.mediaPlayer = null;
         this.mediaPlayerComponent = null;
     }
@@ -50,18 +58,6 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         checkInitialized();
 
         try {
-            mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
-
-            frame = new JFrame();
-            frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-            frame.setUndecorated(true);
-            frame.setType(Window.Type.UTILITY);
-            frame.setContentPane(mediaPlayerComponent);
-
-            mediaPlayer = mediaPlayerComponent.mediaPlayer();
-            initialize();
-
-            frame.setVisible(true);
             mediaPlayer.media().play(url, VLC_OPTIONS);
         } catch (Exception ex) {
             log.error("Failed to play media on VLC ARM, " + ex.getMessage(), ex);
@@ -92,7 +88,6 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         checkInitialized();
         mediaPlayer.controls().stop();
 
-        dispose();
         reset();
     }
 
@@ -105,6 +100,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         log.trace("Initializing VLC ARM player");
 
         try {
+            initialize();
             initialized = true;
             log.trace("VLC player ARM initialization done");
         } catch (Exception ex) {

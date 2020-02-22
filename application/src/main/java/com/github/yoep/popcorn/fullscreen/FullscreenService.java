@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.fullscreen;
 
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.FullscreenActivity;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.activities.FullscreenActivity;
 import com.github.yoep.popcorn.activities.ToggleFullscreenActivity;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
@@ -32,19 +32,21 @@ public class FullscreenService {
 
     private void onToggleFullscreen() {
         viewManager.getPrimaryStage()
-                .ifPresent(stage -> {
-                    if (!listenerRegistered)
-                        registerListener();
+                .ifPresentOrElse(
+                        stage -> {
+                            if (!listenerRegistered)
+                                registerListener();
 
-                    // check if no duplicate screen toggle command has been received
-                    if (System.currentTimeMillis() - lastChange < 300)
-                        return;
+                            // check if no duplicate screen toggle command has been received
+                            if (System.currentTimeMillis() - lastChange < 300)
+                                return;
 
-                    Platform.runLater(() -> {
-                        lastChange = System.currentTimeMillis();
-                        stage.setFullScreen(!stage.isFullScreen());
-                    });
-                });
+                            Platform.runLater(() -> {
+                                lastChange = System.currentTimeMillis();
+                                stage.setFullScreen(!stage.isFullScreen());
+                            });
+                        },
+                        () -> log.error("Unable to toggle fullscreen, primary stage is not present"));
     }
 
     private void onClosePlayer() {

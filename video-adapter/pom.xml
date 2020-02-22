@@ -13,10 +13,9 @@
     <artifactId>video-adapter</artifactId>
 
     <dependencies>
-        <!-- Spring Boot -->
         <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>spring-boot-starter-javafx</artifactId>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
             <scope>provided</scope>
         </dependency>
     </dependencies>

@@ -19,7 +19,7 @@ import org.springframework.core.annotation.Order;
 public class VideoConfig {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 9)
-    @ConditionalOnArmDevice
+//    @ConditionalOnArmDevice
     @ConditionalOnArmVideoEnabled
     public VideoPlayer vlcArmVideoPlayer() {
         log.info("Using VLC ARM player for video playbacks");

@@ -19,6 +19,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- JavaFX -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Apache -->
         <dependency>
             <groupId>commons-io</groupId>

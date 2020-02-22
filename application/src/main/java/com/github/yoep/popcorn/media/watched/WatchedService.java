@@ -46,6 +46,7 @@ public class WatchedService {
      * This cache is saved and unloaded after {@link #IDLE_TIME} seconds to free up memory.
      */
     private Watched cache;
+    private int cacheHash;
 
     //region Methods
 
@@ -231,6 +232,7 @@ public class WatchedService {
 
                 synchronized (cacheLock) {
                     cache = objectMapper.readValue(file, Watched.class);
+                    cacheHash = cache.hashCode();
                 }
             } catch (IOException ex) {
                 log.error("Unable to read watched items file at " + file.getAbsolutePath(), ex);
@@ -251,7 +253,11 @@ public class WatchedService {
             return;
 
         synchronized (cacheLock) {
-            save(cache);
+            // check if the cache was modified
+            // if not, the cache will only be removed from memory but not saved again
+            if (cache.hashCode() != cacheHash)
+                save(cache);
+
             cache = null;
         }
     }

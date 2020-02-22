@@ -37,6 +37,7 @@ public class AutoResumeService {
     private final Object cacheLock = new Object();
 
     private AutoResume cache;
+    private int cacheHash;
 
     //region Getters
 
@@ -191,6 +192,7 @@ public class AutoResumeService {
                 log.debug("Loading auto resume timestamps from {}", file.getAbsolutePath());
                 synchronized (cacheLock) {
                     cache = objectMapper.readValue(file, AutoResume.class);
+                    cacheHash = cache.hashCode();
                 }
             } catch (IOException ex) {
                 log.error("Failed to load the auto resume timestamps with error " + ex.getMessage(), ex);
@@ -222,7 +224,11 @@ public class AutoResumeService {
             return;
 
         synchronized (cacheLock) {
-            save(cache);
+            // check if the cache was modified
+            // if not, the cache will only be removed from memory but not saved again
+            if (cacheHash != cache.hashCode())
+                save(cache);
+
             cache = null;
         }
     }

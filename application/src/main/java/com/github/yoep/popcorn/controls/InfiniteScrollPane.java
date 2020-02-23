@@ -292,7 +292,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
 
                             runOnFx(() -> {
                                 // check if enough items were loaded for the scrollbar to be scrollable
-                                if (!endOfItems && itemsPane.getHeight() < (this.getHeight() * 1.5)) {
+                                if (!endOfItems && itemsPane.getHeight() < (this.getHeight() * 1.5) && getPage() < 5) {
                                     // load an additional page
                                     updating = false;
                                     increasePage();

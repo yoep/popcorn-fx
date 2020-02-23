@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.ApplicationArguments;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -28,18 +29,21 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MainController extends ScaleAwareImpl implements Initializable {
     private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
+    private static final Pattern URL_TYPE_PATTERN = Pattern.compile("([a-zA-Z]*):?(.*)");
 
     private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
     private final ViewManager viewManager;
     private final TaskExecutor taskExecutor;
     private final SettingsService settingsService;
+    private final ApplicationArguments arguments;
 
     private Pane contentPane;
     private Pane settingsPane;
@@ -57,6 +61,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         switchSection(SectionType.CONTENT);
         initializeSceneEvents();
         initializeStageListeners();
+
+        processApplicationArguments();
     }
 
     //endregion
@@ -118,6 +124,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         }));
     }
 
+    private void processApplicationArguments() {
+        var nonOptionArgs = arguments.getNonOptionArgs();
+
+        if (nonOptionArgs.size() > 0)
+            processUrl(nonOptionArgs.get(0));
+    }
+
     private void switchSection(SectionType sectionType) {
         AtomicReference<Pane> content = new AtomicReference<>();
 
@@ -157,14 +170,10 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             processFiles(files);
         } else if (StringUtils.isNotEmpty(url)) {
             log.trace("Processing clipboard url");
-            activityManager.register((LoadUrlActivity) () -> url);
+            processUrl(url);
         } else {
             log.trace("Processing clipboard string");
-            String text = clipboard.getString();
-
-            if (text.startsWith("magnet")) {
-                activityManager.register((LoadUrlActivity) () -> text);
-            }
+            processUrl(clipboard.getString());
         }
     }
 
@@ -176,10 +185,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             File file = files.get(0);
 
             try {
-                String contentType = Files.probeContentType(file.toPath());
-                String format = contentType.split("/")[0];
-
-                if (format.equals("video"))
+                if (isVideoFile(file))
                     event.acceptTransferModes(TransferMode.ANY);
             } catch (IOException ex) {
                 log.error("Failed to detect drag content type, " + ex.getMessage(), ex);
@@ -212,9 +218,89 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
             @Override
             public boolean isSubtitlesEnabled() {
-                return true;
+                return false;
             }
         });
+    }
+
+    private void processUrl(String url) {
+        var matcher = URL_TYPE_PATTERN.matcher(url);
+
+        if (matcher.matches()) {
+            var type = matcher.group(1);
+            log.trace("Found type \"{}\" for url {}", type, url);
+
+            if (isWebUrl(type)) {
+                log.debug("Opening web url: {}", url);
+                activityManager.register(new PlayVideoActivity() {
+                    @Override
+                    public String getUrl() {
+                        return url;
+                    }
+
+                    @Override
+                    public String getTitle() {
+                        return "";
+                    }
+
+                    @Override
+                    public boolean isSubtitlesEnabled() {
+                        return false;
+                    }
+                });
+            } else if (isMagnetLink(type)) {
+                log.debug("Opening magnet link: {}", url);
+                activityManager.register((LoadUrlActivity) () -> url);
+            } else {
+                var file = new File(url);
+
+                // check if the url is a valid file
+                if (file.exists()) {
+                    try {
+                        if (isVideoFile(file)) {
+                            log.debug("Opening video file: {}", url);
+                            activityManager.register(new PlayVideoActivity() {
+                                @Override
+                                public String getUrl() {
+                                    return url;
+                                }
+
+                                @Override
+                                public String getTitle() {
+                                    return FilenameUtils.getBaseName(url);
+                                }
+
+                                @Override
+                                public boolean isSubtitlesEnabled() {
+                                    return false;
+                                }
+                            });
+                        }
+                    } catch (IOException ex) {
+                        log.error("Failed to process url, " + ex.getMessage(), ex);
+                    }
+                } else {
+                    log.warn("Failed to process url, file \"{}\" does not exist", url);
+                }
+            }
+        } else {
+            log.warn("Failed to process url, url \"{}\" is invalid", url);
+        }
+    }
+
+    private boolean isWebUrl(String type) {
+        return type.equalsIgnoreCase("http") || type.equalsIgnoreCase("https");
+    }
+
+    private boolean isMagnetLink(String type) {
+        return type.equalsIgnoreCase("magnet");
+    }
+
+    private boolean isVideoFile(File file) throws IOException {
+        var contentType = Files.probeContentType(file.toPath());
+        var format = contentType.split("/")[0];
+
+        return format.equalsIgnoreCase("video");
     }
 
     private void setAnchor(Pane pane) {

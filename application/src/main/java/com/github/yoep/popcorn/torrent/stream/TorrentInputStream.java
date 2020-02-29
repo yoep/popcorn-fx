@@ -105,12 +105,12 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
         while (!Thread.currentThread().isInterrupted() && !stopped) {
             try {
                 if (torrent.hasBytes(offset)) {
-                    log.trace("Offset {} is present in torrent input stream {}, not waiting for bytes", offset, this);
                     return true;
                 }
 
-                log.debug("Waiting for offset {} to be present in torrent input stream {}", offset, this);
+                log.trace("Waiting for offset {} to be present in torrent input stream {}", offset, this);
                 wait();
+                log.trace("Continuing the torrent input stream thread {}", this);
             } catch (InterruptedException ex) {
                 log.debug("Torrent input stream wait got interrupted for {}", this);
                 Thread.currentThread().interrupt();
@@ -121,6 +121,7 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
     }
 
     private synchronized void pieceFinished() {
+        log.trace("Awakening the torrent input stream thread");
         notifyAll();
     }
 }

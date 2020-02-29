@@ -25,8 +25,11 @@ public class SettingsService {
     private static final String NAME = "settings.json";
     private final ObjectMapper objectMapper;
     private final ViewLoader viewLoader;
+    private final OptionsService optionsService;
 
     private ApplicationSettings currentSettings;
+
+    //region Getters
 
     /**
      * Get the application settings.
@@ -36,6 +39,10 @@ public class SettingsService {
     public ApplicationSettings getSettings() {
         return currentSettings;
     }
+
+    //endregion
+
+    //region Methods
 
     /**
      * Save the current application settings to the {@link #NAME} file.
@@ -64,15 +71,14 @@ public class SettingsService {
         }
     }
 
+    //endregion
+
+    //region PostConstruct
+
     @PostConstruct
     private void init() {
         createApplicationSettingsDirectory();
         initializeSettings();
-    }
-
-    @PreDestroy
-    private void destroy() {
-        save();
     }
 
     private void initializeSettings() {
@@ -81,12 +87,37 @@ public class SettingsService {
 
         uiSettings.addListener(event -> {
             if (event.getPropertyName().equals(UISettings.UI_SCALE_PROPERTY)) {
-                UIScale uiScale = (UIScale) event.getNewValue();
+                var uiScale = (UIScale) event.getNewValue();
 
-                viewLoader.setScale(uiScale.getValue());
+                updateUIScale(uiScale.getValue());
             }
         });
-        viewLoader.setScale(uiSettings.getUiScale().getValue());
+
+        updateUIScale(uiSettings.getUiScale().getValue());
+    }
+
+    //endregion
+
+    //region PreDestroy
+
+    @PreDestroy
+    private void destroy() {
+        save();
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void updateUIScale(float scale) {
+        var options = optionsService.options();
+
+        // check if the big-picture mode is activated
+        // if so, double the UI scale
+        if (options.isBigPictureModeActivated())
+            scale *= 2;
+
+        viewLoader.setScale(scale);
     }
 
     private Optional<ApplicationSettings> loadSettingsFromFile() {
@@ -119,4 +150,6 @@ public class SettingsService {
     private File getSettingsFile() {
         return new File(PopcornTimeApplication.APP_DIR + NAME);
     }
+
+    //endregion
 }

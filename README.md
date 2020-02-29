@@ -64,6 +64,17 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
     -Dprism.dirtyopts=false
 
+## Launch options
+
+The following launch options can be used as startup arguments.
+
+Option                          | Description
+---                             | ---
+disable-arm-video-player        | Disable the arm video player from being activated.
+disable-youtube-video-player    | Disabled the youtube player from being activated.
+big-picture                     | Activate the big picture mode.
+kiosk                           | Activate the kiosk mode (use alt+f4 to close the application).
+
 ## Features
 
 ### v1.0.0

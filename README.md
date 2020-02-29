@@ -3,20 +3,18 @@
 Popcorn Time Desktop application based on the original Popcorn Time Desktop and Popcorn Time Android versions.
 This version was created to work with embedded devices such as the Raspberry PI.
 
-## Recommended startup options
+## Launch options
 
-### Disable AWT freeze
+The following launch options can be used as startup arguments.
 
-Add the following VM option argument to prevent AWT from freezing the IDE 
-when running in debug mode.
+Option                          | Description
+---                             | ---
+disable-arm-video-player        | Disable the arm video player from being activated.
+disable-youtube-video-player    | Disabled the youtube player from being activated.
+big-picture                     | Activate the big picture mode.
+kiosk                           | Activate the kiosk mode (use alt+f4 to close the application).
 
-    -Dsun.awt.disablegrab=true
-
-### Better font rendering
-
-Add the following argument to the VM options when you're experiencing blurry text.
-
-    -Dprism.lcdtext=false
+### Java launch options
 
 ### GC optimization
 
@@ -24,6 +22,9 @@ If you want to reduce the memory footprint of the application,
 it's recommended to add the following argument to the VM options:
 
     -XX:+UseG1GC
+    
+This option is already added to the packaged executables 
+(which is not the case for the standalone JAR file).
 
 ### Virtual Keyboard
 
@@ -40,7 +41,7 @@ This can be done by adding the following argument to the VM options:
 - Java 11+
 - OpenJFX 13+
 - CPU: 1.5GHz
-- Memory: 500MB
+- Memory: 750MB
 
 ### Recommended
 
@@ -63,17 +64,6 @@ Add the following options to the `VM Options` in the run configuration of Intell
 Add the following VM option if you're experiencing white boxes in the UI.
 
     -Dprism.dirtyopts=false
-
-## Launch options
-
-The following launch options can be used as startup arguments.
-
-Option                          | Description
----                             | ---
-disable-arm-video-player        | Disable the arm video player from being activated.
-disable-youtube-video-player    | Disabled the youtube player from being activated.
-big-picture                     | Activate the big picture mode.
-kiosk                           | Activate the kiosk mode (use alt+f4 to close the application).
 
 ## Features
 

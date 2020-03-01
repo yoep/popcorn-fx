@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -22,15 +21,15 @@ import java.util.stream.Stream;
 public class FavoriteProviderService extends AbstractProviderService<Media> {
     private static final Category CATEGORY = Category.FAVORITES;
     private final FavoriteService favoriteService;
-    //TODO: cleanup this autowired field
-    @Autowired
-    private List<ProviderService<?>> providers;
+    private final List<ProviderService<?>> providers;
 
     public FavoriteProviderService(RestTemplate restTemplate,
                                    ActivityManager activityManager,
-                                   FavoriteService favoriteService) {
+                                   FavoriteService favoriteService,
+                                   List<ProviderService<?>> providers) {
         super(restTemplate, activityManager);
         this.favoriteService = favoriteService;
+        this.providers = providers;
     }
 
     @Override
@@ -69,6 +68,11 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         return CompletableFuture.completedFuture(mediaList.stream()
                 .filter(e -> e.getTitle().toLowerCase().contains(keywords.toLowerCase()))
                 .toArray(Media[]::new));
+    }
+
+    @Override
+    public CompletableFuture<Media> getDetails(String imdbId) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

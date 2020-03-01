@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ Simple media card view component that doesn't contain any additional details.
+-->
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:id="posterItem" styleClass="poster-item" onMouseClicked="#showDetails" cache="true">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+    <padding>
+        <Insets topRightBottomLeft="10"/>
+    </padding>
+
+    <AnchorPane styleClass="poster"
+                GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <StackPane fx:id="poster" styleClass="poster-image"/>
+    </AnchorPane>
+
+    <Label fx:id="title" styleClass="title"
+           GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+    <Label fx:id="year" styleClass="year"
+           GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+    <Label fx:id="seasons" styleClass="seasons"
+           GridPane.halignment="RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+</GridPane>

@@ -194,6 +194,8 @@ public class HeaderSectionController implements Initializable {
     @FXML
     private void onWatchlistClicked() {
         switchIcon(watchlistIcon);
+        activityManager.register(new ShowWatchlistActivity() {
+        });
     }
 
     @FXML

@@ -27,6 +27,7 @@ public class ContentSectionController implements Initializable {
 
     private Pane listPane;
     private Pane detailsPane;
+    private Pane watchlistPane;
     private Pane torrentCollectionPane;
     private ContentType activeType;
 
@@ -53,6 +54,7 @@ public class ContentSectionController implements Initializable {
     private void initializeListeners() {
         activityManager.register(ShowDetailsActivity.class, activity -> switchContent(ContentType.DETAILS));
         activityManager.register(CloseDetailsActivity.class, activity -> switchContent(ContentType.LIST));
+        activityManager.register(ShowWatchlistActivity.class, activity -> switchContent(ContentType.WATCHLIST));
         activityManager.register(ShowTorrentCollectionActivity.class, activity -> switchContent(ContentType.TORRENT_COLLECTION));
         activityManager.register(CategoryChangedActivity.class, activity -> switchContent(ContentType.LIST));
     }
@@ -67,8 +69,10 @@ public class ContentSectionController implements Initializable {
         taskExecutor.execute(() -> {
             detailsPane = viewLoader.load("sections/details.section.fxml");
             torrentCollectionPane = viewLoader.load("sections/torrent-collection.section.fxml");
+            watchlistPane = viewLoader.load("sections/watchlist.section.fxml");
             setAnchor(detailsPane);
             setAnchor(torrentCollectionPane);
+            setAnchor(watchlistPane);
         });
     }
 
@@ -89,6 +93,9 @@ public class ContentSectionController implements Initializable {
                 break;
             case DETAILS:
                 pane.set(detailsPane);
+                break;
+            case WATCHLIST:
+                pane.set(watchlistPane);
                 break;
             case TORRENT_COLLECTION:
                 pane.set(torrentCollectionPane);
@@ -115,6 +122,7 @@ public class ContentSectionController implements Initializable {
     private enum ContentType {
         LIST,
         DETAILS,
+        WATCHLIST,
         TORRENT_COLLECTION
     }
 }

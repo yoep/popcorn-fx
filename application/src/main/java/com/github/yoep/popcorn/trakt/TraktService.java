@@ -65,12 +65,28 @@ public class TraktService {
         }
     }
 
-    public void getWatchlist() {
+    /**
+     * Get the watchlist of the authorized user.
+     *
+     * @return Returns the watchlist of the user.
+     */
+    @Async
+    public CompletableFuture<List<WatchListItem>> getWatchlist() {
         var uri = UriComponentsBuilder.fromUri(properties.getTrakt().getUrl())
                 .path("sync/watchlist")
                 .build(Collections.emptyMap());
 
-        ResponseEntity<String> response = traktTemplate.getForEntity(uri, String.class);
+        log.trace("Retrieving the user's watchlist at \"{}\"", uri.toString());
+        ResponseEntity<WatchListItem[]> response = traktTemplate.getForEntity(uri, WatchListItem[].class);
+
+        // check if the response body is present
+        if (response.getBody() == null) {
+            log.trace("Failed to retrieve the user's watchlist, body is null");
+            return CompletableFuture.failedFuture(new TraktException("Failed to retrieve watchlist, response body is null"));
+        }
+
+        log.trace("Retrieved {} items from the user's watchlist", response.getBody().length);
+        return CompletableFuture.completedFuture(asList(response.getBody()));
     }
 
     /**

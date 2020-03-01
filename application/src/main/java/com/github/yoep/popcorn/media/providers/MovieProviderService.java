@@ -4,18 +4,19 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowMovieDetailsActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
+import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.media.providers.models.Movie;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
+import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -46,6 +47,22 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     @Override
+    public CompletableFuture<Movie> getDetails(String imdbId) {
+        var uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())
+                .path("/movie/{id}")
+                .build(imdbId);
+
+        log.debug("Retrieving movie details \"{}\"", uri);
+        var response = restTemplate.getForEntity(uri, Movie.class);
+
+        if (response.getBody() == null) {
+            return CompletableFuture.failedFuture(new MediaException(MessageFormat.format("Failed to retrieve the details of {0}", imdbId)));
+        }
+
+        return CompletableFuture.completedFuture(response.getBody());
+    }
+
+    @Override
     public void showDetails(Media media) {
         final Movie movie = (Movie) media;
 
@@ -53,7 +70,7 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     public Movie[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        URI uri = getUriFor(providerConfig.getUrl(), "movies", genre, sortBy, keywords, page);
+        var uri = getUriFor(providerConfig.getUrl(), "movies", genre, sortBy, keywords, page);
 
         log.debug("Retrieving movie provider page \"{}\"", uri);
         ResponseEntity<Movie[]> items = restTemplate.getForEntity(uri, Movie[].class);

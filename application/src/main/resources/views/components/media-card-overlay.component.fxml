@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!--
+Media card containing additional details in an overlay.
+-->
+
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.controls.Stars?>
 <?import javafx.geometry.Insets?>

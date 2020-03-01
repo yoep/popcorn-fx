@@ -67,7 +67,10 @@ public class SettingsService {
             log.info("Saving application settings to {}", settingsFile.getAbsolutePath());
             FileUtils.writeStringToFile(settingsFile, objectMapper.writeValueAsString(settings), Charset.defaultCharset());
         } catch (IOException ex) {
-            throw new SettingsException("Unable to write settings to " + settingsFile.getAbsolutePath(), ex);
+            var exception = new SettingsException("Unable to write settings to " + settingsFile.getAbsolutePath(), ex);
+
+            log.error(exception.getMessage(), exception);
+            throw exception;
         }
     }
 

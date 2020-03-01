@@ -3,18 +3,18 @@ package com.github.yoep.popcorn.controllers.sections;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
-import com.github.yoep.popcorn.controllers.components.ItemListener;
-import com.github.yoep.popcorn.controllers.components.MediaCardComponent;
+import com.github.yoep.popcorn.controllers.components.OverlayItemListener;
+import com.github.yoep.popcorn.controllers.components.OverlayMediaCardComponent;
 import com.github.yoep.popcorn.controls.InfiniteScrollItemFactory;
 import com.github.yoep.popcorn.controls.InfiniteScrollPane;
 import com.github.yoep.popcorn.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.media.providers.ProviderService;
+import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.messages.ListMessage;
 import com.github.yoep.popcorn.models.Category;
 import com.github.yoep.popcorn.models.Genre;
 import com.github.yoep.popcorn.models.SortBy;
-import com.github.yoep.popcorn.media.providers.ProviderService;
-import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.media.watched.WatchedService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -81,6 +81,7 @@ public class ListSectionController implements Initializable {
             @Override
             public CompletableFuture<List<Media>> loadPage(int page) {
                 return loadItems(page)
+                        .exceptionally(throwable -> onMediaRequestFailed(throwable))
                         .thenApply(Arrays::asList);
             }
 
@@ -177,8 +178,8 @@ public class ListSectionController implements Initializable {
         item.setWatched(watchedService.isWatched(item));
 
         // load a new media card controller and inject it into the view
-        MediaCardComponent mediaCardComponent = new MediaCardComponent(item, localeText, taskExecutor, createItemListener());
-        Pane node = viewLoader.load("components/media-card.component.fxml", mediaCardComponent);
+        OverlayMediaCardComponent mediaCardComponent = new OverlayMediaCardComponent(item, localeText, createItemListener());
+        Pane node = viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
 
         // update the media favorite information
         mediaCardComponent.setIsFavorite(favoriteService.isFavorite(item));
@@ -186,8 +187,8 @@ public class ListSectionController implements Initializable {
         return node;
     }
 
-    private ItemListener createItemListener() {
-        return new ItemListener() {
+    private OverlayItemListener createItemListener() {
+        return new OverlayItemListener() {
             @Override
             public void onClicked(Media media) {
                 onItemClicked(media);
@@ -231,8 +232,10 @@ public class ListSectionController implements Initializable {
     private Media[] onMediaRequestFailed(Throwable throwable) {
         // check if the media request was cancelled
         // if so, ignore this failure
-        if (throwable instanceof CancellationException)
+        if (throwable instanceof CancellationException) {
+            log.trace("Media request has been cancelled by the user");
             return new Media[0];
+        }
 
         Throwable rootCause = throwable.getCause();
         AtomicReference<String> message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));

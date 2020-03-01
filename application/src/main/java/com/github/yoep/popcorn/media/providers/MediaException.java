@@ -7,6 +7,11 @@ import lombok.Getter;
 public class MediaException extends RuntimeException {
     private final Media media;
 
+    public MediaException(String message) {
+        super(message);
+        this.media = null;
+    }
+
     public MediaException(Media media, String message) {
         super(message);
         this.media = media;

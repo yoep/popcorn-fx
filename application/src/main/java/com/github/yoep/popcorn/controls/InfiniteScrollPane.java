@@ -70,6 +70,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
      * @param page The new page.
      */
     public void setPage(int page) {
+        log.trace("Updating page to {}", page);
         this.page.set(page);
     }
 
@@ -146,10 +147,6 @@ public class InfiniteScrollPane<T> extends ScrollPane {
      * This will reset the page to "0" and remove all items from this control.
      */
     public void reset() {
-        // check if a reset is required
-        if (!updating && items.size() == 0)
-            return;
-
         log.trace("Resetting the infinite scroll pane content");
 
         // finish up the current update

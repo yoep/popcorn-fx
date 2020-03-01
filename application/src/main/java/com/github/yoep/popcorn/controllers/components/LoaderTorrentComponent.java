@@ -3,9 +3,9 @@ package com.github.yoep.popcorn.controllers.components;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.controls.BackgroundImageCover;
-import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
@@ -24,6 +24,9 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
@@ -183,7 +186,12 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
             if (!torrentService.isInitialized())
                 waitForTorrentStream();
 
-            //TODO: add subtitle download based on the filename
+            // update the status to retrieving subtitles and request the subtitles for the filename
+            Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES)));
+            retrieveSubtitles(activity.getFilename());
+
+            // download the default subtitle that was determined in the last step
+            downloadSubtitles();
 
             // update the status text to "connecting"
             Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
@@ -272,13 +280,28 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         });
     }
 
+    private void retrieveSubtitles(String filename) {
+        // retrieve the subtitles for the filename and update the subtitle to the default one
+        try {
+            var subtitles = subtitleService
+                    .retrieveSubtitles(filename)
+                    .get(10, TimeUnit.SECONDS);
+
+            subtitle = subtitleService.getDefault(subtitles);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            log.warn(ex.getMessage(), ex);
+        }
+    }
+
     private void downloadSubtitles() {
         // check if the given subtitle is the special "none" subtitle, if so, ignore the subtitle download
         if (subtitle.isNone())
             return;
 
+        // update the status text to downloading subtitles
         Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLES)));
 
+        // download the subtitle locally, this will cache the subtitle for later use in the video player
         subtitleService.download(subtitle);
     }
 

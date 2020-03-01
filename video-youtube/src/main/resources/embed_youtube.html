@@ -33,8 +33,6 @@
     function onYouTubeIframeAPIReady() {
         console.log("Youtube Iframe API is ready");
         player = new YT.Player('player', {
-            height: window.innerHeight,
-            width: window.innerWidth,
             playerVars: {
                 'autoplay': 1,
                 'controls': 0,

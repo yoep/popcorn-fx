@@ -295,7 +295,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
 
     private void downloadSubtitles() {
         // check if the given subtitle is the special "none" subtitle, if so, ignore the subtitle download
-        if (subtitle.isNone())
+        if (subtitle == null || subtitle.isNone())
             return;
 
         // update the status text to downloading subtitles

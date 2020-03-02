@@ -24,10 +24,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.ResourceBundle;
+import java.util.*;
 
 import static java.util.Arrays.asList;
 
@@ -99,7 +96,7 @@ public class DetailsTorrentComponent implements Initializable {
         log.debug("Processing details of torrent info {}", activity.getTorrentInfo().name());
         this.magnetUri = activity.getMagnetUri();
         this.torrentInfo = activity.getTorrentInfo();
-        var fileNames = new ArrayList<String>();
+        var filenames = new ArrayList<String>();
         var files = torrentInfo.files();
 
         for (int i = 0; i < files.numFiles(); i++) {
@@ -107,15 +104,15 @@ public class DetailsTorrentComponent implements Initializable {
             String extension = FilenameUtils.getExtension(fileName);
 
             if (SUPPORTED_FILES.contains(extension.toLowerCase()))
-                fileNames.add(fileName);
+                filenames.add(fileName);
         }
 
-        // sort files to make it easier fot the user
-        Collections.sort(fileNames);
+        // sort files to make it easier for the user
+        filenames.sort(Comparator.comparing(String::toLowerCase));
 
         Platform.runLater(() -> {
             fileList.getItems().clear();
-            fileList.getItems().addAll(fileNames);
+            fileList.getItems().addAll(filenames);
         });
 
         updateStoreTorrent(torrentCollectionService.isStored(magnetUri));

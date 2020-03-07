@@ -7,7 +7,7 @@ spring:
 server:
   tomcat:
     min-spare-threads: 1
-  connection-timeout: 24h
+  connection-timeout: -1
 
 logging:
   level:

@@ -4,8 +4,6 @@ import com.frostwire.jlibtorrent.AlertListener;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.github.yoep.popcorn.torrent.models.Torrent;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.FilterInputStream;
@@ -16,9 +14,9 @@ import java.io.InputStream;
  * Extension on top of {@link InputStream} which blocks the stream reading when the requested bytes are not yet available.
  */
 @Slf4j
-@ToString
-@EqualsAndHashCode(callSuper = false)
 public class TorrentInputStream extends FilterInputStream implements AlertListener {
+    //TODO: fix this cheaty workaround because 2 different torrent input streams are created
+    private static final Object monitor = new Object();
     private final Torrent torrent;
 
     private boolean stopped;
@@ -101,27 +99,31 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
         }
     }
 
-    private synchronized boolean waitForPiece(long offset) {
-        while (!Thread.currentThread().isInterrupted() && !stopped) {
-            try {
-                if (torrent.hasBytes(offset)) {
-                    return true;
-                }
+    private boolean waitForPiece(long offset) {
+        synchronized (monitor) {
+            while (!Thread.currentThread().isInterrupted() && !stopped) {
+                try {
+                    if (torrent.hasBytes(offset)) {
+                        return true;
+                    }
 
-                log.trace("Waiting for offset {} to be present in torrent input stream {}", offset, this);
-                wait();
-                log.trace("Continuing the torrent input stream thread {}", this);
-            } catch (InterruptedException ex) {
-                log.debug("Torrent input stream wait got interrupted for {}", this);
-                Thread.currentThread().interrupt();
+                    log.trace("Waiting for offset {} to be present in torrent input stream {}", offset, this);
+                    monitor.wait();
+                    log.trace("Continuing the torrent input stream thread {}", this);
+                } catch (InterruptedException ex) {
+                    log.debug("Torrent input stream wait got interrupted for {}", this);
+                    Thread.currentThread().interrupt();
+                }
             }
         }
 
         return false;
     }
 
-    private synchronized void pieceFinished() {
-        log.trace("Awakening the torrent input stream thread");
-        notifyAll();
+    private void pieceFinished() {
+        synchronized (monitor) {
+            log.trace("Awakening the torrent input stream thread {}", this);
+            monitor.notifyAll();
+        }
     }
 }

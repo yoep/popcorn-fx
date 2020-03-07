@@ -19,7 +19,7 @@ import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
  */
 @Slf4j
 abstract class AbstractVideoPlayer implements VideoPlayer {
-    public static final String VLC_OPTIONS = "--network-caching=2048";
+    public static final String VLC_OPTIONS = "";
 
     protected final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
     protected final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);

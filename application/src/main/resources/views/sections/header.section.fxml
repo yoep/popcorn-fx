@@ -33,7 +33,7 @@
                 <ComboBox fx:id="genreCombo"/>
             </HBox>
             <HBox styleClass="filterGroup">
-                <Label labelFor="$sortByCombo" text="%filter_sort_by"/>
+                <Label labelFor="$sortByCombo" text="%filter_sort_by" onMouseClicked="#onSortClicked"/>
                 <ComboBox fx:id="sortByCombo"/>
             </HBox>
         </HBox>

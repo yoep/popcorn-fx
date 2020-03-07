@@ -192,6 +192,11 @@ public class HeaderSectionController implements Initializable {
     }
 
     @FXML
+    private void onSortClicked() {
+        sortByCombo.show();
+    }
+
+    @FXML
     private void onWatchlistClicked() {
         switchIcon(watchlistIcon);
         activityManager.register(new ShowWatchlistActivity() {

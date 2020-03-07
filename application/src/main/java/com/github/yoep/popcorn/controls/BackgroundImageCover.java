@@ -9,6 +9,7 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
 
 import java.util.Optional;
@@ -20,6 +21,7 @@ import java.util.Optional;
 public class BackgroundImageCover extends StackPane {
     private static final String STYLE_CLASS = "background-image";
     private static final String COVER_STYLE_CLASS = "background-cover";
+    private static final Image BACKGROUND_PLACEHOLDER = loadPlaceholder();
 
     private final BorderPane imagePane;
     private final BorderPane coverPane;
@@ -54,16 +56,22 @@ public class BackgroundImageCover extends StackPane {
     }
 
     /**
-     * Reset the background image to a black region.
+     * Reset the background image to the default background placeholder.
      */
     public void reset() {
-        this.imagePane.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
+        if (BACKGROUND_PLACEHOLDER != null) {
+            showBackgroundImage(BACKGROUND_PLACEHOLDER);
+        } else {
+            // fallback to a black background
+            resetToBlackBackground();
+        }
     }
 
     private void init() {
         initializeImagePane();
         initializeCoverPane();
         initializeBackgroundImage();
+        reset();
     }
 
     private void initializeImagePane() {
@@ -83,11 +91,24 @@ public class BackgroundImageCover extends StackPane {
     }
 
     private void showBackgroundImage(final Image image) {
-        final BackgroundSize backgroundSize =
-                new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, true);
-        final BackgroundImage backgroundImage =
-                new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, backgroundSize);
+        var backgroundSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true);
+        var backgroundImage = new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, backgroundSize);
 
         this.imagePane.setBackground(new Background(backgroundImage));
+    }
+
+    private void resetToBlackBackground() {
+        this.imagePane.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
+    }
+
+    private static Image loadPlaceholder() {
+        try {
+            var resource = new ClassPathResource("/images/placeholder-background.jpg");
+            return new Image(resource.getInputStream());
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+
+        return null;
     }
 }

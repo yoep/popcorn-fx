@@ -3,6 +3,7 @@ package com.github.yoep.video.vlc;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
@@ -23,9 +24,8 @@ import java.awt.event.*;
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class VideoPlayerVlcArm extends AbstractVideoPlayer {
-    private static final int Y_OFFSET = 75;
+    private static final Pane videoSurfaceTracker = new StackPane();
 
-    private final Pane videoSurfaceTracker = new StackPane();
     private JFrame frame;
     private EmbeddedMediaPlayerComponent mediaPlayerComponent;
 
@@ -60,6 +60,8 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
 
         try {
             frame.setVisible(true);
+            frame.toBack();
+
             mediaPlayer.media().play(url, VLC_OPTIONS);
         } catch (Exception ex) {
             log.error("Failed to play media on VLC ARM, " + ex.getMessage(), ex);
@@ -127,7 +129,6 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         frame.setUndecorated(true);
         frame.setType(Window.Type.UTILITY);
         frame.setMinimumSize(new Dimension(800, 600));
-        frame.setAlwaysOnTop(true);
         frame.setContentPane(mediaPlayerComponent);
 
         initializeFrameListeners();
@@ -174,6 +175,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
             if (scene != null && !boundToWindow) {
                 var window = scene.getWindow();
 
+                updateTransparentComponents(scene);
                 window.xProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
                 window.yProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
 
@@ -191,7 +193,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         log.trace("Resizing the ARM video player frame");
         var scene = videoSurfaceTracker.getScene();
         var trackerWidth = videoSurfaceTracker.getWidth();
-        var trackerHeight = videoSurfaceTracker.getHeight() - (Y_OFFSET * 2);
+        var trackerHeight = videoSurfaceTracker.getHeight();
         var scaleX = 1.0;
         var scaleY = 1.0;
 
@@ -216,10 +218,20 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         log.trace("Repositioning ARM video player frame");
         var window = scene.getWindow();
         var x = (int) (window.getX() + scene.getX());
-        var y = (int) (window.getY() + scene.getY()) + Y_OFFSET;
+        var y = (int) (window.getY() + scene.getY());
 
         log.trace("Updating ARM video player position to {},{}", x, y);
         frame.setLocation(x, y);
+    }
+
+    private void updateTransparentComponents(Scene scene) {
+        var videoView = videoSurfaceTracker.getParent();
+        var playerPane = videoView.getParent();
+        var root = (Group) scene.getRoot();
+        var mainPane = root.getChildren().get(0);
+
+        playerPane.setStyle("-fx-background-color: transparent");
+        mainPane.setStyle("-fx-background-color: transparent");
     }
 
     private void togglePlayState() {

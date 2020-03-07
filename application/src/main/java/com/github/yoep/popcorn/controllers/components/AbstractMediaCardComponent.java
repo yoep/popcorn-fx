@@ -42,18 +42,24 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
     protected void initializeImage() {
         var imageLoadingThread = new Thread(() -> {
             try {
-                // set as default the poster holder image
-                Image image = new Image(getPosterHolderResource().getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
+                // use the post holder image as a default
+                var image = new Image(getPosterHolderResource().getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
                 setBackgroundImage(image, false);
-
-                //try to load the actual image
-                Optional.ofNullable(media.getImages())
-                        .map(Images::getPoster)
-                        .filter(e -> !e.equalsIgnoreCase("n/a"))
-                        .ifPresent(e -> setBackgroundImage(new Image(e, POSTER_WIDTH, POSTER_HEIGHT, true, true), true));
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }
+
+            // try to load the actual image
+            Optional.ofNullable(media.getImages())
+                    .map(Images::getPoster)
+                    .filter(e -> !e.equalsIgnoreCase("n/a"))
+                    .ifPresent(mediaImage -> {
+                        try {
+                            setBackgroundImage(new Image(mediaImage, POSTER_WIDTH, POSTER_HEIGHT, true, true), true);
+                        } catch (Exception ex) {
+                            log.error(ex.getMessage(), ex);
+                        }
+                    });
         }, "MediaCardComponent.ImageLoader");
 
         // run this on a separate thread for easier UI loading

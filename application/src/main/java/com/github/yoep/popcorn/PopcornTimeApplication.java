@@ -7,8 +7,11 @@ import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.settings.OptionsService;
 import com.github.yoep.popcorn.settings.SettingsService;
+import javafx.application.ConditionalFeature;
+import javafx.application.Platform;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -34,9 +37,19 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var loader = applicationContext.getBean(ViewLoader.class);
         var viewManager = applicationContext.getBean(ViewManager.class);
 
+//        initializeStage(primaryStage);
+
         log.trace("Loading the main view of the application");
         loader.show(primaryStage, "main.fxml", getViewProperties());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
+    }
+
+    private void initializeStage(Stage primaryStage) {
+        if (Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW)) {
+            primaryStage.initStyle(StageStyle.TRANSPARENT);
+        } else {
+            primaryStage.initStyle(StageStyle.UNDECORATED);
+        }
     }
 
     private ViewProperties getViewProperties() {
@@ -46,7 +59,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var properties = ViewProperties.builder()
                 .title("Popcorn Time")
                 .icon(ICON_NAME)
-                .background(Color.BLACK);
+                .background(Color.TRANSPARENT);
 
         // check if the big-picture or kiosk mode is enabled
         // if so, force the application to be maximized

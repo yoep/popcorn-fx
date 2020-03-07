@@ -161,9 +161,9 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     private void onContentPasted() {
-        Clipboard clipboard = Clipboard.getSystemClipboard();
-        String url = clipboard.getUrl();
-        List<File> files = clipboard.getFiles();
+        var clipboard = Clipboard.getSystemClipboard();
+        var url = clipboard.getUrl();
+        var files = clipboard.getFiles();
 
         if (CollectionUtils.isNotEmpty(files)) {
             log.trace("Processing clipboard files");
@@ -171,9 +171,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         } else if (StringUtils.isNotEmpty(url)) {
             log.trace("Processing clipboard url");
             processUrl(url);
-        } else {
+        } else if (StringUtils.isNotEmpty(clipboard.getString())) {
             log.trace("Processing clipboard string");
             processUrl(clipboard.getString());
+        } else {
+            log.debug("Ignoring content pasted action, not content available on the clipboard");
         }
     }
 

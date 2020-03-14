@@ -39,10 +39,8 @@ This can be done by adding the following argument to the VM options:
 
 ### Minimal
 
-- Java 11+
-- OpenJFX 13+
-- CPU: 1.5GHz
-- Memory: 750MB
+- CPU: 1.2GHz
+- Memory: 500MB
 
 ### Recommended
 

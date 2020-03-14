@@ -17,6 +17,7 @@ import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.subtitles.models.DecorationType;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.subtitles.models.SubtitleMatcher;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
@@ -327,8 +328,9 @@ public class PlayerSectionController implements Initializable {
             subtitleTrack.clear();
         } else {
             log.debug("Downloading subtitle \"{}\" for video playback", subtitle);
+            var matcher = SubtitleMatcher.from(FilenameUtils.getBaseName(url), quality);
 
-            subtitleService.downloadAndParse(subtitle).whenComplete((subtitles, throwable) -> {
+            subtitleService.downloadAndParse(subtitle, matcher).whenComplete((subtitles, throwable) -> {
                 if (throwable != null) {
                     log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                 } else {

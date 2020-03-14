@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.controllers.components;
 
+import com.frostwire.jlibtorrent.TorrentInfo;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.controls.BackgroundImageCover;
@@ -8,6 +9,7 @@ import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.subtitles.models.SubtitleMatcher;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.StreamStatus;
@@ -153,15 +155,21 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
             Platform.runLater(() -> {
                 loadBackgroundImage();
                 progressStatus.setVisible(false);
+                statusText.setText(localeText.get(TorrentMessage.STARTING));
             });
 
             // check if the torrent stream is initialized, of not, wait for it to be initialized before proceeding
             if (!torrentService.isInitialized())
                 waitForTorrentStream();
 
-            // check if the subtitles need to be downloaded
-            if (subtitle != null)
-                downloadSubtitles();
+            // check if the subtitle needs to be downloaded
+            if (subtitle != null) {
+                Optional<TorrentInfo> torrentInfo = torrentService.getTorrentInfo(mediaTorrent.getUrl());
+
+                downloadSubtitles(torrentInfo
+                        .map(this::getLargestFilename)
+                        .orElse(null));
+            }
 
             // update the status text to "connecting"
             Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
@@ -180,7 +188,10 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         this.torrentThread = new Thread(() -> {
             // reset the progress bar to "infinite" animation
             resetProgress();
-            Platform.runLater(() -> progressStatus.setVisible(false));
+            Platform.runLater(() -> {
+                progressStatus.setVisible(false);
+                statusText.setText(localeText.get(TorrentMessage.STARTING));
+            });
 
             // check if the torrent stream is initialized, of not, wait for it to be initialized before proceeding
             if (!torrentService.isInitialized())
@@ -191,7 +202,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
             retrieveSubtitles(activity.getFilename());
 
             // download the default subtitle that was determined in the last step
-            downloadSubtitles();
+            downloadSubtitles(activity.getFilename());
 
             // update the status text to "connecting"
             Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
@@ -293,7 +304,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         }
     }
 
-    private void downloadSubtitles() {
+    private void downloadSubtitles(String filename) {
         // check if the given subtitle is the special "none" subtitle, if so, ignore the subtitle download
         if (subtitle == null || subtitle.isNone())
             return;
@@ -302,7 +313,25 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLES)));
 
         // download the subtitle locally, this will cache the subtitle for later use in the video player
-        subtitleService.download(subtitle);
+        subtitleService.download(subtitle, SubtitleMatcher.from(filename, quality));
+    }
+
+    private String getLargestFilename(TorrentInfo torrentInfo) {
+        var files = torrentInfo.files();
+        String filename = null;
+        long largestSize = 0;
+
+        for (int i = 0; i < torrentInfo.numFiles(); i++) {
+            var name = files.fileName(i);
+            var size = files.fileSize(i);
+
+            if (size > largestSize) {
+                filename = name;
+                largestSize = size;
+            }
+        }
+
+        return filename;
     }
 
     private void loadBackgroundImage() {

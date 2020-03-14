@@ -8,9 +8,7 @@ import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.subtitles.models.Subtitle;
-import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.subtitles.models.SubtitleLanguage;
+import com.github.yoep.popcorn.subtitles.models.*;
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;
@@ -45,8 +43,7 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 public class SubtitleService {
-    //TODO: implement torrent quality based subtitle selection
-    private static final Pattern QUALITY_PATTERN = Pattern.compile("([0-9]+p)");
+    private static final Pattern QUALITY_PATTERN = Pattern.compile("([0-9]{3,4})p");
 
     private final Map<String, List<SubtitleInfo>> cachedSubtitles = new HashMap<>();
     private final PopcornProperties popcornProperties;
@@ -63,10 +60,11 @@ public class SubtitleService {
      * @return Returns the downloaded SRT file.
      */
     @Async
-    public CompletableFuture<File> download(final SubtitleInfo subtitle) {
+    public CompletableFuture<File> download(final SubtitleInfo subtitle, SubtitleMatcher matcher) {
         Assert.notNull(subtitle, "subtitle cannot be null");
+        var subtitleFile = subtitle.getFile(matcher);
 
-        return CompletableFuture.completedFuture(internalDownload(subtitle));
+        return CompletableFuture.completedFuture(internalDownload(subtitleFile));
     }
 
     /**
@@ -161,10 +159,12 @@ public class SubtitleService {
      * @return Returns the subtitles of the given subtitle info.
      */
     @Async
-    public CompletableFuture<List<Subtitle>> downloadAndParse(SubtitleInfo subtitleInfo) {
+    public CompletableFuture<List<Subtitle>> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
         Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
-        var file = internalDownload(subtitleInfo);
-        var encoding = subtitleInfo.getEncoding();
+        Assert.notNull(matcher, "matcher cannot be null");
+        var subtitleFile = subtitleInfo.getFile(matcher);
+        var file = internalDownload(subtitleFile);
+        var encoding = subtitleFile.getEncoding();
 
         return CompletableFuture.completedFuture(internalParse(file, encoding));
     }
@@ -286,6 +286,7 @@ public class SubtitleService {
 
                         var mediaId = media != null ? media.getId() : "tt" + item.get("IDMovieImdb");
                         var url = item.get("SubDownloadLink").replace(".gz", ".srt");
+                        var name = item.get("SubFileName");
                         var language = SubtitleLanguage.valueOfCode(item.get("ISO639").replace("pb", "pt-br"));
                         var encoding = parseSubEncoding(item.get("SubEncoding"));
 
@@ -304,22 +305,26 @@ public class SubtitleService {
                             score += 100;
                         }
 
-                        Optional<SubtitleInfo> subtitle = subtitles.stream()
+                        var existingSubtitle = subtitles.stream()
                                 .filter(e -> e.getLanguage() == language)
                                 .findAny();
+                        SubtitleInfo subtitle;
 
-                        if (subtitle.isPresent()) {
-                            SubtitleInfo sub = subtitle.get();
-
-                            if (score > sub.getScore() || (score == sub.getScore() && downloads > sub.getDownloads())) {
-                                sub.setUrl(url);
-                                sub.setScore(score);
-                                sub.setDownloads(downloads);
-                                sub.setEncoding(encoding);
-                            }
+                        if (existingSubtitle.isPresent()) {
+                            subtitle = existingSubtitle.get();
                         } else {
-                            subtitles.add(new SubtitleInfo(mediaId, language, url, score, downloads, encoding));
+                            subtitle = new SubtitleInfo(mediaId, language);
+                            subtitles.add(subtitle);
                         }
+
+                        subtitle.addFile(SubtitleFile.builder()
+                                .quality(parseSubtitleQuality(name).orElse(null))
+                                .name(name)
+                                .url(url)
+                                .score(score)
+                                .downloads(downloads)
+                                .encoding(encoding)
+                                .build());
                     }
 
                     // always subtract the "none" subtitle from the count
@@ -394,15 +399,7 @@ public class SubtitleService {
         client.callAsync(callback, "SearchSubtitles", token, new Object[]{option});
     }
 
-    private File internalDownload(SubtitleInfo subtitle) {
-        // check if the given subtitle is the special "none" subtitle, if so, ignore the download
-        if (subtitle.isNone()) {
-            String message = "subtitle is special type \"none\"";
-
-            log.debug("Skipping subtitle download, {}", message);
-            throw new SubtitleException("Failed to download subtitle, " + message);
-        }
-
+    private File internalDownload(SubtitleFile subtitle) {
         File storageFile = getStorageFile(subtitle);
         File subtitleFile;
 
@@ -439,11 +436,23 @@ public class SubtitleService {
         }
     }
 
+    private Optional<Integer> parseSubtitleQuality(String name) {
+        var matcher = QUALITY_PATTERN.matcher(name);
+
+        if (matcher.find()) {
+            var quality = matcher.group(1);
+
+            return Optional.of(Integer.parseInt(quality));
+        }
+
+        return Optional.empty();
+    }
+
     private SubtitleSettings getSettings() {
         return settingsService.getSettings().getSubtitleSettings();
     }
 
-    private File getStorageFile(SubtitleInfo subtitle) {
+    private File getStorageFile(SubtitleFile subtitle) {
         String filename = FilenameUtils.getName(subtitle.getUrl());
         File subtitleDirectory = getSettings().getDirectory();
 

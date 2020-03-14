@@ -1,13 +1,18 @@
 package com.github.yoep.popcorn.subtitles.models;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.subtitles.SubtitleException;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.util.Assert;
 
-import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Data
 @EqualsAndHashCode(of = {"imdbId", "language"})
@@ -16,10 +21,7 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
 
     private final String imdbId;
     private final SubtitleLanguage language;
-    private String url;
-    private int score;
-    private int downloads;
-    private Charset encoding;
+    private final List<SubtitleFile> files = new ArrayList<>();
 
     //region Constructors
 
@@ -28,20 +30,10 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
         this.language = language;
     }
 
-    public SubtitleInfo(String imdbId, SubtitleLanguage language, String url) {
-        this.imdbId = imdbId;
-        this.language = language;
-        this.url = url;
-    }
-
     @Builder
-    public SubtitleInfo(String imdbId, SubtitleLanguage language, String url, int score, int downloads, Charset encoding) {
+    public SubtitleInfo(String imdbId, SubtitleLanguage language) {
         this.imdbId = imdbId;
         this.language = language;
-        this.url = url;
-        this.score = score;
-        this.downloads = downloads;
-        this.encoding = encoding;
     }
 
     //endregion
@@ -89,6 +81,73 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
             return 1;
 
         return this.getLanguage().compareTo(compare.getLanguage());
+    }
+
+    //endregion
+
+    //region
+
+    /**
+     * Add the given subtitle file to the collection of this subtitle info.
+     *
+     * @param file The file to add.
+     */
+    public void addFile(SubtitleFile file) {
+        Assert.notNull(file, "file cannot be null");
+        files.add(file);
+    }
+
+
+    public SubtitleFile getFile(SubtitleMatcher matcher) {
+        Assert.notNull(matcher, "matcher cannot be null");
+        var name = matcher.getName();
+        var quality = matcher.getQuality();
+
+        // check if a filename has been given
+        // if so, check if we can find an exact match with the subtitle filename
+        if (name != null) {
+            var matchingFile = findFileByName(name);
+
+            if (matchingFile.isPresent()) {
+                return matchingFile.get();
+            }
+        }
+
+       var matchingFiles = files;
+
+        // check if the quality has been given
+        // if so, filter the current list based on the quality
+        if (quality != null) {
+            matchingFiles = files.stream()
+                    .filter(e -> e.getQuality() == null || quality.equals(e.getQuality()))
+                    .collect(Collectors.toList());
+
+            // check if anything is found
+            // if not, start again from the full list
+            if (matchingFiles.size() == 0) {
+                matchingFiles = files;
+            }
+        }
+
+        return findBestScoredFile(matchingFiles);
+    }
+
+    //endregion
+
+    //region Functions
+
+    private Optional<SubtitleFile> findFileByName(String name) {
+        return files.stream()
+                .filter(e -> name.equalsIgnoreCase(e.getName()))
+                .sorted() // sort them on best score in case multiple files have been uploaded for the same torrent
+                .findFirst();
+    }
+
+    private SubtitleFile findBestScoredFile(List<SubtitleFile> subtitleFiles) {
+        return subtitleFiles.stream()
+                .sorted()
+                .findFirst()
+                .orElseThrow(() -> new SubtitleException("No best subtitle file could be found for " + this));
     }
 
     //endregion

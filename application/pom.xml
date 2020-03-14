@@ -180,7 +180,6 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <finalName>popcorn-time</finalName>
-                    <includeSystemScope>true</includeSystemScope>
                 </configuration>
                 <executions>
                     <execution>

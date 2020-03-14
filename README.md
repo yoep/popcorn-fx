@@ -13,6 +13,7 @@ disable-arm-video-player        | Disable the arm video player from being activa
 disable-youtube-video-player    | Disabled the youtube player from being activated.
 big-picture                     | Activate the big picture mode.
 kiosk                           | Activate the kiosk mode (use alt+f4 to close the application).
+tv                              | Activate the tv mode (easier to use UI but less functionality).
 
 ### Java launch options
 

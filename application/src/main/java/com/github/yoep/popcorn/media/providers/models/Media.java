@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.media.providers.models;
 
+import com.github.yoep.popcorn.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.media.watched.models.Watchable;
 
 import java.util.List;
@@ -7,7 +8,7 @@ import java.util.List;
 /**
  * Interface definition of media items of the Popcorn Time API.
  */
-public interface Media extends Watchable {
+public interface Media extends Watchable, Favorable {
     /**
      * Get the unique ID of the media.
      * This can be a IMDB ID or TVDB ID value that is returned.

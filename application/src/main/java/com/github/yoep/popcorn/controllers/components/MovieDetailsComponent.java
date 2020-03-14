@@ -5,15 +5,15 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.media.watched.WatchedService;
+import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
-import com.github.yoep.popcorn.media.watched.WatchedService;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -47,7 +47,8 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
 
-    private ChangeListener<Boolean> watchedListener;
+    private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
+    private final ChangeListener<Boolean> likedListener = (observable, oldValue, newValue) -> switchLiked(newValue);
 
     @FXML
     private Label title;
@@ -102,6 +103,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     @Override
     protected void reset() {
         media.watchedProperty().removeListener(watchedListener);
+        media.likedProperty().removeListener(likedListener);
 
         super.reset();
         resetLanguageSelection();
@@ -199,11 +201,11 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     }
 
     private void loadFavoriteAndWatched() {
-        switchFavorite(favoriteService.isFavorite(media));
+        switchLiked(favoriteService.isLiked(media));
         switchWatched(watchedService.isWatched(media));
 
-        watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
         media.watchedProperty().addListener(watchedListener);
+        media.likedProperty().addListener(likedListener);
     }
 
     private void loadSubtitles() {
@@ -292,11 +294,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     @FXML
     private void onFavoriteClicked() {
-        boolean newValue = !liked;
-
-        switchFavorite(newValue);
-
-        if (newValue) {
+        if (!media.isLiked()) {
             favoriteService.addToFavorites(media);
         } else {
             favoriteService.removeFromFavorites(media);

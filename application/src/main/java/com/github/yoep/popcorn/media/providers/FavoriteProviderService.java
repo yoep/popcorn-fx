@@ -2,18 +2,19 @@ package com.github.yoep.popcorn.media.providers;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.models.Category;
-import com.github.yoep.popcorn.models.Genre;
-import com.github.yoep.popcorn.models.SortBy;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.models.Category;
+import com.github.yoep.popcorn.models.Genre;
+import com.github.yoep.popcorn.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -43,7 +44,11 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         if (page > 1)
             return CompletableFuture.completedFuture(new Media[0]);
 
-        Stream<Media> mediaStream = favoriteService.getAll().stream();
+        // retrieve all favorable items from the favoriteService
+        // from the liked items, filter all Media items and cast them appropriately
+        Stream<Media> mediaStream = favoriteService.getAll().stream()
+                .filter(e -> e instanceof Media)
+                .map(e -> (Media) e);
 
         if (!genre.isAllGenre()) {
             mediaStream = mediaStream.filter(e -> {
@@ -62,7 +67,10 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     @Override
     public CompletableFuture<Media[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         log.debug("Retrieving favorite provider page {}", page);
-        List<Media> mediaList = favoriteService.getAll();
+        List<Media> mediaList = favoriteService.getAll().stream()
+                .filter(e -> e instanceof Media)
+                .map(e -> (Media) e)
+                .collect(Collectors.toList());
 
         //TODO: implement filtering of favorites
         return CompletableFuture.completedFuture(mediaList.stream()

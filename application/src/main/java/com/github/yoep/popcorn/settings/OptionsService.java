@@ -17,8 +17,9 @@ import javax.annotation.PostConstruct;
 @Service
 @RequiredArgsConstructor
 public class OptionsService {
-    private static final String BIG_PICTURE_OPTION = "big-picture";
-    private static final String KIOSK_OPTION = "kiosk";
+    private static final String BIG_PICTURE_MODE_OPTION = "big-picture";
+    private static final String KIOSK_MODE_OPTION = "kiosk";
+    private static final String TV_MODE_OPTION = "tv";
 
     private final ApplicationArguments arguments;
 
@@ -35,17 +36,21 @@ public class OptionsService {
 
     @PostConstruct
     private void init() {
-        boolean bigPictureMode = arguments.containsOption(BIG_PICTURE_OPTION);
-        boolean kioskMode = arguments.containsOption(KIOSK_OPTION);
+        var bigPictureMode = arguments.containsOption(BIG_PICTURE_MODE_OPTION);
+        var kioskMode = arguments.containsOption(KIOSK_MODE_OPTION);
+        var tvMode = arguments.containsOption(TV_MODE_OPTION);
 
         if (bigPictureMode)
             log.debug("Activating big-picture mode");
         if (kioskMode)
             log.debug("Activating kiosk mode");
+        if (tvMode)
+            log.debug("Activating tv mode");
 
         options = ApplicationOptions.builder()
-                .bigPictureModeActivated(bigPictureMode)
-                .kioskModeActivated(kioskMode)
+                .bigPictureMode(bigPictureMode)
+                .kioskMode(kioskMode)
+                .tvMode(tvMode)
                 .build();
     }
 }

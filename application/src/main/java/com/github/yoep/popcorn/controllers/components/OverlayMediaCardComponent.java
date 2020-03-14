@@ -4,8 +4,6 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.controls.Stars;
 import com.github.yoep.popcorn.media.providers.models.Media;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -28,9 +26,8 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     private static final String WATCHED_STYLE_CLASS = "watched";
 
     private final List<OverlayItemListener> listeners = new ArrayList<>();
-    private final BooleanProperty favoriteProperty = new SimpleBooleanProperty();
-
-    private ChangeListener<Boolean> listener;
+    private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
+    private final ChangeListener<Boolean> likedListener = (observable, oldValue, newValue) -> switchFavorite(newValue);
 
     @FXML
     private Pane posterItem;
@@ -52,16 +49,7 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         initializeRating();
         initializeStars();
         initializeFavorite();
-        initializeView();
-    }
-
-    /**
-     * Set if this media card is liked by the user.
-     *
-     * @param value The favorite value.
-     */
-    public void setIsFavorite(boolean value) {
-        favoriteProperty.set(value);
+        initializeWatched();
     }
 
     /**
@@ -87,15 +75,13 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     }
 
     private void initializeFavorite() {
-        switchFavorite(favoriteProperty.get());
-        favoriteProperty.addListener((observable, oldValue, newValue) -> switchFavorite(newValue));
+        switchFavorite(media.isLiked());
+        media.likedProperty().addListener(likedListener);
     }
 
-    private void initializeView() {
-        switchWatched(media.watchedProperty().get());
-        listener = (observable, oldValue, newValue) -> switchWatched(newValue);
-
-        media.watchedProperty().addListener(listener);
+    private void initializeWatched() {
+        switchWatched(media.isWatched());
+        media.watchedProperty().addListener(watchedListener);
     }
 
     private void switchFavorite(boolean isFavorite) {
@@ -127,9 +113,8 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     @FXML
     private void onFavoriteClicked(MouseEvent event) {
         event.consume();
-        boolean newValue = !favoriteProperty.get();
+        boolean newValue = !media.isLiked();
 
-        favoriteProperty.set(newValue);
         synchronized (listeners) {
             listeners.forEach(e -> e.onFavoriteChanged(media, newValue));
         }

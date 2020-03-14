@@ -136,7 +136,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         switchActiveQuality(qualities.get(qualities.size() - 1).getText());
     }
 
-    protected void switchFavorite(boolean isLiked) {
+    protected void switchLiked(boolean isLiked) {
         this.liked = isLiked;
 
         if (isLiked) {

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.github.yoep.popcorn.media.watched.models.Watchable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import lombok.Data;
@@ -18,11 +17,13 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-@EqualsAndHashCode(exclude = {"watched", "show"})
-@ToString(exclude = {"watched", "show"})
-public class Episode implements Media, Watchable {
+@EqualsAndHashCode(exclude = {"watched", "liked", "show"})
+@ToString(exclude = {"watched", "liked", "show"})
+public class Episode implements Media {
     @JsonIgnore
     private BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
+    @JsonIgnore
+    private BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
     /**
      * The unique video ID of the {@link Episode}.
@@ -75,6 +76,21 @@ public class Episode implements Media, Watchable {
     @Override
     public void setWatched(boolean watched) {
         this.watched.set(watched);
+    }
+
+    @Override
+    public boolean isLiked() {
+        return liked.get();
+    }
+
+    @Override
+    public BooleanProperty likedProperty() {
+        return liked;
+    }
+
+    @Override
+    public void setLiked(boolean liked) {
+        this.liked.set(liked);
     }
 
     //endregion

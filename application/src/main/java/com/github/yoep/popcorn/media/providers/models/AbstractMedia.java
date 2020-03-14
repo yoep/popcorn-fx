@@ -1,22 +1,27 @@
 package com.github.yoep.popcorn.media.providers.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.github.yoep.popcorn.media.watched.models.AbstractWatchable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import lombok.*;
 import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-@EqualsAndHashCode(callSuper = false)
 @Data
+@EqualsAndHashCode(exclude = {"watched", "liked"})
+@ToString(exclude = {"watched", "liked"})
 @NoArgsConstructor
 @AllArgsConstructor
-public abstract class AbstractMedia extends AbstractWatchable implements Media {
+public abstract class AbstractMedia implements Media {
+    @JsonIgnore
+    private final BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
+    @JsonIgnore
+    private final BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
+
     /**
      * The unique ID of the media item.
      * This ID is most of the time the IMDB ID.
@@ -40,6 +45,40 @@ public abstract class AbstractMedia extends AbstractWatchable implements Media {
     private Rating rating;
     private Images images;
     private String synopsis;
+
+    //region Properties
+
+    @Override
+    public boolean isWatched() {
+        return watched.get();
+    }
+
+    @Override
+    public BooleanProperty watchedProperty() {
+        return watched;
+    }
+
+    @Override
+    public void setWatched(boolean watched) {
+        this.watched.set(watched);
+    }
+
+    @Override
+    public boolean isLiked() {
+        return liked.get();
+    }
+
+    @Override
+    public BooleanProperty likedProperty() {
+        return liked;
+    }
+
+    @Override
+    public void setLiked(boolean liked) {
+        this.liked.set(liked);
+    }
+
+    //endregion
 
     //region Getters
 

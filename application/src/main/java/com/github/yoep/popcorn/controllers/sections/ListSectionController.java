@@ -130,7 +130,7 @@ public class ListSectionController implements Initializable {
     }
 
     private void invokeNewPageLoad() {
-        if (category != null && genre != null && sortBy != null)
+        if (scrollPane != null && category != null && genre != null && sortBy != null)
             scrollPane.loadNewPage();
     }
 
@@ -174,17 +174,14 @@ public class ListSectionController implements Initializable {
     }
 
     private Node creatItemNode(Media item) {
-        // update the watched state of the media with the latest information
+        // update the watched & liked states of the media item with the latest information
         item.setWatched(watchedService.isWatched(item));
+        item.setLiked(favoriteService.isLiked(item));
 
         // load a new media card controller and inject it into the view
-        OverlayMediaCardComponent mediaCardComponent = new OverlayMediaCardComponent(item, localeText, createItemListener());
-        Pane node = viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
+        var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, createItemListener());
 
-        // update the media favorite information
-        mediaCardComponent.setIsFavorite(favoriteService.isFavorite(item));
-
-        return node;
+        return viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
     }
 
     private OverlayItemListener createItemListener() {

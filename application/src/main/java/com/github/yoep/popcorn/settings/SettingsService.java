@@ -117,7 +117,7 @@ public class SettingsService {
 
         // check if the big-picture mode is activated
         // if so, double the UI scale
-        if (options.isBigPictureModeActivated())
+        if (options.isBigPictureMode())
             scale *= 2;
 
         viewLoader.setScale(scale);

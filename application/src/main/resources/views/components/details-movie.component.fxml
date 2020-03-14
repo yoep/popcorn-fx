@@ -106,7 +106,7 @@
                     <Icon fx:id="favoriteIcon" styleClass="like">
                         <Icon fx:constant="HEART_UNICODE"/>
                     </Icon>
-                    <Label fx:id="favoriteText" text="%details_add_to_bookmarks" onMouseClicked="#onFavoriteClicked"/>
+                    <Label fx:id="favoriteText" text="%details_add_to_bookmarks" />
                 </HBox>
 
                 <!-- Watched -->

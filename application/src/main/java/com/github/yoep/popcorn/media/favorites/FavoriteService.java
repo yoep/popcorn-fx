@@ -2,8 +2,10 @@ package com.github.yoep.popcorn.media.favorites;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.PopcornTimeApplication;
+import com.github.yoep.popcorn.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.media.favorites.models.Favorites;
-import com.github.yoep.popcorn.media.providers.models.Media;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -11,31 +13,43 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FavoriteService {
+    private static final int IDLE_TIME = 10;
     private static final String NAME = "favorites.json";
-    private final List<String> cache = new ArrayList<>();
+
+    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
     private final ObjectMapper objectMapper;
+    private final Object cacheLock = new Object();
 
     /**
-     * Check if the given media is a favorite of the user.
-     *
-     * @param media The media to check.
-     * @return Returns true if the media is a favorite, else false.
+     * The currently loaded favorable cache.
+     * This cache is saved and unloaded after {@link #IDLE_TIME} seconds to free up memory.
      */
-    public boolean isFavorite(Media media) {
-        Assert.notNull(media, "media cannot be null");
-        synchronized (cache) {
-            return cache.contains(media.getId());
+    private Favorites cache;
+    private int cacheHash;
+
+    /**
+     * Check if the given {@link Favorable} is liked by the user.
+     *
+     * @param favorable The favorable to check.
+     * @return Returns true if the favorable is liked, else false.
+     */
+    public boolean isLiked(Favorable favorable) {
+        Assert.notNull(favorable, "favorable cannot be null");
+        loadFavorites();
+
+        synchronized (cacheLock) {
+            return cache.getAll().stream()
+                    .anyMatch(e -> e.getId().equals(favorable.getId()));
         }
     }
 
@@ -45,65 +59,79 @@ public class FavoriteService {
      * @return Returns the favorites.
      */
     public Favorites getFavorites() {
-        return loadFavorites();
-    }
+        loadFavorites();
 
-    /**
-     * Get all the media favorites.
-     *
-     * @return Returns the list of media.
-     */
-    public List<Media> getAll() {
-        return loadFavorites().getAll();
-    }
-
-    /**
-     * Add the given media to the favorites.
-     *
-     * @param media The media to add.
-     */
-    public void addToFavorites(Media media) {
-        Assert.notNull(media, "media cannot be null");
-        // check if the media is already a favorite
-        // if so, ignore the action of adding the favorite
-        if (isFavorite(media))
-            return;
-
-        synchronized (cache) {
-            cache.add(media.getId());
+        synchronized (cacheLock) {
+            return cache;
         }
-
-        Favorites favorites = loadFavorites();
-        favorites.add(media);
-        save(favorites);
     }
 
     /**
-     * Remove the given media from favorites.
+     * Get all the {@link Favorable} items that are liked by the user.
      *
-     * @param media The media to remove.
+     * @return Returns the list of liked items by the user.
      */
-    public void removeFromFavorites(Media media) {
-        Assert.notNull(media, "media cannot be null");
-        synchronized (cache) {
-            cache.remove(media.getId());
-        }
+    public List<Favorable> getAll() {
+        loadFavorites();
 
-        Favorites favorites = loadFavorites();
-        favorites.remove(media);
-        save(favorites);
+        synchronized (cacheLock) {
+            return cache.getAll();
+        }
     }
+
+    /**
+     * Add the given {@link Favorable} to the favorites.
+     *
+     * @param favorable The favorable to add.
+     */
+    public void addToFavorites(Favorable favorable) {
+        Assert.notNull(favorable, "favorable cannot be null");
+        loadFavorites();
+
+        synchronized (cacheLock) {
+            cache.add(favorable);
+            favorable.setLiked(true);
+        }
+    }
+
+    /**
+     * Remove the given favorable from favorites.
+     *
+     * @param favorable The favorable to remove.
+     */
+    public void removeFromFavorites(Favorable favorable) {
+        Assert.notNull(favorable, "favorable cannot be null");
+        loadFavorites();
+
+        synchronized (cacheLock) {
+            cache.remove(favorable);
+            favorable.setLiked(false);
+        }
+    }
+
+    //region PostConstruct
 
     @PostConstruct
     public void init() {
-        // cache the favorite keys for the media cards for minimal memory consumption
-        log.trace("Caching favorites ID's");
-        synchronized (cache) {
-            cache.addAll(loadFavorites().getAll().stream()
-                    .map(Media::getId)
-                    .collect(Collectors.toList()));
-        }
+        initializeIdleTimer();
     }
+
+    private void initializeIdleTimer() {
+        idleTimer.setOnFinished(e -> onSave());
+    }
+
+    //endregion
+
+    //region PreDestroy
+
+    @PreDestroy
+    private void destroy() {
+        onSave();
+    }
+
+    //endregion
+
+    //region Functions
 
     private void save(Favorites favorites) {
         File file = getFile();
@@ -116,23 +144,55 @@ public class FavoriteService {
         }
     }
 
-    private Favorites loadFavorites() {
-        File file = getFile();
+    private void loadFavorites() {
+        idleTimer.playFromStart();
+
+        // check if the cache has already been loaded
+        // if so, do nothing
+        synchronized (cacheLock) {
+            if (cache != null)
+                return;
+        }
+
+        var file = getFile();
 
         if (file.exists()) {
             try {
                 log.debug("Loading favorites from {}", file.getAbsolutePath());
 
-                return objectMapper.readValue(file, Favorites.class);
+                synchronized (cacheLock) {
+                    cache = objectMapper.readValue(file, Favorites.class);
+                    cacheHash = cache.hashCode();
+                }
             } catch (IOException ex) {
                 log.error("Unable to read favorites file at " + file.getAbsolutePath(), ex);
             }
+        } else {
+            // build a new cache as now favorite database file is found
+            synchronized (cacheLock) {
+                cache = Favorites.builder().build();
+                cacheHash = cache.hashCode();
+            }
         }
-
-        return Favorites.builder().build();
     }
 
     private File getFile() {
         return new File(PopcornTimeApplication.APP_DIR + NAME);
     }
+
+    private void onSave() {
+        if (cache == null)
+            return;
+
+        synchronized (cacheLock) {
+            // check if the cache was modified
+            // if not, the cache will only be removed from memory but not saved again
+            if (cache.hashCode() != cacheHash)
+                save(cache);
+
+            cache = null;
+        }
+    }
+
+    //endregion
 }

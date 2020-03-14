@@ -270,7 +270,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     }
 
     private void loadFavorite() {
-        switchFavorite(favoriteService.isFavorite(media));
+        switchLiked(favoriteService.isLiked(media));
     }
 
     private void switchSeason(Season newSeason) {

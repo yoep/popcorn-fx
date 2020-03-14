@@ -60,6 +60,9 @@ Add the following options to the `VM Options` in the run configuration of Intell
 
     -p "<PATH TO JAVAFX SDK>\lib" --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.web,javafx.swing
 
+You need to add `javafx.swing` in the modules list if you want to use ScenicView for inspecting the JavaFX UI.
+If you don't do this, the application will crash when trying to attach to the Java process that is running JavaFX.
+
 ### White box glitch
 
 Add the following VM option if you're experiencing white boxes in the UI.

@@ -42,7 +42,7 @@ public class FullscreenService {
 
         // check if the kiosk mode is not activated
         // if so, register the activity listeners, otherwise we ignore the events as fullscreen is forced
-        if (!options.isKioskModeActivated()) {
+        if (!options.isKioskMode()) {
             activityManager.register(ToggleFullscreenActivity.class, activity -> onToggleFullscreen());
             activityManager.register(ClosePlayerActivity.class, activity -> onClosePlayer());
         }
@@ -70,7 +70,7 @@ public class FullscreenService {
         log.trace("Primary stage is being registered");
         this.primaryStage = primaryStage;
 
-        if (options.isKioskModeActivated()) {
+        if (options.isKioskMode()) {
             log.trace("Kiosk mode is activated, disabling the fullscreen exit key");
             primaryStage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
             primaryStage.setFullScreen(true);

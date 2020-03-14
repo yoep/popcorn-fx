@@ -58,7 +58,6 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        switchSection(SectionType.CONTENT);
         initializeSceneEvents();
         initializeStageListeners();
 
@@ -129,8 +128,15 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
         if (nonOptionArgs.size() > 0) {
             log.debug("Retrieved the following non-option argument: {}", nonOptionArgs);
-            processUrl(nonOptionArgs.get(0));
+
+            // try to process the url that has been passed along the application during startup
+            // if the url is processed with success, wait for the activity event to change the section
+            // otherwise, we still show the content section
+            if (processUrl(nonOptionArgs.get(0)))
+                return;
         }
+
+        switchSection(SectionType.CONTENT);
     }
 
     private void switchSection(SectionType sectionType) {
@@ -227,7 +233,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         });
     }
 
-    private void processUrl(String url) {
+    private boolean processUrl(String url) {
         var matcher = URL_TYPE_PATTERN.matcher(url);
 
         if (matcher.matches()) {
@@ -252,9 +258,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
                         return false;
                     }
                 });
+
+                return true;
             } else if (isMagnetLink(type)) {
                 log.debug("Opening magnet link: {}", url);
                 activityManager.register((LoadUrlActivity) () -> url);
+
+                return true;
             } else {
                 var file = new File(url);
 
@@ -279,6 +289,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
                                     return false;
                                 }
                             });
+
+                            return true;
                         }
                     } catch (IOException ex) {
                         log.error("Failed to process url, " + ex.getMessage(), ex);
@@ -290,6 +302,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         } else {
             log.warn("Failed to process url, url \"{}\" is invalid", url);
         }
+
+        return false;
     }
 
     private boolean isWebUrl(String type) {

@@ -13,9 +13,13 @@ public class ApplicationOptions {
     /**
      * Indicates if the big picture mode is enabled.
      */
-    private final boolean bigPictureModeActivated;
+    private final boolean bigPictureMode;
     /**
      * Indicates if the kiosk mode is enabled.
      */
-    private final boolean kioskModeActivated;
+    private final boolean kioskMode;
+    /**
+     * Indicates if the tv mode is enabled.
+     */
+    private final boolean tvMode;
 }

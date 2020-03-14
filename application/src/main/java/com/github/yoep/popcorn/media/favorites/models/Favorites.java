@@ -1,17 +1,19 @@
 package com.github.yoep.popcorn.media.favorites.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Data
 @Builder
 @NoArgsConstructor
@@ -34,35 +36,45 @@ public class Favorites {
      * @return Returns all the favorites.
      */
     @JsonIgnore
-    public List<Media> getAll() {
-        List<Media> mediaList = new ArrayList<>(movies);
+    public List<Favorable> getAll() {
+        List<Favorable> mediaList = new ArrayList<>(movies);
         mediaList.addAll(shows);
         return mediaList;
     }
 
     /**
-     * Add the given media to the favorites.
+     * Add the given {@link Favorable} to the favorites.
      *
-     * @param media The media to add.
+     * @param favorable The favorable to add.
      */
-    public void add(Media media) {
-        if (media instanceof Movie) {
-            movies.add((Movie) media);
+    public void add(Favorable favorable) {
+        Assert.notNull(favorable, "favorable cannot be null");
+
+        if (favorable instanceof Movie) {
+            movies.add((Movie) favorable);
+        } else if (favorable instanceof Show) {
+            shows.add((Show) favorable);
         } else {
-            shows.add((Show) media);
+            log.warn("Unable to add favorable of type \"{}\"", favorable.getClass().getSimpleName());
         }
     }
 
     /**
-     * Remove the given media from favorites.
+     * Remove the given {@link Favorable} from favorites.
      *
-     * @param media The media to remove.
+     * @param favorable The favorable to remove.
      */
-    public void remove(Media media) {
-        if (media instanceof Movie) {
-            movies.remove(media);
+    public void remove(Favorable favorable) {
+        Assert.notNull(favorable, "favorable cannot be null");
+
+        if (favorable instanceof Movie) {
+            log.trace("Removing movie favorite {}", favorable);
+            movies.remove(favorable);
+        } else if (favorable instanceof Show) {
+            log.trace("Removing show favorite {}", favorable);
+            shows.remove(favorable);
         } else {
-            shows.remove(media);
+            log.warn("Unable to remove favorable of type \"{}\"", favorable.getClass().getSimpleName());
         }
     }
 }

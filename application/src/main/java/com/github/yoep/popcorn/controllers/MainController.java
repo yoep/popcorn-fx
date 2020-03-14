@@ -127,8 +127,10 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private void processApplicationArguments() {
         var nonOptionArgs = arguments.getNonOptionArgs();
 
-        if (nonOptionArgs.size() > 0)
+        if (nonOptionArgs.size() > 0) {
+            log.debug("Retrieved the following non-option argument: {}", nonOptionArgs);
             processUrl(nonOptionArgs.get(0));
+        }
     }
 
     private void switchSection(SectionType sectionType) {

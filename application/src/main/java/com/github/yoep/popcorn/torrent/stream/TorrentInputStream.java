@@ -113,6 +113,8 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
                 } catch (InterruptedException ex) {
                     log.debug("Torrent input stream wait got interrupted for {}", this);
                     Thread.currentThread().interrupt();
+                } catch (Exception ex) {
+                    log.error(ex.getMessage(), ex);
                 }
             }
         }

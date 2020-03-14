@@ -5,8 +5,8 @@ import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.frostwire.jlibtorrent.alerts.BlockFinishedAlert;
 import com.frostwire.jlibtorrent.alerts.PieceFinishedAlert;
-import com.github.yoep.popcorn.torrent.stream.TorrentInputStream;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.torrent.stream.TorrentInputStream;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;

@@ -1,7 +1,11 @@
-# Popcorn Time Desktop Java
+# Popcorn Time Desktop JavaFX
 
-Popcorn Time Desktop application based on the original Popcorn Time Desktop and Popcorn Time Android versions.
-This version was created to work with embedded devices such as the Raspberry PI.
+Popcorn Time Desktop JavaFX is based on the original Popcorn Time Desktop and Popcorn Time Android versions.
+Popcorn Time Desktop JavaFX uses **Java 11+** and **OpenJFX 14**.
+This version was created to work with embedded devices such as the Raspberry PI, 
+but it also works on desktop environments such as **Linux & Windows** (not tested on Mac).
+
+Popcorn Time Desktop Java has been tested with **Raspberry Pi 3B+ and 4**.
 
 ## Launch options
 

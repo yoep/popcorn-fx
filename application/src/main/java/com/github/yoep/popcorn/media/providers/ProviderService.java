@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.media.providers;
 
-import com.github.yoep.popcorn.models.Category;
-import com.github.yoep.popcorn.models.Genre;
-import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.view.models.Category;
+import com.github.yoep.popcorn.view.models.Genre;
+import com.github.yoep.popcorn.view.models.SortBy;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import org.springframework.scheduling.annotation.Async;
 

@@ -1,0 +1,27 @@
+.notifications .notification {
+    -fx-padding: 10 15 10 15;
+    -fx-background-radius: 1em;
+    -fx-cursor: hand;
+}
+
+.notifications .notification .text {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #fff;
+}
+
+.notifications .notification.info {
+    -fx-background-color: rgba(52, 152, 219, 0.7);
+}
+
+.notifications .notification.success {
+    -fx-background-color: rgba(39, 174, 96, 0.7);
+}
+
+.notifications .notification.warning {
+    -fx-background-color: rgba(219, 183, 86, 0.7);
+}
+
+.notifications .notification.error {
+    -fx-background-color: rgba(241, 81, 83, 0.7);
+}

@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.media.providers;
 
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.media.providers.models.Media;
-import com.github.yoep.popcorn.models.Genre;
-import com.github.yoep.popcorn.models.SortBy;
+import com.github.yoep.popcorn.view.models.Genre;
+import com.github.yoep.popcorn.view.models.SortBy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.RestTemplate;

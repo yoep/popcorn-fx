@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-import com.github.yoep.popcorn.models.Genre;
+import com.github.yoep.popcorn.view.models.Genre;
 
 public interface GenreChangeActivity extends Activity {
     /**

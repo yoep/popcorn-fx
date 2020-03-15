@@ -59,7 +59,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var properties = ViewProperties.builder()
                 .title("Popcorn Time")
                 .icon(ICON_NAME)
-                .background(Color.TRANSPARENT);
+                .background(Color.BLACK);
 
         // check if the big-picture or kiosk mode is enabled
         // if so, force the application to be maximized

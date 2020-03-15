@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.activities;
 
-import com.github.yoep.popcorn.models.Category;
+import com.github.yoep.popcorn.view.models.Category;
 
 /**
  * Activity indicating that the header category has been changed by the user.

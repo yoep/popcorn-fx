@@ -87,7 +87,7 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Dynamic torrent buffering when seeking through video
 - Resume video from last known timestamp
 - Torrent collection
-- Big-picture & kiosk mode
+- Big-picture, kiosk & tv mode
 - Watchlist
 
 ### Upcoming features

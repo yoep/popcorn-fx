@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
+<?import com.github.yoep.popcorn.view.controls.Stars?>
+<?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.view.controllers.components.MovieDetailsComponent" styleClass="movie-details">
+    <columnConstraints>
+        <ColumnConstraints minWidth="20" percentWidth="10"/>
+        <ColumnConstraints minWidth="400" percentWidth="80"/>
+        <ColumnConstraints minWidth="20" percentWidth="10"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="20" percentHeight="10"/>
+        <RowConstraints minHeight="300" percentHeight="80" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="20" percentHeight="10"/>
+    </rowConstraints>
+
+    <BackgroundImageCover fx:id="backgroundImage"
+                          GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2"
+          GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.halignment="RIGHT" GridPane.valignment="TOP">
+        <padding>
+            <Insets top="5" right="15"/>
+        </padding>
+        <Icon fx:constant="CROSS_UNICODE"/>
+    </Icon>
+
+    <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">
+        <columnConstraints>
+            <ColumnConstraints hgrow="ALWAYS" percentWidth="35" halignment="RIGHT"/>
+            <ColumnConstraints hgrow="NEVER" minWidth="10"/>
+            <ColumnConstraints hgrow="ALWAYS" prefWidth="65" halignment="LEFT"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints vgrow="ALWAYS"/>
+        </rowConstraints>
+
+        <BorderPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
+            <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
+        </BorderPane>
+
+        <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
+            <columnConstraints>
+                <ColumnConstraints/>
+                <ColumnConstraints/>
+                <ColumnConstraints/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints minHeight="30" valignment="CENTER"/>
+                <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
+                <RowConstraints minHeight="30" valignment="TOP"/>
+                <RowConstraints minHeight="30"/>
+            </rowConstraints>
+
+            <Label fx:id="title" styleClass="title"
+                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+            <HBox styleClass="metadata" alignment="CENTER_LEFT"
+                  GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1">
+
+                <Label fx:id="year"/>
+                <Icon styleClass="separator">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+                <Label fx:id="duration"/>
+                <Icon styleClass="separator">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+                <Label fx:id="genres"/>
+                <Icon styleClass="separator">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+                <Stars fx:id="ratingStars" alignment="CENTER"/>
+            </HBox>
+
+            <HBox alignment="CENTER_RIGHT"
+                  GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT">
+                <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
+                    <Icon fx:constant="MAGNET_UNICODE"/>
+                </Icon>
+                <Icon fx:id="health" styleClass="health">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+            </HBox>
+
+            <!-- Overview text -->
+            <Label fx:id="overview" styleClass="overview" wrapText="true"
+                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+
+            <!-- Like & viewed -->
+            <VBox GridPane.columnIndex="0" GridPane.rowIndex="3">
+                <padding>
+                    <Insets bottom="10"/>
+                </padding>
+
+                <!-- Favorite -->
+                <HBox styleClass="favorite-section" onMouseClicked="#onFavoriteClicked">
+                    <Icon fx:id="favoriteIcon" styleClass="like">
+                        <Icon fx:constant="HEART_UNICODE"/>
+                    </Icon>
+                    <Label fx:id="favoriteText" text="%details_add_to_bookmarks" />
+                </HBox>
+
+                <!-- Watched -->
+                <HBox styleClass="watched-section" onMouseClicked="#onWatchedClicked">
+                    <Icon fx:id="watchedIcon" styleClass="view">
+                        <Icon fx:constant="EYE_SLASH_UNICODE"/>
+                    </Icon>
+                    <Label fx:id="watchedText" text="%details_not_seen"/>
+                </HBox>
+            </VBox>
+
+            <!-- Play actions -->
+            <HBox alignment="CENTER_LEFT" spacing="5"
+                  GridPane.columnIndex="0" GridPane.rowIndex="4">
+                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
+
+                <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
+            </HBox>
+            <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
+                  GridPane.columnIndex="1" GridPane.rowIndex="4">
+                <padding>
+                    <Insets left="15" right="15"/>
+                </padding>
+            </HBox>
+
+            <HBox styleClass="subtitle-group" GridPane.columnIndex="2" GridPane.rowIndex="4" alignment="CENTER_RIGHT">
+                <Label text="%details_subtitle" onMouseClicked="#onSubtitleLabelClicked"/>
+
+                <LanguageFlagSelection fx:id="languageSelection"/>
+            </HBox>
+        </GridPane>
+    </GridPane>
+</GridPane>

@@ -26,6 +26,7 @@ public class PopcornTimePreloader extends Preloader {
 
         this.stage = primaryStage;
 
+        primaryStage.setMaximized(PopcornTimeApplication.isArmDevice());
         primaryStage.setScene(scene);
         primaryStage.setIconified(false);
         primaryStage.getIcons().add(icon);

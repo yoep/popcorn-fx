@@ -25,9 +25,16 @@ import java.io.File;
 public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String ICON_NAME = "icon_64.png";
     public static final String APP_DIR = getDefaultAppDirLocation();
+    public static final String ARM_ARCHITECTURE = "arm";
 
     public static void main(String[] args) {
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
+    }
+
+    public static boolean isArmDevice() {
+        var architecture = System.getProperty("os.arch");
+
+        return architecture.equals(ARM_ARCHITECTURE);
     }
 
     @Override
@@ -37,7 +44,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var loader = applicationContext.getBean(ViewLoader.class);
         var viewManager = applicationContext.getBean(ViewManager.class);
 
-//        initializeStage(primaryStage);
+        initializeStage(primaryStage);
 
         log.trace("Loading the main view of the application");
         loader.show(primaryStage, "main.fxml", getViewProperties());
@@ -45,10 +52,12 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     }
 
     private void initializeStage(Stage primaryStage) {
-        if (Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW)) {
-            primaryStage.initStyle(StageStyle.TRANSPARENT);
-        } else {
-            primaryStage.initStyle(StageStyle.UNDECORATED);
+        if (isArmDevice()) {
+            if (Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW)) {
+                primaryStage.initStyle(StageStyle.TRANSPARENT);
+            } else {
+                log.warn("Unable to activate transparent window for ARM device");
+            }
         }
     }
 
@@ -59,7 +68,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var properties = ViewProperties.builder()
                 .title("Popcorn Time")
                 .icon(ICON_NAME)
-                .background(Color.BLACK);
+                .background(getBackgroundColor());
 
         // check if the big-picture or kiosk mode is enabled
         // if so, force the application to be maximized
@@ -81,6 +90,10 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var viewProperties = properties.build();
         log.debug("Using the following view properties for the application: {}", viewProperties);
         return viewProperties;
+    }
+
+    private Color getBackgroundColor() {
+        return isArmDevice() ? Color.TRANSPARENT : Color.BLACK;
     }
 
     private static String getDefaultAppDirLocation() {

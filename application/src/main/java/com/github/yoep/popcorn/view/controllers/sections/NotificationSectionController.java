@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.NotificationActivity;
 import com.github.yoep.popcorn.view.controllers.components.NotificationComponent;
+import javafx.animation.Animation;
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -18,6 +19,8 @@ import javax.annotation.PostConstruct;
 @Component
 @RequiredArgsConstructor
 public class NotificationSectionController {
+    private static final int SAFETY_OFFSET = 10;
+
     private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
 
@@ -44,11 +47,17 @@ public class NotificationSectionController {
         var transition = new TranslateTransition(Duration.seconds(1), notificationPane);
 
         Platform.runLater(() -> {
+            notificationPane.setVisible(false);
             rootPane.getChildren().add(notificationPane);
 
-            transition.setFromX(notificationPane.getWidth());
-            transition.setToX(0);
-            transition.playFromStart();
+            notificationPane.widthProperty().addListener((observable, oldValue, newValue) -> {
+                if (transition.getStatus() != Animation.Status.RUNNING) {
+                    notificationPane.setTranslateX(newValue.doubleValue() + SAFETY_OFFSET);
+                    transition.setToX(0);
+                    transition.playFromStart();
+                    notificationPane.setVisible(true);
+                }
+            });
         });
     }
 
@@ -65,7 +74,7 @@ public class NotificationSectionController {
         var transition = new TranslateTransition(Duration.seconds(1), notificationPane);
 
         Platform.runLater(() -> {
-            transition.setToX(notificationPane.getWidth());
+            transition.setToX(notificationPane.getWidth() + SAFETY_OFFSET);
             transition.setOnFinished(event -> rootPane.getChildren().removeIf(e -> e == notificationPane));
             transition.playFromStart();
         });

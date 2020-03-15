@@ -4,7 +4,7 @@
     -fx-cursor: hand;
 }
 
-.notifications .notification .text {
+.notifications .notification .label {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 1.5em;
     -fx-text-fill: #fff;

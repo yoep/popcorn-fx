@@ -6,6 +6,9 @@ import lombok.Getter;
 @Getter
 public enum DetailsMessage implements Message {
     MAGNET_LINK("details_magnet_link"),
+    MAGNET_LINK_COPIED_TO_CLIPBOARD("details_copied_magnet_link"),
+    MAGNET_LINK_OPENING("details_magnet_link_opening"),
+    MAGNET_LINK_FAILED_TO_OPEN("details_magnet_link_failed_to_open"),
     SEASON("details_season"),
     ADD_TO_BOOKMARKS("details_add_to_bookmarks"),
     REMOVE_FROM_BOOKMARKS("details_remove_from_bookmarks"),

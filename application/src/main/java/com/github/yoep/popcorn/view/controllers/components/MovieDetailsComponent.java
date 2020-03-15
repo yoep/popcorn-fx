@@ -43,7 +43,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
     private static final String WATCHED_STYLE_CLASS = "seen";
 
-    private final ActivityManager activityManager;
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
 
@@ -79,8 +78,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
                                  SubtitleService subtitleService,
                                  FavoriteService favoriteService,
                                  WatchedService watchedService) {
-        super(taskExecutor, localeText, torrentService, subtitleService, application);
-        this.activityManager = activityManager;
+        super(activityManager, taskExecutor, localeText, torrentService, subtitleService, application);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }

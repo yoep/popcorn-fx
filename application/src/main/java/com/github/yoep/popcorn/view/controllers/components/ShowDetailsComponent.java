@@ -53,7 +53,6 @@ import java.util.stream.Collectors;
 public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private static final DateTimeFormatter AIRED_DATE_PATTERN = DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy hh:mm a");
 
-    private final ActivityManager activityManager;
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
 
@@ -103,8 +102,7 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                                 Application application,
                                 FavoriteService favoriteService,
                                 WatchedService watchedService) {
-        super(taskExecutor, localeText, torrentService, subtitleService, application);
-        this.activityManager = activityManager;
+        super(activityManager, taskExecutor, localeText, torrentService, subtitleService, application);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }

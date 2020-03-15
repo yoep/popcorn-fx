@@ -9,5 +9,5 @@
 <VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.github.yoep.popcorn.view.controllers.sections.NotificationSectionController"
       stylesheets="/styles/notifications.css" styleClass="notifications" fx:id="rootPane">
-
+    <spacing>5</spacing>
 </VBox>

@@ -180,6 +180,16 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>io.github.fvarrui</groupId>
+                    <artifactId>javapackager</artifactId>
+                    <version>0.9.3</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -209,7 +219,7 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>fvarrui.maven</groupId>
+                <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
                 <version>0.8.9</version>
                 <executions>

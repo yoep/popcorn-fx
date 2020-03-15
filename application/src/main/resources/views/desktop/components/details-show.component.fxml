@@ -11,7 +11,7 @@
 <?import javafx.scene.layout.*?>
 <?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
 <AnchorPane styleClass="show-details-section" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.github.yoep.popcorn.view.controllers.components.ShowDetailsComponent">
+            fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.ShowDetailsComponent">
     <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
         <columnConstraints>
             <ColumnConstraints maxWidth="198" minWidth="198"/>

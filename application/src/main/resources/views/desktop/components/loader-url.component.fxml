@@ -6,7 +6,7 @@
 <?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.components.LoaderUrlComponent" styleClass="loader">
+          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.LoaderUrlComponent" styleClass="loader">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="20"/>
         <ColumnConstraints minWidth="400" percentWidth="60" hgrow="ALWAYS"/>

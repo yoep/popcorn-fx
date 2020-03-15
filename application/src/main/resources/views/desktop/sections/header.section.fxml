@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.view.controls.SearchField?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
-<?import javafx.geometry.Insets?>
-<?import com.github.yoep.popcorn.view.controls.SearchField?>
 <VBox styleClass="header" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.github.yoep.popcorn.view.controllers.sections.HeaderSectionController">
+      fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.HeaderSectionController">
     <GridPane styleClass="bar">
         <columnConstraints>
             <ColumnConstraints/>
@@ -39,31 +39,31 @@
         </HBox>
 
         <HBox styleClass="filter-icon-bar" alignment="BOTTOM_RIGHT"
-                GridPane.columnIndex="4" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+              GridPane.columnIndex="4" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
             <padding>
-                <Insets right="10" />
+                <Insets right="10"/>
             </padding>
-            <SearchField fx:id="search" promptText="%header_search" />
+            <SearchField fx:id="search" promptText="%header_search"/>
             <Icon fx:id="watchlistIcon" styleClass="icon" onMouseClicked="#onWatchlistClicked">
-                <Icon fx:constant="INBOX_UNICODE" />
+                <Icon fx:constant="INBOX_UNICODE"/>
                 <tooltip>
-                    <Tooltip text="%header_watchlist" showDelay="200ms" showDuration="1h" />
+                    <Tooltip text="%header_watchlist" showDelay="200ms" showDuration="1h"/>
                 </tooltip>
             </Icon>
             <Icon fx:id="torrentCollectionIcon" styleClass="icon" onMouseClicked="#onTorrentCollectionClicked">
-                <Icon fx:constant="FOLDER_OPEN_UNICODE" />
+                <Icon fx:constant="FOLDER_OPEN_UNICODE"/>
                 <tooltip>
-                    <Tooltip text="%header_torrent_collection" showDelay="200ms" showDuration="1h" />
+                    <Tooltip text="%header_torrent_collection" showDelay="200ms" showDuration="1h"/>
                 </tooltip>
             </Icon>
             <Icon styleClass="icon" onMouseClicked="#onSettingsClicked">
-                <Icon fx:constant="COG_UNICODE" />
+                <Icon fx:constant="COG_UNICODE"/>
                 <tooltip>
-                    <Tooltip text="%header_settings" showDelay="200ms" showDuration="1h" />
+                    <Tooltip text="%header_settings" showDelay="200ms" showDuration="1h"/>
                 </tooltip>
             </Icon>
         </HBox>
     </GridPane>
 
-    <BorderPane styleClass="shadow"/>
+    <BorderPane styleClass="shadow" cache="true" cacheHint="SCALE"/>
 </VBox>

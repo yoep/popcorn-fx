@@ -4,7 +4,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.view.controllers.sections.PlayerSectionController" fx:id="playerPane" styleClass="player">
+            fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.PlayerSectionController" fx:id="playerPane" styleClass="player">
     <!-- Video Player -->
     <Pane fx:id="videoView"
           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>

@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.*?>
 <?import com.github.yoep.popcorn.subtitles.controls.LanguageSelection?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.components.PlayerControlsComponent" styleClass="player-controls">
+          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.PlayerControlsComponent" styleClass="player-controls">
     <columnConstraints>
         <ColumnConstraints/>
         <ColumnConstraints/>

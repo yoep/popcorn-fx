@@ -1,0 +1,65 @@
+.root .menu {
+    -fx-padding: 0 0 0 0;
+}
+
+.root .menu .bar {
+    -fx-background-color: #1f2023;
+}
+
+.root .menu .bar .menu-item {
+    -fx-border-width: 0 5 0 0;
+    -fx-border-color: transparent;
+    -fx-font-size: 1.5em;
+    -fx-cursor: hand;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.root .menu .bar .menu-item Icon,
+.root .menu .bar .menu-item Label {
+    -fx-text-fill: #c3c5c7;
+}
+
+.root .menu .bar .menu-item Icon {
+    -fx-padding: 10 15 10 15;
+}
+
+.root .menu .bar .menu-item Label {
+    -fx-font-family: "Open Sans Semibold";
+}
+
+.root .menu .bar .menu-item.active {
+    -fx-background-color: #333437;
+    -fx-border-color: #2d72d9;
+}
+
+.root .menu .bar .menu-item.active Icon,
+.root .menu .bar .menu-item.active Label {
+    -fx-text-fill: #fff;
+}
+
+.root .menu .bar .sub-menu {
+    -fx-padding: 0 0 10 0;
+}
+
+.root .menu .bar .sub-menu .menu-item {
+    -fx-font-size: 1em;
+}
+
+.root .menu .bar .sub-menu .menu-item Icon {
+    -fx-padding: 5 15 5 15;
+}
+
+.root .menu .bar .menu-item:focused,
+.root .menu .bar .menu-item:focused.active {
+    -fx-background-color: rgba(45, 114, 217, 0.5);
+}
+
+.root .menu .bar .menu-item:focused Icon,
+.root .menu .bar .menu-item:focused Label {
+    -fx-text-fill: #fff;
+}
+
+.root .menu .shadow {
+    -fx-pref-width: 10;
+    -fx-background-color: linear-gradient(to right, rgba(0, 0, 0, 1), rgba(255, 255, 255, 0));
+}

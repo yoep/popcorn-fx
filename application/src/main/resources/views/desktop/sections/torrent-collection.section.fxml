@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.Label?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.sections.TorrentCollectionSectionController" styleClass="torrent-collection">
+          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.TorrentCollectionSectionController" styleClass="torrent-collection">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="10"/>
         <ColumnConstraints minWidth="400" percentWidth="80"/>

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.view;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.spring.boot.javafx.view.ViewLoaderImpl;
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.spring.boot.javafx.view.impl.ViewLoaderImpl;
 import com.github.yoep.popcorn.settings.OptionsService;
 import javafx.fxml.FXMLLoader;
 import lombok.Builder;

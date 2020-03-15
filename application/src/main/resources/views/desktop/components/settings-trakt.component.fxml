@@ -5,7 +5,7 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.Button?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.components.SettingsTraktComponent" styleClass="sub-section">
+          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.SettingsTraktComponent" styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
         <ColumnConstraints prefWidth="150"/>

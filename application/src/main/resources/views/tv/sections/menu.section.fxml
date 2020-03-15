@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.MenuSectionTvController" styleClass="menu">
+    <GridPane styleClass="bar">
+        <columnConstraints>
+            <ColumnConstraints minWidth="175" maxWidth="175"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints/>
+            <RowConstraints/>
+            <RowConstraints vgrow="ALWAYS"/>
+            <RowConstraints/>
+        </rowConstraints>
+
+        <!-- Menu items -->
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="1">
+            <HBox styleClass="menu-item" focusTraversable="true">
+                <Icon>
+                    <Icon fx:constant="SEARCH_UNICODE"/>
+                </Icon>
+                <Label text="%header_search"/>
+            </HBox>
+            <HBox styleClass="menu-item, active" focusTraversable="true">
+                <Icon>
+                    <Icon fx:constant="FILM_UNICODE"/>
+                </Icon>
+                <Label text="%filter_movies"/>
+            </HBox>
+            <HBox styleClass="menu-item" focusTraversable="true">
+                <Icon>
+                    <Icon fx:constant="TELEVISION_UNICODE"/>
+                </Icon>
+                <Label text="%filter_series"/>
+            </HBox>
+        </VBox>
+
+        <!-- Settings -->
+        <VBox styleClass="sub-menu" GridPane.columnIndex="0" GridPane.rowIndex="3">
+            <HBox styleClass="menu-item" focusTraversable="true">
+                <Icon>
+                    <Icon fx:constant="COG_UNICODE"/>
+                </Icon>
+                <Label text="%settings"/>
+            </HBox>
+            <HBox fx:id="shutdownItem" styleClass="menu-item" focusTraversable="true" onMouseClicked="#onMouseEvent" onKeyPressed="#onKeyEvent">
+                <Icon>
+                    <Icon fx:constant="POWER_OFF_UNICODE"/>
+                </Icon>
+                <Label text="%power-off"/>
+            </HBox>
+        </VBox>
+    </GridPane>
+
+    <BorderPane styleClass="shadow" cache="true" cacheHint="SCALE"/>
+</HBox>

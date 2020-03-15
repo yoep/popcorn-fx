@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.*?>
 <?import com.github.yoep.popcorn.torrent.controls.StreamInfo?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.components.PlayerHeaderComponent" styleClass="player-header">
+          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.PlayerHeaderComponent" styleClass="player-header">
     <columnConstraints>
         <ColumnConstraints hgrow="ALWAYS"/>
         <ColumnConstraints minWidth="10" maxWidth="10"/>

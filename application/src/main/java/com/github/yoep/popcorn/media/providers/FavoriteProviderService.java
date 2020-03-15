@@ -1,10 +1,13 @@
 package com.github.yoep.popcorn.media.providers;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.ErrorNotificationActivity;
 import com.github.yoep.popcorn.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
@@ -21,16 +24,20 @@ import java.util.stream.Stream;
 @Service
 public class FavoriteProviderService extends AbstractProviderService<Media> {
     private static final Category CATEGORY = Category.FAVORITES;
+
     private final FavoriteService favoriteService;
     private final List<ProviderService<?>> providers;
+    private final LocaleText localeText;
 
     public FavoriteProviderService(RestTemplate restTemplate,
                                    ActivityManager activityManager,
                                    FavoriteService favoriteService,
-                                   List<ProviderService<?>> providers) {
+                                   List<ProviderService<?>> providers,
+                                   LocaleText localeText) {
         super(restTemplate, activityManager);
         this.favoriteService = favoriteService;
         this.providers = providers;
+        this.localeText = localeText;
     }
 
     @Override
@@ -89,12 +96,21 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
             providers.stream()
                     .filter(e -> e.supports(Category.MOVIES))
                     .findFirst()
-                    .ifPresent(e -> e.showDetails(media));
+                    .ifPresent(e -> showDetails(e, media));
         } else {
             providers.stream()
                     .filter(e -> e.supports(Category.SERIES))
                     .findFirst()
-                    .ifPresent(e -> e.showDetails(media));
+                    .ifPresent(e -> showDetails(e, media));
+        }
+    }
+
+    private void showDetails(ProviderService<?> provider, Media media) {
+        try {
+            provider.showDetails(media);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+            activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
         }
     }
 }

@@ -2,5 +2,5 @@
 
 <?import javafx.scene.layout.*?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.view.controllers.sections.LoaderSectionController" fx:id="rootPane">
+           fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.LoaderSectionController" fx:id="rootPane">
 </StackPane>

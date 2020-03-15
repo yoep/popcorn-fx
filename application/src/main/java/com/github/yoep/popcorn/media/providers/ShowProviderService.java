@@ -52,7 +52,6 @@ public class ShowProviderService extends AbstractProviderService<Show> {
         return CompletableFuture.completedFuture(getDetailsInternal(imdbId));
     }
 
-    //TODO: add UI feedback for the user if the API call fails
     @Override
     public void showDetails(Media media) {
         var show = getDetailsInternal(media.getId());

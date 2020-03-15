@@ -17,7 +17,8 @@ public enum DetailsMessage implements Message {
     EPISODE_SEASON("details_episode_season"),
     AIR_DATE("details_air_date"),
     MARK_AS_WATCHED("details_mark_as_watched"),
-    UNMARK_AS_WATCHED("details_unmark_as_watched");
+    UNMARK_AS_WATCHED("details_unmark_as_watched"),
+    DETAILS_FAILED_TO_LOAD("details_failed_to_load");
 
     private final String key;
 

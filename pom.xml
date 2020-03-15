@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.1.9.RELEASE</version>
+        <version>2.2.5.RELEASE</version>
     </parent>
 
     <groupId>com.github.yoep</groupId>
@@ -41,15 +41,6 @@
             <url>http://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
         </repository>
     </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>javapackager-repo</id>
-            <url>https://github.com/fvarrui/JavaPackager/raw/master/releases</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-        </pluginRepository>
-    </pluginRepositories>
 
     <properties>
         <java.version>11</java.version>

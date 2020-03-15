@@ -28,7 +28,7 @@ public class VideoConfig {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 10)
-    @ConditionalOnMissingBean(name = {"vlcArmVideoPlayer"})
+    @ConditionalOnMissingBean(VideoPlayer.class)
     public VideoPlayer vlcVideoPlayer() {
         log.info("Using VLC player for video playbacks");
         return new VideoPlayerVlc();

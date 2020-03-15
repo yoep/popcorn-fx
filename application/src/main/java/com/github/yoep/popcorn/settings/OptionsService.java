@@ -17,9 +17,9 @@ import javax.annotation.PostConstruct;
 @Service
 @RequiredArgsConstructor
 public class OptionsService {
-    private static final String BIG_PICTURE_MODE_OPTION = "big-picture";
-    private static final String KIOSK_MODE_OPTION = "kiosk";
-    private static final String TV_MODE_OPTION = "tv";
+    public static final String BIG_PICTURE_MODE_OPTION = "big-picture";
+    public static final String KIOSK_MODE_OPTION = "kiosk";
+    public static final String TV_MODE_OPTION = "tv";
 
     private final ApplicationArguments arguments;
 

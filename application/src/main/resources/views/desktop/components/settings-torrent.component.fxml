@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.Separator?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.components.SettingsTorrentComponent" styleClass="sub-section">
+          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.SettingsTorrentComponent" styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
         <ColumnConstraints prefWidth="150"/>

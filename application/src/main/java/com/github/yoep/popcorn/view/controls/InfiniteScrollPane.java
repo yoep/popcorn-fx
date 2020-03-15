@@ -255,8 +255,8 @@ public class InfiniteScrollPane<T> extends ScrollPane {
 
         updating = true;
 
-        LoaderFactory loaderFactory = getLoaderFactory();
-        InfiniteScrollItemFactory<T> itemFactory = getItemFactory();
+        var loaderFactory = getLoaderFactory();
+        var itemFactory = getItemFactory();
 
         // add the loader node if the load factory has been set
         synchronized (loaderLock) {
@@ -289,15 +289,17 @@ public class InfiniteScrollPane<T> extends ScrollPane {
                                 });
                             }
 
-                            // check if enough items were loaded for the scrollbar to be scrollable
-                            if (!endOfItems && itemsPane.getHeight() < (this.getHeight() * 1.5) && getPage() < 5) {
-                                // load an additional page
-                                updating = false;
-                                increasePage();
-                            } else {
-                                // remove the loader
-                                finished();
-                            }
+                            runOnFx(() -> {
+                                // check if enough items were loaded for the scrollbar to be scrollable
+                                if (!endOfItems && itemsPane.getHeight() < (this.getHeight() * 1.5) && getPage() < 5) {
+                                    // load an additional page
+                                    updating = false;
+                                    increasePage();
+                                } else {
+                                    // remove the loader
+                                    finished();
+                                }
+                            });
                         }, "InfiniteScrollPane-contentUpdater");
 
                         log.trace("Starting new content updater thread");
@@ -325,13 +327,17 @@ public class InfiniteScrollPane<T> extends ScrollPane {
 
     private void runOnFx(Runnable runnable) {
         if (Platform.isFxApplicationThread()) {
-            try {
-                runnable.run();
-            } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
-            }
+            executeRunnable(runnable);
         } else {
-            Platform.runLater(runnable);
+            Platform.runLater(() -> executeRunnable(runnable));
+        }
+    }
+
+    private void executeRunnable(Runnable runnable) {
+        try {
+            runnable.run();
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
         }
     }
 

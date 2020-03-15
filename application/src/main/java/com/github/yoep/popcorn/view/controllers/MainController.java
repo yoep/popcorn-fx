@@ -1,9 +1,11 @@
 package com.github.yoep.popcorn.view.controllers;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.UISettings;
 import javafx.application.Platform;
@@ -44,6 +46,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private final TaskExecutor taskExecutor;
     private final SettingsService settingsService;
     private final ApplicationArguments arguments;
+    private final LocaleText localeText;
 
     private Pane contentPane;
     private Pane settingsPane;
@@ -304,14 +307,19 @@ public class MainController extends ScaleAwareImpl implements Initializable {
                         }
                     } catch (IOException ex) {
                         log.error("Failed to process url, " + ex.getMessage(), ex);
+                        activityManager.register((ErrorNotificationActivity) () -> localeText.get(MediaMessage.VIDEO_FAILED_TO_OPEN));
+                        return false;
                     }
                 } else {
                     log.warn("Failed to process url, file \"{}\" does not exist", url);
+                    activityManager.register((ErrorNotificationActivity) () -> localeText.get(MediaMessage.URL_FAILED_TO_PROCESS, url));
+                    return false;
                 }
             }
-        } else {
-            log.warn("Failed to process url, url \"{}\" is invalid", url);
         }
+
+        log.warn("Failed to process url, url \"{}\" is invalid", url);
+        activityManager.register((ErrorNotificationActivity) () -> localeText.get(MediaMessage.URL_FAILED_TO_PROCESS, url));
 
         return false;
     }
@@ -326,9 +334,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private boolean isVideoFile(File file) throws IOException {
         var contentType = Files.probeContentType(file.toPath());
-        var format = contentType.split("/")[0];
 
-        return format.equalsIgnoreCase("video");
+        if (contentType != null) {
+            var format = contentType.split("/")[0];
+            return format.equalsIgnoreCase("video");
+        } else {
+            return false;
+        }
     }
 
     private void setAnchor(Pane pane) {

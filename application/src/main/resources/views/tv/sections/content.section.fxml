@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.*?>
 
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.ContentSectionTvController" fx:id="rootPane" styleClass="content-section">
+            fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.ContentSectionController" fx:id="rootPane" styleClass="content-section">
     <fx:include source="menu.section.fxml"
                 AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 </AnchorPane>

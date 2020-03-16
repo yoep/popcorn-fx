@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
@@ -22,7 +21,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
@@ -36,8 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@ViewController
-@RequiredArgsConstructor
 public class ListSectionController implements Initializable {
     private final ActivityManager activityManager;
     private final List<ProviderService<? extends Media>> providerServices;
@@ -61,11 +58,38 @@ public class ListSectionController implements Initializable {
     @FXML
     private Label failedText;
 
+    //region Constructors
+
+    @Builder
+    public ListSectionController(ActivityManager activityManager,
+                                 List<ProviderService<? extends Media>> providerServices,
+                                 FavoriteService favoriteService,
+                                 WatchedService watchedService,
+                                 ViewLoader viewLoader,
+                                 TaskExecutor taskExecutor,
+                                 LocaleText localeText) {
+        this.activityManager = activityManager;
+        this.providerServices = providerServices;
+        this.favoriteService = favoriteService;
+        this.watchedService = watchedService;
+        this.viewLoader = viewLoader;
+        this.taskExecutor = taskExecutor;
+        this.localeText = localeText;
+    }
+
+    //endregion
+
+    //region Initializable
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeScrollPane();
         initializeFailedPane();
     }
+
+    //endregion
+
+    //region PostConstruct
 
     @PostConstruct
     private void init() {
@@ -74,6 +98,10 @@ public class ListSectionController implements Initializable {
         activityManager.register(SortByChangeActivity.class, this::onSortByChange);
         activityManager.register(SearchActivity.class, this::onSearchChanged);
     }
+
+    //endregion
+
+    //region Functions
 
     private void initializeScrollPane() {
         scrollPane.setLoaderFactory(() -> viewLoader.load("components/loading-card.component.fxml"));
@@ -254,4 +282,6 @@ public class ListSectionController implements Initializable {
     private void reset() {
         scrollPane.reset();
     }
+
+    //endregion
 }

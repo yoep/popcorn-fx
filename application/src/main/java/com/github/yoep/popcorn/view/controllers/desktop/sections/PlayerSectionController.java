@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ClosePlayerActivity;
@@ -41,7 +40,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebView;
 import javafx.util.Duration;
-import lombok.RequiredArgsConstructor;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -55,8 +54,6 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
-@RequiredArgsConstructor
 public class PlayerSectionController implements Initializable {
     private static final int OVERLAY_FADE_DURATION = 1500;
     private static final int INFO_FADE_DURATION = 2000;
@@ -105,6 +102,33 @@ public class PlayerSectionController implements Initializable {
     private Pane bufferPane;
     @FXML
     private SubtitleTrack subtitleTrack;
+
+    //region Constructors
+
+    @Builder
+    public PlayerSectionController(ActivityManager activityManager,
+                                   TaskExecutor taskExecutor,
+                                   TorrentService torrentService,
+                                   SubtitleService subtitleService,
+                                   SettingsService settingsService,
+                                   AutoResumeService autoResumeService,
+                                   PlayerHeaderComponent playerHeader,
+                                   PlayerControlsComponent playerControls,
+                                   List<VideoPlayer> videoPlayers,
+                                   LocaleText localeText) {
+        this.activityManager = activityManager;
+        this.taskExecutor = taskExecutor;
+        this.torrentService = torrentService;
+        this.subtitleService = subtitleService;
+        this.settingsService = settingsService;
+        this.autoResumeService = autoResumeService;
+        this.playerHeader = playerHeader;
+        this.playerControls = playerControls;
+        this.videoPlayers = videoPlayers;
+        this.localeText = localeText;
+    }
+
+    //endregion
 
     //region Methods
 

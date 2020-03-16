@@ -1,27 +1,34 @@
 package com.github.yoep.popcorn.view.controllers.desktop;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.activities.*;
-import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.common.AbstractMainController;
 import com.github.yoep.popcorn.view.services.UrlService;
 import javafx.application.Platform;
+import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.core.task.TaskExecutor;
 
 import javax.annotation.PostConstruct;
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class MainDesktopController extends AbstractMainController implements MainController {
+    private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
+
     private Pane overlayPane;
 
     //region Constructors
@@ -29,12 +36,10 @@ public class MainDesktopController extends AbstractMainController implements Mai
     @Builder
     public MainDesktopController(ActivityManager activityManager,
                                  ViewLoader viewLoader,
-                                 ViewManager viewManager,
                                  TaskExecutor taskExecutor,
-                                 SettingsService settingsService,
                                  ApplicationArguments arguments,
                                  UrlService urlService) {
-        super(activityManager, viewLoader, viewManager, arguments, settingsService, urlService, taskExecutor);
+        super(activityManager, viewLoader, arguments, urlService, taskExecutor);
     }
 
     //endregion
@@ -44,6 +49,7 @@ public class MainDesktopController extends AbstractMainController implements Mai
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         super.initialize(url, resourceBundle);
+        initializeSceneEvents();
 
         if (!processApplicationArguments())
             switchSection(SectionType.CONTENT);
@@ -61,10 +67,7 @@ public class MainDesktopController extends AbstractMainController implements Mai
 
     @Override
     protected void initializePanes() {
-        // load the other panes on a different thread
-        taskExecutor.execute(() -> {
-            overlayPane = viewLoader.load("sections/overlay.section.fxml");
-        });
+        taskExecutor.execute(() -> overlayPane = viewLoader.load("sections/overlay.section.fxml"));
     }
 
     @Override
@@ -83,6 +86,83 @@ public class MainDesktopController extends AbstractMainController implements Mai
     //endregion
 
     //region Functions
+
+    private void initializeSceneEvents() {
+        rootPane.setOnKeyPressed(event -> {
+            if (PASTE_KEY_COMBINATION.match(event)) {
+                event.consume();
+                onContentPasted();
+            }
+        });
+
+        rootPane.setOnDragOver(this::onDragOver);
+        rootPane.setOnDragDropped(this::onDragDropped);
+    }
+
+    private void onContentPasted() {
+        var clipboard = Clipboard.getSystemClipboard();
+        var url = clipboard.getUrl();
+        var files = clipboard.getFiles();
+
+        if (CollectionUtils.isNotEmpty(files)) {
+            log.trace("Processing clipboard files");
+            processFiles(files);
+        } else if (StringUtils.isNotEmpty(url)) {
+            log.trace("Processing clipboard url");
+            urlService.process(url);
+        } else if (StringUtils.isNotEmpty(clipboard.getString())) {
+            log.trace("Processing clipboard string");
+            urlService.process(clipboard.getString());
+        } else {
+            log.debug("Ignoring content pasted action, not content available on the clipboard");
+        }
+    }
+
+    private void onDragOver(DragEvent event) {
+        List<File> files = event.getDragboard().getFiles();
+
+        if (CollectionUtils.isNotEmpty(files)) {
+            log.trace("Processing drag content");
+            File file = files.get(0);
+
+            try {
+                if (urlService.isVideoFile(file))
+                    event.acceptTransferModes(TransferMode.ANY);
+            } catch (IOException ex) {
+                log.error("Failed to detect drag content type, " + ex.getMessage(), ex);
+            }
+        }
+    }
+
+    private void onDragDropped(DragEvent event) {
+        List<File> files = event.getDragboard().getFiles();
+
+        if (CollectionUtils.isNotEmpty(files)) {
+            processFiles(files);
+        }
+    }
+
+    private void processFiles(List<File> files) {
+        File file = files.get(0);
+        String title = FilenameUtils.getBaseName(file.getName());
+
+        activityManager.register(new PlayVideoActivity() {
+            @Override
+            public String getUrl() {
+                return file.getAbsolutePath();
+            }
+
+            @Override
+            public String getTitle() {
+                return title;
+            }
+
+            @Override
+            public boolean isSubtitlesEnabled() {
+                return false;
+            }
+        });
+    }
 
     private void switchSection(SectionType sectionType) {
         AtomicReference<Pane> content = new AtomicReference<>();

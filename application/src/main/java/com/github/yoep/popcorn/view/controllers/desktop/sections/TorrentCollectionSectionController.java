@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.LoadUrlActivity;
 import com.github.yoep.popcorn.activities.ShowTorrentCollectionActivity;
@@ -29,7 +28,6 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
 @RequiredArgsConstructor
 public class TorrentCollectionSectionController implements Initializable {
     private final TorrentCollectionService torrentCollectionService;

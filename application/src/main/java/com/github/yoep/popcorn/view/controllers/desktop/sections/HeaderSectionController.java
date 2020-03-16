@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
@@ -29,7 +28,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
-@ViewController
 @RequiredArgsConstructor
 public class HeaderSectionController implements Initializable {
     private static final String STYLE_ACTIVE = "active";

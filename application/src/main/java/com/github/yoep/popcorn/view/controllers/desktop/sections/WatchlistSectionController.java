@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
@@ -21,7 +20,7 @@ import com.github.yoep.popcorn.view.controls.InfiniteScrollPane;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
-import lombok.RequiredArgsConstructor;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
@@ -31,8 +30,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
-@ViewController
-@RequiredArgsConstructor
 public class WatchlistSectionController implements Initializable {
     private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
@@ -44,10 +41,29 @@ public class WatchlistSectionController implements Initializable {
     @FXML
     private InfiniteScrollPane<Media> scrollPane;
 
+    //region Constructors
+
+    @Builder
+    public WatchlistSectionController(ActivityManager activityManager, ViewLoader viewLoader, LocaleText localeText, TraktService traktService,
+                                      ProviderService<Movie> movieProviderService, ProviderService<Show> showProviderService) {
+        this.activityManager = activityManager;
+        this.viewLoader = viewLoader;
+        this.localeText = localeText;
+        this.traktService = traktService;
+        this.movieProviderService = movieProviderService;
+        this.showProviderService = showProviderService;
+    }
+
+    //endregion
+
+    //region Initializable
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeScrollPane();
     }
+
+    //endregion
 
     //region PostConstruct
 

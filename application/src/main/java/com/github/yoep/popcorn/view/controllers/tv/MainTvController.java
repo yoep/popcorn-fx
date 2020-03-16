@@ -1,9 +1,7 @@
 package com.github.yoep.popcorn.view.controllers.tv;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.activities.*;
-import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.common.AbstractMainController;
 import com.github.yoep.popcorn.view.services.UrlService;
@@ -28,12 +26,10 @@ public class MainTvController extends AbstractMainController implements MainCont
     @Builder
     public MainTvController(ActivityManager activityManager,
                             ViewLoader viewLoader,
-                            ViewManager viewManager,
                             ApplicationArguments arguments,
-                            SettingsService settingsService,
                             UrlService urlService,
                             TaskExecutor taskExecutor) {
-        super(activityManager, viewLoader, viewManager, arguments, settingsService, urlService, taskExecutor);
+        super(activityManager, viewLoader,  arguments, urlService, taskExecutor);
     }
 
     //endregion

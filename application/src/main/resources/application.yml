@@ -3,7 +3,7 @@ spring:
     name: Popcorn Time
   main:
     allow-bean-definition-overriding: true
-    lazy-initialization: true
+    lazy-initialization: false
 
 server:
   tomcat:

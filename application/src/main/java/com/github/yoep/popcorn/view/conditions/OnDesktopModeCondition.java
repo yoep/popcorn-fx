@@ -8,7 +8,7 @@ import org.springframework.context.annotation.ConfigurationCondition;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
 @Slf4j
-public class OnTvModeCondition implements ConfigurationCondition {
+public class OnDesktopModeCondition implements ConfigurationCondition {
     @Override
     public ConfigurationPhase getConfigurationPhase() {
         return ConfigurationPhase.PARSE_CONFIGURATION;
@@ -21,7 +21,7 @@ public class OnTvModeCondition implements ConfigurationCondition {
         if (beanFactory != null) {
             var arguments = beanFactory.getBean(ApplicationArguments.class);
 
-            return arguments.containsOption(OptionsService.TV_MODE_OPTION);
+            return !arguments.containsOption(OptionsService.TV_MODE_OPTION);
         } else {
             log.warn("Unable to verify TV mode, beanFactory is undefined");
         }

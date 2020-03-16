@@ -4,7 +4,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.MenuSectionTvController" styleClass="menu">
+      fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.MenuSectionController" styleClass="menu">
     <GridPane styleClass="bar">
         <columnConstraints>
             <ColumnConstraints minWidth="175" maxWidth="175"/>

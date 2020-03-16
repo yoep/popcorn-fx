@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.fullscreen;
+package com.github.yoep.popcorn.view.services;
 
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.activities.ActivityManager;

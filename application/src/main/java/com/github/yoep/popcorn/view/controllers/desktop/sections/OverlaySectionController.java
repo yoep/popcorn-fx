@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowTorrentDetailsActivity;
@@ -17,7 +16,6 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@ViewController
 @RequiredArgsConstructor
 public class OverlaySectionController implements Initializable {
     private final ActivityManager activityManager;

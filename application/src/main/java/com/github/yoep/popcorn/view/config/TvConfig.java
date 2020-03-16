@@ -28,32 +28,32 @@ public class TvConfig {
     }
 
     @Bean
-    public ContentSectionController contentSectionTvController() {
+    public ContentSectionController contentSectionController() {
         return new ContentSectionController();
     }
 
     @Bean
-    public ListSectionController listSectionTvController() {
+    public ListSectionController listSectionController() {
         return new ListSectionController();
     }
 
     @Bean
-    public LoaderSectionController loaderSectionTvController() {
+    public LoaderSectionController loaderSectionController() {
         return new LoaderSectionController();
     }
 
     @Bean
-    public MenuSectionController menuSectionTvController() {
-        return new MenuSectionController();
+    public MenuSectionController menuSectionController(ActivityManager activityManager) {
+        return new MenuSectionController(activityManager);
     }
 
     @Bean
-    public PlayerSectionController playerSectionTvController() {
+    public PlayerSectionController playerSectionController() {
         return new PlayerSectionController();
     }
 
     @Bean
-    public SettingsSectionController settingsSectionTvController() {
+    public SettingsSectionController settingsSectionController() {
         return new SettingsSectionController();
     }
 }

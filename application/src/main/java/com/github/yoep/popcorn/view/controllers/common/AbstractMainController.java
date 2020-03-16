@@ -26,7 +26,6 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
     protected final TaskExecutor taskExecutor;
 
     protected Pane contentPane;
-    protected Pane settingsPane;
     protected Pane playerPane;
     protected Pane loaderPane;
     protected Pane notificationPane;
@@ -81,7 +80,6 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
 
         // load the other panes on a different thread
         taskExecutor.execute(() -> {
-            settingsPane = viewLoader.load("sections/settings.section.fxml");
             playerPane = viewLoader.load("sections/player.section.fxml");
             loaderPane = viewLoader.load("sections/loader.section.fxml");
         });

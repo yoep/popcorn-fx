@@ -61,10 +61,8 @@ public class MainTvController extends AbstractMainController implements MainCont
     @Override
     protected void initializeListeners() {
         activityManager.register(PlayVideoActivity.class, activity -> switchSection(SectionType.PLAYER));
-        activityManager.register(ShowSettingsActivity.class, activity -> switchSection(SectionType.SETTINGS));
         activityManager.register(LoadActivity.class, activity -> switchSection(SectionType.LOADER));
 
-        activityManager.register(CloseSettingsActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(ClosePlayerActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(CloseLoadActivity.class, activity -> switchSection(SectionType.CONTENT));
     }
@@ -77,9 +75,6 @@ public class MainTvController extends AbstractMainController implements MainCont
         switch (sectionType) {
             case CONTENT:
                 content.set(contentPane);
-                break;
-            case SETTINGS:
-                content.set(settingsPane);
                 break;
             case PLAYER:
                 content.set(playerPane);
@@ -106,7 +101,6 @@ public class MainTvController extends AbstractMainController implements MainCont
 
     private enum SectionType {
         CONTENT,
-        SETTINGS,
         PLAYER,
         LOADER
     }

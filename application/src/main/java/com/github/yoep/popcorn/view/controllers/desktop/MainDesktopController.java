@@ -73,11 +73,9 @@ public class MainDesktopController extends AbstractMainController implements Mai
     @Override
     protected void initializeListeners() {
         activityManager.register(PlayVideoActivity.class, activity -> switchSection(SectionType.PLAYER));
-        activityManager.register(ShowSettingsActivity.class, activity -> switchSection(SectionType.SETTINGS));
         activityManager.register(LoadActivity.class, activity -> switchSection(SectionType.LOADER));
         activityManager.register(OverlayActivity.class, activity -> switchSection(SectionType.OVERLAY));
 
-        activityManager.register(CloseSettingsActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(ClosePlayerActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(CloseLoadActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(CloseOverlayActivity.class, activity -> switchSection(SectionType.CONTENT));
@@ -171,9 +169,6 @@ public class MainDesktopController extends AbstractMainController implements Mai
             case CONTENT:
                 content.set(contentPane);
                 break;
-            case SETTINGS:
-                content.set(settingsPane);
-                break;
             case PLAYER:
                 content.set(playerPane);
                 break;
@@ -204,7 +199,6 @@ public class MainDesktopController extends AbstractMainController implements Mai
 
     private enum SectionType {
         CONTENT,
-        SETTINGS,
         PLAYER,
         LOADER,
         OVERLAY

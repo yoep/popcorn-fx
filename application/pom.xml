@@ -20,7 +20,7 @@
 
         <commons-text.version>1.8</commons-text.version>
         <commons-collections.version>4.4</commons-collections.version>
-        <jlibtorrent.version>1.2.0.18</jlibtorrent.version>
+        <jlibtorrent.version>1.2.3.0</jlibtorrent.version>
     </properties>
 
     <dependencies>
@@ -126,6 +126,15 @@
             <groupId>com.frostwire</groupId>
             <artifactId>jlibtorrent</artifactId>
             <version>${jlibtorrent.version}</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/../assets/jlibtorrent-${jlibtorrent.version}.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>com.frostwire</groupId>
+            <artifactId>jlibtorrent-platform</artifactId>
+            <version>${jlibtorrent.version}</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/../assets/${platform}/jlibtorrent-${platform}-${jlibtorrent.version}.jar</systemPath>
         </dependency>
 
         <!-- OpenSubtitles -->
@@ -240,7 +249,10 @@
                             <organizationName>Popcorn Time</organizationName>
                             <licenseFile>../LICENSE</licenseFile>
                             <version>1.0.0</version>
-                            <vmArgs>-Dsun.awt.disablegrab=true -Dprism.dirtyopts=false -Dprism.lcdtext=false -XX:+UseG1GC</vmArgs>
+                            <additionalResources>
+                                <param>${basedir}/../assets/${platform}/javafx</param>
+                            </additionalResources>
+                            <vmArgs>-Dsun.awt.disablegrab=true -Dprism.dirtyopts=false -Dprism.lcdtext=false -XX:+UseG1GC -p "javafx/lib" --add-exports=javafx.graphics/com.sun.javafx.util=ALL-UNNAMED</vmArgs>
                         </configuration>
                     </execution>
                 </executions>
@@ -252,51 +264,23 @@
         <profile>
             <id>windows</id>
 
-            <dependencies>
-                <!-- JLibtorrent -->
-                <dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent-windows</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                </dependency>
-            </dependencies>
+            <properties>
+                <platform>windows</platform>
+            </properties>
         </profile>
         <profile>
             <id>linux</id>
 
-            <dependencies>
-                <!-- JLibtorrent -->
-                <dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent-linux</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                </dependency>
-            </dependencies>
+            <properties>
+                <platform>linux</platform>
+            </properties>
         </profile>
         <profile>
-            <id>arm</id>
+            <id>linux-arm</id>
 
             <properties>
-                <jlibtorrent.version>1.2.3.0</jlibtorrent.version>
+                <platform>linux-arm</platform>
             </properties>
-
-            <dependencies>
-                <!-- JLibtorrent -->
-                <dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                    <scope>system</scope>
-                    <systemPath>${project.basedir}/lib/jlibtorrent-${jlibtorrent.version}.jar</systemPath>
-                </dependency>
-                <dependency>
-                    <groupId>com.frostwire</groupId>
-                    <artifactId>jlibtorrent-android-arm</artifactId>
-                    <version>${jlibtorrent.version}</version>
-                    <scope>system</scope>
-                    <systemPath>${project.basedir}/lib/jlibtorrent-linux-arm-${jlibtorrent.version}.jar</systemPath>
-                </dependency>
-            </dependencies>
         </profile>
     </profiles>
 </project>

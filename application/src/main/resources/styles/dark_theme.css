@@ -919,7 +919,8 @@
 }
 
 .root .settings-section .sub-section .subsection-title {
-    -fx-min-width: 200;
+    -fx-min-width: 300;
+    -fx-max-width: 300;
     -fx-max-height: Infinity;
     -fx-font-family: "Open Sans";
     -fx-text-fill: #2d75df;

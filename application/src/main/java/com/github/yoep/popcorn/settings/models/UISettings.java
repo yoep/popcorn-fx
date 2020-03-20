@@ -2,8 +2,11 @@ package com.github.yoep.popcorn.settings.models;
 
 import lombok.*;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+
+import static java.util.Arrays.asList;
 
 @EqualsAndHashCode(callSuper = false)
 @Data
@@ -15,7 +18,7 @@ public class UISettings extends AbstractSettings {
     public static final String UI_SCALE_PROPERTY = "uiScale";
     public static final String MAXIMIZED_PROPERTY = "maximized";
 
-    private static final Locale DEFAULT_LANGUAGE = Locale.getDefault();
+    private static final Locale DEFAULT_LANGUAGE = defaultLanguage();
 
     /**
      * The default language of the application.
@@ -62,4 +65,27 @@ public class UISettings extends AbstractSettings {
     }
 
     //endregion
+
+    /**
+     * Get the default language for the application.
+     *
+     * @return Returns the default for the application.
+     */
+    public static Locale defaultLanguage() {
+        var identifiedDefault = Locale.getDefault();
+
+        return supportedLanguages().stream()
+                .filter(e -> e.getLanguage().equals(identifiedDefault.getLanguage()))
+                .findFirst()
+                .orElse(Locale.ENGLISH);
+    }
+
+    /**
+     * Get the list of supported languages by the application.
+     *
+     * @return Returns the list of support languages.
+     */
+    public static List<Locale> supportedLanguages() {
+        return asList(Locale.ENGLISH, new Locale("nl"));
+    }
 }

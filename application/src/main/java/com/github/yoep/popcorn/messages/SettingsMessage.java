@@ -5,7 +5,8 @@ import lombok.Getter;
 
 @Getter
 public enum SettingsMessage implements Message {
-    TRAKT_LOGIN_TITLE("settings_trakt_login_title");
+    TRAKT_LOGIN_TITLE("settings_trakt_login_title"),
+    SETTINGS_SAVED("settings_saved");
 
     private final String key;
 

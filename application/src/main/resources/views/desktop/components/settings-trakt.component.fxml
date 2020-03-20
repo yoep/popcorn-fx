@@ -8,7 +8,7 @@
           fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.SettingsTraktComponent" styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
-        <ColumnConstraints prefWidth="150"/>
+        <ColumnConstraints />
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>

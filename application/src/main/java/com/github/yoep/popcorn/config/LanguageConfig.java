@@ -11,7 +11,7 @@ public class LanguageConfig {
     @Bean
     public ResourceBundleMessageSource messageSource() {
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
-        messageSource.setBasenames(DIRECTORY + "main", DIRECTORY + "genres", DIRECTORY + "sort-by");
+        messageSource.setBasenames(DIRECTORY + "main", DIRECTORY + "genres", DIRECTORY + "sort-by", DIRECTORY + "languages");
         return messageSource;
     }
 }

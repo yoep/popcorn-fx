@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.settings;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.PopcornTimeApplication;
 import com.github.yoep.popcorn.settings.models.ApplicationSettings;
@@ -16,6 +17,7 @@ import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Locale;
 import java.util.Optional;
 
 @Slf4j
@@ -26,6 +28,7 @@ public class SettingsService {
     private final ObjectMapper objectMapper;
     private final ViewLoader viewLoader;
     private final OptionsService optionsService;
+    private final LocaleText localeText;
 
     private ApplicationSettings currentSettings;
 
@@ -82,11 +85,12 @@ public class SettingsService {
     private void init() {
         createApplicationSettingsDirectory();
         initializeSettings();
+        initializeDefaultLanguage();
     }
 
     private void initializeSettings() {
         this.currentSettings = loadSettingsFromFile().orElse(ApplicationSettings.builder().build());
-        UISettings uiSettings = this.currentSettings.getUiSettings();
+        var uiSettings = this.currentSettings.getUiSettings();
 
         uiSettings.addListener(event -> {
             if (event.getPropertyName().equals(UISettings.UI_SCALE_PROPERTY)) {
@@ -97,6 +101,23 @@ public class SettingsService {
         });
 
         updateUIScale(uiSettings.getUiScale().getValue());
+
+    }
+
+    private void initializeDefaultLanguage() {
+        var uiSettings = this.currentSettings.getUiSettings();
+
+        // update the locale text with the locale from the settings
+        localeText.updateLocale(uiSettings.getDefaultLanguage());
+
+        // add a listener to the default language for changing the language at runtime
+        uiSettings.addListener(event -> {
+            if (event.getPropertyName().equals(UISettings.LANGUAGE_PROPERTY)) {
+                var locale = (Locale) event.getNewValue();
+
+                localeText.updateLocale(locale);
+            }
+        });
     }
 
     //endregion

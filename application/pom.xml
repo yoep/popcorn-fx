@@ -221,7 +221,6 @@
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
-                <version>0.8.9</version>
                 <executions>
                     <execution>
                         <phase>package</phase>

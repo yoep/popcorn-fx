@@ -77,6 +77,7 @@ public class SettingsUIComponent implements Initializable {
     private void updateLanguage(Language newValue) {
         getUiSettings().setDefaultLanguage(newValue.getLocale());
         showNotification();
+        //TODO: force the UI to reload to apply the text changes
     }
 
     private void updateUIScale(UIScale newValue) {

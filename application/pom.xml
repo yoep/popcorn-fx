@@ -21,6 +21,8 @@
         <commons-text.version>1.8</commons-text.version>
         <commons-collections.version>4.4</commons-collections.version>
         <jlibtorrent.version>1.2.3.0</jlibtorrent.version>
+
+        <start-class>com.github.yoep.popcorn.PopcornTimeStarter</start-class>
     </properties>
 
     <dependencies>
@@ -126,15 +128,11 @@
             <groupId>com.frostwire</groupId>
             <artifactId>jlibtorrent</artifactId>
             <version>${jlibtorrent.version}</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/../assets/jlibtorrent-${jlibtorrent.version}.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.frostwire</groupId>
             <artifactId>jlibtorrent-platform</artifactId>
             <version>${jlibtorrent.version}</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/../assets/${platform}/jlibtorrent-${platform}-${jlibtorrent.version}.jar</systemPath>
         </dependency>
 
         <!-- OpenSubtitles -->
@@ -162,6 +160,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Testing -->
@@ -180,12 +179,6 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.jetbrains</groupId>
-            <artifactId>annotations</artifactId>
-            <version>18.0.0</version>
-            <scope>compile</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -202,6 +195,45 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.0.0-M1</version>
+                <executions>
+                    <execution>
+                        <id>install-jlibtorrent</id>
+                        <phase>pre-clean</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${basedir}/../assets/jlibtorrent-1.2.3.0.jar</file>
+                            <repositoryLayout>default</repositoryLayout>
+                            <groupId>com.frostwire</groupId>
+                            <artifactId>jlibtorrent</artifactId>
+                            <version>${jlibtorrent.version}</version>
+                            <packaging>jar</packaging>
+                            <generatePom>true</generatePom>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-jlibtorrent-platform</id>
+                        <phase>pre-clean</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${basedir}/../assets/${platform}/jlibtorrent-${platform}-${jlibtorrent.version}.jar</file>
+                            <repositoryLayout>default</repositoryLayout>
+                            <groupId>com.frostwire</groupId>
+                            <artifactId>jlibtorrent-platform</artifactId>
+                            <version>${jlibtorrent.version}</version>
+                            <packaging>jar</packaging>
+                            <generatePom>true</generatePom>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <annotationProcessorPaths>
@@ -214,18 +246,47 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
                 <configuration>
                     <finalName>popcorn-time</finalName>
+                    <keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
                 </configuration>
                 <executions>
                     <execution>
+                        <phase>package</phase>
                         <goals>
-                            <goal>repackage</goal>
+                            <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.handlers</resource>
+                                </transformer>
+                                <transformer implementation="org.springframework.boot.maven.PropertiesMergingResourceTransformer">
+                                    <resource>META-INF/spring.factories</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.schemas</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${start-class}</mainClass>
+                                </transformer>
+                                <transformer
+                                        implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
+                                </transformer>
+                            </transformers>
+                        </configuration>
                     </execution>
                 </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.github.edwgiz</groupId>
+                        <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
+                        <version>2.13.0</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
@@ -237,7 +298,7 @@
                             <goal>package</goal>
                         </goals>
                         <configuration>
-                            <mainClass>org.springframework.boot.loader.JarLauncher</mainClass>
+                            <mainClass>com.github.yoep.popcorn.PopcornTimeStarter</mainClass>
                             <runnableJar>${project.build.directory}/popcorn-time.jar</runnableJar>
                             <bundleJre>true</bundleJre>
                             <copyDependencies>false</copyDependencies>
@@ -249,10 +310,7 @@
                             <organizationName>Popcorn Time</organizationName>
                             <licenseFile>../LICENSE</licenseFile>
                             <version>1.0.0</version>
-                            <additionalResources>
-                                <param>${basedir}/../assets/${platform}/javafx</param>
-                            </additionalResources>
-                            <vmArgs>-Dsun.awt.disablegrab=true -Dprism.dirtyopts=false -Dprism.lcdtext=false -XX:+UseG1GC -p "javafx/lib" --add-exports=javafx.graphics/com.sun.javafx.util=ALL-UNNAMED</vmArgs>
+                            <vmArgs>-Dsun.awt.disablegrab=true -Dprism.dirtyopts=false -Dprism.lcdtext=false -XX:+UseG1GC</vmArgs>
                         </configuration>
                     </execution>
                 </executions>

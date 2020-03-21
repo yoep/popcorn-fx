@@ -4,6 +4,8 @@ spring:
   main:
     allow-bean-definition-overriding: true
     lazy-initialization: false
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 
 server:
   tomcat:

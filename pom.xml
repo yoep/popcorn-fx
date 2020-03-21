@@ -28,14 +28,6 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <id>jcenter</id>
-            <name>bintray</name>
-            <url>https://jcenter.bintray.com</url>
-        </repository>
-        <repository>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
             <id>gluonhq</id>
             <name>gluonhq</name>
             <url>http://nexus.gluonhq.com/nexus/content/repositories/releases/</url>

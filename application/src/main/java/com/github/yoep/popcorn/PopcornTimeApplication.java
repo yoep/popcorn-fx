@@ -14,14 +14,11 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 
 import java.io.File;
 
 @Slf4j
-@SpringBootApplication(exclude = {
-        SecurityAutoConfiguration.class
-})
+@SpringBootApplication
 public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String ICON_NAME = "icon_64.png";
     public static final String APP_DIR = getDefaultAppDirLocation();

@@ -39,7 +39,7 @@ public class HeaderSectionController implements Initializable {
     private final LocaleText localeText;
     private final SettingsService settingsService;
 
-    private boolean initialized;
+    private boolean startScreenInitialized;
 
     @FXML
     private Pane rootPane;
@@ -100,9 +100,9 @@ public class HeaderSectionController implements Initializable {
 
     private void initializeSceneListener() {
         rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
-            if (!initialized) {
+            if (!startScreenInitialized) {
                 initializeStartScreen();
-                initialized = true;
+                startScreenInitialized = true;
             }
         }));
     }

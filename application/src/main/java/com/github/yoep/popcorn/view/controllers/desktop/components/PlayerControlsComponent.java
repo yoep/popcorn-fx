@@ -137,9 +137,11 @@ public class PlayerControlsComponent implements Initializable {
         Platform.runLater(() -> {
             long time = newValue.longValue();
 
-            timeLabel.setText(formatTime(time));
-            slider.setValue(time);
             this.time = time;
+            timeLabel.setText(formatTime(time));
+
+            if (!slider.isValueChanging())
+                slider.setValue(time);
         });
     }
 
@@ -173,7 +175,6 @@ public class PlayerControlsComponent implements Initializable {
     //region Functions
 
     private void initializeSlider() {
-        slider.valueChangingProperty().addListener((observable, oldValue, newValue) -> listeners.forEach(PlayerControlsListener::onPlayPauseClicked));
         slider.valueProperty().addListener((observableValue, oldValue, newValue) -> {
             if (slider.isValueChanging()) {
                 listeners.forEach(e -> e.onTimeChanged(newValue.longValue()));

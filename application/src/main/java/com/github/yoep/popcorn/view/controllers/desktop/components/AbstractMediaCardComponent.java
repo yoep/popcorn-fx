@@ -18,6 +18,8 @@ import java.util.ResourceBundle;
 
 @Slf4j
 public abstract class AbstractMediaCardComponent extends AbstractCardComponent implements Initializable {
+    private static final Image POSTER_HOLDER_IMAGE = loadPosterHolderImage();
+
     protected final Media media;
     protected final LocaleText localeText;
 
@@ -41,25 +43,13 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
 
     protected void initializeImage() {
         var imageLoadingThread = new Thread(() -> {
-            try {
-                // use the post holder image as a default
-                var image = new Image(getPosterHolderResource().getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
-                setBackgroundImage(image, false);
-            } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
-            }
+            setPosterHolderImage();
 
             // try to load the actual image
             Optional.ofNullable(media.getImages())
                     .map(Images::getPoster)
                     .filter(e -> !e.equalsIgnoreCase("n/a"))
-                    .ifPresent(mediaImage -> {
-                        try {
-                            setBackgroundImage(new Image(mediaImage, POSTER_WIDTH, POSTER_HEIGHT, true, true), true);
-                        } catch (Exception ex) {
-                            log.error(ex.getMessage(), ex);
-                        }
-                    });
+                    .ifPresent(this::loadMediaImage);
         }, "MediaCardComponent.ImageLoader");
 
         // run this on a separate thread for easier UI loading
@@ -82,5 +72,39 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
         }
 
         Tooltip.install(title, new Tooltip(media.getTitle()));
+    }
+
+    private void setPosterHolderImage() {
+        try {
+            // use the post holder as the default image while the media image is being loaded
+            setBackgroundImage(POSTER_HOLDER_IMAGE, false);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+    }
+
+    private void loadMediaImage(String mediaImage) {
+        try {
+            var image = new Image(mediaImage, POSTER_WIDTH, POSTER_HEIGHT, true, true);
+
+            // verify if an error occurred while loading the media image
+            // if so, don't replace the poster holder image
+            if (!image.isError())
+                setBackgroundImage(image, true);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+    }
+
+    private static Image loadPosterHolderImage() {
+        try {
+            var inputStream = getPosterHolderResource().getInputStream();
+
+            return new Image(inputStream, POSTER_WIDTH, POSTER_HEIGHT, true, true);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+
+        return null;
     }
 }

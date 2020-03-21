@@ -19,7 +19,7 @@ public abstract class AbstractCardComponent {
      *
      * @return Returns the image resource.
      */
-    protected ClassPathResource getPosterHolderResource() {
+    protected static ClassPathResource getPosterHolderResource() {
         return new ClassPathResource(POSTER_HOLDER);
     }
 

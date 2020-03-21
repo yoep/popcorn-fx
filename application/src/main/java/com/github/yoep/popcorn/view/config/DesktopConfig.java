@@ -21,6 +21,7 @@ import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.desktop.MainDesktopController;
 import com.github.yoep.popcorn.view.controllers.desktop.components.PlayerControlsComponent;
 import com.github.yoep.popcorn.view.controllers.desktop.components.PlayerHeaderComponent;
+import com.github.yoep.popcorn.view.controllers.desktop.components.SettingsUIComponent;
 import com.github.yoep.popcorn.view.controllers.desktop.sections.*;
 import com.github.yoep.popcorn.view.services.UrlService;
 import com.github.yoep.video.adapter.VideoPlayer;
@@ -134,5 +135,10 @@ public class DesktopConfig {
                 .movieProviderService(movieProviderService)
                 .showProviderService(showProviderService)
                 .build();
+    }
+
+    @Bean
+    public SettingsUIComponent settingsUIComponent(ActivityManager activityManager, SettingsService settingsService, LocaleText localeText) {
+        return new SettingsUIComponent(activityManager, settingsService, localeText);
     }
 }

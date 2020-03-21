@@ -20,7 +20,6 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
-@Component
 @RequiredArgsConstructor
 public class SettingsUIComponent implements Initializable {
     private final ActivityManager activityManager;

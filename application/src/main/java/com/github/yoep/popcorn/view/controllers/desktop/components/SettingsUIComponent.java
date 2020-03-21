@@ -5,20 +5,18 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
 import com.github.yoep.popcorn.messages.SettingsMessage;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.StartScreen;
 import com.github.yoep.popcorn.settings.models.UIScale;
 import com.github.yoep.popcorn.settings.models.UISettings;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
+import javafx.scene.control.ListCell;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
 import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class SettingsUIComponent implements Initializable {
@@ -27,29 +25,25 @@ public class SettingsUIComponent implements Initializable {
     private final LocaleText localeText;
 
     @FXML
-    private ComboBox<Language> defaultLanguage;
+    private ComboBox<Locale> defaultLanguage;
     @FXML
     private ComboBox<UIScale> uiScale;
     @FXML
-    private ComboBox startScreen;
+    private ComboBox<StartScreen> startScreen;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeDefaultLanguage();
         initializeUIScale();
+        initializeStartScreen();
     }
 
     private void initializeDefaultLanguage() {
-        var languages = UISettings.supportedLanguages().stream()
-                .map(this::toLanguage)
-                .collect(Collectors.toList());
-        var select = languages.stream()
-                .filter(e -> e.getLocale().getLanguage().equals(getUiSettings().getDefaultLanguage().getLanguage()))
-                .findFirst()
-                .orElse(languages.get(0));
+        defaultLanguage.setCellFactory(param -> createLanguageCell());
+        defaultLanguage.setButtonCell(createLanguageCell());
 
-        defaultLanguage.getItems().addAll(languages);
-        defaultLanguage.getSelectionModel().select(select);
+        defaultLanguage.getItems().addAll(UISettings.supportedLanguages());
+        defaultLanguage.getSelectionModel().select(UISettings.defaultLanguage());
         defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
     }
 
@@ -69,12 +63,17 @@ public class SettingsUIComponent implements Initializable {
         uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
     }
 
-    private Language toLanguage(Locale locale) {
-        return new Language(locale, localeText.get("language_" + locale.getLanguage()));
+    private void initializeStartScreen() {
+        startScreen.setCellFactory(param -> createStartScreenCell());
+        startScreen.setButtonCell(createStartScreenCell());
+
+        startScreen.getItems().addAll(StartScreen.values());
+        startScreen.getSelectionModel().select(getUiSettings().getStartScreen());
+        startScreen.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateStartScreen(newValue));
     }
 
-    private void updateLanguage(Language newValue) {
-        getUiSettings().setDefaultLanguage(newValue.getLocale());
+    private void updateLanguage(Locale locale) {
+        getUiSettings().setDefaultLanguage(locale);
         showNotification();
         //TODO: force the UI to reload to apply the text changes
     }
@@ -84,28 +83,46 @@ public class SettingsUIComponent implements Initializable {
         showNotification();
     }
 
+    private void updateStartScreen(StartScreen startScreen) {
+        getUiSettings().setStartScreen(startScreen);
+        showNotification();
+    }
+
     private void showNotification() {
         activityManager.register((SuccessNotificationActivity) () -> localeText.get(SettingsMessage.SETTINGS_SAVED));
     }
 
-    private UISettings getUiSettings() {
-        return settingsService.getSettings().getUiSettings();
+    private ListCell<Locale> createLanguageCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(Locale item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty) {
+                    setText(localeText.get("language_" + item.getLanguage()));
+                } else {
+                    setText(null);
+                }
+            }
+        };
     }
 
-    @Getter
-    @EqualsAndHashCode
-    private static class Language {
-        private final Locale locale;
-        private final String text;
+    private ListCell<StartScreen> createStartScreenCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(StartScreen item, boolean empty) {
+                super.updateItem(item, empty);
 
-        private Language(Locale locale, String text) {
-            this.locale = locale;
-            this.text = text;
-        }
+                if (!empty) {
+                    setText(localeText.get("filter_" + item.name().toLowerCase()));
+                } else {
+                    setText(null);
+                }
+            }
+        };
+    }
 
-        @Override
-        public String toString() {
-            return text;
-        }
+    private UISettings getUiSettings() {
+        return settingsService.getSettings().getUiSettings();
     }
 }

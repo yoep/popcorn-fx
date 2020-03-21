@@ -13,11 +13,13 @@ import com.github.yoep.popcorn.view.controls.SearchListener;
 import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,6 +39,10 @@ public class HeaderSectionController implements Initializable {
     private final LocaleText localeText;
     private final SettingsService settingsService;
 
+    private boolean initialized;
+
+    @FXML
+    private Pane rootPane;
     @FXML
     private Label moviesCategory;
     @FXML
@@ -58,18 +64,13 @@ public class HeaderSectionController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeComboListeners();
         initializeSearchListener();
-        initializeCategory();
         initializeIcons();
+        initializeSceneListener();
     }
 
     private void initializeComboListeners() {
         genreCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchGenre(newValue));
         sortByCombo.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSortBy(newValue));
-    }
-
-    private void initializeCategory() {
-        // set the default view to movies
-        switchCategory(moviesCategory);
     }
 
     private void initializeSearchListener() {
@@ -95,6 +96,31 @@ public class HeaderSectionController implements Initializable {
                 watchlistIcon.setVisible(traktSettings.getAccessToken().isPresent());
             }
         });
+    }
+
+    private void initializeSceneListener() {
+        rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
+            if (!initialized) {
+                initializeStartScreen();
+                initialized = true;
+            }
+        }));
+    }
+
+    private void initializeStartScreen() {
+        var uiSettings = getSettings().getUiSettings();
+
+        switch (uiSettings.getStartScreen()) {
+            case SERIES:
+                switchCategory(seriesCategory);
+                break;
+            case FAVORITES:
+                switchCategory(favoritesCategory);
+                break;
+            default:
+                switchCategory(moviesCategory);
+                break;
+        }
     }
 
     private void setGenres(Category category) {

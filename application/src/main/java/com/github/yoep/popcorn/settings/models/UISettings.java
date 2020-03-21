@@ -31,6 +31,11 @@ public class UISettings extends AbstractSettings {
     @Builder.Default
     private UIScale uiScale = new UIScale(1f);
     /**
+     * The default start screen of the application.
+     */
+    @Builder.Default
+    private StartScreen startScreen = StartScreen.MOVIES;
+    /**
      * The indication if the UI was maximized the last time the application was closed.
      */
     private boolean maximized;

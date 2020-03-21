@@ -37,11 +37,6 @@ public class ApplicationSettings extends AbstractSettings {
      */
     @Builder.Default
     private TraktSettings traktSettings = TraktSettings.builder().build();
-    /**
-     * The logging settings of the application.
-     */
-    @Builder.Default
-    private LoggingSettings loggingSettings = LoggingSettings.builder().build();
 
     //region Setters
 
@@ -79,15 +74,6 @@ public class ApplicationSettings extends AbstractSettings {
         var oldValue = this.traktSettings;
         this.traktSettings = traktSettings;
         changes.firePropertyChange(TRAKT_PROPERTY, oldValue, this.traktSettings);
-    }
-
-    public void setLoggingSettings(LoggingSettings loggingSettings) {
-        if (Objects.equals(this.loggingSettings, loggingSettings))
-            return;
-
-        var oldValue = this.loggingSettings;
-        this.loggingSettings = loggingSettings;
-        changes.firePropertyChange(LOGGING_PROPERTY, oldValue, this.loggingSettings);
     }
 
     //endregion

@@ -2,10 +2,10 @@
 
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.BorderPane?>
-<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            stylesheets="/styles/preloader.css" cache="true" cacheHint="SCALE">
+<?import javafx.scene.layout.StackPane?>
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           stylesheets="/styles/preloader.css" cache="true" cacheHint="SCALE">
     <ImageView>
         <Image url="/images/icon.png"/>
     </ImageView>
-</BorderPane>
+</StackPane>

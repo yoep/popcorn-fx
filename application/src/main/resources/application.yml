@@ -18,8 +18,7 @@ logging:
     com.github.yoep.popcorn: INFO
   file:
     clean-history-on-start: true
-    name: 'popcorn-time.log'
-    path: './logs/'
+    name: '${app.dir}/logs/popcorn-time.log'
 
 popcorn:
   providers:

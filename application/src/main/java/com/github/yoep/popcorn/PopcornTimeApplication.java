@@ -25,6 +25,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String ARM_ARCHITECTURE = "arm";
 
     public static void main(String[] args) {
+        System.setProperty("app.dir", APP_DIR);
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
 

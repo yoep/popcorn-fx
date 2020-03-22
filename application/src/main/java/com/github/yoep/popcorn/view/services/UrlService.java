@@ -8,6 +8,7 @@ import javafx.application.Application;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -53,6 +54,12 @@ public class UrlService {
      */
     public boolean process(String url) {
         Assert.notNull(url, "url cannot be null");
+
+        // check if url is empty
+        // if so, ignore this process action
+        if (StringUtils.isBlank(url))
+            return false;
+
         var matcher = URL_TYPE_PATTERN.matcher(url);
 
         if (matcher.matches()) {

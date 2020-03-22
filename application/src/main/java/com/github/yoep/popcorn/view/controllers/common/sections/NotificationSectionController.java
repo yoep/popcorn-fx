@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.view.controllers.common.sections;
 
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.NotificationActivity;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 
-@Component
+@ViewController
 @RequiredArgsConstructor
 public class NotificationSectionController {
     private static final int SAFETY_OFFSET = 20;

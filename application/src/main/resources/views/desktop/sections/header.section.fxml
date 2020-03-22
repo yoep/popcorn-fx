@@ -6,7 +6,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <VBox styleClass="header" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.HeaderSectionController" fx:id="rootPane">
+      fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.HeaderSectionController" fx:id="headerPane">
     <GridPane styleClass="bar">
         <columnConstraints>
             <ColumnConstraints/>

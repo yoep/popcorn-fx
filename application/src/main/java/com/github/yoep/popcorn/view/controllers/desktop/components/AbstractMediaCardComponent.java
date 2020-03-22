@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.messages.MediaMessage;
+import com.github.yoep.popcorn.view.controllers.common.components.AbstractCardComponent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -89,8 +90,12 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
 
             // verify if an error occurred while loading the media image
             // if so, don't replace the poster holder image
-            if (!image.isError())
+            if (!image.isError()) {
                 setBackgroundImage(image, true);
+            } else {
+                var exception = image.getException();
+                log.warn(exception.getMessage(), exception);
+            }
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }

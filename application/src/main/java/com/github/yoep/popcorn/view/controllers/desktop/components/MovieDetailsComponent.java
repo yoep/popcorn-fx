@@ -14,7 +14,6 @@ import com.github.yoep.popcorn.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
@@ -28,7 +27,6 @@ import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -38,7 +36,6 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
-@Component
 public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
     private static final String WATCHED_STYLE_CLASS = "seen";
@@ -72,13 +69,12 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     public MovieDetailsComponent(ActivityManager activityManager,
                                  LocaleText localeText,
-                                 Application application,
                                  TaskExecutor taskExecutor,
                                  TorrentService torrentService,
                                  SubtitleService subtitleService,
                                  FavoriteService favoriteService,
                                  WatchedService watchedService) {
-        super(activityManager, taskExecutor, localeText, torrentService, subtitleService, application);
+        super(activityManager, taskExecutor, localeText, torrentService, subtitleService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }

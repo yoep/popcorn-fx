@@ -95,5 +95,4 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
 - Update video time slider to show video loading progress (custom control)
 - Continue to watch show with next episode
-- Convert project from unnamed to modules setup for smaller bundled JRE
 - Add option for custom subtitle files

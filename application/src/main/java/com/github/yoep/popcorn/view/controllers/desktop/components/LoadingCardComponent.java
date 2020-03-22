@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.view.controllers.common.components.AbstractCardComponent;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;

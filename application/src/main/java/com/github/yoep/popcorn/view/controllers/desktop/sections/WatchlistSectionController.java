@@ -13,7 +13,7 @@ import com.github.yoep.popcorn.trakt.TraktException;
 import com.github.yoep.popcorn.trakt.TraktService;
 import com.github.yoep.popcorn.trakt.models.TraktType;
 import com.github.yoep.popcorn.trakt.models.WatchListItem;
-import com.github.yoep.popcorn.view.controllers.desktop.components.SimpleItemListener;
+import com.github.yoep.popcorn.view.controllers.common.SimpleItemListener;
 import com.github.yoep.popcorn.view.controllers.desktop.components.SimpleMediaCardComponent;
 import com.github.yoep.popcorn.view.controls.InfiniteScrollItemFactory;
 import com.github.yoep.popcorn.view.controls.InfiniteScrollPane;

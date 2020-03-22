@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.view.controllers.common.SimpleItemListener;
 
 /**
  * Media card item listener for the overlay media card.

@@ -20,6 +20,7 @@ public class ThreadConfig {
         executor.setQueueCapacity(QUEUE_SIZE);
         executor.setKeepAliveSeconds(THREAD_KEEP_ALIVE_SECONDS);
         executor.setThreadNamePrefix("PT-background");
+        executor.setWaitForTasksToCompleteOnShutdown(false);
         executor.initialize();
         return executor;
     }

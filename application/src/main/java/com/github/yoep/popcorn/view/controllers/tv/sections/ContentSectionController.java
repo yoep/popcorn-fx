@@ -27,7 +27,7 @@ public class ContentSectionController implements Initializable {
     private ContentType activeType;
 
     @FXML
-    private Pane rootPane;
+    private Pane contentPane;
 
     //region Initializable
 
@@ -92,10 +92,10 @@ public class ContentSectionController implements Initializable {
         }
 
         Platform.runLater(() -> {
-            if (rootPane.getChildren().size() > 1)
-                rootPane.getChildren().remove(0);
+            if (contentPane.getChildren().size() > 1)
+                contentPane.getChildren().remove(0);
 
-            rootPane.getChildren().add(0, pane.get());
+            contentPane.getChildren().add(0, pane.get());
         });
     }
 

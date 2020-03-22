@@ -3,8 +3,7 @@ package com.github.yoep.popcorn.view.controllers.desktop.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.ErrorNotificationActivity;
-import com.github.yoep.popcorn.activities.InfoNotificationActivity;
+import com.github.yoep.popcorn.activities.OpenMagnetLink;
 import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
 import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
@@ -16,7 +15,6 @@ import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import com.github.yoep.popcorn.view.controls.Stars;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -51,7 +49,6 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected final LocaleText localeText;
     protected final TorrentService torrentService;
     protected final SubtitleService subtitleService;
-    protected final Application application;
 
     protected T media;
     protected SubtitleInfo subtitle;
@@ -83,14 +80,12 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
                                     TaskExecutor taskExecutor,
                                     LocaleText localeText,
                                     TorrentService torrentService,
-                                    SubtitleService subtitleService,
-                                    Application application) {
+                                    SubtitleService subtitleService) {
         this.activityManager = activityManager;
         this.taskExecutor = taskExecutor;
         this.localeText = localeText;
         this.torrentService = torrentService;
         this.subtitleService = subtitleService;
-        this.application = application;
     }
 
     //endregion
@@ -204,13 +199,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     }
 
     protected void openMagnetLink(MediaTorrentInfo torrentInfo) {
-        try {
-            application.getHostServices().showDocument(torrentInfo.getUrl());
-            activityManager.register((InfoNotificationActivity) () -> localeText.get(DetailsMessage.MAGNET_LINK_OPENING));
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.MAGNET_LINK_FAILED_TO_OPEN));
-        }
+        activityManager.register((OpenMagnetLink) torrentInfo::getUrl);
     }
 
     protected void copyMagnetLink(MediaTorrentInfo torrentInfo) {

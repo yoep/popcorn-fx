@@ -19,9 +19,7 @@ import com.github.yoep.popcorn.trakt.TraktService;
 import com.github.yoep.popcorn.view.conditions.ConditionalOnDesktopMode;
 import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.desktop.MainDesktopController;
-import com.github.yoep.popcorn.view.controllers.desktop.components.PlayerControlsComponent;
-import com.github.yoep.popcorn.view.controllers.desktop.components.PlayerHeaderComponent;
-import com.github.yoep.popcorn.view.controllers.desktop.components.SettingsUIComponent;
+import com.github.yoep.popcorn.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.view.controllers.desktop.sections.*;
 import com.github.yoep.popcorn.view.services.UrlService;
 import com.github.yoep.video.adapter.VideoPlayer;
@@ -47,6 +45,8 @@ public class DesktopConfig {
                 .build();
     }
 
+    //region Sections
+
     @Bean
     public ContentSectionController contentSectionController(ActivityManager activityManager, ViewLoader viewLoader, TaskExecutor taskExecutor) {
         return new ContentSectionController(activityManager, viewLoader, taskExecutor);
@@ -69,9 +69,8 @@ public class DesktopConfig {
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
                                                        ViewLoader viewLoader,
-                                                       TaskExecutor taskExecutor,
                                                        LocaleText localeText) {
-        return new ListSectionController(activityManager, providerServices, favoriteService, watchedService, viewLoader, taskExecutor, localeText);
+        return new ListSectionController(activityManager, providerServices, favoriteService, watchedService, viewLoader, localeText);
     }
 
     @Bean
@@ -137,8 +136,36 @@ public class DesktopConfig {
                 .build();
     }
 
+    //endregion
+
+    //region Components
+
     @Bean
     public SettingsUIComponent settingsUIComponent(ActivityManager activityManager, SettingsService settingsService, LocaleText localeText) {
         return new SettingsUIComponent(activityManager, settingsService, localeText);
     }
+
+    @Bean
+    public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager,
+                                                       LocaleText localeText,
+                                                       TaskExecutor taskExecutor,
+                                                       TorrentService torrentService,
+                                                       SubtitleService subtitleService,
+                                                       FavoriteService favoriteService,
+                                                       WatchedService watchedService) {
+        return new MovieDetailsComponent(activityManager, localeText, taskExecutor, torrentService, subtitleService, favoriteService, watchedService);
+    }
+
+    @Bean
+    public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager,
+                                                     TaskExecutor taskExecutor,
+                                                     LocaleText localeText,
+                                                     TorrentService torrentService,
+                                                     SubtitleService subtitleService,
+                                                     FavoriteService favoriteService,
+                                                     WatchedService watchedService) {
+        return new ShowDetailsComponent(activityManager, taskExecutor, localeText, torrentService, subtitleService, favoriteService, watchedService);
+    }
+
+    //endregion
 }

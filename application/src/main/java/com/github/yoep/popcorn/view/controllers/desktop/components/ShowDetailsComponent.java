@@ -22,7 +22,6 @@ import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.view.controls.Episodes;
 import com.github.yoep.popcorn.view.controls.Seasons;
 import com.github.yoep.popcorn.view.models.Season;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -36,7 +35,6 @@ import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
@@ -49,7 +47,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Component
 public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private static final DateTimeFormatter AIRED_DATE_PATTERN = DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy hh:mm a");
 
@@ -99,10 +96,9 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
                                 LocaleText localeText,
                                 TorrentService torrentService,
                                 SubtitleService subtitleService,
-                                Application application,
                                 FavoriteService favoriteService,
                                 WatchedService watchedService) {
-        super(activityManager, taskExecutor, localeText, torrentService, subtitleService, application);
+        super(activityManager, taskExecutor, localeText, torrentService, subtitleService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }

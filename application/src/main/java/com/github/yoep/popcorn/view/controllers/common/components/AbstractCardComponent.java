@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.view.controllers.desktop.components;
+package com.github.yoep.popcorn.view.controllers.common.components;
 
 import javafx.fxml.FXML;
 import javafx.scene.image.Image;
@@ -30,7 +30,7 @@ public abstract class AbstractCardComponent {
      * @param cover Whether the image should be sized to "cover" the Region
      */
     protected void setBackgroundImage(Image image, boolean cover) {
-        BackgroundSize size = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, cover);
+        BackgroundSize size = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, cover);
         BackgroundImage backgroundImage = new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, size);
         poster.setBackground(new Background(backgroundImage));
     }

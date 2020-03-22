@@ -1,7 +1,13 @@
 package com.github.yoep.popcorn.view.config;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.media.providers.ProviderService;
+import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.watched.WatchedService;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.tv.MainTvController;
@@ -12,6 +18,8 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
+
+import java.util.List;
 
 @Configuration
 @ConditionalOnTvMode
@@ -39,8 +47,12 @@ public class TvConfig {
     }
 
     @Bean
-    public ListSectionController listSectionController() {
-        return new ListSectionController();
+    public ListSectionController listSectionController(ActivityManager activityManager,
+                                                       List<ProviderService<? extends Media>> providerServices,
+                                                       ViewLoader viewLoader,
+                                                       LocaleText localeText,
+                                                       WatchedService watchedService) {
+        return new ListSectionController(activityManager, providerServices, viewLoader, localeText, watchedService);
     }
 
     @Bean
@@ -49,8 +61,10 @@ public class TvConfig {
     }
 
     @Bean
-    public MenuSectionController menuSectionController(ActivityManager activityManager) {
-        return new MenuSectionController(activityManager);
+    public MenuSectionController menuSectionController(ActivityManager activityManager,
+                                                       SettingsService settingsService,
+                                                       PopcornProperties properties) {
+        return new MenuSectionController(activityManager, settingsService, properties);
     }
 
     @Bean

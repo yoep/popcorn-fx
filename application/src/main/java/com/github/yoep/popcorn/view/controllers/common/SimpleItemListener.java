@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.view.controllers.desktop.components;
+package com.github.yoep.popcorn.view.controllers.common;
 
 import com.github.yoep.popcorn.media.providers.models.Media;
 

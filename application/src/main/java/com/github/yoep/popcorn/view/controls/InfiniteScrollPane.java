@@ -1,13 +1,11 @@
 package com.github.yoep.popcorn.view.controls;
 
 import javafx.application.Platform;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
+import javafx.event.EventDispatcher;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.FlowPane;
@@ -20,14 +18,35 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     public static final String PAGE_PROPERTY = "page";
     public static final String ITEM_FACTORY_PROPERTY = "itemFactory";
     public static final String LOADER_FACTORY_PROPERTY = "loaderFactory";
+    public static final String SHORT_KEYS_PROPERTY = "shortKeysEnabled";
 
     private static final int SCROLLBAR_THRESHOLD = 90;
 
     private final FlowPane itemsPane = new FlowPane();
+    /**
+     * Specifies the current page of the infinite scroll pane.
+     */
     private final IntegerProperty page = new SimpleIntegerProperty(this, PAGE_PROPERTY, 0);
+    /**
+     * The item factory for this {@link InfiniteScrollPane}.
+     * This factory is invoked for each new item that is being added to the {@link InfiniteScrollPane}.
+     */
     private final ObjectProperty<InfiniteScrollItemFactory<T>> itemFactory = new SimpleObjectProperty<>(this, ITEM_FACTORY_PROPERTY);
+    /**
+     * The loader factory for this {@link InfiniteScrollPane}.
+     * This factory is invoked each time a new page is being loaded and will display the "loader node" while the page items are being retrieved.
+     */
     private final ObjectProperty<LoaderFactory> loaderFactory = new SimpleObjectProperty<>(this, LOADER_FACTORY_PROPERTY);
+    /**
+     * The items of this {@link InfiniteScrollPane}.
+     */
     private final ObservableMap<T, Node> items = FXCollections.observableHashMap();
+    /**
+     * Specifies if short keys are enabled for this {@link InfiniteScrollPane}.
+     * This includes the scrolling behavior with arrow keys, {@link javafx.scene.input.KeyCode#HOME}, {@link javafx.scene.input.KeyCode#END},
+     * {@link javafx.scene.input.KeyCode#PAGE_UP}, etc.
+     */
+    private final BooleanProperty shortKeysEnabled = new SimpleBooleanProperty(this, SHORT_KEYS_PROPERTY, true);
     private final Object loaderLock = new Object();
     private final Object contentUpdaterLock = new Object();
 
@@ -35,6 +54,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     private boolean updating;
     private boolean endOfItems;
     private Thread contentUpdater;
+    private EventDispatcher eventDispatcher;
 
     //region Constructors
 
@@ -138,6 +158,33 @@ public class InfiniteScrollPane<T> extends ScrollPane {
         return items;
     }
 
+    /**
+     * Check if the short keys are enabled for this {@link InfiniteScrollPane}.
+     *
+     * @return Returns true if the short keys are enabled, else false.
+     */
+    public boolean getShortKeysEnabled() {
+        return shortKeysEnabled.get();
+    }
+
+    /**
+     * Get the short keys property.
+     *
+     * @return Returns the property for the short keys.
+     */
+    public BooleanProperty shortKeysEnabledProperty() {
+        return shortKeysEnabled;
+    }
+
+    /**
+     * Specify if the short keys are enabled.
+     *
+     * @param shortKeysEnabled Enables the short keys.
+     */
+    public void setShortKeysEnabled(boolean shortKeysEnabled) {
+        this.shortKeysEnabled.set(shortKeysEnabled);
+    }
+
     //endregion
 
     //region Methods
@@ -187,6 +234,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
         initializeScrollBars();
         initializeContent();
         initializeListeners();
+        initializeShortKeys();
     }
 
     private void initializeScrollBars() {
@@ -197,7 +245,6 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     }
 
     private void initializeContent() {
-        this.setFocusTraversable(true);
         this.setFitToWidth(true);
         this.setContent(itemsPane);
     }
@@ -205,6 +252,23 @@ public class InfiniteScrollPane<T> extends ScrollPane {
     private void initializeListeners() {
         pageProperty().addListener((observable, oldValue, newValue) -> onPageChanged());
         getItems().addListener(this::onItemsChanged);
+    }
+
+    private void initializeShortKeys() {
+        shortKeysEnabledProperty().addListener((observable, oldValue, newValue) -> onShortKeysChanged(newValue));
+        onShortKeysChanged(getShortKeysEnabled());
+    }
+
+    private void onShortKeysChanged(boolean enabled) {
+        if (!enabled) {
+            // store the existing event dispatcher for later use
+            if (eventDispatcher == null)
+                eventDispatcher = this.getEventDispatcher();
+
+            this.setEventDispatcher(null);
+        } else if (eventDispatcher != null) {
+            this.setEventDispatcher(eventDispatcher);
+        }
     }
 
     private void onScroll() {

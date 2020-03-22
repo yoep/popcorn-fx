@@ -1,17 +1,17 @@
 package com.github.yoep.popcorn.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.ErrorNotificationActivity;
-import com.github.yoep.popcorn.activities.LoadUrlActivity;
-import com.github.yoep.popcorn.activities.PlayVideoActivity;
+import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.messages.MediaMessage;
+import javafx.application.Application;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,7 +24,25 @@ public class UrlService {
     private static final Pattern URL_TYPE_PATTERN = Pattern.compile("([a-zA-Z]*):?(.*)");
 
     private final ActivityManager activityManager;
+    private final Application application;
     private final LocaleText localeText;
+
+    //region Methods
+
+    /**
+     * Open the given url link.
+     *
+     * @param url The url link to open.
+     */
+    public void open(String url) {
+        try {
+            application.getHostServices().showDocument(url);
+            activityManager.register((InfoNotificationActivity) () -> localeText.get(DetailsMessage.MAGNET_LINK_OPENING));
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+            activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.MAGNET_LINK_FAILED_TO_OPEN));
+        }
+    }
 
     /**
      * Process the given url.
@@ -131,6 +149,19 @@ public class UrlService {
         }
     }
 
+    //endregion
+
+    //region PostConstruct
+
+    @PostConstruct
+    private void init() {
+        activityManager.register(OpenMagnetLink.class, activity -> open(activity.getUrl()));
+    }
+
+    //endregion
+
+    //region Functions
+
     private boolean isWebUrl(String type) {
         Assert.notNull(type, "type cannot be null");
         return type.equalsIgnoreCase("http") || type.equalsIgnoreCase("https");
@@ -139,4 +170,6 @@ public class UrlService {
     private boolean isMagnetLink(String type) {
         return type.equalsIgnoreCase("magnet");
     }
+
+    //endregion
 }

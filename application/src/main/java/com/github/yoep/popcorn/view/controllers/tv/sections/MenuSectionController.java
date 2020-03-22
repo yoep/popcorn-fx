@@ -1,9 +1,13 @@
 package com.github.yoep.popcorn.view.controllers.tv.sections;
 
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.CategoryChangedActivity;
-import com.github.yoep.popcorn.activities.ShowSettingsActivity;
+import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.StartScreen;
+import com.github.yoep.popcorn.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.view.models.Category;
+import com.github.yoep.popcorn.view.models.Genre;
+import com.github.yoep.popcorn.view.models.SortBy;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
@@ -13,21 +17,23 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@RequiredArgsConstructor
-public class MenuSectionController implements Initializable {
+public class MenuSectionController extends AbstractFilterSectionController implements Initializable {
     private static final String ACTIVE_STYLE_CLASS = "active";
 
     private final ActivityManager activityManager;
+    private final PopcornProperties properties;
 
+    @FXML
+    private Pane menuPane;
     @FXML
     private ImageView header;
     @FXML
@@ -39,12 +45,18 @@ public class MenuSectionController implements Initializable {
     @FXML
     private Pane shutdownItem;
 
+    public MenuSectionController(ActivityManager activityManager, SettingsService settingsService, PopcornProperties properties) {
+        super(settingsService);
+        this.activityManager = activityManager;
+        this.properties = properties;
+    }
+
     //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeHeader();
-        initializeCategory();
+        initializeSceneListener(menuPane);
     }
 
     //endregion
@@ -61,22 +73,51 @@ public class MenuSectionController implements Initializable {
         }
     }
 
-    private void initializeCategory() {
-        switchCategory(moviesCategory);
+    @Override
+    protected void initializeStartScreen(StartScreen startScreen) {
+        log.trace("Initializing start screen");
+
+        switch (startScreen) {
+            case SERIES:
+                log.trace("Switching to series category");
+                switchCategory(seriesCategory);
+                break;
+            default:
+                log.trace("Switching to movies category");
+                switchCategory(moviesCategory);
+                break;
+        }
     }
 
-    private void switchCategory(Pane category) {
+    private void switchCategory(Pane categoryPane) {
+        final var category = new AtomicReference<>(Category.MOVIES);
+
         moviesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         seriesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
 
-        category.getStyleClass().add(ACTIVE_STYLE_CLASS);
+        categoryPane.getStyleClass().add(ACTIVE_STYLE_CLASS);
 
-        if (category == moviesCategory) {
-            activityManager.register((CategoryChangedActivity) () -> Category.MOVIES);
+        if (categoryPane == seriesCategory) {
+            category.set(Category.SERIES);
         }
-        if (category == seriesCategory) {
-            activityManager.register((CategoryChangedActivity) () -> Category.SERIES);
-        }
+
+        activityManager.register((CategoryChangedActivity) category::get);
+        updateGenres(category.get());
+        updateSortBy(category.get());
+    }
+
+    //TODO: find a clever way to incorporate this into the UI
+    private void updateGenres(Category category) {
+        var providerProperties = properties.getProvider(category.getProviderName());
+
+        activityManager.register((GenreChangeActivity) () -> new Genre(providerProperties.getGenres().get(0), null));
+    }
+
+    //TODO: find a clever way to incorporate this into the UI
+    private void updateSortBy(Category category) {
+        var providerProperties = properties.getProvider(category.getProviderName());
+
+        activityManager.register((SortByChangeActivity) () -> new SortBy(providerProperties.getSortBy().get(0), null));
     }
 
     private void showSettings() {

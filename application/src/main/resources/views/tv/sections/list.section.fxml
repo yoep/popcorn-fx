@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.VBox?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
            fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.ListSectionController" styleClass="list-section">
-    <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true"/>
+    <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true" shortKeysEnabled="false" />
 
     <VBox fx:id="failedPane" styleClass="failed" alignment="CENTER">
         <Icon>

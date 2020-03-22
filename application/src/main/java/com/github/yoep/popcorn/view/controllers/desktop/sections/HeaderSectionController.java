@@ -7,20 +7,20 @@ import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.ApplicationSettings;
+import com.github.yoep.popcorn.settings.models.StartScreen;
 import com.github.yoep.popcorn.settings.models.TraktSettings;
+import com.github.yoep.popcorn.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.view.controls.SearchField;
 import com.github.yoep.popcorn.view.controls.SearchListener;
 import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
@@ -30,19 +30,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
-@RequiredArgsConstructor
-public class HeaderSectionController implements Initializable {
+public class HeaderSectionController extends AbstractFilterSectionController implements Initializable {
     private static final String STYLE_ACTIVE = "active";
 
     private final ActivityManager activityManager;
     private final PopcornProperties properties;
     private final LocaleText localeText;
-    private final SettingsService settingsService;
-
-    private boolean startScreenInitialized;
 
     @FXML
-    private Pane rootPane;
+    private Pane headerPane;
     @FXML
     private Label moviesCategory;
     @FXML
@@ -60,12 +56,46 @@ public class HeaderSectionController implements Initializable {
     @FXML
     private Icon torrentCollectionIcon;
 
+    //region Constructors
+
+    public HeaderSectionController(ActivityManager activityManager, PopcornProperties properties, LocaleText localeText, SettingsService settingsService) {
+        super(settingsService);
+        this.activityManager = activityManager;
+        this.properties = properties;
+        this.localeText = localeText;
+    }
+
+    //endregion
+
+    //region Initializable
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeComboListeners();
         initializeSearchListener();
         initializeIcons();
-        initializeSceneListener();
+        initializeSceneListener(headerPane);
+    }
+
+    //endregion
+
+    //region Functions
+
+    @Override
+    protected void initializeStartScreen(StartScreen startScreen) {
+        log.trace("Initializing start screen");
+
+        switch (startScreen) {
+            case SERIES:
+                switchCategory(seriesCategory);
+                break;
+            case FAVORITES:
+                switchCategory(favoritesCategory);
+                break;
+            default:
+                switchCategory(moviesCategory);
+                break;
+        }
     }
 
     private void initializeComboListeners() {
@@ -98,32 +128,7 @@ public class HeaderSectionController implements Initializable {
         });
     }
 
-    private void initializeSceneListener() {
-        rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
-            if (!startScreenInitialized) {
-                initializeStartScreen();
-                startScreenInitialized = true;
-            }
-        }));
-    }
-
-    private void initializeStartScreen() {
-        var uiSettings = getSettings().getUiSettings();
-
-        switch (uiSettings.getStartScreen()) {
-            case SERIES:
-                switchCategory(seriesCategory);
-                break;
-            case FAVORITES:
-                switchCategory(favoritesCategory);
-                break;
-            default:
-                switchCategory(moviesCategory);
-                break;
-        }
-    }
-
-    private void setGenres(Category category) {
+    private void updateGenres(Category category) {
         ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
         List<Genre> genres = providerProperties.getGenres().stream()
                 .map(e -> new Genre(e, localeText.get("genre_" + e)))
@@ -135,7 +140,7 @@ public class HeaderSectionController implements Initializable {
         genreCombo.getSelectionModel().select(0);
     }
 
-    private void setSortBy(Category category) {
+    private void updateSortBy(Category category) {
         ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
         List<SortBy> sortBy = providerProperties.getSortBy().stream()
                 .map(e -> new SortBy(e, localeText.get("sort-by_" + e)))
@@ -170,8 +175,8 @@ public class HeaderSectionController implements Initializable {
         search.clear();
 
         // set the category specific genres and sort by filters
-        setGenres(category.get());
-        setSortBy(category.get());
+        updateGenres(category.get());
+        updateSortBy(category.get());
     }
 
     private void switchGenre(Genre genre) {
@@ -239,4 +244,6 @@ public class HeaderSectionController implements Initializable {
         activityManager.register(new ShowSettingsActivity() {
         });
     }
+
+    //endregion
 }

@@ -5,7 +5,6 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.OpenMagnetLink;
 import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
-import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
@@ -14,7 +13,9 @@ import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
+import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.view.controls.Stars;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -29,9 +30,11 @@ import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.task.TaskExecutor;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -43,12 +46,14 @@ import java.util.stream.Collectors;
 public abstract class AbstractDetailsComponent<T extends Media> implements Initializable {
     protected static final String LIKED_STYLE_CLASS = "liked";
     protected static final String QUALITY_ACTIVE_CLASS = "active";
+    private static final String POSTER_HOLDER_URI = "/images/posterholder.png";
+    private static final Image POSTER_HOLDER = loadPosterHolder();
 
     protected final ActivityManager activityManager;
-    protected final TaskExecutor taskExecutor;
     protected final LocaleText localeText;
     protected final TorrentService torrentService;
     protected final SubtitleService subtitleService;
+    protected final ImageService imageService;
 
     protected T media;
     protected SubtitleInfo subtitle;
@@ -73,19 +78,20 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected Pane qualitySelectionPane;
     @FXML
     protected LanguageFlagSelection languageSelection;
+    @FXML
+    private BackgroundImageCover backgroundImage;
 
     //region Constructors
 
     public AbstractDetailsComponent(ActivityManager activityManager,
-                                    TaskExecutor taskExecutor,
                                     LocaleText localeText,
                                     TorrentService torrentService,
-                                    SubtitleService subtitleService) {
+                                    SubtitleService subtitleService, ImageService imageService) {
         this.activityManager = activityManager;
-        this.taskExecutor = taskExecutor;
         this.localeText = localeText;
         this.torrentService = torrentService;
         this.subtitleService = subtitleService;
+        this.imageService = imageService;
     }
 
     //endregion
@@ -111,18 +117,15 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     }
 
     protected void loadPosterImage() {
-        // load the poster image in the background
-        taskExecutor.execute(() -> {
-            try {
-                final Image posterImage = Optional.ofNullable(media.getImages())
-                        .map(Images::getPoster)
-                        .filter(e -> !e.equalsIgnoreCase("n/a"))
-                        .map(url -> new Image(url, true))
-                        .orElse(new Image(new ClassPathResource("/images/posterholder.png").getInputStream()));
+        // set the poster holder as the default image
+        poster.setImage(POSTER_HOLDER);
 
-                Platform.runLater(() -> poster.setImage(posterImage));
-            } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
+        imageService.loadPoster(media).whenComplete((image, throwable) -> {
+            if (throwable == null) {
+                // replace the poster holder with the actual image if present
+                image.ifPresent(e -> poster.setImage(e));
+            } else {
+                log.error(throwable.getMessage(), throwable);
             }
         });
     }
@@ -271,6 +274,17 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         languageSelection.select(0);
     }
 
+    protected void loadBackgroundImage() {
+        backgroundImage.reset();
+        imageService.loadFanart(media).whenComplete((bytes, throwable) -> {
+            if (throwable == null) {
+                bytes.ifPresent(e -> backgroundImage.setBackgroundImage(e));
+            } else {
+                log.error(throwable.getMessage(), throwable);
+            }
+        });
+    }
+
     //region Functions
 
     private Label createQualityOption(String quality) {
@@ -286,6 +300,22 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         Label label = (Label) event.getSource();
 
         switchActiveQuality(label.getText());
+    }
+
+    private static Image loadPosterHolder() {
+        try {
+            var resource = new ClassPathResource(POSTER_HOLDER_URI);
+
+            if (resource.exists()) {
+                return new Image(resource.getInputStream());
+            } else {
+                log.warn("Poster holder url \"{}\" does not exist", POSTER_HOLDER_URI);
+            }
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+
+        return null;
     }
 
     //endregion

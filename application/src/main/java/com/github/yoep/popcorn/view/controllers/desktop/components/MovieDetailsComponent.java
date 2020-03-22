@@ -13,7 +13,7 @@ import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
-import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
@@ -26,7 +26,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -62,19 +61,17 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     private Label watchedText;
     @FXML
     private Button watchTrailerButton;
-    @FXML
-    private BackgroundImageCover backgroundImage;
 
     //region Constructors
 
     public MovieDetailsComponent(ActivityManager activityManager,
                                  LocaleText localeText,
-                                 TaskExecutor taskExecutor,
                                  TorrentService torrentService,
                                  SubtitleService subtitleService,
                                  FavoriteService favoriteService,
-                                 WatchedService watchedService) {
-        super(activityManager, taskExecutor, localeText, torrentService, subtitleService);
+                                 WatchedService watchedService,
+                                 ImageService imageService) {
+        super(activityManager, localeText, torrentService, subtitleService, imageService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }
@@ -111,7 +108,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
         qualitySelectionPane.getChildren().clear();
         poster.setImage(null);
-        backgroundImage.reset();
     }
 
     //endregion
@@ -176,10 +172,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         loadQualitySelection(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
         loadBackgroundImage();
         loadPosterImage();
-    }
-
-    private void loadBackgroundImage() {
-        backgroundImage.load(media);
     }
 
     private void loadText() {

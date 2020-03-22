@@ -14,6 +14,7 @@ import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.StreamStatus;
 import com.github.yoep.popcorn.torrent.models.Torrent;
 import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -21,7 +22,6 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -31,11 +31,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
-@Component
 public class LoaderTorrentComponent extends AbstractLoaderComponent {
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;
     private final SubtitleService subtitleService;
+    private final ImageService imageService;
 
     private String title;
     private Media media;
@@ -67,10 +67,12 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
                                   TaskExecutor taskExecutor,
                                   TorrentService torrentService,
                                   SubtitleService subtitleService,
-                                  LocaleText localeText) {
+                                  LocaleText localeText,
+                                  ImageService imageService) {
         super(localeText, torrentService);
         this.activityManager = activityManager;
         this.taskExecutor = taskExecutor;
+        this.imageService = imageService;
         this.subtitleService = subtitleService;
     }
 
@@ -335,7 +337,14 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
     }
 
     private void loadBackgroundImage() {
-        backgroundImage.load(media);
+        backgroundImage.reset();
+        imageService.loadFanart(media).whenComplete((bytes, throwable) -> {
+            if (throwable == null) {
+                bytes.ifPresent(e -> backgroundImage.setBackgroundImage(e));
+            } else {
+                log.error(throwable.getMessage(), throwable);
+            }
+        });
     }
 
     private void reset() {

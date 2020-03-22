@@ -21,6 +21,7 @@ import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.desktop.MainDesktopController;
 import com.github.yoep.popcorn.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.view.controllers.desktop.sections.*;
+import com.github.yoep.popcorn.view.services.ImageService;
 import com.github.yoep.popcorn.view.services.UrlService;
 import com.github.yoep.video.adapter.VideoPlayer;
 import org.springframework.boot.ApplicationArguments;
@@ -141,6 +142,31 @@ public class DesktopConfig {
     //region Components
 
     @Bean
+    public DetailsTorrentComponent detailsTorrentComponent(ActivityManager activityManager,
+                                                           TorrentCollectionService torrentCollectionService,
+                                                           LocaleText localeText) {
+        return new DetailsTorrentComponent(activityManager, torrentCollectionService, localeText);
+    }
+
+    @Bean
+    public LoaderTorrentComponent loaderTorrentComponent(ActivityManager activityManager,
+                                                         TaskExecutor taskExecutor,
+                                                         TorrentService torrentService,
+                                                         SubtitleService subtitleService,
+                                                         LocaleText localeText,
+                                                         ImageService imageService) {
+        return new LoaderTorrentComponent(activityManager, taskExecutor, torrentService, subtitleService, localeText, imageService);
+    }
+
+    @Bean
+    public LoaderUrlComponent loaderUrlComponent(LocaleText localeText,
+                                                 TorrentService torrentService,
+                                                 ActivityManager activityManager,
+                                                 TaskExecutor taskExecutor) {
+        return new LoaderUrlComponent(localeText, torrentService, activityManager, taskExecutor);
+    }
+
+    @Bean
     public SettingsUIComponent settingsUIComponent(ActivityManager activityManager, SettingsService settingsService, LocaleText localeText) {
         return new SettingsUIComponent(activityManager, settingsService, localeText);
     }
@@ -148,23 +174,23 @@ public class DesktopConfig {
     @Bean
     public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager,
                                                        LocaleText localeText,
-                                                       TaskExecutor taskExecutor,
                                                        TorrentService torrentService,
                                                        SubtitleService subtitleService,
                                                        FavoriteService favoriteService,
-                                                       WatchedService watchedService) {
-        return new MovieDetailsComponent(activityManager, localeText, taskExecutor, torrentService, subtitleService, favoriteService, watchedService);
+                                                       WatchedService watchedService,
+                                                       ImageService imageService) {
+        return new MovieDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService);
     }
 
     @Bean
     public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager,
-                                                     TaskExecutor taskExecutor,
                                                      LocaleText localeText,
                                                      TorrentService torrentService,
                                                      SubtitleService subtitleService,
                                                      FavoriteService favoriteService,
-                                                     WatchedService watchedService) {
-        return new ShowDetailsComponent(activityManager, taskExecutor, localeText, torrentService, subtitleService, favoriteService, watchedService);
+                                                     WatchedService watchedService,
+                                                     ImageService imageService) {
+        return new ShowDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService);
     }
 
     //endregion

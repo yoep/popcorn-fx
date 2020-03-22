@@ -305,7 +305,12 @@
                             <organizationName>Popcorn Time</organizationName>
                             <licenseFile>../LICENSE</licenseFile>
                             <version>1.0.0</version>
-                            <vmArgs>-Dsun.awt.disablegrab=true -Dprism.dirtyopts=false -Dprism.lcdtext=false -XX:+UseG1GC</vmArgs>
+                            <vmArgs>
+                                <param>-Dsun.awt.disablegrab=true</param>
+                                <param>-Dprism.dirtyopts=false</param>
+                                <param>-Dprism.lcdtext=false</param>
+                                <param>-XX:+UseG1GC</param>
+                            </vmArgs>
                         </configuration>
                     </execution>
                 </executions>

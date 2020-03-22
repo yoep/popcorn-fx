@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 
 @Slf4j
-@Component
 public class LoaderUrlComponent extends AbstractLoaderComponent {
     private final ActivityManager activityManager;
     private final TaskExecutor taskExecutor;

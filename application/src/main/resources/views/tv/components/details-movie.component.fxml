@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent" styleClass="movie-details">
+    <columnConstraints>
+        <ColumnConstraints minWidth="20" percentWidth="10"/>
+        <ColumnConstraints minWidth="400" percentWidth="80"/>
+        <ColumnConstraints minWidth="20" percentWidth="10"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="20" percentHeight="10"/>
+        <RowConstraints minHeight="300" percentHeight="80" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="20" percentHeight="10"/>
+    </rowConstraints>
+
+    <BackgroundImageCover fx:id="backgroundImage"
+                          GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+</GridPane>

@@ -46,6 +46,13 @@
                 </Icon>
                 <Label text="%filter_series"/>
             </HBox>
+            <HBox fx:id="favoritesCategory" styleClass="menu-item" focusTraversable="true"
+                  onMouseClicked="#onFavoritesCategoryClicked" onKeyPressed="#onKeyEvent">
+                <Icon>
+                    <Icon fx:constant="HEART_UNICODE"/>
+                </Icon>
+                <Label text="%filter_favorites"/>
+            </HBox>
         </VBox>
 
         <!-- Settings -->

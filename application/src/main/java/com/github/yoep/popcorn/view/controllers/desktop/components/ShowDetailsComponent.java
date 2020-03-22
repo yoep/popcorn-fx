@@ -18,10 +18,10 @@ import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
-import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.view.controls.Episodes;
 import com.github.yoep.popcorn.view.controls.Seasons;
 import com.github.yoep.popcorn.view.models.Season;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -34,7 +34,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
@@ -86,19 +85,17 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private Label episodeOverview;
     @FXML
     private GridPane episodeDetails;
-    @FXML
-    private BackgroundImageCover backgroundImage;
 
     //region Constructors
 
     public ShowDetailsComponent(ActivityManager activityManager,
-                                TaskExecutor taskExecutor,
                                 LocaleText localeText,
                                 TorrentService torrentService,
                                 SubtitleService subtitleService,
                                 FavoriteService favoriteService,
-                                WatchedService watchedService) {
-        super(activityManager, taskExecutor, localeText, torrentService, subtitleService);
+                                WatchedService watchedService,
+                                ImageService imageService) {
+        super(activityManager, localeText, torrentService, subtitleService, imageService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }
@@ -121,7 +118,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         seasons.getItems().clear();
         episodes.getItems().clear();
         poster.setImage(null);
-        backgroundImage.reset();
     }
 
     //endregion
@@ -240,10 +236,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
         loadFavorite();
         loadBackgroundImage();
         loadPosterImage();
-    }
-
-    private void loadBackgroundImage() {
-        backgroundImage.load(media);
     }
 
     private void loadText() {

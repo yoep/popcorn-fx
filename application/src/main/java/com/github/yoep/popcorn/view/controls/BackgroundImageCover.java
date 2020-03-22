@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.view.controls;
 
-import com.github.yoep.popcorn.media.providers.models.Images;
-import com.github.yoep.popcorn.media.providers.models.Media;
 import javafx.geometry.Insets;
 import javafx.scene.CacheHint;
 import javafx.scene.effect.GaussianBlur;
@@ -10,9 +8,6 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.util.Assert;
-
-import java.util.Optional;
 
 /**
  * Background image which is blurred and has a shadow cover on top of it.
@@ -33,25 +28,16 @@ public class BackgroundImageCover extends StackPane {
     }
 
     /**
-     * Load the background image for the given {@link Media} item.
+     * Set the background image for this background cover.
+     * The background image will only be set if the image is not in error state.
      *
-     * @param media The media item to show the background image of.
+     * @param image The image to set as background.
      */
-    public void load(final Media media) {
-        Assert.notNull(media, "media cannot be null");
-
-        // always set a black background
-        reset();
-
-        // try to load the background image
-        try {
-            Optional.ofNullable(media.getImages())
-                    .map(Images::getFanart)
-                    .filter(e -> !e.equalsIgnoreCase("n/a"))
-                    .map(url -> new Image(url, true))
-                    .ifPresent(this::showBackgroundImage);
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
+    public void setBackgroundImage(final Image image) {
+        if (!image.isError()) {
+            showBackgroundImage(image);
+        } else {
+            handleImageError(image);
         }
     }
 
@@ -59,7 +45,7 @@ public class BackgroundImageCover extends StackPane {
      * Reset the background image to the default background placeholder.
      */
     public void reset() {
-        if (BACKGROUND_PLACEHOLDER != null) {
+        if (BACKGROUND_PLACEHOLDER != null && !BACKGROUND_PLACEHOLDER.isError()) {
             showBackgroundImage(BACKGROUND_PLACEHOLDER);
         } else {
             // fallback to a black background
@@ -91,10 +77,14 @@ public class BackgroundImageCover extends StackPane {
     }
 
     private void showBackgroundImage(final Image image) {
-        var backgroundSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true);
-        var backgroundImage = new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, backgroundSize);
+        if (!image.isError()) {
+            var backgroundSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true);
+            var backgroundImage = new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, backgroundSize);
 
-        this.imagePane.setBackground(new Background(backgroundImage));
+            this.imagePane.setBackground(new Background(backgroundImage));
+        } else {
+            handleImageError(image);
+        }
     }
 
     private void resetToBlackBackground() {
@@ -104,11 +94,22 @@ public class BackgroundImageCover extends StackPane {
     private static Image loadPlaceholder() {
         try {
             var resource = new ClassPathResource("/images/placeholder-background.jpg");
-            return new Image(resource.getInputStream());
+            var image = new Image(resource.getInputStream());
+
+            if (!image.isError()) {
+                return image;
+            } else {
+                handleImageError(image);
+            }
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }
 
         return null;
+    }
+
+    private static void handleImageError(Image image) {
+        var exception = image.getException();
+        log.warn(exception.getMessage(), exception);
     }
 }

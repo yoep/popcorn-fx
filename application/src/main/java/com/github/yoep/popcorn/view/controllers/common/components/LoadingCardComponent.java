@@ -1,6 +1,6 @@
-package com.github.yoep.popcorn.view.controllers.desktop.components;
+package com.github.yoep.popcorn.view.controllers.common.components;
 
-import com.github.yoep.popcorn.view.controllers.common.components.AbstractCardComponent;
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,7 @@ import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_PROT
 
 @Slf4j
 @Scope(SCOPE_PROTOTYPE)
-@Component
+@ViewController
 @RequiredArgsConstructor
 public class LoadingCardComponent extends AbstractCardComponent implements Initializable {
     @Override

@@ -41,6 +41,8 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     @FXML
     private Pane seriesCategory;
     @FXML
+    private Pane favoritesCategory;
+    @FXML
     private Pane settingsItem;
     @FXML
     private Pane shutdownItem;
@@ -82,6 +84,10 @@ public class MenuSectionController extends AbstractFilterSectionController imple
                 log.trace("Switching to series category");
                 switchCategory(seriesCategory);
                 break;
+            case FAVORITES:
+                log.trace("Switching to favorites category");
+                switchCategory(favoritesCategory);
+                break;
             default:
                 log.trace("Switching to movies category");
                 switchCategory(moviesCategory);
@@ -94,11 +100,15 @@ public class MenuSectionController extends AbstractFilterSectionController imple
 
         moviesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         seriesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
+        favoritesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
 
         categoryPane.getStyleClass().add(ACTIVE_STYLE_CLASS);
 
         if (categoryPane == seriesCategory) {
             category.set(Category.SERIES);
+        }
+        if (categoryPane == favoritesCategory) {
+            category.set(Category.FAVORITES);
         }
 
         activityManager.register((CategoryChangedActivity) category::get);
@@ -144,6 +154,12 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     }
 
     @FXML
+    private void onFavoritesCategoryClicked(MouseEvent event) {
+        event.consume();
+        switchCategory(favoritesCategory);
+    }
+
+    @FXML
     private void onSettingsClicked(MouseEvent event) {
         event.consume();
         showSettings();
@@ -161,7 +177,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
             event.consume();
             var source = event.getSource();
 
-            if (source == moviesCategory || source == seriesCategory) {
+            if (source == moviesCategory || source == seriesCategory || source == favoritesCategory) {
                 switchCategory((Pane) source);
             }
             if (source == settingsItem) {

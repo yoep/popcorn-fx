@@ -11,8 +11,11 @@ import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.tv.MainTvController;
+import com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent;
 import com.github.yoep.popcorn.view.controllers.tv.components.SettingsUiComponent;
+import com.github.yoep.popcorn.view.controllers.tv.components.ShowDetailsComponent;
 import com.github.yoep.popcorn.view.controllers.tv.sections.*;
+import com.github.yoep.popcorn.view.services.ImageService;
 import com.github.yoep.popcorn.view.services.UrlService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.annotation.Bean;
@@ -36,14 +39,16 @@ public class TvConfig {
                 .build();
     }
 
+    //region Sections
+
     @Bean
     public ContentSectionController contentSectionController(ActivityManager activityManager, ViewLoader viewLoader, TaskExecutor taskExecutor) {
         return new ContentSectionController(activityManager, viewLoader, taskExecutor);
     }
 
     @Bean
-    public DetailsSectionController detailsSectionController() {
-        return new DetailsSectionController();
+    public DetailsSectionController detailsSectionController(ActivityManager activityManager) {
+        return new DetailsSectionController(activityManager);
     }
 
     @Bean
@@ -77,8 +82,24 @@ public class TvConfig {
         return new SettingsSectionController();
     }
 
+    //endregion
+
+    //region Components
+
+    @Bean
+    public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager, ImageService imageService) {
+        return new MovieDetailsComponent(activityManager, imageService);
+    }
+
+    @Bean
+    public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager, ImageService imageService) {
+        return new ShowDetailsComponent(activityManager, imageService);
+    }
+
     @Bean
     public SettingsUiComponent settingsUiComponent() {
         return new SettingsUiComponent();
     }
+
+    //endregion
 }

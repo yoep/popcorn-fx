@@ -94,7 +94,7 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
                 setBackgroundImage(image, true);
             } else {
                 var exception = image.getException();
-                log.warn(exception.getMessage(), exception);
+                log.warn("Failed to load media image, " + exception.getMessage(), exception);
             }
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);

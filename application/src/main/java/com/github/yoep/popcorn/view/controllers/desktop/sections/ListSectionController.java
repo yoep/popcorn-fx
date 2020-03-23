@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.view.controllers.common.sections.AbstractListSectionController;
 import com.github.yoep.popcorn.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.view.controllers.desktop.components.OverlayMediaCardComponent;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.Builder;
@@ -21,6 +22,7 @@ import java.util.List;
 public class ListSectionController extends AbstractListSectionController implements Initializable {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
+    private final ImageService imageService;
 
     //region Constructors
 
@@ -30,10 +32,11 @@ public class ListSectionController extends AbstractListSectionController impleme
                                  FavoriteService favoriteService,
                                  WatchedService watchedService,
                                  ViewLoader viewLoader,
-                                 LocaleText localeText) {
+                                 LocaleText localeText, ImageService imageService) {
         super(activityManager, providerServices, viewLoader, localeText);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
+        this.imageService = imageService;
     }
 
     //endregion
@@ -47,7 +50,7 @@ public class ListSectionController extends AbstractListSectionController impleme
         item.setLiked(favoriteService.isLiked(item));
 
         // load a new media card controller and inject it into the view
-        var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, createItemListener());
+        var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, imageService, createItemListener());
 
         return viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
     }

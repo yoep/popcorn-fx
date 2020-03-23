@@ -31,10 +31,8 @@ import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -97,13 +95,12 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     //endregion
 
     /**
-     * Initialize the poster of the details component.
-     * This will bind the imageview's "fitTo" properties to the parent size.
+     * Load the media poster for the given media.
+     *
+     * @param media The media to load the poster of.
+     * @return Returns the completable future of the poster load action.
      */
-    protected void initializePoster() {
-        poster.fitHeightProperty().bind(posterHolder.heightProperty());
-        poster.fitWidthProperty().bind(posterHolder.widthProperty());
-    }
+    protected abstract CompletableFuture<Optional<Image>> loadPoster(Media media);
 
     /**
      * Load the stars component.
@@ -120,7 +117,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         // set the poster holder as the default image
         poster.setImage(POSTER_HOLDER);
 
-        imageService.loadPoster(media).whenComplete((image, throwable) -> {
+        loadPoster(media).whenComplete((image, throwable) -> {
             if (throwable == null) {
                 // replace the poster holder with the actual image if present
                 image.ifPresent(e -> poster.setImage(e));

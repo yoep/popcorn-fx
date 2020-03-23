@@ -17,6 +17,7 @@ import com.github.yoep.popcorn.view.controllers.common.SimpleItemListener;
 import com.github.yoep.popcorn.view.controllers.desktop.components.SimpleMediaCardComponent;
 import com.github.yoep.popcorn.view.controls.InfiniteScrollItemFactory;
 import com.github.yoep.popcorn.view.controls.InfiniteScrollPane;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
@@ -37,6 +38,7 @@ public class WatchlistSectionController implements Initializable {
     private final TraktService traktService;
     private final ProviderService<Movie> movieProviderService;
     private final ProviderService<Show> showProviderService;
+    private final ImageService imageService;
 
     @FXML
     private InfiniteScrollPane<Media> scrollPane;
@@ -44,14 +46,20 @@ public class WatchlistSectionController implements Initializable {
     //region Constructors
 
     @Builder
-    public WatchlistSectionController(ActivityManager activityManager, ViewLoader viewLoader, LocaleText localeText, TraktService traktService,
-                                      ProviderService<Movie> movieProviderService, ProviderService<Show> showProviderService) {
+    public WatchlistSectionController(ActivityManager activityManager,
+                                      ViewLoader viewLoader,
+                                      LocaleText localeText,
+                                      TraktService traktService,
+                                      ProviderService<Movie> movieProviderService,
+                                      ProviderService<Show> showProviderService,
+                                      ImageService imageService) {
         this.activityManager = activityManager;
         this.viewLoader = viewLoader;
         this.localeText = localeText;
         this.traktService = traktService;
         this.movieProviderService = movieProviderService;
         this.showProviderService = showProviderService;
+        this.imageService = imageService;
     }
 
     //endregion
@@ -121,7 +129,7 @@ public class WatchlistSectionController implements Initializable {
 
     private Node creatItemNode(Media item) {
         // load a new media card controller and inject it into the view
-        var mediaCardComponent = new SimpleMediaCardComponent(item, localeText, createListener());
+        var mediaCardComponent = new SimpleMediaCardComponent(item, localeText, imageService, createListener());
 
         return viewLoader.load("components/media-card-simple.component.fxml", mediaCardComponent);
     }

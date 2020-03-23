@@ -10,9 +10,14 @@ import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayInputStream;
+import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Image service for loading external images over HTTP/HTTPS.
+ * This image service selects the correct image from the {@link Media} items and will handle redirects automatically.
+ */
 @Service
 @RequiredArgsConstructor
 public class ImageService {
@@ -20,10 +25,10 @@ public class ImageService {
 
     /**
      * Try to load the fanart image for the given {@link Media}.
-     * This uses the Spring rest template for following redirect with 3xx.
      *
      * @param media The media to load the fanart image for.
      * @return Returns the fanart image if available, else {@link Optional#empty()}.
+     * @throws ImageException Is thrown when the image data failed to load.
      */
     @Async
     public CompletableFuture<Optional<Image>> loadFanart(Media media) {
@@ -39,29 +44,44 @@ public class ImageService {
 
     /**
      * Try to load the poster image for the given {@link Media}.
-     * This uses the Spring rest template for following redirect with 3xx.
      *
      * @param media The media to load the poster image for.
      * @return Returns the poster image if available, else {@link Optional#empty()}.
+     * @throws ImageException Is thrown when the image data failed to load.
      */
     @Async
     public CompletableFuture<Optional<Image>> loadPoster(Media media) {
+        return loadPoster(media, 0, 0);
+    }
+
+    /**
+     * Try to load the poster image for the given {@link Media}.
+     * The image will be resized to given max width & height while preserving the ratio.
+     *
+     * @param media  The media to load the poster image for.
+     * @param width  The max width the image should be resized to.
+     * @param height The max height the image should be resized to.
+     * @return Returns the poster image if available, else {@link Optional#empty()}.
+     * @throws ImageException Is thrown when the image data failed to load.
+     */
+    @Async
+    public CompletableFuture<Optional<Image>> loadPoster(final Media media, final double width, final double height) {
         Assert.notNull(media, "media cannot be null");
         Optional<Image> image = Optional.ofNullable(media.getImages())
                 .map(Images::getPoster)
                 .filter(e -> !e.equalsIgnoreCase("n/a"))
                 .map(this::internalLoad)
-                .map(this::convertToImage);
+                .map(e -> this.convertToImage(e, width, height));
 
         return CompletableFuture.completedFuture(image);
     }
 
     /**
      * Load the given image.
-     * This uses the Spring rest template for following redirect with 3xx.
      *
      * @param url The image url to load.
      * @return Returns the image data.
+     * @throws ImageException Is thrown when the image data failed to load.
      */
     @Async
     public CompletableFuture<Image> load(String url) {
@@ -72,12 +92,32 @@ public class ImageService {
     }
 
     private Image convertToImage(byte[] imageData) {
-        var inputStream = new ByteArrayInputStream(imageData);
-
-        return new Image(inputStream);
+        return convertToImage(imageData, 0, 0);
     }
 
-    private byte[] internalLoad(String uri) {
-        return restTemplate.getForObject(uri, byte[].class);
+    private Image convertToImage(byte[] imageData, double width, double height) {
+        var inputStream = new ByteArrayInputStream(imageData);
+
+        return new Image(inputStream, width, height, true, true);
+    }
+
+    /**
+     * Load the image internally using the rest template as it automatically follows the 3xx redirects.
+     *
+     * @param url The image url to load.
+     * @return Returns the image byte data.
+     */
+    private byte[] internalLoad(String url) {
+        try {
+            var response = restTemplate.getForEntity(url, byte[].class);
+
+            // check if the response is a success
+            if (response.getStatusCode().is2xxSuccessful())
+                return response.getBody();
+
+            throw new ImageException(url, MessageFormat.format("expected status 2xx, but got {0} instead", response.getStatusCodeValue()));
+        } catch (Exception ex) {
+            throw new ImageException(url, ex.getMessage(), ex);
+        }
     }
 }

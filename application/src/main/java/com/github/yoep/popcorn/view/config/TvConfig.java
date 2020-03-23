@@ -56,8 +56,9 @@ public class TvConfig {
                                                        List<ProviderService<? extends Media>> providerServices,
                                                        ViewLoader viewLoader,
                                                        LocaleText localeText,
-                                                       WatchedService watchedService) {
-        return new ListSectionController(activityManager, providerServices, viewLoader, localeText, watchedService);
+                                                       WatchedService watchedService,
+                                                       ImageService imageService) {
+        return new ListSectionController(activityManager, providerServices, viewLoader, localeText, watchedService, imageService);
     }
 
     @Bean

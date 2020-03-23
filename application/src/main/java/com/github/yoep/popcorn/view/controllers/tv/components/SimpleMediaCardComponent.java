@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.view.controllers.common.SimpleItemListener;
 import com.github.yoep.popcorn.view.controllers.desktop.components.AbstractMediaCardComponent;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
@@ -27,8 +28,8 @@ public class SimpleMediaCardComponent extends AbstractMediaCardComponent {
     @FXML
     private Pane posterItem;
 
-    public SimpleMediaCardComponent(Media media, LocaleText localeText, SimpleItemListener... listeners) {
-        super(media, localeText);
+    public SimpleMediaCardComponent(Media media, LocaleText localeText, ImageService imageService, SimpleItemListener... listeners) {
+        super(media, localeText, imageService);
         this.listeners.addAll(asList(listeners));
     }
 

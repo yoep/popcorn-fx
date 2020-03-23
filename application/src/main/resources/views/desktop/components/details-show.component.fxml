@@ -30,7 +30,8 @@
                               GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="0" GridPane.rowSpan="4"/>
 
         <!-- Image -->
-        <StackPane fx:id="posterHolder" styleClass="poster" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
+        <StackPane fx:id="posterHolder" styleClass="poster"
+                   GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
             <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
         </StackPane>
 

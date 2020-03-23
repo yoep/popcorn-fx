@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.view.controls.Stars;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -38,8 +39,8 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     @FXML
     private Stars ratingStars;
 
-    public OverlayMediaCardComponent(Media media, LocaleText localeText, OverlayItemListener... listeners) {
-        super(media, localeText);
+    public OverlayMediaCardComponent(Media media, LocaleText localeText, ImageService imageService, OverlayItemListener... listeners) {
+        super(media, localeText, imageService);
         this.listeners.addAll(asList(listeners));
     }
 

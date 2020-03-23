@@ -1,11 +1,11 @@
 package com.github.yoep.popcorn.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.media.providers.models.Images;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.messages.MediaMessage;
 import com.github.yoep.popcorn.view.controllers.common.components.AbstractCardComponent;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -14,7 +14,7 @@ import javafx.scene.image.Image;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.Optional;
+import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -23,6 +23,7 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
 
     protected final Media media;
     protected final LocaleText localeText;
+    protected final ImageService imageService;
 
     @FXML
     protected Label title;
@@ -31,9 +32,10 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
     @FXML
     protected Label seasons;
 
-    protected AbstractMediaCardComponent(Media media, LocaleText localeText) {
+    protected AbstractMediaCardComponent(Media media, LocaleText localeText, ImageService imageService) {
         this.media = media;
         this.localeText = localeText;
+        this.imageService = imageService;
     }
 
     @Override
@@ -43,18 +45,14 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
     }
 
     protected void initializeImage() {
-        var imageLoadingThread = new Thread(() -> {
-            setPosterHolderImage();
-
-            // try to load the actual image
-            Optional.ofNullable(media.getImages())
-                    .map(Images::getPoster)
-                    .filter(e -> !e.equalsIgnoreCase("n/a"))
-                    .ifPresent(this::loadMediaImage);
-        }, "MediaCardComponent.ImageLoader");
-
-        // run this on a separate thread for easier UI loading
-        imageLoadingThread.start();
+        setPosterHolderImage();
+        imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT).whenComplete((image, throwable) -> {
+            if (throwable == null) {
+                image.ifPresent(e -> setBackgroundImage(e, true));
+            } else {
+                log.error(throwable.getMessage(), throwable);
+            }
+        });
     }
 
     protected void initializeText() {
@@ -84,32 +82,27 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
         }
     }
 
-    private void loadMediaImage(String mediaImage) {
-        try {
-            var image = new Image(mediaImage, POSTER_WIDTH, POSTER_HEIGHT, true, true);
-
-            // verify if an error occurred while loading the media image
-            // if so, don't replace the poster holder image
-            if (!image.isError()) {
-                setBackgroundImage(image, true);
-            } else {
-                var exception = image.getException();
-                log.warn("Failed to load media image, " + exception.getMessage(), exception);
-            }
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
-        }
-    }
-
     private static Image loadPosterHolderImage() {
         try {
             var inputStream = getPosterHolderResource().getInputStream();
+            var image = new Image(inputStream, POSTER_WIDTH, POSTER_HEIGHT, true, true);
 
-            return new Image(inputStream, POSTER_WIDTH, POSTER_HEIGHT, true, true);
+            if (!image.isError()) {
+                return image;
+            } else {
+                handleImageError(image);
+            }
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }
 
         return null;
+    }
+
+    private static void handleImageError(Image image) {
+        var exception = image.getException();
+        var message = MessageFormat.format("Failed to load image card poster url \"{0}\", {1}", image.getUrl(), exception.getMessage());
+
+        log.warn(message, exception);
     }
 }

@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
@@ -78,7 +79,7 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
     //endregion
 
-    //region Methods
+    //region Initializable
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -87,9 +88,19 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
         initializeLanguageSelection();
     }
 
+    private void initializePoster() {
+        poster.fitHeightProperty().bind(posterHolder.heightProperty());
+        poster.fitWidthProperty().bind(posterHolder.widthProperty());
+    }
+
     //endregion
 
     //region AbstractDetailsComponent
+
+    @Override
+    protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
+        return imageService.loadPoster(media);
+    }
 
     @Override
     protected void reset() {

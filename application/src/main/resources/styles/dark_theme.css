@@ -543,10 +543,11 @@
 }
 
 .root .show-details-section .show-header .poster {
-    -fx-max-height: 198;
+    -fx-max-width: 198;
+    -fx-max-height: 215;
 }
 
-.root .show-details-section .poster .poster-image {
+.root .show-details-section .show-header .poster .poster-image {
     -fx-effect: dropshadow(three-pass-box, #17181b, 15, 0, 0, 0);
 }
 

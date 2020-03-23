@@ -1,14 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-
 <?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
-<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.ShowDetailsComponent">
-    <BackgroundImageCover fx:id="backgroundImage"
-                          GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-</GridPane>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.ShowDetailsComponent">
+    <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
+        <columnConstraints>
+            <ColumnConstraints maxWidth="198" minWidth="198"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints minWidth="25"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints valignment="TOP"/>
+            <RowConstraints valignment="TOP"/>
+            <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
+            <RowConstraints valignment="BOTTOM"/>
+        </rowConstraints>
+
+        <!-- Background -->
+        <BackgroundImageCover fx:id="backgroundImage"
+                              GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="0" GridPane.rowSpan="4"/>
+    </GridPane>
+</AnchorPane>

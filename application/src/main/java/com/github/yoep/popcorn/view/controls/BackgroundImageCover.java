@@ -9,6 +9,8 @@ import javafx.scene.paint.Color;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 
+import java.text.MessageFormat;
+
 /**
  * Background image which is blurred and has a shadow cover on top of it.
  */
@@ -110,6 +112,8 @@ public class BackgroundImageCover extends StackPane {
 
     private static void handleImageError(Image image) {
         var exception = image.getException();
-        log.warn(exception.getMessage(), exception);
+        var message = MessageFormat.format("Failed to load background image cover for url \"{0}\", {1}", image.getUrl(), exception.getMessage());
+
+        log.warn(message, exception);
     }
 }

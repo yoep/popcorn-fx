@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.view.controllers.common.sections.AbstractListSectionController;
 import com.github.yoep.popcorn.view.controllers.tv.components.SimpleMediaCardComponent;
+import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import java.util.ResourceBundle;
 @Slf4j
 public class ListSectionController extends AbstractListSectionController implements Initializable {
     private final WatchedService watchedService;
+    private final ImageService imageService;
 
     private boolean requestFocus;
 
@@ -27,9 +29,12 @@ public class ListSectionController extends AbstractListSectionController impleme
     public ListSectionController(ActivityManager activityManager,
                                  List<ProviderService<? extends Media>> providerServices,
                                  ViewLoader viewLoader,
-                                 LocaleText localeText, WatchedService watchedService) {
+                                 LocaleText localeText,
+                                 WatchedService watchedService,
+                                 ImageService imageService) {
         super(activityManager, providerServices, viewLoader, localeText);
         this.watchedService = watchedService;
+        this.imageService = imageService;
     }
 
     //endregion
@@ -58,7 +63,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     protected Node creatItemNode(Media item) {
         item.setWatched(watchedService.isWatched(item));
 
-        var mediaCardComponent = new SimpleMediaCardComponent(item, localeText,  this::onItemClicked);
+        var mediaCardComponent = new SimpleMediaCardComponent(item, localeText, imageService,  this::onItemClicked);
 
         // check if this media card item should request the focus
         // update the request focus later on back to false so only one item requests the focus

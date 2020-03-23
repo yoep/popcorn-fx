@@ -43,11 +43,14 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     private static final DateTimeFormatter AIRED_DATE_PATTERN = DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy hh:mm a");
+    private static final double POSTER_WIDTH = 198.0;
+    private static final double POSTER_HEIGHT = 215.0;
 
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
@@ -105,6 +108,11 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     //region AbstractDetailsComponent
 
     @Override
+    protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
+        return imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT);
+    }
+
+    @Override
     protected void reset() {
         super.reset();
         resetLanguageSelection();
@@ -122,11 +130,10 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
     //endregion
 
-    //region Methods
+    //region Initiazable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        initializePoster();
         initializeSeasons();
         initializeEpisodes();
         initializeLanguageSelection();

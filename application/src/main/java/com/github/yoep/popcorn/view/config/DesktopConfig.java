@@ -70,8 +70,9 @@ public class DesktopConfig {
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
                                                        ViewLoader viewLoader,
-                                                       LocaleText localeText) {
-        return new ListSectionController(activityManager, providerServices, favoriteService, watchedService, viewLoader, localeText);
+                                                       LocaleText localeText,
+                                                       ImageService imageService) {
+        return new ListSectionController(activityManager, providerServices, favoriteService, watchedService, viewLoader, localeText, imageService);
     }
 
     @Bean

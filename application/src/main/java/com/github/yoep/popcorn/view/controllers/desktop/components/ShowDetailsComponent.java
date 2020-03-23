@@ -34,7 +34,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 import javax.annotation.PostConstruct;
@@ -47,7 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
+public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> {
     private static final DateTimeFormatter AIRED_DATE_PATTERN = DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy hh:mm a");
     private static final double POSTER_WIDTH = 198.0;
     private static final double POSTER_HEIGHT = 215.0;
@@ -106,6 +105,15 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
     //endregion
 
     //region AbstractDetailsComponent
+
+    @Override
+    protected void load(Show media) {
+        super.load(media);
+
+        loadText();
+        loadSeasons();
+        loadFavorite();
+    }
 
     @Override
     protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
@@ -229,20 +237,6 @@ public class ShowDetailsComponent extends AbstractDetailsComponent<Show> {
 
         languageSelection.addListener(newValue -> this.subtitle = newValue);
         resetLanguageSelection();
-    }
-
-    private void load(Show media) {
-        Assert.notNull(media, "media cannot be null");
-        reset();
-
-        this.media = media;
-
-        loadText();
-        loadStars();
-        loadSeasons();
-        loadFavorite();
-        loadBackgroundImage();
-        loadPosterImage();
     }
 
     private void loadText() {

@@ -13,26 +13,24 @@ import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
-import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
-import com.github.yoep.popcorn.view.controls.Stars;
+import com.github.yoep.popcorn.view.controllers.common.components.AbstractDetailsComponent;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -41,29 +39,19 @@ import java.util.stream.Collectors;
  * @param <T> The media type of the details component.
  */
 @Slf4j
-public abstract class AbstractDetailsComponent<T extends Media> implements Initializable {
+public abstract class AbstractDesktopDetailsComponent<T extends Media> extends AbstractDetailsComponent<T> implements Initializable {
     protected static final String LIKED_STYLE_CLASS = "liked";
     protected static final String QUALITY_ACTIVE_CLASS = "active";
-    private static final String POSTER_HOLDER_URI = "/images/posterholder.png";
-    private static final Image POSTER_HOLDER = loadPosterHolder();
 
     protected final ActivityManager activityManager;
     protected final LocaleText localeText;
     protected final TorrentService torrentService;
     protected final SubtitleService subtitleService;
-    protected final ImageService imageService;
 
-    protected T media;
     protected SubtitleInfo subtitle;
     protected boolean liked;
     protected String quality;
 
-    @FXML
-    protected Pane posterHolder;
-    @FXML
-    protected ImageView poster;
-    @FXML
-    protected Stars ratingStars;
     @FXML
     protected Icon favoriteIcon;
     @FXML
@@ -76,56 +64,34 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected Pane qualitySelectionPane;
     @FXML
     protected LanguageFlagSelection languageSelection;
-    @FXML
-    private BackgroundImageCover backgroundImage;
 
     //region Constructors
 
-    public AbstractDetailsComponent(ActivityManager activityManager,
-                                    LocaleText localeText,
-                                    TorrentService torrentService,
-                                    SubtitleService subtitleService, ImageService imageService) {
+    public AbstractDesktopDetailsComponent(ActivityManager activityManager,
+                                           LocaleText localeText,
+                                           TorrentService torrentService,
+                                           SubtitleService subtitleService,
+                                           ImageService imageService) {
+        super(imageService);
         this.activityManager = activityManager;
         this.localeText = localeText;
         this.torrentService = torrentService;
         this.subtitleService = subtitleService;
-        this.imageService = imageService;
     }
 
     //endregion
 
-    /**
-     * Load the media poster for the given media.
-     *
-     * @param media The media to load the poster of.
-     * @return Returns the completable future of the poster load action.
-     */
-    protected abstract CompletableFuture<Optional<Image>> loadPoster(Media media);
+    //region AbstractDetailsComponent
 
-    /**
-     * Load the stars component.
-     * This will set the rating of the stars that needs to be shown.
-     */
+    @Override
     protected void loadStars() {
-        ratingStars.setRating(media.getRating());
+        super.loadStars();
         Tooltip tooltip = new Tooltip(media.getRating().getPercentage() / 10 + "/10");
         instantTooltip(tooltip);
         Tooltip.install(ratingStars, tooltip);
     }
 
-    protected void loadPosterImage() {
-        // set the poster holder as the default image
-        poster.setImage(POSTER_HOLDER);
-
-        loadPoster(media).whenComplete((image, throwable) -> {
-            if (throwable == null) {
-                // replace the poster holder with the actual image if present
-                image.ifPresent(e -> poster.setImage(e));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
-    }
+    //endregion
 
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {
         List<Label> qualities = torrents.keySet().stream()
@@ -271,17 +237,6 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         languageSelection.select(0);
     }
 
-    protected void loadBackgroundImage() {
-        backgroundImage.reset();
-        imageService.loadFanart(media).whenComplete((bytes, throwable) -> {
-            if (throwable == null) {
-                bytes.ifPresent(e -> backgroundImage.setBackgroundImage(e));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
-    }
-
     //region Functions
 
     private Label createQualityOption(String quality) {
@@ -297,22 +252,6 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         Label label = (Label) event.getSource();
 
         switchActiveQuality(label.getText());
-    }
-
-    private static Image loadPosterHolder() {
-        try {
-            var resource = new ClassPathResource(POSTER_HOLDER_URI);
-
-            if (resource.exists()) {
-                return new Image(resource.getInputStream());
-            } else {
-                log.warn("Poster holder url \"{}\" does not exist", POSTER_HOLDER_URI);
-            }
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
-        }
-
-        return null;
     }
 
     //endregion

@@ -26,7 +26,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -36,7 +35,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
+public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
     private static final String WATCHED_STYLE_CLASS = "seen";
 
@@ -98,14 +97,27 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
     //region AbstractDetailsComponent
 
     @Override
+    protected void load(Movie media) {
+        super.load(media);
+
+        loadText();
+        loadButtons();
+        loadSubtitles();
+        loadFavoriteAndWatched();
+        loadQualitySelection(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
+    }
+
+    @Override
     protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
         return imageService.loadPoster(media);
     }
 
     @Override
     protected void reset() {
-        media.watchedProperty().removeListener(watchedListener);
-        media.likedProperty().removeListener(likedListener);
+        if (media != null) {
+            media.watchedProperty().removeListener(watchedListener);
+            media.likedProperty().removeListener(likedListener);
+        }
 
         super.reset();
         resetLanguageSelection();
@@ -169,20 +181,6 @@ public class MovieDetailsComponent extends AbstractDetailsComponent<Movie> {
 
         languageSelection.addListener(newValue -> this.subtitle = newValue);
         resetLanguageSelection();
-    }
-
-    private void load(Movie media) {
-        Assert.notNull(media, "media cannot be null");
-        this.media = media;
-
-        loadText();
-        loadStars();
-        loadButtons();
-        loadSubtitles();
-        loadFavoriteAndWatched();
-        loadQualitySelection(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
-        loadBackgroundImage();
-        loadPosterImage();
     }
 
     private void loadText() {

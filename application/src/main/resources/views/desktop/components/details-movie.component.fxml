@@ -49,8 +49,8 @@
         <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
             <columnConstraints>
                 <ColumnConstraints/>
-                <ColumnConstraints/>
-                <ColumnConstraints/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints />
             </columnConstraints>
             <rowConstraints>
                 <RowConstraints/>

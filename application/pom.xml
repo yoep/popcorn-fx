@@ -7,7 +7,7 @@
     <parent>
         <artifactId>popcorn-time</artifactId>
         <groupId>com.github.yoep</groupId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>0.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>popcorn-time-application</artifactId>
@@ -308,7 +308,7 @@
                             <displayName>Popcorn Time</displayName>
                             <organizationName>Popcorn Time</organizationName>
                             <licenseFile>../LICENSE</licenseFile>
-                            <version>1.0.0</version>
+                            <version>${project.version}</version>
                             <vmArgs>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>

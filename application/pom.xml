@@ -292,7 +292,7 @@
                 <artifactId>javapackager</artifactId>
                 <executions>
                     <execution>
-                        <phase>deploy</phase>
+                        <phase>install</phase>
                         <goals>
                             <goal>package</goal>
                         </goals>

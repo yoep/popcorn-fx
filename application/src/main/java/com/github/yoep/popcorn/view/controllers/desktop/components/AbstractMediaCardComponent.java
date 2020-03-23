@@ -12,6 +12,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 
 import java.net.URL;
 import java.text.MessageFormat;
@@ -32,11 +33,18 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
     @FXML
     protected Label seasons;
 
+    //region Constructors
+
     protected AbstractMediaCardComponent(Media media, LocaleText localeText, ImageService imageService) {
+        Assert.notNull(media, "media cannot be null");
+        Assert.notNull(localeText, "localeText cannot be null");
+        Assert.notNull(imageService, "imageService cannot be null");
         this.media = media;
         this.localeText = localeText;
         this.imageService = imageService;
     }
+
+    //endregion
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {

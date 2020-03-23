@@ -23,6 +23,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
@@ -53,6 +54,13 @@ public class WatchlistSectionController implements Initializable {
                                       ProviderService<Movie> movieProviderService,
                                       ProviderService<Show> showProviderService,
                                       ImageService imageService) {
+        Assert.notNull(activityManager, "activityManager cannot be null");
+        Assert.notNull(viewLoader, "viewLoader cannot be null");
+        Assert.notNull(localeText, "localeText cannot be null");
+        Assert.notNull(traktService, "traktService cannot be null");
+        Assert.notNull(movieProviderService, "movieProviderService cannot be null");
+        Assert.notNull(showProviderService, "showProviderService cannot be null");
+        Assert.notNull(imageService, "imageService cannot be null");
         this.activityManager = activityManager;
         this.viewLoader = viewLoader;
         this.localeText = localeText;
@@ -90,7 +98,7 @@ public class WatchlistSectionController implements Initializable {
     //region Functions
 
     private void initializeScrollPane() {
-        scrollPane.setLoaderFactory(() -> viewLoader.load("components/loading-card.component.fxml"));
+        scrollPane.setLoaderFactory(() -> viewLoader.load("common/components/loading-card.component.fxml"));
         scrollPane.setItemFactory(new InfiniteScrollItemFactory<>() {
             @Override
             public CompletableFuture<List<Media>> loadPage(int page) {

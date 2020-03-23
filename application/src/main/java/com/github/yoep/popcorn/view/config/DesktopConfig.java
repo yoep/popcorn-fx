@@ -127,7 +127,8 @@ public class DesktopConfig {
                                                                  LocaleText localeText,
                                                                  TraktService traktService,
                                                                  ProviderService<Movie> movieProviderService,
-                                                                 ProviderService<Show> showProviderService) {
+                                                                 ProviderService<Show> showProviderService,
+                                                                 ImageService imageService) {
         return WatchlistSectionController.builder()
                 .activityManager(activityManager)
                 .viewLoader(viewLoader)
@@ -135,6 +136,7 @@ public class DesktopConfig {
                 .traktService(traktService)
                 .movieProviderService(movieProviderService)
                 .showProviderService(showProviderService)
+                .imageService(imageService)
                 .build();
     }
 

@@ -13,14 +13,5 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
         super(imageService);
     }
 
-    protected void loadBackgroundImage() {
-        backgroundImage.reset();
-        imageService.loadFanart(media).whenComplete((bytes, throwable) -> {
-            if (throwable == null) {
-                bytes.ifPresent(e -> backgroundImage.setBackgroundImage(e));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
-    }
+
 }

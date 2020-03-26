@@ -150,7 +150,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     protected void switchHealth(MediaTorrentInfo torrentInfo) {
         health.getStyleClass().removeIf(e -> !e.equals("health"));
-        TorrentHealth health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
+        var health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
 
         this.health.getStyleClass().add(health.getStatus().getStyleClass());
         Tooltip healthTooltip = new Tooltip(getHealthTooltip(torrentInfo, health));

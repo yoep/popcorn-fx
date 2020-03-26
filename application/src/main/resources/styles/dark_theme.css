@@ -105,7 +105,8 @@
 
 .root SplitMenuButton:hover .label,
 .root SplitMenuButton:hover .arrow-button,
-.root Button:hover {
+.root Button:hover,
+.root Button:focused {
     -fx-background-color: #225694;
 }
 

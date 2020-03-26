@@ -90,3 +90,50 @@
 .root .list-section .poster-item:focused .seasons {
     -fx-text-fill: #fff;
 }
+
+.root .content-section .movie-details .poster-play {
+    -fx-pref-width: 60;
+    -fx-pref-height: 60;
+    -fx-background-color: rgba(0, 0, 0, 0.6);
+    -fx-background-radius: 3em;
+    -fx-border-color: #ccc;
+    -fx-border-width: 2;
+    -fx-border-radius: 3em;
+    -fx-cursor: hand;
+    -fx-font-size: 2em;
+    -fx-text-fill: #ccc;
+    -fx-alignment: center;
+}
+
+.root .content-section .movie-details .poster-play:hover,
+.root .content-section .movie-details .poster-play:focused {
+    -fx-background-color: rgba(45, 114, 217, 0.6);
+    -fx-border-color: #fff;
+    -fx-text-fill: #fff;
+}
+
+.root .content-section .movie-details .actions {
+    -fx-spacing: 20;
+}
+
+.root .content-section .movie-details .actions .action {
+    -fx-alignment: center;
+    -fx-spacing: 5;
+    -fx-cursor: hand;
+}
+
+.root .content-section .movie-details .actions .action Label {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.5em;
+}
+
+.root .content-section .movie-details .actions .action Icon {
+    -fx-text-fill: #fff;
+    -fx-font-size: 2em;
+}
+
+.root .content-section .movie-details .actions .action:focused Label,
+.root .content-section .movie-details .actions .action:focused Icon {
+    -fx-text-fill: #2d72d9;
+}

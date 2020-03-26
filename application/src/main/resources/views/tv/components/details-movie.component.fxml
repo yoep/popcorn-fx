@@ -10,7 +10,7 @@
           fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent" styleClass="movie-details">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="10"/>
-        <ColumnConstraints minWidth="400" percentWidth="80"/>
+        <ColumnConstraints minWidth="400" percentWidth="80" hgrow="ALWAYS"/>
         <ColumnConstraints minWidth="20" percentWidth="10"/>
     </columnConstraints>
     <rowConstraints>
@@ -24,17 +24,20 @@
 
     <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">
         <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS" percentWidth="35" halignment="RIGHT"/>
+            <ColumnConstraints hgrow="ALWAYS" percentWidth="40" halignment="RIGHT"/>
             <ColumnConstraints hgrow="NEVER" minWidth="10"/>
-            <ColumnConstraints hgrow="ALWAYS" prefWidth="65" halignment="LEFT"/>
+            <ColumnConstraints hgrow="ALWAYS" prefWidth="60" halignment="LEFT"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints vgrow="ALWAYS"/>
         </rowConstraints>
 
-        <BorderPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <StackPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
             <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
-        </BorderPane>
+            <Icon fx:id="playButton" styleClass="poster-play" focusTraversable="true">
+                <Icon fx:constant="PLAY_UNICODE"/>
+            </Icon>
+        </StackPane>
 
         <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
             <columnConstraints>
@@ -46,8 +49,7 @@
                 <RowConstraints/>
                 <RowConstraints minHeight="30" valignment="CENTER"/>
                 <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
-                <RowConstraints minHeight="30" valignment="TOP"/>
-                <RowConstraints minHeight="30"/>
+                <RowConstraints minHeight="60" valignment="BOTTOM"/>
             </rowConstraints>
 
             <Label fx:id="title" styleClass="title"
@@ -81,6 +83,23 @@
             <!-- Overview text -->
             <Label fx:id="overview" styleClass="overview" wrapText="true"
                    GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+
+            <!-- Actions -->
+            <HBox styleClass="actions" spacing="5"
+                  GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                <VBox styleClass="action" focusTraversable="true">
+                    <Icon>
+                        <Icon fx:constant="FILM_UNICODE"/>
+                    </Icon>
+                    <Label text="%details_watch_trailer"/>
+                </VBox>
+                <VBox styleClass="action" focusTraversable="true">
+                    <Icon>
+                        <Icon fx:constant="COMMENT_UNICODE"/>
+                    </Icon>
+                    <Label text="%details_subtitle"/>
+                </VBox>
+            </HBox>
         </GridPane>
     </GridPane>
 </GridPane>

@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.view.controllers.tv.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowMovieDetailsActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
@@ -22,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
     private final ActivityManager activityManager;
 
+    @FXML
+    private Icon playButton;
     @FXML
     private Label title;
     @FXML
@@ -47,11 +50,16 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializePoster();
+        initializePlayButton();
     }
 
     private void initializePoster() {
         poster.fitHeightProperty().bind(posterHolder.heightProperty());
         poster.fitWidthProperty().bind(posterHolder.widthProperty());
+    }
+
+    private void initializePlayButton() {
+        playButton.requestFocus();
     }
 
     //endregion

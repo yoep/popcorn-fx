@@ -359,7 +359,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
 
     private void close() {
         // stop the current torrent operation thread if one is present & alive
-        if (torrentThread != null && torrentThread.isAlive())
+        if (torrentThread != null && torrentThread.getState() != Thread.State.TERMINATED)
             torrentThread.interrupt();
 
         torrentService.stopStream();

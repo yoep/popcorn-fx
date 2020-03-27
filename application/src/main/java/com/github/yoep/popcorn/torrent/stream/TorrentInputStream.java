@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 
 /**
  * Extension on top of {@link InputStream} which blocks the stream reading when the requested bytes are not yet available.
@@ -17,7 +18,7 @@ import java.io.InputStream;
 public class TorrentInputStream extends FilterInputStream implements AlertListener {
     //TODO: fix this cheaty workaround because 2 different torrent input streams are created
     private static final Object monitor = new Object();
-    private final Torrent torrent;
+    private final WeakReference<Torrent> torrent;
 
     private boolean stopped;
     private long location;
@@ -30,7 +31,7 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
      */
     public TorrentInputStream(Torrent torrent, InputStream inputStream) {
         super(inputStream);
-        this.torrent = torrent;
+        this.torrent = new WeakReference<>(torrent);
     }
 
     @Override
@@ -45,7 +46,16 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
 
     @Override
     public synchronized int read(byte[] buffer, int offset, int length) throws IOException {
-        int pieceLength = torrent.getTorrentHandle().torrentFile().pieceLength();
+        var torrent = this.torrent.get();
+
+        // verify that the torrent has not bee garbage collected
+        // if it has been, return -1 to indicate the end of the input stream has been reached
+        if (torrent == null) {
+            log.warn("Unable to serve torrent file input, torrent has been garbage collected");
+            return -1;
+        }
+
+        var pieceLength = torrent.getTorrentHandle().torrentFile().pieceLength();
 
         for (int i = 0; i < length; i += pieceLength) {
             if (!waitForPiece(location + i)) {
@@ -103,6 +113,12 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
         synchronized (monitor) {
             while (!Thread.currentThread().isInterrupted() && !stopped) {
                 try {
+                    var torrent = this.torrent.get();
+
+                    // verify that the torrent has not bee garbage collected
+                    if (torrent == null)
+                        return false;
+
                     if (torrent.hasBytes(offset)) {
                         return true;
                     }

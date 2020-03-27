@@ -121,6 +121,17 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
 
     //region Functions
 
+    @Override
+    protected void initialize() {
+        super.initialize();
+        initializeListeners();
+    }
+
+    private void initializeListeners() {
+        // if the time is being changed, make sure the animation drawer is running
+        timeProperty().addListener((observable, oldValue, newValue) -> timer.start());
+    }
+
     private void invokeOnVlc(Runnable runnable) {
         mediaPlayer.submit(() -> {
             try {

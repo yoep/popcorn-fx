@@ -21,7 +21,6 @@ import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -33,7 +32,6 @@ import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class PlayerControlsComponent implements Initializable {
     private final List<PlayerControlsListener> listeners = new ArrayList<>();

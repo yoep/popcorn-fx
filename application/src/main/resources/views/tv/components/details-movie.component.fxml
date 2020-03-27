@@ -87,7 +87,7 @@
             <!-- Actions -->
             <HBox styleClass="actions" spacing="5"
                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="3">
-                <VBox styleClass="action" focusTraversable="true">
+                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onWatchTrailerClicked" onKeyPressed="#onWatchTrailerKeyPressed">
                     <Icon>
                         <Icon fx:constant="FILM_UNICODE"/>
                     </Icon>
@@ -98,6 +98,12 @@
                         <Icon fx:constant="COMMENT_UNICODE"/>
                     </Icon>
                     <Label text="%details_subtitle"/>
+                </VBox>
+                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed">
+                    <Icon>
+                        <Icon fx:constant="CROSS_UNICODE"/>
+                    </Icon>
+                    <Label text="%close"/>
                 </VBox>
             </HBox>
         </GridPane>

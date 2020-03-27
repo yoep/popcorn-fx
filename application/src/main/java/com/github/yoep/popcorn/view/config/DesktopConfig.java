@@ -196,5 +196,15 @@ public class DesktopConfig {
         return new ShowDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService);
     }
 
+    @Bean
+    public PlayerHeaderComponent playerHeaderComponent(ActivityManager activityManager, TorrentService torrentService, LocaleText localeText) {
+        return new PlayerHeaderComponent(activityManager, torrentService, localeText);
+    }
+
+    @Bean
+    public PlayerControlsComponent playerControlsComponent(ActivityManager activityManager, SubtitleService subtitleService, LocaleText localeText) {
+        return new PlayerControlsComponent(activityManager, subtitleService, localeText);
+    }
+
     //endregion
 }

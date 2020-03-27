@@ -17,7 +17,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -27,7 +26,6 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class PlayerHeaderComponent implements Initializable {
     private final List<PlayerHeaderListener> listeners = new ArrayList<>();

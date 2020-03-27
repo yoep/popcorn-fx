@@ -228,7 +228,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @FXML
     private void onMagnetClicked(MouseEvent event) {
-        MediaTorrentInfo torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+        event.consume();
+        var torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {
             copyMagnetLink(torrentInfo);
@@ -238,7 +239,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @FXML
-    private void onWatchNowClicked() {
+    private void onWatchNowClicked(MouseEvent event) {
+        event.consume();
         activityManager.register(new LoadMediaTorrentActivity() {
             @Override
             public String getQuality() {
@@ -263,7 +265,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @FXML
-    private void onTrailerClicked() {
+    private void onTrailerClicked(MouseEvent event) {
+        event.consume();
         activityManager.register(new PlayVideoActivity() {
             @Override
             public String getUrl() {
@@ -283,12 +286,14 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @FXML
-    private void onSubtitleLabelClicked() {
+    private void onSubtitleLabelClicked(MouseEvent event) {
+        event.consume();
         languageSelection.show();
     }
 
     @FXML
-    private void onFavoriteClicked() {
+    private void onFavoriteClicked(MouseEvent event) {
+        event.consume();
         if (!media.isLiked()) {
             favoriteService.addToFavorites(media);
         } else {
@@ -297,7 +302,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @FXML
-    private void onWatchedClicked() {
+    private void onWatchedClicked(MouseEvent event) {
+        event.consume();
         if (!media.isWatched()) {
             watchedService.addToWatchList(media);
         } else {
@@ -306,7 +312,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @FXML
-    private void close() {
+    private void close(MouseEvent event) {
+        event.consume();
         activityManager.register(new CloseDetailsActivity() {
         });
         reset();

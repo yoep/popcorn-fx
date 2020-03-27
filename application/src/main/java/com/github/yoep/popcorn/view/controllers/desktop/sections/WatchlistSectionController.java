@@ -3,12 +3,14 @@ package com.github.yoep.popcorn.view.controllers.desktop.sections;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.ErrorNotificationActivity;
 import com.github.yoep.popcorn.activities.ShowWatchlistActivity;
 import com.github.yoep.popcorn.media.providers.MediaException;
 import com.github.yoep.popcorn.media.providers.ProviderService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.messages.WatchlistMessage;
 import com.github.yoep.popcorn.trakt.TraktException;
 import com.github.yoep.popcorn.trakt.TraktService;
 import com.github.yoep.popcorn.trakt.models.TraktType;
@@ -157,7 +159,8 @@ public class WatchlistSectionController implements Initializable {
             return movieProviderService.getDetails(item.getMovie().getIds().getImdb()).get();
         } catch (InterruptedException | ExecutionException ex) {
             log.error(ex.getMessage(), ex);
-            throw new TraktException(ex.getMessage(), ex);
+            activityManager.register((ErrorNotificationActivity) () -> localeText.get(WatchlistMessage.FAILED_TO_PARSE_MOVIE));
+            return null;
         }
     }
 

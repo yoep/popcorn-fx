@@ -124,16 +124,31 @@
 
 .root .content-section .movie-details .actions .action Label {
     -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
+    -fx-text-fill: #ccc;
     -fx-font-size: 1.5em;
 }
 
 .root .content-section .movie-details .actions .action Icon {
-    -fx-text-fill: #fff;
+    -fx-pref-width: 50;
+    -fx-pref-height: 50;
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+    -fx-background-radius: 10;
+    -fx-border-width: 2;
+    -fx-border-radius: 10;
+    -fx-border-color: #ccc;
+    -fx-alignment: center;
+    -fx-text-fill: #ccc;
     -fx-font-size: 2em;
 }
 
-.root .content-section .movie-details .actions .action:focused Label,
+.root .content-section .movie-details .actions .action:hover Icon,
 .root .content-section .movie-details .actions .action:focused Icon {
-    -fx-text-fill: #2d72d9;
+    -fx-background-color: rgba(45, 114, 217, 0.6);
+    -fx-border-color: #fff;
+    -fx-text-fill: #fff;
+}
+
+.root .content-section .movie-details .actions .action:hover Label,
+.root .content-section .movie-details .actions .action:focused Label {
+    -fx-text-fill: #fff;
 }

@@ -1,12 +1,11 @@
 package com.github.yoep.popcorn.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.CloseDetailsActivity;
-import com.github.yoep.popcorn.activities.PlayVideoActivity;
-import com.github.yoep.popcorn.activities.ShowMovieDetailsActivity;
+import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -26,7 +25,12 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
+    private static final String DEFAULT_TORRENT_AUDIO = "en";
+
     private final ActivityManager activityManager;
+
+    private String quality;
+    private SubtitleInfo subtitle;
 
     @FXML
     private Icon playButton;
@@ -105,6 +109,30 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         genres.setText(String.join(" / ", media.getGenres()));
     }
 
+    private void onPlay() {
+        activityManager.register(new LoadMediaTorrentActivity() {
+            @Override
+            public String getQuality() {
+                return quality;
+            }
+
+            @Override
+            public Media getMedia() {
+                return media;
+            }
+
+            @Override
+            public MediaTorrentInfo getTorrent() {
+                return media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+            }
+
+            @Override
+            public Optional<SubtitleInfo> getSubtitle() {
+                return Optional.ofNullable(subtitle);
+            }
+        });
+    }
+
     private void onWatchTrailer() {
         activityManager.register(new PlayVideoActivity() {
             @Override
@@ -127,6 +155,20 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private void onClose() {
         activityManager.register(new CloseDetailsActivity() {
         });
+    }
+
+    @FXML
+    private void onPlayClicked(MouseEvent event) {
+        event.consume();
+        onPlay();
+    }
+
+    @FXML
+    private void onPlayKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onPlay();
+        }
     }
 
     @FXML

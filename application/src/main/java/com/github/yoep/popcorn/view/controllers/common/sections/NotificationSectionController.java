@@ -13,7 +13,6 @@ import javafx.fxml.FXML;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 

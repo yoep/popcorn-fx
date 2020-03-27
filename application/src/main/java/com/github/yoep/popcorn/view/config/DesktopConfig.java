@@ -206,5 +206,20 @@ public class DesktopConfig {
         return new PlayerControlsComponent(activityManager, subtitleService, localeText);
     }
 
+    @Bean
+    public SettingsSubtitlesComponent settingsSubtitlesComponent(SettingsService settingsService,  LocaleText localeText) {
+        return new SettingsSubtitlesComponent(settingsService, localeText);
+    }
+
+    @Bean
+    public SettingsTorrentComponent settingsTorrentComponent(SettingsService settingsService) {
+        return new SettingsTorrentComponent(settingsService);
+    }
+
+    @Bean
+    public SettingsTraktComponent settingsTraktComponent(TraktService traktService) {
+        return new SettingsTraktComponent(traktService);
+    }
+
     //endregion
 }

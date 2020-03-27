@@ -17,7 +17,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.stage.DirectoryChooser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.net.URL;
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class SettingsSubtitlesComponent implements Initializable {
     private final SettingsService settingsService;

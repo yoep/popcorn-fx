@@ -34,7 +34,7 @@
 
         <StackPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
             <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
-            <Icon fx:id="playButton" styleClass="poster-play" focusTraversable="true">
+            <Icon fx:id="playButton" styleClass="poster-play" focusTraversable="true" onMouseClicked="#onPlayClicked" onKeyPressed="#onPlayKeyPressed">
                 <Icon fx:constant="PLAY_UNICODE"/>
             </Icon>
         </StackPane>

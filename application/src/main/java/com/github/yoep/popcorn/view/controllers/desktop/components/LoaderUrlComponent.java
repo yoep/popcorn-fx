@@ -12,7 +12,6 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 

@@ -7,13 +7,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class SettingsTraktComponent implements Initializable {
     private final TraktService traktService;

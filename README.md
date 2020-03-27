@@ -7,6 +7,8 @@ but it also works on desktop environments such as **Linux & Windows** (not teste
 
 Popcorn Time Desktop Java has been tested with **Raspberry Pi 3B+ and 4**.
 
+![Desktop preview](https://i.imgur.com/5NDWam2.png)
+
 ## Launch options
 
 The following launch options can be used as startup arguments.
@@ -97,3 +99,19 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Continue to watch show with next episode
 - Add option for custom subtitle files
 - Favorite synchronisation with Trakt.tv
+
+## Screenshots
+
+#### Desktop mode
+
+![Desktop preview](https://i.imgur.com/5NDWam2.png)
+
+![Desktop Movie details](https://i.imgur.com/zqQelcV.png)
+
+![Desktop watchlist](https://i.imgur.com/aZex7J0.png)
+
+#### TV mode
+
+![TV preview](https://i.imgur.com/Nrhvpwh.png)
+
+![TV Movie details](https://i.imgur.com/ne0npKo.png)

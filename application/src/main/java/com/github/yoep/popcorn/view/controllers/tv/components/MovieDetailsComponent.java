@@ -19,9 +19,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
@@ -44,6 +46,8 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private Label duration;
     @FXML
     private Label genres;
+    @FXML
+    private Label qualityButton;
 
     //region Constructors
 
@@ -80,6 +84,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         super.load(media);
 
         loadText();
+        loadQualities();
     }
 
     @Override
@@ -107,6 +112,17 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         year.setText(media.getYear());
         duration.setText(media.getRuntime() + " min");
         genres.setText(String.join(" / ", media.getGenres()));
+    }
+
+    private void loadQualities() {
+        var qualities = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).keySet().stream()
+                .filter(e -> !e.equals("0")) // filter out the 0 quality
+                .sorted(Comparator.comparing(o -> Integer.parseInt(o.replaceAll("[a-z]", ""))))
+                .collect(Collectors.toList());
+        var defaultQuality = qualities.get(qualities.size() - 1);
+
+        qualityButton.setText(defaultQuality);
+        quality = defaultQuality;
     }
 
     private void onPlay() {

@@ -85,27 +85,45 @@
                    GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
 
             <!-- Actions -->
-            <HBox styleClass="actions" spacing="5"
-                  GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="3">
-                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onWatchTrailerClicked" onKeyPressed="#onWatchTrailerKeyPressed">
-                    <Icon>
+            <GridPane styleClass="actions"
+                      GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="25"/>
+                    <ColumnConstraints percentWidth="25"/>
+                    <ColumnConstraints percentWidth="25"/>
+                    <ColumnConstraints percentWidth="25"/>
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints/>
+                </rowConstraints>
+
+                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onWatchTrailerClicked" onKeyPressed="#onWatchTrailerKeyPressed"
+                      GridPane.columnIndex="0" GridPane.rowIndex="0">
+                    <Icon styleClass="button">
                         <Icon fx:constant="FILM_UNICODE"/>
                     </Icon>
                     <Label text="%details_watch_trailer"/>
                 </VBox>
-                <VBox styleClass="action" focusTraversable="true">
-                    <Icon>
+                <VBox styleClass="action" focusTraversable="true"
+                      GridPane.columnIndex="1" GridPane.rowIndex="0">
+                    <Icon styleClass="button">
                         <Icon fx:constant="COMMENT_UNICODE"/>
                     </Icon>
                     <Label text="%details_subtitle"/>
                 </VBox>
-                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed">
-                    <Icon>
+                <VBox styleClass="action" focusTraversable="true"
+                      GridPane.columnIndex="2" GridPane.rowIndex="0">
+                    <Label fx:id="qualityButton" styleClass="button, text" />
+                    <Label text="%details_quality"/>
+                </VBox>
+                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
+                      GridPane.columnIndex="3" GridPane.rowIndex="0">
+                    <Icon styleClass="button">
                         <Icon fx:constant="CROSS_UNICODE"/>
                     </Icon>
                     <Label text="%close"/>
                 </VBox>
-            </HBox>
+            </GridPane>
         </GridPane>
     </GridPane>
 </GridPane>

@@ -74,8 +74,8 @@ public class TvConfig {
     }
 
     @Bean
-    public PlayerSectionController playerSectionController() {
-        return new PlayerSectionController();
+    public PlayerSectionController playerSectionController(ActivityManager activityManager) {
+        return new PlayerSectionController(activityManager);
     }
 
     @Bean

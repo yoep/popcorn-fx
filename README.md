@@ -112,6 +112,8 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
 #### TV mode
 
-![TV preview](https://i.imgur.com/Nrhvpwh.png)
+![TV preview](https://i.imgur.com/QIx9NA2.png)
 
-![TV Movie details](https://i.imgur.com/ne0npKo.png)
+![TV Movie details](https://i.imgur.com/VUFAdwV.png)
+
+![TV Movie trailer](https://i.imgur.com/5Nr4mez.png)

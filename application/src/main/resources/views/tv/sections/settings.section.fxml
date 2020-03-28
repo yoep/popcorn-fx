@@ -11,8 +11,7 @@
             <!-- Title -->
             <Label styleClass="settings-title" text="%settings"/>
 
-            <!-- User interface -->
-            <fx:include source="../components/settings-ui.component.fxml"/>
+
         </VBox>
     </ScrollPane>
 </StackPane>

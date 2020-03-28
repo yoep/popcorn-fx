@@ -6,8 +6,8 @@ import javafx.scene.layout.*;
 import org.springframework.core.io.ClassPathResource;
 
 public abstract class AbstractCardComponent {
-    protected static final int POSTER_WIDTH = 134;
-    protected static final int POSTER_HEIGHT = 196;
+    protected static final int POSTER_WIDTH = 201;
+    protected static final int POSTER_HEIGHT = 294;
 
     private static final String POSTER_HOLDER = "/images/posterholder.png";
 

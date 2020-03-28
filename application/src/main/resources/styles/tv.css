@@ -114,6 +114,30 @@
     -fx-text-fill: #fff;
 }
 
+.root .movie-details .overview,
+.root .show-details-section .overview {
+    -fx-font-size: 1.25em;
+}
+
+.root .movie-details .metadata Label,
+.root .show-details-section .metadata Label {
+    -fx-font-size: 1.25em;
+}
+
+.root .movie-details .metadata .separator,
+.root .show-details-section .metadata .separator {
+    -fx-font-size: 8px;
+}
+
+.root .movie-details .metadata .stars .star {
+    -fx-font-size: 1.25em;
+}
+
+.root .movie-details .health,
+.root .show-details-section .show-details .episode-overview .health {
+    -fx-font-size: 1.25em;
+}
+
 .root .content-section .movie-details .poster-play {
     -fx-pref-width: 70;
     -fx-pref-height: 70;

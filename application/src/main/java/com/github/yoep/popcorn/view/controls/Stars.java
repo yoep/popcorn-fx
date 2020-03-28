@@ -9,18 +9,26 @@ import javafx.scene.layout.StackPane;
 import org.springframework.util.Assert;
 
 public class Stars extends HBox {
+    private static final String STARS_STYLE_CLASS = "stars";
+    private static final String STAR_STYLE_CLASS = "star";
+
     private Rating rating;
 
+    //region Constructors
+
     public Stars() {
-        getStyleClass().add("stars");
+        init();
     }
 
     public Stars(Rating rating) {
         Assert.notNull(rating, "rating cannot be null");
         this.rating = rating;
-        createStars();
-        getStyleClass().add("stars");
+        init();
     }
+
+    //endregion
+
+    //region Methods
 
     /**
      * Set the rating that the stars must represent.
@@ -30,7 +38,7 @@ public class Stars extends HBox {
     public void setRating(Rating rating) {
         Assert.notNull(rating, "rating cannot be null");
         this.rating = rating;
-        createStars();
+        initializeStars();
     }
 
     /**
@@ -40,10 +48,27 @@ public class Stars extends HBox {
         this.getChildren().clear();
     }
 
-    private void createStars() {
+    //endregion
+
+    //region Functions
+
+    private void init() {
+        initializeStyleClass();
+        initializeStars();
+    }
+
+    private void initializeStyleClass() {
+        getStyleClass().add(STARS_STYLE_CLASS);
+    }
+
+    private void initializeStars() {
         reset();
 
-        double rating = this.rating.getPercentage() * 0.05;
+        // check if a rating is present
+        if (rating == null)
+            return;
+
+        var rating = this.rating.getPercentage() * 0.05;
 
         for (int i = 0; i < 5; i++) {
             if (rating >= 0.75) {
@@ -63,21 +88,23 @@ public class Stars extends HBox {
     private static Icon getFilledStar() {
         Icon star = new Icon(Icon.STAR_UNICODE);
         star.setTextOverrun(OverrunStyle.CLIP);
-        star.getStyleClass().add("filled");
+        star.getStyleClass().addAll(STAR_STYLE_CLASS, "filled");
         return star;
     }
 
     private static Icon getHalfStar() {
         Icon star = new Icon(Icon.STAR_HALF_UNICODE);
         star.setTextOverrun(OverrunStyle.CLIP);
-        star.getStyleClass().add("filled");
+        star.getStyleClass().addAll(STAR_STYLE_CLASS, "filled");
         return star;
     }
 
     private static Icon getEmptyStar() {
         Icon star = new Icon(Icon.STAR_UNICODE);
         star.setTextOverrun(OverrunStyle.CLIP);
-        star.getStyleClass().add("empty");
+        star.getStyleClass().addAll(STAR_STYLE_CLASS, "empty");
         return star;
     }
+
+    //endregion
 }

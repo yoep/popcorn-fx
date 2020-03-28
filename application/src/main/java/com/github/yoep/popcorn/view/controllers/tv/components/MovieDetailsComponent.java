@@ -177,6 +177,14 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     @FXML
+    private void onDetailsKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode().ordinal() == 187) {
+            event.consume();
+            onClose();
+        }
+    }
+
+    @FXML
     private void onPlayClicked(MouseEvent event) {
         event.consume();
         onPlay();

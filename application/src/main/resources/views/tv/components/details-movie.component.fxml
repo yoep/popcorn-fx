@@ -7,7 +7,8 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent" styleClass="movie-details">
+          fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent"
+          styleClass="movie-details" onKeyPressed="#onDetailsKeyPressed">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="10"/>
         <ColumnConstraints minWidth="400" percentWidth="80" hgrow="ALWAYS"/>
@@ -73,12 +74,10 @@
                 <Stars fx:id="ratingStars" alignment="CENTER"/>
             </HBox>
 
-            <HBox alignment="CENTER_RIGHT"
+            <Icon fx:id="health" styleClass="health"
                   GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT">
-                <Icon fx:id="health" styleClass="health">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-            </HBox>
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
 
             <!-- Overview text -->
             <Label fx:id="overview" styleClass="overview" wrapText="true"

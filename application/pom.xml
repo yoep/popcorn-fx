@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -276,7 +277,7 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                                     <resource>META-INF/spring.schemas</resource>
                                 </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>${start-class}</mainClass>
                                 </transformer>
@@ -288,32 +289,32 @@
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
+                <configuration>
+                    <mainClass>com.github.yoep.popcorn.PopcornTimeStarter</mainClass>
+                    <runnableJar>${project.build.directory}/popcorn-time.jar</runnableJar>
+                    <bundleJre>true</bundleJre>
+                    <copyDependencies>false</copyDependencies>
+                    <generateInstaller>true</generateInstaller>
+                    <administratorRequired>false</administratorRequired>
+                    <platform>auto</platform>
+                    <customizedJre>false</customizedJre>
+                    <displayName>Popcorn Time</displayName>
+                    <organizationName>Popcorn Time</organizationName>
+                    <licenseFile>../LICENSE</licenseFile>
+                    <version>${project.version}</version>
+                    <vmArgs>
+                        <param>-Dsun.awt.disablegrab=true</param>
+                        <param>-Dprism.dirtyopts=false</param>
+                        <param>-Dprism.lcdtext=false</param>
+                        <param>-XX:+UseG1GC</param>
+                    </vmArgs>
+                </configuration>
                 <executions>
                     <execution>
                         <phase>install</phase>
                         <goals>
                             <goal>package</goal>
                         </goals>
-                        <configuration>
-                            <mainClass>com.github.yoep.popcorn.PopcornTimeStarter</mainClass>
-                            <runnableJar>${project.build.directory}/popcorn-time.jar</runnableJar>
-                            <bundleJre>true</bundleJre>
-                            <copyDependencies>false</copyDependencies>
-                            <generateInstaller>true</generateInstaller>
-                            <administratorRequired>false</administratorRequired>
-                            <platform>auto</platform>
-                            <customizedJre>false</customizedJre>
-                            <displayName>Popcorn Time</displayName>
-                            <organizationName>Popcorn Time</organizationName>
-                            <licenseFile>../LICENSE</licenseFile>
-                            <version>${project.version}</version>
-                            <vmArgs>
-                                <param>-Dsun.awt.disablegrab=true</param>
-                                <param>-Dprism.dirtyopts=false</param>
-                                <param>-Dprism.lcdtext=false</param>
-                                <param>-XX:+UseG1GC</param>
-                            </vmArgs>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -341,6 +342,30 @@
             <properties>
                 <platform>linux-arm</platform>
             </properties>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.github.fvarrui</groupId>
+                        <artifactId>javapackager</artifactId>
+                        <configuration>
+                            <vmArgs>
+                                <param>-Djavafx.platform=monocle</param>
+                                <param>-Dembedded=monocle</param>
+                                <param>-Dglass.platform=Monocle</param>
+                                <param>-Dsun.awt.disablegrab=true</param>
+                                <param>-Dprism.dirtyopts=false</param>
+                                <param>-Dprism.lcdtext=false</param>
+                                <param>-Dprism.forceGPU=true</param>
+                                <param>-Dprism.order=es2</param>
+                                <param>-Dcom.sun.javafx.transparentFramebuffer=true</param>
+                                <param>-XX:+UseG1GC</param>
+                                <param>-Xmx512m</param>
+                            </vmArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

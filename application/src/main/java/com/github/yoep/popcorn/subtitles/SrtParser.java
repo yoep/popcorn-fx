@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.subtitles;
 
-import com.github.yoep.popcorn.subtitles.models.Subtitle;
+import com.github.yoep.popcorn.subtitles.models.SubtitleIndex;
 import com.github.yoep.popcorn.subtitles.models.SubtitleLine;
 import com.github.yoep.popcorn.subtitles.models.SubtitleText;
 import org.apache.commons.io.FileUtils;
@@ -28,12 +28,12 @@ public class SrtParser {
     private static final String STYLE_BOLD = "b";
     private static final String STYLE_UNDERLINE = "u";
 
-    private final List<Subtitle> subtitles = new ArrayList<>();
+    private final List<SubtitleIndex> subtitles = new ArrayList<>();
     private final File file;
     private final Charset encoding;
 
     private Stage stage = Stage.INDEX;
-    private Subtitle.SubtitleBuilder subtitleBuilder;
+    private SubtitleIndex.SubtitleIndexBuilder subtitleBuilder;
     private List<SubtitleLine> lines;
 
     private SrtParser(File file, Charset encoding) {
@@ -41,7 +41,7 @@ public class SrtParser {
         this.encoding = encoding;
     }
 
-    public static List<Subtitle> parse(File file, Charset encoding) {
+    public static List<SubtitleIndex> parse(File file, Charset encoding) {
         Assert.notNull(file, "file cannot be null");
         SrtParser parser = new SrtParser(file, encoding);
 
@@ -52,7 +52,7 @@ public class SrtParser {
         }
     }
 
-    private List<Subtitle> read() throws IOException {
+    private List<SubtitleIndex> read() throws IOException {
         // read the subtitle file to a string an remove the empty lines at the end
         List<String> lines = FileUtils.readLines(file, encoding);
 
@@ -88,7 +88,7 @@ public class SrtParser {
     }
 
     private void createNewSubtitle() {
-        subtitleBuilder = Subtitle.builder();
+        subtitleBuilder = SubtitleIndex.builder();
     }
 
     private void readIndex(int lineIndex, String line) {

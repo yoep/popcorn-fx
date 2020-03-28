@@ -1,6 +1,10 @@
 package com.github.yoep.popcorn.view.controllers.common.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.media.providers.models.Media;
+import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.torrent.TorrentService;
+import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.view.controls.Stars;
 import com.github.yoep.popcorn.view.services.ImageService;
@@ -21,23 +25,28 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     private static final Image POSTER_HOLDER = loadPosterHolder();
 
     protected final ImageService imageService;
+    protected final TorrentService torrentService;
 
     protected T media;
 
+    @FXML
+    protected Icon health;
+    @FXML
+    protected Stars ratingStars;
     @FXML
     protected Pane posterHolder;
     @FXML
     protected ImageView poster;
     @FXML
-    protected Stars ratingStars;
-    @FXML
     protected BackgroundImageCover backgroundImage;
 
     //region Constructors
 
-    protected AbstractDetailsComponent(ImageService imageService) {
+    protected AbstractDetailsComponent(ImageService imageService, TorrentService torrentService) {
         Assert.notNull(imageService, "imageService cannot be null");
+        Assert.notNull(torrentService, "torrentService cannot be null");
         this.imageService = imageService;
+        this.torrentService = torrentService;
     }
 
     //endregion
@@ -74,6 +83,21 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      */
     protected void loadStars() {
         ratingStars.setRating(media.getRating());
+    }
+
+    /**
+     * Switch the health icon to the current media torrent info.
+     *
+     * @param torrentInfo The media torrent info to display the health status of.
+     * @return Returns the health status.
+     */
+    protected TorrentHealth switchHealth(MediaTorrentInfo torrentInfo) {
+        health.getStyleClass().removeIf(e -> !e.equals("health"));
+        var health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
+
+        this.health.getStyleClass().add(health.getStatus().getStyleClass());
+
+        return health;
     }
 
     /**

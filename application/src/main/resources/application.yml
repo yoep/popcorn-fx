@@ -19,6 +19,8 @@ logging:
   file:
     clean-history-on-start: true
     name: '${app.dir}/logs/popcorn-time.log'
+    max-size: 25MB
+    total-size-cap: 100MB
 
 popcorn:
   providers:

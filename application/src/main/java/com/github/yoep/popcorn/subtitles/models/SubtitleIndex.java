@@ -9,14 +9,14 @@ import java.util.List;
 @Data
 @Builder
 @AllArgsConstructor
-public class Subtitle implements Comparable<Subtitle> {
+public class SubtitleIndex implements Comparable<SubtitleIndex> {
     private final long index;
     private final long startTime;
     private final long endTime;
     private List<SubtitleLine> lines;
 
     @Override
-    public int compareTo(Subtitle o) {
+    public int compareTo(SubtitleIndex o) {
         return Long.compare(getIndex(), o.getIndex());
     }
 }

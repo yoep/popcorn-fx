@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -51,8 +52,8 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     //region Constructors
 
-    public MovieDetailsComponent(ActivityManager activityManager, ImageService imageService) {
-        super(imageService);
+    public MovieDetailsComponent(ActivityManager activityManager, TorrentService torrentService, ImageService imageService) {
+        super(imageService, torrentService);
         this.activityManager = activityManager;
     }
 
@@ -123,6 +124,8 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
         qualityButton.setText(defaultQuality);
         quality = defaultQuality;
+
+        switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(defaultQuality));
     }
 
     private void onPlay() {

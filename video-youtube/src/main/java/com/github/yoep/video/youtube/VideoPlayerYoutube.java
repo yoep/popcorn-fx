@@ -175,6 +175,7 @@ public class VideoPlayerYoutube implements VideoPlayer {
         Platform.runLater(() -> {
             try {
                 webView = new WebView();
+                webView.setFocusTraversable(false);
 
                 initializeWebviewEvents();
 

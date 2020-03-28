@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.messages.TorrentMessage;
+import com.github.yoep.popcorn.subtitles.Subtitle;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.subtitles.models.SubtitleMatcher;
@@ -39,7 +40,8 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
 
     private String title;
     private Media media;
-    private SubtitleInfo subtitle;
+    private SubtitleInfo subtitleInfo;
+    private Subtitle subtitle;
     private MediaTorrentInfo mediaTorrent;
     private String quality;
     private Thread torrentThread;
@@ -147,7 +149,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
         // store the requested media locally for later use
         this.title = activity.getMedia().getTitle();
         this.media = activity.getMedia();
-        this.subtitle = activity.getSubtitle().orElse(null);
+        this.subtitleInfo = activity.getSubtitle().orElse(null);
         this.quality = activity.getQuality();
         this.mediaTorrent = activity.getTorrent();
 
@@ -165,8 +167,8 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
                 waitForTorrentStream();
 
             // check if the subtitle needs to be downloaded
-            if (subtitle != null) {
-                Optional<TorrentInfo> torrentInfo = torrentService.getTorrentInfo(mediaTorrent.getUrl());
+            if (subtitleInfo != null) {
+                var torrentInfo = torrentService.getTorrentInfo(mediaTorrent.getUrl());
 
                 downloadSubtitles(torrentInfo
                         .map(this::getLargestFilename)
@@ -287,8 +289,9 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
             }
 
             @Override
-            public Optional<SubtitleInfo> getSubtitle() {
-                return Optional.ofNullable(subtitle);
+            public Optional<Subtitle> getSubtitle() {
+                return Optional.ofNullable(subtitle)
+                        .or(() -> Optional.of(Subtitle.none()));
             }
         });
     }
@@ -300,7 +303,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
                     .retrieveSubtitles(filename)
                     .get(10, TimeUnit.SECONDS);
 
-            subtitle = subtitleService.getDefault(subtitles);
+            subtitleInfo = subtitleService.getDefault(subtitles);
         } catch (InterruptedException | ExecutionException | TimeoutException ex) {
             log.warn(ex.getMessage(), ex);
         }
@@ -308,14 +311,18 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
 
     private void downloadSubtitles(String filename) {
         // check if the given subtitle is the special "none" subtitle, if so, ignore the subtitle download
-        if (subtitle == null || subtitle.isNone())
+        if (subtitleInfo == null || subtitleInfo.isNone())
             return;
 
-        // update the status text to downloading subtitles
-        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLES)));
+        // update the status text to "downloading subtitle"
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE)));
 
         // download the subtitle locally, this will cache the subtitle for later use in the video player
-        subtitleService.download(subtitle, SubtitleMatcher.from(filename, quality));
+        try {
+            subtitle = subtitleService.downloadAndParse(subtitleInfo, SubtitleMatcher.from(filename, quality)).get();
+        } catch (InterruptedException | ExecutionException ex) {
+            log.error(ex.getMessage(), ex);
+        }
     }
 
     private String getLargestFilename(TorrentInfo torrentInfo) {
@@ -350,7 +357,7 @@ public class LoaderTorrentComponent extends AbstractLoaderComponent {
     private void reset() {
         this.title = null;
         this.media = null;
-        this.subtitle = null;
+        this.subtitleInfo = null;
         this.mediaTorrent = null;
         this.quality = null;
         this.torrentThread = null;

@@ -8,8 +8,10 @@ import com.github.yoep.popcorn.view.PopcornViewLoader;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
+@EnableScheduling
 public class ViewConfig {
     @Bean
     public ViewLoader viewLoader(ApplicationContext applicationContext, ViewManager viewManager, LocaleText localeText, OptionsService optionsService) {

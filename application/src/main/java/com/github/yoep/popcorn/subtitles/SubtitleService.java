@@ -136,14 +136,14 @@ public class SubtitleService {
     }
 
     /**
-     * Parse the given SRT file to a list of {@link Subtitle}'s.
+     * Parse the given SRT file to a list of {@link SubtitleIndex}'s.
      *
      * @param file     The SRT file to parse.
      * @param encoding The encoding of the SRT file.
-     * @return Returns the parsed SRT file.
+     * @return Returns the parsed subtitle.
      */
     @Async
-    public CompletableFuture<List<Subtitle>> parse(File file, Charset encoding) {
+    public CompletableFuture<Subtitle> parse(File file, Charset encoding) {
         Assert.notNull(file, "file cannot be null");
         if (!file.exists())
             return CompletableFuture.failedFuture(
@@ -156,17 +156,17 @@ public class SubtitleService {
      * Download and parse the SRT file for the given {@link SubtitleInfo}.
      *
      * @param subtitleInfo The subtitle info to download and parse.
-     * @return Returns the subtitles of the given subtitle info.
+     * @return Returns the subtitle for the given subtitle info.
      */
     @Async
-    public CompletableFuture<List<Subtitle>> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
+    public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
         Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
         Assert.notNull(matcher, "matcher cannot be null");
         var subtitleFile = subtitleInfo.getFile(matcher);
         var file = internalDownload(subtitleFile);
         var encoding = subtitleFile.getEncoding();
 
-        return CompletableFuture.completedFuture(internalParse(file, encoding));
+        return CompletableFuture.completedFuture(internalParse(subtitleInfo, file, encoding));
     }
 
     /**
@@ -418,8 +418,14 @@ public class SubtitleService {
         return subtitleFile;
     }
 
-    private List<Subtitle> internalParse(File file, Charset encoding) {
-        return SrtParser.parse(file, encoding);
+    private Subtitle internalParse(File file, Charset encoding) {
+        return internalParse(null, file, encoding);
+    }
+
+    private Subtitle internalParse(SubtitleInfo subtitleInfo, File file, Charset encoding) {
+        var indexes = SrtParser.parse(file, encoding);
+
+        return new Subtitle(subtitleInfo, file, indexes);
     }
 
     private Charset parseSubEncoding(String encoding) {

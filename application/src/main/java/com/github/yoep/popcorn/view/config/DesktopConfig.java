@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.media.providers.ProviderService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
-import com.github.yoep.popcorn.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
@@ -23,7 +22,7 @@ import com.github.yoep.popcorn.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.view.controllers.desktop.sections.*;
 import com.github.yoep.popcorn.view.services.ImageService;
 import com.github.yoep.popcorn.view.services.UrlService;
-import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.popcorn.view.services.VideoPlayerService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -87,27 +86,10 @@ public class DesktopConfig {
 
     @Bean
     public PlayerSectionController playerSectionController(ActivityManager activityManager,
-                                                           TaskExecutor taskExecutor,
-                                                           TorrentService torrentService,
-                                                           SubtitleService subtitleService,
                                                            SettingsService settingsService,
-                                                           AutoResumeService autoResumeService,
-                                                           PlayerHeaderComponent playerHeader,
-                                                           PlayerControlsComponent playerControls,
-                                                           List<VideoPlayer> videoPlayers,
+                                                           VideoPlayerService videoPlayerService,
                                                            LocaleText localeText) {
-        return PlayerSectionController.builder()
-                .activityManager(activityManager)
-                .autoResumeService(autoResumeService)
-                .localeText(localeText)
-                .playerControls(playerControls)
-                .playerHeader(playerHeader)
-                .settingsService(settingsService)
-                .subtitleService(subtitleService)
-                .taskExecutor(taskExecutor)
-                .torrentService(torrentService)
-                .videoPlayers(videoPlayers)
-                .build();
+        return new PlayerSectionController(activityManager, settingsService, videoPlayerService, localeText);
     }
 
     @Bean
@@ -197,13 +179,19 @@ public class DesktopConfig {
     }
 
     @Bean
-    public PlayerHeaderComponent playerHeaderComponent(ActivityManager activityManager, TorrentService torrentService, LocaleText localeText) {
-        return new PlayerHeaderComponent(activityManager, torrentService, localeText);
+    public PlayerHeaderComponent playerHeaderComponent(ActivityManager activityManager,
+                                                       TorrentService torrentService,
+                                                       VideoPlayerService videoPlayerService,
+                                                       LocaleText localeText) {
+        return new PlayerHeaderComponent(activityManager, torrentService, videoPlayerService, localeText);
     }
 
     @Bean
-    public PlayerControlsComponent playerControlsComponent(ActivityManager activityManager, SubtitleService subtitleService, LocaleText localeText) {
-        return new PlayerControlsComponent(activityManager, subtitleService, localeText);
+    public PlayerControlsComponent playerControlsComponent(ActivityManager activityManager,
+                                                           VideoPlayerService videoPlayerService,
+                                                           SubtitleService subtitleService,
+                                                           LocaleText localeText) {
+        return new PlayerControlsComponent(activityManager, videoPlayerService, subtitleService, localeText);
     }
 
     @Bean

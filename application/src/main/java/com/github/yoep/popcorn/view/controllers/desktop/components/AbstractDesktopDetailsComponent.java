@@ -59,8 +59,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     @FXML
     protected Icon magnetLink;
     @FXML
-    protected Icon health;
-    @FXML
     protected Pane qualitySelectionPane;
     @FXML
     protected LanguageFlagSelection languageSelection;
@@ -72,7 +70,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                            TorrentService torrentService,
                                            SubtitleService subtitleService,
                                            ImageService imageService) {
-        super(imageService);
+        super(imageService, torrentService);
         this.activityManager = activityManager;
         this.localeText = localeText;
         this.torrentService = torrentService;
@@ -148,15 +146,16 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         return tooltip;
     }
 
-    protected void switchHealth(MediaTorrentInfo torrentInfo) {
-        health.getStyleClass().removeIf(e -> !e.equals("health"));
-        var health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
+    @Override
+    protected TorrentHealth switchHealth(MediaTorrentInfo torrentInfo) {
+        var health = super.switchHealth(torrentInfo);
+        var healthTooltip = new Tooltip(getHealthTooltip(torrentInfo, health));
 
-        this.health.getStyleClass().add(health.getStatus().getStyleClass());
-        Tooltip healthTooltip = new Tooltip(getHealthTooltip(torrentInfo, health));
         healthTooltip.setWrapText(true);
         instantTooltip(healthTooltip);
         Tooltip.install(this.health, healthTooltip);
+
+        return health;
     }
 
     protected String getHealthTooltip(MediaTorrentInfo torrentInfo, TorrentHealth health) {

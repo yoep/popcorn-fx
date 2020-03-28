@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * The subtitle info contains information about available subtitles for a certain IMDB ID.
+ * This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
+ */
 @Data
 @EqualsAndHashCode(of = {"imdbId", "language"})
 public class SubtitleInfo implements Comparable<SubtitleInfo> {

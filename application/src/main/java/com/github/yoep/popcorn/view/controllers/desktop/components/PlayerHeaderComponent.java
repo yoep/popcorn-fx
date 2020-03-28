@@ -11,26 +11,24 @@ import com.github.yoep.popcorn.torrent.controls.StreamInfoCell;
 import com.github.yoep.popcorn.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.torrent.models.StreamStatus;
 import com.github.yoep.popcorn.torrent.models.Torrent;
+import com.github.yoep.popcorn.view.services.VideoPlayerService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
 @RequiredArgsConstructor
 public class PlayerHeaderComponent implements Initializable {
-    private final List<PlayerHeaderListener> listeners = new ArrayList<>();
     private final ActivityManager activityManager;
     private final TorrentService torrentService;
+    private final VideoPlayerService videoPlayerService;
     private final LocaleText localeText;
 
     @FXML
@@ -40,48 +38,16 @@ public class PlayerHeaderComponent implements Initializable {
     @FXML
     private StreamInfo streamInfo;
 
-    //region Getters
-
-    /**
-     * Check if the header is currently active and the hiding should be blocked.
-     *
-     * @return Returns true if blocked, else false.
-     */
-    public boolean isBlocked() {
-        return streamInfo.isShowing();
-    }
-
-    //endregion
-
-    //region Methods
+    //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeStreamInfo();
     }
 
-    /**
-     * Register a new listener to this instance.
-     *
-     * @param listener The listener to register.
-     */
-    public void addListener(PlayerHeaderListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        synchronized (listeners) {
-            listeners.add(listener);
-        }
-    }
-
-    /**
-     * Remove the given listener from this instance.
-     *
-     * @param listener The listener to remove.
-     */
-    public void removeListener(PlayerHeaderListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        synchronized (listeners) {
-            listeners.remove(listener);
-        }
+    private void initializeStreamInfo() {
+        streamInfo.setFactory(cell -> new StreamInfoCell(localeText.get("torrent_" + cell)));
+        streamInfo.setVisible(false);
     }
 
     //endregion
@@ -137,11 +103,6 @@ public class PlayerHeaderComponent implements Initializable {
 
     //region Functions
 
-    private void initializeStreamInfo() {
-        streamInfo.setFactory(cell -> new StreamInfoCell(localeText.get("torrent_" + cell)));
-        streamInfo.setVisible(false);
-    }
-
     private void onPlayVideo(PlayVideoActivity activity) {
         // set the title of the video as it should be always present
         Platform.runLater(() -> {
@@ -179,9 +140,7 @@ public class PlayerHeaderComponent implements Initializable {
 
     @FXML
     private void close() {
-        synchronized (listeners) {
-            listeners.forEach(PlayerHeaderListener::onClose);
-        }
+        videoPlayerService.close();
     }
 
     //endregion

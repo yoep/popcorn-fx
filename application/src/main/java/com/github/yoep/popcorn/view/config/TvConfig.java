@@ -8,15 +8,15 @@ import com.github.yoep.popcorn.media.providers.ProviderService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.tv.MainTvController;
-import com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent;
-import com.github.yoep.popcorn.view.controllers.tv.components.SettingsUiComponent;
-import com.github.yoep.popcorn.view.controllers.tv.components.ShowDetailsComponent;
+import com.github.yoep.popcorn.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.view.controllers.tv.sections.*;
 import com.github.yoep.popcorn.view.services.ImageService;
 import com.github.yoep.popcorn.view.services.UrlService;
+import com.github.yoep.popcorn.view.services.VideoPlayerService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -74,8 +74,11 @@ public class TvConfig {
     }
 
     @Bean
-    public PlayerSectionController playerSectionController(ActivityManager activityManager) {
-        return new PlayerSectionController(activityManager);
+    public PlayerSectionController playerSectionController(ActivityManager activityManager,
+                                                           SettingsService settingsService,
+                                                           VideoPlayerService videoPlayerService,
+                                                           LocaleText localeText) {
+        return new PlayerSectionController(activityManager, settingsService, videoPlayerService, localeText);
     }
 
     @Bean
@@ -88,18 +91,33 @@ public class TvConfig {
     //region Components
 
     @Bean
-    public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager, ImageService imageService) {
-        return new MovieDetailsComponent(activityManager, imageService);
+    public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager,
+                                                       TorrentService torrentService,
+                                                       ImageService imageService) {
+        return new MovieDetailsComponent(activityManager, torrentService, imageService);
     }
 
     @Bean
-    public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager, ImageService imageService) {
-        return new ShowDetailsComponent(activityManager, imageService);
+    public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager,
+                                                     TorrentService torrentService,
+                                                     ImageService imageService) {
+        return new ShowDetailsComponent(activityManager, torrentService, imageService);
     }
 
     @Bean
     public SettingsUiComponent settingsUiComponent() {
         return new SettingsUiComponent();
+    }
+
+    @Bean
+    public PlayerHeaderComponent playerHeaderComponent(ActivityManager activityManager) {
+        return new PlayerHeaderComponent(activityManager);
+    }
+
+    @Bean
+    public PlayerControlsComponent playerControlsComponent(ActivityManager activityManager,
+                                                           VideoPlayerService videoPlayerService) {
+        return new PlayerControlsComponent(activityManager, videoPlayerService);
     }
 
     //endregion

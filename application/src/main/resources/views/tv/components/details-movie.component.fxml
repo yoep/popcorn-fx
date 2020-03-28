@@ -106,15 +106,15 @@
                 </VBox>
                 <VBox styleClass="action" focusTraversable="true"
                       GridPane.columnIndex="1" GridPane.rowIndex="0">
+                    <Label fx:id="qualityButton" styleClass="button, text" />
+                    <Label text="%details_quality"/>
+                </VBox>
+                <VBox styleClass="action" focusTraversable="true"
+                      GridPane.columnIndex="2" GridPane.rowIndex="0">
                     <Icon styleClass="button">
                         <Icon fx:constant="COMMENT_UNICODE"/>
                     </Icon>
                     <Label text="%details_subtitle"/>
-                </VBox>
-                <VBox styleClass="action" focusTraversable="true"
-                      GridPane.columnIndex="2" GridPane.rowIndex="0">
-                    <Label fx:id="qualityButton" styleClass="button, text" />
-                    <Label text="%details_quality"/>
                 </VBox>
                 <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
                       GridPane.columnIndex="3" GridPane.rowIndex="0">

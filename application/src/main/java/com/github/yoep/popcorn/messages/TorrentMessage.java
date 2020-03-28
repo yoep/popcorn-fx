@@ -10,7 +10,7 @@ public enum TorrentMessage implements Message {
     STARTING("torrent_starting"),
     DOWNLOADING("torrent_downloading"),
     RETRIEVING_SUBTITLES("torrent_retrieving_subtitles"),
-    DOWNLOADING_SUBTITLES("torrent_downloading_subtitles"),
+    DOWNLOADING_SUBTITLE("torrent_downloading_subtitles"),
     READY("torrent_ready"),
     FAILED("torrent_failed"),
     STORE_COLLECTION("torrent_store_collection"),

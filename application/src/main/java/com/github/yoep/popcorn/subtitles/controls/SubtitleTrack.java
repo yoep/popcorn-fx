@@ -1,9 +1,7 @@
 package com.github.yoep.popcorn.subtitles.controls;
 
-import com.github.yoep.popcorn.subtitles.models.DecorationType;
-import com.github.yoep.popcorn.subtitles.models.Subtitle;
-import com.github.yoep.popcorn.subtitles.models.SubtitleLine;
-import com.github.yoep.popcorn.subtitles.models.SubtitleText;
+import com.github.yoep.popcorn.subtitles.Subtitle;
+import com.github.yoep.popcorn.subtitles.models.*;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.geometry.Pos;
@@ -23,7 +21,6 @@ public class SubtitleTrack extends VBox {
     public static final String FONT_FAMILY_PROPERTY = "fontFamily";
     public static final String FONT_SIZE_PROPERTY = "fontSize";
     public static final String FONT_WEIGHT_PROPERTY = "fontWeight";
-    public static final String SUBTITLE_PROPERTY = "subtitle";
     public static final String DECORATION_PROPERTY = "decoration";
     public static final String OFFSET_PROPERTY = "offset";
 
@@ -37,12 +34,11 @@ public class SubtitleTrack extends VBox {
     private final IntegerProperty fontSize = new SimpleIntegerProperty(this, FONT_SIZE_PROPERTY);
     private final ObjectProperty<FontWeight> fontWeight = new SimpleObjectProperty<>(this, FONT_WEIGHT_PROPERTY, FontWeight.NORMAL);
     private final ObjectProperty<DecorationType> decoration = new SimpleObjectProperty<>(this, DECORATION_PROPERTY);
-    private final ObjectProperty<Subtitle> subtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY);
     private final DoubleProperty offset = new SimpleDoubleProperty(this, OFFSET_PROPERTY);
 
     private List<TrackLabel> labels;
-    private List<Subtitle> subtitles;
-    private Subtitle activeSubtitle;
+    private Subtitle subtitle;
+    private SubtitleIndex activeSubtitle;
 
     //region Constructors
 
@@ -90,18 +86,6 @@ public class SubtitleTrack extends VBox {
         this.fontWeight.set(fontWeight);
     }
 
-    public Subtitle getSubtitle() {
-        return subtitle.get();
-    }
-
-    public ObjectProperty<Subtitle> subtitleProperty() {
-        return subtitle;
-    }
-
-    public void setSubtitle(Subtitle subtitle) {
-        this.subtitle.set(subtitle);
-    }
-
     public DecorationType getDecoration() {
         return decoration.get();
     }
@@ -131,12 +115,12 @@ public class SubtitleTrack extends VBox {
     //region Setters
 
     /**
-     * Add the given subtitles to the subtitle track.
+     * Set the subtitle for this subtitle track.
      *
-     * @param subtitles The subtitles to add.
+     * @param subtitle The new subtitle for this track.
      */
-    public void setSubtitles(List<Subtitle> subtitles) {
-        this.subtitles = subtitles;
+    public void setSubtitle(Subtitle subtitle) {
+        this.subtitle = subtitle;
     }
 
     //endregion
@@ -149,11 +133,12 @@ public class SubtitleTrack extends VBox {
      * @param time The new time of the video.
      */
     public void onTimeChanged(long time) {
-        if (subtitles == null)
+        if (subtitle == null || subtitle.isNone())
             return;
+
         var offset = (long) (getOffset() * 1000);
 
-        subtitles.stream()
+        subtitle.getIndexes().stream()
                 .filter(e -> time >= (e.getStartTime() + offset) && time <= (e.getEndTime() + offset))
                 .findFirst()
                 .ifPresentOrElse(this::updateSubtitleTrack, this::clearSubtitleTrack);
@@ -164,7 +149,7 @@ public class SubtitleTrack extends VBox {
      */
     public void clear() {
         this.labels = null;
-        this.subtitles = null;
+        this.subtitle = null;
         this.activeSubtitle = null;
 
         clearSubtitleTrack();
@@ -194,7 +179,7 @@ public class SubtitleTrack extends VBox {
         offset.addListener((observable, oldValue, newValue) -> onOffsetChanged());
     }
 
-    private void updateSubtitleTrack(Subtitle subtitle) {
+    private void updateSubtitleTrack(SubtitleIndex subtitle) {
         if (activeSubtitle == subtitle)
             return;
 

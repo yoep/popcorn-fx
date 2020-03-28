@@ -92,15 +92,15 @@
 }
 
 .root .content-section .movie-details .poster-play {
-    -fx-pref-width: 60;
-    -fx-pref-height: 60;
+    -fx-pref-width: 70;
+    -fx-pref-height: 70;
     -fx-background-color: rgba(0, 0, 0, 0.6);
-    -fx-background-radius: 3em;
+    -fx-background-radius: 35;
     -fx-border-color: #ccc;
     -fx-border-width: 2;
-    -fx-border-radius: 3em;
+    -fx-border-radius: 35;
     -fx-cursor: hand;
-    -fx-font-size: 2em;
+    -fx-font-size: 3em;
     -fx-text-fill: #ccc;
     -fx-alignment: center;
 }
@@ -157,4 +157,38 @@
 .root .content-section .movie-details .actions .action:hover Label,
 .root .content-section .movie-details .actions .action:focused Label {
     -fx-text-fill: #fff;
+}
+
+.root .player .player-controls {
+    -fx-min-width: 500;
+    -fx-max-width: 500;
+    -fx-background-color: rgba(0, 0, 0, 0.6);
+    -fx-background-radius: 1em;
+    -fx-padding: 10 20 10 20;
+}
+
+.root .player .player-controls .control-button {
+    -fx-pref-width: 50;
+    -fx-pref-height: 50;
+    -fx-background-radius: 25;
+    -fx-border-color: #ccc;
+    -fx-border-width: 2;
+    -fx-border-radius: 25;
+    -fx-cursor: hand;
+    -fx-font-size: 2em;
+    -fx-text-fill: #ccc;
+    -fx-alignment: center;
+}
+
+.root .player .player-controls .control-button:hover,
+.root .player .player-controls .control-button:focused {
+    -fx-background-color: rgba(45, 114, 217, 0.6);
+    -fx-border-color: #fff;
+    -fx-text-fill: #fff;
+}
+
+.root .player .player-controls .time {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.25em;
 }

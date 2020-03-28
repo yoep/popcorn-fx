@@ -2,50 +2,38 @@ package com.github.yoep.popcorn.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.PlayMediaActivity;
+import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.media.providers.models.Episode;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.messages.MediaMessage;
+import com.github.yoep.popcorn.subtitles.Subtitle;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.LanguageSelection;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
-import com.github.yoep.video.adapter.state.PlayerState;
+import com.github.yoep.popcorn.view.controllers.common.components.AbstractPlayerControlsComponent;
+import com.github.yoep.popcorn.view.services.VideoPlayerService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Slider;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.ResourceBundle;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@RequiredArgsConstructor
-public class PlayerControlsComponent implements Initializable {
-    private final List<PlayerControlsListener> listeners = new ArrayList<>();
-
-    private final ActivityManager activityManager;
+public class PlayerControlsComponent extends AbstractPlayerControlsComponent implements Initializable {
     private final SubtitleService subtitleService;
     private final LocaleText localeText;
 
-    @FXML
-    private Icon playPauseIcon;
-    @FXML
-    private Label timeLabel;
-    @FXML
-    private Label durationLabel;
     @FXML
     private Slider slider;
     @FXML
@@ -57,42 +45,22 @@ public class PlayerControlsComponent implements Initializable {
 
     private Media media;
     private SubtitleInfo subtitle;
-    private Long time;
-    private Long duration;
-    private boolean sliderHovered;
 
-    //region Getters & Setters
+    //region Constructors
 
-    /**
-     * Get the last known time of the video playback.
-     *
-     * @return Returns the last time if known, else null.
-     */
-    public Long getTime() {
-        return time;
+    public PlayerControlsComponent(ActivityManager activityManager,
+                                   VideoPlayerService videoPlayerService,
+                                   SubtitleService subtitleService,
+                                   LocaleText localeText) {
+        super(activityManager, videoPlayerService);
+        this.subtitleService = subtitleService;
+        this.localeText = localeText;
     }
 
-    /**
-     * Get the last known duration of the video.
-     *
-     * @return Returns the last duration if known, else null.
-     */
-    public Long getDuration() {
-        return duration;
-    }
-
-    /**
-     * Check if the controls are currently active and the hiding should be blocked.
-     *
-     * @return Returns true if the controls are showing, else false.
-     */
-    public boolean isBlocked() {
-        return languageSelection.isShowing() || sliderHovered;
-    }
 
     //endregion
 
-    //region Methods
+    //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -100,72 +68,44 @@ public class PlayerControlsComponent implements Initializable {
         initializeLanguageSelection();
     }
 
-    public void addListener(PlayerControlsListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        synchronized (listeners) {
-            listeners.add(listener);
-        }
-    }
-
-    public void removeListener(PlayerControlsListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        synchronized (listeners) {
-            listeners.remove(listener);
-        }
-    }
-
-    public void toggleFullscreen() {
+    private void toggleFullscreen() {
         log.trace("Toggling full screen mode");
-        activityManager.register(new ToggleFullscreenActivity() {
-        });
+        videoPlayerService.toggleFullscreen();
     }
 
-    public void onPlayerStateChanged(PlayerState newValue) {
-        switch (newValue) {
-            case PLAYING:
-                Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
-                break;
-            case PAUSED:
-                Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
-                break;
-        }
-    }
+    //endregion
 
-    public void onTimeChanged(Number newValue) {
+    //region AbstractPlayerControlsComponent
+
+    @Override
+    protected void onTimeChanged(Number newValue) {
+        super.onTimeChanged(newValue);
         Platform.runLater(() -> {
-            long time = newValue.longValue();
-
-            this.time = time;
-            timeLabel.setText(formatTime(time));
-
             if (!slider.isValueChanging())
-                slider.setValue(time);
+                slider.setValue(newValue.longValue());
         });
     }
 
-    public void onDurationChanged(Number newValue) {
-        Platform.runLater(() -> {
-            long duration = newValue.longValue();
-
-            durationLabel.setText(formatTime(duration));
-            slider.setMax(duration);
-            this.duration = duration;
-        });
+    @Override
+    protected void onDurationChanged(Number newValue) {
+        super.onDurationChanged(newValue);
+        Platform.runLater(() -> slider.setMax(newValue.longValue()));
     }
 
     //endregion
 
     //region PostConstruct
 
-    @PostConstruct
-    private void init() {
-        initializeActivityListeners();
+    @Override
+    protected void initializeActivityListeners() {
+        super.initializeActivityListeners();
+        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
     }
 
-    private void initializeActivityListeners() {
-        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
-        activityManager.register(ClosePlayerActivity.class, activity -> reset());
-        activityManager.register(FullscreenActivity.class, this::onFullscreenChanged);
+    @Override
+    protected void initializeVideoListeners() {
+        super.initializeVideoListeners();
+        videoPlayerService.fullscreenProperty().addListener((observable, oldValue, newValue) -> onFullscreenChanged(newValue));
     }
 
     //endregion
@@ -173,15 +113,20 @@ public class PlayerControlsComponent implements Initializable {
     //region Functions
 
     private void initializeSlider() {
+        slider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                videoPlayerService.pause();
+            } else {
+                videoPlayerService.resume();
+            }
+        });
         slider.valueProperty().addListener((observableValue, oldValue, newValue) -> {
             if (slider.isValueChanging()) {
-                listeners.forEach(e -> e.onTimeChanged(newValue.longValue()));
+                videoPlayerService.seek(newValue.longValue());
             }
         });
 
         slider.setOnMouseReleased(event -> setVideoTime(slider.getValue() + 1));
-        slider.setOnMouseEntered(event -> sliderHovered = true);
-        slider.setOnMouseExited(event -> sliderHovered = false);
     }
 
     private void initializeLanguageSelection() {
@@ -200,6 +145,8 @@ public class PlayerControlsComponent implements Initializable {
             }
         });
         languageSelection.addListener(this::onSubtitleChanged);
+        videoPlayerService.subtitleProperty().addListener((observable, oldValue, newValue) ->
+                languageSelection.select(newValue.getSubtitleInfo().orElse(SubtitleInfo.none())));
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
@@ -230,6 +177,7 @@ public class PlayerControlsComponent implements Initializable {
 
         // set the subtitle for the playback
         this.subtitle = activity.getSubtitle()
+                .flatMap(Subtitle::getSubtitleInfo)
                 .orElse(SubtitleInfo.none());
 
         if (media instanceof Movie) {
@@ -244,8 +192,8 @@ public class PlayerControlsComponent implements Initializable {
         }
     }
 
-    private void onFullscreenChanged(FullscreenActivity activity) {
-        if (activity.isFullscreen()) {
+    private void onFullscreenChanged(boolean isFullscreen) {
+        if (isFullscreen) {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.COLLAPSE_UNICODE));
         } else {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
@@ -253,15 +201,11 @@ public class PlayerControlsComponent implements Initializable {
     }
 
     private void onSubtitleChanged(SubtitleInfo newValue) {
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onSubtitleChanged(newValue));
-        }
+        videoPlayerService.setSubtitle(newValue);
     }
 
     private void onSubtitleSizeChanged(int pixelChange) {
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onSubtitleSizeChanged(pixelChange));
-        }
+        videoPlayerService.setSubtitleSize(videoPlayerService.getSubtitleSize() + pixelChange);
     }
 
     private void setVideoTime(double time) {
@@ -289,30 +233,21 @@ public class PlayerControlsComponent implements Initializable {
         });
     }
 
-    private String formatTime(long time) {
-        return String.format("%02d:%02d",
-                TimeUnit.MILLISECONDS.toMinutes(time),
-                TimeUnit.MILLISECONDS.toSeconds(time) % 60);
-    }
-
-    private void reset() {
+    @Override
+    protected void reset() {
         log.trace("Video player controls are being reset");
         this.media = null;
         this.subtitle = null;
-        this.time = null;
-        this.duration = null;
 
         Platform.runLater(() -> {
             slider.setValue(0);
-            timeLabel.setText(formatTime(0));
-            durationLabel.setText(formatTime(0));
             languageSelection.getItems().clear();
         });
     }
 
     @FXML
     private void onPlayPauseClicked() {
-        this.listeners.forEach(PlayerControlsListener::onPlayPauseClicked);
+        videoPlayerService.changePlayPauseState();
     }
 
     @FXML

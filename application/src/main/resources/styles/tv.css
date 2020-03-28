@@ -68,9 +68,23 @@
     -fx-background-color: linear-gradient(to right, rgba(0, 0, 0, 1), rgba(255, 255, 255, 0));
 }
 
+.root .list-section .poster-item {
+    -fx-min-height: 378;
+    -fx-max-height: 378;
+    -fx-pref-height: 378;
+    -fx-min-width: 231;
+    -fx-max-width: 231;
+    -fx-pref-width: 231;
+}
+
 .root .list-section .poster-item:focused,
 .root .list-section .poster-item.watched:focused {
     -fx-opacity: 1;
+}
+
+.root .list-section .poster-item .poster-image {
+    -fx-pref-width: 201;
+    -fx-pref-height: 294;
 }
 
 .root .list-section .poster-item:focused .poster .poster-image {
@@ -82,8 +96,17 @@
     -fx-border-color: #2d72d9;
 }
 
+.root .list-section .poster-item .title {
+    -fx-font-size: 1.5em;
+}
+
 .root .list-section .poster-item:focused .title {
     -fx-text-fill: #2d72d9;
+}
+
+.root .list-section .poster-item .year,
+.root .list-section .poster-item .seasons {
+    -fx-font-size: 1em;
 }
 
 .root .list-section .poster-item:focused .year,
@@ -142,7 +165,7 @@
 }
 
 .root .content-section .movie-details .actions .action .button.text {
-    -fx-pref-width: 75;
+    -fx-pref-width: 100;
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1.5em;
 }

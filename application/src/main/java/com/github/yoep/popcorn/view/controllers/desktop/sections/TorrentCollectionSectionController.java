@@ -1,9 +1,12 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.LoadUrlActivity;
 import com.github.yoep.popcorn.activities.ShowTorrentCollectionActivity;
+import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
+import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.torrent.models.StoredTorrent;
 import javafx.application.Platform;
@@ -32,6 +35,7 @@ import java.util.ResourceBundle;
 public class TorrentCollectionSectionController implements Initializable {
     private final TorrentCollectionService torrentCollectionService;
     private final ActivityManager activityManager;
+    private final LocaleText localeText;
 
     @FXML
     private Pane fileShadow;
@@ -119,14 +123,15 @@ public class TorrentCollectionSectionController implements Initializable {
     }
 
     private void onMagnetClicked(MouseEvent event, StoredTorrent item) {
-        Clipboard clipboard = Clipboard.getSystemClipboard();
-        ClipboardContent clipboardContent = new ClipboardContent();
+        event.consume();
+        var clipboard = Clipboard.getSystemClipboard();
+        var clipboardContent = new ClipboardContent();
 
         clipboardContent.putUrl(item.getMagnetUri());
         clipboardContent.putString(item.getMagnetUri());
 
         clipboard.setContent(clipboardContent);
-        event.consume();
+        activityManager.register((SuccessNotificationActivity) () -> localeText.get(TorrentMessage.MAGNET_COPIED));
         log.debug("Magnet uri of {} has been copied to the clipboard", item);
     }
 

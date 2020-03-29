@@ -99,8 +99,9 @@ public class DesktopConfig {
 
     @Bean
     public TorrentCollectionSectionController torrentCollectionSectionController(TorrentCollectionService torrentCollectionService,
-                                                                                 ActivityManager activityManager) {
-        return new TorrentCollectionSectionController(torrentCollectionService, activityManager);
+                                                                                 ActivityManager activityManager,
+                                                                                 LocaleText localeText) {
+        return new TorrentCollectionSectionController(torrentCollectionService, activityManager, localeText);
     }
 
     @Bean

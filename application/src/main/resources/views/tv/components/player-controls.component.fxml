@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.view.controls.ProgressControl?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.PlayerControlsComponent">
+           fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.PlayerControlsComponent">
 
     <GridPane styleClass="player-controls"
-              GridPane.columnIndex="1" GridPane.rowIndex="0" >
+              GridPane.columnIndex="1" GridPane.rowIndex="0">
         <columnConstraints>
             <ColumnConstraints percentWidth="20"/>
             <ColumnConstraints percentWidth="20"/>
@@ -49,9 +50,10 @@
 
         <!-- Time bar -->
         <Label fx:id="timeLabel" styleClass="time" text="00:00"
-                GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.halignment="RIGHT"/>
-
+               GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.halignment="RIGHT"/>
+        <ProgressControl
+                GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
         <Label fx:id="durationLabel" styleClass="time" text="00:00"
-                GridPane.columnIndex="4" GridPane.rowIndex="1" GridPane.halignment="LEFT"/>
+               GridPane.columnIndex="4" GridPane.rowIndex="1" GridPane.halignment="LEFT"/>
     </GridPane>
 </StackPane>

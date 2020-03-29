@@ -5,19 +5,17 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowTorrentDetailsActivity;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
 
-import java.net.URL;
-import java.util.ResourceBundle;
+import javax.annotation.PostConstruct;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @RequiredArgsConstructor
-public class OverlaySectionController implements Initializable {
+public class OverlaySectionController {
     private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
@@ -27,10 +25,10 @@ public class OverlaySectionController implements Initializable {
     @FXML
     private Pane rootPane;
 
-    //region Initializable
+    //region PostConstruct
 
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
+    @PostConstruct
+    private void init() {
         initializePanes();
         initializeListeners();
     }
@@ -48,7 +46,8 @@ public class OverlaySectionController implements Initializable {
     //region Functions
 
     private void switchContent(Type type) {
-        AtomicReference<Pane> pane = new AtomicReference<>();
+        log.trace("Switching overlay to type {}", type);
+        var pane = new AtomicReference<Pane>();
 
         if (type == Type.TORRENT_DETAILS) {
             pane.set(torrentDetailsPane);

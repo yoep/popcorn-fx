@@ -14,7 +14,8 @@ public enum TorrentMessage implements Message {
     READY("torrent_ready"),
     FAILED("torrent_failed"),
     STORE_COLLECTION("torrent_store_collection"),
-    REMOVE_COLLECTION("torrent_remove_collection");
+    REMOVE_COLLECTION("torrent_remove_collection"),
+    MAGNET_COPIED("torrent_magnet_copied");
 
     private final String key;
 

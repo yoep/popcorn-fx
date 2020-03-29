@@ -9,14 +9,19 @@ import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
@@ -34,6 +39,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     private String quality;
     private SubtitleInfo subtitle;
+    private Node overlayOrigin;
 
     @FXML
     private Icon playButton;
@@ -48,7 +54,12 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @FXML
     private Label genres;
     @FXML
-    private Label qualityButton;
+    private Pane qualityButton;
+    @FXML
+    private Label qualityButtonLabel;
+    @FXML
+    private Pane overlay;
+    private ListView<String> qualityList;
 
     //region Constructors
 
@@ -65,6 +76,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     public void initialize(URL location, ResourceBundle resources) {
         initializePoster();
         initializePlayButton();
+        initializeQualityList();
     }
 
     private void initializePoster() {
@@ -74,6 +86,15 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     private void initializePlayButton() {
         playButton.requestFocus();
+    }
+
+    private void initializeQualityList() {
+        qualityList = new ListView<>();
+
+        qualityList.setMaxWidth(100);
+        qualityList.getItems().addListener((InvalidationListener) observable -> qualityList.setMaxHeight(50 * qualityList.getItems().size()));
+        qualityList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
+        qualityList.setOnKeyPressed(this::onOverlayKeyPressed);
     }
 
     //endregion
@@ -91,6 +112,15 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @Override
     protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
         return imageService.loadPoster(media);
+    }
+
+    @Override
+    protected void reset() {
+        super.reset();
+        Platform.runLater(() -> {
+            qualityList.getItems().clear();
+            overlay.setVisible(false);
+        });
     }
 
     //endregion
@@ -116,16 +146,17 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void loadQualities() {
-        var qualities = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).keySet().stream()
+        final var qualities = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).keySet().stream()
                 .filter(e -> !e.equals("0")) // filter out the 0 quality
                 .sorted(Comparator.comparing(o -> Integer.parseInt(o.replaceAll("[a-z]", ""))))
                 .collect(Collectors.toList());
-        var defaultQuality = qualities.get(qualities.size() - 1);
+        final var defaultQuality = qualities.get(qualities.size() - 1);
 
-        qualityButton.setText(defaultQuality);
-        quality = defaultQuality;
-
-        switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(defaultQuality));
+        Platform.runLater(() -> {
+            qualityList.getItems().clear();
+            qualityList.getItems().addAll(qualities);
+            qualityList.getSelectionModel().select(defaultQuality);
+        });
     }
 
     private void onPlay() {
@@ -171,9 +202,44 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         });
     }
 
+    private void onQuality() {
+        switchOverlayItem(qualityButton, qualityList);
+        Platform.runLater(() -> qualityList.requestFocus());
+    }
+
+    private void onQualityChanged(String newValue) {
+        if (StringUtils.isEmpty(newValue))
+            return;
+
+        quality = newValue;
+        qualityButtonLabel.setText(newValue);
+        switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(newValue));
+    }
+
+    private void onOverlayKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            closeOverlay();
+        }
+    }
+
     private void onClose() {
         activityManager.register(new CloseDetailsActivity() {
         });
+    }
+
+    private void switchOverlayItem(Node origin, Node node) {
+        overlayOrigin = origin;
+        overlay.getChildren().clear();
+        overlay.getChildren().add(node);
+        overlay.setVisible(true);
+    }
+
+    private void closeOverlay() {
+        overlay.setVisible(false);
+
+        if (overlayOrigin != null)
+            overlayOrigin.requestFocus();
     }
 
     @FXML
@@ -209,6 +275,19 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             onWatchTrailer();
+        }
+    }
+
+    @FXML
+    private void onQualityClicked(MouseEvent event) {
+        event.consume();
+        onQuality();
+    }
+
+    @FXML
+    private void onQualityKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            onQuality();
         }
     }
 

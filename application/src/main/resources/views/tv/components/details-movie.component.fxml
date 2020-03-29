@@ -96,16 +96,18 @@
                     <RowConstraints/>
                 </rowConstraints>
 
-                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onWatchTrailerClicked" onKeyPressed="#onWatchTrailerKeyPressed"
+                <VBox styleClass="action" focusTraversable="true"
+                      onMouseClicked="#onWatchTrailerClicked" onKeyPressed="#onWatchTrailerKeyPressed"
                       GridPane.columnIndex="0" GridPane.rowIndex="0">
                     <Icon styleClass="button">
                         <Icon fx:constant="FILM_UNICODE"/>
                     </Icon>
                     <Label text="%details_watch_trailer"/>
                 </VBox>
-                <VBox styleClass="action" focusTraversable="true"
+                <VBox fx:id="qualityButton" styleClass="action" focusTraversable="true"
+                      onMouseClicked="#onQualityClicked" onKeyPressed="#onQualityKeyPressed"
                       GridPane.columnIndex="1" GridPane.rowIndex="0">
-                    <Label fx:id="qualityButton" styleClass="button, text" />
+                    <Label fx:id="qualityButtonLabel" styleClass="button, text" />
                     <Label text="%details_quality"/>
                 </VBox>
                 <VBox styleClass="action" focusTraversable="true"
@@ -125,4 +127,8 @@
             </GridPane>
         </GridPane>
     </GridPane>
+
+    <!-- Overlay -->
+    <StackPane fx:id="overlay" styleClass="overlay" visible="false"
+               GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0" />
 </GridPane>

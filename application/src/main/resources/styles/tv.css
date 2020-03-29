@@ -206,6 +206,41 @@
     -fx-text-fill: #fff;
 }
 
+.root .content-section .movie-details .overlay {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+}
+
+.root .content-section .movie-details .overlay .list-view {
+    -fx-background-color: transparent;
+}
+
+.root .content-section .movie-details .overlay .list-view .list-cell {
+    -fx-pref-width: 100;
+    -fx-pref-height: 50;
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+    -fx-background-radius: 10;
+    -fx-border-width: 2;
+    -fx-border-radius: 10;
+    -fx-border-color: #ccc;
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #ccc;
+    -fx-alignment: center;
+    -fx-focus-traversable: true;
+    -fx-cursor: hand;
+}
+
+.root .content-section .movie-details .overlay .list-view .list-cell:focused {
+    -fx-background-color: rgba(45, 114, 217, 0.6);
+    -fx-border-color: #fff;
+    -fx-text-fill: #fff;
+}
+
+.root .content-section .movie-details .overlay .list-view .list-cell:empty {
+    -fx-opacity: 0;
+    -fx-focus-traversable: false;
+}
+
 .root .player .player-controls {
     -fx-min-width: 500;
     -fx-max-width: 500;

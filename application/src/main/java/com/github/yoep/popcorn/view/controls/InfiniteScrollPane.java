@@ -222,7 +222,7 @@ public class InfiniteScrollPane<T> extends ScrollPane {
      * Load a new page into the infinite scroll pane.
      */
     public void loadNewPage() {
-        if (!updating)
+        if (!updating && !endOfItems)
             increasePage();
     }
 

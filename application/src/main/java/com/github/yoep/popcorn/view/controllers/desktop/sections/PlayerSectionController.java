@@ -69,8 +69,8 @@ public class PlayerSectionController extends AbstractPlayerSectionController {
     }
 
     @Override
-    protected void onPlayerKeyPressed(KeyEvent event) {
-        super.onPlayerKeyPressed(event);
+    protected void onPlayerKeyReleased(KeyEvent event) {
+        super.onPlayerKeyReleased(event);
         switch (event.getCode()) {
             case LEFT:
             case KP_LEFT:

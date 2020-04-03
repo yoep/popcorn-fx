@@ -34,14 +34,19 @@ import java.util.List;
 @ConditionalOnDesktopMode
 public class DesktopConfig {
     @Bean
-    public MainController mainController(ActivityManager activityManager, ViewLoader viewLoader, TaskExecutor taskExecutor, ApplicationArguments arguments,
-                                         UrlService urlService) {
+    public MainController mainController(ActivityManager activityManager,
+                                         ViewLoader viewLoader,
+                                         TaskExecutor taskExecutor,
+                                         ApplicationArguments arguments,
+                                         UrlService urlService,
+                                         SettingsService settingsService) {
         return MainDesktopController.builder()
                 .activityManager(activityManager)
                 .arguments(arguments)
                 .taskExecutor(taskExecutor)
                 .viewLoader(viewLoader)
                 .urlService(urlService)
+                .settingsService(settingsService)
                 .build();
     }
 

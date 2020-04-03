@@ -29,12 +29,13 @@ import java.util.List;
 public class TvConfig {
     @Bean
     public MainController mainController(ActivityManager activityManager, ViewLoader viewLoader, ApplicationArguments arguments, UrlService urlService,
-                                         TaskExecutor taskExecutor) {
+                                         SettingsService settingsService, TaskExecutor taskExecutor) {
         return MainTvController.builder()
                 .activityManager(activityManager)
                 .viewLoader(viewLoader)
                 .arguments(arguments)
                 .urlService(urlService)
+                .settingsService(settingsService)
                 .taskExecutor(taskExecutor)
                 .build();
     }

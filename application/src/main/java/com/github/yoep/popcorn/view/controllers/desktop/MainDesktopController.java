@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.view.controllers.desktop;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.common.AbstractMainController;
 import com.github.yoep.popcorn.view.services.UrlService;
@@ -38,8 +39,9 @@ public class MainDesktopController extends AbstractMainController implements Mai
                                  ViewLoader viewLoader,
                                  TaskExecutor taskExecutor,
                                  ApplicationArguments arguments,
-                                 UrlService urlService) {
-        super(activityManager, viewLoader, arguments, urlService, taskExecutor);
+                                 UrlService urlService,
+                                 SettingsService settingsService) {
+        super(activityManager, viewLoader, arguments, urlService, settingsService, taskExecutor);
     }
 
     //endregion
@@ -85,14 +87,17 @@ public class MainDesktopController extends AbstractMainController implements Mai
 
     //region Functions
 
-    private void initializeSceneEvents() {
-        rootPane.setOnKeyPressed(event -> {
-            if (PASTE_KEY_COMBINATION.match(event)) {
-                event.consume();
-                onContentPasted();
-            }
-        });
+    @Override
+    protected void onKeyPressed(KeyEvent event) {
+        super.onKeyPressed(event);
 
+        if (PASTE_KEY_COMBINATION.match(event)) {
+            event.consume();
+            onContentPasted();
+        }
+    }
+
+    private void initializeSceneEvents() {
         rootPane.setOnDragOver(this::onDragOver);
         rootPane.setOnDragDropped(this::onDragDropped);
     }

@@ -347,15 +347,18 @@ public class VideoPlayerService {
     }
 
     private void onSubtitleChanged(SubtitleInfo subtitle) {
+        if (subtitle == null || subtitle.isNone())
+            return;
+
         log.debug("Downloading subtitle \"{}\" for video playback", subtitle);
         var matcher = SubtitleMatcher.from(FilenameUtils.getBaseName(url), quality);
 
         subtitleService.downloadAndParse(subtitle, matcher).whenComplete((subtitles, throwable) -> {
-            if (throwable != null) {
+            if (throwable == null) {
+
+            } else {
                 log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                 activityManager.register((ErrorNotificationActivity) () -> localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED));
-            } else {
-
             }
         });
     }

@@ -17,8 +17,11 @@ import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+
+import static java.util.Arrays.asList;
 
 @Slf4j
 @Service
@@ -46,6 +49,36 @@ public class SettingsService {
     //endregion
 
     //region Methods
+
+    /**
+     * Increases the current UI scale.
+     */
+    public void increaseUIScale() {
+        var index = getCurrentUIScaleIndex();
+        var supportedUIScales = supportedUIScales();
+
+        // verify that the current UI scale is not the max supported scale
+        if (index == supportedUIScales.size() - 1)
+            return;
+
+        var uiSettings = getSettings().getUiSettings();
+        uiSettings.setUiScale(supportedUIScales.get(index + 1));
+    }
+
+    /**
+     * Decrease the current UI scale.
+     */
+    public void decreaseUIScale() {
+        var index = getCurrentUIScaleIndex();
+        var supportedUIScales = supportedUIScales();
+
+        // verify that the current UI scale is the min supported scale
+        if (index == 0)
+            return;
+
+        var uiSettings = getSettings().getUiSettings();
+        uiSettings.setUiScale(supportedUIScales.get(index - 1));
+    }
 
     /**
      * Save the current application settings to the {@link #NAME} file.
@@ -77,6 +110,26 @@ public class SettingsService {
         }
     }
 
+    /**
+     * Get the list of supported UI scales for this application.
+     *
+     * @return Returns a list of supported UI scales.
+     */
+    public static List<UIScale> supportedUIScales() {
+        return asList(
+                new UIScale(0.25f),
+                new UIScale(0.5f),
+                new UIScale(0.75f),
+                UISettings.DEFAULT_UI_SCALE,
+                new UIScale(1.25f),
+                new UIScale(1.50f),
+                new UIScale(2.0f),
+                new UIScale(3.0f),
+                new UIScale(4.0f),
+                new UIScale(5.0f)
+        );
+    }
+
     //endregion
 
     //region PostConstruct
@@ -101,7 +154,6 @@ public class SettingsService {
         });
 
         updateUIScale(uiSettings.getUiScale().getValue());
-
     }
 
     private void initializeDefaultLanguage() {
@@ -159,6 +211,22 @@ public class SettingsService {
 
         log.debug("Using default application settings");
         return Optional.empty();
+    }
+
+    private int getCurrentUIScaleIndex() {
+        var uiSettings = currentSettings.getUiSettings();
+        var scale = uiSettings.getUiScale();
+        var index = supportedUIScales().indexOf(scale);
+
+        // check if the index was found
+        // if not, return the index of the default
+        if (index == -1) {
+            log.warn("UI scale \"{}\" couldn't be found back in the supported UI scales", scale);
+            index = supportedUIScales().indexOf(UISettings.DEFAULT_UI_SCALE);
+        }
+
+        log.trace("Current UI scale index: {}", index);
+        return index;
     }
 
     private void createApplicationSettingsDirectory() {

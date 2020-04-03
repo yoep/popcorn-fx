@@ -124,7 +124,7 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
                     }
 
                     log.trace("Waiting for offset {} to be present in torrent input stream {}", offset, this);
-                    monitor.wait(60 * 1000);
+                    monitor.wait();
                     log.trace("Continuing the torrent input stream thread {}", this);
                 } catch (InterruptedException ex) {
                     log.debug("Torrent input stream wait got interrupted for {}", this);

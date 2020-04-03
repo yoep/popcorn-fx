@@ -18,7 +18,8 @@ public class UISettings extends AbstractSettings {
     public static final String UI_SCALE_PROPERTY = "uiScale";
     public static final String MAXIMIZED_PROPERTY = "maximized";
 
-    private static final Locale DEFAULT_LANGUAGE = defaultLanguage();
+    public static final Locale DEFAULT_LANGUAGE = defaultLanguage();
+    public static final UIScale DEFAULT_UI_SCALE = new UIScale(1f);
 
     /**
      * The default language of the application.
@@ -29,7 +30,7 @@ public class UISettings extends AbstractSettings {
      * The ui scale of the application.
      */
     @Builder.Default
-    private UIScale uiScale = new UIScale(1f);
+    private UIScale uiScale = DEFAULT_UI_SCALE;
     /**
      * The default start screen of the application.
      */

@@ -98,7 +98,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
 
     protected void initializeSceneEvents() {
         idleTimer.setOnFinished(e -> onHideOverlay());
-        playerPane.setOnKeyPressed(this::onPlayerKeyPressed);
+        playerPane.setOnKeyReleased(this::onPlayerKeyReleased);
         playerPane.addEventHandler(Event.ANY, e -> onShowOverlay());
     }
 
@@ -221,7 +221,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
      *
      * @param event The key event that occurred.
      */
-    protected void onPlayerKeyPressed(KeyEvent event) {
+    protected void onPlayerKeyReleased(KeyEvent event) {
         switch (event.getCode()) {
             case SPACE:
             case P:
@@ -295,7 +295,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
                 break;
             case ERROR:
                 log.error("Video player state changed to {}", newValue);
-                Throwable error = videoPlayerService.getError();
+                var error = videoPlayerService.getError();
 
                 if (error != null)
                     log.error(error.getMessage(), error);

@@ -48,17 +48,8 @@ public class SettingsUIComponent implements Initializable {
     }
 
     private void initializeUIScale() {
-        var items = uiScale.getItems();
-
-        items.add(new UIScale(0.25f));
-        items.add(new UIScale(0.5f));
-        items.add(new UIScale(0.75f));
-        items.add(new UIScale(1.0f));
-        items.add(new UIScale(1.25f));
-        items.add(new UIScale(1.50f));
-        items.add(new UIScale(2.0f));
-        items.add(new UIScale(3.0f));
-
+        uiScale.getItems().clear();
+        uiScale.getItems().addAll(SettingsService.supportedUIScales());
         uiScale.getSelectionModel().select(getUiSettings().getUiScale());
         uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
     }

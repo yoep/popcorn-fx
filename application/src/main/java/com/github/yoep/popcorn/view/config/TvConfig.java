@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.media.providers.ProviderService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.view.controllers.MainController;
@@ -119,6 +120,16 @@ public class TvConfig {
     public PlayerControlsComponent playerControlsComponent(ActivityManager activityManager,
                                                            VideoPlayerService videoPlayerService) {
         return new PlayerControlsComponent(activityManager, videoPlayerService);
+    }
+
+    @Bean
+    public LoaderTorrentComponent loaderTorrentComponent(LocaleText localeText,
+                                                         TorrentService torrentService,
+                                                         ActivityManager activityManager,
+                                                         TaskExecutor taskExecutor,
+                                                         SubtitleService subtitleService,
+                                                         ImageService imageService) {
+        return new LoaderTorrentComponent(localeText, torrentService, activityManager, taskExecutor, subtitleService, imageService);
     }
 
     //endregion

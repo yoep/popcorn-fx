@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
+<?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
 <?import com.github.yoep.popcorn.view.controls.Episodes?>
 <?import com.github.yoep.popcorn.view.controls.Seasons?>
 <?import com.github.yoep.popcorn.view.controls.Stars?>
-<?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
 <AnchorPane styleClass="show-details-section" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.ShowDetailsComponent">
     <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">

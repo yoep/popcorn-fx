@@ -8,6 +8,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 
 @Slf4j
 public abstract class AbstractLoaderComponent {
@@ -24,6 +25,8 @@ public abstract class AbstractLoaderComponent {
     //region Constructors
 
     protected AbstractLoaderComponent(LocaleText localeText, TorrentService torrentService) {
+        Assert.notNull(localeText, "localeText cannot be null");
+        Assert.notNull(torrentService, "torrentService cannot be null");
         this.localeText = localeText;
         this.torrentService = torrentService;
     }

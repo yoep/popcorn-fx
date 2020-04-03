@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
 
+import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,12 +35,20 @@ public class LoaderSectionController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePanes();
-        initializeListeners();
     }
 
     private void initializePanes() {
         taskExecutor.execute(() -> torrentLoaderPane = viewLoader.load("components/loader-torrent.component.fxml"));
         taskExecutor.execute(() -> urlLoaderPane = viewLoader.load("components/loader-url.component.fxml"));
+    }
+
+    //endregion
+
+    //region PostConstruct
+
+    @PostConstruct
+    private void init() {
+        initializeListeners();
     }
 
     private void initializeListeners() {

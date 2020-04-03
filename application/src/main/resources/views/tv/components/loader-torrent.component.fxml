@@ -5,7 +5,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.LoaderTorrentComponent"
+          fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.LoaderTorrentComponent"
           styleClass="loader">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="20"/>
@@ -64,6 +64,6 @@
         </GridPane>
 
         <!-- Cancel -->
-        <Button text="%torrent_cancel" onMouseClicked="#onCancelClicked"/>
+        <Button fx:id="cancelButton" text="%torrent_cancel" onMouseClicked="#onCancelClicked" onKeyPressed="#onCancelKeyPressed"/>
     </VBox>
 </GridPane>

@@ -327,6 +327,22 @@
             <properties>
                 <platform>windows</platform>
             </properties>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.github.fvarrui</groupId>
+                        <artifactId>javapackager</artifactId>
+                        <configuration>
+                            <additionalResources>
+                                <param>${project.basedir}/../assets/windows/libvlc.dll</param>
+                                <param>${project.basedir}/../assets/windows/libvlccore.dll</param>
+                                <param>${project.basedir}/../assets/windows/plugins</param>
+                            </additionalResources>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <profile>
             <id>linux</id>

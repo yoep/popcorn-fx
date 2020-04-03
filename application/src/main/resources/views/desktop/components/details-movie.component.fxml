@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
 <?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
 <?import com.github.yoep.popcorn.view.controls.Stars?>
-<?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>

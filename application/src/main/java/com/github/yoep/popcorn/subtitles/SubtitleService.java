@@ -253,13 +253,15 @@ public class SubtitleService {
             @Override
             public void onResponse(long id, Object result) {
                 log.trace("Received login response from {}", popcornProperties.getSubtitle().getUrl());
-                Map<String, Object> response = (Map<String, Object>) result;
-                String token = (String) response.get("token");
+                var response = (Map<String, Object>) result;
+                var token = (String) response.get("token");
+                var status = response.get("status");
 
-                if (token != null && !token.isEmpty()) {
+                if (StringUtils.isNotEmpty(token)) {
                     onResponse.accept(token);
                 } else {
-                    completableFuture.completeExceptionally(new SubtitleException("Failed to retrieve subtitles, login token is not correct"));
+                    var message = MessageFormat.format("Failed to retrieve subtitles, login failed (status: {0})", status);
+                    completableFuture.completeExceptionally(new SubtitleException(message));
                 }
             }
 

@@ -131,6 +131,8 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         frame.setType(Window.Type.UTILITY);
         frame.setMinimumSize(new Dimension(800, 600));
         frame.setContentPane(mediaPlayerComponent);
+        frame.setAutoRequestFocus(false);
+        frame.setFocusableWindowState(false);
 
         initializeFrameListeners();
     }

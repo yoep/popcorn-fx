@@ -39,6 +39,9 @@ import java.util.stream.Collectors;
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
     private static final String LIKED_STYLE_CLASS = "liked";
+    private static final String SUBTITLE_LOADING_STYLE_CLASS = "loading";
+    private static final String SUBTITLE_SUCCESS_STYLE_CLASS = "success";
+    private static final String SUBTITLE_FAILED_STYLE_CLASS = "failed";
 
     private final ActivityManager activityManager;
     private final SubtitleService subtitleService;
@@ -61,6 +64,8 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private Label duration;
     @FXML
     private Label genres;
+    @FXML
+    private Icon subtitleStatus;
     @FXML
     private Pane qualityButton;
     @FXML
@@ -139,6 +144,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     protected void reset() {
         super.reset();
         Platform.runLater(() -> {
+            subtitleStatus.getStyleClass().remove(SUBTITLE_LOADING_STYLE_CLASS);
             qualityList.getItems().clear();
             overlay.setVisible(false);
         });
@@ -181,11 +187,21 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void loadSubtitles() {
+        subtitleStatus.getStyleClass().add(SUBTITLE_LOADING_STYLE_CLASS);
         subtitleService.retrieveSubtitles(media).whenComplete((subtitleInfos, throwable) -> {
+            subtitleStatus.getStyleClass().remove(SUBTITLE_LOADING_STYLE_CLASS);
+
             if (throwable == null) {
-                subtitle = subtitleService.getDefault(subtitleInfos);
+                subtitle = subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos);
+
+                if (subtitle.isNone()) {
+                    subtitleStatus.getStyleClass().add(SUBTITLE_FAILED_STYLE_CLASS);
+                } else {
+                    subtitleStatus.getStyleClass().add(SUBTITLE_SUCCESS_STYLE_CLASS);
+                }
             } else {
                 log.error(throwable.getMessage(), throwable);
+                subtitleStatus.getStyleClass().add(SUBTITLE_FAILED_STYLE_CLASS);
             }
         });
     }

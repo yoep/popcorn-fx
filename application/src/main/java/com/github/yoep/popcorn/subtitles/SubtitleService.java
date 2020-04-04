@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.subtitles.models.*;
 import de.timroes.axmlrpc.XMLRPCCallback;
@@ -179,14 +180,34 @@ public class SubtitleService {
      */
     public SubtitleInfo getDefault(List<SubtitleInfo> subtitles) {
         Assert.notNull(subtitles, "subtitles cannot be null");
-        SubtitleSettings settings = getSettings();
 
         // try to find the subtitle language from settings if it exists in the list
         // if not found, return the special none subtitle
-        return subtitles.stream()
-                .filter(e -> e.getLanguage() == settings.getDefaultSubtitle())
-                .findFirst()
+        return getDefaultBase(subtitles)
                 .orElseGet(SubtitleInfo::none);
+    }
+
+    /**
+     * Get the subtitle that needs to be selected by default for the given subtitles list.
+     * This is based on the subtitle settings and tries to find the user's preferred language if it exist or uses the interface language if not found.
+     * If the user's preferred language doesn't exist in the list, it will use the interface language.
+     * If both the user's preferred language and interface language don't exist, it returns the default {@link SubtitleInfo#none()} subtitle.
+     *
+     * @param subtitles The subtitle list to search for the preferred language.
+     * @return Returns the subtitle that needs to be selected by default.
+     */
+    public SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles) {
+        Assert.notNull(subtitles, "subtitles cannot be null");
+        var interfaceLanguage = getSettings().getUiSettings().getDefaultLanguage();
+
+        // try to find the subtitle language from settings if it exists in the list
+        // if not found, return the special none subtitle
+        return getDefaultBase(subtitles)
+                .orElseGet(() ->
+                        subtitles.stream()
+                                .filter(e -> e.getLanguage().getCode().equalsIgnoreCase(interfaceLanguage.getLanguage()))
+                                .findFirst()
+                                .orElseGet(SubtitleInfo::none));
     }
 
     //endregion
@@ -199,7 +220,7 @@ public class SubtitleService {
     }
 
     private void initializeListeners() {
-        SubtitleSettings settings = getSettings();
+        SubtitleSettings settings = getSubtitleSettings();
 
         settings.addListener(evt -> {
             if (SubtitleSettings.DIRECTORY_PROPERTY.equals(evt.getPropertyName())) {
@@ -216,7 +237,7 @@ public class SubtitleService {
 
     @PreDestroy
     private void destroy() {
-        var settings = getSettings();
+        var settings = getSubtitleSettings();
 
         if (settings.isAutoCleaningEnabled() && settings.getDirectory().exists()) {
             cleanCacheDirectory(settings.getDirectory());
@@ -454,13 +475,25 @@ public class SubtitleService {
         return Optional.empty();
     }
 
-    private SubtitleSettings getSettings() {
-        return settingsService.getSettings().getSubtitleSettings();
+    private Optional<SubtitleInfo> getDefaultBase(List<SubtitleInfo> subtitles) {
+        var settings = getSubtitleSettings();
+
+        return subtitles.stream()
+                .filter(e -> e.getLanguage() == settings.getDefaultSubtitle())
+                .findFirst();
+    }
+
+    private SubtitleSettings getSubtitleSettings() {
+        return getSettings().getSubtitleSettings();
+    }
+
+    private ApplicationSettings getSettings() {
+        return settingsService.getSettings();
     }
 
     private File getStorageFile(SubtitleFile subtitle) {
         String filename = FilenameUtils.getName(subtitle.getUrl());
-        File subtitleDirectory = getSettings().getDirectory();
+        File subtitleDirectory = getSubtitleSettings().getDirectory();
 
         // make sure the subtitle directory exists
         subtitleDirectory.mkdirs();

@@ -199,6 +199,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
      * @param throwable the exception error to process.
      */
     protected void handleSubtitlesResponse(List<SubtitleInfo> subtitles, Throwable throwable) {
+        Platform.runLater(() -> languageSelection.setLoading(false));
+
         if (throwable == null) {
             // filter out all the subtitles that don't have a flag
             final List<SubtitleInfo> filteredSubtitles = subtitles.stream()

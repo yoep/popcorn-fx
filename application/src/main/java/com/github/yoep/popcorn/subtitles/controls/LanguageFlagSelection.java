@@ -2,17 +2,16 @@ package com.github.yoep.popcorn.subtitles.controls;
 
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import javafx.application.Platform;
-import javafx.beans.property.ListProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleListProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.PopupControl;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Skin;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
@@ -37,6 +36,10 @@ import java.util.List;
  */
 @Slf4j
 public class LanguageFlagSelection extends StackPane {
+    public static final String SELECTED_ITEM_PROPERTY = "selectedItem";
+    public static final String ITEMS_PROPERTY = "items";
+    public static final String FACTORY_PROPERTY = "factory";
+    public static final String LOADING_PROPERTY = "loading";
     private static final String STYLE_CLASS = "language-selection";
     private static final String POPUP_STYLE_CLASS = "language-popup";
     private static final String POPUP_IMAGE_STYLE_CLASS = "language-flag";
@@ -44,11 +47,13 @@ public class LanguageFlagSelection extends StackPane {
     private static final int FLAG_HEIGHT = 20;
 
     private final FlagPopup popup = new FlagPopup();
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
 
     private final List<LanguageSelectionListener> listeners = new ArrayList<>();
-    private final ObjectProperty<SubtitleInfo> selectedItem = new SimpleObjectProperty<>(this, "selectedItem");
-    private final ListProperty<SubtitleInfo> items = new SimpleListProperty<>(this, "items", FXCollections.observableArrayList());
-    private final ObjectProperty<LanguageFlagCell> factory = new SimpleObjectProperty<>(this, "factory", new LanguageFlagCell());
+    private final ObjectProperty<SubtitleInfo> selectedItem = new SimpleObjectProperty<>(this, SELECTED_ITEM_PROPERTY);
+    private final ListProperty<SubtitleInfo> items = new SimpleListProperty<>(this, ITEMS_PROPERTY, FXCollections.observableArrayList());
+    private final ObjectProperty<LanguageFlagCell> factory = new SimpleObjectProperty<>(this, FACTORY_PROPERTY, new LanguageFlagCell());
+    private final BooleanProperty loading = new SimpleBooleanProperty(this, LOADING_PROPERTY);
 
     private boolean firstRender = true;
 
@@ -142,6 +147,18 @@ public class LanguageFlagSelection extends StackPane {
     public void setFactory(LanguageFlagCell factory) {
         Assert.notNull(factory, "factory cannot be null");
         this.factory.set(factory);
+    }
+
+    public boolean isLoading() {
+        return loading.get();
+    }
+
+    public BooleanProperty loadingProperty() {
+        return loading;
+    }
+
+    public void setLoading(boolean loading) {
+        this.loading.set(loading);
     }
 
     //endregion
@@ -247,11 +264,21 @@ public class LanguageFlagSelection extends StackPane {
                 }
             }
         });
+        loading.addListener((observable, oldValue, newValue) -> onLoadingChanged(newValue));
     }
 
     private void initializeFactory() {
         updateFactory(getFactory());
         factoryProperty().addListener((observable, oldValue, newValue) -> updateFactory(newValue));
+    }
+
+    private void onLoadingChanged(boolean newValue) {
+        if (newValue) {
+            StackPane.setAlignment(progressIndicator, Pos.CENTER_LEFT);
+            getChildren().add(progressIndicator);
+        } else {
+            getChildren().removeIf(e -> e == progressIndicator);
+        }
     }
 
     private void onClicked() {

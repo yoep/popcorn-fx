@@ -507,6 +507,11 @@
     -fx-cursor: hand;
 }
 
+.root .movie-details .subtitle-group .language-selection .progress-indicator {
+    -fx-max-width: 10;
+    -fx-max-height: 10;
+}
+
 .root .movie-details .favorite-section,
 .root .movie-details .watched-section {
     -fx-cursor: hand;

@@ -44,7 +44,7 @@
             <columnConstraints>
                 <ColumnConstraints/>
                 <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints maxWidth="20"/>
+                <ColumnConstraints maxWidth="30"/>
             </columnConstraints>
             <rowConstraints>
                 <RowConstraints/>
@@ -74,10 +74,15 @@
                 <Stars fx:id="ratingStars" alignment="CENTER"/>
             </HBox>
 
-            <Icon fx:id="health" styleClass="health"
-                  GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT">
-                <Icon fx:constant="CIRCLE_UNICODE"/>
-            </Icon>
+            <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT" spacing="5">
+                <Icon fx:id="subtitleStatus" styleClass="subtitle">
+                    <Icon fx:constant="COMMENT_UNICODE"/>
+                </Icon>
+                <Icon fx:id="health" styleClass="health">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+            </HBox>
+
 
             <!-- Overview text -->
             <Label fx:id="overview" styleClass="overview" wrapText="true"
@@ -107,7 +112,7 @@
                 <VBox fx:id="qualityButton" styleClass="action" focusTraversable="true"
                       onMouseClicked="#onQualityClicked" onKeyPressed="#onQualityKeyPressed"
                       GridPane.columnIndex="1" GridPane.rowIndex="0">
-                    <Label fx:id="qualityButtonLabel" styleClass="button, text" />
+                    <Label fx:id="qualityButtonLabel" styleClass="button, text"/>
                     <Label text="%details_quality"/>
                 </VBox>
                 <VBox styleClass="action" focusTraversable="true"
@@ -132,5 +137,5 @@
 
     <!-- Overlay -->
     <StackPane fx:id="overlay" styleClass="overlay" visible="false"
-               GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+               GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 </GridPane>

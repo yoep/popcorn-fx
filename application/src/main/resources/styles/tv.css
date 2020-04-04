@@ -134,8 +134,19 @@
 }
 
 .root .movie-details .health,
+.root .movie-details .subtitle,
 .root .show-details-section .show-details .episode-overview .health {
     -fx-font-size: 1.25em;
+}
+
+.root .movie-details .subtitle.loading {
+    -fx-text-fill: #2d8ef5;
+}
+.root .movie-details .subtitle.success {
+    -fx-text-fill: #2ad942;
+}
+.root .movie-details .subtitle.failed {
+    -fx-text-fill: #d53f3f;
 }
 
 .root .content-section .movie-details .poster-play {

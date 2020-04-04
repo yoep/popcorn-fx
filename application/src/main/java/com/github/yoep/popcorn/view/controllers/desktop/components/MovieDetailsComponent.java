@@ -205,6 +205,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     private void loadSubtitles() {
         resetLanguageSelection();
+        languageSelection.setLoading(true);
         subtitleService.retrieveSubtitles(media).whenComplete(this::handleSubtitlesResponse);
     }
 

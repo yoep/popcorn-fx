@@ -18,7 +18,7 @@ public class KeepAliveService {
     public void keepAlive() {
         try {
             var robot = new Robot();
-            var key = KeyCode.CONTROL.getCode();
+            var key = KeyCode.ALT.getCode();
 
             robot.keyPress(key);
             robot.keyRelease(key);

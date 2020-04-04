@@ -24,6 +24,7 @@ import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -53,6 +54,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     protected final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(newValue);
 
     protected Pane bufferIndicator;
+    protected boolean uiBlocked;
 
     @FXML
     protected Pane playerPane;
@@ -94,15 +96,16 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         log.trace("Initializing video player component for JavaFX");
         initializeSceneEvents();
         initializeSubtitleTrack();
+        initializePaneListeners();
     }
 
-    protected void initializeSceneEvents() {
+    private void initializeSceneEvents() {
         idleTimer.setOnFinished(e -> onHideOverlay());
         playerPane.setOnKeyReleased(this::onPlayerKeyReleased);
-        playerPane.addEventHandler(Event.ANY, e -> onShowOverlay());
+        playerPane.addEventHandler(Event.ANY, this::onShowOverlay);
     }
 
-    protected void initializeSubtitleTrack() {
+    private void initializeSubtitleTrack() {
         SubtitleSettings subtitleSettings = settingsService.getSettings().getSubtitleSettings();
 
         log.trace("Setting subtitle track defaults to \"{}\"", subtitleSettings);
@@ -143,6 +146,14 @@ public abstract class AbstractPlayerSectionController implements Initializable {
             subtitleOffset.setOpacity(1);
             offsetTimer.playFromStart();
         });
+    }
+
+    private void initializePaneListeners() {
+        playerHeaderPane.setOnMouseEntered(event -> uiBlocked = true);
+        playerHeaderPane.setOnMouseExited(event -> uiBlocked = false);
+
+        playerControlsPane.setOnMouseEntered(event -> uiBlocked = true);
+        playerControlsPane.setOnMouseExited(event -> uiBlocked = false);
     }
 
     //endregion
@@ -197,6 +208,9 @@ public abstract class AbstractPlayerSectionController implements Initializable {
      * Invoked when the overlay is being hidden.
      */
     protected void onHideOverlay() {
+        if (uiBlocked)
+            return;
+
         var videoPlayer = videoPlayerService.getVideoPlayer();
 
         if (videoPlayer == null || videoPlayer.getPlayerState() != PlayerState.PLAYING)
@@ -321,7 +335,18 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         }
     }
 
-    private void onShowOverlay() {
+    private void onShowOverlay(Event event) {
+        // verify if the event is a key event
+        // if so, do some additional check before showing the overlay
+        if (event instanceof KeyEvent) {
+            var keyEvent = (KeyEvent) event;
+
+            // verify that the key event is not the key used by the keep alive service
+            // if so, don't show the overlay and ignore the event
+            if (keyEvent.getCode() == KeyCode.ALT)
+                return;
+        }
+
         playerPane.setCursor(Cursor.DEFAULT);
         playerVideoOverlay.setCursor(Cursor.HAND);
 

@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.view.controls;
 
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.geometry.Pos;
 import javafx.scene.layout.StackPane;
 
 public class ProgressControl extends StackPane {
@@ -50,12 +51,23 @@ public class ProgressControl extends StackPane {
 
     //endregion
 
+    //region Methods
+
+    public void reset() {
+        setTime(0);
+        setDuration(0);
+    }
+
+    //endregion
+
     //region Functions
 
     private void init() {
         initializePlayProgress();
         initializeLoadProgress();
+        initializeListeners();
 
+        this.setAlignment(Pos.CENTER_LEFT);
         this.getStyleClass().add(STYLE_CLASS);
         this.getChildren().addAll(loadProgress, playProgress);
     }
@@ -66,6 +78,26 @@ public class ProgressControl extends StackPane {
 
     private void initializeLoadProgress() {
         loadProgress.getStyleClass().add(LOAD_PROGRESS_STYLE_CLASS);
+    }
+
+    private void initializeListeners() {
+        time.addListener((observable, oldValue, newValue) -> calculatePlayProgress());
+        duration.addListener((observable, oldValue, newValue) -> calculatePlayProgress());
+    }
+
+    private void calculatePlayProgress() {
+        var time = getTime();
+        var duration = getDuration();
+
+        if (duration == 0)
+            return;
+        if (time > duration)
+            time = duration;
+
+        var width = (this.getWidth() / duration) * time;
+
+        playProgress.setMinWidth(width);
+        playProgress.setMaxWidth(width);
     }
 
     //endregion

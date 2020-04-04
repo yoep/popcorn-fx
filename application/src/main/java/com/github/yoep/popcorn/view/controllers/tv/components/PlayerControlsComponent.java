@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.view.controllers.tv.components;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.PlayVideoActivity;
 import com.github.yoep.popcorn.view.controllers.common.components.AbstractPlayerControlsComponent;
+import com.github.yoep.popcorn.view.controls.ProgressControl;
 import com.github.yoep.popcorn.view.services.VideoPlayerService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -14,10 +15,35 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
 
+    @FXML
+    private ProgressControl progress;
+
     //region Constructors
 
     public PlayerControlsComponent(ActivityManager activityManager, VideoPlayerService videoPlayerService) {
         super(activityManager, videoPlayerService);
+    }
+
+    //endregion
+
+    //region AbstractPlayerControlsComponent
+
+    @Override
+    protected void onTimeChanged(Number newValue) {
+        super.onTimeChanged(newValue);
+        progress.setTime(newValue.longValue());
+    }
+
+    @Override
+    protected void onDurationChanged(Number newValue) {
+        super.onDurationChanged(newValue);
+        progress.setDuration(newValue.longValue());
+    }
+
+    @Override
+    protected void reset() {
+        super.reset();
+        progress.reset();
     }
 
     //endregion

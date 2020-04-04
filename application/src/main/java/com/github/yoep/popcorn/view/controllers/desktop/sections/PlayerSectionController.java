@@ -12,13 +12,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
-import java.net.URL;
-import java.util.ResourceBundle;
-
 @Slf4j
 public class PlayerSectionController extends AbstractPlayerSectionController {
-    private boolean uiBlocked;
-
     //region Constructors
 
     public PlayerSectionController(ActivityManager activityManager,
@@ -26,24 +21,6 @@ public class PlayerSectionController extends AbstractPlayerSectionController {
                                    VideoPlayerService videoPlayerService,
                                    LocaleText localeText) {
         super(activityManager, settingsService, videoPlayerService, localeText);
-    }
-
-    //endregion
-
-    //region Initializable
-
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
-        super.initialize(url, resourceBundle);
-        initializePaneListeners();
-    }
-
-    private void initializePaneListeners() {
-        playerHeaderPane.setOnMouseEntered(event -> uiBlocked = true);
-        playerHeaderPane.setOnMouseExited(event -> uiBlocked = false);
-
-        playerControlsPane.setOnMouseEntered(event -> uiBlocked = true);
-        playerControlsPane.setOnMouseExited(event -> uiBlocked = false);
     }
 
     //endregion
@@ -58,14 +35,6 @@ public class PlayerSectionController extends AbstractPlayerSectionController {
     @Override
     protected PauseTransition getOffsetTimer() {
         return new PauseTransition(Duration.seconds(2));
-    }
-
-    @Override
-    protected void onHideOverlay() {
-        if (uiBlocked)
-            return;
-
-        super.onHideOverlay();
     }
 
     @Override

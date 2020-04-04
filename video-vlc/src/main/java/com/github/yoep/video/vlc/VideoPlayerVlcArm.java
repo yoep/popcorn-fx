@@ -60,6 +60,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
 
         try {
             frame.setVisible(true);
+            frame.setExtendedState(Frame.MAXIMIZED_BOTH);
             frame.toBack();
 
             mediaPlayer.media().play(url, VLC_OPTIONS);

@@ -1,10 +1,14 @@
 package com.github.yoep.popcorn.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.*;
+import com.github.yoep.popcorn.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.media.providers.models.Movie;
+import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.view.services.ImageService;
@@ -34,8 +38,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
+    private static final String LIKED_STYLE_CLASS = "liked";
 
     private final ActivityManager activityManager;
+    private final SubtitleService subtitleService;
+    private final FavoriteService favoriteService;
+    private final LocaleText localeText;
 
     private String quality;
     private SubtitleInfo subtitle;
@@ -58,14 +66,25 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @FXML
     private Label qualityButtonLabel;
     @FXML
+    private Icon likeButton;
+    @FXML
+    private Label likeText;
+    @FXML
     private Pane overlay;
     private ListView<String> qualityList;
 
     //region Constructors
 
-    public MovieDetailsComponent(ActivityManager activityManager, TorrentService torrentService, ImageService imageService) {
+    public MovieDetailsComponent(ActivityManager activityManager,
+                                 SubtitleService subtitleService,
+                                 FavoriteService favoriteService,
+                                 LocaleText localeText, TorrentService torrentService,
+                                 ImageService imageService) {
         super(imageService, torrentService);
         this.activityManager = activityManager;
+        this.subtitleService = subtitleService;
+        this.favoriteService = favoriteService;
+        this.localeText = localeText;
     }
 
     //endregion
@@ -107,6 +126,8 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
         loadText();
         loadQualities();
+        loadSubtitles();
+        initializeFavorite();
     }
 
     @Override
@@ -157,6 +178,24 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
             qualityList.getItems().addAll(qualities);
             qualityList.getSelectionModel().select(defaultQuality);
         });
+    }
+
+    private void loadSubtitles() {
+        subtitleService.retrieveSubtitles(media).whenComplete((subtitleInfos, throwable) -> {
+            if (throwable == null) {
+                subtitle = subtitleService.getDefault(subtitleInfos);
+            } else {
+                log.error(throwable.getMessage(), throwable);
+            }
+        });
+    }
+
+    private void initializeFavorite() {
+        boolean liked = favoriteService.isLiked(media);
+
+        media.setLiked(liked);
+        media.likedProperty().addListener((observable, oldValue, newValue) -> switchFavorite(newValue));
+        switchFavorite(liked);
     }
 
     private void onPlay() {
@@ -223,6 +262,18 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         }
     }
 
+    private void onLikeChanged() {
+        boolean liked = !media.isLiked();
+
+        media.setLiked(liked);
+
+        if (liked) {
+            favoriteService.addToFavorites(media);
+        } else {
+            favoriteService.removeFromFavorites(media);
+        }
+    }
+
     private void onClose() {
         activityManager.register(new CloseDetailsActivity() {
         });
@@ -233,6 +284,19 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         overlay.getChildren().clear();
         overlay.getChildren().add(node);
         overlay.setVisible(true);
+    }
+
+    private void switchFavorite(boolean isLiked) {
+        Platform.runLater(() -> {
+            likeButton.getStyleClass().removeIf(e -> e.equals(LIKED_STYLE_CLASS));
+
+            if (isLiked) {
+                likeButton.getStyleClass().add(LIKED_STYLE_CLASS);
+                likeText.setText(localeText.get(DetailsMessage.UNFAVORED));
+            } else {
+                likeText.setText(localeText.get(DetailsMessage.FAVORITE));
+            }
+        });
     }
 
     private void closeOverlay() {
@@ -288,6 +352,20 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private void onQualityKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             onQuality();
+        }
+    }
+
+    @FXML
+    private void onLikeClicked(MouseEvent event) {
+        event.consume();
+        onLikeChanged();
+    }
+
+    @FXML
+    private void onLikeKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onLikeChanged();
         }
     }
 

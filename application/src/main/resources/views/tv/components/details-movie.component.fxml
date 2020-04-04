@@ -111,13 +111,15 @@
                     <Label text="%details_quality"/>
                 </VBox>
                 <VBox styleClass="action" focusTraversable="true"
+                      onMouseClicked="#onLikeClicked" onKeyPressed="#onLikeKeyPressed"
                       GridPane.columnIndex="2" GridPane.rowIndex="0">
-                    <Icon styleClass="button">
-                        <Icon fx:constant="COMMENT_UNICODE"/>
+                    <Icon fx:id="likeButton" styleClass="button">
+                        <Icon fx:constant="HEART_UNICODE"/>
                     </Icon>
-                    <Label text="%details_subtitle"/>
+                    <Label fx:id="likeText" text="%details_add_to_bookmarks"/>
                 </VBox>
-                <VBox styleClass="action" focusTraversable="true" onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
+                <VBox styleClass="action" focusTraversable="true"
+                      onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
                       GridPane.columnIndex="3" GridPane.rowIndex="0">
                     <Icon styleClass="button">
                         <Icon fx:constant="CROSS_UNICODE"/>

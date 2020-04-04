@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
@@ -26,16 +27,19 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     private static final Category CATEGORY = Category.FAVORITES;
 
     private final FavoriteService favoriteService;
+    private final WatchedService watchedService;
     private final List<ProviderService<?>> providers;
     private final LocaleText localeText;
 
     public FavoriteProviderService(RestTemplate restTemplate,
                                    ActivityManager activityManager,
                                    FavoriteService favoriteService,
+                                   WatchedService watchedService,
                                    List<ProviderService<?>> providers,
                                    LocaleText localeText) {
         super(restTemplate, activityManager);
         this.favoriteService = favoriteService;
+        this.watchedService = watchedService;
         this.providers = providers;
         this.localeText = localeText;
     }
@@ -55,7 +59,9 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         // from the liked items, filter all Media items and cast them appropriately
         Stream<Media> mediaStream = favoriteService.getAll().stream()
                 .filter(e -> e instanceof Media)
-                .map(e -> (Media) e);
+                .map(e -> (Media) e)
+                .peek(e -> e.setWatched(watchedService.isWatched(e)))
+                .sorted(this::sortByWatchedState);
 
         if (!genre.isAllGenre()) {
             mediaStream = mediaStream.filter(e -> {
@@ -112,5 +118,23 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
             log.error(ex.getMessage(), ex);
             activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
         }
+    }
+
+    private int sortByWatchedState(Media o1, Media o2) {
+        // make sure movies are always before the shows
+        if (o1 instanceof Movie && o2 instanceof Show)
+            return -1;
+        if (o1 instanceof Show && o2 instanceof Movie)
+            return 1;
+
+        // sort by the watched state of the media items
+        if (o1.isWatched() && o2.isWatched())
+            return 0;
+        if (o1.isWatched())
+            return 1;
+        if (o2.isWatched())
+            return -1;
+
+        return 0;
     }
 }

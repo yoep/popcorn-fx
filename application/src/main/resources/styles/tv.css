@@ -194,6 +194,10 @@
     -fx-font-size: 1.5em;
 }
 
+.root .content-section .movie-details .actions .action .button.liked {
+    -fx-text-fill: #df2d37;
+}
+
 .root .content-section .movie-details .actions .action:hover .button,
 .root .content-section .movie-details .actions .action:focused .button {
     -fx-background-color: rgba(45, 114, 217, 0.6);

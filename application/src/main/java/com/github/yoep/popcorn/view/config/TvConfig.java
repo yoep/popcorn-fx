@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.media.providers.ProviderService;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.watched.WatchedService;
@@ -94,9 +95,12 @@ public class TvConfig {
 
     @Bean
     public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager,
+                                                       SubtitleService subtitleService,
+                                                       FavoriteService favoriteService,
+                                                       LocaleText localeText,
                                                        TorrentService torrentService,
                                                        ImageService imageService) {
-        return new MovieDetailsComponent(activityManager, torrentService, imageService);
+        return new MovieDetailsComponent(activityManager, subtitleService, favoriteService, localeText, torrentService, imageService);
     }
 
     @Bean

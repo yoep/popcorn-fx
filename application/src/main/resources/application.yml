@@ -98,12 +98,7 @@ popcorn:
         - movies
         - tv
       sort-by:
-        - trending
-        - popularity
-        - last added
-        - year
-        - title
-        - rating
+        - watched
   subtitle:
     url: http://api.opensubtitles.org/xml-rpc
     user-agent: Popcorn Time v1

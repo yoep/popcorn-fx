@@ -89,8 +89,12 @@ public class FavoriteService {
         loadFavorites();
 
         synchronized (cacheLock) {
-            cache.add(favorable);
             favorable.setLiked(true);
+
+            // verify that the favorable doesn't already exist
+            if (!isLiked(favorable)) {
+                cache.add(favorable);
+            }
         }
     }
 

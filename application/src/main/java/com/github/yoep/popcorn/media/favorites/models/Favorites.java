@@ -69,10 +69,10 @@ public class Favorites {
 
         if (favorable instanceof Movie) {
             log.trace("Removing movie favorite {}", favorable);
-            movies.remove(favorable);
+            movies.removeIf(e -> e.getId().equalsIgnoreCase(favorable.getId()));
         } else if (favorable instanceof Show) {
             log.trace("Removing show favorite {}", favorable);
-            shows.remove(favorable);
+            shows.removeIf(e -> e.getId().equalsIgnoreCase(favorable.getId()));
         } else {
             log.warn("Unable to remove favorable of type \"{}\"", favorable.getClass().getSimpleName());
         }

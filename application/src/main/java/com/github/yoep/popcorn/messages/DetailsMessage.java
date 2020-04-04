@@ -12,6 +12,8 @@ public enum DetailsMessage implements Message {
     SEASON("details_season"),
     ADD_TO_BOOKMARKS("details_add_to_bookmarks"),
     REMOVE_FROM_BOOKMARKS("details_remove_from_bookmarks"),
+    FAVORITE("details_favorite"),
+    UNFAVORED("details_unfavored"),
     NOT_SEEN("details_not_seen"),
     SEEN("details_seen"),
     EPISODE_SEASON("details_episode_season"),

@@ -6,6 +6,7 @@ import com.github.yoep.video.vlc.VideoPlayerVlcArm;
 import com.github.yoep.video.vlc.conditions.ConditionalOnArmDevice;
 import com.github.yoep.video.vlc.conditions.ConditionalOnArmVideoEnabled;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcInstall;
+import com.github.yoep.video.vlc.conditions.ConditionalOnVlcVideoEnabled;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ public class VideoConfig {
     @Order(Ordered.HIGHEST_PRECEDENCE + 9)
     @ConditionalOnArmDevice
     @ConditionalOnArmVideoEnabled
+    @ConditionalOnVlcVideoEnabled
     public VideoPlayer vlcArmVideoPlayer() {
         log.info("Using VLC ARM player for video playbacks");
         return new VideoPlayerVlcArm();
@@ -28,6 +30,7 @@ public class VideoConfig {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 10)
+    @ConditionalOnVlcVideoEnabled
     @ConditionalOnMissingBean(name = {"vlcArmVideoPlayer"})
     public VideoPlayer vlcVideoPlayer() {
         log.info("Using VLC player for video playbacks");

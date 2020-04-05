@@ -18,4 +18,14 @@ public class SubtitleProperties {
      */
     @NotEmpty
     private String userAgent;
+    /**
+     * The default username to use for the opensubtitles login.
+     */
+    @NotEmpty
+    private String username;
+    /**
+     * The default password to use for the opensubtitles login.
+     */
+    @NotEmpty
+    private String password;
 }

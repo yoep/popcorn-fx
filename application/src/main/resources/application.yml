@@ -102,6 +102,8 @@ popcorn:
   subtitle:
     url: http://api.opensubtitles.org/xml-rpc
     user-agent: Popcorn Time v1
+    username: "cejoma5001@svpmail.com"
+    password: "acsNFuS.!9y7X9b"
   trakt:
     url: https://api.trakt.tv
     client:

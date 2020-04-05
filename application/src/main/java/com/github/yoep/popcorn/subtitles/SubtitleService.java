@@ -392,7 +392,7 @@ public class SubtitleService {
         SubtitleProperties subtitleProperties = popcornProperties.getSubtitle();
         log.trace("Logging in to {}", subtitleProperties.getUrl());
 
-        client.callAsync(callback, "LogIn", "", "", "en", subtitleProperties.getUserAgent());
+        client.callAsync(callback, "LogIn", subtitleProperties.getUsername(), subtitleProperties.getPassword(), "en", subtitleProperties.getUserAgent());
     }
 
     private void search(Show show, Episode episode, String token, XMLRPCCallback callback) {

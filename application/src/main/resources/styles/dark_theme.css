@@ -988,6 +988,13 @@
     -fx-text-fill: #c3c5c7;
 }
 
+.root .torrent-collection .torrent-list TableHeaderRow {
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+    -fx-pref-height: 0;
+    visibility: false;
+}
+
 .root .torrent-collection .torrent-list .table-cell {
     -fx-border-width: 0 0 1 0;
     -fx-border-color: rgba(255, 255, 255, 0.06);
@@ -996,10 +1003,12 @@
     -fx-padding: 10 15 10 15;
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #eee;
+}
+.root .torrent-collection .torrent-list .name-cell {
     -fx-font-size: 1.2em;
 }
 
-.root .torrent-collection .torrent-list .table-cell:hover {
+.root .torrent-collection .torrent-list .name-cell:hover {
     -fx-text-fill: #2d72d9;
 }
 
@@ -1013,16 +1022,14 @@
     -fx-font-size: 1.3em;
 }
 
-.root .torrent-collection Icon {
+.root .torrent-collection .torrent-list .icon-cell Icon {
+    -fx-font-size: 1.5em;
     -fx-text-fill: #eee;
-    -fx-font-size: 1.2em;
-    -fx-cursor: hand;
     -fx-opacity: 0.7;
 }
 
-.root .torrent-collection Icon:hover {
+.root .torrent-collection .torrent-list .icon-cell:hover Icon {
     -fx-text-fill: #fff;
-    -fx-font-size: 1.2em;
     -fx-opacity: 1;
 }
 

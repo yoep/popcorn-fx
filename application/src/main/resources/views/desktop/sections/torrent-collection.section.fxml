@@ -3,6 +3,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.torrent.controls.TorrentCollection?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.TorrentCollectionSectionController" styleClass="torrent-collection">
     <columnConstraints>
@@ -19,13 +20,13 @@
     <!-- Torrent contents -->
     <StackPane fx:id="fileShadow"
                GridPane.columnIndex="1" GridPane.rowIndex="1">
-        <TableView fx:id="collection" styleClass="torrent-list">
+        <TorrentCollection fx:id="collection" styleClass="torrent-list">
             <columnResizePolicy>
                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
             </columnResizePolicy>
             <placeholder>
                 <Label text="%torrent_collection_empty" styleClass="placeholder" />
             </placeholder>
-        </TableView>
+        </TorrentCollection>
     </StackPane>
 </GridPane>

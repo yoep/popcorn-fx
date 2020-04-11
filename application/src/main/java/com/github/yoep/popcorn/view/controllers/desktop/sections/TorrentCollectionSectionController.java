@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.LoadUrlActivity;
@@ -8,19 +7,15 @@ import com.github.yoep.popcorn.activities.ShowTorrentCollectionActivity;
 import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
 import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.torrent.controls.TorrentCollection;
 import com.github.yoep.popcorn.torrent.models.StoredTorrent;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +35,7 @@ public class TorrentCollectionSectionController implements Initializable {
     @FXML
     private Pane fileShadow;
     @FXML
-    private TableView<StoredTorrent> collection;
+    private TorrentCollection collection;
 
     //region Methods
 
@@ -69,45 +64,9 @@ public class TorrentCollectionSectionController implements Initializable {
     }
 
     private void initializeCollection() {
-        TableColumn<StoredTorrent, Icon> magnetColumn = new TableColumn<>();
-        TableColumn<StoredTorrent, String> nameColumn = new TableColumn<>();
-        TableColumn<StoredTorrent, Icon> deleteColumn = new TableColumn<>();
-
-        magnetColumn.setMaxWidth(40);
-        magnetColumn.setMinWidth(40);
-        magnetColumn.setCellValueFactory(item -> {
-            Icon icon = new Icon(Icon.MAGNET_UNICODE);
-            icon.setOnMouseClicked(event -> onMagnetClicked(event, item.getValue()));
-            return new SimpleObjectProperty<>(icon);
-        });
-        nameColumn.setCellFactory(param -> {
-            TableCell<StoredTorrent, String> cell = new TableCell<>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    var rowItem = getTableRow().getItem();
-
-                    if (!empty && rowItem != null) {
-                        setText(rowItem.getName());
-                    } else {
-                        setText(null);
-                    }
-                }
-            };
-            cell.setOnMouseClicked(event -> onTorrentClicked(cell.getTableRow().getItem()));
-            return cell;
-        });
-        deleteColumn.setMaxWidth(40);
-        deleteColumn.setMinWidth(40);
-        deleteColumn.setCellValueFactory(item -> {
-            Icon icon = new Icon(Icon.TRASH_UNICODE);
-            icon.setOnMouseClicked(event -> onDeleteClicked(event, item.getValue()));
-            return new SimpleObjectProperty<>(icon);
-        });
-
-        collection.getColumns().add(magnetColumn);
-        collection.getColumns().add(nameColumn);
-        collection.getColumns().add(deleteColumn);
+        collection.setOnMagnetClicked(this::onMagnetClicked);
+        collection.setOnTorrentClicked(this::onTorrentClicked);
+        collection.setOnDeleteClicked(this::onDeleteClicked);
     }
 
     private void onShowCollection() {
@@ -118,12 +77,7 @@ public class TorrentCollectionSectionController implements Initializable {
         });
     }
 
-    private void onTorrentClicked(StoredTorrent torrent) {
-        activityManager.register((LoadUrlActivity) torrent::getMagnetUri);
-    }
-
-    private void onMagnetClicked(MouseEvent event, StoredTorrent item) {
-        event.consume();
+    private void onMagnetClicked(StoredTorrent item) {
         var clipboard = Clipboard.getSystemClipboard();
         var clipboardContent = new ClipboardContent();
 
@@ -135,10 +89,13 @@ public class TorrentCollectionSectionController implements Initializable {
         log.debug("Magnet uri of {} has been copied to the clipboard", item);
     }
 
-    private void onDeleteClicked(MouseEvent event, StoredTorrent item) {
+    private void onTorrentClicked(StoredTorrent torrent) {
+        activityManager.register((LoadUrlActivity) torrent::getMagnetUri);
+    }
+
+    private void onDeleteClicked(StoredTorrent item) {
         torrentCollectionService.removeTorrent(item.getMagnetUri());
         Platform.runLater(() -> collection.getItems().remove(item));
-        event.consume();
     }
 
     //endregion

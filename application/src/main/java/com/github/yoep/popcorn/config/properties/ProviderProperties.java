@@ -11,7 +11,7 @@ public class ProviderProperties {
     /**
      * The base url of the API that should be used by the provider.
      */
-    private URI url;
+    private List<URI> uris;
 
     /**
      * The supported genres by the Popcorn API.

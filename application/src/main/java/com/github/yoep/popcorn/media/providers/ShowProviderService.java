@@ -60,7 +60,7 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     public Show[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        URI uri = getUriFor(providerConfig.getUrl(), "shows", genre, sortBy, keywords, page);
+        URI uri = getUriFor(getUri(), "shows", genre, sortBy, keywords, page);
 
         log.debug("Retrieving show provider page \"{}\"", uri);
         ResponseEntity<Show[]> shows = restTemplate.getForEntity(uri, Show[].class);
@@ -70,7 +70,7 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     private Show getDetailsInternal(String imdbId) {
-        var uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())
+        var uri = UriComponentsBuilder.fromUri(getUri())
                 .path("show/{imdb_id}")
                 .build(imdbId);
 
@@ -85,5 +85,10 @@ public class ShowProviderService extends AbstractProviderService<Show> {
             throw new MediaException(MessageFormat.format("Failed to retrieve the details of {0}, response body is null", imdbId));
 
         return response.getBody();
+    }
+
+    private URI getUri() {
+        //TODO: cycle through the uri's on failure
+        return providerConfig.getUris().get(0);
     }
 }

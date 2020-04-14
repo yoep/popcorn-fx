@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +49,7 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
 
     @Override
     public CompletableFuture<Movie> getDetails(String imdbId) {
-        var uri = UriComponentsBuilder.fromUri(providerConfig.getUrl())
+        var uri = UriComponentsBuilder.fromUri(getUri())
                 .path("/movie/{id}")
                 .build(imdbId);
 
@@ -70,12 +71,17 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     public Movie[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        var uri = getUriFor(providerConfig.getUrl(), "movies", genre, sortBy, keywords, page);
+        var uri = getUriFor(getUri(), "movies", genre, sortBy, keywords, page);
 
         log.debug("Retrieving movie provider page \"{}\"", uri);
         ResponseEntity<Movie[]> items = restTemplate.getForEntity(uri, Movie[].class);
 
         return Optional.ofNullable(items.getBody())
                 .orElse(new Movie[0]);
+    }
+
+    private URI getUri() {
+        // TODO: cycle through the uri's on failure
+        return providerConfig.getUris().get(0);
     }
 }

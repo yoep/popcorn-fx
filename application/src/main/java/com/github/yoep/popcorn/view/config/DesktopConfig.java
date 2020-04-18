@@ -21,6 +21,7 @@ import com.github.yoep.popcorn.view.controllers.desktop.MainDesktopController;
 import com.github.yoep.popcorn.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.view.controllers.desktop.sections.*;
 import com.github.yoep.popcorn.view.services.ImageService;
+import com.github.yoep.popcorn.view.services.MaximizeService;
 import com.github.yoep.popcorn.view.services.UrlService;
 import com.github.yoep.popcorn.view.services.VideoPlayerService;
 import org.springframework.boot.ApplicationArguments;
@@ -213,6 +214,11 @@ public class DesktopConfig {
     @Bean
     public SettingsTraktComponent settingsTraktComponent(TraktService traktService) {
         return new SettingsTraktComponent(traktService);
+    }
+
+    @Bean
+    public TitleBarComponent titleBarComponent(MaximizeService maximizeService) {
+        return new TitleBarComponent(maximizeService);
     }
 
     //endregion

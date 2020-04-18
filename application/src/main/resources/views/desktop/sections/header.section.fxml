@@ -7,6 +7,10 @@
 <?import javafx.scene.layout.*?>
 <VBox styleClass="header" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.HeaderSectionController" fx:id="headerPane">
+    <!-- Title bar -->
+    <fx:include source="../components/title-bar.component.fxml"/>
+
+    <!-- Header -->
     <GridPane styleClass="bar">
         <columnConstraints>
             <ColumnConstraints/>
@@ -16,18 +20,17 @@
             <ColumnConstraints/>
         </columnConstraints>
         <rowConstraints>
-            <RowConstraints minHeight="15"/>
             <RowConstraints minHeight="24"/>
         </rowConstraints>
 
-        <HBox styleClass="filter-nav-bar" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+        <HBox styleClass="filter-nav-bar" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="BOTTOM">
             <Label fx:id="moviesCategory" text="%filter_movies" onMouseClicked="#onCategoryClicked"/>
             <Label fx:id="seriesCategory" text="%filter_series" onMouseClicked="#onCategoryClicked"/>
             <Label fx:id="favoritesCategory" text="%filter_favorites" onMouseClicked="#onCategoryClicked"/>
         </HBox>
 
         <HBox styleClass="filter-bar"
-              GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+              GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.valignment="BOTTOM">
             <HBox styleClass="filterGroup">
                 <Label labelFor="$genreCombo" text="%filter_genre" onMouseClicked="#onGenreClicked"/>
                 <ComboBox fx:id="genreCombo"/>
@@ -39,7 +42,7 @@
         </HBox>
 
         <HBox styleClass="filter-icon-bar" alignment="BOTTOM_RIGHT"
-              GridPane.columnIndex="4" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+              GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.valignment="BOTTOM">
             <padding>
                 <Insets right="10"/>
             </padding>

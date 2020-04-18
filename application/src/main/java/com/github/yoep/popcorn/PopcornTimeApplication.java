@@ -50,12 +50,11 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     }
 
     private void initializeStage(Stage primaryStage) {
-        if (isArmDevice()) {
-            if (Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW)) {
-                primaryStage.initStyle(StageStyle.TRANSPARENT);
-            } else {
-                log.warn("Unable to activate transparent window for ARM device");
-            }
+        if (Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW)) {
+            primaryStage.initStyle(StageStyle.TRANSPARENT);
+        } else {
+            log.warn("Unable to activate transparent window, using undecorated as fallback");
+            primaryStage.initStyle(StageStyle.UNDECORATED);
         }
     }
 
@@ -91,7 +90,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     }
 
     private Color getBackgroundColor() {
-        return isArmDevice() ? Color.TRANSPARENT : Color.BLACK;
+        return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW) ? Color.TRANSPARENT : Color.BLACK;
     }
 
     private static String getDefaultAppDirLocation() {

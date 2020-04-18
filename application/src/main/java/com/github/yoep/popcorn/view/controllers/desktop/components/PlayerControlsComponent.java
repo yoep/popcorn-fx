@@ -194,7 +194,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
 
     private void onFullscreenChanged(boolean isFullscreen) {
         if (isFullscreen) {
-            Platform.runLater(() -> fullscreenIcon.setText(Icon.COLLAPSE_UNICODE));
+            Platform.runLater(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
         } else {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
         }

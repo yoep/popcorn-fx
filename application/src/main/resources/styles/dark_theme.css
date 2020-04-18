@@ -22,6 +22,7 @@
 .root .list-view,
 .root .table-view,
 .root .header .bar,
+.root .header .title-bar,
 .root .loader,
 .root .overlay,
 .root .content-section {
@@ -183,6 +184,38 @@
     -fx-text-fill: #fff;
 }
 
+.root .header .title-bar {
+    -fx-pref-height: 28px;
+    -fx-max-height: 28px;
+}
+
+.root .header .title-bar Label {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 16px;
+    -fx-text-fill: #fff;
+    -fx-cursor: default;
+    -fx-padding: 0 0 0 0;
+}
+
+.root .header .title-bar .os-buttons {
+    -fx-pref-width: 141px;
+    -fx-max-width: 141px;
+}
+
+.root .header .title-bar .os-buttons .os-button {
+    -fx-pref-width: 47px;
+    -fx-pref-height: 28px;
+    -fx-cursor: hand;
+}
+
+.root .header .title-bar .os-buttons .os-button:hover {
+    -fx-background-color: #333437;
+}
+
+.root .header .title-bar .os-buttons .os-button.close:hover {
+    -fx-background-color: #e81123;
+}
+
 .root .header .bar .filter-nav-bar Label {
     -fx-border-width: 0 0 4 0;
     -fx-border-color: transparent;
@@ -280,6 +313,15 @@
 .root .header .bar .filter-icon-bar .search-field .search-icon,
 .root .header .bar .filter-icon-bar .search-field .clear-icon {
     -fx-text-fill: #909498;
+    -fx-font-size: 1em;
+}
+
+.root .header .bar .filter-icon-bar .search-field .search-icon {
+    -fx-padding: 0 3 0 8;
+}
+
+.root .header .bar .filter-icon-bar .search-field .clear-icon {
+    -fx-padding: 0 8 0 3;
 }
 
 .root .background-image {
@@ -1004,6 +1046,7 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #eee;
 }
+
 .root .torrent-collection .torrent-list .name-cell {
     -fx-font-size: 1.2em;
 }

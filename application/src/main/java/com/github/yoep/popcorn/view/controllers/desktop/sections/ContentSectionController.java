@@ -111,7 +111,7 @@ public class ContentSectionController implements Initializable {
     }
 
     private void setAnchor(Pane pane) {
-        AnchorPane.setTopAnchor(pane, 50d);
+        AnchorPane.setTopAnchor(pane, 64d);
         AnchorPane.setRightAnchor(pane, 0d);
         AnchorPane.setBottomAnchor(pane, 0d);
         AnchorPane.setLeftAnchor(pane, 0d);

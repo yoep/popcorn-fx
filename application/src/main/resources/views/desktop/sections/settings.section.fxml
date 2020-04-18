@@ -33,6 +33,6 @@
         <padding>
             <Insets top="10" right="15"/>
         </padding>
-        <Icon fx:constant="CROSS_UNICODE"/>
+        <Icon fx:constant="TIMES_UNICODE"/>
     </Icon>
 </StackPane>

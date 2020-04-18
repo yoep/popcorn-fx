@@ -41,7 +41,7 @@
             <padding>
                 <Insets right="15" top="5"/>
             </padding>
-            <Icon fx:constant="CROSS_UNICODE"/>
+            <Icon fx:constant="TIMES_UNICODE"/>
         </Icon>
 
         <!-- Title -->

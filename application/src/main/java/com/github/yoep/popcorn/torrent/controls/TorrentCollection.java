@@ -146,6 +146,9 @@ public class TorrentCollection extends TableView<StoredTorrent> {
     }
 
     private void onTorrentClicked(MouseEvent event, StoredTorrent item) {
+        if (item == null)
+            return;
+
         if (torrentClickedConsumer != null) {
             event.consume();
             torrentClickedConsumer.accept(item);

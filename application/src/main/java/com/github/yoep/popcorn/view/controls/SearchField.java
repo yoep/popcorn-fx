@@ -132,15 +132,13 @@ public class SearchField extends StackPane {
     private void initializeSearchIcon() {
         searchIcon = new Icon(Icon.SEARCH_UNICODE);
         searchIcon.setCursor(Cursor.HAND);
-        searchIcon.setPadding(new Insets(0, 0, 0, 8));
         StackPane.setAlignment(searchIcon, Pos.CENTER_LEFT);
         getChildren().add(searchIcon);
     }
 
     private void initializeCloseIcon() {
-        clearIcon = new Icon(Icon.CROSS_UNICODE);
+        clearIcon = new Icon(Icon.TIMES_UNICODE);
         clearIcon.setCursor(Cursor.HAND);
-        clearIcon.setPadding(new Insets(0, 8, 0, 0));
         clearIcon.setOnMouseClicked(this::onClearClicked);
         clearIcon.setVisible(false);
         StackPane.setAlignment(clearIcon, Pos.CENTER_RIGHT);

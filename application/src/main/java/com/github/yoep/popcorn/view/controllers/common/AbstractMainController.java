@@ -5,6 +5,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.view.controllers.MainController;
+import com.github.yoep.popcorn.view.controls.ResizablePane;
 import com.github.yoep.popcorn.view.services.UrlService;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
@@ -43,7 +44,7 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
     protected Pane notificationPane;
 
     @FXML
-    protected Pane rootPane;
+    protected ResizablePane rootPane;
 
     //region Constructors
 

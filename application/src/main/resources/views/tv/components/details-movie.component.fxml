@@ -127,7 +127,7 @@
                       onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
                       GridPane.columnIndex="3" GridPane.rowIndex="0">
                     <Icon styleClass="button">
-                        <Icon fx:constant="CROSS_UNICODE"/>
+                        <Icon fx:constant="TIMES_UNICODE"/>
                     </Icon>
                     <Label text="%close"/>
                 </VBox>

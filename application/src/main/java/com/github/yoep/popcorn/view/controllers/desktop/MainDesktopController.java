@@ -52,7 +52,20 @@ public class MainDesktopController extends AbstractMainController implements Mai
     public void initialize(URL url, ResourceBundle resourceBundle) {
         super.initialize(url, resourceBundle);
         initializeSceneEvents();
+        initializeResizablePane();
+        initializeSection();
+    }
 
+    private void initializeSceneEvents() {
+        rootPane.setOnDragOver(this::onDragOver);
+        rootPane.setOnDragDropped(this::onDragDropped);
+    }
+
+    private void initializeResizablePane() {
+        rootPane.setHeader(28);
+    }
+
+    private void initializeSection() {
         if (!processApplicationArguments())
             switchSection(SectionType.CONTENT);
     }
@@ -95,11 +108,6 @@ public class MainDesktopController extends AbstractMainController implements Mai
             event.consume();
             onContentPasted();
         }
-    }
-
-    private void initializeSceneEvents() {
-        rootPane.setOnDragOver(this::onDragOver);
-        rootPane.setOnDragDropped(this::onDragDropped);
     }
 
     private void onContentPasted() {

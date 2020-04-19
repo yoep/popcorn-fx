@@ -1,11 +1,13 @@
 package com.github.yoep.popcorn.view.controls;
 
-import javafx.geometry.Insets;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.CacheHint;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.image.Image;
-import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 
@@ -15,19 +17,26 @@ import java.text.MessageFormat;
  * Background image which is blurred and has a shadow cover on top of it.
  */
 @Slf4j
-public class BackgroundImageCover extends StackPane {
+public class BackgroundImageCover extends AnchorPane {
     private static final String STYLE_CLASS = "background-image";
     private static final String COVER_STYLE_CLASS = "background-cover";
     private static final Image BACKGROUND_PLACEHOLDER = loadPlaceholder();
 
-    private final BorderPane imagePane;
-    private final BorderPane coverPane;
+    private final ChangeListener<Number> parentWidthListener = (observable, oldValue, newValue) -> onParentWidthChanged(newValue);
+    private final ChangeListener<Number> parentHeightListener = (observable, oldValue, newValue) -> onParentHeightChanged(newValue);
+
+    private final ImageView imageView = new ImageView();
+    private final StackPane coverPane = new StackPane();
+
+    //region Constructor
 
     public BackgroundImageCover() {
-        this.imagePane = new BorderPane();
-        this.coverPane = new BorderPane();
         init();
     }
+
+    //endregion
+
+    //region Methods
 
     /**
      * Set the background image for this background cover.
@@ -51,23 +60,56 @@ public class BackgroundImageCover extends StackPane {
             showBackgroundImage(BACKGROUND_PLACEHOLDER);
         } else {
             // fallback to a black background
-            resetToBlackBackground();
+            resetImage();
         }
     }
 
+    //endregion
+
+    //region Functions
+
     private void init() {
-        initializeImagePane();
+        initializeAnchorPane();
+        initializeImageView();
         initializeCoverPane();
         initializeBackgroundImage();
         reset();
     }
 
-    private void initializeImagePane() {
-        imagePane.setEffect(new GaussianBlur(30));
+    private void initializeAnchorPane() {
+        parentProperty().addListener((observable, oldValue, newValue) -> {
+            if (oldValue != null) {
+                var parent = (Pane) oldValue;
+
+                parent.widthProperty().removeListener(parentWidthListener);
+                parent.heightProperty().removeListener(parentHeightListener);
+            }
+
+            if (newValue != null) {
+                var parent = (Pane) newValue;
+
+                parent.widthProperty().addListener(parentWidthListener);
+                parent.heightProperty().addListener(parentHeightListener);
+            }
+        });
+    }
+
+    private void initializeImageView() {
+        imageView.setPreserveRatio(true);
+        imageView.setEffect(new GaussianBlur(30));
+        imageView.imageProperty().addListener((observable, oldValue, newValue) -> resizeImage());
+
+        this.widthProperty().addListener((observable, oldValue, newValue) -> resizeImage());
+        this.heightProperty().addListener((observable, oldValue, newValue) -> resizeImage());
     }
 
     private void initializeCoverPane() {
         coverPane.getStyleClass().add(COVER_STYLE_CLASS);
+
+        AnchorPane.setTopAnchor(coverPane, 0.0);
+        AnchorPane.setRightAnchor(coverPane, 0.0);
+        AnchorPane.setBottomAnchor(coverPane, 0.0);
+        AnchorPane.setLeftAnchor(coverPane, 0.0);
     }
 
     private void initializeBackgroundImage() {
@@ -75,22 +117,52 @@ public class BackgroundImageCover extends StackPane {
         this.setCacheHint(CacheHint.SCALE_AND_ROTATE);
         this.getStyleClass().add(STYLE_CLASS);
 
-        this.getChildren().addAll(imagePane, coverPane);
+        this.getChildren().addAll(imageView, coverPane);
+    }
+
+    private void onParentWidthChanged(Number newValue) {
+        this.setMaxWidth(newValue.doubleValue());
+        this.setMinWidth(newValue.doubleValue());
+        this.setPrefWidth(newValue.doubleValue());
+    }
+
+    private void onParentHeightChanged(Number newValue) {
+        this.setMaxHeight(newValue.doubleValue());
+        this.setMinWidth(newValue.doubleValue());
+        this.setPrefHeight(newValue.doubleValue());
     }
 
     private void showBackgroundImage(final Image image) {
         if (!image.isError()) {
-            var backgroundSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true);
-            var backgroundImage = new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, backgroundSize);
-
-            this.imagePane.setBackground(new Background(backgroundImage));
+            imageView.setImage(image);
         } else {
             handleImageError(image);
         }
     }
 
-    private void resetToBlackBackground() {
-        this.imagePane.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
+    private void resetImage() {
+        this.imageView.setImage(null);
+    }
+
+    private void resizeImage() {
+        var image = imageView.getImage();
+        var paneWidth = this.getWidth();
+        var paneHeight = this.getHeight();
+
+        // check if we need to recalculate the image size
+        if (image == null || paneWidth == 0 || paneHeight == 0)
+            return;
+
+        var imageWidth = image.getWidth();
+        var imageHeight = image.getHeight();
+        var scale = Math.max(paneWidth / imageWidth, paneHeight / imageHeight);
+        var fitWidth = imageWidth * scale;
+        var fitHeight = imageHeight * scale;
+
+        imageView.setFitWidth(fitWidth);
+        imageView.setFitHeight(fitHeight);
+        imageView.setX((paneWidth - fitWidth) / 2);
+        imageView.setY((paneHeight - fitHeight) / 2);
     }
 
     private static Image loadPlaceholder() {
@@ -116,4 +188,6 @@ public class BackgroundImageCover extends StackPane {
 
         log.warn(message, exception);
     }
+
+    //endregion
 }

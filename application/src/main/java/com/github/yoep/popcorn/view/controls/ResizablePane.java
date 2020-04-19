@@ -83,14 +83,7 @@ public class ResizablePane extends AnchorPane {
     //region Functions
 
     private void init() {
-        initializeEvents();
         initializeListeners();
-    }
-
-    private void initializeEvents() {
-        this.setOnMouseMoved(this::onMouseMoved);
-        this.setOnMousePressed(this::onMousePressed);
-        this.setOnMouseDragged(this::onMouseDragged);
     }
 
     private void initializeListeners() {
@@ -138,8 +131,6 @@ public class ResizablePane extends AnchorPane {
     }
 
     private void onMousePressed(MouseEvent event) {
-        event.consume();
-
         var stage = getStage();
 
         xOffset = stage.getX() - event.getScreenX();

@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.view.controllers.desktop.components;
 
+import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TorrentSettings;
 import javafx.fxml.FXML;
@@ -9,7 +11,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.DirectoryChooser;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -17,21 +18,73 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@RequiredArgsConstructor
-public class SettingsTorrentComponent implements Initializable {
-    private final SettingsService settingsService;
-
+public class SettingsTorrentComponent extends AbstractSettingsComponent implements Initializable {
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
 
+    @FXML
+    private TextField downloadLimit;
+    @FXML
+    private TextField uploadLimit;
+    @FXML
+    private TextField connectionLimit;
     @FXML
     private TextField cacheDirectory;
     @FXML
     private CheckBox clearCache;
 
+    public SettingsTorrentComponent(ActivityManager activityManager, LocaleText localeText, SettingsService settingsService) {
+        super(activityManager, localeText, settingsService);
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeDownloadLimit();
+        initializeUploadLimit();
+        initializeConnectionLimit();
         initializeCacheDirectory();
         initializeClearCache();
+    }
+
+    private void initializeDownloadLimit() {
+        var settings = getSettings();
+
+        downloadLimit.setText(String.valueOf(settings.getDownloadRateLimit()));
+        downloadLimit.textProperty().addListener((observable, oldValue, newValue) -> {
+            try {
+                settings.setDownloadRateLimit(Integer.parseInt(newValue));
+                showNotification();
+            } catch (NumberFormatException ex) {
+                log.warn("Download rate limit is invalid, " + ex.getMessage(), ex);
+            }
+        });
+    }
+
+    private void initializeUploadLimit() {
+        var settings = getSettings();
+
+        uploadLimit.setText(String.valueOf(settings.getUploadRateLimit()));
+        uploadLimit.textProperty().addListener((observable, oldValue, newValue) -> {
+            try {
+                settings.setUploadRateLimit(Integer.parseInt(newValue));
+                showNotification();
+            } catch (NumberFormatException ex) {
+                log.warn("Upload rate limit is invalid, " + ex.getMessage(), ex);
+            }
+        });
+    }
+
+    private void initializeConnectionLimit() {
+        var settings = getSettings();
+
+        connectionLimit.setText(String.valueOf(settings.getConnectionsLimit()));
+        connectionLimit.textProperty().addListener((observable, oldValue, newValue) -> {
+            try {
+                settings.setConnectionsLimit(Integer.parseInt(newValue));
+                showNotification();
+            } catch (NumberFormatException ex) {
+                log.warn("Connection limit is invalid, " + ex.getMessage(), ex);
+            }
+        });
     }
 
     private void initializeCacheDirectory() {
@@ -46,6 +99,7 @@ public class SettingsTorrentComponent implements Initializable {
             if (newDirectory.isDirectory()) {
                 settings.setDirectory(newDirectory);
                 cacheChooser.setInitialDirectory(newDirectory);
+                showNotification();
             }
         });
     }
@@ -54,7 +108,14 @@ public class SettingsTorrentComponent implements Initializable {
         var settings = getSettings();
 
         clearCache.setSelected(settings.isAutoCleaningEnabled());
-        clearCache.selectedProperty().addListener((observable, oldValue, newValue) -> settings.setAutoCleaningEnabled(newValue));
+        clearCache.selectedProperty().addListener((observable, oldValue, newValue) -> onClearCacheChanged(newValue));
+    }
+
+    private void onClearCacheChanged(Boolean newValue) {
+        var settings = getSettings();
+
+        settings.setAutoCleaningEnabled(newValue);
+        showNotification();
     }
 
     private TorrentSettings getSettings() {

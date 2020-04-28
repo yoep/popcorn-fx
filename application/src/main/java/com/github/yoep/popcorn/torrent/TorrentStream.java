@@ -311,7 +311,7 @@ public class TorrentStream {
                 .downloadRateLimit(settings.getDownloadRateLimit())
                 .uploadRateLimit(settings.getUploadRateLimit())
                 .sendBufferWatermark(16)
-                .activeDhtLimit(88);
+                .activeDhtLimit(160);
 
         if (!this.torrentSession.isRunning()) {
             this.torrentSession.start(new SessionParams(settingsPack));

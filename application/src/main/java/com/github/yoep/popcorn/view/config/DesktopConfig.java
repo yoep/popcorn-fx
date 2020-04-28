@@ -159,8 +159,10 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsUIComponent settingsUIComponent(ActivityManager activityManager, SettingsService settingsService, LocaleText localeText) {
-        return new SettingsUIComponent(activityManager, settingsService, localeText);
+    public SettingsUIComponent settingsUIComponent(ActivityManager activityManager,
+                                                   LocaleText localeText,
+                                                   SettingsService settingsService) {
+        return new SettingsUIComponent(activityManager, localeText, settingsService);
     }
 
     @Bean
@@ -207,8 +209,10 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsTorrentComponent settingsTorrentComponent(SettingsService settingsService) {
-        return new SettingsTorrentComponent(settingsService);
+    public SettingsTorrentComponent settingsTorrentComponent(ActivityManager activityManager,
+                                                             LocaleText localeText,
+                                                             SettingsService settingsService) {
+        return new SettingsTorrentComponent(activityManager, localeText, settingsService);
     }
 
     @Bean

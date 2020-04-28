@@ -34,7 +34,7 @@ public class TorrentSettings extends AbstractSettings {
      * Maximum number of connections.
      */
     @Builder.Default
-    private int connectionsLimit = 200;
+    private int connectionsLimit = 300;
     /**
      * The download rate limit.
      */

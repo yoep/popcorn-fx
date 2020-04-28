@@ -2,8 +2,6 @@ package com.github.yoep.popcorn.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
-import com.github.yoep.popcorn.messages.SettingsMessage;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.StartScreen;
 import com.github.yoep.popcorn.settings.models.UIScale;
@@ -12,24 +10,24 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListCell;
-import lombok.RequiredArgsConstructor;
 
 import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
-@RequiredArgsConstructor
-public class SettingsUIComponent implements Initializable {
-    private final ActivityManager activityManager;
-    private final SettingsService settingsService;
-    private final LocaleText localeText;
-
+public class SettingsUIComponent extends AbstractSettingsComponent implements Initializable {
     @FXML
     private ComboBox<Locale> defaultLanguage;
     @FXML
     private ComboBox<UIScale> uiScale;
     @FXML
     private ComboBox<StartScreen> startScreen;
+
+    public SettingsUIComponent(ActivityManager activityManager,
+                               LocaleText localeText,
+                               SettingsService settingsService) {
+        super(activityManager, localeText, settingsService);
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -77,10 +75,6 @@ public class SettingsUIComponent implements Initializable {
     private void updateStartScreen(StartScreen startScreen) {
         getUiSettings().setStartScreen(startScreen);
         showNotification();
-    }
-
-    private void showNotification() {
-        activityManager.register((SuccessNotificationActivity) () -> localeText.get(SettingsMessage.SETTINGS_SAVED));
     }
 
     private ListCell<Locale> createLanguageCell() {

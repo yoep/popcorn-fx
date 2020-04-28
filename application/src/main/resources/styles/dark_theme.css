@@ -1030,6 +1030,11 @@
     -fx-text-fill: #c3c5c7;
 }
 
+.root .settings-section .sub-section TextField.small {
+    -fx-min-width: 150;
+    -fx-max-width: 150;
+}
+
 .root .torrent-collection .torrent-list TableHeaderRow {
     -fx-min-height: 0;
     -fx-max-height: 0;

@@ -11,6 +11,7 @@ server:
   tomcat:
     min-spare-threads: 1
     connection-timeout: -1
+  port: 8091
 
 logging:
   level:

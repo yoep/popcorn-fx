@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +30,10 @@ public class Favorites {
      */
     @Builder.Default
     private List<Show> shows = new ArrayList<>();
+    /**
+     * The last time the favorites cache has been updated.
+     */
+    private LocalDateTime lastCacheUpdate;
 
     /**
      * Get all the favorites.

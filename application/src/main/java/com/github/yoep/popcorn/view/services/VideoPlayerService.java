@@ -411,18 +411,26 @@ public class VideoPlayerService {
     private void playUrl(String url) {
         updateActiveVideoPlayer(url);
         this.url = url;
-        getVideoPlayer().play(url);
-
+        var videoPlayer = getVideoPlayer();
         var filename = FilenameUtils.getName(url);
+
+        // check if a video player was found
+        // if not, stop the play url execution
+        if (videoPlayer == null) {
+            log.error("Failed to play url, no video player found");
+            return;
+        }
+
+        videoPlayer.play(url);
 
         // check if we need to auto resume the current video playback
         Platform.runLater(() -> {
             if (media != null) {
                 autoResumeService.getResumeTimestamp(media.getId(), filename)
-                        .ifPresent(getVideoPlayer()::seek);
+                        .ifPresent(videoPlayer::seek);
             } else {
                 autoResumeService.getResumeTimestamp(filename)
-                        .ifPresent(getVideoPlayer()::seek);
+                        .ifPresent(videoPlayer::seek);
             }
         });
     }

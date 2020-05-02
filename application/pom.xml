@@ -196,7 +196,7 @@
                 <plugin>
                     <groupId>io.github.fvarrui</groupId>
                     <artifactId>javapackager</artifactId>
-                    <version>0.9.3</version>
+                    <version>0.9.7</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -298,6 +298,7 @@
                     <administratorRequired>false</administratorRequired>
                     <platform>auto</platform>
                     <customizedJre>false</customizedJre>
+                    <name>popcorn-time</name>
                     <displayName>Popcorn Time</displayName>
                     <organizationName>Popcorn Time</organizationName>
                     <licenseFile>../LICENSE</licenseFile>

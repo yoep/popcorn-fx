@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
 import com.github.yoep.popcorn.messages.SettingsMessage;
 import com.github.yoep.popcorn.settings.SettingsService;
+import javafx.scene.control.TextFormatter;
 
 public abstract class AbstractSettingsComponent {
     protected final ActivityManager activityManager;
@@ -15,6 +16,18 @@ public abstract class AbstractSettingsComponent {
         this.activityManager = activityManager;
         this.localeText = localeText;
         this.settingsService = settingsService;
+    }
+
+    protected TextFormatter<Object> numericTextFormatter() {
+        return new TextFormatter<>(change -> {
+            var text = change.getText();
+
+            if (text.matches("[0-9]*")) {
+                return change;
+            }
+
+            return null;
+        });
     }
 
     protected void showNotification() {

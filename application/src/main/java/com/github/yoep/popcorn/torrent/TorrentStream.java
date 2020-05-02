@@ -304,8 +304,8 @@ public class TorrentStream {
     }
 
     private void initSettings() {
-        TorrentSettings settings = getSettings();
-        SettingsPack settingsPack = (new SettingsPack())
+        var settings = getSettings();
+        var settingsPack = (new SettingsPack())
                 .anonymousMode(true)
                 .connectionsLimit(settings.getConnectionsLimit())
                 .downloadRateLimit(settings.getDownloadRateLimit())

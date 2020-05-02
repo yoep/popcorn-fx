@@ -1023,14 +1023,14 @@
     -fx-background-color: #4bfff4;
 }
 
-.root .settings-section .sub-section TextField {
+.root .settings-section .sub-section .text-field {
     -fx-min-width: 250;
     -fx-font-family: "Open Sans";
     -fx-background-color: #393b3d;
     -fx-text-fill: #c3c5c7;
 }
 
-.root .settings-section .sub-section TextField.small {
+.root .settings-section .sub-section .text-field.small {
     -fx-min-width: 150;
     -fx-max-width: 150;
 }

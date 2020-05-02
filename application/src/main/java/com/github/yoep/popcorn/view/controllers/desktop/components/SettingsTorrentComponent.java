@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.view.controls.DelayedTextField;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
@@ -22,11 +23,11 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
 
     @FXML
-    private TextField downloadLimit;
+    private DelayedTextField downloadLimit;
     @FXML
-    private TextField uploadLimit;
+    private DelayedTextField uploadLimit;
     @FXML
-    private TextField connectionLimit;
+    private DelayedTextField connectionLimit;
     @FXML
     private TextField cacheDirectory;
     @FXML
@@ -48,8 +49,9 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     private void initializeDownloadLimit() {
         var settings = getSettings();
 
-        downloadLimit.setText(String.valueOf(settings.getDownloadRateLimit()));
-        downloadLimit.textProperty().addListener((observable, oldValue, newValue) -> {
+        downloadLimit.setTextFormatter(numericTextFormatter());
+        downloadLimit.setValue(String.valueOf(settings.getDownloadRateLimit()));
+        downloadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
             try {
                 settings.setDownloadRateLimit(Integer.parseInt(newValue));
                 showNotification();
@@ -62,8 +64,9 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     private void initializeUploadLimit() {
         var settings = getSettings();
 
-        uploadLimit.setText(String.valueOf(settings.getUploadRateLimit()));
-        uploadLimit.textProperty().addListener((observable, oldValue, newValue) -> {
+        uploadLimit.setTextFormatter(numericTextFormatter());
+        uploadLimit.setValue(String.valueOf(settings.getUploadRateLimit()));
+        uploadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
             try {
                 settings.setUploadRateLimit(Integer.parseInt(newValue));
                 showNotification();
@@ -76,8 +79,9 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     private void initializeConnectionLimit() {
         var settings = getSettings();
 
-        connectionLimit.setText(String.valueOf(settings.getConnectionsLimit()));
-        connectionLimit.textProperty().addListener((observable, oldValue, newValue) -> {
+        connectionLimit.setTextFormatter(numericTextFormatter());
+        connectionLimit.setValue(String.valueOf(settings.getConnectionsLimit()));
+        connectionLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
             try {
                 settings.setConnectionsLimit(Integer.parseInt(newValue));
                 showNotification();

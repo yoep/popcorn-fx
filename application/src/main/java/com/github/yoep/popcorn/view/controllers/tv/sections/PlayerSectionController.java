@@ -11,9 +11,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
-import java.net.URL;
-import java.util.ResourceBundle;
-
 @Slf4j
 public class PlayerSectionController extends AbstractPlayerSectionController {
     //region Constructors

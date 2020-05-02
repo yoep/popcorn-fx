@@ -10,6 +10,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.transform.Scale;
 import javafx.scene.transform.Transform;
+import javafx.stage.Stage;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,8 @@ import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 import javax.annotation.PostConstruct;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 @Slf4j
 @ToString
@@ -73,25 +75,31 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
     @Override
     public void pause() throws VideoPlayerNotInitializedException {
         checkInitialized();
-        mediaPlayer.controls().pause();
+        invokeOnVlc(() -> mediaPlayer.controls().pause());
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
         checkInitialized();
-        mediaPlayer.controls().play();
+        invokeOnVlc(() -> mediaPlayer.controls().play());
     }
 
     @Override
     public void seek(long time) throws VideoPlayerNotInitializedException {
         checkInitialized();
-        mediaPlayer.controls().setTime(time);
+        invokeOnVlc(() -> mediaPlayer.controls().setTime(time));
     }
 
     @Override
     public void stop() {
         checkInitialized();
-        mediaPlayer.controls().stop();
+
+        // check if the player state is already stopped
+        // if so, ignore this action
+        if (getPlayerState() == PlayerState.STOPPED)
+            return;
+
+        invokeOnVlc(() -> mediaPlayer.controls().stop());
         frame.setVisible(false);
         reset();
     }
@@ -143,27 +151,6 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
                 stop();
             }
         });
-
-        frame.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                switch (e.getKeyCode()) {
-                    case KeyEvent.VK_ESCAPE:
-                        stop();
-                        break;
-                    case KeyEvent.VK_P:
-                    case KeyEvent.VK_SPACE:
-                        togglePlayState();
-                        break;
-                }
-            }
-        });
-        frame.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                togglePlayState();
-            }
-        });
     }
 
     private void initializeFrameTracker() {
@@ -171,23 +158,32 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         videoSurfaceTracker.heightProperty().addListener((observable, oldValue, newValue) -> resizeFrame());
 
         videoSurfaceTracker.sceneProperty().addListener((observableScene, oldValueScene, newValueScene) -> {
-            var scene = videoSurfaceTracker.getScene();
+            if (newValueScene != null) {
+                var stage = (Stage) newValueScene.getWindow();
 
-            if (scene != null && !boundToWindow) {
-                var window = scene.getWindow();
+                if (!boundToWindow)
+                    bindFrameToWindow(newValueScene, stage);
 
-                updateTransparentComponents(scene);
-                window.xProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
-                window.yProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
+                stage.setAlwaysOnTop(true);
+            } else if (oldValueScene != null) {
+                var stage = (Stage) oldValueScene.getWindow();
 
-                resizeFrame();
-                repositionFrame(scene);
-
-                boundToWindow = true;
-                log.debug("ARM video player has been bound to the JavaFX window");
+                stage.setAlwaysOnTop(false);
             }
         });
 
+    }
+
+    private void bindFrameToWindow(Scene scene, Stage stage) {
+        updateTransparentComponents(scene);
+        stage.xProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
+        stage.yProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
+
+        resizeFrame();
+        repositionFrame(scene);
+
+        boundToWindow = true;
+        log.debug("ARM video player has been bound to the JavaFX window");
     }
 
     private void resizeFrame() {
@@ -233,16 +229,6 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
 
         playerPane.setStyle("-fx-background-color: transparent");
         mainPane.setStyle("-fx-background-color: transparent");
-    }
-
-    private void togglePlayState() {
-        if (getPlayerState() == PlayerState.PAUSED) {
-            resume();
-        } else if (getPlayerState() == PlayerState.PLAYING) {
-            pause();
-        }
-
-        // ignore all other states
     }
 
     //endregion

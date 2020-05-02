@@ -132,16 +132,5 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
         timeProperty().addListener((observable, oldValue, newValue) -> timer.start());
     }
 
-    private void invokeOnVlc(Runnable runnable) {
-        mediaPlayer.submit(() -> {
-            try {
-                runnable.run();
-            } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
-                setError(new VideoPlayerException(ex.getMessage(), ex));
-            }
-        });
-    }
-
     //endregion
 }

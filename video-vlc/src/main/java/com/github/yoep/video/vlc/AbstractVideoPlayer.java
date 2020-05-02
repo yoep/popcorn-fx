@@ -166,5 +166,16 @@ abstract class AbstractVideoPlayer implements VideoPlayer {
         });
     }
 
+    protected void invokeOnVlc(Runnable runnable) {
+        mediaPlayer.submit(() -> {
+            try {
+                runnable.run();
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+                setError(new VideoPlayerException(ex.getMessage(), ex));
+            }
+        });
+    }
+
     //endregion
 }

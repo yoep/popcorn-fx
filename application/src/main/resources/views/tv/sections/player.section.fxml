@@ -34,5 +34,5 @@
 
     <!-- Player Controls -->
     <fx:include fx:id="playerControlsPane" source="../components/player-controls.component.fxml"
-                AnchorPane.rightAnchor="50" AnchorPane.leftAnchor="50" AnchorPane.bottomAnchor="100"/>
+                AnchorPane.rightAnchor="50" AnchorPane.leftAnchor="50" AnchorPane.bottomAnchor="125"/>
 </AnchorPane>

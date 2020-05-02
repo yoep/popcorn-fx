@@ -10,8 +10,6 @@
         <VBox>
             <!-- Title -->
             <Label styleClass="settings-title" text="%settings"/>
-
-
         </VBox>
     </ScrollPane>
 </StackPane>

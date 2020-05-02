@@ -11,12 +11,12 @@ import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
+import com.github.yoep.popcorn.view.controls.Overlay;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
@@ -50,7 +50,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     private String quality;
     private SubtitleInfo subtitle;
-    private Node overlayOrigin;
 
     @FXML
     private Icon playButton;
@@ -75,7 +74,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @FXML
     private Label likeText;
     @FXML
-    private Pane overlay;
+    private Overlay overlay;
     private ListView<String> qualityList;
 
     //region Constructors
@@ -118,7 +117,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         qualityList.setMaxWidth(100);
         qualityList.getItems().addListener((InvalidationListener) observable -> qualityList.setMaxHeight(50 * qualityList.getItems().size()));
         qualityList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
-        qualityList.setOnKeyPressed(this::onOverlayKeyPressed);
     }
 
     //endregion
@@ -258,8 +256,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void onQuality() {
-        switchOverlayItem(qualityButton, qualityList);
-        Platform.runLater(() -> qualityList.requestFocus());
+        overlay.show(qualityButton, qualityList);
     }
 
     private void onQualityChanged(String newValue) {
@@ -269,13 +266,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         quality = newValue;
         qualityButtonLabel.setText(newValue);
         switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(newValue));
-    }
-
-    private void onOverlayKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.ENTER) {
-            event.consume();
-            closeOverlay();
-        }
     }
 
     private void onLikeChanged() {
@@ -295,13 +285,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         });
     }
 
-    private void switchOverlayItem(Node origin, Node node) {
-        overlayOrigin = origin;
-        overlay.getChildren().clear();
-        overlay.getChildren().add(node);
-        overlay.setVisible(true);
-    }
-
     private void switchFavorite(boolean isLiked) {
         Platform.runLater(() -> {
             likeButton.getStyleClass().removeIf(e -> e.equals(LIKED_STYLE_CLASS));
@@ -313,13 +296,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
                 likeText.setText(localeText.get(DetailsMessage.FAVORITE));
             }
         });
-    }
-
-    private void closeOverlay() {
-        overlay.setVisible(false);
-
-        if (overlayOrigin != null)
-            overlayOrigin.requestFocus();
     }
 
     @FXML
@@ -367,6 +343,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @FXML
     private void onQualityKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
             onQuality();
         }
     }

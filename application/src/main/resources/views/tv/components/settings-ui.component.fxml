@@ -23,7 +23,7 @@
     <!-- Default language -->
     <Label text="%settings_ui_language"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-    <ComboBox fx:id="defaultLanguage"
+    <Button fx:id="defaultLanguage"
               GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
     <!-- UI scale -->

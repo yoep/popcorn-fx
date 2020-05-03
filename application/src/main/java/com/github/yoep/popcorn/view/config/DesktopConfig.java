@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.providers.models.Show;
 import com.github.yoep.popcorn.media.watched.WatchedService;
+import com.github.yoep.popcorn.settings.OptionsService;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.torrent.TorrentCollectionService;
@@ -66,7 +67,7 @@ public class DesktopConfig {
     @Bean
     public HeaderSectionController headerSectionController(ActivityManager activityManager, PopcornProperties properties, LocaleText localeText,
                                                            SettingsService settingsService) {
-        return new HeaderSectionController(activityManager, properties, localeText, optionsService, settingsService);
+        return new HeaderSectionController(activityManager, properties, localeText, settingsService);
     }
 
     @Bean
@@ -221,8 +222,9 @@ public class DesktopConfig {
     }
 
     @Bean
-    public TitleBarComponent titleBarComponent(MaximizeService maximizeService) {
-        return new TitleBarComponent(maximizeService);
+    public TitleBarComponent titleBarComponent(MaximizeService maximizeService,
+                                               OptionsService optionsService) {
+        return new TitleBarComponent(maximizeService, optionsService);
     }
 
     //endregion

@@ -226,7 +226,10 @@ public class FavoriteService {
         var newShowsCache = cache.getShows().stream()
                 .map(e -> showProviderService.getDetails(e.getImdbId()))
                 .map(CompletableFuture::join)
-                .peek(e -> e.setEpisodes(null))
+                .peek(show -> {
+                    show.setEpisodes(null);
+                    show.setSynopsis(null);
+                })
                 .collect(Collectors.toList());
 
         cache.setShows(newShowsCache);
@@ -237,8 +240,10 @@ public class FavoriteService {
 
         loadFavorites();
 
-        return cache.getLastCacheUpdate() == null ||
-                cache.getLastCacheUpdate().isBefore(cacheUpdateDateTime);
+        synchronized (cacheLock) {
+            return cache.getLastCacheUpdate() == null ||
+                    cache.getLastCacheUpdate().isBefore(cacheUpdateDateTime);
+        }
     }
 
     private File getFile() {

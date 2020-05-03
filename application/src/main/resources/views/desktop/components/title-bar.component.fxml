@@ -8,7 +8,7 @@
            styleClass="title-bar">
     <Label text="Popcorn Time" cache="true" cacheHint="SCALE"/>
 
-    <HBox styleClass="os-buttons" StackPane.alignment="CENTER_RIGHT">
+    <HBox fx:id="osButtons" styleClass="os-buttons" StackPane.alignment="CENTER_RIGHT">
         <StackPane styleClass="os-button" onMouseClicked="#onMinimizeClicked">
             <ImageView cache="true" cacheHint="SCALE">
                 <Image url="/images/windows/minimize.png"/>

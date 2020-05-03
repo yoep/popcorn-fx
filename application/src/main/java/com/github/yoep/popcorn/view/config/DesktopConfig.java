@@ -66,7 +66,7 @@ public class DesktopConfig {
     @Bean
     public HeaderSectionController headerSectionController(ActivityManager activityManager, PopcornProperties properties, LocaleText localeText,
                                                            SettingsService settingsService) {
-        return new HeaderSectionController(activityManager, properties, localeText, settingsService);
+        return new HeaderSectionController(activityManager, properties, localeText, optionsService, settingsService);
     }
 
     @Bean

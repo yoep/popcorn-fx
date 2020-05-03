@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.settings.OptionsService;
 import com.github.yoep.popcorn.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -7,6 +8,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -20,22 +22,32 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class TitleBarComponent implements Initializable {
     private final MaximizeService maximizeService;
+    private final OptionsService optionsService;
 
     private Image restoreImage;
     private Image maximizeImage;
 
     @FXML
     private ImageView maximizeImageView;
+    @FXML
+    private Pane osButtons;
 
     //region Initializable
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeMaximizeImage();
+        initializeOsButtons();
     }
 
     private void initializeMaximizeImage() {
         switchMaximizedState();
+    }
+
+    private void initializeOsButtons() {
+        var options = optionsService.options();
+
+        osButtons.setVisible(!options.isKioskMode());
     }
 
     //endregion

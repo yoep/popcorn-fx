@@ -16,6 +16,9 @@ public class DelayedTextField extends TextField {
     private static final int MILLIS_AFTER_USER_INPUT = 300;
     private static final int WATCHER_TTL = 5000;
 
+    /**
+     * The minimum time between each invocation.
+     */
     private final IntegerProperty invocationDelay = new SimpleIntegerProperty(this, INVOCATION_DELAY_PROPERTY, MILLIS_BETWEEN_INVOKES);
     private final IntegerProperty userDelay = new SimpleIntegerProperty(this, INPUT_DELAY_PROPERTY, MILLIS_AFTER_USER_INPUT);
     private final StringProperty value = new SimpleStringProperty(this, VALUE_PROPERTY);

@@ -50,10 +50,10 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         var settings = getSettings();
 
         downloadLimit.setTextFormatter(numericTextFormatter());
-        downloadLimit.setValue(String.valueOf(settings.getDownloadRateLimit()));
+        downloadLimit.setValue(toDisplayValue(settings.getDownloadRateLimit()));
         downloadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
             try {
-                settings.setDownloadRateLimit(Integer.parseInt(newValue));
+                settings.setDownloadRateLimit(toSettingsValue(newValue));
                 showNotification();
             } catch (NumberFormatException ex) {
                 log.warn("Download rate limit is invalid, " + ex.getMessage(), ex);
@@ -65,10 +65,10 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         var settings = getSettings();
 
         uploadLimit.setTextFormatter(numericTextFormatter());
-        uploadLimit.setValue(String.valueOf(settings.getUploadRateLimit()));
+        uploadLimit.setValue(toDisplayValue(settings.getUploadRateLimit()));
         uploadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
             try {
-                settings.setUploadRateLimit(Integer.parseInt(newValue));
+                settings.setUploadRateLimit(toSettingsValue(newValue));
                 showNotification();
             } catch (NumberFormatException ex) {
                 log.warn("Upload rate limit is invalid, " + ex.getMessage(), ex);
@@ -120,6 +120,18 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
 
         settings.setAutoCleaningEnabled(newValue);
         showNotification();
+    }
+
+    private String toDisplayValue(int value) {
+        var kb = value / 1024;
+
+        return String.valueOf(kb);
+    }
+
+    private int toSettingsValue(String value) {
+        var kb = Integer.parseInt(value);
+
+        return kb * 1024;
     }
 
     private TorrentSettings getSettings() {

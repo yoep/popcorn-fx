@@ -27,14 +27,19 @@
     <!-- Download limit -->
     <Label text="%settings_torrent_download_limit"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-    <DelayedTextField fx:id="downloadLimit" styleClass="small" userDelay="1500" invocationDelay="500"
-                      GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+    <HBox GridPane.columnIndex="2" GridPane.rowIndex="0" alignment="CENTER_LEFT">
+        <DelayedTextField fx:id="downloadLimit" styleClass="small" userDelay="1500" invocationDelay="500"/>
+        <Label text="KB/sec"/>
+    </HBox>
+
 
     <!-- Upload limit -->
     <Label text="%settings_torrent_upload_limit"
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-    <DelayedTextField fx:id="uploadLimit" styleClass="small" userDelay="1500" invocationDelay="500"
-                      GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+    <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" alignment="CENTER_LEFT">
+        <DelayedTextField fx:id="uploadLimit" styleClass="small" userDelay="1500" invocationDelay="500"/>
+        <Label text="KB/sec"/>
+    </HBox>
 
     <!-- Connection limit -->
     <Label text="%settings_torrent_connection_limit"

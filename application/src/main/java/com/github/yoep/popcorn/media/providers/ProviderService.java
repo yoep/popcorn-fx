@@ -54,5 +54,6 @@ public interface ProviderService<T extends Media> {
      *
      * @param media The media item to show the details of.
      */
+    @Async
     void showDetails(Media media);
 }

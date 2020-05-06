@@ -22,7 +22,7 @@ import java.util.List;
 @Slf4j
 public class Torrent implements AlertListener {
     private final static Integer MAX_PREPARE_COUNT = 20;
-    private final static Integer MIN_PREPARE_COUNT = 2;
+    private final static Integer MIN_PREPARE_COUNT = 4;
     private final static Integer DEFAULT_PREPARE_COUNT = 5;
     private final static Integer SEQUENTIAL_CONCURRENT_PIECES_COUNT = 5;
 
@@ -39,7 +39,7 @@ public class Torrent implements AlertListener {
     private List<Integer> preparePieces;
     private Boolean[] hasPieces;
 
-    private List<WeakReference<TorrentInputStream>> torrentStreamReferences;
+    private final List<WeakReference<TorrentInputStream>> torrentStreamReferences = new ArrayList<>();
 
     private State state = State.RETRIEVING_META;
 
@@ -53,8 +53,6 @@ public class Torrent implements AlertListener {
         this.listener = listener;
         this.prepareSize = prepareSize;
 
-        torrentStreamReferences = new ArrayList<>();
-
         setLargestFile();
         startDownload();
     }
@@ -64,8 +62,6 @@ public class Torrent implements AlertListener {
         this.torrentHandle = torrentHandle;
         this.listener = listener;
         this.prepareSize = prepareSize;
-
-        torrentStreamReferences = new ArrayList<>();
 
         setSelectedFileIndex(fileIndex);
         startDownload();
@@ -150,8 +146,8 @@ public class Torrent implements AlertListener {
      * @param selectedFileIndex {@link Integer} Index of the file
      */
     public void setSelectedFileIndex(Integer selectedFileIndex) {
-        TorrentInfo torrentInfo = torrentHandle.torrentFile();
-        FileStorage fileStorage = torrentInfo.files();
+        var torrentInfo = torrentHandle.torrentFile();
+        var fileStorage = torrentInfo.files();
 
         if (selectedFileIndex == -1) {
             long highestFileSize = 0;
@@ -244,8 +240,10 @@ public class Torrent implements AlertListener {
      * from {@code firstPieceIndex} and {@code lastPieceIndex}. Ignore all other pieces.
      */
     public void startDownload() {
-        if (state == State.STREAMING)
+        if (state == State.STREAMING || state == State.STARTING)
             return;
+
+        state = State.STARTING;
 
         log.debug("Starting torrent download");
         state = State.STARTING;
@@ -277,8 +275,8 @@ public class Torrent implements AlertListener {
         hasPieces = new Boolean[lastPieceIndex - firstPieceIndex + 1];
         Arrays.fill(hasPieces, false);
 
-        TorrentInfo torrentInfo = torrentHandle.torrentFile();
-        TorrentStatus status = torrentHandle.status();
+        var torrentInfo = torrentHandle.torrentFile();
+        var status = torrentHandle.status();
 
         double blockCount = (float) indices.size() * torrentInfo.pieceLength() / status.blockSize();
 
@@ -407,14 +405,10 @@ public class Torrent implements AlertListener {
         return state;
     }
 
-    /**
-     * Piece finished
-     *
-     * @param alert
-     */
     private void pieceFinished(PieceFinishedAlert alert) {
+        var pieceIndex = alert.pieceIndex() - firstPieceIndex;
+
         if (state == State.STREAMING && hasPieces != null) {
-            int pieceIndex = alert.pieceIndex() - firstPieceIndex;
             hasPieces[pieceIndex] = true;
 
             if (pieceIndex >= interestedPieceIndex) {
@@ -458,7 +452,8 @@ public class Torrent implements AlertListener {
     }
 
     private void sendStreamProgress() {
-        TorrentStatus status = torrentHandle.status();
+        var status = torrentHandle.status();
+
         if (listener != null && prepareProgress >= 1) {
             listener.onStreamProgress(this, StreamStatus.builder()
                     .progress(status.progress())
@@ -482,32 +477,48 @@ public class Torrent implements AlertListener {
 
     @Override
     public void alert(Alert<?> alert) {
-        switch (alert.type()) {
-            case PIECE_FINISHED:
-                pieceFinished((PieceFinishedAlert) alert);
-                break;
-            case BLOCK_FINISHED:
-                blockFinished((BlockFinishedAlert) alert);
-                break;
-            case STATS:
-                sendStreamProgress();
-                break;
-            default:
-                break;
-        }
+        handleAlert(alert);
+        invokeTorrentStreamAlerts(alert);
+    }
 
-        Iterator<WeakReference<TorrentInputStream>> i = torrentStreamReferences.iterator();
-
-        while (i.hasNext()) {
-            WeakReference<TorrentInputStream> reference = i.next();
-            TorrentInputStream inputStream = reference.get();
-
-            if (inputStream == null) {
-                i.remove();
-                continue;
+    private void handleAlert(Alert<?> alert) {
+        try {
+            switch (alert.type()) {
+                case PIECE_FINISHED:
+                    pieceFinished((PieceFinishedAlert) alert);
+                    break;
+                case BLOCK_FINISHED:
+                    blockFinished((BlockFinishedAlert) alert);
+                    break;
+                case STATS:
+                    sendStreamProgress();
+                    break;
+                default:
+                    break;
             }
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+    }
 
-            inputStream.alert(alert);
+    //TODO: rework as the torrent service needs to be responsible for registering the input stream to the alerts
+    private void invokeTorrentStreamAlerts(Alert<?> alert) {
+        try {
+            Iterator<WeakReference<TorrentInputStream>> i = torrentStreamReferences.iterator();
+
+            while (i.hasNext()) {
+                WeakReference<TorrentInputStream> reference = i.next();
+                TorrentInputStream inputStream = reference.get();
+
+                if (inputStream == null) {
+                    i.remove();
+                    continue;
+                }
+
+                inputStream.alert(alert);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to invoke torrent streams, " + ex.getMessage(), ex);
         }
     }
 }

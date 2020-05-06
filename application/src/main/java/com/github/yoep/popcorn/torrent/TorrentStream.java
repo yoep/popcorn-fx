@@ -103,7 +103,7 @@ public class TorrentStream {
                 log.debug("DHT contains {} nodes", torrentSession.stats().dhtNodes());
                 getTorrentInfo(torrentUrl)
                         .ifPresentOrElse(torrentInfo -> {
-                            Priority[] priorities = new Priority[torrentInfo.numFiles()];
+                            var priorities = new Priority[torrentInfo.numFiles()];
 
                             Arrays.fill(priorities, Priority.IGNORE);
 
@@ -151,8 +151,12 @@ public class TorrentStream {
     }
 
     void stopStream() {
-        if (this.torrentFactory == null || this.torrentFactory.getCurrentTorrent().map(e -> e.getState() == Torrent.State.PAUSED).orElse(true))
+        if (this.torrentFactory == null)
             return;
+
+        // remove the current torrent from the session
+        this.torrentFactory.getCurrentTorrent()
+                .ifPresent(e -> this.torrentSession.remove(e.getTorrentHandle()));
 
         log.debug("Stopping current torrent stream");
 

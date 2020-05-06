@@ -1,11 +1,14 @@
 package com.github.yoep.popcorn.media.providers;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
+import com.github.yoep.popcorn.activities.ErrorNotificationActivity;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.messages.DetailsMessage;
 import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
@@ -25,11 +28,17 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class ShowProviderService extends AbstractProviderService<Show> {
     private static final Category CATEGORY = Category.SERIES;
-    private final ProviderProperties providerConfig;
 
-    public ShowProviderService(RestTemplate restTemplate, ActivityManager activityManager, PopcornProperties popcornConfig) {
+    private final ProviderProperties providerConfig;
+    private final LocaleText localeText;
+
+    public ShowProviderService(RestTemplate restTemplate,
+                               ActivityManager activityManager,
+                               PopcornProperties popcornConfig,
+                               LocaleText localeText) {
         super(restTemplate, activityManager);
         this.providerConfig = popcornConfig.getProvider(CATEGORY.getProviderName());
+        this.localeText = localeText;
     }
 
     @Override
@@ -54,9 +63,13 @@ public class ShowProviderService extends AbstractProviderService<Show> {
 
     @Override
     public void showDetails(Media media) {
-        var show = getDetailsInternal(media.getId());
-
-        activityManager.register((ShowSerieDetailsActivity) () -> show);
+        try {
+            var show = getDetailsInternal(media.getId());
+            activityManager.register((ShowSerieDetailsActivity) () -> show);
+        } catch (Exception ex) {
+            log.error("Failed to load show details, " + ex.getMessage(), ex);
+            activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
+        }
     }
 
     public Show[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {

@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FavoriteService {
     private static final int IDLE_TIME = 10;
-    private static final int UPDATE_CACHE_AFTER_HOURS = 24;
+    private static final int UPDATE_CACHE_AFTER_HOURS = 72;
     private static final String NAME = "favorites.json";
 
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));

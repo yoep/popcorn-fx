@@ -41,7 +41,7 @@ public class TitleBarComponent implements Initializable {
     }
 
     private void initializeMaximizeImage() {
-        switchMaximizedState();
+        onMaximizedStateChanged(maximizeService.isMaximized());
     }
 
     private void initializeOsButtons() {

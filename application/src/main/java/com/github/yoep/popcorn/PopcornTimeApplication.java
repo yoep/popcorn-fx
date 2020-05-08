@@ -7,6 +7,7 @@ import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.settings.OptionsService;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.view.services.MaximizeService;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.scene.paint.Color;
@@ -61,6 +62,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     private ViewProperties getViewProperties() {
         log.trace("Building the view properties of the application");
         var optionsService = applicationContext.getBean(OptionsService.class);
+        var maximizeService = applicationContext.getBean(MaximizeService.class);
         var options = optionsService.options();
         var properties = ViewProperties.builder()
                 .title("Popcorn Time")
@@ -70,12 +72,12 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         // check if the big-picture or kiosk mode is enabled
         // if so, force the application to be maximized
         if (options.isBigPictureMode() || options.isKioskMode()) {
-            properties.maximized(true);
+            maximizeService.setMaximized(true);
         } else {
             var settingsService = applicationContext.getBean(SettingsService.class);
             var uiSettings = settingsService.getSettings().getUiSettings();
 
-            properties.maximized(uiSettings.isMaximized());
+            maximizeService.setMaximized(uiSettings.isMaximized());
         }
 
         // check if the kiosk mode is enabled

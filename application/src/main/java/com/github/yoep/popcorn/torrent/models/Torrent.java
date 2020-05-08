@@ -408,6 +408,9 @@ public class Torrent implements AlertListener {
     private void pieceFinished(PieceFinishedAlert alert) {
         var pieceIndex = alert.pieceIndex() - firstPieceIndex;
 
+        if (hasPieces != null && (pieceIndex < 0 || pieceIndex > hasPieces.length))
+            return;
+
         if (state == State.STREAMING && hasPieces != null) {
             hasPieces[pieceIndex] = true;
 

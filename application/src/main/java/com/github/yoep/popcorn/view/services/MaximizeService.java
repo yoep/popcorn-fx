@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.settings.models.UISettings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ChangeListener;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +24,11 @@ public class MaximizeService {
     private final SettingsService settingsService;
 
     private final BooleanProperty maximized = new SimpleBooleanProperty(this, MAXIMIZED_PROPERTY);
-    private final ChangeListener<Stage> stageListener = (observable, oldValue, newValue) -> onStageChanged(newValue);
+
+    private double originX;
+    private double originY;
+    private double originWidth;
+    private double originHeight;
 
     //region Properties
 
@@ -80,7 +84,7 @@ public class MaximizeService {
     }
 
     private void initializeStageListeners() {
-        viewManager.primaryStageProperty().addListener(stageListener);
+        viewManager.primaryStageProperty().addListener((observable, oldValue, newValue) -> onStageChanged(newValue));
     }
 
     private void initializeMaximizedListener() {
@@ -95,17 +99,49 @@ public class MaximizeService {
         if (stage == null)
             return;
 
-        setMaximized(stage.isMaximized());
         stage.maximizedProperty().addListener((observable, oldValue, newValue) -> maximized.setValue(newValue));
     }
 
     private void onMaximizedChanged(Boolean oldValue, boolean newValue) {
         var uiSettings = getUiSettings();
 
+        // store the state in the settings
         log.trace("Stage maximized state is being changed from \"{}\" to \"{}\"", oldValue, newValue);
         uiSettings.setMaximized(newValue);
-        viewManager.getPrimaryStage()
-                .ifPresent(e -> e.setMaximized(newValue));
+
+        // update the stage
+        if (newValue) {
+            toMaximizedStage();
+        } else {
+            toWindowedStage();
+        }
+    }
+
+    private void toWindowedStage() {
+        viewManager.getPrimaryStage().ifPresent(stage -> {
+            stage.setX(originX);
+            stage.setY(originY);
+            stage.setWidth(originWidth);
+            stage.setHeight(originHeight);
+        });
+    }
+
+    private void toMaximizedStage() {
+        viewManager.getPrimaryStage().ifPresent(stage -> {
+            var screen = Screen.getPrimary();
+
+            // store the current windowed stage information
+            originX = stage.getX();
+            originY = stage.getY();
+            originWidth = stage.getWidth();
+            originHeight = stage.getHeight();
+
+            // maximize the stage
+            stage.setX(0);
+            stage.setY(0);
+            stage.setWidth(screen.getVisualBounds().getWidth());
+            stage.setHeight(screen.getVisualBounds().getHeight());
+        });
     }
 
     private UISettings getUiSettings() {

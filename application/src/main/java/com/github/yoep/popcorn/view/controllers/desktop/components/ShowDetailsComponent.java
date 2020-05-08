@@ -23,7 +23,6 @@ import com.github.yoep.popcorn.view.controls.Seasons;
 import com.github.yoep.popcorn.view.models.Season;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
@@ -329,18 +328,21 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     }
 
     private void selectUnwatchedSeason() {
-        ObservableList<Season> seasons = this.seasons.getItems();
-        Season season = seasons.stream()
+        var seasons = this.seasons.getItems();
+        var season = seasons.stream()
                 .filter(e -> !isSeasonWatched(e))
                 .findFirst()
                 .orElseGet(() -> CollectionUtils.lastElement(seasons));
 
-        Platform.runLater(() -> this.seasons.getSelectionModel().select(season));
+        Platform.runLater(() -> {
+            this.seasons.getSelectionModel().select(season);
+            this.seasons.scrollTo(season);
+        });
     }
 
     private void selectUnwatchedEpisode() {
-        ObservableList<Episode> episodes = this.episodes.getItems();
-        Episode episode = episodes.stream()
+        var episodes = this.episodes.getItems();
+        var episode = episodes.stream()
                 .filter(Objects::nonNull)
                 .filter(e -> !watchedService.isWatched(e))
                 .findFirst()
@@ -351,7 +353,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
                     return CollectionUtils.lastElement(episodes);
                 });
 
-        Platform.runLater(() -> this.episodes.getSelectionModel().select(episode));
+        Platform.runLater(() -> {
+            this.episodes.getSelectionModel().select(episode);
+            this.episodes.scrollTo(episode);
+        });
     }
 
     private String getWatchedTooltip(boolean watched) {

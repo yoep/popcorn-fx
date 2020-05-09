@@ -243,14 +243,12 @@ public class Torrent implements AlertListener {
         if (state == State.STREAMING || state == State.STARTING)
             return;
 
-        state = State.STARTING;
-
         log.debug("Starting torrent download");
         state = State.STARTING;
 
-        List<Integer> indices = new ArrayList<>();
+        var indices = new ArrayList<Integer>();
 
-        Priority[] priorities = torrentHandle.piecePriorities();
+        var priorities = torrentHandle.piecePriorities();
         for (int i = 0; i < priorities.length; i++) {
             if (priorities[i] != Priority.IGNORE) {
                 torrentHandle.piecePriority(i, Priority.NORMAL);
@@ -258,15 +256,19 @@ public class Torrent implements AlertListener {
         }
 
         for (int i = 0; i < piecesToPrepare; i++) {
-            indices.add(lastPieceIndex - i);
-            torrentHandle.piecePriority(lastPieceIndex - i, Priority.SEVEN);
-            torrentHandle.setPieceDeadline(lastPieceIndex - i, 1000);
+            var index = lastPieceIndex - i;
+
+            indices.add(index);
+            torrentHandle.piecePriority(index, Priority.SEVEN);
+            torrentHandle.setPieceDeadline(index, 1000);
         }
 
         for (int i = 0; i < piecesToPrepare; i++) {
-            indices.add(firstPieceIndex + i);
-            torrentHandle.piecePriority(firstPieceIndex + i, Priority.SEVEN);
-            torrentHandle.setPieceDeadline(firstPieceIndex + i, 1000);
+            var index = firstPieceIndex + i;
+
+            indices.add(index);
+            torrentHandle.piecePriority(index, Priority.SEVEN);
+            torrentHandle.setPieceDeadline(index, 1000);
         }
 
         preparePieces = indices;

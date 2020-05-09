@@ -119,12 +119,12 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
                     if (torrent == null)
                         return false;
 
-                    if (torrent.hasBytes(offset)) {
-                        return true;
-                    }
-
                     // prioritise the requested offset
                     torrent.setInterestedBytes(offset);
+
+                    if (torrent.hasInterestedBytes()) {
+                        return true;
+                    }
 
                     log.trace("Waiting for offset {} to be present in torrent input stream {}", offset, this);
                     monitor.wait();

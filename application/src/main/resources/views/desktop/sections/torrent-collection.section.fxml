@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.yoep.popcorn.torrent.controls.TorrentCollection?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.*?>
-<?import com.github.yoep.popcorn.torrent.controls.TorrentCollection?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.view.controllers.desktop.sections.TorrentCollectionSectionController" styleClass="torrent-collection">
     <columnConstraints>

@@ -400,7 +400,6 @@
 }
 
 .root .list-section .poster-item .poster .overlay .like.liked,
-.root .movie-details .favorite-section .like.liked,
 .root .show-details-section .show-header .bookmark .like.liked {
     -fx-text-fill: #df2d37;
     -fx-opacity: 1.0;
@@ -431,8 +430,38 @@
     -fx-font-size: 0.85em;
 }
 
-.root .movie-details .poster-image {
+.root .movie-details .poster .poster-image {
     -fx-background-radius: 2em;
+}
+
+.root .movie-details .poster .corner-button {
+    -fx-max-width: 6em;
+    -fx-max-height: 6em;
+    -fx-cursor: hand;
+}
+
+.root .movie-details .poster .corner-button .corner {
+    -fx-fill: rgba(0, 0, 0, 0.3);
+}
+
+.root .movie-details .poster .corner-button .icon {
+    -fx-font-size: 2em;
+    -fx-text-fill: #ccc;
+    -fx-padding: 8 8 0 8;
+}
+
+.root .movie-details .poster .corner-button .icon.seen {
+    -fx-text-fill: #299000;
+}
+
+.root .movie-details .poster .corner-button .icon.liked {
+    -fx-text-fill: #df2d37;
+}
+
+.root .movie-details .poster .corner-button:hover .icon.seen,
+.root .movie-details .poster .corner-button:hover .icon.liked,
+.root .movie-details .poster .corner-button:hover .icon {
+    -fx-text-fill: #2d72d9;
 }
 
 .root .movie-details .title {
@@ -565,10 +594,6 @@
     -fx-padding: 0 5 5 0;
     -fx-text-fill: #fff;
     -fx-font-size: 1.2em;
-}
-
-.root .movie-details .watched-section .view.seen {
-    -fx-text-fill: #299000;
 }
 
 .root .movie-details .favorite-section:hover Label,

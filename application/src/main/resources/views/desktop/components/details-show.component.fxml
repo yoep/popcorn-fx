@@ -2,13 +2,9 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
-<?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
-<?import com.github.yoep.popcorn.view.controls.Episodes?>
-<?import com.github.yoep.popcorn.view.controls.Seasons?>
-<?import com.github.yoep.popcorn.view.controls.Stars?>
+<?import com.github.yoep.popcorn.view.controls.*?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <AnchorPane styleClass="show-details-section" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.ShowDetailsComponent">
@@ -32,7 +28,7 @@
         <!-- Image -->
         <StackPane fx:id="posterHolder" styleClass="poster"
                    GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
-            <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
+            <ImageCover fx:id="poster" styleClass="poster-image"/>
         </StackPane>
 
         <!-- Close -->

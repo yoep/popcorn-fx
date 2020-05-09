@@ -58,7 +58,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private Icon watchedIcon;
     @FXML
-    private Label watchedText;
+    private Tooltip watchedTooltip;
+    @FXML
+    private Tooltip favoriteTooltip;
     @FXML
     private Button watchTrailerButton;
 
@@ -82,14 +84,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializePoster();
         initializeTooltips();
         initializeLanguageSelection();
-    }
-
-    private void initializePoster() {
-        poster.fitHeightProperty().bind(posterHolder.heightProperty());
-        poster.fitWidthProperty().bind(posterHolder.widthProperty());
     }
 
     //endregion
@@ -135,22 +131,29 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     //endregion
 
-    //region Functions
+    //region PostConstruct
 
     @PostConstruct
     private void init() {
         initializeListeners();
     }
 
-    private void initializeTooltips() {
-        Tooltip tooltip = new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK));
-        instantTooltip(tooltip);
-        Tooltip.install(magnetLink, tooltip);
-    }
-
     private void initializeListeners() {
         activityManager.register(ShowMovieDetailsActivity.class, activity ->
                 Platform.runLater(() -> load(activity.getMedia())));
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void initializeTooltips() {
+        var tooltip = new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK));
+        instantTooltip(tooltip);
+        Tooltip.install(magnetLink, tooltip);
+
+        instantTooltip(watchedTooltip);
+        instantTooltip(favoriteTooltip);
     }
 
     private void initializeLanguageSelection() {
@@ -215,15 +218,26 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality));
     }
 
+    @Override
+    protected void switchLiked(boolean isLiked) {
+        super.switchLiked(isLiked);
+
+        if (isLiked) {
+            favoriteTooltip.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
+        } else {
+            favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
+        }
+    }
+
     private void switchWatched(boolean isWatched) {
         if (isWatched) {
             watchedIcon.setText(Icon.CHECK_UNICODE);
             watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
-            watchedText.setText(localeText.get(DetailsMessage.SEEN));
+            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
         } else {
             watchedIcon.setText(Icon.EYE_SLASH_UNICODE);
             watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
-            watchedText.setText(localeText.get(DetailsMessage.NOT_SEEN));
+            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
         }
     }
 

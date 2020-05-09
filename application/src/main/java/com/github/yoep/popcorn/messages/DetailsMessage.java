@@ -16,6 +16,8 @@ public enum DetailsMessage implements Message {
     UNFAVORED("details_unfavored"),
     NOT_SEEN("details_not_seen"),
     SEEN("details_seen"),
+    MARK_AS_NOT_SEEN("details_mark_as_not_seen"),
+    MARK_AS_SEEN("details_marks_as_seen"),
     EPISODE_SEASON("details_episode_season"),
     AIR_DATE("details_air_date"),
     MARK_AS_WATCHED("details_mark_as_watched"),

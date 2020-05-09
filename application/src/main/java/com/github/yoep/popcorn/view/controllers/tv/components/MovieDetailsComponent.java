@@ -97,14 +97,8 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializePoster();
         initializePlayButton();
         initializeQualityList();
-    }
-
-    private void initializePoster() {
-        poster.fitHeightProperty().bind(posterHolder.heightProperty());
-        poster.fitWidthProperty().bind(posterHolder.widthProperty());
     }
 
     private void initializePlayButton() {

@@ -55,8 +55,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     @FXML
     protected Icon favoriteIcon;
     @FXML
-    protected Label favoriteText;
-    @FXML
     protected Icon magnetLink;
     @FXML
     protected Pane qualitySelectionPane;
@@ -110,10 +108,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
         if (isLiked) {
             favoriteIcon.getStyleClass().add(LIKED_STYLE_CLASS);
-            favoriteText.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
         } else {
             favoriteIcon.getStyleClass().remove(LIKED_STYLE_CLASS);
-            favoriteText.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
         }
     }
 

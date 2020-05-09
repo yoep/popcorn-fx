@@ -2,55 +2,56 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection?>
-<?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
-<?import com.github.yoep.popcorn.view.controls.Stars?>
+<?import com.github.yoep.popcorn.view.controls.*?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.MovieDetailsComponent" styleClass="movie-details">
-    <columnConstraints>
-        <ColumnConstraints minWidth="20" percentWidth="10"/>
-        <ColumnConstraints minWidth="400" percentWidth="80"/>
-        <ColumnConstraints minWidth="20" percentWidth="10"/>
-    </columnConstraints>
-    <rowConstraints>
-        <RowConstraints minHeight="20" percentHeight="10"/>
-        <RowConstraints minHeight="300" percentHeight="80" vgrow="ALWAYS"/>
-        <RowConstraints minHeight="20" percentHeight="10"/>
-    </rowConstraints>
-
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.MovieDetailsComponent" styleClass="movie-details">
+    <!-- Background image cover -->
     <BackgroundImageCover fx:id="backgroundImage"
-                          GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
-    <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2"
-          GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.halignment="RIGHT" GridPane.valignment="TOP">
-        <padding>
-            <Insets top="5" right="15"/>
-        </padding>
-        <Icon fx:constant="TIMES_UNICODE"/>
-    </Icon>
-
-    <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">
+    <GridPane AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75" AnchorPane.leftAnchor="75">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" percentWidth="35" halignment="RIGHT"/>
             <ColumnConstraints hgrow="NEVER" minWidth="10"/>
-            <ColumnConstraints hgrow="ALWAYS" prefWidth="65" halignment="LEFT"/>
+            <ColumnConstraints hgrow="ALWAYS" halignment="LEFT"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints vgrow="ALWAYS"/>
         </rowConstraints>
 
-        <BorderPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
-        </BorderPane>
+        <StackPane fx:id="posterHolder" styleClass="poster"
+                   GridPane.columnIndex="0" GridPane.rowIndex="0">
+            <ImageCover fx:id="poster" styleClass="poster-image"/>
+
+            <CornerButton position="TOP_LEFT" onMouseClicked="#onWatchedClicked"
+                          StackPane.alignment="TOP_LEFT">
+                <Icon fx:id="watchedIcon" styleClass="view">
+                    <Icon fx:constant="EYE_SLASH_UNICODE"/>
+                    <tooltip>
+                        <Tooltip fx:id="watchedTooltip"/>
+                    </tooltip>
+                </Icon>
+            </CornerButton>
+
+            <CornerButton position="TOP_RIGHT" onMouseClicked="#onFavoriteClicked"
+                          StackPane.alignment="TOP_RIGHT">
+                <Icon fx:id="favoriteIcon" styleClass="like">
+                    <Icon fx:constant="HEART_UNICODE"/>
+                    <tooltip>
+                        <Tooltip fx:id="favoriteTooltip"/>
+                    </tooltip>
+                </Icon>
+            </CornerButton>
+        </StackPane>
 
         <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
             <columnConstraints>
                 <ColumnConstraints/>
                 <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints />
+                <ColumnConstraints/>
             </columnConstraints>
             <rowConstraints>
                 <RowConstraints/>
@@ -95,29 +96,6 @@
             <Label fx:id="overview" styleClass="overview" wrapText="true"
                    GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
 
-            <!-- Like & viewed -->
-            <VBox GridPane.columnIndex="0" GridPane.rowIndex="3">
-                <padding>
-                    <Insets bottom="10"/>
-                </padding>
-
-                <!-- Favorite -->
-                <HBox styleClass="favorite-section" onMouseClicked="#onFavoriteClicked">
-                    <Icon fx:id="favoriteIcon" styleClass="like">
-                        <Icon fx:constant="HEART_UNICODE"/>
-                    </Icon>
-                    <Label fx:id="favoriteText" text="%details_add_to_bookmarks" />
-                </HBox>
-
-                <!-- Watched -->
-                <HBox styleClass="watched-section" onMouseClicked="#onWatchedClicked">
-                    <Icon fx:id="watchedIcon" styleClass="view">
-                        <Icon fx:constant="EYE_SLASH_UNICODE"/>
-                    </Icon>
-                    <Label fx:id="watchedText" text="%details_not_seen"/>
-                </HBox>
-            </VBox>
-
             <!-- Play actions -->
             <HBox alignment="CENTER_LEFT" spacing="5"
                   GridPane.columnIndex="0" GridPane.rowIndex="4">
@@ -139,4 +117,10 @@
             </HBox>
         </GridPane>
     </GridPane>
-</GridPane>
+
+    <!-- Close button -->
+    <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2"
+          AnchorPane.topAnchor="5" AnchorPane.rightAnchor="15">
+        <Icon fx:constant="TIMES_UNICODE"/>
+    </Icon>
+</AnchorPane>

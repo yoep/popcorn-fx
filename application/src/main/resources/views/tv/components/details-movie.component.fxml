@@ -2,11 +2,11 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.view.controls.BackgroundImageCover?>
+<?import com.github.yoep.popcorn.view.controls.Overlay?>
 <?import com.github.yoep.popcorn.view.controls.Stars?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import com.github.yoep.popcorn.view.controls.Overlay?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent"
           styleClass="movie-details" onKeyPressed="#onDetailsKeyPressed">

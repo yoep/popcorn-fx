@@ -6,11 +6,11 @@ import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.view.controls.ImageCover;
 import com.github.yoep.popcorn.view.controls.Stars;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -36,7 +36,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     @FXML
     protected Pane posterHolder;
     @FXML
-    protected ImageView poster;
+    protected ImageCover poster;
     @FXML
     protected BackgroundImageCover backgroundImage;
 
@@ -105,6 +105,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      */
     protected void reset() {
         this.media = null;
+        this.poster.reset();
     }
 
     //endregion

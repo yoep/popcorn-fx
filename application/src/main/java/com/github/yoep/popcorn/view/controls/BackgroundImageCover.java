@@ -1,12 +1,10 @@
 package com.github.yoep.popcorn.view.controls;
 
-import javafx.beans.value.ChangeListener;
 import javafx.scene.CacheHint;
+import javafx.scene.Node;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -22,10 +20,7 @@ public class BackgroundImageCover extends AnchorPane {
     private static final String COVER_STYLE_CLASS = "background-cover";
     private static final Image BACKGROUND_PLACEHOLDER = loadPlaceholder();
 
-    private final ChangeListener<Number> parentWidthListener = (observable, oldValue, newValue) -> onParentWidthChanged(newValue);
-    private final ChangeListener<Number> parentHeightListener = (observable, oldValue, newValue) -> onParentHeightChanged(newValue);
-
-    private final ImageView imageView = new ImageView();
+    private final ImageCover imageCover = new ImageCover();
     private final StackPane coverPane = new StackPane();
 
     //region Constructor
@@ -45,11 +40,7 @@ public class BackgroundImageCover extends AnchorPane {
      * @param image The image to set as background.
      */
     public void setBackgroundImage(final Image image) {
-        if (!image.isError()) {
-            showBackgroundImage(image);
-        } else {
-            handleImageError(image);
-        }
+        showBackgroundImage(image);
     }
 
     /**
@@ -69,47 +60,18 @@ public class BackgroundImageCover extends AnchorPane {
     //region Functions
 
     private void init() {
-        initializeAnchorPane();
         initializeImageView();
         initializeCoverPane();
         initializeBackgroundImage();
         reset();
     }
 
-    private void initializeAnchorPane() {
-        parentProperty().addListener((observable, oldValue, newValue) -> {
-            if (oldValue != null) {
-                var parent = (Pane) oldValue;
-
-                parent.widthProperty().removeListener(parentWidthListener);
-                parent.heightProperty().removeListener(parentHeightListener);
-            }
-
-            if (newValue != null) {
-                var parent = (Pane) newValue;
-
-                parent.widthProperty().addListener(parentWidthListener);
-                parent.heightProperty().addListener(parentHeightListener);
-            }
-        });
-    }
-
     private void initializeImageView() {
-        imageView.setPreserveRatio(true);
-        imageView.setEffect(new GaussianBlur(30));
-        imageView.imageProperty().addListener((observable, oldValue, newValue) -> resizeImage());
-
-        this.widthProperty().addListener((observable, oldValue, newValue) -> resizeImage());
-        this.heightProperty().addListener((observable, oldValue, newValue) -> resizeImage());
+        imageCover.setEffect(new GaussianBlur(30));
     }
 
     private void initializeCoverPane() {
         coverPane.getStyleClass().add(COVER_STYLE_CLASS);
-
-        AnchorPane.setTopAnchor(coverPane, 0.0);
-        AnchorPane.setRightAnchor(coverPane, 0.0);
-        AnchorPane.setBottomAnchor(coverPane, 0.0);
-        AnchorPane.setLeftAnchor(coverPane, 0.0);
     }
 
     private void initializeBackgroundImage() {
@@ -117,52 +79,24 @@ public class BackgroundImageCover extends AnchorPane {
         this.setCacheHint(CacheHint.SCALE_AND_ROTATE);
         this.getStyleClass().add(STYLE_CLASS);
 
-        this.getChildren().addAll(imageView, coverPane);
-    }
-
-    private void onParentWidthChanged(Number newValue) {
-        this.setMaxWidth(newValue.doubleValue());
-        this.setMinWidth(newValue.doubleValue());
-        this.setPrefWidth(newValue.doubleValue());
-    }
-
-    private void onParentHeightChanged(Number newValue) {
-        this.setMaxHeight(newValue.doubleValue());
-        this.setMinWidth(newValue.doubleValue());
-        this.setPrefHeight(newValue.doubleValue());
+        anchor(imageCover);
+        anchor(coverPane);
+        this.getChildren().addAll(imageCover, coverPane);
     }
 
     private void showBackgroundImage(final Image image) {
-        if (!image.isError()) {
-            imageView.setImage(image);
-        } else {
-            handleImageError(image);
-        }
+        imageCover.setImage(image);
     }
 
     private void resetImage() {
-        this.imageView.setImage(null);
+        this.imageCover.reset();
     }
 
-    private void resizeImage() {
-        var image = imageView.getImage();
-        var paneWidth = this.getWidth();
-        var paneHeight = this.getHeight();
-
-        // check if we need to recalculate the image size
-        if (image == null || paneWidth == 0 || paneHeight == 0)
-            return;
-
-        var imageWidth = image.getWidth();
-        var imageHeight = image.getHeight();
-        var scale = Math.max(paneWidth / imageWidth, paneHeight / imageHeight);
-        var fitWidth = imageWidth * scale;
-        var fitHeight = imageHeight * scale;
-
-        imageView.setFitWidth(fitWidth);
-        imageView.setFitHeight(fitHeight);
-        imageView.setX((paneWidth - fitWidth) / 2);
-        imageView.setY((paneHeight - fitHeight) / 2);
+    private void anchor(Node node) {
+        AnchorPane.setTopAnchor(node, 0.0);
+        AnchorPane.setRightAnchor(node, 0.0);
+        AnchorPane.setBottomAnchor(node, 0.0);
+        AnchorPane.setLeftAnchor(node, 0.0);
     }
 
     private static Image loadPlaceholder() {

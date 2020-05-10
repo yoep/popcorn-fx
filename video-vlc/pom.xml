@@ -12,6 +12,7 @@
 
     <properties>
         <vlc.version>4.4.0</vlc.version>
+        <vlcj-javafx.version>1.0.0</vlcj-javafx.version>
     </properties>
 
     <dependencies>
@@ -34,6 +35,11 @@
             <groupId>uk.co.caprica</groupId>
             <artifactId>vlcj</artifactId>
             <version>${vlc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>uk.co.caprica</groupId>
+            <artifactId>vlcj-javafx</artifactId>
+            <version>${vlcj-javafx.version}</version>
         </dependency>
 
         <!-- Spring -->

@@ -1,11 +1,8 @@
 package com.github.yoep.video.vlc;
 
 import com.github.yoep.video.adapter.VideoPlayerException;
-import com.github.yoep.video.vlc.callback.FXBufferFormatCallback;
-import com.github.yoep.video.vlc.callback.FXCallbackVideoSurface;
-import com.github.yoep.video.vlc.callback.FXRenderCallback;
 import javafx.scene.Node;
-import javafx.scene.canvas.Canvas;
+import javafx.scene.image.ImageView;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -13,15 +10,15 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 
 import javax.annotation.PostConstruct;
 
+import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactory.videoSurfaceForImageView;
+
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class VideoPlayerVlc extends AbstractVideoPlayer {
-    private final Canvas canvas = new Canvas();
+    private final ImageView videoSurface = new ImageView();
 
-    private final FXCallbackVideoSurface surface;
     private final MediaPlayerFactory mediaPlayerFactory;
-    private final VideoAnimationTimer timer;
 
     //region Constructors
 
@@ -29,10 +26,8 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
      * Instantiate a new video player.
      */
     public VideoPlayerVlc() {
-        surface = new FXCallbackVideoSurface(new FXRenderCallback(canvas, new FXBufferFormatCallback()));
         mediaPlayerFactory = new MediaPlayerFactory();
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
-        timer = new VideoAnimationTimer(surface::render);
 
         initialize();
     }
@@ -43,7 +38,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
 
     @Override
     public Node getVideoSurface() {
-        return canvas;
+        return videoSurface;
     }
 
     //endregion
@@ -61,7 +56,6 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     public void play(String url) {
         checkInitialized();
 
-        timer.start();
         invokeOnVlc(() -> mediaPlayer.media().play(url, VLC_OPTIONS));
     }
 
@@ -69,7 +63,6 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     public void pause() {
         checkInitialized();
 
-        timer.stop();
         invokeOnVlc(() -> mediaPlayer.controls().pause());
     }
 
@@ -77,7 +70,6 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     public void resume() {
         checkInitialized();
 
-        timer.start();
         invokeOnVlc(() -> mediaPlayer.controls().play());
     }
 
@@ -93,8 +85,6 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
         checkInitialized();
 
         invokeOnVlc(() -> mediaPlayer.controls().stop());
-        surface.reset();
-        timer.stop();
         reset();
     }
 
@@ -107,7 +97,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
         log.trace("Initializing VLC player");
 
         try {
-            this.mediaPlayer.videoSurface().set(surface);
+            this.mediaPlayer.videoSurface().set(videoSurfaceForImageView(videoSurface));
 
             initialized = true;
             log.trace("VLC player initialization done");
@@ -128,8 +118,6 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     }
 
     private void initializeListeners() {
-        // if the time is being changed, make sure the animation drawer is running
-        timeProperty().addListener((observable, oldValue, newValue) -> timer.start());
     }
 
     //endregion

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.view.services;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.UISettings;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -127,7 +128,7 @@ public class MaximizeService {
     }
 
     private void toMaximizedStage() {
-        viewManager.getPrimaryStage().ifPresent(stage -> {
+        viewManager.getPrimaryStage().ifPresent(stage -> Platform.runLater(() -> {
             var screen = Screen.getPrimary();
 
             // store the current windowed stage information
@@ -141,7 +142,7 @@ public class MaximizeService {
             stage.setY(0);
             stage.setWidth(screen.getVisualBounds().getWidth());
             stage.setHeight(screen.getVisualBounds().getHeight());
-        });
+        }));
     }
 
     private UISettings getUiSettings() {

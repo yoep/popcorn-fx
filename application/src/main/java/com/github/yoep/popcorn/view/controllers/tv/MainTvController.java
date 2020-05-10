@@ -7,7 +7,6 @@ import com.github.yoep.popcorn.view.controllers.MainController;
 import com.github.yoep.popcorn.view.controllers.common.AbstractMainController;
 import com.github.yoep.popcorn.view.services.UrlService;
 import javafx.application.Platform;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,7 @@ public class MainTvController extends AbstractMainController implements MainCont
                             UrlService urlService,
                             SettingsService settingsService,
                             TaskExecutor taskExecutor) {
-        super(activityManager, viewLoader,  arguments, urlService, settingsService, taskExecutor);
+        super(activityManager, viewLoader, arguments, urlService, settingsService, taskExecutor);
     }
 
     //endregion
@@ -56,12 +55,8 @@ public class MainTvController extends AbstractMainController implements MainCont
     //region PostConstruct
 
     @Override
-    protected void initializePanes() {
-        // no additional panes need to be loaded
-    }
-
-    @Override
     protected void initializeListeners() {
+        activityManager.register(ShowDetailsActivity.class, activity -> switchSection(SectionType.CONTENT));
         activityManager.register(PlayVideoActivity.class, activity -> switchSection(SectionType.PLAYER));
         activityManager.register(LoadActivity.class, activity -> switchSection(SectionType.LOADER));
 
@@ -86,19 +81,10 @@ public class MainTvController extends AbstractMainController implements MainCont
                 break;
         }
 
-        setAnchor(content.get());
-
         Platform.runLater(() -> {
             rootPane.getChildren().removeIf(e -> e != notificationPane);
             rootPane.getChildren().add(0, content.get());
         });
-    }
-
-    private void setAnchor(Pane pane) {
-        AnchorPane.setTopAnchor(pane, 0d);
-        AnchorPane.setRightAnchor(pane, 0d);
-        AnchorPane.setBottomAnchor(pane, 0d);
-        AnchorPane.setLeftAnchor(pane, 0d);
     }
 
     private enum SectionType {

@@ -87,25 +87,30 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
 
     @PostConstruct
     private void init() {
-        initializePanesInternal();
         initializePanes();
         initializeListeners();
     }
 
-    private void initializePanesInternal() {
+    /**
+     * Initializes/loads the panes required for this controller.
+     */
+    protected void initializePanes() {
         // load the content & notification pane on the main thread
         // this blocks Spring from completing the startup stage while these panes are being loaded
         contentPane = viewLoader.load("sections/content.section.fxml");
         notificationPane = viewLoader.load("common/sections/notification.section.fxml");
 
+        anchor(contentPane);
+
         // load the other panes on a different thread
         taskExecutor.execute(() -> {
             playerPane = viewLoader.load("sections/player.section.fxml");
             loaderPane = viewLoader.load("sections/loader.section.fxml");
+
+            anchor(playerPane);
+            anchor(loaderPane);
         });
     }
-
-    protected abstract void initializePanes();
 
     protected abstract void initializeListeners();
 
@@ -148,6 +153,13 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
         AnchorPane.setRightAnchor(notificationPane, 20.0);
 
         rootPane.getChildren().add(notificationPane);
+    }
+
+    private void anchor(Pane pane) {
+        AnchorPane.setTopAnchor(pane, 0d);
+        AnchorPane.setRightAnchor(pane, 0d);
+        AnchorPane.setBottomAnchor(pane, 0d);
+        AnchorPane.setLeftAnchor(pane, 0d);
     }
 
     //endregion

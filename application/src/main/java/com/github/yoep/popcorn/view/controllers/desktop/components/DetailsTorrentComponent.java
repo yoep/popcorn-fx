@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.view.controllers.desktop.components;
 import com.frostwire.jlibtorrent.TorrentInfo;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.CloseOverlayActivity;
+import com.github.yoep.popcorn.activities.CloseDetailsActivity;
 import com.github.yoep.popcorn.activities.LoadUrlTorrentActivity;
 import com.github.yoep.popcorn.activities.ShowTorrentDetailsActivity;
 import com.github.yoep.popcorn.messages.TorrentMessage;
@@ -160,7 +160,7 @@ public class DetailsTorrentComponent implements Initializable {
     private void close() {
         reset();
 
-        activityManager.register(new CloseOverlayActivity() {
+        activityManager.register(new CloseDetailsActivity() {
         });
     }
 

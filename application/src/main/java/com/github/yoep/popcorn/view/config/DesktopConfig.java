@@ -60,8 +60,10 @@ public class DesktopConfig {
     }
 
     @Bean
-    public DetailsSectionController detailsSectionController(ActivityManager activityManager) {
-        return new DetailsSectionController(activityManager);
+    public DetailsSectionController detailsSectionController(ActivityManager activityManager,
+                                                             ViewLoader viewLoader,
+                                                             TaskExecutor taskExecutor) {
+        return new DetailsSectionController(activityManager, viewLoader, taskExecutor);
     }
 
     @Bean
@@ -84,11 +86,6 @@ public class DesktopConfig {
     @Bean
     public LoaderSectionController loaderSectionController(ActivityManager activityManager, ViewLoader viewLoader, TaskExecutor taskExecutor) {
         return new LoaderSectionController(activityManager, viewLoader, taskExecutor);
-    }
-
-    @Bean
-    public OverlaySectionController overlaySectionController(ActivityManager activityManager, ViewLoader viewLoader, TaskExecutor taskExecutor) {
-        return new OverlaySectionController(activityManager, viewLoader, taskExecutor);
     }
 
     @Bean

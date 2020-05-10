@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.CloseLoadActivity;
 import com.github.yoep.popcorn.activities.LoadUrlActivity;
 import com.github.yoep.popcorn.activities.ShowTorrentDetailsActivity;
+import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.messages.TorrentMessage;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import javafx.application.Platform;

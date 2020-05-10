@@ -7,6 +7,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.view.controls.ImageCover?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.MovieDetailsComponent"
           styleClass="movie-details" onKeyPressed="#onDetailsKeyPressed">
@@ -35,7 +36,7 @@
         </rowConstraints>
 
         <StackPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <ImageView fx:id="poster" preserveRatio="true" styleClass="poster-image"/>
+            <ImageCover fx:id="poster" styleClass="poster-image"/>
             <Icon fx:id="playButton" styleClass="poster-play" focusTraversable="true" onMouseClicked="#onPlayClicked" onKeyPressed="#onPlayKeyPressed">
                 <Icon fx:constant="PLAY_UNICODE"/>
             </Icon>

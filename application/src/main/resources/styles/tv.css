@@ -267,10 +267,10 @@
 .root .player .player-controls .control-button {
     -fx-pref-width: 50;
     -fx-pref-height: 50;
-    -fx-background-radius: 25;
+    -fx-background-radius: 10;
     -fx-border-color: #ccc;
     -fx-border-width: 2;
-    -fx-border-radius: 25;
+    -fx-border-radius: 10;
     -fx-cursor: hand;
     -fx-font-size: 2em;
     -fx-text-fill: #ccc;

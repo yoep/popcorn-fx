@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.yoep.popcorn.view.controls.ResizablePane?>
-<ResizablePane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.yoep.popcorn.view.controllers.MainController"
-               stylesheets="/styles/dark_theme.css" xmlns="http://javafx.com/javafx/10.0.2-internal" fx:id="rootPane"
-               prefHeight="720" prefWidth="1280" minHeight="400" minWidth="600">
-</ResizablePane>
+<?import javafx.scene.layout.AnchorPane?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.yoep.popcorn.view.controllers.MainController"
+            stylesheets="/styles/dark_theme.css" xmlns="http://javafx.com/javafx/10.0.2-internal" fx:id="rootPane"
+            prefHeight="720" prefWidth="1280" minHeight="400" minWidth="600">
+</AnchorPane>

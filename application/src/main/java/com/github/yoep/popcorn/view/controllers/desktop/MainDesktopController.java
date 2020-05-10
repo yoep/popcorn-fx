@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.view.controllers.desktop;
 
+import com.github.spring.boot.javafx.stage.BorderlessStage;
+import com.github.spring.boot.javafx.ui.stage.StageAware;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.activities.*;
 import com.github.yoep.popcorn.settings.SettingsService;
@@ -10,6 +12,7 @@ import javafx.application.Platform;
 import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
+import javafx.stage.Stage;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -27,7 +30,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-public class MainDesktopController extends AbstractMainController implements MainController {
+public class MainDesktopController extends AbstractMainController implements MainController, StageAware {
     private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
 
     private Pane overlayPane;
@@ -52,7 +55,6 @@ public class MainDesktopController extends AbstractMainController implements Mai
     public void initialize(URL url, ResourceBundle resourceBundle) {
         super.initialize(url, resourceBundle);
         initializeSceneEvents();
-        initializeResizablePane();
         initializeSection();
     }
 
@@ -61,13 +63,25 @@ public class MainDesktopController extends AbstractMainController implements Mai
         rootPane.setOnDragDropped(this::onDragDropped);
     }
 
-    private void initializeResizablePane() {
-        rootPane.setHeader(28);
-    }
-
     private void initializeSection() {
         if (!processApplicationArguments())
             switchSection(SectionType.CONTENT);
+    }
+
+    //endregion
+
+    //region StageAware
+
+    @Override
+    public void onShown(Stage stage) {
+        var borderlessStage = (BorderlessStage) stage;
+
+        borderlessStage.setHeader(28);
+    }
+
+    @Override
+    public void onClosed(Stage stage) {
+        //no-op
     }
 
     //endregion

@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn;
 
 import com.github.spring.boot.javafx.SpringJavaFXApplication;
+import com.github.spring.boot.javafx.stage.BorderlessStage;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
@@ -39,14 +40,16 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     @Override
     public void start(Stage primaryStage) throws Exception {
         log.trace("Starting the application");
-        super.start(primaryStage);
+        var stage = new BorderlessStage();
+        super.start(stage);
+
         var loader = applicationContext.getBean(ViewLoader.class);
         var viewManager = applicationContext.getBean(ViewManager.class);
 
-        initializeStage(primaryStage);
+        initializeStage(stage);
 
         log.trace("Loading the main view of the application");
-        loader.show(primaryStage, "main.fxml", getViewProperties());
+        loader.show(stage, "main.fxml", getViewProperties());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
     }
 
@@ -55,7 +58,6 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
             primaryStage.initStyle(StageStyle.TRANSPARENT);
         } else {
             log.warn("Unable to activate transparent window, using undecorated as fallback");
-            primaryStage.initStyle(StageStyle.UNDECORATED);
         }
     }
 

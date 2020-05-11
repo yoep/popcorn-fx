@@ -70,7 +70,7 @@ public class TorrentFactory implements AlertListener {
         AddTorrentAlert addTorrentAlert = (AddTorrentAlert) alert;
         TorrentHandle torrentHandle = this.torrentSession.find(addTorrentAlert.handle().infoHash());
         getCurrentTorrent().ifPresent(this.torrentSession::removeListener);
-        long prepareSize = 25 * 1024L * 1024L;
+        long prepareSize = 20 * 1024L * 1024L;
 
         if (fileIndex == null) {
             currentTorrent = new Torrent(torrentHandle, torrentListenerHolder, prepareSize);

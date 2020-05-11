@@ -3,6 +3,7 @@ package com.github.yoep.video.vlc;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import javafx.scene.Node;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.Pane;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -17,8 +18,9 @@ import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactor
 @EqualsAndHashCode(callSuper = true)
 public class VideoPlayerVlc extends AbstractVideoPlayer {
     private final ImageView videoSurface = new ImageView();
-
     private final MediaPlayerFactory mediaPlayerFactory;
+
+    private boolean bound;
 
     //region Constructors
 
@@ -114,10 +116,30 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     @Override
     protected void initialize() {
         super.initialize();
+
         initializeListeners();
+        initializeVideoSurface();
     }
 
     private void initializeListeners() {
+        videoSurface.parentProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && !bound) {
+                var parent = (Pane) newValue;
+
+                bindToParent(parent);
+            }
+        });
+    }
+
+    private void initializeVideoSurface() {
+        videoSurface.setPreserveRatio(true);
+    }
+
+    private void bindToParent(Pane parent) {
+        parent.widthProperty().addListener((observable, oldValue, newValue) -> videoSurface.setFitWidth(newValue.longValue()));
+        parent.heightProperty().addListener((observable, oldValue, newValue) -> videoSurface.setFitHeight(newValue.longValue()));
+
+        bound = true;
     }
 
     //endregion

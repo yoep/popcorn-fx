@@ -26,6 +26,14 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
+            <id>central</id>
+            <name>central</name>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
             <id>gluonhq</id>
             <name>gluonhq</name>
             <url>http://nexus.gluonhq.com/nexus/content/repositories/releases/</url>

@@ -52,13 +52,15 @@ public abstract class AbstractLoaderComponent {
         Platform.runLater(() -> {
             statusText.setText(localeText.get(TorrentMessage.FAILED));
             progressBar.setProgress(1);
+            progressBar.setVisible(true);
             progressBar.getStyleClass().add(PROGRESS_ERROR_STYLE_CLASS);
         });
     }
 
     protected void resetProgress() {
         Platform.runLater(() -> {
-            progressBar.setProgress(-1);
+            progressBar.setProgress(0.0);
+            progressBar.setVisible(false);
             progressBar.getStyleClass().remove(PROGRESS_ERROR_STYLE_CLASS);
         });
     }

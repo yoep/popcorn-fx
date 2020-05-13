@@ -165,6 +165,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
             @Override
             public void onStreamError(Torrent torrent, Exception e) {
                 log.warn("Torrent stream error: " + e.getMessage(), e);
+                updateProgressToErrorState();
             }
 
             @Override
@@ -173,6 +174,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
                 Platform.runLater(() -> {
                     statusText.setText(localeText.get(TorrentMessage.READY));
                     progressBar.setProgress(1);
+                    progressBar.setVisible(true);
                 });
                 invokePlayActivity(torrent);
             }
@@ -182,6 +184,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
                 Platform.runLater(() -> {
                     progressStatus.setVisible(true);
                     progressBar.setProgress(status.getProgress());
+                    progressBar.setVisible(true);
                     statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
                     progressPercentage.setText(String.format("%1$,.2f", status.getProgress() * 100) + "%");
                     downloadText.setText(StreamStatus.toDisplaySize(status.getDownloadSpeed()) + "/s");
@@ -193,6 +196,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
             @Override
             public void onStreamStopped() {
                 log.debug("Torrent stream has stopped");
+                resetProgress();
             }
         };
     }

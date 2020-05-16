@@ -14,6 +14,8 @@ import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -21,6 +23,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,12 +50,12 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     @Override
-    public CompletableFuture<Show[]> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Page<Show>> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, StringUtils.EMPTY, page));
     }
 
     @Override
-    public CompletableFuture<Show[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Page<Show>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
@@ -72,14 +75,16 @@ public class ShowProviderService extends AbstractProviderService<Show> {
         }
     }
 
-    public Show[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {
+    public Page<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         URI uri = getUriFor(getUri(), "shows", genre, sortBy, keywords, page);
 
         log.debug("Retrieving show provider page \"{}\"", uri);
         ResponseEntity<Show[]> shows = restTemplate.getForEntity(uri, Show[].class);
 
         return Optional.ofNullable(shows.getBody())
-                .orElse(new Show[0]);
+                .map(Arrays::asList)
+                .map(PageImpl::new)
+                .orElse(emptyPage());
     }
 
     private Show getDetailsInternal(String imdbId) {

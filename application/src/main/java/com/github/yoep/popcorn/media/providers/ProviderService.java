@@ -1,9 +1,10 @@
 package com.github.yoep.popcorn.media.providers;
 
+import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
-import com.github.yoep.popcorn.media.providers.models.Media;
+import org.springframework.data.domain.Page;
 import org.springframework.scheduling.annotation.Async;
 
 import java.util.concurrent.CompletableFuture;
@@ -26,7 +27,7 @@ public interface ProviderService<T extends Media> {
      * @return Returns the list of {@link Media} items for the given page.
      */
     @Async
-    CompletableFuture<T[]> getPage(Genre genre, SortBy sortBy, int page);
+    CompletableFuture<Page<T>> getPage(Genre genre, SortBy sortBy, int page);
 
     /**
      * Get the given page with search criteria for this media provider service.
@@ -38,7 +39,7 @@ public interface ProviderService<T extends Media> {
      * @return Returns the list of {@link Media} items for the given page.
      */
     @Async
-    CompletableFuture<T[]> getPage(Genre genre, SortBy sortBy, int page, String keywords);
+    CompletableFuture<Page<T>> getPage(Genre genre, SortBy sortBy, int page, String keywords);
 
     /**
      * Get the {@link Media} details of the given imdb ID.

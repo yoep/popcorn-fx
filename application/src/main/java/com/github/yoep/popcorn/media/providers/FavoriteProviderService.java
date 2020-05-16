@@ -13,6 +13,8 @@ import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -50,10 +52,10 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     }
 
     @Override
-    public CompletableFuture<Media[]> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Page<Media>> getPage(Genre genre, SortBy sortBy, int page) {
         log.debug("Retrieving favorite provider page {}", page);
         if (page > 1)
-            return CompletableFuture.completedFuture(new Media[0]);
+            return CompletableFuture.completedFuture(Page.empty());
 
         // retrieve all favorable items from the favoriteService
         // from the liked items, filter all Media items and cast them appropriately
@@ -74,21 +76,23 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         }
 
         //TODO: implement sort filtering
-        return CompletableFuture.completedFuture(mediaStream.toArray(Media[]::new));
+        return CompletableFuture.completedFuture(new PageImpl<>(mediaStream.collect(Collectors.toList())));
     }
 
     @Override
-    public CompletableFuture<Media[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Page<Media>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         log.debug("Retrieving favorite provider page {}", page);
         List<Media> mediaList = favoriteService.getAll().stream()
                 .filter(e -> e instanceof Media)
                 .map(e -> (Media) e)
                 .collect(Collectors.toList());
 
-        //TODO: implement filtering of favorites
-        return CompletableFuture.completedFuture(mediaList.stream()
+        var items = mediaList.stream()
                 .filter(e -> e.getTitle().toLowerCase().contains(keywords.toLowerCase()))
-                .toArray(Media[]::new));
+                .collect(Collectors.toList());
+
+        //TODO: implement filtering of favorites
+        return CompletableFuture.completedFuture(new PageImpl<>(items));
     }
 
     @Override

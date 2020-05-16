@@ -6,10 +6,13 @@ import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Collections;
 
 /**
  * Abstract implementation of {@link ProviderService}.
@@ -32,5 +35,9 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
                 .queryParam("genre", genre.getKey())
                 .queryParam("keywords", keywords)
                 .build(resource, page);
+    }
+
+    protected PageImpl<T> emptyPage() {
+        return new PageImpl<>(Collections.emptyList(), Pageable.unpaged(), 0);
     }
 }

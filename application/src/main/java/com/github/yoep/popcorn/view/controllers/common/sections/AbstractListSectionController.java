@@ -19,6 +19,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.Page;
 import org.springframework.util.Assert;
 import org.springframework.web.client.HttpStatusCodeException;
 
@@ -41,7 +42,7 @@ public abstract class AbstractListSectionController implements Initializable {
     protected SortBy sortBy;
     protected String search;
 
-    protected CompletableFuture<? extends Media[]> currentLoadRequest;
+    protected CompletableFuture<? extends Page<? extends Media>> currentLoadRequest;
 
     @FXML
     protected InfiniteScrollPane<Media> scrollPane;
@@ -206,9 +207,9 @@ public abstract class AbstractListSectionController implements Initializable {
         return new Media[0];
     }
 
-    protected Media[] onMediaRequestCompleted(final Media[] items) {
+    protected Media[] onMediaRequestCompleted(final Page<? extends Media> page) {
         // filter out any duplicate items
-        return Arrays.stream(items)
+        return page.get()
                 .filter(e -> !scrollPane.getItems().containsKey(e))
                 .toArray(Media[]::new);
     }

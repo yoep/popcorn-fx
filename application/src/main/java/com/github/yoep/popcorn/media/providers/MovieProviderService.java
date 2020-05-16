@@ -11,6 +11,8 @@ import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -18,6 +20,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -38,12 +41,12 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     @Override
-    public CompletableFuture<Movie[]> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Page<Movie>> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, Strings.EMPTY, page));
     }
 
     @Override
-    public CompletableFuture<Movie[]> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Page<Movie>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
@@ -70,14 +73,16 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
         activityManager.register((ShowMovieDetailsActivity) () -> movie);
     }
 
-    public Movie[] getPage(Genre genre, SortBy sortBy, String keywords, int page) {
+    public Page<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         var uri = getUriFor(getUri(), "movies", genre, sortBy, keywords, page);
 
         log.debug("Retrieving movie provider page \"{}\"", uri);
         ResponseEntity<Movie[]> items = restTemplate.getForEntity(uri, Movie[].class);
 
         return Optional.ofNullable(items.getBody())
-                .orElse(new Movie[0]);
+                .map(Arrays::asList)
+                .map(PageImpl::new)
+                .orElse(emptyPage());
     }
 
     private URI getUri() {

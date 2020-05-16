@@ -14,6 +14,8 @@ import javafx.stage.Stage;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 
 import javax.annotation.PostConstruct;
@@ -27,11 +29,20 @@ import java.awt.event.WindowEvent;
 @EqualsAndHashCode(callSuper = true)
 public class VideoPlayerVlcArm extends AbstractVideoPlayer {
     private static final Pane videoSurfaceTracker = new StackPane();
+    private final MediaPlayerFactory mediaPlayerFactory;
 
     private JFrame frame;
     private EmbeddedMediaPlayerComponent mediaPlayerComponent;
 
     private boolean boundToWindow;
+
+    //region Constructors
+
+    public VideoPlayerVlcArm(NativeDiscovery nativeDiscovery) {
+        mediaPlayerFactory = new MediaPlayerFactory(nativeDiscovery);
+    }
+
+    //endregion
 
     //region Getters
 
@@ -113,7 +124,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         log.trace("Initializing VLC ARM player");
 
         try {
-            mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
+            mediaPlayerComponent = new EmbeddedMediaPlayerComponent(mediaPlayerFactory, null, null, null, null);
             mediaPlayer = mediaPlayerComponent.mediaPlayer();
 
             initialize();

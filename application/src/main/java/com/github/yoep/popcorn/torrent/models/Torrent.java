@@ -312,11 +312,17 @@ public class Torrent implements AlertListener {
      * @param bytes The bytes you're interested in
      */
     public void setInterestedBytes(long bytes) {
-        if (hasPieces == null && bytes >= 0) {
+        if (hasPieces == null || bytes < 0)
+            return;
+
+        var torrentInfo = torrentHandle.torrentFile();
+
+        if (torrentInfo == null) {
+            log.warn("Unable to update interested bytes, torrent handle \"{}\" is invalid", torrentHandle);
             return;
         }
 
-        int pieceIndex = (int) (bytes / torrentHandle.torrentFile().pieceLength());
+        int pieceIndex = (int) (bytes / torrentInfo.pieceLength());
         interestedPieceIndex = pieceIndex;
         if (!hasPieces[pieceIndex] && torrentHandle.piecePriority(pieceIndex + firstPieceIndex) != Priority.SEVEN) {
             interestedPieceIndex = pieceIndex;

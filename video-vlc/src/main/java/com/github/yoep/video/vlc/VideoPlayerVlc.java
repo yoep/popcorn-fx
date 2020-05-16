@@ -8,6 +8,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
 import javax.annotation.PostConstruct;
 
@@ -27,8 +28,8 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     /**
      * Instantiate a new video player.
      */
-    public VideoPlayerVlc() {
-        mediaPlayerFactory = new MediaPlayerFactory();
+    public VideoPlayerVlc(NativeDiscovery nativeDiscovery) {
+        mediaPlayerFactory = new MediaPlayerFactory(nativeDiscovery);
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
 
         initialize();

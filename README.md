@@ -49,10 +49,6 @@ This can be done by adding the following argument to the VM options:
 - CPU: 1.2GHz
 - Memory: 500MB
 
-### Recommended
-
-- VLC media player
-
 ## Known issues  
 
 ### IntelliJ IDEA

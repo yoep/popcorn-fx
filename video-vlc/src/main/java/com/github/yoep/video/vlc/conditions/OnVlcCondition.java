@@ -10,21 +10,29 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 class OnVlcCondition implements ConfigurationCondition {
     @Override
     public ConfigurationPhase getConfigurationPhase() {
-        return ConfigurationPhase.PARSE_CONFIGURATION;
+        return ConfigurationPhase.REGISTER_BEAN;
     }
 
     @Override
     public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-        // check if a VLC installation can be found
-        var nativeDiscovery = new NativeDiscovery();
-        var nativeInstallationDiscovered = nativeDiscovery.discover();
+        var factory = context.getBeanFactory();
 
-        if (nativeInstallationDiscovered) {
-            log.debug("Found native VLC installation at \"{}\"", nativeDiscovery.discoveredPath());
+        if (factory != null) {
+            // check if a VLC installation can be found
+            var nativeDiscovery = factory.getBean(NativeDiscovery.class);
+            var nativeInstallationDiscovered = nativeDiscovery.discover();
+
+            if (nativeInstallationDiscovered) {
+                log.debug("Found native VLC installation at \"{}\"", nativeDiscovery.discoveredPath());
+            } else {
+                log.warn("VLC installation not found");
+            }
+
+            return nativeInstallationDiscovered;
         } else {
-            log.warn("VLC installation not found");
+            log.error("Unable to validate OnVlcCondition, bean factory is null");
         }
 
-        return nativeInstallationDiscovered;
+        return false;
     }
 }

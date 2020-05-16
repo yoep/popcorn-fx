@@ -13,27 +13,28 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
 @Slf4j
 @Configuration
-@ConditionalOnVlcInstall
+@ConditionalOnVlcVideoEnabled
 public class VideoConfig {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 9)
+    @ConditionalOnVlcInstall
     @ConditionalOnArmDevice
     @ConditionalOnArmVideoEnabled
-    @ConditionalOnVlcVideoEnabled
-    public VideoPlayer vlcArmVideoPlayer() {
+    public VideoPlayer vlcArmVideoPlayer(NativeDiscovery nativeDiscovery) {
         log.info("Using VLC ARM player for video playbacks");
-        return new VideoPlayerVlcArm();
+        return new VideoPlayerVlcArm(nativeDiscovery);
     }
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 10)
-    @ConditionalOnVlcVideoEnabled
+    @ConditionalOnVlcInstall
     @ConditionalOnMissingBean(name = {"vlcArmVideoPlayer"})
-    public VideoPlayer vlcVideoPlayer() {
+    public VideoPlayer vlcVideoPlayer(NativeDiscovery nativeDiscovery) {
         log.info("Using VLC player for video playbacks");
-        return new VideoPlayerVlc();
+        return new VideoPlayerVlc(nativeDiscovery);
     }
 }

@@ -28,7 +28,11 @@
         <!-- Image -->
         <StackPane fx:id="posterHolder" styleClass="poster"
                    GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
-            <ImageCover fx:id="poster" styleClass="poster-image"/>
+            <padding>
+                <Insets left="10" right="10" />
+            </padding>
+
+            <ImageCover fx:id="poster" styleClass="poster-image" coverType="HEIGHT"/>
         </StackPane>
 
         <!-- Close -->

@@ -22,6 +22,12 @@ import java.util.Collections;
 @Slf4j
 @RequiredArgsConstructor
 public abstract class AbstractProviderService<T extends Media> implements ProviderService<T> {
+    /**
+     * The max. items returned in 1 page.
+     * This value is according to the API documentation.
+     */
+    public static final int MAX_ITEMS = 50;
+
     protected final RestTemplate restTemplate;
     protected final ActivityManager activityManager;
 

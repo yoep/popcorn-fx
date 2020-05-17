@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.view.controls;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -15,10 +17,12 @@ import java.text.MessageFormat;
  */
 @Slf4j
 public class ImageCover extends AnchorPane {
+    public static final String COVER_TYPE_PROPERTY = "coverType";
     private static final String STYLE_CLASS = "image-cover";
 
     private final ChangeListener<Number> parentWidthListener = (observable, oldValue, newValue) -> onParentWidthChanged(newValue);
     private final ChangeListener<Number> parentHeightListener = (observable, oldValue, newValue) -> onParentHeightChanged(newValue);
+    private final ObjectProperty<CoverType> coverType = new SimpleObjectProperty<>(this, COVER_TYPE_PROPERTY, CoverType.ALL);
 
     private final ImageView imageView = new ImageView();
     private final Rectangle clipView = new Rectangle();
@@ -28,6 +32,38 @@ public class ImageCover extends AnchorPane {
     public ImageCover() {
         init();
     }
+
+    //endregion
+
+    //region Properties
+
+    /**
+     * Get the cover type of this image cover.
+     *
+     * @return Returns the cover type.
+     */
+    public CoverType getCoverType() {
+        return coverType.get();
+    }
+
+    /**
+     * Get the cover type property.
+     *
+     * @return Returns the cover type property.
+     */
+    public ObjectProperty<CoverType> coverTypeProperty() {
+        return coverType;
+    }
+
+    /**
+     * Set the cover type of this image cover.
+     *
+     * @param coverType The new cover type.
+     */
+    public void setCoverType(CoverType coverType) {
+        this.coverType.set(coverType);
+    }
+
 
     //endregion
 
@@ -97,6 +133,7 @@ public class ImageCover extends AnchorPane {
     private void initializeListeners() {
         this.widthProperty().addListener((observable, oldValue, newValue) -> resizeImage());
         this.heightProperty().addListener((observable, oldValue, newValue) -> resizeImage());
+        this.coverTypeProperty().addListener((observable, oldValue, newValue) -> resizeImage());
     }
 
     private void initializeCover() {
@@ -106,20 +143,42 @@ public class ImageCover extends AnchorPane {
     }
 
     private void onParentWidthChanged(Number newValue) {
-        this.setMaxWidth(newValue.doubleValue());
-        this.setMinWidth(newValue.doubleValue());
-        this.setPrefWidth(newValue.doubleValue());
+        var width = newValue.doubleValue();
+        var parent = getParent();
 
-        clipView.setWidth(newValue.longValue());
+        if (parent instanceof Pane) {
+            var pane = (Pane) getParent();
+            var padding = pane.getPadding();
+
+            width -= padding.getLeft();
+            width -= padding.getRight();
+        }
+
+        this.setMaxWidth(width);
+        this.setMinWidth(width);
+        this.setPrefWidth(width);
+
+        clipView.setWidth(width);
         requestLayout();
     }
 
     private void onParentHeightChanged(Number newValue) {
-        this.setMaxHeight(newValue.doubleValue());
-        this.minHeight(newValue.doubleValue());
-        this.setPrefHeight(newValue.doubleValue());
+        var height = newValue.doubleValue();
+        var parent = getParent();
 
-        clipView.setHeight(newValue.longValue());
+        if (parent instanceof Pane) {
+            var pane = (Pane) getParent();
+            var padding = pane.getPadding();
+
+            height -= padding.getTop();
+            height -= padding.getBottom();
+        }
+
+        this.setMaxHeight(height);
+        this.setMinHeight(height);
+        this.setPrefHeight(height);
+
+        clipView.setHeight(height);
         requestLayout();
     }
 
@@ -132,9 +191,9 @@ public class ImageCover extends AnchorPane {
         if (image == null || paneWidth == 0 || paneHeight == 0)
             return;
 
+        var scale = getScale();
         var imageWidth = image.getWidth();
         var imageHeight = image.getHeight();
-        var scale = Math.max(paneWidth / imageWidth, paneHeight / imageHeight);
         var fitWidth = imageWidth * scale;
         var fitHeight = imageHeight * scale;
 
@@ -142,6 +201,26 @@ public class ImageCover extends AnchorPane {
         imageView.setFitHeight(fitHeight);
         imageView.setX((paneWidth - fitWidth) / 2);
         imageView.setY((paneHeight - fitHeight) / 2);
+    }
+
+    private double getScale() {
+        var image = imageView.getImage();
+        var imageWidth = image.getWidth();
+        var imageHeight = image.getHeight();
+        var paneWidth = this.getWidth();
+        var paneHeight = this.getHeight();
+
+        switch (getCoverType()) {
+            case HEIGHT:
+                // make the scale fit to the height
+                return paneHeight / imageHeight;
+            case WIDTH:
+                // make the scale fit to the width
+                return paneWidth / imageWidth;
+            case ALL:
+            default:
+                return Math.max(paneWidth / imageWidth, paneHeight / imageHeight);
+        }
     }
 
     private static void handleImageError(Image image) {
@@ -152,4 +231,19 @@ public class ImageCover extends AnchorPane {
     }
 
     //endregion
+
+    public enum CoverType {
+        /**
+         * Cover both width & height.
+         */
+        ALL,
+        /**
+         * Cover only the height.
+         */
+        HEIGHT,
+        /**
+         * Cover only the width.
+         */
+        WIDTH
+    }
 }

@@ -15,6 +15,7 @@ import com.github.yoep.popcorn.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -75,8 +76,10 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
             });
         }
 
+        var items = mediaStream.collect(Collectors.toList());
+
         //TODO: implement sort filtering
-        return CompletableFuture.completedFuture(new PageImpl<>(mediaStream.collect(Collectors.toList())));
+        return CompletableFuture.completedFuture(new PageImpl<>(items, PageRequest.of(page, MAX_ITEMS), items.size()));
     }
 
     @Override
@@ -92,7 +95,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
                 .collect(Collectors.toList());
 
         //TODO: implement filtering of favorites
-        return CompletableFuture.completedFuture(new PageImpl<>(items));
+        return CompletableFuture.completedFuture(new PageImpl<>(items, PageRequest.of(page, MAX_ITEMS), items.size()));
     }
 
     @Override

@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.StartScreen;
 import com.github.yoep.popcorn.view.controllers.common.sections.AbstractFilterSectionController;
+import com.github.yoep.popcorn.view.controls.DelayedTextField;
 import com.github.yoep.popcorn.view.models.Category;
 import com.github.yoep.popcorn.view.models.Genre;
 import com.github.yoep.popcorn.view.models.SortBy;
@@ -37,6 +38,8 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     @FXML
     private ImageView header;
     @FXML
+    private Pane searchCategory;
+    @FXML
     private Pane moviesCategory;
     @FXML
     private Pane seriesCategory;
@@ -46,6 +49,8 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     private Pane settingsItem;
     @FXML
     private Pane shutdownItem;
+    @FXML
+    private DelayedTextField searchField;
 
     public MenuSectionController(ActivityManager activityManager, SettingsService settingsService, PopcornProperties properties) {
         super(settingsService);
@@ -59,6 +64,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeHeader();
         initializeSceneListener(menuPane);
+        initializeSearch();
     }
 
     //endregion
@@ -73,6 +79,10 @@ public class MenuSectionController extends AbstractFilterSectionController imple
         } catch (IOException ex) {
             log.error(ex.getMessage(), ex);
         }
+    }
+
+    private void initializeSearch() {
+        searchField.valueProperty().addListener((observable, oldValue, newValue) -> activityManager.register((SearchActivity) () -> newValue));
     }
 
     @Override
@@ -135,6 +145,10 @@ public class MenuSectionController extends AbstractFilterSectionController imple
         });
     }
 
+    private void focusSearchField() {
+        searchField.requestFocus();
+    }
+
     private void onShutdown() {
         var stage = (Stage) shutdownItem.getScene().getWindow();
 
@@ -177,6 +191,9 @@ public class MenuSectionController extends AbstractFilterSectionController imple
             event.consume();
             var source = event.getSource();
 
+            if (source == searchCategory) {
+                focusSearchField();
+            }
             if (source == moviesCategory || source == seriesCategory || source == favoritesCategory) {
                 switchCategory((Pane) source);
             }

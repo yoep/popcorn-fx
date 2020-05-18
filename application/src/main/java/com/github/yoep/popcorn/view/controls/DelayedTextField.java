@@ -149,6 +149,7 @@ public class DelayedTextField extends TextField {
     private void init() {
         initializeValue();
         initializeListeners();
+        initializeActionListener();
     }
 
     private void initializeValue() {
@@ -167,6 +168,12 @@ public class DelayedTextField extends TextField {
             if (!keepWatcherAlive)
                 createWatcher();
         });
+    }
+
+    private void initializeActionListener() {
+        // if the ENTER key is pressed
+        // force the value invocation
+        setOnAction(event -> onChanged());
     }
 
     private void createWatcher() {

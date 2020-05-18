@@ -6,11 +6,11 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<AnchorPane styleClass="show-details-section" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.ShowDetailsComponent">
+<AnchorPane xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.ShowDetailsComponent" styleClass="show-details-section">
     <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
         <columnConstraints>
-            <ColumnConstraints maxWidth="198" minWidth="198"/>
+            <ColumnConstraints minWidth="198"/>
             <ColumnConstraints hgrow="ALWAYS"/>
             <ColumnConstraints minWidth="25"/>
         </columnConstraints>
@@ -29,7 +29,7 @@
         <StackPane fx:id="posterHolder" styleClass="poster"
                    GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
             <padding>
-                <Insets left="10" right="10" />
+                <Insets left="10" right="10"/>
             </padding>
 
             <ImageCover fx:id="poster" styleClass="poster-image" coverType="HEIGHT"/>
@@ -47,6 +47,7 @@
         <!-- Title -->
         <Label fx:id="title" styleClass="title" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
+        <!-- Metadata -->
         <HBox alignment="CENTER_LEFT" styleClass="metadata" GridPane.columnIndex="1" GridPane.rowIndex="1">
             <Label fx:id="year"/>
             <Icon styleClass="separator">
@@ -67,6 +68,7 @@
             <Stars fx:id="ratingStars" alignment="CENTER"/>
         </HBox>
 
+        <!-- Synopsis/overview text -->
         <Label fx:id="overview" styleClass="overview" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
 
         <HBox alignment="CENTER_LEFT" styleClass="bookmark" GridPane.columnIndex="1" GridPane.rowIndex="3">

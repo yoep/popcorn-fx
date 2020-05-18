@@ -41,6 +41,18 @@
     -fx-text-fill: #fff;
 }
 
+.root .menu .bar .menu-item .text-field {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-background-color: transparent;
+    -fx-text-fill: #c3c5c7;
+    -fx-border-width: 0;
+    -fx-padding: 0 0 0 0;
+}
+
+.root .menu .bar .menu-item .text-field:focused {
+    -fx-text-fill: #fff;
+}
+
 .root .menu .bar .sub-menu {
     -fx-padding: 0 0 10 0;
 }
@@ -59,7 +71,8 @@
 }
 
 .root .menu .bar .menu-item:focused Icon,
-.root .menu .bar .menu-item:focused Label {
+.root .menu .bar .menu-item:focused Label,
+.root .menu .bar .menu-item:focused .text-field {
     -fx-text-fill: #fff;
 }
 
@@ -254,6 +267,11 @@
 .root .content-section .movie-details .overlay .list-view .list-cell:empty {
     -fx-opacity: 0;
     -fx-focus-traversable: false;
+}
+
+.root .show-details-section .show-header .poster {
+    -fx-max-width: 298;
+    -fx-max-height: 315;
 }
 
 .root .player .player-controls {

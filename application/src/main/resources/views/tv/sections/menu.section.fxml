@@ -4,6 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.view.controls.DelayedTextField?>
 <HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.MenuSectionController" fx:id="menuPane" styleClass="menu">
     <GridPane styleClass="bar">
@@ -26,11 +27,12 @@
 
         <!-- Menu items -->
         <VBox GridPane.columnIndex="0" GridPane.rowIndex="2">
-            <HBox styleClass="menu-item" focusTraversable="true">
+            <HBox fx:id="searchCategory" styleClass="menu-item" focusTraversable="true"
+                  onKeyPressed="#onKeyEvent">
                 <Icon>
                     <Icon fx:constant="SEARCH_UNICODE"/>
                 </Icon>
-                <Label text="%header_search"/>
+                <DelayedTextField fx:id="searchField" promptText="%header_search" userDelay="2000" />
             </HBox>
             <HBox fx:id="moviesCategory" styleClass="menu-item" focusTraversable="true"
                   onMouseClicked="#onMoviesCategoryClicked" onKeyPressed="#onKeyEvent">

@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.activities.ActivityManager;
-import com.github.yoep.popcorn.activities.ShowMovieDetailsActivity;
-import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
-import com.github.yoep.popcorn.activities.ShowTorrentDetailsActivity;
+import com.github.yoep.popcorn.activities.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -27,6 +24,7 @@ public class DetailsSectionController {
     private Pane movieDetailsPane;
     private Pane showDetailsPane;
     private Pane torrentDetailsPane;
+    private Pane previousPane;
 
     @FXML
     private Pane detailPane;
@@ -55,6 +53,8 @@ public class DetailsSectionController {
         activityManager.register(ShowMovieDetailsActivity.class, activity -> switchContent(DetailsType.MOVIE_DETAILS));
         activityManager.register(ShowSerieDetailsActivity.class, activity -> switchContent(DetailsType.SHOW_DETAILS));
         activityManager.register(ShowTorrentDetailsActivity.class, activity -> switchContent(DetailsType.TORRENT_DETAILS));
+        activityManager.register(CloseDetailsActivity.class, activity -> onDetailsClosed());
+        activityManager.register(CloseTorrentDetailsActivity.class, activity -> onTorrentDetailsClosed());
     }
 
     //endregion
@@ -62,6 +62,12 @@ public class DetailsSectionController {
     private void switchContent(DetailsType type) {
         log.trace("Switching details to type {}", type);
         var pane = new AtomicReference<Pane>();
+
+        // store the current detail pane
+        detailPane.getChildren().stream()
+                .filter(e -> e instanceof Pane)
+                .findFirst()
+                .ifPresent(e -> previousPane = (Pane) e);
 
         switch (type) {
             case MOVIE_DETAILS:
@@ -81,6 +87,31 @@ public class DetailsSectionController {
         Platform.runLater(() -> {
             detailPane.getChildren().clear();
             detailPane.getChildren().add(pane.get());
+        });
+    }
+
+    private void onDetailsClosed() {
+        previousPane = null;
+    }
+
+    private void onTorrentDetailsClosed() {
+        // check if we're able to show the previous details content
+        if (previousPane != null) {
+            var type = (DetailsType) null;
+
+            if (previousPane == movieDetailsPane)
+                type = DetailsType.MOVIE_DETAILS;
+            if (previousPane == showDetailsPane)
+                type = DetailsType.SHOW_DETAILS;
+
+            if (type != null) {
+                switchContent(type);
+                return;
+            }
+        }
+
+        // close the details view
+        activityManager.register(new CloseDetailsActivity() {
         });
     }
 

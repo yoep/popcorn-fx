@@ -8,8 +8,6 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 
 @Slf4j
 public class OnArmVideoEnabled implements ConfigurationCondition {
-    static final String DISABLE_OPTION = "disable-arm-video-player";
-
     @Override
     public ConfigurationPhase getConfigurationPhase() {
         return ConfigurationPhase.REGISTER_BEAN;
@@ -23,7 +21,7 @@ public class OnArmVideoEnabled implements ConfigurationCondition {
             var arguments = beanFactory.getBean(ApplicationArguments.class);
 
             log.trace("The application started with \"{}\" options", arguments.getOptionNames());
-            return !arguments.containsOption(DISABLE_OPTION);
+            return arguments.containsOption(Options.FORCE_ARM_PLAYER) || !arguments.containsOption(Options.DISABLE_ARM_PLAYER);
         }
 
         log.warn("Unable to process OnArmVideoEnabled condition, bean factory is not present");

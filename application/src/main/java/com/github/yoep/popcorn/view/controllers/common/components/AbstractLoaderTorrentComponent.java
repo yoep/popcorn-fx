@@ -19,6 +19,7 @@ import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.Pane;
@@ -26,11 +27,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.util.Assert;
 
+import java.net.URL;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
-public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderComponent {
+public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderComponent implements Initializable {
     protected final ActivityManager activityManager;
     protected final ImageService imageService;
     protected final SubtitleService subtitleService;
@@ -73,6 +76,20 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         this.imageService = imageService;
         this.subtitleService = subtitleService;
         this.taskExecutor = taskExecutor;
+    }
+
+    //endregion
+
+    //region Initializable
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeProgressBar();
+    }
+
+    protected void initializeProgressBar() {
+        progressBar.setProgress(0.0);
+        progressBar.setVisible(false);
     }
 
     //endregion

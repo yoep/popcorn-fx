@@ -5,7 +5,7 @@ import javafx.scene.control.TextField;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * The {@link DelayedTextField} invokes the value changed event after the last input event on the  {@link TextField} to prevent event stacking.
+ * The {@link DelayedTextField} invokes the value changed event after the last input event on the {@link TextField} to prevent event stacking.
  */
 @Slf4j
 public class DelayedTextField extends TextField {

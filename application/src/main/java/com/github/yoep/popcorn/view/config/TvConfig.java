@@ -111,8 +111,10 @@ public class TvConfig {
     }
 
     @Bean
-    public SettingsUiComponent settingsUiComponent() {
-        return new SettingsUiComponent();
+    public SettingsUiComponent settingsUiComponent(ActivityManager activityManager,
+                                                   LocaleText localeText,
+                                                   SettingsService settingsService) {
+        return new SettingsUiComponent(activityManager, localeText, settingsService);
     }
 
     @Bean

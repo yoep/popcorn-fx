@@ -1007,44 +1007,44 @@
     -fx-alignment: TOP_LEFT;
 }
 
-.root .settings-section .sub-section ComboBox {
+.root .settings-section .sub-section .combo-box {
     -fx-min-width: 150;
     -fx-max-width: 150;
     -fx-background-color: #393b3d;
 }
 
-.root .settings-section .sub-section ComboBox .arrow {
+.root .settings-section .sub-section .combo-box .arrow {
     -fx-background-color: #c3c5c7;
 }
 
-.root .settings-section .sub-section ComboBox > .list-cell,
-.root .settings-section .sub-section ComboBox .list-view .list-cell {
+.root .settings-section .sub-section .combo-box > .list-cell,
+.root .settings-section .sub-section .combo-box .list-view .list-cell {
     -fx-font-family: "Open Sans";
     -fx-text-fill: #c3c5c7;
     -fx-background-color: #393b3d;
     -fx-cursor: hand;
 }
 
-.root .settings-section .sub-section ComboBox .list-view {
+.root .settings-section .sub-section .combo-box .list-view {
     -fx-border-width: 1;
     -fx-border-color: #c3c5c7;
 }
 
-.root .settings-section .sub-section ComboBox .list-view .list-cell:hover {
+.root .settings-section .sub-section .combo-box .list-view .list-cell:hover {
     -fx-background-color: #0b131f;
     -fx-text-fill: #fff;
 }
 
-.root .settings-section .sub-section ComboBox.small {
+.root .settings-section .sub-section .combo-box.small {
     -fx-min-width: 75;
     -fx-max-width: 75;
 }
 
-.root .settings-section .sub-section CheckBox .box {
+.root .settings-section .sub-section .combo-box .box {
     -fx-background-color: #545454;
 }
 
-.root .settings-section .sub-section CheckBox:selected .mark {
+.root .settings-section .sub-section .combo-box:selected .mark {
     -fx-background-color: #4bfff4;
 }
 

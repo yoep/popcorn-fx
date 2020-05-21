@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.view.controllers.common.components.AbstractSettingsComponent;
 import com.github.yoep.popcorn.view.controls.DelayedTextField;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

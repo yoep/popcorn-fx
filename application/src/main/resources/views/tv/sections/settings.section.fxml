@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.yoep.popcorn.view.controls.ManageableScrollPane?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
            fx:controller="com.github.yoep.popcorn.view.controllers.tv.sections.SettingsSectionController" styleClass="settings-section">
-    <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER">
+    <ManageableScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" shortKeysEnabled="false">
         <VBox>
             <!-- Title -->
             <Label styleClass="settings-title" text="%settings"/>
+
+            <!-- User interface -->
+            <fx:include source="../components/settings-ui.component.fxml"/>
         </VBox>
-    </ScrollPane>
+    </ManageableScrollPane>
 </StackPane>

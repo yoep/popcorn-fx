@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.settings.models.StartScreen;
 import com.github.yoep.popcorn.settings.models.UIScale;
 import com.github.yoep.popcorn.settings.models.UISettings;
+import com.github.yoep.popcorn.view.controllers.common.components.AbstractSettingsComponent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;

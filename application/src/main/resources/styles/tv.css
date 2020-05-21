@@ -155,9 +155,11 @@
 .root .movie-details .subtitle.loading {
     -fx-text-fill: #2d8ef5;
 }
+
 .root .movie-details .subtitle.success {
     -fx-text-fill: #2ad942;
 }
+
 .root .movie-details .subtitle.failed {
     -fx-text-fill: #d53f3f;
 }
@@ -320,4 +322,37 @@
 
 .root .player .player-controls .progress .play-progress {
     -fx-background-color: #2d72d9;
+}
+.root .content-section .settings-section .settings-title {
+    -fx-font-size: 2em;
+}
+
+.root .content-section .settings-section .sub-section .text {
+    -fx-font-size: 1.25em;
+}
+
+.root .content-section .settings-section .sub-section .subsection-title {
+    -fx-min-width: 400;
+    -fx-max-width: 400;
+}
+
+.root .content-section .settings-section .sub-section .subsection-title .text {
+    -fx-font-size: 1.5em;
+}
+
+.root .content-section .settings-section .sub-section .combo-box {
+    -fx-cursor: hand;
+}
+
+.root .content-section .settings-section .sub-section .combo-box:focused {
+    -fx-background-color: #2d72d9;
+}
+
+.root .content-section .settings-section .sub-section .combo-box .label {
+    -fx-background-color: transparent;
+    -fx-padding: 3 5 3 5;
+}
+
+.root .content-section .settings-section .sub-section .combo-box:focused .label {
+    -fx-text-fill: #fff;
 }

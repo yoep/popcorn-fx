@@ -88,21 +88,25 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     @Override
     protected void initializeStartScreen(StartScreen startScreen) {
         log.trace("Initializing start screen");
+        Pane category;
 
         switch (startScreen) {
             case SERIES:
                 log.trace("Switching to series category");
-                switchCategory(seriesCategory);
+                category = seriesCategory;
                 break;
             case FAVORITES:
                 log.trace("Switching to favorites category");
-                switchCategory(favoritesCategory);
+                category = favoritesCategory;
                 break;
             default:
                 log.trace("Switching to movies category");
-                switchCategory(moviesCategory);
+                category = moviesCategory;
                 break;
         }
+
+        category.requestFocus();
+        switchCategory(category);
     }
 
     private void switchCategory(Pane categoryPane) {

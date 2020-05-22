@@ -1,8 +1,8 @@
 package com.github.yoep.video.adapter;
 
 import com.github.yoep.video.adapter.state.PlayerState;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyLongProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.scene.Node;
 
 /**
@@ -25,9 +25,9 @@ public interface VideoPlayer {
     /**
      * Get the video player state property.
      *
-     * @return Returns
+     * @return Returns the read-only player state property.
      */
-    ObjectProperty<PlayerState> playerStateProperty();
+    ReadOnlyObjectProperty<PlayerState> playerStateProperty();
 
     /**
      * Get the current playback time of the video player.
@@ -39,9 +39,9 @@ public interface VideoPlayer {
     /**
      * Get the time property of the video player.
      *
-     * @return Returns the time property.
+     * @return Returns the read-only time property.
      */
-    LongProperty timeProperty();
+    ReadOnlyLongProperty timeProperty();
 
     /**
      * Get the length of the current media playback.
@@ -53,9 +53,9 @@ public interface VideoPlayer {
     /**
      * Get the length property of the video player.
      *
-     * @return Returns the length property.
+     * @return Returns the read-only length property.
      */
-    LongProperty durationProperty();
+    ReadOnlyLongProperty durationProperty();
 
     //endregion
 

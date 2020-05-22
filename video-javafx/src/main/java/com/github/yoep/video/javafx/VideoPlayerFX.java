@@ -5,10 +5,7 @@ import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import javafx.application.Platform;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
 import javafx.scene.media.Media;
@@ -46,7 +43,7 @@ public class VideoPlayerFX implements VideoPlayer {
     }
 
     @Override
-    public ObjectProperty<PlayerState> playerStateProperty() {
+    public ReadOnlyObjectProperty<PlayerState> playerStateProperty() {
         return playerState;
     }
 
@@ -60,7 +57,7 @@ public class VideoPlayerFX implements VideoPlayer {
     }
 
     @Override
-    public LongProperty timeProperty() {
+    public ReadOnlyLongProperty timeProperty() {
         return time;
     }
 
@@ -74,7 +71,7 @@ public class VideoPlayerFX implements VideoPlayer {
     }
 
     @Override
-    public LongProperty durationProperty() {
+    public ReadOnlyLongProperty durationProperty() {
         return duration;
     }
 

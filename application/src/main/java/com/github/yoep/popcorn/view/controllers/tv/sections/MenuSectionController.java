@@ -128,6 +128,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
         activityManager.register((CategoryChangedActivity) category::get);
         updateGenres(category.get());
         updateSortBy(category.get());
+        clearSearch();
     }
 
     //TODO: find a clever way to incorporate this into the UI
@@ -142,6 +143,10 @@ public class MenuSectionController extends AbstractFilterSectionController imple
         var providerProperties = properties.getProvider(category.getProviderName());
 
         activityManager.register((SortByChangeActivity) () -> new SortBy(providerProperties.getSortBy().get(0), null));
+    }
+
+    private void clearSearch() {
+        searchField.setValue(null);
     }
 
     private void showSettings() {

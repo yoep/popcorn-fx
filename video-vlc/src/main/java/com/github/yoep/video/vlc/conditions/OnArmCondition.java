@@ -22,8 +22,12 @@ public class OnArmCondition implements ConfigurationCondition {
 
         if (beanFactory != null) {
             var arguments = beanFactory.getBean(ApplicationArguments.class);
+            var forceEnabled = arguments.containsOption(Options.FORCE_ARM_PLAYER);
 
-            return arguments.containsOption(Options.FORCE_ARM_PLAYER);
+            if (forceEnabled) {
+                log.debug("VLC ARM player is being forced");
+                return true;
+            }
         }
 
         log.trace("Checking CPU architecture \"{}\" for ARM embedded devices", architecture);

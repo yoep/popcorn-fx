@@ -4,30 +4,42 @@ import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
+import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
-import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
 /**
  * Abstract implementation of the {@link VideoPlayer} adapter.
+ *
+ * @param <T> The media player instance that is used by the {@link AbstractVideoPlayer}.
  */
 @Slf4j
-abstract class AbstractVideoPlayer implements VideoPlayer {
-    public static final String VLC_OPTIONS = "";
-
+abstract class AbstractVideoPlayer<T extends MediaPlayer> implements VideoPlayer {
     protected final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
     protected final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
     protected final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
+    protected final MediaPlayerFactory mediaPlayerFactory;
 
-    protected EmbeddedMediaPlayer mediaPlayer;
+    protected T mediaPlayer;
     protected Throwable error;
     protected boolean initialized;
+
+    //region Constructors
+
+    /**
+     * Initialize a new abstract video player instance.
+     *
+     * @param nativeDiscovery The native discovery that needs to be used for VLC.
+     */
+    protected AbstractVideoPlayer(NativeDiscovery nativeDiscovery) {
+        mediaPlayerFactory = createFactory(nativeDiscovery);
+    }
+
+    //endregion
 
     //region Properties
 
@@ -37,7 +49,7 @@ abstract class AbstractVideoPlayer implements VideoPlayer {
     }
 
     @Override
-    public ObjectProperty<PlayerState> playerStateProperty() {
+    public ReadOnlyObjectProperty<PlayerState> playerStateProperty() {
         return playerState;
     }
 
@@ -51,7 +63,7 @@ abstract class AbstractVideoPlayer implements VideoPlayer {
     }
 
     @Override
-    public LongProperty timeProperty() {
+    public ReadOnlyLongProperty timeProperty() {
         return time;
     }
 
@@ -65,7 +77,7 @@ abstract class AbstractVideoPlayer implements VideoPlayer {
     }
 
     @Override
-    public LongProperty durationProperty() {
+    public ReadOnlyLongProperty durationProperty() {
         return duration;
     }
 
@@ -95,6 +107,14 @@ abstract class AbstractVideoPlayer implements VideoPlayer {
     //endregion
 
     //region Functions
+
+    /**
+     * Create a new {@link MediaPlayerFactory} instance.
+     *
+     * @param nativeDiscovery The native discovery to use for the factory.
+     * @return Returns the new media player factory instance.
+     */
+    protected abstract MediaPlayerFactory createFactory(NativeDiscovery nativeDiscovery);
 
     protected void initialize() {
         initializeEvents();

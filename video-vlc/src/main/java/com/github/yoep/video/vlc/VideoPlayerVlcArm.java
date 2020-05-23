@@ -3,43 +3,36 @@ package com.github.yoep.video.vlc;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
+import javafx.application.Platform;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.transform.Scale;
-import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
-import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
+import uk.co.caprica.vlcj.player.base.MediaPlayer;
+import uk.co.caprica.vlcj.player.embedded.fullscreen.libvlc.LibVlcNativeFullScreenStrategy;
 
 import javax.annotation.PostConstruct;
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = true)
-public class VideoPlayerVlcArm extends AbstractVideoPlayer {
+public class VideoPlayerVlcArm extends AbstractVideoPlayer<MediaPlayer> {
     private static final Pane videoSurfaceTracker = new StackPane();
-    private final MediaPlayerFactory mediaPlayerFactory;
-
-    private JFrame frame;
-    private EmbeddedMediaPlayerComponent mediaPlayerComponent;
 
     private boolean boundToWindow;
 
     //region Constructors
 
     public VideoPlayerVlcArm(NativeDiscovery nativeDiscovery) {
-        mediaPlayerFactory = new MediaPlayerFactory(nativeDiscovery);
+        super(nativeDiscovery);
+        mediaPlayer = mediaPlayerFactory.mediaPlayers().newMediaPlayer();
     }
 
     //endregion
@@ -59,12 +52,10 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
     public void dispose() {
         if (mediaPlayer != null)
             mediaPlayer.release();
-        if (frame != null)
-            frame.dispose();
+        if (mediaPlayerFactory != null)
+            mediaPlayerFactory.release();
 
-        this.frame = null;
         this.mediaPlayer = null;
-        this.mediaPlayerComponent = null;
     }
 
     @Override
@@ -72,11 +63,10 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         checkInitialized();
 
         try {
-            frame.setVisible(true);
-            frame.setExtendedState(Frame.MAXIMIZED_BOTH);
-            frame.toBack();
-
-            mediaPlayer.media().play(url, VLC_OPTIONS);
+            invokeOnVlc(() -> {
+                mediaPlayer.media().start(url);
+//                new LibVlcNativeFullScreenStrategy(mediaPlayer.mediaPlayerInstance()).enterFullScreenMode();
+            });
         } catch (Exception ex) {
             log.error("Failed to play media on VLC ARM, " + ex.getMessage(), ex);
             setError(ex);
@@ -111,7 +101,6 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
             return;
 
         invokeOnVlc(() -> mediaPlayer.controls().stop());
-        frame.setVisible(false);
         reset();
     }
 
@@ -124,12 +113,11 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
         log.trace("Initializing VLC ARM player");
 
         try {
-            mediaPlayerComponent = new EmbeddedMediaPlayerComponent(mediaPlayerFactory, null, null, null, null);
-            mediaPlayer = mediaPlayerComponent.mediaPlayer();
+            mediaPlayer = mediaPlayerFactory.mediaPlayers().newMediaPlayer();
 
             initialize();
-            initializeFrame();
-            initializeFrameTracker();
+            initializeListeners();
+            initializeTracker();
             initialized = true;
             log.trace("VLC player ARM initialization done");
         } catch (Exception ex) {
@@ -142,38 +130,25 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
 
     //region Functions
 
-    private void initializeFrame() {
-        frame = new JFrame("");
-
-        frame.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
-        frame.setUndecorated(true);
-        frame.setContentPane(mediaPlayerComponent);
-        frame.setAutoRequestFocus(false);
-        frame.setFocusableWindowState(false);
-
-        initializeFrameListeners();
+    @Override
+    protected MediaPlayerFactory createFactory(NativeDiscovery nativeDiscovery) {
+        return new MediaPlayerFactory(nativeDiscovery,
+                "--intf=dummy", "--no-video-deco", "--no-embedded-video", "--no-video-title-show", "--video-wallpaper");
     }
 
-    private void initializeFrameListeners() {
-        frame.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                log.debug("ARM video player window is closing, stopping media playback");
-                stop();
-            }
+    private void initializeListeners() {
+        playerStateProperty().addListener((observable, oldValue, newValue) -> {
+
         });
     }
 
-    private void initializeFrameTracker() {
-        videoSurfaceTracker.widthProperty().addListener((observable, oldValue, newValue) -> resizeFrame());
-        videoSurfaceTracker.heightProperty().addListener((observable, oldValue, newValue) -> resizeFrame());
-
+    private void initializeTracker() {
         videoSurfaceTracker.sceneProperty().addListener((observableScene, oldValueScene, newValueScene) -> {
             if (newValueScene != null) {
                 var stage = (Stage) newValueScene.getWindow();
 
                 if (!boundToWindow)
-                    bindFrameToWindow(newValueScene, stage);
+                    bindFrameToWindow(newValueScene);
 
                 stage.setAlwaysOnTop(true);
             } else if (oldValueScene != null) {
@@ -185,51 +160,11 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer {
 
     }
 
-    private void bindFrameToWindow(Scene scene, Stage stage) {
+    private void bindFrameToWindow(Scene scene) {
         updateTransparentComponents(scene);
-        stage.xProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
-        stage.yProperty().addListener((observable, oldValue, newValue) -> repositionFrame(scene));
-
-        resizeFrame();
-        repositionFrame(scene);
 
         boundToWindow = true;
         log.debug("ARM video player has been bound to the JavaFX window");
-    }
-
-    private void resizeFrame() {
-        log.trace("Resizing the ARM video player frame");
-        var scene = videoSurfaceTracker.getScene();
-        var trackerWidth = videoSurfaceTracker.getWidth();
-        var trackerHeight = videoSurfaceTracker.getHeight();
-        var scaleX = 1.0;
-        var scaleY = 1.0;
-
-        for (Transform transform : scene.getRoot().getChildrenUnmodifiable().get(0).getTransforms()) {
-            if (transform instanceof Scale) {
-                var scale = (Scale) transform;
-
-                scaleX = scale.getX();
-                scaleY = scale.getY();
-                log.trace("Found scene scaling, using scale {}x{}", scaleX, scaleY);
-                break;
-            }
-        }
-
-        var width = (int) (trackerWidth * scaleX);
-        var height = (int) (trackerHeight * scaleY);
-        log.trace("Updating ARM video player size to {}x{}", width, height);
-        frame.setSize(new Dimension(width, height));
-    }
-
-    private void repositionFrame(Scene scene) {
-        log.trace("Repositioning ARM video player frame");
-        var window = scene.getWindow();
-        var x = (int) (window.getX() + scene.getX());
-        var y = (int) (window.getY() + scene.getY());
-
-        log.trace("Updating ARM video player position to {},{}", x, y);
-        frame.setLocation(x, y);
     }
 
     private void updateTransparentComponents(Scene scene) {

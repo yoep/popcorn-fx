@@ -9,6 +9,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
+import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
 import javax.annotation.PostConstruct;
 
@@ -17,9 +18,8 @@ import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactor
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = true)
-public class VideoPlayerVlc extends AbstractVideoPlayer {
+public class VideoPlayerVlc extends AbstractVideoPlayer<EmbeddedMediaPlayer> {
     private final ImageView videoSurface = new ImageView();
-    private final MediaPlayerFactory mediaPlayerFactory;
 
     private boolean bound;
 
@@ -29,7 +29,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
      * Instantiate a new video player.
      */
     public VideoPlayerVlc(NativeDiscovery nativeDiscovery) {
-        mediaPlayerFactory = new MediaPlayerFactory(nativeDiscovery);
+        super(nativeDiscovery);
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
 
         initialize();
@@ -59,7 +59,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     public void play(String url) {
         checkInitialized();
 
-        invokeOnVlc(() -> mediaPlayer.media().play(url, VLC_OPTIONS));
+        invokeOnVlc(() -> mediaPlayer.media().play(url));
     }
 
     @Override
@@ -113,6 +113,11 @@ public class VideoPlayerVlc extends AbstractVideoPlayer {
     //endregion
 
     //region Functions
+
+    @Override
+    protected MediaPlayerFactory createFactory(NativeDiscovery nativeDiscovery) {
+        return new MediaPlayerFactory(nativeDiscovery);
+    }
 
     @Override
     protected void initialize() {

@@ -144,6 +144,15 @@
     -fx-background-color: transparent;
 }
 
+.root .check-box .box {
+    -fx-background-color: #545454;
+    -fx-border-width: 0;
+}
+
+.root .check-box:selected .mark {
+    -fx-background-color: #4bfff4;
+}
+
 .root .stars Icon {
     -fx-padding: 0 2 0 0;
     -fx-opacity: 1;
@@ -974,14 +983,16 @@
     -fx-vgap: 8;
 }
 
-.root .settings-section .sub-section Label,
-.root .settings-section .sub-section CheckBox {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
+.root .settings-section .sub-section .label,
+.root .settings-section .sub-section .check-box {
+    -fx-font-family: "Open Sans", sans-serif;
+    -fx-font-size: 13px;
+    -fx-font-smoothing-type: lcd;
+    -fx-text-fill: #c3c5c7;
 }
 
 .root .settings-section .sub-section Icon {
-    -fx-text-fill: #fff;
+    -fx-text-fill: #c3c5c7;
     -fx-cursor: hand;
     -fx-padding: 0 0 0 8;
 }

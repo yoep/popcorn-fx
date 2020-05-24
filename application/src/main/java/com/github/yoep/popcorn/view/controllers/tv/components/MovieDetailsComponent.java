@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.torrent.TorrentService;
@@ -29,11 +30,9 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.Comparator;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
@@ -83,8 +82,9 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
                                  SubtitleService subtitleService,
                                  FavoriteService favoriteService,
                                  LocaleText localeText, TorrentService torrentService,
-                                 ImageService imageService) {
-        super(imageService, torrentService);
+                                 ImageService imageService,
+                                 SettingsService settingsService) {
+        super(imageService, torrentService, settingsService);
         this.activityManager = activityManager;
         this.subtitleService = subtitleService;
         this.favoriteService = favoriteService;
@@ -165,11 +165,8 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void loadQualities() {
-        final var qualities = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).keySet().stream()
-                .filter(e -> !e.equals("0")) // filter out the 0 quality
-                .sorted(Comparator.comparing(o -> Integer.parseInt(o.replaceAll("[a-z]", ""))))
-                .collect(Collectors.toList());
-        final var defaultQuality = qualities.get(qualities.size() - 1);
+        var qualities = getVideoResolutions(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
+        var defaultQuality = getDefaultVideoResolution(qualities);
 
         Platform.runLater(() -> {
             qualityList.getItems().clear();

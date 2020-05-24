@@ -170,8 +170,9 @@ public class DesktopConfig {
                                                        SubtitleService subtitleService,
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
-                                                       ImageService imageService) {
-        return new MovieDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService);
+                                                       ImageService imageService,
+                                                       SettingsService settingsService) {
+        return new MovieDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService, settingsService);
     }
 
     @Bean
@@ -181,8 +182,9 @@ public class DesktopConfig {
                                                      SubtitleService subtitleService,
                                                      FavoriteService favoriteService,
                                                      WatchedService watchedService,
-                                                     ImageService imageService) {
-        return new ShowDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService);
+                                                     ImageService imageService,
+                                                     SettingsService settingsService) {
+        return new ShowDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService, settingsService);
     }
 
     @Bean
@@ -216,6 +218,13 @@ public class DesktopConfig {
     @Bean
     public SettingsTraktComponent settingsTraktComponent(TraktService traktService) {
         return new SettingsTraktComponent(traktService);
+    }
+
+    @Bean
+    public SettingsPlaybackComponent settingsPlaybackComponent(ActivityManager activityManager,
+                                                               LocaleText localeText,
+                                                               SettingsService settingsService) {
+        return new SettingsPlaybackComponent(activityManager, localeText, settingsService);
     }
 
     @Bean

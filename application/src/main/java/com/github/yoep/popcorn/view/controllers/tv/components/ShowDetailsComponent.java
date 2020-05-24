@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.Show;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.view.services.ImageService;
 import javafx.application.Platform;
@@ -38,8 +39,8 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> {
 
     //region Constructors
 
-    public ShowDetailsComponent(ActivityManager activityManager, TorrentService torrentService, ImageService imageService) {
-        super(imageService, torrentService);
+    public ShowDetailsComponent(ActivityManager activityManager, TorrentService torrentService, ImageService imageService, SettingsService settingsService) {
+        super(imageService, torrentService, settingsService);
         this.activityManager = activityManager;
     }
 

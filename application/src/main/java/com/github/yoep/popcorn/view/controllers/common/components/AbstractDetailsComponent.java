@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.view.controllers.common.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.torrent.TorrentService;
 import com.github.yoep.popcorn.torrent.models.TorrentHealth;
 import com.github.yoep.popcorn.view.controls.BackgroundImageCover;
@@ -16,8 +18,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 public abstract class AbstractDetailsComponent<T extends Media> {
@@ -26,6 +32,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
 
     protected final ImageService imageService;
     protected final TorrentService torrentService;
+    protected final SettingsService settingsService;
 
     protected T media;
 
@@ -42,11 +49,13 @@ public abstract class AbstractDetailsComponent<T extends Media> {
 
     //region Constructors
 
-    protected AbstractDetailsComponent(ImageService imageService, TorrentService torrentService) {
+    protected AbstractDetailsComponent(ImageService imageService, TorrentService torrentService, SettingsService settingsService) {
         Assert.notNull(imageService, "imageService cannot be null");
         Assert.notNull(torrentService, "torrentService cannot be null");
+        Assert.notNull(settingsService, "settingsService cannot be null");
         this.imageService = imageService;
         this.torrentService = torrentService;
+        this.settingsService = settingsService;
     }
 
     //endregion
@@ -101,6 +110,49 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     }
 
     /**
+     * Get the video qualities/resolutions for the given torrent set.
+     * This method will order the qualities/resolutions from lowest to highest resolution.
+     *
+     * @param torrents The torrent set for the video playback.
+     * @return Returns the list of qualities/resolutions ordered from lowest to highest.
+     */
+    protected List<String> getVideoResolutions(Map<String, MediaTorrentInfo> torrents) {
+        return torrents.keySet().stream()
+                .filter(e -> !e.equals("0")) // filter out the 0 quality
+                .sorted(Comparator.comparing(this::toResolution))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get the default video quality/resolution that should be selected in the media details.
+     * This method expects the available resolutions list to be ordered from lowest to highest (see {@link #getVideoResolutions(Map)}.
+     *
+     * @param availableResolutions The available video qualities/resolutions of the media item.
+     * @return Returns the quality/resolution that should be selected by default.
+     */
+    protected String getDefaultVideoResolution(List<String> availableResolutions) {
+        var settings = getPlaybackSettings();
+        var defaultQuality = settings.getQuality();
+
+        if (defaultQuality != null) {
+            // check if we can find the request playback quality within the available resolutions
+            var defaultResolution = getResolutionForPlaybackQuality(availableResolutions, defaultQuality)
+                            .orElseGet(() -> defaultQuality.lower() // if not found, try the quality below the current one if possible
+                                    .flatMap(e -> getResolutionForPlaybackQuality(availableResolutions, e))
+                                    .orElse(null));
+
+            // check if the default resolution could be found
+            // if so, return the found resolution
+            // otherwise, return the highest available resolution
+            if (defaultResolution != null)
+                return defaultResolution;
+        }
+
+        // return the highest resolution by default
+        return availableResolutions.get(availableResolutions.size() - 1);
+    }
+
+    /**
      * Reset the details component back to it's idle state.
      */
     protected void reset() {
@@ -135,6 +187,20 @@ public abstract class AbstractDetailsComponent<T extends Media> {
                 log.error(throwable.getMessage(), throwable);
             }
         });
+    }
+
+    private Integer toResolution(String quality) {
+        return Integer.parseInt(quality.replaceAll("[a-z]", ""));
+    }
+
+    private Optional<String> getResolutionForPlaybackQuality(List<String> availableResolutions, PlaybackSettings.Quality quality) {
+        return availableResolutions.stream()
+                .filter(e -> toResolution(e) == quality.getRes())
+                .findFirst();
+    }
+
+    private PlaybackSettings getPlaybackSettings() {
+        return settingsService.getSettings().getPlaybackSettings();
     }
 
     private static Image loadPosterHolder() {

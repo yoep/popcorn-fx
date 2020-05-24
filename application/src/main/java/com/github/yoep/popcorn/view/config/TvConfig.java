@@ -99,15 +99,17 @@ public class TvConfig {
                                                        FavoriteService favoriteService,
                                                        LocaleText localeText,
                                                        TorrentService torrentService,
-                                                       ImageService imageService) {
-        return new MovieDetailsComponent(activityManager, subtitleService, favoriteService, localeText, torrentService, imageService);
+                                                       ImageService imageService,
+                                                       SettingsService settingsService) {
+        return new MovieDetailsComponent(activityManager, subtitleService, favoriteService, localeText, torrentService, imageService, settingsService);
     }
 
     @Bean
     public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager,
                                                      TorrentService torrentService,
-                                                     ImageService imageService) {
-        return new ShowDetailsComponent(activityManager, torrentService, imageService);
+                                                     ImageService imageService,
+                                                     SettingsService settingsService) {
+        return new ShowDetailsComponent(activityManager, torrentService, imageService, settingsService);
     }
 
     @Bean

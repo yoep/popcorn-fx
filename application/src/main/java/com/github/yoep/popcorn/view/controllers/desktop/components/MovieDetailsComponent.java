@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.media.providers.models.Movie;
 import com.github.yoep.popcorn.media.watched.WatchedService;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
@@ -72,8 +73,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                                  SubtitleService subtitleService,
                                  FavoriteService favoriteService,
                                  WatchedService watchedService,
-                                 ImageService imageService) {
-        super(activityManager, localeText, torrentService, subtitleService, imageService);
+                                 ImageService imageService,
+                                 SettingsService settingsService) {
+        super(activityManager, localeText, torrentService, subtitleService, imageService, settingsService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }

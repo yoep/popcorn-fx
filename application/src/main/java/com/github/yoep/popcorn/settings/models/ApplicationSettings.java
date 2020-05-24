@@ -16,6 +16,7 @@ public class ApplicationSettings extends AbstractSettings {
     public static final String UI_PROPERTY = "uiSettings";
     public static final String TRAKT_PROPERTY = "traktSettings";
     public static final String LOGGING_PROPERTY = "loggingSettings";
+    public static final String PLAYBACK_PROPERTY = "playbackSettings";
 
     /**
      * The torrent settings of the application.
@@ -37,6 +38,11 @@ public class ApplicationSettings extends AbstractSettings {
      */
     @Builder.Default
     private TraktSettings traktSettings = TraktSettings.builder().build();
+    /**
+     * The video playback settings of the application.
+     */
+    @Builder.Default
+    private PlaybackSettings playbackSettings = PlaybackSettings.builder().build();
 
     //region Setters
 
@@ -74,6 +80,15 @@ public class ApplicationSettings extends AbstractSettings {
         var oldValue = this.traktSettings;
         this.traktSettings = traktSettings;
         changes.firePropertyChange(TRAKT_PROPERTY, oldValue, this.traktSettings);
+    }
+
+    public void setPlaybackSettings(PlaybackSettings playbackSettings) {
+        if (Objects.equals(this.playbackSettings, playbackSettings))
+            return;
+
+        var oldValue = this.playbackSettings;
+        this.playbackSettings = playbackSettings;
+        changes.firePropertyChange(PLAYBACK_PROPERTY, oldValue, this.playbackSettings);
     }
 
     //endregion

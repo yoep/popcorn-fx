@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.activities.SuccessNotificationActivity;
 import com.github.yoep.popcorn.media.providers.models.Media;
 import com.github.yoep.popcorn.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.messages.DetailsMessage;
+import com.github.yoep.popcorn.settings.SettingsService;
 import com.github.yoep.popcorn.subtitles.SubtitleService;
 import com.github.yoep.popcorn.subtitles.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.subtitles.models.SubtitleInfo;
@@ -27,7 +28,6 @@ import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -63,12 +63,13 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     //region Constructors
 
-    public AbstractDesktopDetailsComponent(ActivityManager activityManager,
-                                           LocaleText localeText,
-                                           TorrentService torrentService,
-                                           SubtitleService subtitleService,
-                                           ImageService imageService) {
-        super(imageService, torrentService);
+    protected AbstractDesktopDetailsComponent(ActivityManager activityManager,
+                                              LocaleText localeText,
+                                              TorrentService torrentService,
+                                              SubtitleService subtitleService,
+                                              ImageService imageService,
+                                              SettingsService settingsService) {
+        super(imageService, torrentService, settingsService);
         this.activityManager = activityManager;
         this.localeText = localeText;
         this.torrentService = torrentService;
@@ -90,9 +91,9 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     //endregion
 
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {
-        List<Label> qualities = torrents.keySet().stream()
-                .filter(e -> !e.equals("0")) // filter out the 0 quality
-                .sorted(Comparator.comparing(o -> Integer.parseInt(o.replaceAll("[a-z]", ""))))
+        var resolutions = getVideoResolutions(torrents);
+        var defaultQuality = getDefaultVideoResolution(resolutions);
+        var qualities = resolutions.stream()
                 .map(this::createQualityOption)
                 .collect(Collectors.toList());
 
@@ -100,7 +101,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         qualitySelectionPane.getChildren().clear();
         qualitySelectionPane.getChildren().addAll(qualities);
 
-        switchActiveQuality(qualities.get(qualities.size() - 1).getText());
+        switchActiveQuality(defaultQuality);
     }
 
     protected void switchLiked(boolean isLiked) {

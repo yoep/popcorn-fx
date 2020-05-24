@@ -8,9 +8,13 @@ import com.github.yoep.popcorn.settings.SettingsService;
 import javafx.scene.control.TextFormatter;
 
 public abstract class AbstractSettingsComponent {
+    private static final int NOTIFICATION_TIME_BETWEEN = 750;
+
     protected final ActivityManager activityManager;
     protected final LocaleText localeText;
     protected final SettingsService settingsService;
+
+    private long lastNotification;
 
     protected AbstractSettingsComponent(ActivityManager activityManager, LocaleText localeText, SettingsService settingsService) {
         this.activityManager = activityManager;
@@ -30,7 +34,21 @@ public abstract class AbstractSettingsComponent {
         });
     }
 
+    /**
+     * Show the "settings saved" notification to the user.
+     */
     protected void showNotification() {
-        activityManager.register((SuccessNotificationActivity) () -> localeText.get(SettingsMessage.SETTINGS_SAVED));
+        if (isNotificationAllowed()) {
+            lastNotification = System.currentTimeMillis();
+            activityManager.register((SuccessNotificationActivity) () -> localeText.get(SettingsMessage.SETTINGS_SAVED));
+        }
     }
+
+    //region Functions
+
+    private boolean isNotificationAllowed() {
+        return System.currentTimeMillis() - lastNotification > NOTIFICATION_TIME_BETWEEN;
+    }
+
+    //endregion
 }

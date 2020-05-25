@@ -57,6 +57,18 @@ public class FullscreenService {
     //region Methods
 
     /**
+     * The fullscreen mode of the application.
+     *
+     * @param enabled The indication if the fullscreen mode should be active or not.
+     */
+    public void fullscreen(final boolean enabled) {
+        Platform.runLater(() -> {
+            lastChange = System.currentTimeMillis();
+            primaryStage.setFullScreen(enabled);
+        });
+    }
+
+    /**
      * Toggle the fullscreen mode of the application.
      */
     public void toggle() {

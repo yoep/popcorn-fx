@@ -413,6 +413,7 @@ public class VideoPlayerService {
         this.url = url;
         var videoPlayer = getVideoPlayer();
         var filename = FilenameUtils.getName(url);
+        var playbackSettings = settingsService.getSettings().getPlaybackSettings();
 
         // check if a video player was found
         // if not, stop the play url execution
@@ -421,7 +422,12 @@ public class VideoPlayerService {
             return;
         }
 
+        // start the playback of the video url
         videoPlayer.play(url);
+
+        // enter fullscreen mode on the start of the playback if configured
+        if (playbackSettings.isFullscreen())
+            fullscreenService.fullscreen(true);
 
         // check if we need to auto resume the current video playback
         Platform.runLater(() -> {

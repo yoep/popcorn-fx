@@ -975,7 +975,7 @@
 .root .settings-section .settings-title {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
-    -fx-font-size: 22;
+    -fx-font-size: 26px;
     -fx-padding: 8 30 5 30;
 }
 
@@ -984,10 +984,12 @@
 }
 
 .root .settings-section .sub-section .label,
-.root .settings-section .sub-section .check-box {
-    -fx-font-family: "Open Sans", sans-serif;
-    -fx-font-size: 13px;
-    -fx-font-smoothing-type: lcd;
+.root .settings-section .sub-section .text-field,
+.root .settings-section .sub-section .check-box,
+.root .settings-section .sub-section .combo-box > .list-cell,
+.root .settings-section .sub-section .combo-box .list-view .list-cell{
+    -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
+    -fx-font-size: 14px;
     -fx-text-fill: #c3c5c7;
 }
 
@@ -1007,9 +1009,9 @@
     -fx-min-width: 300;
     -fx-max-width: 300;
     -fx-max-height: Infinity;
-    -fx-font-family: "Open Sans";
+    -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
     -fx-text-fill: #2d75df;
-    -fx-font-size: 17;
+    -fx-font-size: 18px;
     -fx-padding: 0 30 5 30;
     -fx-border-color: #3a3b3e;
     -fx-border-width: 0 1 0 0;
@@ -1030,7 +1032,6 @@
 
 .root .settings-section .sub-section .combo-box > .list-cell,
 .root .settings-section .sub-section .combo-box .list-view .list-cell {
-    -fx-font-family: "Open Sans";
     -fx-text-fill: #c3c5c7;
     -fx-background-color: #393b3d;
     -fx-cursor: hand;
@@ -1061,7 +1062,6 @@
 
 .root .settings-section .sub-section .text-field {
     -fx-min-width: 250;
-    -fx-font-family: "Open Sans";
     -fx-background-color: #393b3d;
     -fx-text-fill: #c3c5c7;
 }

@@ -7,7 +7,7 @@
           fx:controller="com.github.yoep.popcorn.view.controllers.desktop.components.SettingsSubtitlesComponent" styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
-        <ColumnConstraints />
+        <ColumnConstraints prefWidth="200"/>
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>

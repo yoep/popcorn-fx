@@ -6,7 +6,7 @@
           fx:controller="com.github.yoep.popcorn.view.controllers.tv.components.SettingsUiComponent" styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
-        <ColumnConstraints/>
+        <ColumnConstraints prefWidth="300"/>
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
@@ -24,7 +24,7 @@
     <Label text="%settings_ui_language"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
     <StackPane fx:id="defaultLanguageCombo" styleClass="combo-box-base,combo-box" focusTraversable="true"
-          GridPane.columnIndex="2" GridPane.rowIndex="0">
+               GridPane.columnIndex="2" GridPane.rowIndex="0">
         <Label fx:id="defaultLanguage" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
     </StackPane>
 

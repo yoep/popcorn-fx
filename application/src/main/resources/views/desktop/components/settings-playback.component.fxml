@@ -20,7 +20,7 @@
 
     <!-- Subtitles title -->
     <Label styleClass="subsection-title" text="%settings_playback" GridPane.valignment="TOP"
-           GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+           GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
     <!-- Playback quality -->
     <Label text="%settings_playback_quality"

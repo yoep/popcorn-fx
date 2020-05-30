@@ -120,6 +120,13 @@ public class TvConfig {
     }
 
     @Bean
+    public SettingsPlaybackComponent settingsPlaybackComponent(ActivityManager activityManager,
+                                                               LocaleText localeText,
+                                                               SettingsService settingsService) {
+        return new SettingsPlaybackComponent(activityManager, localeText, settingsService);
+    }
+
+    @Bean
     public PlayerHeaderComponent playerHeaderComponent(ActivityManager activityManager) {
         return new PlayerHeaderComponent(activityManager);
     }

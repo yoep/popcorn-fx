@@ -5,7 +5,7 @@ import lombok.*;
 import java.util.Objects;
 
 @EqualsAndHashCode(callSuper = false)
-@Data
+@ToString
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -44,7 +44,42 @@ public class ApplicationSettings extends AbstractSettings {
     @Builder.Default
     private PlaybackSettings playbackSettings = PlaybackSettings.builder().build();
 
-    //region Setters
+    //region Getters & Setters
+
+    public TorrentSettings getTorrentSettings() {
+        if (torrentSettings == null)
+            torrentSettings = TorrentSettings.builder().build();
+
+        return torrentSettings;
+    }
+
+    public SubtitleSettings getSubtitleSettings() {
+        if (subtitleSettings == null)
+            subtitleSettings = SubtitleSettings.builder().build();
+
+        return subtitleSettings;
+    }
+
+    public UISettings getUiSettings() {
+        if (uiSettings == null)
+            uiSettings = UISettings.builder().build();
+
+        return uiSettings;
+    }
+
+    public TraktSettings getTraktSettings() {
+        if (traktSettings == null)
+            traktSettings = TraktSettings.builder().build();
+
+        return traktSettings;
+    }
+
+    public PlaybackSettings getPlaybackSettings() {
+        if (playbackSettings == null)
+            playbackSettings = PlaybackSettings.builder().build();
+
+        return playbackSettings;
+    }
 
     public void setTorrentSettings(TorrentSettings torrentSettings) {
         if (Objects.equals(this.torrentSettings, torrentSettings))

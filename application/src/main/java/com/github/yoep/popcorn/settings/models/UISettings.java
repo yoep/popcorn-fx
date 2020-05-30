@@ -16,6 +16,7 @@ import static java.util.Arrays.asList;
 public class UISettings extends AbstractSettings {
     public static final String LANGUAGE_PROPERTY = "defaultLanguage";
     public static final String UI_SCALE_PROPERTY = "uiScale";
+    public static final String START_SCREEN_PROPERTY = "startScreen";
     public static final String MAXIMIZED_PROPERTY = "maximized";
 
     public static final Locale DEFAULT_LANGUAGE = defaultLanguage();
@@ -68,6 +69,15 @@ public class UISettings extends AbstractSettings {
         var oldValue = this.maximized;
         this.maximized = maximized;
         changes.firePropertyChange(MAXIMIZED_PROPERTY, oldValue, maximized);
+    }
+
+    public void setStartScreen(StartScreen startScreen) {
+        if (Objects.equals(this.startScreen, startScreen))
+            return;
+
+        var oldValue = this.startScreen;
+        this.startScreen = startScreen;
+        changes.firePropertyChange(START_SCREEN_PROPERTY, oldValue, startScreen);
     }
 
     //endregion

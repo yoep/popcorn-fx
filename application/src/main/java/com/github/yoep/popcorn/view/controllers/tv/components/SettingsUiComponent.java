@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.activities.ActivityManager;
 import com.github.yoep.popcorn.activities.ShowSettingsActivity;
 import com.github.yoep.popcorn.settings.SettingsService;
+import com.github.yoep.popcorn.settings.models.StartScreen;
 import com.github.yoep.popcorn.settings.models.UIScale;
 import com.github.yoep.popcorn.settings.models.UISettings;
 import com.github.yoep.popcorn.view.controllers.common.components.AbstractSettingsComponent;
@@ -45,6 +46,7 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
     public void initialize(URL location, ResourceBundle resources) {
         initializeDefaultLanguage();
         initializeUIScale();
+        initializeStartScreen();
     }
 
     private void initializeDefaultLanguage() {
@@ -52,7 +54,7 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
 
         updateDefaultLanguage(uiSettings.getDefaultLanguage());
         uiSettings.addListener(evt -> {
-            if (evt.getPropertyName().equalsIgnoreCase(UISettings.LANGUAGE_PROPERTY)) {
+            if (evt.getPropertyName().equals(UISettings.LANGUAGE_PROPERTY)) {
                 updateDefaultLanguage((Locale) evt.getNewValue());
             }
         });
@@ -63,8 +65,19 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
 
         updateUiScale(uiSettings.getUiScale());
         uiSettings.addListener(evt -> {
-            if (evt.getPropertyName().equalsIgnoreCase(UISettings.UI_SCALE_PROPERTY)) {
+            if (evt.getPropertyName().equals(UISettings.UI_SCALE_PROPERTY)) {
                 updateUiScale((UIScale) evt.getNewValue());
+            }
+        });
+    }
+
+    private void initializeStartScreen() {
+        var uiSettings = getUiSettings();
+
+        updateStartScreen(uiSettings.getStartScreen());
+        uiSettings.addListener(evt -> {
+            if (evt.getPropertyName().equals(UISettings.START_SCREEN_PROPERTY)) {
+                updateStartScreen((StartScreen) evt.getNewValue());
             }
         });
     }
@@ -91,6 +104,10 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
 
     private void updateUiScale(UIScale uiScale) {
         this.uiScale.setText(uiScale.toString());
+    }
+
+    private void updateStartScreen(StartScreen startScreen) {
+        this.startScreen.setText(localeText.get("filter_" + startScreen.name().toLowerCase()));
     }
 
     private UISettings getUiSettings() {

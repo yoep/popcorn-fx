@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.settings.models;
 
 import lombok.*;
+import org.springframework.lang.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -20,6 +21,7 @@ public class PlaybackSettings extends AbstractSettings {
     /**
      * The default video playback quality.
      */
+    @Nullable
     private Quality quality;
     /**
      * Open the video playback in fullscreen.

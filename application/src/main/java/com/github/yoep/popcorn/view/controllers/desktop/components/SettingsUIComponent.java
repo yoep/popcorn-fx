@@ -42,7 +42,7 @@ public class SettingsUIComponent extends AbstractSettingsComponent implements In
         defaultLanguage.setButtonCell(createLanguageCell());
 
         defaultLanguage.getItems().addAll(UISettings.supportedLanguages());
-        defaultLanguage.getSelectionModel().select(UISettings.defaultLanguage());
+        defaultLanguage.getSelectionModel().select(getUiSettings().getDefaultLanguage());
         defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
     }
 

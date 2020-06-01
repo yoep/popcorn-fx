@@ -16,6 +16,9 @@
 
             <!-- Playback -->
             <fx:include source="../components/settings-playback.component.fxml"/>
+
+            <!-- Subtitles -->
+            <fx:include source="../components/settings-subtitles.component.fxml"/>
         </VBox>
     </ManageableScrollPane>
 </StackPane>

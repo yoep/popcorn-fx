@@ -23,26 +23,35 @@
     <!-- Default language -->
     <Label text="%settings_ui_language"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-    <StackPane fx:id="defaultLanguageCombo" styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox fx:id="defaultLanguageCombo" styleClass="combo-box-base,combo-box" focusTraversable="true"
                GridPane.columnIndex="2" GridPane.rowIndex="0">
         <Label fx:id="defaultLanguage" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
-    </StackPane>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
 
     <!-- UI scale -->
     <Label text="%settings_ui_scale" labelFor="$uiScale"
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-    <StackPane styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
                GridPane.columnIndex="2" GridPane.rowIndex="1">
         <Label fx:id="uiScale" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
-    </StackPane>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
 
     <!-- Start screen -->
     <Label text="%settings_start_screen" labelFor="$startScreen"
            GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-    <StackPane styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
                GridPane.columnIndex="2" GridPane.rowIndex="2">
         <Label fx:id="startScreen" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
-    </StackPane>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
 
     <!-- Separator -->
     <Separator

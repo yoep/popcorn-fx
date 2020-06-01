@@ -22,10 +22,13 @@
     <!-- Playback quality -->
     <Label text="%settings_playback_quality"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-    <StackPane styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
                GridPane.columnIndex="2" GridPane.rowIndex="0">
         <Label fx:id="quality" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
-    </StackPane>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
 
     <!-- Separator -->
     <Separator

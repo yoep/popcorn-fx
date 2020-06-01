@@ -349,10 +349,36 @@
 }
 
 .root .content-section .settings-section .sub-section .combo-box .label {
+    -fx-pref-width: 126px;
+    -fx-max-width: 126px;
     -fx-background-color: transparent;
     -fx-padding: 3 5 3 5;
 }
 
 .root .content-section .settings-section .sub-section .combo-box:focused .label {
     -fx-text-fill: #fff;
+}
+
+.root .content-section .settings-section .sub-section .combo-box .arrow-button {
+    -fx-padding: 0 8 0 8;
+}
+
+.root .content-section .settings-section .sub-section .combo-box .arrow-button .arrow {
+    -fx-pref-width: 8px;
+    -fx-max-width: 8px;
+    -fx-pref-height: 4px;
+    -fx-max-height: 4px;
+}
+
+.root .content-section .settings-section .sub-section .check-box .box {
+    -fx-border-width: 2;
+    -fx-border-color: transparent;
+}
+
+.root .content-section .settings-section .sub-section .check-box:focused {
+    -fx-text-fill: #2d72d9;
+}
+
+.root .content-section .settings-section .sub-section .check-box:focused .box {
+    -fx-border-color: #2d72d9;
 }

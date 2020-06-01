@@ -127,6 +127,13 @@ public class TvConfig {
     }
 
     @Bean
+    public SettingsSubtitlesComponent settingsSubtitlesComponent(ActivityManager activityManager,
+                                                                 LocaleText localeText,
+                                                                 SettingsService settingsService) {
+        return new SettingsSubtitlesComponent(activityManager, localeText, settingsService);
+    }
+
+    @Bean
     public PlayerHeaderComponent playerHeaderComponent(ActivityManager activityManager) {
         return new PlayerHeaderComponent(activityManager);
     }

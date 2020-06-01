@@ -15,6 +15,7 @@ import java.util.Objects;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SubtitleSettings extends AbstractSettings {
+    public static final String DEFAULT_SUBTITLE_PROPERTY = "defaultSubtitle";
     public static final String DIRECTORY_PROPERTY = "directory";
     public static final String AUTO_CLEANING_PROPERTY = "autoCleaningEnabled";
     public static final String FONT_FAMILY_PROPERTY = "fontFamily";
@@ -67,6 +68,15 @@ public class SubtitleSettings extends AbstractSettings {
     //endregion
 
     //region Setters
+
+    public void setDefaultSubtitle(SubtitleLanguage defaultSubtitle) {
+        if (Objects.equals(this.defaultSubtitle, defaultSubtitle))
+            return;
+
+        var oldValue = this.defaultSubtitle;
+        this.defaultSubtitle = defaultSubtitle;
+        changes.firePropertyChange(DEFAULT_SUBTITLE_PROPERTY, oldValue, defaultSubtitle);
+    }
 
     public void setDirectory(File directory) {
         if (Objects.equals(this.directory, directory))

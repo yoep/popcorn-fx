@@ -55,7 +55,9 @@ public class TorrentInputStream extends FilterInputStream implements AlertListen
             return -1;
         }
 
-        var pieceLength = torrent.getTorrentHandle().torrentFile().pieceLength();
+        var torrentHandle = torrent.getTorrentHandle();
+        var torrentFile = torrentHandle.torrentFile();
+        var pieceLength = torrentFile.pieceLength();
 
         for (int i = 0; i < length; i += pieceLength) {
             if (!waitForPiece(location + i)) {

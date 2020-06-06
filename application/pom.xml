@@ -203,6 +203,11 @@
                     <artifactId>javapackager</artifactId>
                     <version>0.9.7</version>
                 </plugin>
+                <plugin>
+                    <groupId>com.gluonhq</groupId>
+                    <artifactId>client-maven-plugin</artifactId>
+                    <version>0.1.27</version>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -256,6 +261,13 @@
                             <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.gluonhq</groupId>
+                <artifactId>client-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>${start-class}</mainClass>
                 </configuration>
             </plugin>
             <plugin>

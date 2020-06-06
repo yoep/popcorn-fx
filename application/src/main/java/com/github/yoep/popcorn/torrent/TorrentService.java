@@ -141,12 +141,16 @@ public class TorrentService {
      * Stop the current torrent stream.
      */
     public void stopStream() {
-        // remove the current torrent from the stream cache
-        torrentStream.getCurrentTorrent()
-                .ifPresent(torrent -> new HashMap<>().entrySet().removeIf(e -> e.getValue() == torrent));
+        try {
+            // remove the current torrent from the stream cache
+            torrentStream.getCurrentTorrent()
+                    .ifPresent(torrent -> new HashMap<>().entrySet().removeIf(e -> e.getValue() == torrent));
 
-        // stop the torrent stream
-        torrentStream.stopStream();
+            // stop the torrent stream
+            torrentStream.stopStream();
+        } catch (Exception ex) {
+            log.error("Failed to stop torrent stream, " + ex.getMessage(), ex);
+        }
     }
 
     /**

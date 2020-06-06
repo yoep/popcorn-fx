@@ -11,20 +11,8 @@
     <artifactId>video-vlc</artifactId>
 
     <properties>
-        <vlc.version>4.5.2</vlc.version>
-        <vlcj-javafx.version>1.0.0</vlcj-javafx.version>
+        <vlcj-javafx.version>1.0.2</vlcj-javafx.version>
     </properties>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <!-- VLC player -->
-                <groupId>uk.co.caprica</groupId>
-                <artifactId>vlcj</artifactId>
-                <version>${vlc.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <!-- Popcorn Time -->
@@ -44,18 +32,8 @@
         <!-- VLC player -->
         <dependency>
             <groupId>uk.co.caprica</groupId>
-            <artifactId>vlcj</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>uk.co.caprica</groupId>
             <artifactId>vlcj-javafx</artifactId>
             <version>${vlcj-javafx.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>uk.co.caprica</groupId>
-                    <artifactId>vlcj</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- Spring -->

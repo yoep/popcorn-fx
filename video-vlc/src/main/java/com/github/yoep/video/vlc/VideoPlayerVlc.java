@@ -59,6 +59,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer<EmbeddedMediaPlayer> {
     public void play(String url) {
         checkInitialized();
 
+        log.debug("Playing \"{}\" on VLC video player", url);
         invokeOnVlc(() -> mediaPlayer.media().play(url));
     }
 

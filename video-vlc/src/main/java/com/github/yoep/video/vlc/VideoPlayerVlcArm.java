@@ -3,7 +3,6 @@ package com.github.yoep.video.vlc;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
-import javafx.application.Platform;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -63,6 +62,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer<MediaPlayer> {
         checkInitialized();
 
         try {
+            log.debug("Playing \"{}\" on VLC ARM video player", url);
             invokeOnVlc(() -> {
                 mediaPlayer.media().start(url);
 //                new LibVlcNativeFullScreenStrategy(mediaPlayer.mediaPlayerInstance()).enterFullScreenMode();

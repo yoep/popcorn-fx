@@ -228,7 +228,7 @@
 .root .header .bar .filter-nav-bar Label {
     -fx-border-width: 0 0 4 0;
     -fx-border-color: transparent;
-    -fx-padding: 10 5 5 18;
+    -fx-padding: 10 18 5 18;
 }
 
 .root .header .bar .filter-nav-bar .active {

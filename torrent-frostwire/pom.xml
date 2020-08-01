@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>popcorn-time</artifactId>
+        <groupId>com.github.yoep</groupId>
+        <version>0.0.3-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>torrent-frostwire</artifactId>
+
+    <properties>
+        <jlibtorrent.version>1.2.3.0</jlibtorrent.version>
+    </properties>
+
+    <dependencies>
+        <!-- Popcorn Time -->
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>torrent-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- JLibtorrent -->
+        <dependency>
+            <groupId>com.frostwire</groupId>
+            <artifactId>jlibtorrent</artifactId>
+            <version>${jlibtorrent.version}</version>
+        </dependency>
+
+        <!-- Apache -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+        </dependency>
+
+        <!-- Spring -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-logging</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Javax -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-base</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Compilation -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.0.0-M1</version>
+                <executions>
+                    <execution>
+                        <id>install-jlibtorrent</id>
+                        <phase>pre-clean</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${basedir}/../assets/jlibtorrent-1.2.3.0.jar</file>
+                            <sources>${basedir}/../assets/jlibtorrent-1.2.3.0-sources.jar</sources>
+                            <groupId>com.frostwire</groupId>
+                            <artifactId>jlibtorrent</artifactId>
+                            <version>${jlibtorrent.version}</version>
+                            <packaging>jar</packaging>
+                            <generatePom>true</generatePom>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

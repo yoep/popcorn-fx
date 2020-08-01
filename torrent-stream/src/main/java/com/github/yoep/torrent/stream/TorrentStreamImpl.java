@@ -1,0 +1,258 @@
+package com.github.yoep.torrent.stream;
+
+import com.github.yoep.torrent.adapter.InvalidStreamStateException;
+import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
+import com.github.yoep.torrent.adapter.listeners.TorrentListener;
+import com.github.yoep.torrent.adapter.listeners.TorrentStreamListener;
+import com.github.yoep.torrent.adapter.model.Torrent;
+import com.github.yoep.torrent.adapter.model.TorrentStream;
+import com.github.yoep.torrent.adapter.state.TorrentState;
+import com.github.yoep.torrent.adapter.state.TorrentStreamState;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.util.Assert;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+@Slf4j
+@ToString
+@EqualsAndHashCode
+public class TorrentStreamImpl implements TorrentStream {
+    public static final String STATE_PROPERTY = "streamState";
+
+    private final Torrent torrent;
+    private final String streamUrl;
+
+    private final ReadOnlyObjectWrapper<TorrentStreamState> streamState = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, TorrentStreamState.PREPARING);
+    private final TorrentListener torrentListener = createTorrentListener();
+    private final List<TorrentStreamListener> listeners = new ArrayList<>();
+    private final int[] preparePieces;
+
+    //region Constructors
+
+    public TorrentStreamImpl(Torrent torrent, String streamUrl) {
+        Assert.notNull(torrent, "torrent cannot be null");
+        Assert.hasText(streamUrl, "streamUrl cannot be null");
+        this.torrent = torrent;
+        this.streamUrl = streamUrl;
+        this.preparePieces = new int[]{0, 1, 2, 3, 4, getTotalPieces()};
+        initialize();
+    }
+
+    //endregion
+
+    //region Torrent
+
+    @Override
+    public TorrentState getState() {
+        return torrent.getState();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<TorrentState> stateProperty() {
+        return torrent.stateProperty();
+    }
+
+    @Override
+    public String getFilename() {
+        return torrent.getFilename();
+    }
+
+    @Override
+    public File getFile() {
+        return torrent.getFile();
+    }
+
+    @Override
+    public Integer getPieceLength() {
+        return torrent.getPieceLength();
+    }
+
+    @Override
+    public boolean hasPiece(int pieceIndex) {
+        return torrent.hasPiece(pieceIndex);
+    }
+
+    @Override
+    public int getTotalPieces() {
+        return torrent.getTotalPieces();
+    }
+
+    @Override
+    public void prioritizePieces(int... pieceIndexes) {
+        torrent.prioritizePieces(pieceIndexes);
+    }
+
+    @Override
+    public boolean hasByte(long byteIndex) {
+        return torrent.hasByte(byteIndex);
+    }
+
+    @Override
+    public void prioritizeByte(long byteIndex) {
+        torrent.prioritizeByte(byteIndex);
+    }
+
+    @Override
+    public void addListener(TorrentListener listener) {
+        torrent.addListener(listener);
+    }
+
+    @Override
+    public void removeListener(TorrentListener listener) {
+        torrent.removeListener(listener);
+    }
+
+    @Override
+    public void startDownload() {
+        torrent.startDownload();
+    }
+
+    @Override
+    public void resume() {
+        torrent.resume();
+    }
+
+    @Override
+    public void pause() {
+        torrent.pause();
+    }
+
+    @Override
+    public void sequentialMode() {
+        torrent.sequentialMode();
+    }
+
+    //endregion
+
+    //region TorrentStream
+
+    @Override
+    public TorrentStreamState getStreamState() {
+        return streamState.get();
+    }
+
+    @Override
+    public ReadOnlyObjectProperty<TorrentStreamState> streamStateProperty() {
+        return streamState.getReadOnlyProperty();
+    }
+
+    @Override
+    public Torrent getTorrent() {
+        return torrent;
+    }
+
+    @Override
+    public String getStreamUrl() {
+        return streamUrl;
+    }
+
+    @Override
+    public void addListener(TorrentStreamListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        listeners.add(listener);
+    }
+
+    @Override
+    public void removeListener(TorrentStreamListener listener) {
+        listeners.remove(listener);
+    }
+
+    @Override
+    public Resource stream() {
+        var state = getStreamState();
+
+        // verify if the stream has not been stopped
+        if (state == TorrentStreamState.STOPPED) {
+            throw new InvalidStreamStateException(state);
+        }
+
+        return new TorrentResource(this);
+    }
+
+    @Override
+    public void stopStream() {
+        pause();
+        streamState.set(TorrentStreamState.STOPPED);
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void initialize() {
+        initializeStateListener();
+        initializeTorrent();
+        initializePiecePriorities();
+    }
+
+    private void initializeStateListener() {
+        streamState.addListener((observable, oldValue, newValue) -> {
+            log.debug("Torrent stream \"{}\" changed from state {} to {}", getFilename(), oldValue, newValue);
+            listeners.forEach(e -> safeInvoke(() -> e.onStateChanged(oldValue, newValue)));
+
+            switch (newValue) {
+                case STREAMING:
+                    listeners.forEach(e -> safeInvoke(e::onStreamReady));
+                    break;
+                case STOPPED:
+                    listeners.forEach(e -> safeInvoke(e::onStreamStopped));
+                    break;
+            }
+        });
+    }
+
+    private void initializeTorrent() {
+        torrent.addListener(torrentListener);
+    }
+
+    private void initializePiecePriorities() {
+        log.trace("Preparing the following pieces {} for torrent stream \"{}\"", preparePieces, getFilename());
+        // update the torrent file priorities to prepare the first 5 pieces and the last piece
+        prioritizePieces(preparePieces);
+    }
+
+    private void safeInvoke(Runnable runnable) {
+        try {
+            runnable.run();
+        } catch (Exception ex) {
+            log.error("An error occurred while invoking a listener, " + ex.getMessage(), ex);
+        }
+    }
+
+    private void onPieceFinished() {
+        // check if the torrent is already streaming or stopped
+        // if so, ignore this piece finished event
+        if (getStreamState() != TorrentStreamState.PREPARING)
+            return;
+
+        // verify if all prepare pieces are present
+        var preparationCompleted = Arrays.stream(preparePieces)
+                .allMatch(this::hasPiece);
+
+        if (preparationCompleted) {
+            log.info("Torrent stream \"{}\" is ready to be streamed", getFilename());
+            streamState.set(TorrentStreamState.STREAMING);
+            // update the torrent download to sequential mode
+            sequentialMode();
+        }
+    }
+
+    private TorrentListener createTorrentListener() {
+        return new AbstractTorrentListener() {
+            @Override
+            public void onPieceFinished(int pieceIndex) {
+                TorrentStreamImpl.this.onPieceFinished();
+            }
+        };
+    }
+
+    //endregion
+}

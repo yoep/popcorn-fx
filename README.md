@@ -91,13 +91,6 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - Watchlist
 - TV remote support (tested with Andoer mx3)
 
-### Upcoming features
-
-- Update video time slider to show video loading progress (custom control)
-- Continue to watch show with next episode
-- Add option for custom subtitle files
-- Favorite synchronisation with Trakt.tv
-
 ## Screenshots
 
 #### Desktop mode

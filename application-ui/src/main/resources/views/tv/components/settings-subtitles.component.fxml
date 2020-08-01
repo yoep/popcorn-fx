@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.SettingsSubtitlesComponent" styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints prefWidth="300"/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <!-- Subtitles title -->
+    <Label styleClass="subsection-title" text="%settings_subtitles" GridPane.valignment="TOP"
+           GridPane.rowSpan="7" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <!-- Default language -->
+    <Label text="%settings_subtitles_default"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+          GridPane.columnIndex="2" GridPane.rowIndex="0">
+        <Label fx:id="defaultSubtitle" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
+
+    <!-- Font family -->
+    <Label text="%settings_subtitles_font_family"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+          GridPane.columnIndex="2" GridPane.rowIndex="1">
+        <Label fx:id="fontFamily" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
+
+    <!-- Decoration -->
+    <Label text="%settings_subtitles_decoration"
+           GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+          GridPane.columnIndex="2" GridPane.rowIndex="2">
+        <Label fx:id="decoration" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
+
+    <!-- Font size -->
+    <Label text="%settings_subtitles_font_size"
+           GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+          GridPane.columnIndex="2" GridPane.rowIndex="3">
+        <Label fx:id="fontSize" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
+
+    <!-- Bold -->
+    <CheckBox fx:id="fontBold" text="%settings_subtitles_bold"
+              GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+    <!-- Clear cache -->
+    <CheckBox fx:id="clearCache" text="%settings_subtitles_clear_cache"
+              GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+    <!-- Separator -->
+    <Separator
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+</GridPane>

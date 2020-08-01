@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.ProgressControl?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.PlayerControlsComponent">
+
+    <GridPane styleClass="player-controls"
+              GridPane.columnIndex="1" GridPane.rowIndex="0">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="20"/>
+            <ColumnConstraints percentWidth="20"/>
+            <ColumnConstraints percentWidth="20"/>
+            <ColumnConstraints percentWidth="20"/>
+            <ColumnConstraints percentWidth="20"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints/>
+            <RowConstraints/>
+        </rowConstraints>
+        <vgap>10</vgap>
+
+        <!-- Actions -->
+        <Icon styleClass="control-button" focusTraversable="true"
+              onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
+              GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.halignment="CENTER">
+            <Icon fx:constant="STOP_UNICODE"/>
+        </Icon>
+        <Icon styleClass="control-button" focusTraversable="true"
+              onMouseClicked="#onBackwardClicked" onKeyPressed="#onBackwardKeyPressed"
+              GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.halignment="CENTER">
+            <Icon fx:constant="BACKWARD_UNICODE"/>
+        </Icon>
+        <Icon fx:id="playPauseIcon" styleClass="control-button" focusTraversable="true"
+              onMouseClicked="#onPlayPauseClicked" onKeyPressed="#onPlayPauseKeyPressed"
+              GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.halignment="CENTER">
+            <Icon fx:constant="PLAY_UNICODE"/>
+        </Icon>
+        <Icon styleClass="control-button" focusTraversable="true"
+              onMouseClicked="#onForwardClicked" onKeyPressed="#onForwardKeyPressed"
+              GridPane.columnIndex="3" GridPane.rowIndex="0" GridPane.halignment="CENTER">
+            <Icon fx:constant="FORWARD_UNICODE"/>
+        </Icon>
+        <Icon styleClass="control-button" focusTraversable="true"
+              GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.halignment="CENTER">
+            <Icon fx:constant="ELLIPSIS_H_UNICODE"/>
+        </Icon>
+
+        <!-- Time bar -->
+        <Label fx:id="timeLabel" styleClass="time" text="00:00"
+               GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.halignment="RIGHT"/>
+        <ProgressControl fx:id="progress"
+                         GridPane.columnSpan="3" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+        <Label fx:id="durationLabel" styleClass="time" text="00:00"
+               GridPane.columnIndex="4" GridPane.rowIndex="1" GridPane.halignment="LEFT"/>
+    </GridPane>
+</StackPane>

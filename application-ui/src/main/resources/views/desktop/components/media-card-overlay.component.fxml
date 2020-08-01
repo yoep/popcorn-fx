@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Media card containing additional details in an overlay.
+-->
+
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.view.controls.Stars?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:id="posterItem" styleClass="poster-item" onMouseClicked="#showDetails" cache="true" focusTraversable="true">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+    <padding>
+        <Insets topRightBottomLeft="10"/>
+    </padding>
+
+    <AnchorPane styleClass="poster"
+                GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <StackPane fx:id="poster" styleClass="poster-image"/>
+
+        <AnchorPane styleClass="overlay" AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">
+            <Icon sizeFactor="1.5" styleClass="view" onMouseClicked="#onWatchedClicked"
+                  AnchorPane.leftAnchor="7" AnchorPane.topAnchor="7">
+                <Icon fx:constant="EYE_UNICODE"/>
+            </Icon>
+            <Icon fx:id="favorite" sizeFactor="1.5" styleClass="like" onMouseClicked="#onFavoriteClicked"
+                  AnchorPane.topAnchor="7" AnchorPane.rightAnchor="7">
+                <Icon fx:constant="HEART_UNICODE"/>
+            </Icon>
+
+            <Stars fx:id="ratingStars" AnchorPane.leftAnchor="7" AnchorPane.bottomAnchor="7"/>
+
+            <Label fx:id="ratingValue" AnchorPane.rightAnchor="7" AnchorPane.bottomAnchor="5"/>
+        </AnchorPane>
+    </AnchorPane>
+
+    <Label fx:id="title" styleClass="title"
+           GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+    <Label fx:id="year" styleClass="year"
+           GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+    <Label fx:id="seasons" styleClass="seasons"
+           GridPane.halignment="RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+</GridPane>

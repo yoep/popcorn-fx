@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
+<?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
+<?import com.github.yoep.popcorn.ui.view.controls.Stars?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.ShowDetailsComponent" styleClass="show-details-section">
+    <GridPane maxHeight="315" minHeight="315" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
+        <columnConstraints>
+            <ColumnConstraints minWidth="298"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints minWidth="25"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints valignment="TOP"/>
+            <RowConstraints valignment="TOP"/>
+            <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
+            <RowConstraints valignment="BOTTOM"/>
+        </rowConstraints>
+
+        <!-- Background -->
+        <BackgroundImageCover fx:id="backgroundImage"
+                              GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="0" GridPane.rowSpan="4"/>
+
+        <!-- Image -->
+        <StackPane fx:id="posterHolder" styleClass="poster"
+                   GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
+            <padding>
+                <Insets left="10" right="10"/>
+            </padding>
+
+            <ImageCover fx:id="poster" styleClass="poster-image" coverType="HEIGHT"/>
+        </StackPane>
+
+        <!-- Title -->
+        <Label fx:id="title" styleClass="title" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+        <!-- Metadata -->
+        <HBox alignment="CENTER_LEFT" styleClass="metadata" GridPane.columnIndex="1" GridPane.rowIndex="1">
+            <Label fx:id="year"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="duration"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="status"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="genres"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Stars fx:id="ratingStars" alignment="CENTER"/>
+        </HBox>
+
+        <!-- Synopsis/overview text -->
+        <Label fx:id="overview" styleClass="overview" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    </GridPane>
+</AnchorPane>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.SettingsPlaybackComponent" styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints />
+        <ColumnConstraints prefWidth="300"/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <!-- Subtitles title -->
+    <Label styleClass="subsection-title" text="%settings_playback" GridPane.valignment="TOP"
+           GridPane.rowSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <!-- Playback quality -->
+    <Label text="%settings_playback_quality"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+               GridPane.columnIndex="2" GridPane.rowIndex="0">
+        <Label fx:id="quality" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+        <StackPane styleClass="arrow-button">
+            <Region styleClass="arrow" />
+        </StackPane>
+    </HBox>
+
+    <!-- Separator -->
+    <Separator
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+</GridPane>

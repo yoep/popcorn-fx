@@ -3,7 +3,7 @@
     <parent>
         <artifactId>popcorn-time</artifactId>
         <groupId>com.github.yoep</groupId>
-        <version>0.0.3-SNAPSHOT</version>
+        <version>0.0.3</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 

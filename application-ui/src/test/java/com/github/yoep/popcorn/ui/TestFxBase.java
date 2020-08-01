@@ -22,6 +22,7 @@ public abstract class TestFxBase extends ApplicationTest {
         // the ApplicationTest bypasses the main method in PopcornTimeApplication
         // so we need to manually provide the system property "app.dir" for testing purposes
         System.setProperty("app.dir", PopcornTimeApplication.APP_DIR);
+        System.setProperty("java.library.path", "");
         ApplicationTest.launch(PopcornTimeApplication.class);
     }
 

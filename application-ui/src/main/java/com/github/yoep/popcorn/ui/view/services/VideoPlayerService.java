@@ -346,16 +346,21 @@ public class VideoPlayerService {
         playUrl(activity.getUrl());
     }
 
-    private void onSubtitleChanged(SubtitleInfo subtitle) {
-        if (subtitle == null || subtitle.isNone())
+    private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
+        // check if the subtitle is being disabled
+        if(subtitleInfo == null || subtitleInfo.isNone()) {
+            log.debug("Disabling subtitle track");
+            setSubtitle(Subtitle.NONE);
             return;
+        }
 
-        log.debug("Downloading subtitle \"{}\" for video playback", subtitle);
+        log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
         var matcher = SubtitleMatcher.from(FilenameUtils.getBaseName(url), quality);
 
-        subtitleService.downloadAndParse(subtitle, matcher).whenComplete((subtitles, throwable) -> {
+        subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitles, throwable) -> {
             if (throwable == null) {
-
+                log.debug("Subtitle \"{}\" has been downloaded with success", subtitleInfo);
+                this.setSubtitle(subtitles);
             } else {
                 log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                 activityManager.register((ErrorNotificationActivity) () -> localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED));

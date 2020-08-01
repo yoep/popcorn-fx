@@ -179,7 +179,8 @@
                 <artifactId>maven-release-plugin</artifactId>
                 <configuration>
                     <tagNameFormat>v@{project.version}</tagNameFormat>
-                    <preparationGoals>clean install</preparationGoals>
+                    <preparationGoals>clean verify</preparationGoals>
+                    <completionGoals>clean install</completionGoals>
                 </configuration>
             </plugin>
         </plugins>

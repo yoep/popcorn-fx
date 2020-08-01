@@ -6,7 +6,7 @@ import org.testfx.api.FxAssert;
 import org.testfx.matcher.base.NodeMatchers;
 
 @Ignore
-public class MainControllerTest extends TestFxBase {
+public class MainControllerIT extends TestFxBase {
     static final String CONTENT_PANE_ID = "#contentPane";
     static final String PLAYER_PANE_ID = "#playerPane";
 

@@ -15,6 +15,7 @@ import com.github.yoep.popcorn.ui.view.controls.SearchListener;
 import com.github.yoep.popcorn.ui.view.models.Category;
 import com.github.yoep.popcorn.ui.view.models.Genre;
 import com.github.yoep.popcorn.ui.view.models.SortBy;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
@@ -23,6 +24,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -36,6 +38,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private final ActivityManager activityManager;
     private final PopcornProperties properties;
     private final LocaleText localeText;
+
+    private Label lastKnownSelectedCategory;
 
     @FXML
     private Pane headerPane;
@@ -55,6 +59,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private Icon watchlistIcon;
     @FXML
     private Icon torrentCollectionIcon;
+    @FXML
+    private Icon settingsIcon;
 
     //region Constructors
 
@@ -75,6 +81,15 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         initializeSearchListener();
         initializeIcons();
         initializeSceneListener(headerPane);
+    }
+
+    //endregion
+
+    //region PostConstruct
+
+    @PostConstruct
+    private void init() {
+        activityManager.register(CloseSettingsActivity.class, activity -> onSettingsClosed());
     }
 
     //endregion
@@ -153,9 +168,10 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     private void switchCategory(Label item) {
         final AtomicReference<Category> category = new AtomicReference<>();
+        this.lastKnownSelectedCategory = item;
 
         removeAllActiveStates();
-        item.getStyleClass().add(STYLE_ACTIVE);
+        activateItem(item);
 
         if (item == moviesCategory) {
             category.set(Category.MOVIES);
@@ -192,7 +208,14 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private void switchIcon(Icon icon) {
         removeAllActiveStates();
 
-        icon.getStyleClass().add(STYLE_ACTIVE);
+        activateItem(icon);
+    }
+
+    private void activateItem(Label item) {
+        if (item == null)
+            return;
+
+        item.getStyleClass().add(STYLE_ACTIVE);
     }
 
     private void removeAllActiveStates() {
@@ -204,6 +227,14 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         // icons
         watchlistIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
         torrentCollectionIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+        settingsIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+    }
+
+    private void onSettingsClosed() {
+        Platform.runLater(() -> {
+            removeAllActiveStates();
+            activateItem(lastKnownSelectedCategory);
+        });
     }
 
     private ApplicationSettings getSettings() {
@@ -241,6 +272,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     @FXML
     private void onSettingsClicked() {
+        switchIcon(settingsIcon);
         activityManager.register(new ShowSettingsActivity() {
         });
     }

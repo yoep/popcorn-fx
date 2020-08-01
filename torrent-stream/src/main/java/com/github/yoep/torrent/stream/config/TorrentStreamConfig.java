@@ -7,13 +7,15 @@ import com.github.yoep.torrent.stream.controllers.VideoController;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.context.WebApplicationContext;
 
 @Configuration
 public class TorrentStreamConfig {
     @Bean
     @ConditionalOnMissingBean
-    public TorrentStreamService streamService(TorrentService torrentService) {
-        return new TorrentStreamServiceImpl(torrentService);
+    public TorrentStreamService streamService(TorrentService torrentService,
+                                              WebApplicationContext applicationContext) {
+        return new TorrentStreamServiceImpl(torrentService, applicationContext);
     }
 
     @Bean

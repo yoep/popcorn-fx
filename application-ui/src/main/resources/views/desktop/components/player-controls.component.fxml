@@ -5,6 +5,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.ProgressSliderControl?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerControlsComponent" styleClass="player-controls">
     <columnConstraints>
@@ -30,8 +31,8 @@
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
     <!-- Time picker -->
-    <Slider fx:id="slider" styleClass="slider"
-            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+    <ProgressSliderControl fx:id="slider"
+                           GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
     <!-- Duration -->
     <Label fx:id="durationLabel" styleClass="time" text="00:00"

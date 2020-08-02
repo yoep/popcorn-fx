@@ -14,12 +14,12 @@ import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelection;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractPlayerControlsComponent;
+import com.github.yoep.popcorn.ui.view.controls.ProgressSliderControl;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ListCell;
-import javafx.scene.control.Slider;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -35,7 +35,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     private final LocaleText localeText;
 
     @FXML
-    private Slider slider;
+    private ProgressSliderControl slider;
     @FXML
     private Pane subtitleSection;
     @FXML
@@ -94,7 +94,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
 
     @Override
     protected void onProgressChanged(double newValue) {
-        //TODO: implement
+        slider.setProgress(newValue);
     }
 
     //endregion

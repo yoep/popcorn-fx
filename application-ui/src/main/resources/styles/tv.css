@@ -310,25 +310,6 @@
     -fx-font-size: 1.25em;
 }
 
-.root .player .player-controls .progress,
-.root .player .player-controls .progress .play-progress,
-.root .player .player-controls .progress .load-progress {
-    -fx-background-radius: 1em;
-}
-
-.root .player .player-controls .progress {
-    -fx-max-height: 10;
-    -fx-background-color: #ccc;
-}
-
-.root .player .player-controls .progress .play-progress {
-    -fx-background-color: #2d72d9;
-}
-
-.root .player .player-controls .progress .load-progress {
-    -fx-background-color: #80b3ff;
-}
-
 .root .content-section .settings-section .settings-title {
     -fx-font-size: 2em;
 }

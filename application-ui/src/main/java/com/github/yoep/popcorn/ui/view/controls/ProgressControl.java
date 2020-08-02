@@ -19,8 +19,8 @@ public class ProgressControl extends StackPane {
     private static final String LOAD_PROGRESS_STYLE_CLASS = "load-progress";
     private static final String PLAY_PROGRESS_STYLE_CLASS = "play-progress";
 
-    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
-    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
+    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY, 0);
+    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY, 0);
     private final ReadOnlyDoubleWrapper progress = new ReadOnlyDoubleWrapper(this, PROGRESS_PROPERTY, 0);
 
     private final StackPane playProgress = new StackPane();

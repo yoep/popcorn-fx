@@ -79,6 +79,7 @@ Add the following VM option if you're experiencing white boxes in the UI.
 - List, filter & play shows
 - Select video quality
 - Select video subtitle
+- Custom subtitle support
 - Increase/decrease subtitle offset
 - Mark media as watched
 - Add media to favorites

@@ -106,7 +106,7 @@ public class FrostTorrent implements Torrent, AlertListener {
         Assert.noNullElements(pieceIndexes, "pieceIndexes cannot contain \"null\" items");
         log.trace("Prioritizing the following pieces: {}", Arrays.toString(pieceIndexes));
         for (int pieceIndex : pieceIndexes) {
-            prioritizePiece(pieceIndex + firstPieceIndex);
+            prioritizePiece(pieceIndex + firstPieceIndex, true);
         }
     }
 
@@ -123,12 +123,12 @@ public class FrostTorrent implements Torrent, AlertListener {
         var nextPiece = pieceIndex + 1;
 
         // prioritize the piece of the byte
-        prioritizePiece(pieceIndex);
+        prioritizePiece(pieceIndex, false);
 
         // prioritize the next piece if it's within the current download range
         // this is done to prevent stream tearing
         if (nextPiece <= lastPieceIndex) {
-            prioritizePiece(nextPiece);
+            prioritizePiece(nextPiece, false);
         }
     }
 
@@ -286,9 +286,12 @@ public class FrostTorrent implements Torrent, AlertListener {
         }
     }
 
-    private void prioritizePiece(int pieceIndex) {
+    private void prioritizePiece(int pieceIndex, boolean useDeadline) {
         handle.piecePriority(pieceIndex, Priority.SEVEN);
-        handle.setPieceDeadline(pieceIndex, 1000);
+
+        if (useDeadline) {
+            handle.setPieceDeadline(pieceIndex, 1000);
+        }
     }
 
     /**

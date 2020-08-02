@@ -1,11 +1,9 @@
 package com.github.yoep.torrent.frostwire.model;
 
-import com.frostwire.jlibtorrent.AlertListener;
-import com.frostwire.jlibtorrent.Priority;
-import com.frostwire.jlibtorrent.TorrentFlags;
-import com.frostwire.jlibtorrent.TorrentHandle;
+import com.frostwire.jlibtorrent.*;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
+import com.frostwire.jlibtorrent.alerts.MetadataFailedAlert;
 import com.frostwire.jlibtorrent.alerts.PieceFinishedAlert;
 import com.github.yoep.torrent.adapter.TorrentException;
 import com.github.yoep.torrent.adapter.listeners.TorrentListener;
@@ -19,9 +17,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import java.io.File;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @ToString(exclude = "handle")
@@ -31,29 +31,25 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     private final ReadOnlyObjectWrapper<TorrentState> state = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, TorrentState.CREATING);
     private final List<TorrentListener> listeners = new ArrayList<>();
+    private final TorrentPieces pieces = new TorrentPieces();
     private final TorrentHandle handle;
     private final String filename;
     private final int fileIndex;
-    private final int firstPieceIndex;
-    private final int lastPieceIndex;
+    private final boolean autoStartDownload;
+
+    private TorrentException error;
 
     //region Constructors
 
-    public FrostTorrent(TorrentHandle handle, int fileIndex, boolean startDownload) {
+    public FrostTorrent(TorrentHandle handle, int fileIndex, boolean autoStartDownload) {
         Assert.notNull(handle, "handle cannot be null");
         Assert.isTrue(fileIndex >= 0, "fileIndex cannot be smaller than 0");
         this.handle = handle;
         this.fileIndex = fileIndex;
         this.filename = handle.torrentFile().files().fileName(fileIndex);
+        this.autoStartDownload = autoStartDownload;
 
-        initialize();
-
-        this.firstPieceIndex = getFirstPieceIndex();
-        this.lastPieceIndex = getLastPieceIndex();
-
-        if (startDownload) {
-            startDownload();
-        }
+        init();
     }
 
     //endregion
@@ -68,6 +64,11 @@ public class FrostTorrent implements Torrent, AlertListener {
     @Override
     public ReadOnlyObjectProperty<TorrentState> stateProperty() {
         return state.getReadOnlyProperty();
+    }
+
+    @Override
+    public Optional<TorrentException> getError() {
+        return Optional.ofNullable(error);
     }
 
     @Override
@@ -93,12 +94,12 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     @Override
     public boolean hasPiece(int pieceIndex) {
-        return handle.havePiece(pieceIndex + firstPieceIndex);
+        return handle.havePiece(pieceIndex + pieces.getFirstPieceIndex());
     }
 
     @Override
     public int getTotalPieces() {
-        return lastPieceIndex - firstPieceIndex;
+        return pieces.getLastPieceIndex() - pieces.getFirstPieceIndex();
     }
 
     @Override
@@ -106,14 +107,14 @@ public class FrostTorrent implements Torrent, AlertListener {
         Assert.noNullElements(pieceIndexes, "pieceIndexes cannot contain \"null\" items");
         log.trace("Prioritizing the following pieces: {}", Arrays.toString(pieceIndexes));
         for (int pieceIndex : pieceIndexes) {
-            var torrentPieceIndex = pieceIndex + firstPieceIndex;
+            var torrentPieceIndex = pieces.getTorrentPieceIndex(pieceIndex);
 
             // verify if the piece index is within the download range
-            if (torrentPieceIndex >= firstPieceIndex && torrentPieceIndex <= lastPieceIndex) {
+            if (pieces.isInDownloadRange(pieceIndex)) {
                 prioritizePiece(torrentPieceIndex, true);
             } else {
                 log.error("Torrent piece {} cannot be prioritized as it's not within the torrent download range [{}-{}]",
-                        torrentPieceIndex, firstPieceIndex, lastPieceIndex);
+                        torrentPieceIndex, pieces.getFirstPieceIndex(), pieces.getLastPieceIndex());
             }
         }
     }
@@ -135,7 +136,7 @@ public class FrostTorrent implements Torrent, AlertListener {
 
         // prioritize the next piece if it's within the current download range
         // this is done to prevent stream tearing
-        if (nextPiece <= lastPieceIndex) {
+        if (nextPiece <= pieces.getLastPieceIndex()) {
             prioritizePiece(nextPiece, false);
         }
     }
@@ -153,7 +154,7 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     @Override
     public void startDownload() {
-        if (getState() != TorrentState.CREATING)
+        if (getState() != TorrentState.READY)
             return;
 
         state.set(TorrentState.STARTING);
@@ -199,6 +200,8 @@ public class FrostTorrent implements Torrent, AlertListener {
     @Override
     public int[] types() {
         return new int[]{
+                AlertType.METADATA_RECEIVED.swig(),
+                AlertType.METADATA_FAILED.swig(),
                 AlertType.STATS.swig(),
                 AlertType.PIECE_FINISHED.swig()
         };
@@ -208,8 +211,14 @@ public class FrostTorrent implements Torrent, AlertListener {
     public void alert(Alert<?> alert) {
         try {
             switch (alert.type()) {
+                case METADATA_RECEIVED:
+                    getState();
+                    break;
+                case METADATA_FAILED:
+                    onMetadataFailed(alert);
+                    break;
                 case STATS:
-                    sendStreamProgress();
+                    onStatsReceived();
                     break;
                 case PIECE_FINISHED:
                     onPieceFinished(alert);
@@ -224,55 +233,105 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     //region Functions
 
-    private void initialize() {
+    private void init() {
         initializeStateListener();
-        initializeTorrentFilePriorities();
+
+        // initialize everything else on a separate thread
+        // this will allow the constructor to continue
+        new Thread(() -> {
+            try {
+                initializeFilePriorities();
+                initializePieces();
+                initializeAutoStart();
+            } catch (Exception ex) {
+                handleInitializationFailure(ex);
+            }
+        }, "torrent-init").start();
     }
 
     private void initializeStateListener() {
-        state.addListener((observable, oldValue, newValue) -> listeners.forEach(e -> safeInvoke(() -> e.onStateChanged(oldValue, newValue))));
+        state.addListener((observable, oldValue, newValue) -> {
+            log.debug("Torrent \"{}\" changed from state {} to {}", getFilename(), oldValue, newValue);
+            listeners.forEach(e -> safeInvoke(() -> e.onStateChanged(oldValue, newValue)));
+
+            if (newValue == TorrentState.ERROR) {
+                listeners.forEach(e -> safeInvoke(() -> e.onError(error)));
+            }
+        });
     }
 
-    private void initializeTorrentFilePriorities() {
-        log.trace("Preparing torrent file index {}", fileIndex);
+    private void initializeFilePriorities() {
+        log.trace("Preparing torrent \"{}\" file priorities for file index {}", filename, fileIndex);
         var torrentInfo = handle.torrentFile();
+        var filePriorities = new Priority[torrentInfo.numFiles()];
 
         // update the torrent files so that only file index is downloaded
         for (int i = 0; i < torrentInfo.numFiles(); i++) {
             if (i == fileIndex) {
-                handle.filePriority(i, Priority.NORMAL);
+                filePriorities[i] = Priority.NORMAL;
             } else {
-                handle.filePriority(i, Priority.IGNORE);
+                filePriorities[i] = Priority.IGNORE;
             }
         }
+
+        handle.prioritizeFiles(filePriorities);
+    }
+
+    private void initializePieces() {
+        var priorities = handle.piecePriorities();
+
+        pieces.determineDownloadPieceIndexes(priorities);
+        state.set(TorrentState.READY);
+    }
+
+    private void initializeAutoStart() {
+        if (autoStartDownload) {
+            log.trace("Auto starting the download for torrent \"{}\"", filename);
+            startDownload();
+        }
+    }
+
+    private void handleInitializationFailure(Exception ex) {
+        var message = MessageFormat.format("Torrent \"{0}\" initialization failed, {1}", filename, ex.getMessage());
+        log.error(message, ex);
+
+        if (TorrentException.class.isAssignableFrom(ex.getClass())) {
+            error = (TorrentException) ex;
+        } else {
+            error = new TorrentException(ex.getMessage(), ex);
+        }
+
+        state.set(TorrentState.ERROR);
+    }
+
+    private void onMetadataFailed(Alert<?> alert) {
+        var metadataFailedAlert = (MetadataFailedAlert) alert;
+        var error = metadataFailedAlert.getError();
+        var message = MessageFormat.format("Torrent \"{0}\" encountered an error while retrieving the metadata, code: {1} - {2}",
+                filename, error.value(), error.message());
+
+        this.error = new TorrentException(message);
+
+        log.error(this.error.getMessage(), this.error);
+        state.set(TorrentState.ERROR);
     }
 
     private void onPieceFinished(Alert<?> alert) {
         var pieceFinishedAlert = (PieceFinishedAlert) alert;
-        var pieceIndex = pieceFinishedAlert.pieceIndex() - firstPieceIndex;
-        var downloadComplete = true;
+        var pieceIndex = pieceFinishedAlert.pieceIndex() - pieces.getFirstPieceIndex();
 
         // notify all listeners
         listeners.forEach(e -> safeInvoke(() -> e.onPieceFinished(pieceIndex)));
 
-        // check if all pieces are downloaded
-        // if so, update the state to completed, else to downloading
-        for (int i = firstPieceIndex; i <= lastPieceIndex; i++) {
-            if (!handle.havePiece(i)) {
-                downloadComplete = false;
-                break;
-            }
-        }
-
-        if (downloadComplete) {
-            state.set(TorrentState.COMPLETED);
-        } else {
+        // check if we need to update the torrent state
+        if (getState() != TorrentState.COMPLETED) {
             state.set(TorrentState.DOWNLOADING);
         }
     }
 
-    private void sendStreamProgress() {
+    private void onStatsReceived() {
         var status = handle.status();
+        var state = status.state();
         var downloadStatus = FrostDownloadStatus.builder()
                 .progress(status.progress())
                 .downloadSpeed(status.downloadRate())
@@ -282,6 +341,11 @@ public class FrostTorrent implements Torrent, AlertListener {
                 .totalSize(status.totalWanted())
                 .build();
 
+        // check if the torrent state is finished
+        // if so, update this torrent state to completed
+        if (state == TorrentStatus.State.FINISHED) {
+            this.state.set(TorrentState.COMPLETED);
+        }
 
         listeners.forEach(e -> safeInvoke(() -> e.onDownloadProgress(downloadStatus)));
     }
@@ -313,33 +377,7 @@ public class FrostTorrent implements Torrent, AlertListener {
         var torrentInfo = handle.torrentFile();
         var pieceIndex = (int) (byteIndex / torrentInfo.pieceLength());
 
-        return pieceIndex + firstPieceIndex;
-    }
-
-    private int getFirstPieceIndex() {
-        var priorities = handle.piecePriorities();
-
-        for (int i = 0; i < priorities.length; i++) {
-            var priority = priorities[i];
-
-            if (priority == Priority.NORMAL)
-                return i;
-        }
-
-        throw new TorrentException("First piece index could not be found");
-    }
-
-    private int getLastPieceIndex() {
-        var priorities = handle.piecePriorities();
-
-        for (int i = priorities.length - 1; i >= 0; i--) {
-            var priority = priorities[i];
-
-            if (priority == Priority.NORMAL)
-                return i;
-        }
-
-        throw new TorrentException("Last piece index could not be found");
+        return pieces.getTorrentPieceIndex(pieceIndex);
     }
 
     //endregion

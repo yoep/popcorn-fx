@@ -1,6 +1,7 @@
 package com.github.yoep.torrent.stream;
 
 import com.github.yoep.torrent.adapter.InvalidStreamStateException;
+import com.github.yoep.torrent.adapter.TorrentException;
 import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
 import com.github.yoep.torrent.adapter.listeners.TorrentListener;
 import com.github.yoep.torrent.adapter.listeners.TorrentStreamListener;
@@ -20,6 +21,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @ToString
@@ -58,6 +60,11 @@ public class TorrentStreamImpl implements TorrentStream {
     @Override
     public ReadOnlyObjectProperty<TorrentState> stateProperty() {
         return torrent.stateProperty();
+    }
+
+    @Override
+    public Optional<TorrentException> getError() {
+        return torrent.getError();
     }
 
     @Override
@@ -190,7 +197,6 @@ public class TorrentStreamImpl implements TorrentStream {
     private void initialize() {
         initializeStateListener();
         initializeTorrent();
-        initializePiecePriorities();
     }
 
     private void initializeStateListener() {
@@ -213,18 +219,18 @@ public class TorrentStreamImpl implements TorrentStream {
         torrent.addListener(torrentListener);
     }
 
-    private void initializePiecePriorities() {
-        log.trace("Preparing the following pieces {} for torrent stream \"{}\"", preparePieces, getFilename());
-        // update the torrent file priorities to prepare the first 5 pieces and the last piece
-        prioritizePieces(preparePieces);
-    }
-
     private void safeInvoke(Runnable runnable) {
         try {
             runnable.run();
         } catch (Exception ex) {
             log.error("An error occurred while invoking a listener, " + ex.getMessage(), ex);
         }
+    }
+
+    private void updatePiecePriorities() {
+        log.debug("Preparing the following pieces {} for torrent stream \"{}\"", preparePieces, getFilename());
+        // update the torrent file priorities to prepare the first 5 pieces and the last piece
+        prioritizePieces(preparePieces);
     }
 
     private Integer[] determinePreparationPieces() {
@@ -264,6 +270,13 @@ public class TorrentStreamImpl implements TorrentStream {
 
     private TorrentListener createTorrentListener() {
         return new AbstractTorrentListener() {
+            @Override
+            public void onStateChanged(TorrentState oldState, TorrentState newState) {
+                if (newState == TorrentState.READY || newState == TorrentState.STARTING || newState == TorrentState.DOWNLOADING) {
+                    updatePiecePriorities();
+                }
+            }
+
             @Override
             public void onPieceFinished(int pieceIndex) {
                 TorrentStreamImpl.this.onPieceFinished();

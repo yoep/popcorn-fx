@@ -141,11 +141,11 @@ public abstract class AbstractPlayerSectionController implements Initializable {
             fadeTransition.play();
         });
 
-        subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> {
+        subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
             subtitleOffset.setText(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
             subtitleOffset.setOpacity(1);
             offsetTimer.playFromStart();
-        });
+        }));
     }
 
     private void initializePaneListeners() {

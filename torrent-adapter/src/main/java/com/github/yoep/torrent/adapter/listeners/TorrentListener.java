@@ -1,5 +1,6 @@
 package com.github.yoep.torrent.adapter.listeners;
 
+import com.github.yoep.torrent.adapter.TorrentException;
 import com.github.yoep.torrent.adapter.model.DownloadStatus;
 import com.github.yoep.torrent.adapter.state.TorrentState;
 
@@ -14,6 +15,13 @@ public interface TorrentListener {
      * @param newState The new torrent state.
      */
     void onStateChanged(TorrentState oldState, TorrentState newState);
+
+    /**
+     * Invoked when the torrent encounters an error.
+     *
+     * @param error The error that occurred.
+     */
+    void onError(TorrentException error);
 
     /**
      * Invoked when the torrent download progress changes.

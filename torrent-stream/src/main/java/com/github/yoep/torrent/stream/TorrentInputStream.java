@@ -4,6 +4,7 @@ package com.github.yoep.torrent.stream;
 import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
 import com.github.yoep.torrent.adapter.listeners.TorrentListener;
 import com.github.yoep.torrent.adapter.model.Torrent;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
@@ -13,6 +14,7 @@ import java.io.*;
  * Extension on top of {@link InputStream} which blocks the stream reading when the requested bytes are not yet available.
  */
 @Slf4j
+@ToString(exclude = "torrentListener")
 public class TorrentInputStream extends FilterInputStream {
     private final TorrentListener torrentListener = createTorrentListener();
     private final Torrent torrent;

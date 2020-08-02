@@ -1,5 +1,6 @@
 package com.github.yoep.torrent.adapter.listeners;
 
+import com.github.yoep.torrent.adapter.TorrentException;
 import com.github.yoep.torrent.adapter.model.DownloadStatus;
 import com.github.yoep.torrent.adapter.state.TorrentState;
 
@@ -10,6 +11,11 @@ import com.github.yoep.torrent.adapter.state.TorrentState;
 public abstract class AbstractTorrentListener implements TorrentListener {
     @Override
     public void onStateChanged(TorrentState oldState, TorrentState newState) {
+        //no-op
+    }
+
+    @Override
+    public void onError(TorrentException error) {
         //no-op
     }
 

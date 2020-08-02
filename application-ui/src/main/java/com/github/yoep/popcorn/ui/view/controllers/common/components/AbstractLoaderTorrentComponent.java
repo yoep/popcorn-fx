@@ -15,6 +15,7 @@ import com.github.yoep.popcorn.ui.torrent.utils.SizeUtils;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.AbstractLoaderComponent;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import com.github.yoep.torrent.adapter.TorrentException;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
@@ -370,6 +371,11 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
                     log.debug("Torrent is starting");
                     Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.STARTING)));
                 }
+            }
+
+            @Override
+            public void onError(TorrentException error) {
+                updateProgressToErrorState();
             }
 
             @Override

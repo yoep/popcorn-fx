@@ -1,10 +1,12 @@
 package com.github.yoep.torrent.adapter.model;
 
+import com.github.yoep.torrent.adapter.TorrentException;
 import com.github.yoep.torrent.adapter.listeners.TorrentListener;
 import com.github.yoep.torrent.adapter.state.TorrentState;
 import javafx.beans.property.ReadOnlyObjectProperty;
 
 import java.io.File;
+import java.util.Optional;
 
 public interface Torrent {
 
@@ -21,6 +23,14 @@ public interface Torrent {
      * @return Returns the state property.
      */
     ReadOnlyObjectProperty<TorrentState> stateProperty();
+
+    /**
+     * Get the error that occurred in the torrent.
+     * An error will only be present if the {@link #getState()} is {@link TorrentState#ERROR}.
+     *
+     * @return Returns the error that occurred.
+     */
+    Optional<TorrentException> getError();
 
     /**
      * Get the filename of the torrent.

@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.ui.messages.VideoMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.Subtitle;
+import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleMatcher;
@@ -44,6 +45,7 @@ public class VideoPlayerService {
     private final TorrentStreamService torrentStreamService;
     private final SettingsService settingsService;
     private final SubtitleService subtitleService;
+    private final SubtitlePickerService subtitlePickerService;
     private final LocaleText localeText;
     private final List<VideoPlayer> videoPlayers;
 
@@ -348,10 +350,35 @@ public class VideoPlayerService {
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
         // check if the subtitle is being disabled
-        if(subtitleInfo == null || subtitleInfo.isNone()) {
-            log.debug("Disabling subtitle track");
-            setSubtitle(Subtitle.NONE);
+        // if so, update the subtitle to none and ignore the subtitle download & parsing
+        if (subtitleInfo == null || subtitleInfo.isNone()) {
+            disableSubtitleTrack();
             return;
+        }
+
+        final var imdbId = subtitleInfo.getImdbId();
+        final var language = subtitleInfo.getLanguage();
+
+        // check if the subtitle is a custom subtitle and doesn't contain any files yet
+        // if so, pause the playback and let the user pick a custom subtitle file
+        // if the custom subtitle contains files, than the passed subtitle file is from the details components
+        if (subtitleInfo.isCustom() && subtitleInfo.getFiles().isEmpty()) {
+            // pause the video playback as a popup will be shown
+            pause();
+
+            // show the subtitle picker popup
+            var customSubtitle = subtitlePickerService.pickCustomSubtitle();
+
+            if (customSubtitle.isPresent()) {
+                // overrule the given subtitleInfo with the custom subtitle file picked by the user
+                subtitleInfo = customSubtitle.get();
+            } else {
+                disableSubtitleTrack();
+                return;
+            }
+
+            // resume the video playback
+            resume();
         }
 
         log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
@@ -359,13 +386,18 @@ public class VideoPlayerService {
 
         subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitles, throwable) -> {
             if (throwable == null) {
-                log.debug("Subtitle \"{}\" has been downloaded with success", subtitleInfo);
+                log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
                 this.setSubtitle(subtitles);
             } else {
                 log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                 activityManager.register((ErrorNotificationActivity) () -> localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED));
             }
         });
+    }
+
+    private void disableSubtitleTrack() {
+        log.debug("Disabling the subtitle track for the video playback");
+        setSubtitle(Subtitle.NONE);
     }
 
     private void onClose() {

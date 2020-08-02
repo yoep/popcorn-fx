@@ -42,15 +42,26 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
 
     //endregion
 
-    //region Getters
+    //region Getters & Setters
 
     /**
      * Get the special "none" subtitle instance.
+     * This instance is always the same.
      *
      * @return Returns the special none subtitle.
      */
     public static SubtitleInfo none() {
         return NONE;
+    }
+
+    /**
+     * Get a new special "custom" subtitle instance.
+     * This instance is always unique/new for each invocation.
+     *
+     * @return Returns the special custom subtitle.
+     */
+    public static SubtitleInfo custom() {
+        return new SubtitleInfo(SubtitleLanguage.CUSTOM);
     }
 
     /**
@@ -60,6 +71,15 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
      */
     public boolean isNone() {
         return getLanguage() == SubtitleLanguage.NONE;
+    }
+
+    /**
+     * Check if this subtitle is the special "custom" subtitle.
+     *
+     * @return Returns true if this subtitle is the "custom" subtitle, else false.
+     */
+    public boolean isCustom() {
+        return getLanguage() == SubtitleLanguage.CUSTOM;
     }
 
     /**
@@ -102,6 +122,13 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
     }
 
 
+    /**
+     * Get the subtitle file based on the given matcher.
+     * This method search for the best matching file based on the matcher and return it.
+     *
+     * @param matcher The matched to use for selecting the subtitle file.
+     * @return Returns the subtitle file which has the best match.
+     */
     public SubtitleFile getFile(SubtitleMatcher matcher) {
         Assert.notNull(matcher, "matcher cannot be null");
         var name = matcher.getName();
@@ -117,7 +144,7 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
             }
         }
 
-       var matchingFiles = files;
+        var matchingFiles = files;
 
         // check if the quality has been given
         // if so, filter the current list based on the quality

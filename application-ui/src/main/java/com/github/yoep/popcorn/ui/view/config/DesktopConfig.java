@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.ui.media.providers.models.Show;
 import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.settings.OptionsService;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
@@ -172,11 +173,12 @@ public class DesktopConfig {
                                                        LocaleText localeText,
                                                        TorrentService torrentService,
                                                        SubtitleService subtitleService,
+                                                       SubtitlePickerService subtitlePickerService,
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
                                                        ImageService imageService,
                                                        SettingsService settingsService) {
-        return new MovieDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService, settingsService);
+        return new MovieDetailsComponent(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, favoriteService, watchedService, imageService, settingsService);
     }
 
     @Bean
@@ -184,11 +186,12 @@ public class DesktopConfig {
                                                      LocaleText localeText,
                                                      TorrentService torrentService,
                                                      SubtitleService subtitleService,
+                                                     SubtitlePickerService subtitlePickerService,
                                                      FavoriteService favoriteService,
                                                      WatchedService watchedService,
                                                      ImageService imageService,
                                                      SettingsService settingsService) {
-        return new ShowDetailsComponent(activityManager, localeText, torrentService, subtitleService, favoriteService, watchedService, imageService, settingsService);
+        return new ShowDetailsComponent(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, favoriteService, watchedService, imageService, settingsService);
     }
 
     @Bean

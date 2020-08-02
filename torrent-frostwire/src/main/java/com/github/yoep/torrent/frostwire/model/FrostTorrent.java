@@ -20,6 +20,7 @@ import org.springframework.util.Assert;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -101,8 +102,9 @@ public class FrostTorrent implements Torrent, AlertListener {
     }
 
     @Override
-    public void prioritizePieces(int... pieceIndexes) {
-        log.trace("Prioritizing the following pieces: {}", pieceIndexes);
+    public void prioritizePieces(Integer... pieceIndexes) {
+        Assert.noNullElements(pieceIndexes, "pieceIndexes cannot contain \"null\" items");
+        log.trace("Prioritizing the following pieces: {}", Arrays.toString(pieceIndexes));
         for (int pieceIndex : pieceIndexes) {
             prioritizePiece(pieceIndex + firstPieceIndex);
         }
@@ -117,9 +119,17 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     @Override
     public void prioritizeByte(long byteIndex) {
-        int pieceIndex = getPieceIndexOfByte(byteIndex);
+        var pieceIndex = getPieceIndexOfByte(byteIndex);
+        var nextPiece = pieceIndex + 1;
 
+        // prioritize the piece of the byte
         prioritizePiece(pieceIndex);
+
+        // prioritize the next piece if it's within the current download range
+        // this is done to prevent stream tearing
+        if (nextPiece <= lastPieceIndex) {
+            prioritizePiece(nextPiece);
+        }
     }
 
     @Override

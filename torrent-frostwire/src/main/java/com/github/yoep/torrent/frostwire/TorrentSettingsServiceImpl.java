@@ -4,25 +4,18 @@ import com.frostwire.jlibtorrent.SettingsPack;
 import com.github.yoep.torrent.adapter.TorrentSettingsService;
 import com.github.yoep.torrent.adapter.state.SessionState;
 import javafx.beans.value.ChangeListener;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 
 @Slf4j
+@RequiredArgsConstructor
 public class TorrentSettingsServiceImpl implements TorrentSettingsService {
     private final SettingsPack settings = defaultSettings();
     private final ChangeListener<SessionState> sessionListener = createSessionListener();
     private final TorrentSessionManager sessionManager;
-
-
-    //region Constructors
-
-    public TorrentSettingsServiceImpl(TorrentSessionManager sessionManager) {
-        this.sessionManager = sessionManager;
-    }
-
-    //endregion
 
     //region TorrentSettingsService
 

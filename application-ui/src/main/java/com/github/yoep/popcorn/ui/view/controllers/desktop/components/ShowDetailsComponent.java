@@ -15,6 +15,7 @@ import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.media.watched.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
@@ -94,11 +95,12 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
                                 LocaleText localeText,
                                 TorrentService torrentService,
                                 SubtitleService subtitleService,
+                                SubtitlePickerService subtitlePickerService,
                                 FavoriteService favoriteService,
                                 WatchedService watchedService,
                                 ImageService imageService,
                                 SettingsService settingsService) {
-        super(activityManager, localeText, torrentService, subtitleService, imageService, settingsService);
+        super(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }

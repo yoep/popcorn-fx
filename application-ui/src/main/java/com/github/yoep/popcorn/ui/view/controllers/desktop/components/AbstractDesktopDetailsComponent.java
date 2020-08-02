@@ -9,8 +9,10 @@ import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagSelection;
+import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelectionListener;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -45,8 +47,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     protected final ActivityManager activityManager;
     protected final LocaleText localeText;
-    protected final TorrentService torrentService;
     protected final SubtitleService subtitleService;
+    protected final SubtitlePickerService subtitlePickerService;
 
     protected SubtitleInfo subtitle;
     protected boolean liked;
@@ -67,13 +69,14 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               LocaleText localeText,
                                               TorrentService torrentService,
                                               SubtitleService subtitleService,
+                                              SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
                                               SettingsService settingsService) {
         super(imageService, torrentService, settingsService);
         this.activityManager = activityManager;
         this.localeText = localeText;
-        this.torrentService = torrentService;
         this.subtitleService = subtitleService;
+        this.subtitlePickerService = subtitlePickerService;
     }
 
     //endregion
@@ -89,6 +92,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     }
 
     //endregion
+
+    //region Functions
 
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {
         var resolutions = getVideoResolutions(torrents);
@@ -201,7 +206,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         if (throwable == null) {
             // filter out all the subtitles that don't have a flag
             final List<SubtitleInfo> filteredSubtitles = subtitles.stream()
-                    .filter(e -> e.isNone() || Objects.equals(e.getImdbId(), media.getId()))
+                    .filter(e -> e.isNone() || e.isCustom() || Objects.equals(e.getImdbId(), media.getId()))
                     .sorted()
                     .collect(Collectors.toList());
 
@@ -213,6 +218,16 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         } else {
             log.error(throwable.getMessage(), throwable);
         }
+    }
+
+    protected LanguageSelectionListener createLanguageListener() {
+        return newValue -> {
+            if (newValue.isCustom()) {
+                onCustomSubtitleSelected();
+            } else {
+                this.subtitle = newValue;
+            }
+        };
     }
 
     /**
@@ -235,7 +250,15 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         languageSelection.select(0);
     }
 
-    //region Functions
+    private void onCustomSubtitleSelected() {
+        Platform.runLater(() -> {
+            var subtitleInfo = subtitlePickerService.pickCustomSubtitle();
+
+            // if a custom subtitle was picked by the user, update the subtitle with the custom subtitle
+            // otherwise, the subtitle pick was cancelled and we need to reset the selected language to disabled
+            subtitleInfo.ifPresentOrElse(subtitle -> this.subtitle = subtitle, () -> languageSelection.select(SubtitleInfo.none()));
+        });
+    }
 
     private Label createQualityOption(String quality) {
         Label label = new Label(quality);

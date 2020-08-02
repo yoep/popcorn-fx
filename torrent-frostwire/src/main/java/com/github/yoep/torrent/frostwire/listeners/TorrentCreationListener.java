@@ -1,11 +1,13 @@
 package com.github.yoep.torrent.frostwire.listeners;
 
 import com.frostwire.jlibtorrent.AlertListener;
-import com.frostwire.jlibtorrent.SessionManager;
 import com.frostwire.jlibtorrent.TorrentHandle;
-import com.frostwire.jlibtorrent.alerts.AddTorrentAlert;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
+import com.frostwire.jlibtorrent.alerts.TorrentAlert;
+import com.frostwire.jlibtorrent.swig.add_torrent_alert;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
@@ -15,14 +17,23 @@ import java.util.function.Consumer;
  * A one-time use torrent creation listener.
  */
 @Slf4j
+@ToString
+@EqualsAndHashCode
 public class TorrentCreationListener implements AlertListener {
-    private final SessionManager session;
-    private Consumer<TorrentHandle> onCompleteConsumer;
+    private final String name;
+    private final Consumer<TorrentHandle> onCompleteConsumer;
 
-    public TorrentCreationListener(SessionManager session) {
-        Assert.notNull(session, "session cannot be null");
-        this.session = session;
+    //region Constructors
+
+    public TorrentCreationListener(String name, Consumer<TorrentHandle> onCompleteConsumer) {
+        Assert.hasText(name, "name cannot be null");
+        Assert.notNull(onCompleteConsumer, "onCompleteConsumer cannot be null");
+        this.name = name;
+        this.onCompleteConsumer = onCompleteConsumer;
     }
+    //endregion
+
+    //region AlertListener
 
     @Override
     public int[] types() {
@@ -32,46 +43,17 @@ public class TorrentCreationListener implements AlertListener {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void alert(Alert<?> alert) {
-        // automatically unregister this listener from the session
-        unregister();
+        var addTorrentAlert = (TorrentAlert<add_torrent_alert>) alert;
+        var torrentName = addTorrentAlert.torrentName();
 
-        if (onCompleteConsumer == null) {
-            log.warn("A torrent creation listener was registered without a completion action");
-            return;
+        // check if this alert matches the expected torrent
+        // if not, ignore this creation alert
+        if (this.name.equals(torrentName)) {
+            onCompleteConsumer.accept(addTorrentAlert.handle());
         }
-
-        var addTorrentAlert = (AddTorrentAlert) alert;
-        var torrentHandle = session.find(addTorrentAlert.handle().infoHash());
-
-        onCompleteConsumer.accept(torrentHandle);
     }
 
-    /**
-     * Register this listener to the torrent session.
-     *
-     * @return Returns this instance.
-     */
-    public TorrentCreationListener register() {
-        session.addListener(this);
-        return this;
-    }
-
-    /**
-     * Set the action to execute when a torrent is being created.
-     *
-     * @param consumer The consumer of the completion event.
-     * @return Returns this instance.
-     */
-    public TorrentCreationListener onComplete(Consumer<TorrentHandle> consumer) {
-        onCompleteConsumer = consumer;
-        return this;
-    }
-
-    /**
-     * Remove this listener from the torrent session.
-     */
-    private void unregister() {
-        session.removeListener(this);
-    }
+    //endregion
 }

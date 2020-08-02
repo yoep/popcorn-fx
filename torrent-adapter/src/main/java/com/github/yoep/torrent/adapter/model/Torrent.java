@@ -63,7 +63,7 @@ public interface Torrent {
      *
      * @param pieceIndexes The piece indexes to prioritize.
      */
-    void prioritizePieces(int... pieceIndexes);
+    void prioritizePieces(Integer... pieceIndexes);
 
     /**
      * Verify if the torrent has the given bytes.

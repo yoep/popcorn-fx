@@ -197,6 +197,21 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         reset();
     }
 
+    protected void onTorrentCreated(Torrent torrent, Throwable throwable) {
+        if (throwable == null) {
+            // register the torrent listener to this torrent
+            this.torrent = torrent;
+            this.torrent.addListener(torrentListener);
+
+            // create a stream for this torrent
+            torrentStream = torrentStreamService.startStream(torrent);
+            torrentStream.addListener(torrentStreamListener);
+        } else {
+            log.error("Failed to create torrent, " + throwable.getMessage(), throwable);
+            updateProgressToErrorState();
+        }
+    }
+
     protected TorrentSettings getTorrentSettings() {
         return settingsService.getSettings().getTorrentSettings();
     }
@@ -218,21 +233,6 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
             torrentService.create(torrentFileInfo, torrentSettings.getDirectory(), true).whenComplete(this::onTorrentCreated);
         } else {
             log.error("Failed to retrieve torrent info, " + throwable.getMessage(), throwable);
-            updateProgressToErrorState();
-        }
-    }
-
-    private void onTorrentCreated(Torrent torrent, Throwable throwable) {
-        if (throwable == null) {
-            // register the torrent listener to this torrent
-            this.torrent = torrent;
-            this.torrent.addListener(torrentListener);
-
-            // create a stream for this torrent
-            torrentStream = torrentStreamService.startStream(torrent);
-            torrentStream.addListener(torrentStreamListener);
-        } else {
-            log.error("Failed to create torrent, " + throwable.getMessage(), throwable);
             updateProgressToErrorState();
         }
     }

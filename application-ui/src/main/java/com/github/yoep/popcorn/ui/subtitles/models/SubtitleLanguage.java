@@ -7,6 +7,7 @@ import java.util.Arrays;
 @Getter
 public enum SubtitleLanguage {
     NONE("none", "Disabled"),
+    CUSTOM("custom", "Custom"),
     ARABIC("ar", "العربية"),
     BULGARIAN("bg", "Български"),
     BOSNIAN("bs", "Bosanski jezik"),

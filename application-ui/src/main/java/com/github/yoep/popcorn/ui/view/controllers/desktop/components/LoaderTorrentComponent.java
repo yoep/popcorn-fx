@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
-public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
+public class
+LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
     //region Constructors
 
     public LoaderTorrentComponent(ActivityManager activityManager,
@@ -81,7 +82,7 @@ public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
             Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
 
             log.trace("Calling torrent service stream for \"{}\"", filename);
-            torrentService.create(activity.getTorrentFileInfo(), torrentSettings.getDirectory());
+            torrentService.create(activity.getTorrentFileInfo(), torrentSettings.getDirectory(), true).whenComplete(this::onTorrentCreated);
         });
 
         taskExecutor.execute(this.torrentThread);

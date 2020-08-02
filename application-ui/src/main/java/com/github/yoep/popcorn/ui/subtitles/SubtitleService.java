@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpMethod;
 import org.springframework.scheduling.annotation.Async;
@@ -39,6 +40,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.zip.ZipFile;
 
 @Slf4j
 @Service
@@ -164,7 +166,7 @@ public class SubtitleService {
         Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
         Assert.notNull(matcher, "matcher cannot be null");
         var subtitleFile = subtitleInfo.getFile(matcher);
-        var file = internalDownload(subtitleFile);
+        var file = subtitleInfo.isCustom() ? getCustomSubtitleFile(subtitleFile) : internalDownload(subtitleFile);
         var encoding = subtitleFile.getEncoding();
 
         return CompletableFuture.completedFuture(internalParse(subtitleInfo, file, encoding));
@@ -288,7 +290,8 @@ public class SubtitleService {
                 List<SubtitleInfo> subtitles = new ArrayList<>();
                 Map<String, Object> subData = (Map<String, Object>) result;
 
-                // add default subtitle
+                // add the custom & default subtitles
+                subtitles.add(SubtitleInfo.custom());
                 subtitles.add(SubtitleInfo.none());
 
                 if (subData != null && subData.get("data") != null && subData.get("data") instanceof Object[]) {
@@ -422,6 +425,70 @@ public class SubtitleService {
         client.callAsync(callback, "SearchSubtitles", token, new Object[]{option});
     }
 
+    private File getCustomSubtitleFile(SubtitleFile subtitleFile) {
+        var url = subtitleFile.getUrl();
+
+        // verify if the custom subtitle url is not empty
+        if (StringUtils.isEmpty(url)) {
+            throw new SubtitleException("Custom subtitle file url is empty");
+        }
+
+        var extension = FilenameUtils.getExtension(url);
+
+        // check if the file is a zip file
+        // if so, extract the zip and search for the .srt file
+        if (extension.equalsIgnoreCase("zip")) {
+            log.debug("Custom subtitle file is a zip, extracting and searching for subtitle file");
+            try {
+                var zipFile = new ZipFile(new File(url));
+                var entries = zipFile.entries();
+                var subtitleDirectory = getSubtitleSettings().getDirectory();
+
+                // loop over each entry in the zip file
+                // and search for the .srt file
+                while (entries.hasMoreElements()) {
+                    var entry = entries.nextElement();
+
+                    // check if the entry is a file
+                    if (!entry.isDirectory()) {
+                        var filename = entry.getName();
+                        var entryExtension = FilenameUtils.getExtension(filename);
+
+                        if (entryExtension.equalsIgnoreCase("srt")) {
+                            var destinationSubtitleFile = new File(subtitleDirectory + File.separator + filename);
+
+                            // check if the destination file already exists
+                            // if so, return the cached file
+                            if (destinationSubtitleFile.exists()) {
+                                log.debug("Using cached extracted archive subtitle file {}", destinationSubtitleFile.getAbsolutePath());
+                                return destinationSubtitleFile;
+                            }
+
+                            try (var inputStream = zipFile.getInputStream(entry)) {
+                                var outputStream = new FileOutputStream(destinationSubtitleFile);
+
+                                log.trace("Copying subtitle file from archive to {}", destinationSubtitleFile.getAbsolutePath());
+                                IOUtils.copy(inputStream, outputStream);
+                            }
+
+                            log.debug("Subtitle file has successfully been extracted from the archive to {}", destinationSubtitleFile.getAbsolutePath());
+                            return destinationSubtitleFile;
+                        }
+                    }
+                }
+
+                // the subtitle couldn't be found
+                // so we raise an error so that the subtitle track gets updated to disabled
+                var message = MessageFormat.format("No srt file could be found in \"{0}\" the custom subtitle file", url);
+                throw new SubtitleException(message);
+            } catch (IOException ex) {
+                throw new SubtitleException("Failed to extract subtitle file from archive, " + ex.getMessage(), ex);
+            }
+        }
+
+        return new File(url);
+    }
+
     private File internalDownload(SubtitleFile subtitle) {
         File storageFile = getStorageFile(subtitle);
         File subtitleFile;
@@ -494,8 +561,8 @@ public class SubtitleService {
     }
 
     private File getStorageFile(SubtitleFile subtitle) {
-        String filename = FilenameUtils.getName(subtitle.getUrl());
-        File subtitleDirectory = getSubtitleSettings().getDirectory();
+        var filename = FilenameUtils.getName(subtitle.getUrl());
+        var subtitleDirectory = getSubtitleSettings().getDirectory();
 
         // make sure the subtitle directory exists
         subtitleDirectory.mkdirs();

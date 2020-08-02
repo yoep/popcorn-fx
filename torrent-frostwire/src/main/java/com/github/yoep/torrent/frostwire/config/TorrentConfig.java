@@ -2,10 +2,7 @@ package com.github.yoep.torrent.frostwire.config;
 
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentSettingsService;
-import com.github.yoep.torrent.frostwire.TorrentResolverService;
-import com.github.yoep.torrent.frostwire.TorrentServiceImpl;
-import com.github.yoep.torrent.frostwire.TorrentSessionManager;
-import com.github.yoep.torrent.frostwire.TorrentSettingsServiceImpl;
+import com.github.yoep.torrent.frostwire.*;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -18,7 +15,7 @@ import org.springframework.core.task.TaskExecutor;
 public class TorrentConfig {
     @Bean
     public TorrentSessionManager sessionManager(TaskExecutor taskExecutor) {
-        return new TorrentSessionManager(taskExecutor);
+        return new TorrentSessionManagerImpl(taskExecutor);
     }
 
     @Bean

@@ -77,14 +77,16 @@ public class TorrentServiceImpl implements TorrentService {
         Arrays.fill(priorities, Priority.IGNORE);
 
         // create a new torrent creation listener
-        new TorrentCreationListener(session)
-                .onComplete(torrentHandle -> {
-                    synchronized (this) {
-                        handle.set(torrentHandle);
-                        notifyAll();
-                    }
-                })
-                .register();
+        var creationListener = new TorrentCreationListener(torrentInfo.getName(), torrentHandle -> {
+            synchronized (this) {
+                handle.set(torrentHandle);
+                notifyAll();
+            }
+        });
+
+        // register the creation listener to the session
+        log.trace("Adding creation listener \"{}\" to the torrent session", creationListener);
+        sessionManager.addListener(creationListener);
 
         // start the creation of the torrent by downloading it
         session.download(torrentInfo.getNative(), torrentDirectory, null, priorities, null);
@@ -92,18 +94,28 @@ public class TorrentServiceImpl implements TorrentService {
         // pause this thread and wait for the torrent to be created
         synchronized (this) {
             try {
+                log.debug("Waiting for torrent \"{}\" to be created", torrentInfo.getName());
                 wait();
             } catch (InterruptedException ex) {
                 log.error("Torrent creation monitor unexpectedly quit", ex);
             }
         }
 
-        // create a new torrent from the handle
-        var torrent = new FrostTorrent(handle.get(), torrentFile.getFileIndex(), autoStartDownload);
+        // remove the listener from the session as the creation has been completed
+        log.trace("Removing creation listener \"{}\" from the torrent session", creationListener);
+        sessionManager.removeListener(creationListener);
+
+        // lookup the actual torrent handle which can be used in the session
+        // and create a new Torrent instance for it
+        log.trace("Looking up torrent handle in the torrent session for \"{}\"", torrentFile.getFilename());
+        var torrentHandle = sessionManager.find(handle.get().infoHash());
+        var torrent = new FrostTorrent(torrentHandle, torrentFile.getFileIndex(), autoStartDownload);
 
         // register the torrent in the session
+        log.trace("Adding torrent \"{}\" as a listener to the torrent session", torrentFile.getFilename());
         session.addListener(torrent);
 
+        log.debug("Torrent has been created for \"{}\"", torrentFile.getFilename());
         return CompletableFuture.completedFuture(torrent);
     }
 

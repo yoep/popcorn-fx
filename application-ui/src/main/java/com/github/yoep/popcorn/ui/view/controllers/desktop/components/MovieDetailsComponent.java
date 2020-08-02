@@ -9,7 +9,9 @@ import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.messages.SubtitleMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
@@ -71,11 +73,12 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                                  LocaleText localeText,
                                  TorrentService torrentService,
                                  SubtitleService subtitleService,
+                                 SubtitlePickerService subtitlePickerService,
                                  FavoriteService favoriteService,
                                  WatchedService watchedService,
                                  ImageService imageService,
                                  SettingsService settingsService) {
-        super(activityManager, localeText, torrentService, subtitleService, imageService, settingsService);
+        super(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }
@@ -168,12 +171,20 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                 setText(null);
 
                 try {
+                    var language = item.getLanguage().getNativeName();
                     var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
 
                     image.setFitHeight(20);
                     image.setPreserveRatio(true);
 
-                    Tooltip tooltip = new Tooltip(item.getLanguage().getNativeName());
+                    if (item.isNone()) {
+                        language = localeText.get(SubtitleMessage.NONE);
+                    } else if (item.isCustom()) {
+                        language = localeText.get(SubtitleMessage.CUSTOM);
+                    }
+
+                    var tooltip = new Tooltip(language);
+
                     instantTooltip(tooltip);
                     Tooltip.install(image, tooltip);
 
@@ -184,7 +195,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
             }
         });
 
-        languageSelection.addListener(newValue -> this.subtitle = newValue);
+        languageSelection.addListener(createLanguageListener());
         resetLanguageSelection();
     }
 

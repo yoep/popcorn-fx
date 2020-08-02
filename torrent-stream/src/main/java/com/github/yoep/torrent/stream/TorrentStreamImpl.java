@@ -33,7 +33,7 @@ public class TorrentStreamImpl implements TorrentStream {
     private final ReadOnlyObjectWrapper<TorrentStreamState> streamState = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, TorrentStreamState.PREPARING);
     private final TorrentListener torrentListener = createTorrentListener();
     private final List<TorrentStreamListener> listeners = new ArrayList<>();
-    private final int[] preparePieces;
+    private final Integer[] preparePieces;
 
     //region Constructors
 
@@ -42,7 +42,7 @@ public class TorrentStreamImpl implements TorrentStream {
         Assert.hasText(streamUrl, "streamUrl cannot be null");
         this.torrent = torrent;
         this.streamUrl = streamUrl;
-        this.preparePieces = new int[]{0, 1, 2, 3, 4, getTotalPieces()};
+        this.preparePieces = determinePreparationPieces();
         initialize();
     }
 
@@ -86,7 +86,7 @@ public class TorrentStreamImpl implements TorrentStream {
     }
 
     @Override
-    public void prioritizePieces(int... pieceIndexes) {
+    public void prioritizePieces(Integer... pieceIndexes) {
         torrent.prioritizePieces(pieceIndexes);
     }
 
@@ -225,6 +225,23 @@ public class TorrentStreamImpl implements TorrentStream {
         } catch (Exception ex) {
             log.error("An error occurred while invoking a listener, " + ex.getMessage(), ex);
         }
+    }
+
+    private Integer[] determinePreparationPieces() {
+        var totalPieces = getTotalPieces();
+        var pieces = new ArrayList<Integer>();
+
+        // prepare the first 8 pieces if it doesn't exceed the total pieces
+        for (int i = 0; i < 8 && i < totalPieces - 1; i++) {
+            pieces.add(i);
+        }
+
+        // add the last 2 pieces for preparation
+        // this is done for determining the video length during streaming
+        pieces.add(totalPieces - 1);
+        pieces.add(totalPieces);
+
+        return pieces.toArray(new Integer[0]);
     }
 
     private void onPieceFinished() {

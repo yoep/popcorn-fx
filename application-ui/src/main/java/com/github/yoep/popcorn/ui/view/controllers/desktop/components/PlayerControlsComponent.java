@@ -92,6 +92,11 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
         Platform.runLater(() -> slider.setMax(newValue.longValue()));
     }
 
+    @Override
+    protected void onProgressChanged(double newValue) {
+        //TODO: implement
+    }
+
     //endregion
 
     //region PostConstruct

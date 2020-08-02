@@ -41,6 +41,11 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
     }
 
     @Override
+    protected void onProgressChanged(double newValue) {
+        progress.setProgress(newValue);
+    }
+
+    @Override
     protected void reset() {
         super.reset();
         progress.reset();

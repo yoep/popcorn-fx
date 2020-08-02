@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.activities;
 import com.github.yoep.torrent.adapter.model.Torrent;
 import com.github.yoep.torrent.adapter.model.TorrentStream;
 
-public interface PlayTorrentActivity {
+public interface PlayTorrentActivity extends Activity {
     /**
      * Get the torrent that needs to be played.
      *

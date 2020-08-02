@@ -35,7 +35,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     private final LocaleText localeText;
 
     @FXML
-    private ProgressSliderControl slider;
+    private ProgressSliderControl playProgress;
     @FXML
     private Pane subtitleSection;
     @FXML
@@ -81,20 +81,20 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     protected void onTimeChanged(Number newValue) {
         super.onTimeChanged(newValue);
         Platform.runLater(() -> {
-            if (!slider.isValueChanging())
-                slider.setValue(newValue.longValue());
+            if (!playProgress.isValueChanging())
+                playProgress.setTime(newValue.longValue());
         });
     }
 
     @Override
     protected void onDurationChanged(Number newValue) {
         super.onDurationChanged(newValue);
-        Platform.runLater(() -> slider.setMax(newValue.longValue()));
+        Platform.runLater(() -> playProgress.setDuration(newValue.longValue()));
     }
 
     @Override
     protected void onProgressChanged(double newValue) {
-        slider.setProgress(newValue);
+        playProgress.setLoadProgress(newValue);
     }
 
     //endregion
@@ -118,20 +118,20 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     //region Functions
 
     private void initializeSlider() {
-        slider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
+        playProgress.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue) {
                 videoPlayerService.pause();
             } else {
                 videoPlayerService.resume();
             }
         });
-        slider.valueProperty().addListener((observableValue, oldValue, newValue) -> {
-            if (slider.isValueChanging()) {
+        playProgress.timeProperty().addListener((observableValue, oldValue, newValue) -> {
+            if (playProgress.isValueChanging()) {
                 videoPlayerService.seek(newValue.longValue());
             }
         });
 
-        slider.setOnMouseReleased(event -> setVideoTime(slider.getValue() + 1));
+        playProgress.setOnMouseReleased(event -> setVideoTime(playProgress.getTime() + 1));
     }
 
     private void initializeLanguageSelection() {
@@ -214,9 +214,9 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     }
 
     private void setVideoTime(double time) {
-        slider.setValueChanging(true);
-        slider.setValue(time);
-        slider.setValueChanging(false);
+        playProgress.setValueChanging(true);
+        playProgress.setTime((long) time);
+        playProgress.setValueChanging(false);
     }
 
     private void handleSubtitlesResponse(final List<SubtitleInfo> subtitles, Throwable throwable) {
@@ -245,7 +245,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
         this.subtitle = null;
 
         Platform.runLater(() -> {
-            slider.setValue(0);
+            playProgress.setTime(0);
             languageSelection.getItems().clear();
         });
     }

@@ -936,14 +936,12 @@
     -fx-padding: 0 5 0 5;
 }
 
-.root .player .player-controls .progress,
-.root .player .player-controls .progress .play-progress,
-.root .player .player-controls .progress .load-progress {
+.root .player .player-controls .progress .track {
+    -fx-max-height: 8;
     -fx-background-radius: 1em;
 }
 
-.root .player .player-controls .progress {
-    -fx-max-height: 10;
+.root .player .player-controls .progress .background-track {
     -fx-background-color: #ccc;
 }
 
@@ -955,7 +953,7 @@
     -fx-background-color: #80b3ff;
 }
 
-.root .player .player-controls .progress .track {
+.root .player .player-controls .progress .slider .track {
     -fx-background-color: null;
 }
 

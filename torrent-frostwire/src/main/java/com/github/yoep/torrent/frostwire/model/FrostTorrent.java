@@ -200,7 +200,6 @@ public class FrostTorrent implements Torrent, AlertListener {
     @Override
     public int[] types() {
         return new int[]{
-                AlertType.METADATA_RECEIVED.swig(),
                 AlertType.METADATA_FAILED.swig(),
                 AlertType.STATS.swig(),
                 AlertType.PIECE_FINISHED.swig()
@@ -211,9 +210,6 @@ public class FrostTorrent implements Torrent, AlertListener {
     public void alert(Alert<?> alert) {
         try {
             switch (alert.type()) {
-                case METADATA_RECEIVED:
-                    getState();
-                    break;
                 case METADATA_FAILED:
                     onMetadataFailed(alert);
                     break;
@@ -236,17 +232,13 @@ public class FrostTorrent implements Torrent, AlertListener {
     private void init() {
         initializeStateListener();
 
-        // initialize everything else on a separate thread
-        // this will allow the constructor to continue
-        new Thread(() -> {
-            try {
-                initializeFilePriorities();
-                initializePieces();
-                initializeAutoStart();
-            } catch (Exception ex) {
-                handleInitializationFailure(ex);
-            }
-        }, "torrent-init").start();
+        try {
+            initializeFilePriorities();
+            initializePieces();
+            initializeAutoStart();
+        } catch (Exception ex) {
+            handleInitializationFailure(ex);
+        }
     }
 
     private void initializeStateListener() {
@@ -343,7 +335,7 @@ public class FrostTorrent implements Torrent, AlertListener {
 
         // check if the torrent state is finished
         // if so, update this torrent state to completed
-        if (state == TorrentStatus.State.FINISHED) {
+        if (state == TorrentStatus.State.FINISHED || state == TorrentStatus.State.SEEDING) {
             this.state.set(TorrentState.COMPLETED);
         }
 

@@ -197,6 +197,7 @@ public class TorrentStreamImpl implements TorrentStream {
     private void initialize() {
         initializeStateListener();
         initializeTorrent();
+        updatePiecePriorities();
     }
 
     private void initializeStateListener() {
@@ -270,13 +271,6 @@ public class TorrentStreamImpl implements TorrentStream {
 
     private TorrentListener createTorrentListener() {
         return new AbstractTorrentListener() {
-            @Override
-            public void onStateChanged(TorrentState oldState, TorrentState newState) {
-                if (newState == TorrentState.READY || newState == TorrentState.STARTING || newState == TorrentState.DOWNLOADING) {
-                    updatePiecePriorities();
-                }
-            }
-
             @Override
             public void onPieceFinished(int pieceIndex) {
                 TorrentStreamImpl.this.onPieceFinished();

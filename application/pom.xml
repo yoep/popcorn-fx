@@ -137,6 +137,7 @@
                     <name>popcorn-time</name>
                     <displayName>Popcorn Time</displayName>
                     <organizationName>Popcorn Time</organizationName>
+                    <assetsDir>../assets</assetsDir>
                     <licenseFile>../LICENSE</licenseFile>
                     <version>${project.version}</version>
                     <vmArgs>

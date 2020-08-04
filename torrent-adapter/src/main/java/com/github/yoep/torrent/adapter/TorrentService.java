@@ -45,6 +45,26 @@ public interface TorrentService {
     CompletableFuture<TorrentInfo> getTorrentInfo(String torrentUrl);
 
     /**
+     * Get the torrent health for the given torrent url.
+     *
+     * @param url The torrent url to retrieve the health state of.
+     * @return Returns the health of the torrent.
+     * @throws TorrentException Is thrown when an error occurred during retrieval of the health info.
+     */
+    @Async
+    CompletableFuture<TorrentHealth> getTorrentHealth(String url);
+
+    /**
+     * Get the torrent health for the given file info.
+     *
+     * @param torrentFile The torrent file to return the health of.
+     * @return Returns the health of the torrent.
+     * @throws TorrentException Is thrown when an error occurred during retrieval of the health info.
+     */
+    @Async
+    CompletableFuture<TorrentHealth> getTorrentHealth(TorrentFileInfo torrentFile);
+
+    /**
      * Create a new torrent for the given torrent file.
      *
      * @param torrentFile      The torrent file that needs to be downloaded.

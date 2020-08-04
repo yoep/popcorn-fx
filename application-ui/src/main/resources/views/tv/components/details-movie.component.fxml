@@ -7,6 +7,7 @@
 <?import com.github.yoep.popcorn.ui.view.controls.Stars?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.HealthIcon?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.MovieDetailsComponent"
           styleClass="movie-details" onKeyPressed="#onDetailsKeyPressed">
@@ -79,9 +80,7 @@
                 <Icon fx:id="subtitleStatus" styleClass="subtitle">
                     <Icon fx:constant="COMMENT_UNICODE"/>
                 </Icon>
-                <Icon fx:id="health" styleClass="health">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
+                <HealthIcon fx:id="health" styleClass="health" />
             </HBox>
 
 

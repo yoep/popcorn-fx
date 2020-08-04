@@ -87,9 +87,7 @@
                 <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
                     <Icon fx:constant="MAGNET_UNICODE"/>
                 </Icon>
-                <Icon fx:id="health" styleClass="health">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
+                <HealthIcon fx:id="health" styleClass="health" />
             </HBox>
 
             <!-- Overview text -->

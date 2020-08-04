@@ -45,7 +45,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private final ActivityManager activityManager;
     private final SubtitleService subtitleService;
     private final FavoriteService favoriteService;
-    private final LocaleText localeText;
 
     private String quality;
     private SubtitleInfo subtitle;
@@ -78,18 +77,17 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     //region Constructors
 
-    public MovieDetailsComponent(ActivityManager activityManager,
+    public MovieDetailsComponent(LocaleText localeText,
+                                 ActivityManager activityManager,
                                  SubtitleService subtitleService,
                                  FavoriteService favoriteService,
-                                 LocaleText localeText,
                                  TorrentService torrentService,
                                  ImageService imageService,
                                  SettingsService settingsService) {
-        super(imageService, torrentService, settingsService);
+        super(localeText, imageService, torrentService, settingsService);
         this.activityManager = activityManager;
         this.subtitleService = subtitleService;
         this.favoriteService = favoriteService;
-        this.localeText = localeText;
     }
 
     //endregion

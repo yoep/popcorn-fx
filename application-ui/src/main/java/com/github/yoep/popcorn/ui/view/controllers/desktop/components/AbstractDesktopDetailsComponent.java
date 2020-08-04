@@ -17,7 +17,6 @@ import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.torrent.adapter.TorrentService;
-import com.github.yoep.torrent.adapter.model.TorrentHealth;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -27,7 +26,6 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
-import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -72,7 +70,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
                                               SettingsService settingsService) {
-        super(imageService, torrentService, settingsService);
+        super(localeText, imageService, torrentService, settingsService);
         this.activityManager = activityManager;
         this.localeText = localeText;
         this.subtitleService = subtitleService;
@@ -117,52 +115,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         } else {
             favoriteIcon.getStyleClass().remove(LIKED_STYLE_CLASS);
         }
-    }
-
-    /**
-     * Create a new instant {@link Tooltip} for the given text.
-     * This will create a {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
-     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
-     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
-     *
-     * @param text The text of the tooltip.
-     * @return Returns the instant Tooltip.
-     */
-    protected Tooltip instantTooltip(String text) {
-        return instantTooltip(new Tooltip(text));
-    }
-
-    /**
-     * Update the given tooltip so it's shown instantly.
-     * This will update the {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
-     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
-     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
-     *
-     * @param tooltip The tooltip to update.
-     * @return Returns same tooltip instance..
-     */
-    protected Tooltip instantTooltip(Tooltip tooltip) {
-        tooltip.setShowDelay(Duration.ZERO);
-        tooltip.setShowDuration(Duration.INDEFINITE);
-        tooltip.setHideDelay(Duration.ZERO);
-        return tooltip;
-    }
-
-    @Override
-    protected TorrentHealth switchHealth(MediaTorrentInfo torrentInfo) {
-        var health = super.switchHealth(torrentInfo);
-        var healthTooltip = new Tooltip(getHealthTooltip(torrentInfo, health));
-
-        healthTooltip.setWrapText(true);
-        instantTooltip(healthTooltip);
-        Tooltip.install(this.health, healthTooltip);
-
-        return health;
-    }
-
-    protected String getHealthTooltip(MediaTorrentInfo torrentInfo, TorrentHealth health) {
-        return localeText.get(health.getState().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
-                "Seeds: " + torrentInfo.getSeed() + " - Peers: " + torrentInfo.getPeer();
     }
 
     protected void openMagnetLink(MediaTorrentInfo torrentInfo) {

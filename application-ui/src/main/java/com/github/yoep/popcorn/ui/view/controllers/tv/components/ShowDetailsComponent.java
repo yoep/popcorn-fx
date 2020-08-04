@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.activities.ActivityManager;
 import com.github.yoep.popcorn.ui.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -39,8 +40,8 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> {
 
     //region Constructors
 
-    public ShowDetailsComponent(ActivityManager activityManager, TorrentService torrentService, ImageService imageService, SettingsService settingsService) {
-        super(imageService, torrentService, settingsService);
+    public ShowDetailsComponent(LocaleText localeText, ActivityManager activityManager, TorrentService torrentService, ImageService imageService, SettingsService settingsService) {
+        super(localeText, imageService, torrentService, settingsService);
         this.activityManager = activityManager;
     }
 

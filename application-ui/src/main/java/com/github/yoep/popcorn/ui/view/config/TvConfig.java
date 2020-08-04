@@ -95,22 +95,23 @@ public class TvConfig {
     //region Components
 
     @Bean
-    public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager,
+    public MovieDetailsComponent movieDetailsComponent(LocaleText localeText,
+                                                       ActivityManager activityManager,
                                                        SubtitleService subtitleService,
                                                        FavoriteService favoriteService,
-                                                       LocaleText localeText,
                                                        TorrentService torrentService,
                                                        ImageService imageService,
                                                        SettingsService settingsService) {
-        return new MovieDetailsComponent(activityManager, subtitleService, favoriteService, localeText, torrentService, imageService, settingsService);
+        return new MovieDetailsComponent(localeText, activityManager, subtitleService, favoriteService, torrentService, imageService, settingsService);
     }
 
     @Bean
-    public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager,
+    public ShowDetailsComponent showDetailsComponent(LocaleText localeText,
+                                                     ActivityManager activityManager,
                                                      TorrentService torrentService,
                                                      ImageService imageService,
                                                      SettingsService settingsService) {
-        return new ShowDetailsComponent(activityManager, torrentService, imageService, settingsService);
+        return new ShowDetailsComponent(localeText, activityManager, torrentService, imageService, settingsService);
     }
 
     @Bean

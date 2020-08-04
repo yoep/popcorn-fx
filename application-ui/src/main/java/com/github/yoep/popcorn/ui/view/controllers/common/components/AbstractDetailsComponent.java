@@ -1,19 +1,22 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.ui.view.controls.HealthIcon;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.model.TorrentHealth;
 import javafx.fxml.FXML;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
+import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
@@ -30,6 +33,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     private static final String POSTER_HOLDER_URI = "/images/posterholder.png";
     private static final Image POSTER_HOLDER = loadPosterHolder();
 
+    protected final LocaleText localeText;
     protected final ImageService imageService;
     protected final TorrentService torrentService;
     protected final SettingsService settingsService;
@@ -37,7 +41,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     protected T media;
 
     @FXML
-    protected Icon health;
+    protected HealthIcon health;
     @FXML
     protected Stars ratingStars;
     @FXML
@@ -47,12 +51,16 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     @FXML
     protected BackgroundImageCover backgroundImage;
 
+    private CompletableFuture<TorrentHealth> healthFuture;
+
     //region Constructors
 
-    protected AbstractDetailsComponent(ImageService imageService, TorrentService torrentService, SettingsService settingsService) {
+    protected AbstractDetailsComponent(LocaleText localeText, ImageService imageService, TorrentService torrentService, SettingsService settingsService) {
+        Assert.notNull(localeText, "localeText cannot be null");
         Assert.notNull(imageService, "imageService cannot be null");
         Assert.notNull(torrentService, "torrentService cannot be null");
         Assert.notNull(settingsService, "settingsService cannot be null");
+        this.localeText = localeText;
         this.imageService = imageService;
         this.torrentService = torrentService;
         this.settingsService = settingsService;
@@ -98,15 +106,29 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      * Switch the health icon to the current media torrent info.
      *
      * @param torrentInfo The media torrent info to display the health status of.
-     * @return Returns the health status.
      */
-    protected TorrentHealth switchHealth(MediaTorrentInfo torrentInfo) {
-        health.getStyleClass().removeIf(e -> !e.equals("health"));
+    protected void switchHealth(MediaTorrentInfo torrentInfo) {
+        this.health.setUpdating(true);
+
+        // cancel the previous future
+        if (healthFuture != null && !healthFuture.isDone()) {
+            healthFuture.cancel(true);
+        }
+
+        // set the health based on the API information
         var health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
+        updateHealthIcon(health);
 
-        this.health.getStyleClass().add(health.getState().getStyleClass());
-
-        return health;
+        // request the real-time health
+        this.healthFuture = torrentService.getTorrentHealth(torrentInfo.getUrl());
+        this.healthFuture.whenComplete((torrentHealth, throwable) -> {
+            if (throwable == null) {
+                updateHealthIcon(torrentHealth);
+                this.health.setUpdating(false);
+            } else {
+                log.error("Failed to retrieve health info, " + throwable.getMessage(), throwable);
+            }
+        });
     }
 
     /**
@@ -153,6 +175,35 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     }
 
     /**
+     * Create a new instant {@link Tooltip} for the given text.
+     * This will create a {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
+     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
+     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
+     *
+     * @param text The text of the tooltip.
+     * @return Returns the instant Tooltip.
+     */
+    protected Tooltip instantTooltip(String text) {
+        return instantTooltip(new Tooltip(text));
+    }
+
+    /**
+     * Update the given tooltip so it's shown instantly.
+     * This will update the {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
+     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
+     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
+     *
+     * @param tooltip The tooltip to update.
+     * @return Returns same tooltip instance..
+     */
+    protected Tooltip instantTooltip(Tooltip tooltip) {
+        tooltip.setShowDelay(Duration.ZERO);
+        tooltip.setShowDuration(Duration.INDEFINITE);
+        tooltip.setHideDelay(Duration.ZERO);
+        return tooltip;
+    }
+
+    /**
      * Reset the details component back to it's idle state.
      */
     protected void reset() {
@@ -187,6 +238,22 @@ public abstract class AbstractDetailsComponent<T extends Media> {
                 log.error(throwable.getMessage(), throwable);
             }
         });
+    }
+
+    private void updateHealthIcon(TorrentHealth health) {
+        var healthTooltip = new Tooltip(getHealthTooltip(health));
+
+        healthTooltip.setWrapText(true);
+        instantTooltip(healthTooltip);
+        Tooltip.install(this.health, healthTooltip);
+
+        this.health.getStyleClass().removeIf(e -> !e.equals("health"));
+        this.health.getStyleClass().add(health.getState().getStyleClass());
+    }
+
+    private String getHealthTooltip(TorrentHealth health) {
+        return localeText.get(health.getState().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
+                "Seeds: " + health.getSeeds() + " - Peers: " + health.getPeers();
     }
 
     private Integer toResolution(String quality) {

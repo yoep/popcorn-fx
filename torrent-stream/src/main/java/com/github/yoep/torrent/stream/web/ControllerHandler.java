@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.web;
+package com.github.yoep.torrent.stream.web;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.connector.ClientAbortException;

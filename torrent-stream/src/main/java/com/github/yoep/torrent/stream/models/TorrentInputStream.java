@@ -1,4 +1,4 @@
-package com.github.yoep.torrent.stream;
+package com.github.yoep.torrent.stream.models;
 
 
 import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;

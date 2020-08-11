@@ -17,6 +17,10 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 
+/**
+ * The {@link FullscreenService} manages the full screen mode of the application.
+ * This service can be used to retrieve the current full screen mode as well as update it.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -53,9 +53,10 @@ public class VideoPlayerService {
     private final ObjectProperty<Subtitle> subtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, Subtitle.none());
     private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
     private final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
-    private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> time = newValue.longValue();
+    private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(oldValue, newValue);
     private final ChangeListener<Number> durationListener = (observable, oldValue, newValue) -> duration = newValue.longValue();
 
+    @Nullable
     private Media media;
     private String quality;
     private String url;
@@ -210,15 +211,24 @@ public class VideoPlayerService {
      */
     public void videoTimeOffset(long millis) {
         log.trace("Updating video time with {} offset", millis);
-        long newTime = getVideoPlayer().getTime() + millis;
-        long duration = getVideoPlayer().getDuration();
+        var videoPlayer = getVideoPlayer();
+
+        // check if a video player is currently active
+        // if not, ignore the time offset update
+        if (videoPlayer == null) {
+            log.warn("Unable to update video time offset, video player is unknown (null)");
+            return;
+        }
+
+        var newTime = videoPlayer.getTime() + millis;
+        var duration = videoPlayer.getDuration();
 
         if (newTime > duration)
             newTime = duration;
         if (newTime < 0)
             newTime = 0;
 
-        getVideoPlayer().seek(newTime);
+        videoPlayer.seek(newTime);
     }
 
     /**
@@ -491,6 +501,10 @@ public class VideoPlayerService {
             return;
 
         this.videoPlayer.set(videoPlayer);
+    }
+
+    private void onTimeChanged(Number oldValue, Number newValue) {
+        time = newValue.longValue();
     }
 
     private void onVideoStopped() {

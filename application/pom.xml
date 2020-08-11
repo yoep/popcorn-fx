@@ -199,7 +199,7 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
-                                <param>${project.basedir}/../assets/${platform}/jlibtorrent.so</param>
+                                <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
                             </additionalResources>
                         </configuration>
                     </plugin>
@@ -220,7 +220,7 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
-                                <param>${project.basedir}/../assets/${platform}/jlibtorrent.so</param>
+                                <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
                             </additionalResources>
                             <vmArgs>
                                 <param>-Djavafx.platform=monocle</param>

@@ -4,8 +4,14 @@ import lombok.Getter;
 
 import java.text.MessageFormat;
 
+/**
+ * Indicates that an issue occurred when loading a certain image.
+ */
 @Getter
 public class ImageException extends RuntimeException {
+    /**
+     * The image url that was being loaded and failed.
+     */
     private final String url;
 
     public ImageException(String url, String message) {

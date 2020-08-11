@@ -17,6 +17,7 @@ import static java.util.Arrays.asList;
 public class PlaybackSettings extends AbstractSettings {
     public static final String QUALITY_PROPERTY = "quality";
     public static final String FULLSCREEN_PROPERTY = "fullscreen";
+    public static final String NEXT_EPISODE_PROPERTY = "autoPlayNextEpisode";
 
     /**
      * The default video playback quality.
@@ -27,10 +28,15 @@ public class PlaybackSettings extends AbstractSettings {
      * Open the video playback in fullscreen.
      */
     private boolean fullscreen;
+    /**
+     * Automatically play the next episode.
+     */
+    @Builder.Default
+    private boolean autoPlayNextEpisodeEnabled = true;
 
     //region Setters
 
-    public void setDefaultQuality(Quality quality) {
+    public void setQuality(Quality quality) {
         if (Objects.equals(this.quality, quality))
             return;
 
@@ -46,6 +52,15 @@ public class PlaybackSettings extends AbstractSettings {
         var oldValue = this.fullscreen;
         this.fullscreen = fullscreen;
         changes.firePropertyChange(FULLSCREEN_PROPERTY, oldValue, fullscreen);
+    }
+
+    public void setAutoPlayNextEpisodeEnabled(boolean autoPlayNextEpisodeEnabled) {
+        if (Objects.equals(this.autoPlayNextEpisodeEnabled, autoPlayNextEpisodeEnabled))
+            return;
+
+        var oldValue = this.autoPlayNextEpisodeEnabled;
+        this.autoPlayNextEpisodeEnabled = autoPlayNextEpisodeEnabled;
+        changes.firePropertyChange(NEXT_EPISODE_PROPERTY, oldValue, autoPlayNextEpisodeEnabled);
     }
 
     //endregion

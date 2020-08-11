@@ -5,6 +5,10 @@ import com.github.yoep.torrent.adapter.model.TorrentStream;
 
 import java.util.Optional;
 
+/**
+ * The {@link TorrentStreamService} manages the active served torrent streams which are available over HTTP.
+ * Use this service to start/stop the stream of a {@link Torrent}.
+ */
 public interface TorrentStreamService {
     /**
      * Start the stream process for the given torrent.
@@ -23,7 +27,7 @@ public interface TorrentStreamService {
     void stopStream(TorrentStream torrent);
 
     /**
-     * Stop all the torrent streams which are currently still running.
+     * Stop all the torrent streams which are currently running.
      */
     void stopAllStreams();
 

@@ -12,6 +12,10 @@ import java.io.File;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * The {@link TorrentService} manages the {@link Torrent}'s and creation of them.
+ * Use this service to resolve magnet url's or start downloading a torrent.
+ */
 public interface TorrentService {
     /**
      * Get the state of the torrent session.

@@ -1074,7 +1074,7 @@
 }
 
 .root .settings-section .sub-section .text-field {
-    -fx-min-width: 250;
+    -fx-min-width: 300;
     -fx-background-color: #393b3d;
     -fx-text-fill: #c3c5c7;
 }

@@ -15,4 +15,10 @@ public class PopcornTimeApplicationTest extends PopcornTimeApplication {
 
         viewManager.setPolicy(ViewManagerPolicy.BLOCKED);
     }
+
+    @Override
+    public void stop() {
+        applicationContext.close();
+        applicationContext.stop();
+    }
 }

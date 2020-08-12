@@ -54,7 +54,8 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     //region Constructors
 
     public InfiniteScrollPane() {
-        init();
+        super();
+        initScrollPane();
     }
 
     //endregion
@@ -198,7 +199,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
 
     //region Functions
 
-    private void init() {
+    private void initScrollPane() {
         initializeScrollBars();
         initializeContent();
         initializeListeners();

@@ -131,7 +131,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
             }
         });
 
-        playProgress.setOnMouseReleased(event -> setVideoTime(playProgress.getTime() + 1));
+        playProgress.setOnMouseReleased(event -> setVideoTime(playProgress.getTime() + 1.0));
     }
 
     private void initializeLanguageSelection() {

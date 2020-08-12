@@ -439,8 +439,7 @@ public class SubtitleService {
         // if so, extract the zip and search for the .srt file
         if (extension.equalsIgnoreCase("zip")) {
             log.debug("Custom subtitle file is a zip, extracting and searching for subtitle file");
-            try {
-                var zipFile = new ZipFile(new File(url));
+            try (var zipFile = new ZipFile(new File(url))) {
                 var entries = zipFile.entries();
                 var subtitleDirectory = getSubtitleSettings().getDirectory();
 

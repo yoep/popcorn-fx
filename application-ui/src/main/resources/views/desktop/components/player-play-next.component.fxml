@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerPlayNextComponent"
+          fx:id="playNextPane" styleClass="playing-next" onMouseClicked="#onPlayNextClicked">
+    <columnConstraints>
+        <ColumnConstraints minWidth="95"/>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <!-- Image poster -->
+    <ImageView fx:id="playNextPoster" preserveRatio="true" fitHeight="140"
+               GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="3"/>
+
+    <!-- Show -->
+    <Label fx:id="showName" styleClass="show-name, info"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+    <!-- Episode -->
+    <Label fx:id="episodeTitle" styleClass="episode-title, info"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+    <!-- Number -->
+    <Label fx:id="episodeNumber" styleClass="episode-number, info"
+           GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+    <!-- Playing in -->
+    <Label text="%player_playing_next" styleClass="playing-in"
+           GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+    <Label fx:id="playingInCountdown" styleClass="playing-in-countdown"
+           GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.rowSpan="2" GridPane.halignment="CENTER"/>
+</GridPane>

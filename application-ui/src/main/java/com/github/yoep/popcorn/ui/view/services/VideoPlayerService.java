@@ -422,8 +422,6 @@ public class VideoPlayerService {
         Optional.ofNullable(getVideoPlayer())
                 .ifPresent(VideoPlayer::stop);
 
-        torrentStreamService.stopAllStreams();
-
         activityManager.register(new ClosePlayerActivity() {
             @Override
             public String getUrl() {
@@ -452,6 +450,8 @@ public class VideoPlayerService {
                         .orElse(UNKNOWN);
             }
         });
+
+        torrentStreamService.stopAllStreams();
 
         reset();
     }

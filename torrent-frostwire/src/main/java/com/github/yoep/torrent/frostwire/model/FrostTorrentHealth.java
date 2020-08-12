@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 @Slf4j
 @ToString
 public class FrostTorrentHealth implements AlertListener {
+    @Getter
     private final TorrentHandle handle;
     private final Consumer<FrostTorrentHealth> onComplete;
 

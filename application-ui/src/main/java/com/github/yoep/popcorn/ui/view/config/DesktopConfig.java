@@ -239,5 +239,12 @@ public class DesktopConfig {
         return new TitleBarComponent(maximizeService, optionsService);
     }
 
+    @Bean
+    public PlayerPlayNextComponent playerPlaylistComponent(ActivityManager activityManager,
+                                                           ImageService imageService,
+                                                           VideoPlayerService videoPlayerService) {
+        return new PlayerPlayNextComponent(activityManager, imageService, videoPlayerService);
+    }
+
     //endregion
 }

@@ -71,6 +71,13 @@ Add the following VM option if you're experiencing white boxes in the UI.
 
     -Dprism.dirtyopts=false
 
+## Development
+
+To run the application from source code locally, add the following VM options.
+
+    -Djava.library.path=assets/<<OS>>:${PATH}
+    --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.web,javafx.swing
+
 ## Features
 
 ### v1.0.0

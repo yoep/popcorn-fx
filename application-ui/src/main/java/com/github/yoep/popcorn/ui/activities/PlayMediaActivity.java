@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.activities;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.subtitles.Subtitle;
 
+import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
 public interface PlayMediaActivity extends PlayVideoActivity {
@@ -11,6 +12,7 @@ public interface PlayMediaActivity extends PlayVideoActivity {
      *
      * @return Returns the media that needs to be played.
      */
+    @NotNull
     Media getMedia();
 
     /**

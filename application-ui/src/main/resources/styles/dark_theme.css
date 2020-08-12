@@ -957,6 +957,46 @@
     -fx-background-color: null;
 }
 
+.root .player .playing-next {
+    -fx-min-width: 450px;
+    -fx-min-height: 140px;
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-cursor: hand;
+}
+
+.root .player .playing-next .info {
+    -fx-text-fill: #fff;
+    -fx-padding: 0 10 0 10;
+}
+
+.root .player .playing-next .show-name {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.5em;
+}
+
+.root .player .playing-next .episode-title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.25em;
+}
+
+.root .player .playing-next .episode-number {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 1em;
+}
+
+.root .player .playing-next .playing-in {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #2d72d9;
+}
+
+.root .player .playing-next .playing-in-countdown {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 2em;
+    -fx-text-fill: #fff;
+    -fx-alignment: center;
+}
+
 .root .loader .status-text {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #f9fafc;
@@ -1000,7 +1040,7 @@
 .root .settings-section .sub-section .text-field,
 .root .settings-section .sub-section .check-box,
 .root .settings-section .sub-section .combo-box > .list-cell,
-.root .settings-section .sub-section .combo-box .list-view .list-cell{
+.root .settings-section .sub-section .combo-box .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
     -fx-font-size: 14px;
     -fx-text-fill: #c3c5c7;

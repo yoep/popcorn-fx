@@ -7,7 +7,7 @@
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.PlayerSectionController" fx:id="playerPane" styleClass="player">
     <!-- Video Player -->
     <StackPane fx:id="videoView"
-          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+               AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
     <!-- Video Player subtitle -->
     <SubtitleTrack fx:id="subtitleTrack"
@@ -27,6 +27,10 @@
     <!-- Video Player Cover -->
     <BorderPane fx:id="playerVideoOverlay" styleClass="player-overlay" onMouseClicked="#onPlayerClick" cache="true" cacheHint="SCALE"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <!-- Play next -->
+    <fx:include fx:id="playerPlayNextPane" source="../components/player-play-next.component.fxml"
+                AnchorPane.bottomAnchor="50" AnchorPane.rightAnchor="0"/>
 
     <!-- Player Header -->
     <fx:include fx:id="playerHeaderPane" source="../components/player-header.component.fxml"

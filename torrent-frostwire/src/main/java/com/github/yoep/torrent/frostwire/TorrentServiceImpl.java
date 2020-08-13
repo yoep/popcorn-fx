@@ -77,9 +77,13 @@ public class TorrentServiceImpl implements TorrentService {
         var completableFuture = new CompletableFuture<TorrentHealth>();
 
         try {
-            var handle = internalCreateTorrentHash(torrentFile, Files.createTempDirectory(TEMP_DIR_PREFIX).toFile());
+            var handle = internalCreateTorrentHandle(torrentFile, Files.createTempDirectory(TEMP_DIR_PREFIX).toFile());
             var torrentHealth = new FrostTorrentHealth(handle, health -> completableFuture.complete(calculateHealth(health.getSeeds(), health.getPeers())));
 
+            completableFuture.whenComplete((health, throwable) -> {
+                session.removeListener(torrentHealth);
+                session.remove(torrentHealth.getHandle());
+            });
             session.addListener(torrentHealth);
 
             return completableFuture;
@@ -99,7 +103,7 @@ public class TorrentServiceImpl implements TorrentService {
         Assert.notNull(torrentFile, "torrentFile cannot be null");
         Assert.notNull(torrentDirectory, "torrentDirectory cannot be null");
         var session = sessionManager.getSession();
-        var handle = internalCreateTorrentHash(torrentFile, torrentDirectory);
+        var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
         var torrent = new FrostTorrent(handle, torrentFile.getFileIndex(), autoStartDownload);
 
         // register the torrent in the session
@@ -180,10 +184,11 @@ public class TorrentServiceImpl implements TorrentService {
 
     //region Functions
 
-    private TorrentHandle internalCreateTorrentHash(TorrentFileInfo torrentFile, File torrentDirectory) {
+    private TorrentHandle internalCreateTorrentHandle(TorrentFileInfo torrentFile, File torrentDirectory) {
         log.debug("Creating new torrent for {} in {}", torrentFile.getFilename(), torrentDirectory.getAbsolutePath());
         var session = sessionManager.getSession();
         var torrentInfo = (TorrentInfoWrapper) torrentFile.getTorrentInfo();
+        var torrentName = torrentInfo.getName();
         var priorities = new Priority[torrentInfo.getTotalFiles()];
         var handle = new AtomicReference<TorrentHandle>();
 
@@ -192,7 +197,7 @@ public class TorrentServiceImpl implements TorrentService {
         Arrays.fill(priorities, Priority.IGNORE);
 
         // create a new torrent creation listener
-        var creationListener = new TorrentCreationListener(torrentInfo.getName(), torrentHandle -> {
+        var creationListener = new TorrentCreationListener(torrentName, torrentHandle -> {
             synchronized (this) {
                 handle.set(torrentHandle);
                 notifyAll();
@@ -209,7 +214,7 @@ public class TorrentServiceImpl implements TorrentService {
         // pause this thread and wait for the torrent to be created
         synchronized (this) {
             try {
-                log.debug("Waiting for torrent \"{}\" to be created", torrentInfo.getName());
+                log.debug("Waiting for torrent \"{}\" to be created", torrentName);
                 wait();
             } catch (InterruptedException ex) {
                 log.error("Torrent creation monitor unexpectedly quit", ex);

@@ -1,10 +1,11 @@
-package com.github.yoep.torrent.stream;
+package com.github.yoep.torrent.stream.services;
 
 import com.github.yoep.torrent.adapter.StreamException;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import com.github.yoep.torrent.adapter.model.Torrent;
 import com.github.yoep.torrent.adapter.model.TorrentStream;
+import com.github.yoep.torrent.stream.models.TorrentStreamImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.context.ApplicationContext;

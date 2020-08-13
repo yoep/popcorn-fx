@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.ui.view.listeners.VideoPlayerListener;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
@@ -28,8 +29,10 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 @Slf4j
 @Service
@@ -53,9 +56,11 @@ public class VideoPlayerService {
     private final ObjectProperty<Subtitle> subtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, Subtitle.none());
     private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
     private final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
-    private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> time = newValue.longValue();
-    private final ChangeListener<Number> durationListener = (observable, oldValue, newValue) -> duration = newValue.longValue();
+    private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(newValue);
+    private final ChangeListener<Number> durationListener = (observable, oldValue, newValue) -> onDurationChanged(newValue);
+    private final List<VideoPlayerListener> listeners = new ArrayList<>();
 
+    @Nullable
     private Media media;
     private String quality;
     private String url;
@@ -153,6 +158,18 @@ public class VideoPlayerService {
     //region Methods
 
     /**
+     * Register the given listener to this video player service.
+     *
+     * @param listener The listener to add.
+     */
+    public void addListener(VideoPlayerListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        synchronized (listeners) {
+            listeners.add(listener);
+        }
+    }
+
+    /**
      * Resume the media playback.
      *
      * @throws VideoPlayerNotInitializedException Is thrown when the video player has not yet been initialized.
@@ -210,15 +227,24 @@ public class VideoPlayerService {
      */
     public void videoTimeOffset(long millis) {
         log.trace("Updating video time with {} offset", millis);
-        long newTime = getVideoPlayer().getTime() + millis;
-        long duration = getVideoPlayer().getDuration();
+        var videoPlayer = getVideoPlayer();
+
+        // check if a video player is currently active
+        // if not, ignore the time offset update
+        if (videoPlayer == null) {
+            log.warn("Unable to update video time offset, video player is unknown (null)");
+            return;
+        }
+
+        var newTime = videoPlayer.getTime() + millis;
+        var duration = videoPlayer.getDuration();
 
         if (newTime > duration)
             newTime = duration;
         if (newTime < 0)
             newTime = 0;
 
-        getVideoPlayer().seek(newTime);
+        videoPlayer.seek(newTime);
     }
 
     /**
@@ -316,6 +342,8 @@ public class VideoPlayerService {
         if (newValue == PlayerState.STOPPED) {
             onVideoStopped();
         }
+
+        invokeListeners(e -> e.onPlayerStateChanged(newValue));
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
@@ -412,8 +440,6 @@ public class VideoPlayerService {
         Optional.ofNullable(getVideoPlayer())
                 .ifPresent(VideoPlayer::stop);
 
-        torrentStreamService.stopAllStreams();
-
         activityManager.register(new ClosePlayerActivity() {
             @Override
             public String getUrl() {
@@ -442,6 +468,8 @@ public class VideoPlayerService {
                         .orElse(UNKNOWN);
             }
         });
+
+        torrentStreamService.stopAllStreams();
 
         reset();
     }
@@ -493,6 +521,18 @@ public class VideoPlayerService {
         this.videoPlayer.set(videoPlayer);
     }
 
+    private void onTimeChanged(Number newValue) {
+        time = newValue.longValue();
+
+        invokeListeners(e -> e.onTimeChanged(newValue));
+    }
+
+    private void onDurationChanged(Number newValue) {
+        duration = newValue.longValue();
+
+        invokeListeners(e -> e.onDurationChanged(newValue));
+    }
+
     private void onVideoStopped() {
         // check if the video has been started for more than 30 sec before exiting the video player
         // this should fix the issue of the video player closing directly in some cases
@@ -500,6 +540,18 @@ public class VideoPlayerService {
             return;
 
         close();
+    }
+
+    private void invokeListeners(Consumer<VideoPlayerListener> action) {
+        synchronized (listeners) {
+            for (VideoPlayerListener listener : listeners) {
+                try {
+                    action.accept(listener);
+                } catch (Exception ex) {
+                    log.error("Error occurred while invoking listener, " + ex.getMessage(), ex);
+                }
+            }
+        }
     }
 
     private void reset() {

@@ -2,6 +2,7 @@
 target/
 
 **/*.iml
+**/docker-compose.yml
 **/dependency-reduced-pom.xml
 **/pom.xml.versionsBackup
 **/pom.xml.releaseBackup

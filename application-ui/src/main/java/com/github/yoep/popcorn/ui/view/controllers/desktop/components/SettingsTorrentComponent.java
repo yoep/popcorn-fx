@@ -141,8 +141,10 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
 
     @FXML
     private void onCacheDirectoryClicked(MouseEvent event) {
-        Node node = (Node) event.getSource();
-        File newDirectory = cacheChooser.showDialog(node.getScene().getWindow());
+        var node = (Node) event.getSource();
+        var scene = node.getScene();
+        var window = scene.getWindow();
+        var newDirectory = cacheChooser.showDialog(window);
 
         if (newDirectory != null && newDirectory.isDirectory()) {
             cacheDirectory.setText(newDirectory.getAbsolutePath());

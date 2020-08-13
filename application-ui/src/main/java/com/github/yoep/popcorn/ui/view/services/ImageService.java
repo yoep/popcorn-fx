@@ -4,11 +4,13 @@ import com.github.yoep.popcorn.ui.media.providers.models.Images;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
 import java.io.ByteArrayInputStream;
 import java.text.MessageFormat;
 import java.util.Optional;
@@ -21,7 +23,23 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 public class ImageService {
+    private static final int POSTER_WIDTH = 201;
+    private static final int POSTER_HEIGHT = 294;
+    private static final String POSTER_HOLDER = "/images/posterholder.png";
+
     private final RestTemplate restTemplate;
+    private Image posterHolder;
+
+    //region Methods
+
+    /**
+     * Get the poster holder image.
+     *
+     * @return Returns the poster holder image.
+     */
+    public Image getPosterHolder() {
+        return posterHolder;
+    }
 
     /**
      * Try to load the fanart image for the given {@link Media}.
@@ -37,7 +55,8 @@ public class ImageService {
                 .map(Images::getFanart)
                 .filter(e -> !e.equalsIgnoreCase("n/a"))
                 .map(this::internalLoad)
-                .map(this::convertToImage);
+                .map(this::convertToImage)
+                .filter(this::isSuccessfullyLoaded);
 
         return CompletableFuture.completedFuture(image);
     }
@@ -71,7 +90,8 @@ public class ImageService {
                 .map(Images::getPoster)
                 .filter(e -> !e.equalsIgnoreCase("n/a"))
                 .map(this::internalLoad)
-                .map(e -> this.convertToImage(e, width, height));
+                .map(e -> this.convertToImage(e, width, height))
+                .filter(this::isSuccessfullyLoaded);
 
         return CompletableFuture.completedFuture(image);
     }
@@ -91,6 +111,23 @@ public class ImageService {
         return CompletableFuture.completedFuture(convertToImage(image));
     }
 
+    //endregion
+
+    //region PostConstruct
+
+    @PostConstruct
+    private void init() {
+        posterHolder = new Image(POSTER_HOLDER, POSTER_WIDTH, POSTER_HEIGHT, true, true);
+    }
+
+    //endregion
+
+    //region Functions
+
+    private boolean isSuccessfullyLoaded(Image image) {
+        return !image.isError();
+    }
+
     private Image convertToImage(byte[] imageData) {
         return convertToImage(imageData, 0, 0);
     }
@@ -102,12 +139,21 @@ public class ImageService {
     }
 
     /**
+     * Get the poster holder image resource.
+     *
+     * @return Returns the image resource.
+     */
+    static ClassPathResource getPosterHolderResource() {
+        return new ClassPathResource(POSTER_HOLDER);
+    }
+
+    /**
      * Load the image internally using the rest template as it automatically follows the 3xx redirects.
      *
      * @param url The image url to load.
      * @return Returns the image byte data.
      */
-    private byte[] internalLoad(String url) {
+    byte[] internalLoad(String url) {
         try {
             var response = restTemplate.getForEntity(url, byte[].class);
 
@@ -120,4 +166,6 @@ public class ImageService {
             throw new ImageException(url, ex.getMessage(), ex);
         }
     }
+
+    //endregion
 }

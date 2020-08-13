@@ -108,7 +108,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         qualityList = new ListView<>();
 
         qualityList.setMaxWidth(100);
-        qualityList.getItems().addListener((InvalidationListener) observable -> qualityList.setMaxHeight(50 * qualityList.getItems().size()));
+        qualityList.getItems().addListener((InvalidationListener) observable -> qualityList.setMaxHeight(50.0 * qualityList.getItems().size()));
         qualityList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
     }
 

@@ -1,13 +1,14 @@
 package com.github.yoep.popcorn.ui;
 
 import com.github.spring.boot.javafx.SpringJavaFXApplication;
-import com.github.spring.boot.javafx.stage.BorderlessStage;
+import com.github.spring.boot.javafx.stage.BorderlessStageWrapper;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.ui.settings.OptionsService;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
@@ -38,9 +39,9 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     }
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage stage) throws Exception {
         log.trace("Starting the application");
-        var stage = new BorderlessStage();
+        BorderlessStageHolder.setWrapper(new BorderlessStageWrapper(stage));
         super.start(stage);
 
         var loader = applicationContext.getBean(ViewLoader.class);

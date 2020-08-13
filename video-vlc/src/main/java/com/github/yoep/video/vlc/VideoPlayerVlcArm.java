@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
-import uk.co.caprica.vlcj.player.embedded.fullscreen.libvlc.LibVlcNativeFullScreenStrategy;
 
 import javax.annotation.PostConstruct;
 

@@ -16,6 +16,7 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <start-class>com.github.yoep.popcorn.PopcornTimeStarter</start-class>
+        <testfx.version>4.0.16-alpha</testfx.version>
     </properties>
 
     <dependencies>
@@ -49,6 +50,35 @@
             <groupId>com.github.yoep</groupId>
             <artifactId>torrent-stream</artifactId>
             <version>${project.version}</version>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-core</artifactId>
+            <version>${testfx.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-junit5</artifactId>
+            <version>${testfx.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -199,7 +229,7 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
-                                <param>${project.basedir}/../assets/${platform}/jlibtorrent.so</param>
+                                <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
                             </additionalResources>
                         </configuration>
                     </plugin>
@@ -220,7 +250,7 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
-                                <param>${project.basedir}/../assets/${platform}/jlibtorrent.so</param>
+                                <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
                             </additionalResources>
                             <vmArgs>
                                 <param>-Djavafx.platform=monocle</param>

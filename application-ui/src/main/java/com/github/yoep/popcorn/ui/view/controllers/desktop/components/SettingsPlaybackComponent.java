@@ -22,6 +22,8 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
     private ComboBox<PlaybackSettings.Quality> quality;
     @FXML
     private CheckBox fullscreen;
+    @FXML
+    private CheckBox autoPlayNextEpisode;
 
     //region Constructors
 
@@ -37,6 +39,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
     public void initialize(URL location, ResourceBundle resources) {
         initializeQuality();
         initializeFullscreen();
+        initializeAutoPlayNextEpisode();
     }
 
     private void initializeQuality() {
@@ -57,6 +60,13 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
 
         fullscreen.setSelected(settings.isFullscreen());
         fullscreen.selectedProperty().addListener((observable, oldValue, newValue) -> onFullscreenChanged(newValue));
+    }
+
+    private void initializeAutoPlayNextEpisode() {
+        var settings = getPlaybackSettings();
+
+        autoPlayNextEpisode.setSelected(settings.isAutoPlayNextEpisodeEnabled());
+        autoPlayNextEpisode.selectedProperty().addListener((observable, oldValue, newValue) -> onAutoPlayNextEpisodeChanged(newValue));
     }
 
     //endregion
@@ -82,17 +92,24 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
         };
     }
 
-    private void onQualityChanged(PlaybackSettings.Quality newValue) {
+    void onQualityChanged(PlaybackSettings.Quality newValue) {
         var settings = getPlaybackSettings();
 
         settings.setQuality(newValue);
         showNotification();
     }
 
-    private void onFullscreenChanged(Boolean newValue) {
+    void onFullscreenChanged(Boolean newValue) {
         var settings = getPlaybackSettings();
 
         settings.setFullscreen(newValue);
+        showNotification();
+    }
+
+    void onAutoPlayNextEpisodeChanged(Boolean newValue) {
+        var settings = getPlaybackSettings();
+
+        settings.setAutoPlayNextEpisodeEnabled(newValue);
         showNotification();
     }
 

@@ -21,10 +21,7 @@ import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.MainDesktopController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.*;
-import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.MaximizeService;
-import com.github.yoep.popcorn.ui.view.services.UrlService;
-import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
+import com.github.yoep.popcorn.ui.view.services.*;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import org.springframework.boot.ApplicationArguments;
@@ -237,6 +234,12 @@ public class DesktopConfig {
     public TitleBarComponent titleBarComponent(MaximizeService maximizeService,
                                                OptionsService optionsService) {
         return new TitleBarComponent(maximizeService, optionsService);
+    }
+
+    @Bean
+    public PlayerPlayNextComponent playerPlaylistComponent(ImageService imageService,
+                                                           PlayNextService playNextService) {
+        return new PlayerPlayNextComponent(imageService, playNextService);
     }
 
     //endregion

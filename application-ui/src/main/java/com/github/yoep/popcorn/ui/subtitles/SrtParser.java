@@ -164,7 +164,7 @@ public class SrtParser {
         int minutes = (hour * 60) + time.getMinute();
         int seconds = (minutes * 60) + time.getSecond();
 
-        return (seconds * 1000) + (time.getNano() / 1000000);
+        return (seconds * 1000) + (long) (time.getNano() / 1000000);
     }
 
     private String getStyle(Matcher matcher) {

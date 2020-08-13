@@ -60,6 +60,9 @@
         <TextField fx:id="cacheDirectory"/>
         <Icon onMouseClicked="#onCacheDirectoryClicked">
             <Icon fx:constant="FOLDER_OPEN_O_UNICODE"/>
+            <tooltip>
+                <Tooltip text="%settings_choose_directory" showDelay="0s" />
+            </tooltip>
         </Icon>
     </HBox>
 

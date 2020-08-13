@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -125,7 +126,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
             if (throwable == null) {
                 updateHealthIcon(torrentHealth);
                 this.health.setUpdating(false);
-            } else {
+            } else if (!(throwable instanceof CancellationException)) {
                 log.error("Failed to retrieve health info, " + throwable.getMessage(), throwable);
             }
         });

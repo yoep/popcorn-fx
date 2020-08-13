@@ -1,17 +1,15 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop;
 
-import com.github.spring.boot.javafx.stage.BorderlessStage;
-import com.github.spring.boot.javafx.ui.stage.StageAware;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.ui.activities.*;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.common.AbstractMainController;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.application.Platform;
 import javafx.scene.input.*;
 import javafx.scene.layout.Pane;
-import javafx.stage.Stage;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -28,7 +26,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-public class MainDesktopController extends AbstractMainController implements MainController, StageAware {
+public class MainDesktopController extends AbstractMainController implements MainController {
     private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
 
     //region Constructors
@@ -50,8 +48,15 @@ public class MainDesktopController extends AbstractMainController implements Mai
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         super.initialize(url, resourceBundle);
+        initializeStageHeader();
         initializeSceneEvents();
         initializeSection();
+    }
+
+    private void initializeStageHeader() {
+        var stageWrapper = BorderlessStageHolder.getWrapper();
+
+        stageWrapper.setHeader(28);
     }
 
     private void initializeSceneEvents() {
@@ -62,22 +67,6 @@ public class MainDesktopController extends AbstractMainController implements Mai
     private void initializeSection() {
         if (!processApplicationArguments())
             switchSection(SectionType.CONTENT);
-    }
-
-    //endregion
-
-    //region StageAware
-
-    @Override
-    public void onShown(Stage stage) {
-        var borderlessStage = (BorderlessStage) stage;
-
-        borderlessStage.setHeader(28);
-    }
-
-    @Override
-    public void onClosed(Stage stage) {
-        //no-op
     }
 
     //endregion

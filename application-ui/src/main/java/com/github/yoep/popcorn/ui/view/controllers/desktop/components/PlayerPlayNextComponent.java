@@ -62,9 +62,13 @@ public class PlayerPlayNextComponent implements Initializable {
     //region Functions
 
     private void onEpisodeChanged(Episode episode) {
-        var show = episode.getShow();
-
         reset();
+
+        if (episode == null) {
+            return;
+        }
+
+        var show = episode.getShow();
 
         Platform.runLater(() -> {
             showName.setText(show.getTitle());
@@ -104,6 +108,7 @@ public class PlayerPlayNextComponent implements Initializable {
     private void onPlayNextClicked(MouseEvent event) {
         event.consume();
         playNextService.playNextEpisodeNow();
+        reset();
     }
 
     //endregion

@@ -959,7 +959,9 @@
 
 .root .player .playing-next {
     -fx-min-width: 450px;
+    -fx-max-width: 450px;
     -fx-min-height: 140px;
+    -fx-max-height: 140px;
     -fx-background-color: rgba(0, 0, 0, 0.5);
     -fx-cursor: hand;
 }

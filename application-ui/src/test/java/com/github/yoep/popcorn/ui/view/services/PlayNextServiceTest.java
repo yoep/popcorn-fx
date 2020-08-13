@@ -81,6 +81,24 @@ class PlayNextServiceTest {
     }
 
     @Test
+    void testOnPlayMedia_whenEpisodeIsLastEpisodeInShow_shouldNotUpdateNextEpisode() {
+        var activity = mock(PlayMediaActivity.class);
+        var episode1 = new Episode();
+        var episode2 = new Episode();
+        var show = new Show();
+        episode1.setEpisode(1);
+        episode2.setEpisode(2);
+        show.setEpisodes(asList(episode1, episode2));
+        when(activity.getMedia()).thenReturn(episode2);
+        when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+
+        playNextService.onPlayMedia(activity);
+        var result = playNextService.getNextEpisode();
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
     void testOnTimeChanged_whenPlayNextIsDisabled_shouldNotUpdatePlayingIn() {
         var activity = mock(PlayMediaActivity.class);
         var episode = createEpisode();

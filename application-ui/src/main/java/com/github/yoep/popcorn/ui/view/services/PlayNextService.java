@@ -135,6 +135,7 @@ public class PlayNextService {
         // check if the current media is an episode
         // if not, ignore the update of information
         if (!isEpisode(media)) {
+            reset();
             return;
         }
 
@@ -142,9 +143,11 @@ public class PlayNextService {
         var show = episode.getShow();
         var nextEpisodeIndex = episode.getEpisode();
 
-        if (nextEpisodeIndex <= show.getEpisodes().size()) {
+        if (nextEpisodeIndex <= show.getEpisodes().size() - 1) {
             this.nextEpisode.set(show.getEpisodes().get(nextEpisodeIndex));
             this.quality = activity.getQuality();
+        } else {
+            reset();
         }
     }
 
@@ -160,7 +163,7 @@ public class PlayNextService {
         if (remainingTime <= COUNTDOWN_FROM) {
             playingIn.set(remainingTime);
 
-            if (remainingTime == 0) {
+            if (remainingTime == 1) {
                 onPlayNextEpisode();
             }
         }
@@ -171,14 +174,16 @@ public class PlayNextService {
     }
 
     private void onPlayNextEpisode() {
+        var nextEpisode = getNextEpisode();
+
         // check if the next episode is known
         // if not, ignore this action
-        if (getNextEpisode().isEmpty()) {
+        if (nextEpisode.isEmpty()) {
             log.warn("Unable to play next episode, nex episode is unwknown");
             return;
         }
 
-        var episode = getNextEpisode().get();
+        var episode = nextEpisode.get();
         var quality = this.quality;
 
         // close the current video player
@@ -206,6 +211,10 @@ public class PlayNextService {
                 return Optional.empty();
             }
         });
+    }
+
+    private void reset() {
+        nextEpisode.set(null);
     }
 
     private boolean isPlayNextDisabled() {

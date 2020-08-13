@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.LoadMediaTorrentActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractLoaderTorrentComponent;
@@ -44,7 +44,7 @@ public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
 
     @PostConstruct
     private void init() {
-        activityManager.register(LoadMediaTorrentActivity.class, this::startTorrent);
+        activityManager.register(LoadMediaTorrentEvent.class, this::startTorrent);
     }
 
     //endregion
@@ -52,7 +52,7 @@ public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
     //region Functions
 
     @Override
-    protected void startTorrent(LoadMediaTorrentActivity activity) {
+    protected void startTorrent(LoadMediaTorrentEvent activity) {
         Platform.runLater(() -> cancelButton.requestFocus());
 
         super.startTorrent(activity);

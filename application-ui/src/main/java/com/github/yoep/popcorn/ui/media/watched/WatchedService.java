@@ -2,8 +2,7 @@ package com.github.yoep.popcorn.ui.media.watched;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaType;
 import com.github.yoep.popcorn.ui.media.watched.models.Watchable;
@@ -13,6 +12,7 @@ import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -37,7 +37,6 @@ public class WatchedService {
     private static final int IDLE_TIME = 10;
 
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
-    private final ActivityManager activityManager;
     private final ObjectMapper objectMapper;
     private final Object cacheLock = new Object();
 
@@ -124,6 +123,33 @@ public class WatchedService {
         }
     }
 
+    @EventListener
+    public void onClosePlayer(ClosePlayerEvent event) {
+        // check if the media is present
+        // if not, the played video might have been a trailer or video file
+        if (event.getMedia().isEmpty())
+            return;
+
+        var time = event.getTime();
+        var duration = event.getDuration();
+
+        // check if both the time and duration of the video are known
+        // if not, the close activity media is not eligible for being auto marked as watched
+        if (time == ClosePlayerEvent.UNKNOWN || duration == ClosePlayerEvent.UNKNOWN)
+            return;
+
+        var percentageWatched = ((double) time / duration) * 100;
+        var media = event.getMedia().get();
+
+        // check if the media has been watched for the percentage threshold
+        // if so, mark the media as watched
+        log.trace("Media playback of \"{}\" ({}) has been watched for {}%", media.getTitle(), media.getId(), percentageWatched);
+        if (percentageWatched >= WATCHED_PERCENTAGE_THRESHOLD) {
+            log.debug("Marking media \"{}\" ({}) automatically as watched", media.getTitle(), media.getId());
+            addToWatchList(media);
+        }
+    }
+
     //endregion
 
     //region PostConstruct
@@ -131,39 +157,10 @@ public class WatchedService {
     @PostConstruct
     private void init() {
         initializeIdleTimer();
-        initializeListeners();
     }
 
     private void initializeIdleTimer() {
         idleTimer.setOnFinished(e -> onSave());
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ClosePlayerActivity.class, activity -> {
-            // check if the media is present
-            // if not, the played video might have been a trailer or video file
-            if (activity.getMedia().isEmpty())
-                return;
-
-            var time = activity.getTime();
-            var duration = activity.getDuration();
-
-            // check if both the time and duration of the video are known
-            // if not, the close activity media is not eligible for being auto marked as watched
-            if (time == ClosePlayerActivity.UNKNOWN || duration == ClosePlayerActivity.UNKNOWN)
-                return;
-
-            var percentageWatched = ((double) time / duration) * 100;
-            var media = activity.getMedia().get();
-
-            // check if the media has been watched for the percentage threshold
-            // if so, mark the media as watched
-            log.trace("Media playback of \"{}\" ({}) has been watched for {}%", media.getTitle(), media.getId(), percentageWatched);
-            if (percentageWatched >= WATCHED_PERCENTAGE_THRESHOLD) {
-                log.debug("Marking media \"{}\" ({}) automatically as watched", media.getTitle(), media.getId());
-                addToWatchList(media);
-            }
-        });
     }
 
     //endregion

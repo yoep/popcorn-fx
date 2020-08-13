@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ShowSettingsActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.StartScreen;
 import com.github.yoep.popcorn.ui.settings.models.UIScale;
@@ -88,7 +88,7 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
 
     @PostConstruct
     private void init() {
-        activityManager.register(ShowSettingsActivity.class, activity ->
+        activityManager.register(ShowSettingsEvent.class, activity ->
                 Platform.runLater(() -> defaultLanguageCombo.requestFocus()));
     }
 

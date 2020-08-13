@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.CloseSettingsActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
 import javafx.fxml.FXML;
 import lombok.RequiredArgsConstructor;
 
@@ -11,7 +11,7 @@ public class SettingsSectionController {
 
     @FXML
     private void onClose() {
-        activityManager.register(new CloseSettingsActivity() {
+        activityManager.register(new CloseSettingsEvent() {
         });
     }
 }

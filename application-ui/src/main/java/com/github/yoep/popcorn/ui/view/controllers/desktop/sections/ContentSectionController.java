@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -43,14 +43,14 @@ public class ContentSectionController implements Initializable {
     }
 
     private void initializeListeners() {
-        activityManager.register(ShowDetailsActivity.class, activity -> switchContent(ContentType.DETAILS));
-        activityManager.register(ShowWatchlistActivity.class, activity -> switchContent(ContentType.WATCHLIST));
-        activityManager.register(ShowTorrentCollectionActivity.class, activity -> switchContent(ContentType.TORRENT_COLLECTION));
-        activityManager.register(ShowSettingsActivity.class, activity -> switchContent(ContentType.SETTINGS));
-        activityManager.register(CategoryChangedActivity.class, activity -> switchContent(ContentType.LIST));
+        activityManager.register(ShowDetailsEvent.class, activity -> switchContent(ContentType.DETAILS));
+        activityManager.register(ShowWatchlistEvent.class, activity -> switchContent(ContentType.WATCHLIST));
+        activityManager.register(ShowTorrentCollectionEvent.class, activity -> switchContent(ContentType.TORRENT_COLLECTION));
+        activityManager.register(ShowSettingsEvent.class, activity -> switchContent(ContentType.SETTINGS));
+        activityManager.register(CategoryChangedEvent.class, activity -> switchContent(ContentType.LIST));
 
-        activityManager.register(CloseDetailsActivity.class, activity -> switchContent(ContentType.LIST));
-        activityManager.register(CloseSettingsActivity.class, activity -> switchContent(ContentType.LIST));
+        activityManager.register(CloseDetailsEvent.class, activity -> switchContent(ContentType.LIST));
+        activityManager.register(CloseSettingsEvent.class, activity -> switchContent(ContentType.LIST));
     }
 
     private void initializePanes() {

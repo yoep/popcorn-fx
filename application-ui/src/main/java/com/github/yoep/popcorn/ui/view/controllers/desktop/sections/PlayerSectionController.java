@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractPlayerSectionController;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.SuccessNotificationActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import javafx.scene.control.TextFormatter;
@@ -40,7 +40,7 @@ public abstract class AbstractSettingsComponent {
     protected void showNotification() {
         if (isNotificationAllowed()) {
             lastNotification = System.currentTimeMillis();
-            activityManager.register((SuccessNotificationActivity) () -> localeText.get(SettingsMessage.SETTINGS_SAVED));
+            activityManager.register((SuccessNotificationEvent) () -> localeText.get(SettingsMessage.SETTINGS_SAVED));
         }
     }
 

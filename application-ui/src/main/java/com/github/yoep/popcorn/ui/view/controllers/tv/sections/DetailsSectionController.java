@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ShowMovieDetailsActivity;
-import com.github.yoep.popcorn.ui.activities.ShowSerieDetailsActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
@@ -24,8 +24,8 @@ public class DetailsSectionController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        activityManager.register(ShowMovieDetailsActivity.class, activity -> switchContent(true));
-        activityManager.register(ShowSerieDetailsActivity.class, activity -> switchContent(false));
+        activityManager.register(ShowMovieDetailsEvent.class, activity -> switchContent(true));
+        activityManager.register(ShowSerieDetailsEvent.class, activity -> switchContent(false));
     }
 
     private void switchContent(boolean isMovieDetails) {

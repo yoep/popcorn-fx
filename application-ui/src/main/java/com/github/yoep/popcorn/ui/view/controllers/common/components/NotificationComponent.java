@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.ui.activities.ErrorNotificationActivity;
-import com.github.yoep.popcorn.ui.activities.NotificationActivity;
-import com.github.yoep.popcorn.ui.activities.SuccessNotificationActivity;
-import com.github.yoep.popcorn.ui.activities.WarningNotificationActivity;
+import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.ui.events.NotificationEvent;
+import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
+import com.github.yoep.popcorn.ui.events.WarningNotificationEvent;
 import javafx.animation.PauseTransition;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -24,7 +24,7 @@ public class NotificationComponent implements Initializable {
     private static final Duration CLOSE_DELAY = Duration.seconds(5);
 
     private final PauseTransition pauseTransition = new PauseTransition(CLOSE_DELAY);
-    private final NotificationActivity notificationActivity;
+    private final NotificationEvent notificationActivity;
 
     @FXML
     private Pane rootPane;
@@ -33,7 +33,7 @@ public class NotificationComponent implements Initializable {
 
     private EventHandler<ActionEvent> onClose;
 
-    public NotificationComponent(NotificationActivity notificationActivity) {
+    public NotificationComponent(NotificationEvent notificationActivity) {
         this.notificationActivity = notificationActivity;
     }
 
@@ -56,11 +56,11 @@ public class NotificationComponent implements Initializable {
     private void initializeBackground() {
         String styleClass;
 
-        if (notificationActivity instanceof SuccessNotificationActivity) {
+        if (notificationActivity instanceof SuccessNotificationEvent) {
             styleClass = SUCCESS_STYLE_CLASS;
-        } else if (notificationActivity instanceof WarningNotificationActivity) {
+        } else if (notificationActivity instanceof WarningNotificationEvent) {
             styleClass = WARNING_STYLE_CLASS;
-        } else if (notificationActivity instanceof ErrorNotificationActivity) {
+        } else if (notificationActivity instanceof ErrorNotificationEvent) {
             styleClass = ERROR_STYLE_CLASS;
         } else {
             styleClass = INFO_STYLE_CLASS;

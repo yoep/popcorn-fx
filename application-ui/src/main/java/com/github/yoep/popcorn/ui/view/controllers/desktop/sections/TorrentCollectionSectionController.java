@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.LoadUrlActivity;
-import com.github.yoep.popcorn.ui.activities.ShowTorrentCollectionActivity;
-import com.github.yoep.popcorn.ui.activities.SuccessNotificationActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
+import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
+import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;
@@ -51,7 +51,7 @@ public class TorrentCollectionSectionController implements Initializable {
 
     @PostConstruct
     private void init() {
-        activityManager.register(ShowTorrentCollectionActivity.class, activity -> onShowCollection());
+        activityManager.register(ShowTorrentCollectionEvent.class, activity -> onShowCollection());
     }
 
     //endregion
@@ -85,12 +85,12 @@ public class TorrentCollectionSectionController implements Initializable {
         clipboardContent.putString(item.getMagnetUri());
 
         clipboard.setContent(clipboardContent);
-        activityManager.register((SuccessNotificationActivity) () -> localeText.get(TorrentMessage.MAGNET_COPIED));
+        activityManager.register((SuccessNotificationEvent) () -> localeText.get(TorrentMessage.MAGNET_COPIED));
         log.debug("Magnet uri of {} has been copied to the clipboard", item);
     }
 
     private void onTorrentClicked(StoredTorrent torrent) {
-        activityManager.register((LoadUrlActivity) torrent::getMagnetUri);
+        activityManager.register((LoadUrlEvent) torrent::getMagnetUri);
     }
 
     private void onDeleteClicked(StoredTorrent item) {

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.LoadMediaTorrentActivity;
-import com.github.yoep.popcorn.ui.activities.LoadUrlTorrentActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
@@ -44,15 +44,15 @@ LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
 
     @PostConstruct
     private void init() {
-        activityManager.register(LoadMediaTorrentActivity.class, this::startTorrent);
-        activityManager.register(LoadUrlTorrentActivity.class, this::startTorrent);
+        activityManager.register(LoadMediaTorrentEvent.class, this::startTorrent);
+        activityManager.register(LoadUrlTorrentEvent.class, this::startTorrent);
     }
 
     //endregion
 
     //region Functions
 
-    private void startTorrent(LoadUrlTorrentActivity activity) {
+    private void startTorrent(LoadUrlTorrentEvent activity) {
         log.debug("Starting url torrent stream for {}", activity.getTorrentFileInfo().getFilename());
         var filename = activity.getTorrentFileInfo().getFilename();
         var torrentSettings = getTorrentSettings();

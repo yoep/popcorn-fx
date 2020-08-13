@@ -1,7 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
+import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
@@ -128,7 +131,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         this.backgroundImage.reset();
     }
 
-    protected void startTorrent(LoadMediaTorrentActivity activity) {
+    protected void startTorrent(LoadMediaTorrentEvent activity) {
         Assert.notNull(activity.getMedia(), "LoadMediaTorrentActivity#getMedia cannot be null");
         log.debug("Starting media torrent stream for {}", activity.getMedia());
 
@@ -192,7 +195,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
             torrentStreamService.stopStream(torrentStream);
         }
 
-        activityManager.register(new CloseLoadActivity() {
+        activityManager.register(new CloseLoadEvent() {
         });
 
         reset();
@@ -281,7 +284,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         var torrentStream = this.torrentStream;
         var title = this.title;
 
-        activityManager.register(new PlayVideoTorrentActivity() {
+        activityManager.register(new PlayVideoTorrentEvent() {
             @Override
             public Torrent getTorrent() {
                 return torrent;
@@ -319,7 +322,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         var quality = this.quality;
         var subtitle = this.subtitle;
 
-        activityManager.register(new PlayMediaTorrentActivity() {
+        activityManager.register(new PlayMediaTorrentEvent() {
             @Override
             public Torrent getTorrent() {
                 return torrent;

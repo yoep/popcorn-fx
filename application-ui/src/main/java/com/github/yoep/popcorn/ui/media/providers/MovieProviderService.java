@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.media.providers;
 
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ShowMovieDetailsActivity;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.config.properties.ProviderProperties;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.view.models.Category;
@@ -70,7 +70,7 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     public void showDetails(Media media) {
         final Movie movie = (Movie) media;
 
-        activityManager.register((ShowMovieDetailsActivity) () -> movie);
+        activityManager.register((ShowMovieDetailsEvent) () -> movie);
     }
 
     public Page<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

@@ -2,7 +2,10 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
+import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
@@ -147,7 +150,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     @PostConstruct
     private void init() {
-        activityManager.register(ShowMovieDetailsActivity.class, activity ->
+        activityManager.register(ShowMovieDetailsEvent.class, activity ->
                 Platform.runLater(() -> load(activity.getMedia())));
     }
 
@@ -203,7 +206,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void onPlay() {
-        activityManager.register(new LoadMediaTorrentActivity() {
+        activityManager.register(new LoadMediaTorrentEvent() {
             @Override
             public String getQuality() {
                 return quality;
@@ -227,7 +230,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void onWatchTrailer() {
-        activityManager.register(new PlayVideoActivity() {
+        activityManager.register(new PlayVideoEvent() {
             @Override
             public String getUrl() {
                 return media.getTrailer();
@@ -271,7 +274,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void onClose() {
-        activityManager.register(new CloseDetailsActivity() {
+        activityManager.register(new CloseDetailsEvent() {
         });
     }
 

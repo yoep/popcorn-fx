@@ -2,10 +2,10 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.CloseDetailsActivity;
-import com.github.yoep.popcorn.ui.activities.LoadMediaTorrentActivity;
-import com.github.yoep.popcorn.ui.activities.ShowSerieDetailsActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -160,7 +160,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     }
 
     private void initializeListeners() {
-        activityManager.register(ShowSerieDetailsActivity.class, activity -> Platform.runLater(() -> load(activity.getMedia())));
+        activityManager.register(ShowSerieDetailsEvent.class, activity -> Platform.runLater(() -> load(activity.getMedia())));
     }
 
     //endregion
@@ -415,7 +415,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     @FXML
     private void onWatchNowClicked() {
-        activityManager.register(new LoadMediaTorrentActivity() {
+        activityManager.register(new LoadMediaTorrentEvent() {
             @Override
             public MediaTorrentInfo getTorrent() {
                 return episode.getTorrents().get(quality);
@@ -440,7 +440,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     @FXML
     private void close() {
-        activityManager.register(new CloseDetailsActivity() {
+        activityManager.register(new CloseDetailsEvent() {
         });
         reset();
     }

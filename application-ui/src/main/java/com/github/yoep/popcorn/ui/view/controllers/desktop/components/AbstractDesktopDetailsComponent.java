@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.OpenMagnetLink;
-import com.github.yoep.popcorn.ui.activities.SuccessNotificationActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
+import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -118,7 +118,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     }
 
     protected void openMagnetLink(MediaTorrentInfo torrentInfo) {
-        activityManager.register((OpenMagnetLink) torrentInfo::getUrl);
+        activityManager.register((OpenMagnetLinkEvent) torrentInfo::getUrl);
     }
 
     protected void copyMagnetLink(MediaTorrentInfo torrentInfo) {
@@ -127,7 +127,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         clipboardContent.putString(torrentInfo.getUrl());
         Clipboard.getSystemClipboard().setContent(clipboardContent);
 
-        activityManager.register((SuccessNotificationActivity) () -> localeText.get(DetailsMessage.MAGNET_LINK_COPIED_TO_CLIPBOARD));
+        activityManager.register((SuccessNotificationEvent) () -> localeText.get(DetailsMessage.MAGNET_LINK_COPIED_TO_CLIPBOARD));
     }
 
     /**

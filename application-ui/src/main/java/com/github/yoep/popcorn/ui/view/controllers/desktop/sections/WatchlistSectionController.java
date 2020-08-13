@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ErrorNotificationActivity;
-import com.github.yoep.popcorn.ui.activities.ShowWatchlistActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.ui.events.ShowWatchlistEvent;
 import com.github.yoep.popcorn.ui.media.providers.MediaException;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -87,10 +87,10 @@ public class WatchlistSectionController implements Initializable {
 
     @PostConstruct
     private void init() {
-        activityManager.register(ShowWatchlistActivity.class, this::loadWatchlist);
+        activityManager.register(ShowWatchlistEvent.class, this::loadWatchlist);
     }
 
-    private void loadWatchlist(ShowWatchlistActivity activity) {
+    private void loadWatchlist(ShowWatchlistEvent activity) {
         scrollPane.reset();
         scrollPane.loadNewPage();
     }
@@ -159,7 +159,7 @@ public class WatchlistSectionController implements Initializable {
             return movieProviderService.getDetails(item.getMovie().getIds().getImdb()).get();
         } catch (InterruptedException | ExecutionException ex) {
             log.error(ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationActivity) () -> localeText.get(WatchlistMessage.FAILED_TO_PARSE_MOVIE));
+            activityManager.register((ErrorNotificationEvent) () -> localeText.get(WatchlistMessage.FAILED_TO_PARSE_MOVIE));
             return null;
         }
     }

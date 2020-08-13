@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.NotificationActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.NotificationEvent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.NotificationComponent;
 import javafx.animation.Animation;
 import javafx.animation.TranslateTransition;
@@ -35,14 +35,14 @@ public class NotificationSectionController {
     }
 
     private void initializeEventListeners() {
-        activityManager.register(NotificationActivity.class, this::displayNotification);
+        activityManager.register(NotificationEvent.class, this::displayNotification);
     }
 
     //endregion
 
     //region Functions
 
-    private void displayNotification(NotificationActivity notificationActivity) {
+    private void displayNotification(NotificationEvent notificationActivity) {
         var notificationPane = loadNotificationPane(notificationActivity);
         var transition = new TranslateTransition(Duration.seconds(1), notificationPane);
 
@@ -61,7 +61,7 @@ public class NotificationSectionController {
         });
     }
 
-    private Pane loadNotificationPane(NotificationActivity notificationActivity) {
+    private Pane loadNotificationPane(NotificationEvent notificationActivity) {
         var controller = new NotificationComponent(notificationActivity);
 
         controller.setOnClose(this::closeNotification);

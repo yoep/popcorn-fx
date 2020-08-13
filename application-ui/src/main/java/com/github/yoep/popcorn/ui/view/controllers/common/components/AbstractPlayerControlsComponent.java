@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ClosePlayerActivity;
-import com.github.yoep.popcorn.ui.activities.PlayTorrentActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
 import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
 import com.github.yoep.torrent.adapter.listeners.TorrentListener;
@@ -56,8 +56,8 @@ public abstract class AbstractPlayerControlsComponent {
     }
 
     protected void initializeActivityListeners() {
-        activityManager.register(ClosePlayerActivity.class, this::onClose);
-        activityManager.register(PlayTorrentActivity.class, this::onPlayTorrent);
+        activityManager.register(ClosePlayerEvent.class, this::onClose);
+        activityManager.register(PlayTorrentEvent.class, this::onPlayTorrent);
     }
 
     protected void initializeVideoListeners() {
@@ -119,7 +119,7 @@ public abstract class AbstractPlayerControlsComponent {
      */
     protected abstract void onProgressChanged(double newValue);
 
-    private void onPlayTorrent(PlayTorrentActivity activity) {
+    private void onPlayTorrent(PlayTorrentEvent activity) {
         this.torrent = activity.getTorrent();
         this.torrent.addListener(torrentListener);
     }
@@ -144,7 +144,7 @@ public abstract class AbstractPlayerControlsComponent {
         };
     }
 
-    private void onClose(ClosePlayerActivity activity) {
+    private void onClose(ClosePlayerEvent activity) {
         if (this.torrent != null) {
             this.torrent.removeListener(torrentListener);
         }

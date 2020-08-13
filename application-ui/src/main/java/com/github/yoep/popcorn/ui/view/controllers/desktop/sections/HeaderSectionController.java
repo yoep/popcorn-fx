@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.*;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.config.properties.ProviderProperties;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.ui.settings.models.StartScreen;
@@ -89,7 +89,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     @PostConstruct
     private void init() {
-        activityManager.register(CloseSettingsActivity.class, activity -> onSettingsClosed());
+        activityManager.register(CloseSettingsEvent.class, activity -> onSettingsClosed());
     }
 
     //endregion
@@ -122,12 +122,12 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         search.addListener(new SearchListener() {
             @Override
             public void onSearchValueChanged(String newValue) {
-                activityManager.register((SearchActivity) () -> newValue);
+                activityManager.register((SearchEvent) () -> newValue);
             }
 
             @Override
             public void onSearchValueCleared() {
-                activityManager.register((SearchActivity) () -> null);
+                activityManager.register((SearchEvent) () -> null);
             }
         });
     }
@@ -185,7 +185,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
         // invoke the chang activity first before changing the genre & sort by
         log.trace("Category is being changed to \"{}\"", category.get());
-        activityManager.register((CategoryChangedActivity) category::get);
+        activityManager.register((CategoryChangedEvent) category::get);
 
         // clear the current search
         search.clear();
@@ -197,12 +197,12 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     private void switchGenre(Genre genre) {
         log.trace("Genre is being changed to \"{}\"", genre);
-        activityManager.register((GenreChangeActivity) () -> genre);
+        activityManager.register((GenreChangeEvent) () -> genre);
     }
 
     private void switchSortBy(SortBy sortBy) {
         log.trace("SortBy is being changed to \"{}\"", sortBy);
-        activityManager.register((SortByChangeActivity) () -> sortBy);
+        activityManager.register((SortByChangeEvent) () -> sortBy);
     }
 
     private void switchIcon(Icon icon) {
@@ -259,21 +259,21 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     @FXML
     private void onWatchlistClicked() {
         switchIcon(watchlistIcon);
-        activityManager.register(new ShowWatchlistActivity() {
+        activityManager.register(new ShowWatchlistEvent() {
         });
     }
 
     @FXML
     private void onTorrentCollectionClicked() {
         switchIcon(torrentCollectionIcon);
-        activityManager.register(new ShowTorrentCollectionActivity() {
+        activityManager.register(new ShowTorrentCollectionEvent() {
         });
     }
 
     @FXML
     private void onSettingsClicked() {
         switchIcon(settingsIcon);
-        activityManager.register(new ShowSettingsActivity() {
+        activityManager.register(new ShowSettingsEvent() {
         });
     }
 

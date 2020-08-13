@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.common.AbstractMainController;
@@ -56,12 +56,12 @@ public class MainTvController extends AbstractMainController implements MainCont
 
     @Override
     protected void initializeListeners() {
-        activityManager.register(ShowDetailsActivity.class, activity -> switchSection(SectionType.CONTENT));
-        activityManager.register(PlayVideoActivity.class, activity -> switchSection(SectionType.PLAYER));
-        activityManager.register(LoadActivity.class, activity -> switchSection(SectionType.LOADER));
+        activityManager.register(ShowDetailsEvent.class, activity -> switchSection(SectionType.CONTENT));
+        activityManager.register(PlayVideoEvent.class, activity -> switchSection(SectionType.PLAYER));
+        activityManager.register(LoadEvent.class, activity -> switchSection(SectionType.LOADER));
 
-        activityManager.register(ClosePlayerActivity.class, activity -> switchSection(SectionType.CONTENT));
-        activityManager.register(CloseLoadActivity.class, activity -> switchSection(SectionType.CONTENT));
+        activityManager.register(ClosePlayerEvent.class, activity -> switchSection(SectionType.CONTENT));
+        activityManager.register(CloseLoadEvent.class, activity -> switchSection(SectionType.CONTENT));
     }
 
     //endregion

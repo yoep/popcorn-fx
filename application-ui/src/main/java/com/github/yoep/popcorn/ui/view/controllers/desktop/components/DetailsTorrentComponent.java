@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.CloseTorrentDetailsActivity;
-import com.github.yoep.popcorn.ui.activities.LoadUrlTorrentActivity;
-import com.github.yoep.popcorn.ui.activities.ShowTorrentDetailsActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
+import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
+import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.torrent.adapter.model.TorrentFileInfo;
@@ -67,7 +67,7 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void initializeListeners() {
-        activityManager.register(ShowTorrentDetailsActivity.class, this::onShowTorrentDetails);
+        activityManager.register(ShowTorrentDetailsEvent.class, this::onShowTorrentDetails);
     }
 
     //endregion
@@ -94,7 +94,7 @@ public class DetailsTorrentComponent implements Initializable {
         });
     }
 
-    private void onShowTorrentDetails(ShowTorrentDetailsActivity activity) {
+    private void onShowTorrentDetails(ShowTorrentDetailsEvent activity) {
         log.debug("Processing details of torrent info {}", activity.getTorrentInfo().getName());
         this.magnetUri = activity.getMagnetUri();
         this.torrentInfo = activity.getTorrentInfo();
@@ -120,7 +120,7 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void onFileClicked(TorrentFileInfo fileInfo) {
-        activityManager.register(new LoadUrlTorrentActivity() {
+        activityManager.register(new LoadUrlTorrentEvent() {
             @Override
             public TorrentInfo getTorrentInfo() {
                 return torrentInfo;
@@ -155,7 +155,7 @@ public class DetailsTorrentComponent implements Initializable {
     private void close() {
         reset();
 
-        activityManager.register(new CloseTorrentDetailsActivity() {
+        activityManager.register(new CloseTorrentDetailsEvent() {
         });
     }
 

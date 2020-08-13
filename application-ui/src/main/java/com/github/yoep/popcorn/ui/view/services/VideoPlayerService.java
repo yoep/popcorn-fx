@@ -1,7 +1,10 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.ui.messages.VideoMessage;
@@ -23,6 +26,8 @@ import javafx.beans.value.ChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -42,7 +47,7 @@ public class VideoPlayerService {
     public static final String SUBTITLE_PROPERTY = "subtitle";
     public static final String SUBTITLE_SIZE_PROPERTY = "subtitleSize";
 
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final AutoResumeService autoResumeService;
     private final FullscreenService fullscreenService;
     private final TorrentStreamService torrentStreamService;
@@ -291,6 +296,22 @@ public class VideoPlayerService {
         onClose();
     }
 
+    @EventListener
+    public void onPlayVideo(PlayVideoEvent activity) {
+        this.videoChangeTime = System.currentTimeMillis();
+
+        // check if the activity contains media information
+        // if so, play the video as a media instead of a plain url playback
+        if (activity instanceof PlayMediaEvent) {
+            var mediaActivity = (PlayMediaEvent) activity;
+            onPlayMedia(mediaActivity);
+            return;
+        }
+
+        log.debug("Received play video activity for url \"{}\" and title \"{}\"", activity.getUrl(), activity.getTitle());
+        playUrl(activity.getUrl());
+    }
+
     //endregion
 
     //region PostConstruct
@@ -298,13 +319,8 @@ public class VideoPlayerService {
     @PostConstruct
     private void init() {
         log.trace("Initializing video player service");
-        initializeListeners();
         initializeSubtitleSize();
         initializeVideoListeners();
-    }
-
-    private void initializeListeners() {
-        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
     }
 
     private void initializeSubtitleSize() {
@@ -346,22 +362,7 @@ public class VideoPlayerService {
         invokeListeners(e -> e.onPlayerStateChanged(newValue));
     }
 
-    private void onPlayVideo(PlayVideoActivity activity) {
-        this.videoChangeTime = System.currentTimeMillis();
-
-        // check if the activity contains media information
-        // if so, play the video as a media instead of a plain url playback
-        if (activity instanceof PlayMediaActivity) {
-            var mediaActivity = (PlayMediaActivity) activity;
-            onPlayMedia(mediaActivity);
-            return;
-        }
-
-        log.debug("Received play video activity for url \"{}\" and title \"{}\"", activity.getUrl(), activity.getTitle());
-        playUrl(activity.getUrl());
-    }
-
-    private void onPlayMedia(PlayMediaActivity activity) {
+    private void onPlayMedia(PlayMediaEvent activity) {
         log.debug("Received play media activity for url {}, quality {} and media {}", activity.getUrl(), activity.getQuality(),
                 activity.getMedia());
         this.media = activity.getMedia();
@@ -418,7 +419,7 @@ public class VideoPlayerService {
                 this.setSubtitle(subtitles);
             } else {
                 log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
-                activityManager.register((ErrorNotificationActivity) () -> localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED));
+                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
             }
         });
     }
@@ -440,35 +441,14 @@ public class VideoPlayerService {
         Optional.ofNullable(getVideoPlayer())
                 .ifPresent(VideoPlayer::stop);
 
-        activityManager.register(new ClosePlayerActivity() {
-            @Override
-            public String getUrl() {
-                return url;
-            }
-
-            @Override
-            public Optional<Media> getMedia() {
-                return Optional.ofNullable(media);
-            }
-
-            @Override
-            public Optional<String> getQuality() {
-                return Optional.ofNullable(quality);
-            }
-
-            @Override
-            public long getTime() {
-                return Optional.ofNullable(time)
-                        .orElse(UNKNOWN);
-            }
-
-            @Override
-            public long getDuration() {
-                return Optional.ofNullable(duration)
-                        .orElse(UNKNOWN);
-            }
-        });
-
+        eventPublisher.publishEvent(ClosePlayerEvent.builder()
+                .source(this)
+                .url(url)
+                .media(media)
+                .quality(quality)
+                .time(Optional.ofNullable(time).orElse(ClosePlayerEvent.UNKNOWN))
+                .duration(Optional.ofNullable(duration).orElse(ClosePlayerEvent.UNKNOWN))
+                .build());
         torrentStreamService.stopAllStreams();
 
         reset();

@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.PlayMediaActivity;
-import com.github.yoep.popcorn.ui.activities.PlayVideoActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
@@ -104,7 +104,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     @Override
     protected void initializeActivityListeners() {
         super.initializeActivityListeners();
-        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
+        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
     }
 
     @Override
@@ -154,13 +154,13 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
                 languageSelection.select(newValue.getSubtitleInfo().orElse(SubtitleInfo.none())));
     }
 
-    private void onPlayVideo(PlayVideoActivity activity) {
+    private void onPlayVideo(PlayVideoEvent activity) {
         // update the visibility of the subtitles section
         Platform.runLater(() -> subtitleSection.setVisible(activity.isSubtitlesEnabled()));
 
         // check if the activity contains media information
-        if (activity instanceof PlayMediaActivity) {
-            var mediaActivity = (PlayMediaActivity) activity;
+        if (activity instanceof PlayMediaEvent) {
+            var mediaActivity = (PlayMediaEvent) activity;
             onPlayMedia(mediaActivity);
             return;
         }
@@ -177,7 +177,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
         }
     }
 
-    private void onPlayMedia(PlayMediaActivity activity) {
+    private void onPlayMedia(PlayMediaEvent activity) {
         this.media = activity.getMedia();
 
         // set the subtitle for the playback

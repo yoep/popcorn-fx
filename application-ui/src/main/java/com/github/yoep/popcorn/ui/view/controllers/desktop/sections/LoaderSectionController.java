@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.LoadTorrentActivity;
-import com.github.yoep.popcorn.ui.activities.LoadUrlActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.LoadTorrentEvent;
+import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -52,8 +52,8 @@ public class LoaderSectionController implements Initializable {
     }
 
     private void initializeListeners() {
-        activityManager.register(LoadTorrentActivity.class, activity -> switchPane(Type.TORRENT_LOADER));
-        activityManager.register(LoadUrlActivity.class, activity -> switchPane(Type.URL_LOADER));
+        activityManager.register(LoadTorrentEvent.class, activity -> switchPane(Type.TORRENT_LOADER));
+        activityManager.register(LoadUrlEvent.class, activity -> switchPane(Type.URL_LOADER));
     }
 
     //endregion

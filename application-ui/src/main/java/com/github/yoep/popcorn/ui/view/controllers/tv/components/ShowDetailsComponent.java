@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ShowSerieDetailsActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -51,7 +51,7 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> {
 
     @PostConstruct
     private void init() {
-        activityManager.register(ShowSerieDetailsActivity.class, activity ->
+        activityManager.register(ShowSerieDetailsEvent.class, activity ->
                 Platform.runLater(() -> load(activity.getMedia())));
     }
 

@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.config;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -35,14 +35,12 @@ import java.util.List;
 @ConditionalOnDesktopMode
 public class DesktopConfig {
     @Bean
-    public MainController mainController(ActivityManager activityManager,
-                                         ViewLoader viewLoader,
+    public MainController mainController(ViewLoader viewLoader,
                                          TaskExecutor taskExecutor,
                                          ApplicationArguments arguments,
                                          UrlService urlService,
                                          SettingsService settingsService) {
         return MainDesktopController.builder()
-                .activityManager(activityManager)
                 .arguments(arguments)
                 .taskExecutor(taskExecutor)
                 .viewLoader(viewLoader)

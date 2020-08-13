@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ClosePlayerActivity;
-import com.github.yoep.popcorn.ui.activities.PlayVideoActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -25,22 +25,22 @@ public class PlayerHeaderComponent {
     }
 
     private void initializeActivityListeners() {
-        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
-        activityManager.register(ClosePlayerActivity.class, this::onClose);
+        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
+        activityManager.register(ClosePlayerEvent.class, this::onClose);
     }
 
     //endregion
 
     //region Functions
 
-    private void onPlayVideo(PlayVideoActivity activity) {
+    private void onPlayVideo(PlayVideoEvent activity) {
         // set the title of the video as it should be always present
         Platform.runLater(() -> {
             this.title.setText(activity.getTitle());
         });
     }
 
-    private void onClose(ClosePlayerActivity activity) {
+    private void onClose(ClosePlayerEvent activity) {
         reset();
     }
 

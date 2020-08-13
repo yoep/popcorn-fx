@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.CloseLoadActivity;
-import com.github.yoep.popcorn.ui.activities.LoadUrlActivity;
-import com.github.yoep.popcorn.ui.activities.ShowTorrentDetailsActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
+import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
+import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
@@ -46,14 +46,14 @@ public class LoaderUrlComponent extends AbstractLoaderComponent {
     }
 
     private void initializeListeners() {
-        activityManager.register(LoadUrlActivity.class, this::onLoadUrl);
+        activityManager.register(LoadUrlEvent.class, this::onLoadUrl);
     }
 
     //endregion
 
     //region Functions
 
-    private void onLoadUrl(LoadUrlActivity activity) {
+    private void onLoadUrl(LoadUrlEvent activity) {
         var magnetUri = activity.getUrl();
 
         this.torrentThread = new Thread(() -> {
@@ -70,7 +70,7 @@ public class LoaderUrlComponent extends AbstractLoaderComponent {
             log.debug("Resolving torrent information for \"{}\"", magnetUri);
             torrentService.getTorrentInfo(magnetUri).whenComplete((torrentInfo, throwable) -> {
                 if (throwable == null) {
-                    activityManager.register(new ShowTorrentDetailsActivity() {
+                    activityManager.register(new ShowTorrentDetailsEvent() {
                         @Override
                         public String getMagnetUri() {
                             return magnetUri;
@@ -95,7 +95,7 @@ public class LoaderUrlComponent extends AbstractLoaderComponent {
         if (torrentThread != null && torrentThread.isAlive())
             torrentThread.interrupt();
 
-        activityManager.register(new CloseLoadActivity() {
+        activityManager.register(new CloseLoadEvent() {
         });
     }
 

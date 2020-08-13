@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 
-import com.github.yoep.popcorn.ui.activities.*;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.StartScreen;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
@@ -82,7 +82,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     }
 
     private void initializeSearch() {
-        searchField.valueProperty().addListener((observable, oldValue, newValue) -> activityManager.register((SearchActivity) () -> newValue));
+        searchField.valueProperty().addListener((observable, oldValue, newValue) -> activityManager.register((SearchEvent) () -> newValue));
     }
 
     @Override
@@ -125,7 +125,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
             category.set(Category.FAVORITES);
         }
 
-        activityManager.register((CategoryChangedActivity) category::get);
+        activityManager.register((CategoryChangedEvent) category::get);
         updateGenres(category.get());
         updateSortBy(category.get());
         clearSearch();
@@ -135,14 +135,14 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     private void updateGenres(Category category) {
         var providerProperties = properties.getProvider(category.getProviderName());
 
-        activityManager.register((GenreChangeActivity) () -> new Genre(providerProperties.getGenres().get(0), null));
+        activityManager.register((GenreChangeEvent) () -> new Genre(providerProperties.getGenres().get(0), null));
     }
 
     //TODO: find a clever way to incorporate this into the UI
     private void updateSortBy(Category category) {
         var providerProperties = properties.getProvider(category.getProviderName());
 
-        activityManager.register((SortByChangeActivity) () -> new SortBy(providerProperties.getSortBy().get(0), null));
+        activityManager.register((SortByChangeEvent) () -> new SortBy(providerProperties.getSortBy().get(0), null));
     }
 
     private void clearSearch() {
@@ -150,7 +150,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     }
 
     private void showSettings() {
-        activityManager.register(new ShowSettingsActivity() {
+        activityManager.register(new ShowSettingsEvent() {
         });
     }
 

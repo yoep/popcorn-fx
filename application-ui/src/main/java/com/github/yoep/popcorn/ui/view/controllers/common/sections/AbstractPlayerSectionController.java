@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.messages.VideoMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.SubtitleSettings;
@@ -168,7 +168,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     }
 
     private void initializeListeners() {
-        activityManager.register(ClosePlayerActivity.class, this::onClose);
+        activityManager.register(ClosePlayerEvent.class, this::onClose);
     }
 
     private void initializeVideoListeners() {
@@ -323,7 +323,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         subtitleTrack.onTimeChanged(newValue.longValue());
     }
 
-    private void onClose(ClosePlayerActivity activity) {
+    private void onClose(ClosePlayerEvent activity) {
         reset();
     }
 

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import javafx.application.Application;
@@ -9,10 +9,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,11 +25,16 @@ import java.util.regex.Pattern;
 public class UrlService {
     private static final Pattern URL_TYPE_PATTERN = Pattern.compile("([a-zA-Z]*):?(.*)");
 
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final Application application;
     private final LocaleText localeText;
 
     //region Methods
+
+    @EventListener
+    public void open(OpenMagnetLinkEvent event) {
+        open(event.getUrl());
+    }
 
     /**
      * Open the given url link.
@@ -38,10 +44,10 @@ public class UrlService {
     public void open(String url) {
         try {
             application.getHostServices().showDocument(url);
-            activityManager.register((InfoNotificationActivity) () -> localeText.get(DetailsMessage.MAGNET_LINK_OPENING));
+            eventPublisher.publishEvent(new InfoNotificationEvent(this, localeText.get(DetailsMessage.MAGNET_LINK_OPENING)));
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.MAGNET_LINK_FAILED_TO_OPEN));
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.MAGNET_LINK_FAILED_TO_OPEN)));
         }
     }
 
@@ -68,27 +74,17 @@ public class UrlService {
 
             if (isWebUrl(type)) {
                 log.debug("Opening web url: {}", url);
-                activityManager.register(new PlayVideoActivity() {
-                    @Override
-                    public String getUrl() {
-                        return url;
-                    }
-
-                    @Override
-                    public String getTitle() {
-                        return "";
-                    }
-
-                    @Override
-                    public boolean isSubtitlesEnabled() {
-                        return false;
-                    }
-                });
+                eventPublisher.publishEvent(PlayVideoEvent.builder()
+                        .source(this)
+                        .url(url)
+                        .title("")
+                        .subtitlesEnabled(false)
+                        .build());
 
                 return true;
             } else if (isMagnetLink(type)) {
                 log.debug("Opening magnet link: {}", url);
-                activityManager.register((LoadUrlActivity) () -> url);
+                eventPublisher.publishEvent(new LoadUrlEvent(this, url));
 
                 return true;
             } else {
@@ -99,40 +95,30 @@ public class UrlService {
                     try {
                         if (isVideoFile(file)) {
                             log.debug("Opening video file: {}", url);
-                            activityManager.register(new PlayVideoActivity() {
-                                @Override
-                                public String getUrl() {
-                                    return url;
-                                }
-
-                                @Override
-                                public String getTitle() {
-                                    return FilenameUtils.getBaseName(url);
-                                }
-
-                                @Override
-                                public boolean isSubtitlesEnabled() {
-                                    return false;
-                                }
-                            });
+                            eventPublisher.publishEvent(PlayVideoEvent.builder()
+                                    .source(this)
+                                    .url(url)
+                                    .title(FilenameUtils.getBaseName(url))
+                                    .subtitlesEnabled(false)
+                                    .build());
 
                             return true;
                         }
                     } catch (IOException ex) {
                         log.error("Failed to process url, " + ex.getMessage(), ex);
-                        activityManager.register((ErrorNotificationActivity) () -> localeText.get(MediaMessage.VIDEO_FAILED_TO_OPEN));
+                        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(MediaMessage.VIDEO_FAILED_TO_OPEN)));
                         return false;
                     }
                 } else {
                     log.warn("Failed to process url, file \"{}\" does not exist", url);
-                    activityManager.register((ErrorNotificationActivity) () -> localeText.get(MediaMessage.URL_FAILED_TO_PROCESS, url));
+                    eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(MediaMessage.URL_FAILED_TO_PROCESS, url)));
                     return false;
                 }
             }
         }
 
         log.warn("Failed to process url, url \"{}\" is invalid", url);
-        activityManager.register((ErrorNotificationActivity) () -> localeText.get(MediaMessage.URL_FAILED_TO_PROCESS, url));
+        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(MediaMessage.URL_FAILED_TO_PROCESS, url)));
 
         return false;
     }
@@ -154,15 +140,6 @@ public class UrlService {
         } else {
             return false;
         }
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        activityManager.register(OpenMagnetLink.class, activity -> open(activity.getUrl()));
     }
 
     //endregion

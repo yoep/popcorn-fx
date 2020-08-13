@@ -1,7 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
+import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.torrent.controls.StreamInfo;
 import com.github.yoep.popcorn.ui.torrent.controls.StreamInfoCell;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
@@ -58,15 +61,15 @@ public class PlayerHeaderComponent implements Initializable {
     }
 
     private void initializeActivityListeners() {
-        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
-        activityManager.register(ClosePlayerActivity.class, this::onClose);
+        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
+        activityManager.register(ClosePlayerEvent.class, this::onClose);
     }
 
     //endregion
 
     //region Functions
 
-    private void onPlayVideo(PlayVideoActivity activity) {
+    private void onPlayVideo(PlayVideoEvent activity) {
         // set the title of the video as it should be always present
         Platform.runLater(() -> {
             this.title.setText(activity.getTitle());
@@ -75,28 +78,28 @@ public class PlayerHeaderComponent implements Initializable {
 
         // check if the video contains media information
         // if so, update additional information of the media
-        if (activity instanceof PlayMediaActivity) {
-            var mediaActivity = (PlayMediaActivity) activity;
+        if (activity instanceof PlayMediaEvent) {
+            var mediaActivity = (PlayMediaEvent) activity;
             onPlayMedia(mediaActivity);
         }
 
         // check if the activity contains torrent information
-        if (PlayTorrentActivity.class.isAssignableFrom(activity.getClass())) {
-            var torrentActivity = (PlayTorrentActivity) activity;
+        if (PlayTorrentEvent.class.isAssignableFrom(activity.getClass())) {
+            var torrentActivity = (PlayTorrentEvent) activity;
             var torrent = torrentActivity.getTorrent();
 
             showTorrentProgress(torrent);
         }
     }
 
-    private void onPlayMedia(PlayMediaActivity activity) {
+    private void onPlayMedia(PlayMediaEvent activity) {
         Platform.runLater(() -> {
             this.quality.setText(activity.getQuality());
             this.quality.setVisible(true);
         });
     }
 
-    private void onClose(ClosePlayerActivity activity) {
+    private void onClose(ClosePlayerEvent activity) {
         reset();
     }
 

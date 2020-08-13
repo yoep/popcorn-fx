@@ -2,7 +2,10 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
+import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
@@ -144,7 +147,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     private void initializeListeners() {
-        activityManager.register(ShowMovieDetailsActivity.class, activity ->
+        activityManager.register(ShowMovieDetailsEvent.class, activity ->
                 Platform.runLater(() -> load(activity.getMedia())));
     }
 
@@ -269,7 +272,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private void onWatchNowClicked(MouseEvent event) {
         event.consume();
-        activityManager.register(new LoadMediaTorrentActivity() {
+        activityManager.register(new LoadMediaTorrentEvent() {
             @Override
             public String getQuality() {
                 return quality;
@@ -295,7 +298,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private void onTrailerClicked(MouseEvent event) {
         event.consume();
-        activityManager.register(new PlayVideoActivity() {
+        activityManager.register(new PlayVideoEvent() {
             @Override
             public String getUrl() {
                 return media.getTrailer();
@@ -342,7 +345,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private void close(MouseEvent event) {
         event.consume();
-        activityManager.register(new CloseDetailsActivity() {
+        activityManager.register(new CloseDetailsEvent() {
         });
         reset();
     }

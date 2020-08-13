@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.settings.OptionsService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -13,6 +12,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -27,7 +27,6 @@ import javax.annotation.PostConstruct;
 public class FullscreenService {
     public static final String FULLSCREEN_PROPERTY = "fullscreen";
 
-    private final ActivityManager activityManager;
     private final ViewManager viewManager;
     private final OptionsService optionsService;
 
@@ -86,6 +85,11 @@ public class FullscreenService {
         });
     }
 
+    @EventListener(condition = "!optionsService.options().isKioskMode()")
+    public void onClosePlayer(ClosePlayerEvent event) {
+        Platform.runLater(() -> primaryStage.setFullScreen(false));
+    }
+
     //endregion
 
     //region PostConstruct
@@ -93,30 +97,15 @@ public class FullscreenService {
     @PostConstruct
     private void init() {
         initializeViewManagerListeners();
-        initializeActivityListeners();
     }
 
     private void initializeViewManagerListeners() {
         viewManager.primaryStageProperty().addListener((observable, oldValue, newValue) -> registerListener(newValue));
     }
 
-    private void initializeActivityListeners() {
-        var options = optionsService.options();
-
-        // check if the kiosk mode is not activated
-        // if so, register the activity listeners, otherwise we ignore the events as fullscreen is forced
-        if (!options.isKioskMode()) {
-            activityManager.register(ClosePlayerActivity.class, activity -> onClosePlayer());
-        }
-    }
-
     //endregion
 
     //region Functions
-
-    private void onClosePlayer() {
-        Platform.runLater(() -> primaryStage.setFullScreen(false));
-    }
 
     private void registerListener(Stage primaryStage) {
         var options = optionsService.options();

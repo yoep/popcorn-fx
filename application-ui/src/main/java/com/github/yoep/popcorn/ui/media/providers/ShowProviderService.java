@@ -1,11 +1,11 @@
 package com.github.yoep.popcorn.ui.media.providers;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ErrorNotificationActivity;
-import com.github.yoep.popcorn.ui.activities.ShowSerieDetailsActivity;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.config.properties.ProviderProperties;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -68,10 +68,10 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     public void showDetails(Media media) {
         try {
             var show = getDetailsInternal(media.getId());
-            activityManager.register((ShowSerieDetailsActivity) () -> show);
+            activityManager.register((ShowSerieDetailsEvent) () -> show);
         } catch (Exception ex) {
             log.error("Failed to load show details, " + ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
+            activityManager.register((ErrorNotificationEvent) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
         }
     }
 

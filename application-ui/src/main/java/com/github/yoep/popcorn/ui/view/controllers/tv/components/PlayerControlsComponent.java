@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.PlayVideoActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractPlayerControlsComponent;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
@@ -58,14 +58,14 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
     @Override
     protected void initializeActivityListeners() {
         super.initializeActivityListeners();
-        activityManager.register(PlayVideoActivity.class, this::onPlayVideo);
+        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
     }
 
     //endregion
 
     //region Functions
 
-    private void onPlayVideo(PlayVideoActivity activity) {
+    private void onPlayVideo(PlayVideoEvent activity) {
         Platform.runLater(() -> playPauseIcon.requestFocus());
     }
 

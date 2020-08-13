@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;

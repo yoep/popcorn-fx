@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -50,11 +50,11 @@ public class DetailsSectionController {
     }
 
     private void initializeListeners() {
-        activityManager.register(ShowMovieDetailsActivity.class, activity -> switchContent(DetailsType.MOVIE_DETAILS));
-        activityManager.register(ShowSerieDetailsActivity.class, activity -> switchContent(DetailsType.SHOW_DETAILS));
-        activityManager.register(ShowTorrentDetailsActivity.class, activity -> switchContent(DetailsType.TORRENT_DETAILS));
-        activityManager.register(CloseDetailsActivity.class, activity -> onDetailsClosed());
-        activityManager.register(CloseTorrentDetailsActivity.class, activity -> onTorrentDetailsClosed());
+        activityManager.register(ShowMovieDetailsEvent.class, activity -> switchContent(DetailsType.MOVIE_DETAILS));
+        activityManager.register(ShowSerieDetailsEvent.class, activity -> switchContent(DetailsType.SHOW_DETAILS));
+        activityManager.register(ShowTorrentDetailsEvent.class, activity -> switchContent(DetailsType.TORRENT_DETAILS));
+        activityManager.register(CloseDetailsEvent.class, activity -> onDetailsClosed());
+        activityManager.register(CloseTorrentDetailsEvent.class, activity -> onTorrentDetailsClosed());
     }
 
     //endregion
@@ -111,7 +111,7 @@ public class DetailsSectionController {
         }
 
         // close the details view
-        activityManager.register(new CloseDetailsActivity() {
+        activityManager.register(new CloseDetailsEvent() {
         });
     }
 

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.media.providers;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ErrorNotificationActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
@@ -123,7 +123,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
             provider.showDetails(media);
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationActivity) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
+            activityManager.register((ErrorNotificationEvent) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
         }
     }
 

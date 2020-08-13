@@ -2,8 +2,7 @@ package com.github.yoep.popcorn.ui.media.resume;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.ClosePlayerActivity;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.resume.models.AutoResume;
 import com.github.yoep.popcorn.ui.media.resume.models.VideoTimestamp;
@@ -13,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -31,7 +31,6 @@ public class AutoResumeService {
     private static final int AUTO_RESUME_PERCENTAGE_THRESHOLD = 85;
     private static final int IDLE_TIME = 10;
 
-    private final ActivityManager activityManager;
     private final ObjectMapper objectMapper;
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
     private final Object cacheLock = new Object();
@@ -68,6 +67,45 @@ public class AutoResumeService {
                 .findFirst();
     }
 
+    @EventListener
+    public void onClosePlayer(ClosePlayerEvent event) {
+        var time = event.getTime();
+        var duration = event.getDuration();
+
+        // check if both the time and duration of the video are known
+        // if not, the close activity media is not eligible for being auto resumed
+        if (time == ClosePlayerEvent.UNKNOWN || duration == ClosePlayerEvent.UNKNOWN)
+            return;
+
+        // check if the duration is longer than 5 mins.
+        // if not, assume that the played media was a trailer which we don't want to auto resume
+        if (duration < 5 * 60 * 1000)
+            return;
+
+        var percentageWatched = ((double) time / duration) * 100;
+        var id = event.getMedia().map(Media::getId).orElse(null);
+        var filename = FilenameUtils.getName(event.getUrl());
+
+        // check if the video is not watched more than auto resume threshold
+        // if the video is watched more than the threshold
+        // we assume that the video has been fully watched an we're not going to store the video for auto resume
+        log.trace("Video playback of \"{}\" ({}) has been played for {}%", filename, id, percentageWatched);
+        if (percentageWatched < AUTO_RESUME_PERCENTAGE_THRESHOLD) {
+            // add the video the resume storage for later use
+            log.debug("Storing filename \"{}\" with last known time \"{}\" as auto resume item for later use", filename, time);
+
+            addVideoTimestamp(VideoTimestamp.builder()
+                    .id(id)
+                    .filename(filename)
+                    .lastKnownTime(event.getTime())
+                    .build());
+        } else {
+            // we remove the video from the auto resume list as the user has completed video
+            // and auto resuming the video is not required anymore the next time
+            removeVideoTimestamp(id, filename);
+        }
+    }
+
     //endregion
 
     //region PostConstruct
@@ -75,52 +113,12 @@ public class AutoResumeService {
     @PostConstruct
     private void init() {
         initializeIdleTimer();
-        initializeListeners();
     }
 
     private void initializeIdleTimer() {
         idleTimer.setOnFinished(e -> onSave());
     }
 
-    private void initializeListeners() {
-        activityManager.register(ClosePlayerActivity.class, activity -> {
-            var time = activity.getTime();
-            var duration = activity.getDuration();
-
-            // check if both the time and duration of the video are known
-            // if not, the close activity media is not eligible for being auto resumed
-            if (time == ClosePlayerActivity.UNKNOWN || duration == ClosePlayerActivity.UNKNOWN)
-                return;
-
-            // check if the duration is longer than 5 mins.
-            // if not, assume that the played media was a trailer which we don't want to auto resume
-            if (duration < 5 * 60 * 1000)
-                return;
-
-            var percentageWatched = ((double) time / duration) * 100;
-            var id = activity.getMedia().map(Media::getId).orElse(null);
-            var filename = FilenameUtils.getName(activity.getUrl());
-
-            // check if the video is not watched more than auto resume threshold
-            // if the video is watched more than the threshold
-            // we assume that the video has been fully watched an we're not going to store the video for auto resume
-            log.trace("Video playback of \"{}\" ({}) has been played for {}%", filename, id, percentageWatched);
-            if (percentageWatched < AUTO_RESUME_PERCENTAGE_THRESHOLD) {
-                // add the video the resume storage for later use
-                log.debug("Storing filename \"{}\" with last known time \"{}\" as auto resume item for later use", filename, time);
-
-                addVideoTimestamp(VideoTimestamp.builder()
-                        .id(id)
-                        .filename(filename)
-                        .lastKnownTime(activity.getTime())
-                        .build());
-            } else {
-                // we remove the video from the auto resume list as the user has completed video
-                // and auto resuming the video is not required anymore the next time
-                removeVideoTimestamp(id, filename);
-            }
-        });
-    }
 
     //endregion
 

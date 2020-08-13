@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.media.providers;
 
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.view.models.Genre;
 import com.github.yoep.popcorn.ui.view.models.SortBy;

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
-import com.github.yoep.popcorn.ui.activities.LoadMediaTorrentActivity;
-import com.github.yoep.popcorn.ui.activities.PlayMediaActivity;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
+import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
@@ -44,7 +44,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnPlayMedia_whenMediaIsMovie_shouldNotUpdateNextEpisode() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         when(activity.getMedia()).thenReturn(mock(Movie.class));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
@@ -55,7 +55,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnPlayMedia_whenMediaIsEpisodeAndPlayNextIsDisabled_shouldNotUpdateNextEpisode() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         var episode = mock(Episode.class);
         lenient().when(activity.getMedia()).thenReturn(episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(false);
@@ -67,7 +67,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnPlayMedia_whenMediaIsEpisodeAndPlayNextIsEnabled_shouldUpdateNextEpisode() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         var expectedResult = new Episode();
         var episode = createEpisode(expectedResult);
         when(activity.getMedia()).thenReturn(episode);
@@ -82,7 +82,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnPlayMedia_whenEpisodeIsLastEpisodeInShow_shouldNotUpdateNextEpisode() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         var episode1 = new Episode();
         var episode2 = new Episode();
         var show = new Show();
@@ -100,7 +100,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnTimeChanged_whenPlayNextIsDisabled_shouldNotUpdatePlayingIn() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         var episode = createEpisode();
         when(activity.getMedia()).thenReturn(episode);
 
@@ -118,7 +118,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnTimeChanged_whenPlayNextIsEnabled_shouldUpdatePlayingInValue() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         var episode = createEpisode();
         var expectedResult = 20;
         when(activity.getMedia()).thenReturn(episode);
@@ -134,7 +134,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnTimeChanged_whenPlayNextIsEnabledAndRemainingTimeIsZero_shouldStopTheVideoPlayback() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         var episode = createEpisode();
         var videoLength = 90000;
         when(activity.getMedia()).thenReturn(episode);
@@ -149,7 +149,7 @@ class PlayNextServiceTest {
 
     @Test
     void testOnTimeChanged_whenPlayNextIsEnabledAndRemainingTimeIsZero_shouldTriggerTheNextEpisodePlayback() {
-        var activity = mock(PlayMediaActivity.class);
+        var activity = mock(PlayMediaEvent.class);
         var episode = createEpisode();
         var videoLength = 90000;
         when(activity.getMedia()).thenReturn(episode);
@@ -159,7 +159,7 @@ class PlayNextServiceTest {
         playNextService.onDurationChanged(videoLength);
         playNextService.onTimeChanged(videoLength);
 
-        verify(activityManager).register(isA(LoadMediaTorrentActivity.class));
+        verify(activityManager).register(isA(LoadMediaTorrentEvent.class));
     }
 
     private Episode createEpisode() {

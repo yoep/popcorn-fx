@@ -2,7 +2,10 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.*;
+import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
+import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
+import com.github.yoep.popcorn.ui.events.SearchEvent;
+import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.messages.ListMessage;
@@ -104,10 +107,10 @@ public abstract class AbstractListSectionController implements Initializable {
 
     @PostConstruct
     protected void init() {
-        activityManager.register(CategoryChangedActivity.class, this::onCategoryChange);
-        activityManager.register(GenreChangeActivity.class, this::onGenreChange);
-        activityManager.register(SortByChangeActivity.class, this::onSortByChange);
-        activityManager.register(SearchActivity.class, this::onSearchChanged);
+        activityManager.register(CategoryChangedEvent.class, this::onCategoryChange);
+        activityManager.register(GenreChangeEvent.class, this::onGenreChange);
+        activityManager.register(SortByChangeEvent.class, this::onSortByChange);
+        activityManager.register(SearchEvent.class, this::onSearchChanged);
     }
 
     //endregion
@@ -149,7 +152,7 @@ public abstract class AbstractListSectionController implements Initializable {
         }
     }
 
-    protected void onCategoryChange(CategoryChangedActivity categoryActivity) {
+    protected void onCategoryChange(CategoryChangedEvent categoryActivity) {
         this.category = categoryActivity.getCategory();
         // reset the genre & sort by as they might be different in the new category
         // these will be automatically filled in again as the category change also triggers a GenreChangeActivity & SortByChangeActivity
@@ -159,19 +162,19 @@ public abstract class AbstractListSectionController implements Initializable {
         reset();
     }
 
-    protected void onGenreChange(GenreChangeActivity genreActivity) {
+    protected void onGenreChange(GenreChangeEvent genreActivity) {
         this.genre = genreActivity.getGenre();
         reset();
         invokeNewPageLoad();
     }
 
-    protected void onSortByChange(SortByChangeActivity sortByActivity) {
+    protected void onSortByChange(SortByChangeEvent sortByActivity) {
         this.sortBy = sortByActivity.getSortBy();
         reset();
         invokeNewPageLoad();
     }
 
-    protected void onSearchChanged(SearchActivity activity) {
+    protected void onSearchChanged(SearchEvent activity) {
         String newValue = activity.getValue();
 
         if (Objects.equals(search, newValue))

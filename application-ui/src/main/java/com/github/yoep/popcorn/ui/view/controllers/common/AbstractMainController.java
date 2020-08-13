@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common;
 
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.activities.ActivityManager;
+import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.services.UrlService;

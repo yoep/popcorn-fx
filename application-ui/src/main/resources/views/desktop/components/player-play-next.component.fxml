@@ -7,7 +7,7 @@
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerPlayNextComponent"
           fx:id="playNextPane" styleClass="playing-next" onMouseClicked="#onPlayNextClicked">
     <columnConstraints>
-        <ColumnConstraints minWidth="95"/>
+        <ColumnConstraints minWidth="100"/>
         <ColumnConstraints/>
         <ColumnConstraints/>
     </columnConstraints>
@@ -37,5 +37,5 @@
     <Label text="%player_playing_next" styleClass="playing-in"
            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
     <Label fx:id="playingInCountdown" styleClass="playing-in-countdown"
-           GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.rowSpan="2" GridPane.halignment="CENTER"/>
+           GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.rowSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER"/>
 </GridPane>

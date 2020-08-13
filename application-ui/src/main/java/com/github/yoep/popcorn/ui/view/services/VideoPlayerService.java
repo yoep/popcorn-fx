@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.ui.view.listeners.VideoPlayerListener;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
@@ -28,8 +29,10 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 @Slf4j
 @Service
@@ -53,8 +56,9 @@ public class VideoPlayerService {
     private final ObjectProperty<Subtitle> subtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, Subtitle.none());
     private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
     private final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
-    private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(oldValue, newValue);
-    private final ChangeListener<Number> durationListener = (observable, oldValue, newValue) -> duration = newValue.longValue();
+    private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(newValue);
+    private final ChangeListener<Number> durationListener = (observable, oldValue, newValue) -> onDurationChanged(newValue);
+    private final List<VideoPlayerListener> listeners = new ArrayList<>();
 
     @Nullable
     private Media media;
@@ -152,6 +156,18 @@ public class VideoPlayerService {
     //endregion
 
     //region Methods
+
+    /**
+     * Register the given listener to this video player service.
+     *
+     * @param listener The listener to add.
+     */
+    public void addListener(VideoPlayerListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        synchronized (listeners) {
+            listeners.add(listener);
+        }
+    }
 
     /**
      * Resume the media playback.
@@ -326,6 +342,8 @@ public class VideoPlayerService {
         if (newValue == PlayerState.STOPPED) {
             onVideoStopped();
         }
+
+        invokeListeners(e -> e.onPlayerStateChanged(newValue));
     }
 
     private void onPlayVideo(PlayVideoActivity activity) {
@@ -503,8 +521,16 @@ public class VideoPlayerService {
         this.videoPlayer.set(videoPlayer);
     }
 
-    private void onTimeChanged(Number oldValue, Number newValue) {
+    private void onTimeChanged(Number newValue) {
         time = newValue.longValue();
+
+        invokeListeners(e -> e.onTimeChanged(newValue));
+    }
+
+    private void onDurationChanged(Number newValue) {
+        duration = newValue.longValue();
+
+        invokeListeners(e -> e.onDurationChanged(newValue));
     }
 
     private void onVideoStopped() {
@@ -514,6 +540,18 @@ public class VideoPlayerService {
             return;
 
         close();
+    }
+
+    private void invokeListeners(Consumer<VideoPlayerListener> action) {
+        synchronized (listeners) {
+            for (VideoPlayerListener listener : listeners) {
+                try {
+                    action.accept(listener);
+                } catch (Exception ex) {
+                    log.error("Error occurred while invoking listener, " + ex.getMessage(), ex);
+                }
+            }
+        }
     }
 
     private void reset() {

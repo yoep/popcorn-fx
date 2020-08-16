@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.ui.view.config;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -25,6 +24,7 @@ import com.github.yoep.popcorn.ui.view.services.*;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -34,94 +34,82 @@ import java.util.List;
 @Configuration
 @ConditionalOnDesktopMode
 public class DesktopConfig {
+
     @Bean
-    public MainController mainController(ViewLoader viewLoader,
+    public MainController mainController(ApplicationEventPublisher eventPublisher,
+                                         ViewLoader viewLoader,
                                          TaskExecutor taskExecutor,
                                          ApplicationArguments arguments,
                                          UrlService urlService,
                                          SettingsService settingsService) {
-        return MainDesktopController.builder()
-                .arguments(arguments)
-                .taskExecutor(taskExecutor)
-                .viewLoader(viewLoader)
-                .urlService(urlService)
-                .settingsService(settingsService)
-                .build();
+        return new MainDesktopController(eventPublisher, viewLoader, taskExecutor, arguments, urlService, settingsService);
     }
 
     //region Sections
 
     @Bean
-    public ContentSectionController contentSectionController(ActivityManager activityManager, ViewLoader viewLoader, TaskExecutor taskExecutor) {
-        return new ContentSectionController(activityManager, viewLoader, taskExecutor);
+    public ContentSectionController contentSectionController(ViewLoader viewLoader, TaskExecutor taskExecutor) {
+        return new ContentSectionController(viewLoader, taskExecutor);
     }
 
     @Bean
-    public DetailsSectionController detailsSectionController(ActivityManager activityManager,
+    public DetailsSectionController detailsSectionController(ApplicationEventPublisher eventPublisher,
                                                              ViewLoader viewLoader,
                                                              TaskExecutor taskExecutor) {
-        return new DetailsSectionController(activityManager, viewLoader, taskExecutor);
+        return new DetailsSectionController(eventPublisher, viewLoader, taskExecutor);
     }
 
     @Bean
-    public HeaderSectionController headerSectionController(ActivityManager activityManager, PopcornProperties properties, LocaleText localeText,
+    public HeaderSectionController headerSectionController(ApplicationEventPublisher eventPublisher,
+                                                           PopcornProperties properties,
+                                                           LocaleText localeText,
                                                            SettingsService settingsService) {
-        return new HeaderSectionController(activityManager, properties, localeText, settingsService);
+        return new HeaderSectionController(eventPublisher, properties, localeText, settingsService);
     }
 
     @Bean
-    public ListSectionController listSectionController(ActivityManager activityManager,
-                                                       List<ProviderService<? extends Media>> providerServices,
+    public ListSectionController listSectionController(List<ProviderService<? extends Media>> providerServices,
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
                                                        ViewLoader viewLoader,
                                                        LocaleText localeText,
                                                        ImageService imageService) {
-        return new ListSectionController(activityManager, providerServices, favoriteService, watchedService, viewLoader, localeText, imageService);
+        return new ListSectionController(providerServices, favoriteService, watchedService, viewLoader, localeText, imageService);
     }
 
     @Bean
-    public LoaderSectionController loaderSectionController(ActivityManager activityManager, ViewLoader viewLoader, TaskExecutor taskExecutor) {
-        return new LoaderSectionController(activityManager, viewLoader, taskExecutor);
+    public LoaderSectionController loaderSectionController(ViewLoader viewLoader, TaskExecutor taskExecutor) {
+        return new LoaderSectionController(viewLoader, taskExecutor);
     }
 
     @Bean
-    public PlayerSectionController playerSectionController(ActivityManager activityManager,
-                                                           SettingsService settingsService,
+    public PlayerSectionController playerSectionController(SettingsService settingsService,
                                                            VideoPlayerService videoPlayerService,
                                                            LocaleText localeText) {
-        return new PlayerSectionController(activityManager, settingsService, videoPlayerService, localeText);
+        return new PlayerSectionController(settingsService, videoPlayerService, localeText);
     }
 
     @Bean
-    public SettingsSectionController settingsSectionController(ActivityManager activityManager) {
-        return new SettingsSectionController(activityManager);
+    public SettingsSectionController settingsSectionController(ApplicationEventPublisher eventPublisher) {
+        return new SettingsSectionController(eventPublisher);
     }
 
     @Bean
-    public TorrentCollectionSectionController torrentCollectionSectionController(TorrentCollectionService torrentCollectionService,
-                                                                                 ActivityManager activityManager,
+    public TorrentCollectionSectionController torrentCollectionSectionController(ApplicationEventPublisher eventPublisher,
+                                                                                 TorrentCollectionService torrentCollectionService,
                                                                                  LocaleText localeText) {
-        return new TorrentCollectionSectionController(torrentCollectionService, activityManager, localeText);
+        return new TorrentCollectionSectionController(eventPublisher, torrentCollectionService, localeText);
     }
 
     @Bean
-    public WatchlistSectionController watchlistSectionController(ActivityManager activityManager,
+    public WatchlistSectionController watchlistSectionController(ApplicationEventPublisher eventPublisher,
                                                                  ViewLoader viewLoader,
                                                                  LocaleText localeText,
                                                                  TraktService traktService,
                                                                  ProviderService<Movie> movieProviderService,
                                                                  ProviderService<Show> showProviderService,
                                                                  ImageService imageService) {
-        return WatchlistSectionController.builder()
-                .activityManager(activityManager)
-                .viewLoader(viewLoader)
-                .localeText(localeText)
-                .traktService(traktService)
-                .movieProviderService(movieProviderService)
-                .showProviderService(showProviderService)
-                .imageService(imageService)
-                .build();
+        return new WatchlistSectionController(eventPublisher, viewLoader, localeText, traktService, movieProviderService, showProviderService, imageService);
     }
 
     //endregion
@@ -129,79 +117,80 @@ public class DesktopConfig {
     //region Components
 
     @Bean
-    public DetailsTorrentComponent detailsTorrentComponent(ActivityManager activityManager,
+    public DetailsTorrentComponent detailsTorrentComponent(ApplicationEventPublisher eventPublisher,
                                                            TorrentCollectionService torrentCollectionService,
                                                            LocaleText localeText) {
-        return new DetailsTorrentComponent(activityManager, torrentCollectionService, localeText);
+        return new DetailsTorrentComponent(eventPublisher, torrentCollectionService, localeText);
     }
 
     @Bean
-    public LoaderTorrentComponent loaderTorrentComponent(ActivityManager activityManager,
-                                                         TaskExecutor taskExecutor,
+    public LoaderTorrentComponent loaderTorrentComponent(LocaleText localeText,
                                                          TorrentService torrentService,
                                                          TorrentStreamService torrentStreamService,
-                                                         SubtitleService subtitleService,
-                                                         LocaleText localeText,
+                                                         ApplicationEventPublisher eventPublisher,
                                                          ImageService imageService,
+                                                         SubtitleService subtitleService,
+                                                         TaskExecutor taskExecutor,
                                                          SettingsService settingsService) {
-        return new LoaderTorrentComponent(activityManager, taskExecutor, torrentService, torrentStreamService, subtitleService, localeText, imageService, settingsService);
+        return new LoaderTorrentComponent(localeText, torrentService, torrentStreamService, eventPublisher, imageService, subtitleService, taskExecutor,
+                settingsService);
     }
 
     @Bean
     public LoaderUrlComponent loaderUrlComponent(LocaleText localeText,
                                                  TorrentService torrentService,
                                                  TorrentStreamService torrentStreamService,
-                                                 ActivityManager activityManager,
+                                                 ApplicationEventPublisher eventPublisher,
                                                  TaskExecutor taskExecutor) {
-        return new LoaderUrlComponent(localeText, torrentService, torrentStreamService, activityManager, taskExecutor);
+        return new LoaderUrlComponent(localeText, torrentService, torrentStreamService, eventPublisher, taskExecutor);
     }
 
     @Bean
-    public SettingsUIComponent settingsUIComponent(ActivityManager activityManager,
+    public SettingsUIComponent settingsUIComponent(ApplicationEventPublisher eventPublisher,
                                                    LocaleText localeText,
                                                    SettingsService settingsService) {
-        return new SettingsUIComponent(activityManager, localeText, settingsService);
+        return new SettingsUIComponent(eventPublisher, localeText, settingsService);
     }
 
     @Bean
-    public MovieDetailsComponent movieDetailsComponent(ActivityManager activityManager,
+    public MovieDetailsComponent movieDetailsComponent(ApplicationEventPublisher eventPublisher,
                                                        LocaleText localeText,
                                                        TorrentService torrentService,
                                                        SubtitleService subtitleService,
                                                        SubtitlePickerService subtitlePickerService,
-                                                       FavoriteService favoriteService,
-                                                       WatchedService watchedService,
                                                        ImageService imageService,
-                                                       SettingsService settingsService) {
-        return new MovieDetailsComponent(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, favoriteService, watchedService, imageService, settingsService);
+                                                       SettingsService settingsService,
+                                                       FavoriteService favoriteService,
+                                                       WatchedService watchedService) {
+        return new MovieDetailsComponent(eventPublisher, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService,
+                favoriteService, watchedService);
     }
 
     @Bean
-    public ShowDetailsComponent showDetailsComponent(ActivityManager activityManager,
+    public ShowDetailsComponent showDetailsComponent(ApplicationEventPublisher eventPublisher,
                                                      LocaleText localeText,
                                                      TorrentService torrentService,
                                                      SubtitleService subtitleService,
                                                      SubtitlePickerService subtitlePickerService,
-                                                     FavoriteService favoriteService,
-                                                     WatchedService watchedService,
                                                      ImageService imageService,
-                                                     SettingsService settingsService) {
-        return new ShowDetailsComponent(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, favoriteService, watchedService, imageService, settingsService);
+                                                     SettingsService settingsService,
+                                                     FavoriteService favoriteService,
+                                                     WatchedService watchedService) {
+        return new ShowDetailsComponent(eventPublisher, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService,
+                favoriteService, watchedService);
     }
 
     @Bean
-    public PlayerHeaderComponent playerHeaderComponent(ActivityManager activityManager,
-                                                       VideoPlayerService videoPlayerService,
+    public PlayerHeaderComponent playerHeaderComponent(VideoPlayerService videoPlayerService,
                                                        LocaleText localeText) {
-        return new PlayerHeaderComponent(activityManager, videoPlayerService, localeText);
+        return new PlayerHeaderComponent(videoPlayerService, localeText);
     }
 
     @Bean
-    public PlayerControlsComponent playerControlsComponent(ActivityManager activityManager,
-                                                           VideoPlayerService videoPlayerService,
+    public PlayerControlsComponent playerControlsComponent(VideoPlayerService videoPlayerService,
                                                            SubtitleService subtitleService,
                                                            LocaleText localeText) {
-        return new PlayerControlsComponent(activityManager, videoPlayerService, subtitleService, localeText);
+        return new PlayerControlsComponent(videoPlayerService, subtitleService, localeText);
     }
 
     @Bean
@@ -210,10 +199,10 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsTorrentComponent settingsTorrentComponent(ActivityManager activityManager,
+    public SettingsTorrentComponent settingsTorrentComponent(ApplicationEventPublisher eventPublisher,
                                                              LocaleText localeText,
                                                              SettingsService settingsService) {
-        return new SettingsTorrentComponent(activityManager, localeText, settingsService);
+        return new SettingsTorrentComponent(eventPublisher, localeText, settingsService);
     }
 
     @Bean
@@ -222,10 +211,10 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsPlaybackComponent settingsPlaybackComponent(ActivityManager activityManager,
+    public SettingsPlaybackComponent settingsPlaybackComponent(ApplicationEventPublisher eventPublisher,
                                                                LocaleText localeText,
                                                                SettingsService settingsService) {
-        return new SettingsPlaybackComponent(activityManager, localeText, settingsService);
+        return new SettingsPlaybackComponent(eventPublisher, localeText, settingsService);
     }
 
     @Bean

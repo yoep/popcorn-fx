@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PlayNextServiceTest {
     @Mock
-    private ActivityManager activityManager;
+    private ApplicationEventPublisher activityManager;
     @Mock
     private VideoPlayerService videoPlayerService;
     @Mock
@@ -159,7 +159,7 @@ class PlayNextServiceTest {
         playNextService.onDurationChanged(videoLength);
         playNextService.onTimeChanged(videoLength);
 
-        verify(activityManager).register(isA(LoadMediaTorrentEvent.class));
+        verify(activityManager).publishEvent(isA(LoadMediaTorrentEvent.class));
     }
 
     private Episode createEpisode() {

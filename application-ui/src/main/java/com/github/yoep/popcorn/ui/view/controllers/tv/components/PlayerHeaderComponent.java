@@ -1,48 +1,36 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import lombok.RequiredArgsConstructor;
-
-import javax.annotation.PostConstruct;
+import org.springframework.context.event.EventListener;
 
 @RequiredArgsConstructor
 public class PlayerHeaderComponent {
-    private final ActivityManager activityManager;
-
     @FXML
     private Label title;
 
-    //region PostConstruct
+    //region Methods
 
-    @PostConstruct
-    private void init() {
-        initializeActivityListeners();
+    @EventListener
+    public void onPlayVideo(PlayVideoEvent event) {
+        // set the title of the video as it should be always present
+        Platform.runLater(() -> {
+            this.title.setText(event.getTitle());
+        });
     }
 
-    private void initializeActivityListeners() {
-        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
-        activityManager.register(ClosePlayerEvent.class, this::onClose);
+    @EventListener(ClosePlayerEvent.class)
+    public void onClose() {
+        reset();
     }
 
     //endregion
 
     //region Functions
-
-    private void onPlayVideo(PlayVideoEvent activity) {
-        // set the title of the video as it should be always present
-        Platform.runLater(() -> {
-            this.title.setText(activity.getTitle());
-        });
-    }
-
-    private void onClose(ClosePlayerEvent activity) {
-        reset();
-    }
 
     private void reset() {
         Platform.runLater(() -> title.setText(null));

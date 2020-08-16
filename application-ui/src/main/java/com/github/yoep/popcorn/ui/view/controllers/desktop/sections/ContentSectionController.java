@@ -9,6 +9,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 
 import java.net.URL;
@@ -18,7 +19,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @RequiredArgsConstructor
 public class ContentSectionController implements Initializable {
-    private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
 
@@ -32,25 +32,52 @@ public class ContentSectionController implements Initializable {
     @FXML
     private Pane contentPane;
 
+    //region Methods
+
+    @EventListener(ShowDetailsEvent.class)
+    public void onShowDetails() {
+        switchContent(ContentType.DETAILS);
+    }
+
+    @EventListener(ShowWatchlistEvent.class)
+    public void onShowWatchlist() {
+        switchContent(ContentType.WATCHLIST);
+    }
+
+    @EventListener(ShowTorrentCollectionEvent.class)
+    public void onShowTorrentCollection() {
+        switchContent(ContentType.TORRENT_COLLECTION);
+    }
+
+    @EventListener(ShowSettingsEvent.class)
+    public void onShowSettings() {
+        switchContent(ContentType.SETTINGS);
+    }
+
+    @EventListener(CategoryChangedEvent.class)
+    public void onCategoryChanged() {
+        switchContent(ContentType.LIST);
+    }
+
+    @EventListener(CloseDetailsEvent.class)
+    public void onCloseDetails() {
+        switchContent(ContentType.LIST);
+    }
+
+    @EventListener(CloseSettingsEvent.class)
+    public void onCloseSettings() {
+        switchContent(ContentType.LIST);
+    }
+
+    //endregion
+
     //region Initializable
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeListeners();
         initializePanes();
 
         switchContent(ContentType.LIST);
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ShowDetailsEvent.class, activity -> switchContent(ContentType.DETAILS));
-        activityManager.register(ShowWatchlistEvent.class, activity -> switchContent(ContentType.WATCHLIST));
-        activityManager.register(ShowTorrentCollectionEvent.class, activity -> switchContent(ContentType.TORRENT_COLLECTION));
-        activityManager.register(ShowSettingsEvent.class, activity -> switchContent(ContentType.SETTINGS));
-        activityManager.register(CategoryChangedEvent.class, activity -> switchContent(ContentType.LIST));
-
-        activityManager.register(CloseDetailsEvent.class, activity -> switchContent(ContentType.LIST));
-        activityManager.register(CloseSettingsEvent.class, activity -> switchContent(ContentType.LIST));
     }
 
     private void initializePanes() {

@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
@@ -15,9 +14,9 @@ import javafx.scene.control.Button;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
-
-import javax.annotation.PostConstruct;
 
 @Slf4j
 public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
@@ -27,24 +26,20 @@ public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
 
     //region Constructors
 
-    public LoaderTorrentComponent(LocaleText localeText,
-                                  TorrentService torrentService,
-                                  TorrentStreamService torrentStreamService,
-                                  ActivityManager activityManager,
-                                  TaskExecutor taskExecutor,
-                                  SubtitleService subtitleService,
-                                  ImageService imageService,
-                                  SettingsService settingsService) {
-        super(localeText, torrentService, torrentStreamService, activityManager, imageService, subtitleService, taskExecutor, settingsService);
+    public LoaderTorrentComponent(LocaleText localeText, TorrentService torrentService, TorrentStreamService torrentStreamService,
+                                  ApplicationEventPublisher eventPublisher, ImageService imageService, SubtitleService subtitleService,
+                                  TaskExecutor taskExecutor, SettingsService settingsService) {
+        super(localeText, torrentService, torrentStreamService, eventPublisher, imageService, subtitleService, taskExecutor, settingsService);
     }
+
 
     //endregion
 
-    //region PostConstruct
+    //region Methods
 
-    @PostConstruct
-    private void init() {
-        activityManager.register(LoadMediaTorrentEvent.class, this::startTorrent);
+    @EventListener
+    public void onLoadMediaTorrent(LoadMediaTorrentEvent event) {
+        startTorrent(event);
     }
 
     //endregion

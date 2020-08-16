@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.watched.WatchedService;
@@ -26,13 +25,12 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     //region Constructors
 
-    public ListSectionController(ActivityManager activityManager,
-                                 List<ProviderService<? extends Media>> providerServices,
+    public ListSectionController(List<ProviderService<? extends Media>> providerServices,
                                  ViewLoader viewLoader,
                                  LocaleText localeText,
                                  WatchedService watchedService,
                                  ImageService imageService) {
-        super(activityManager, providerServices, viewLoader, localeText);
+        super(providerServices, viewLoader, localeText);
         this.watchedService = watchedService;
         this.imageService = imageService;
     }
@@ -63,7 +61,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     protected Node creatItemNode(Media item) {
         item.setWatched(watchedService.isWatched(item));
 
-        var mediaCardComponent = new SimpleMediaCardComponent(item, localeText, imageService,  this::onItemClicked);
+        var mediaCardComponent = new SimpleMediaCardComponent(item, localeText, imageService, this::onItemClicked);
 
         // check if this media card item should request the focus
         // update the request focus later on back to false so only one item requests the focus

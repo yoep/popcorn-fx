@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.LoadTorrentEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import javafx.application.Platform;
@@ -10,9 +9,9 @@ import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,7 +19,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @RequiredArgsConstructor
 public class LoaderSectionController implements Initializable {
-    private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
 
@@ -44,16 +42,16 @@ public class LoaderSectionController implements Initializable {
 
     //endregion
 
-    //region PostConstruct
+    //region Methods
 
-    @PostConstruct
-    private void init() {
-        initializeListeners();
+    @EventListener(LoadTorrentEvent.class)
+    public void onLoadTorrent() {
+        switchPane(Type.TORRENT_LOADER);
     }
 
-    private void initializeListeners() {
-        activityManager.register(LoadTorrentEvent.class, activity -> switchPane(Type.TORRENT_LOADER));
-        activityManager.register(LoadUrlEvent.class, activity -> switchPane(Type.URL_LOADER));
+    @EventListener(LoadUrlEvent.class)
+    public void onLoadUrl() {
+        switchPane(Type.URL_LOADER);
     }
 
     //endregion

@@ -22,11 +22,11 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.util.Assert;
 import org.springframework.web.client.HttpStatusCodeException;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CancellationException;
@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public abstract class AbstractListSectionController implements Initializable {
-    protected final ActivityManager activityManager;
     protected final List<ProviderService<? extends Media>> providerServices;
     protected final ViewLoader viewLoader;
     protected final LocaleText localeText;
@@ -56,18 +55,58 @@ public abstract class AbstractListSectionController implements Initializable {
 
     //region Constructors
 
-    protected AbstractListSectionController(ActivityManager activityManager,
-                                            List<ProviderService<? extends Media>> providerServices,
+    protected AbstractListSectionController(List<ProviderService<? extends Media>> providerServices,
                                             ViewLoader viewLoader,
                                             LocaleText localeText) {
-        Assert.notNull(activityManager, "activityManager cannot be null");
         Assert.notNull(providerServices, "providerServices cannot be null");
         Assert.notNull(viewLoader, "viewLoader cannot be null");
         Assert.notNull(localeText, "localeText cannot be null");
-        this.activityManager = activityManager;
         this.providerServices = providerServices;
         this.viewLoader = viewLoader;
         this.localeText = localeText;
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener
+    public void onCategoryChanged(CategoryChangedEvent event) {
+        this.category = event.getCategory();
+        // reset the genre & sort by as they might be different in the new category
+        // these will be automatically filled in again as the category change also triggers a GenreChangeActivity & SortByChangeActivity
+        this.genre = null;
+        this.sortBy = null;
+
+        reset();
+    }
+
+    @EventListener
+    public void onGenreChange(GenreChangeEvent event) {
+        this.genre = event.getGenre();
+
+        reset();
+        invokeNewPageLoad();
+    }
+
+    @EventListener
+    public void onSortByChange(SortByChangeEvent event) {
+        this.sortBy = event.getSortBy();
+
+        reset();
+        invokeNewPageLoad();
+    }
+
+    @EventListener
+    public void onSearch(SearchEvent event) {
+        event.getValue().ifPresent(newValue -> {
+            if (Objects.equals(search, newValue))
+                return;
+
+            this.search = newValue;
+            reset();
+            invokeNewPageLoad();
+        });
     }
 
     //endregion
@@ -99,18 +138,6 @@ public abstract class AbstractListSectionController implements Initializable {
 
     protected void initializeFailedPane() {
         failedPane.setVisible(false);
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    protected void init() {
-        activityManager.register(CategoryChangedEvent.class, this::onCategoryChange);
-        activityManager.register(GenreChangeEvent.class, this::onGenreChange);
-        activityManager.register(SortByChangeEvent.class, this::onSortByChange);
-        activityManager.register(SearchEvent.class, this::onSearchChanged);
     }
 
     //endregion
@@ -150,39 +177,6 @@ public abstract class AbstractListSectionController implements Initializable {
             log.error("No provider service found for \"{}\" category", category);
             return CompletableFuture.completedFuture(new Media[0]);
         }
-    }
-
-    protected void onCategoryChange(CategoryChangedEvent categoryActivity) {
-        this.category = categoryActivity.getCategory();
-        // reset the genre & sort by as they might be different in the new category
-        // these will be automatically filled in again as the category change also triggers a GenreChangeActivity & SortByChangeActivity
-        this.genre = null;
-        this.sortBy = null;
-
-        reset();
-    }
-
-    protected void onGenreChange(GenreChangeEvent genreActivity) {
-        this.genre = genreActivity.getGenre();
-        reset();
-        invokeNewPageLoad();
-    }
-
-    protected void onSortByChange(SortByChangeEvent sortByActivity) {
-        this.sortBy = sortByActivity.getSortBy();
-        reset();
-        invokeNewPageLoad();
-    }
-
-    protected void onSearchChanged(SearchEvent activity) {
-        String newValue = activity.getValue();
-
-        if (Objects.equals(search, newValue))
-            return;
-
-        this.search = newValue;
-        reset();
-        invokeNewPageLoad();
     }
 
     protected Media[] onMediaRequestFailed(Throwable throwable) {

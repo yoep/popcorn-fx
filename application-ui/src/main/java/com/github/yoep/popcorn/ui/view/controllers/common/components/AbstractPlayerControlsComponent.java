@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
@@ -14,14 +13,17 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractPlayerControlsComponent {
-    protected final ActivityManager activityManager;
     protected final VideoPlayerService videoPlayerService;
 
     private final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
@@ -38,11 +40,21 @@ public abstract class AbstractPlayerControlsComponent {
 
     private Torrent torrent;
 
-    //region Constructors
+    //region Methods
 
-    public AbstractPlayerControlsComponent(ActivityManager activityManager, VideoPlayerService videoPlayerService) {
-        this.activityManager = activityManager;
-        this.videoPlayerService = videoPlayerService;
+    @EventListener(ClosePlayerEvent.class)
+    public void onClose() {
+        if (this.torrent != null) {
+            this.torrent.removeListener(torrentListener);
+        }
+
+        reset();
+    }
+
+    @EventListener
+    public void onPlayTorrent(PlayTorrentEvent activity) {
+        this.torrent = activity.getTorrent();
+        this.torrent.addListener(torrentListener);
     }
 
     //endregion
@@ -51,13 +63,7 @@ public abstract class AbstractPlayerControlsComponent {
 
     @PostConstruct
     private void init() {
-        initializeActivityListeners();
         initializeVideoListeners();
-    }
-
-    protected void initializeActivityListeners() {
-        activityManager.register(ClosePlayerEvent.class, this::onClose);
-        activityManager.register(PlayTorrentEvent.class, this::onPlayTorrent);
     }
 
     protected void initializeVideoListeners() {
@@ -119,11 +125,6 @@ public abstract class AbstractPlayerControlsComponent {
      */
     protected abstract void onProgressChanged(double newValue);
 
-    private void onPlayTorrent(PlayTorrentEvent activity) {
-        this.torrent = activity.getTorrent();
-        this.torrent.addListener(torrentListener);
-    }
-
     private void onPlayerStateChanged(PlayerState newValue) {
         switch (newValue) {
             case PLAYING:
@@ -144,13 +145,6 @@ public abstract class AbstractPlayerControlsComponent {
         };
     }
 
-    private void onClose(ClosePlayerEvent activity) {
-        if (this.torrent != null) {
-            this.torrent.removeListener(torrentListener);
-        }
-
-        reset();
-    }
 
     //endregion
 }

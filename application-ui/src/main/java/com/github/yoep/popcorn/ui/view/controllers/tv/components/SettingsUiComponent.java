@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.StartScreen;
@@ -14,8 +13,9 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -34,8 +34,17 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
 
     //region Constructors
 
-    public SettingsUiComponent(ActivityManager activityManager, LocaleText localeText, SettingsService settingsService) {
-        super(activityManager, localeText, settingsService);
+    public SettingsUiComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+        super(eventPublisher, localeText, settingsService);
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener(ShowSettingsEvent.class)
+    public void onShowSettings() {
+        Platform.runLater(() -> defaultLanguageCombo.requestFocus());
     }
 
     //endregion
@@ -80,16 +89,6 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
                 updateStartScreen((StartScreen) evt.getNewValue());
             }
         });
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        activityManager.register(ShowSettingsEvent.class, activity ->
-                Platform.runLater(() -> defaultLanguageCombo.requestFocus()));
     }
 
     //endregion

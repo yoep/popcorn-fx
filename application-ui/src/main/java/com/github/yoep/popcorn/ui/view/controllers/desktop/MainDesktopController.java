@@ -1,21 +1,19 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.common.AbstractMainController;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
-import javafx.application.Platform;
 import javafx.scene.input.*;
-import javafx.scene.layout.Pane;
-import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.task.TaskExecutor;
 
 import java.io.File;
@@ -23,7 +21,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class MainDesktopController extends AbstractMainController implements MainController {
@@ -31,14 +28,13 @@ public class MainDesktopController extends AbstractMainController implements Mai
 
     //region Constructors
 
-    @Builder
-    public MainDesktopController(ActivityManager activityManager,
+    public MainDesktopController(ApplicationEventPublisher eventPublisher,
                                  ViewLoader viewLoader,
                                  TaskExecutor taskExecutor,
                                  ApplicationArguments arguments,
                                  UrlService urlService,
                                  SettingsService settingsService) {
-        super(activityManager, viewLoader, arguments, urlService, settingsService, taskExecutor);
+        super(eventPublisher, viewLoader, arguments, urlService, settingsService, taskExecutor);
     }
 
     //endregion
@@ -50,7 +46,6 @@ public class MainDesktopController extends AbstractMainController implements Mai
         super.initialize(url, resourceBundle);
         initializeStageHeader();
         initializeSceneEvents();
-        initializeSection();
     }
 
     private void initializeStageHeader() {
@@ -62,25 +57,6 @@ public class MainDesktopController extends AbstractMainController implements Mai
     private void initializeSceneEvents() {
         rootPane.setOnDragOver(this::onDragOver);
         rootPane.setOnDragDropped(this::onDragDropped);
-    }
-
-    private void initializeSection() {
-        if (!processApplicationArguments())
-            switchSection(SectionType.CONTENT);
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @Override
-    protected void initializeListeners() {
-        activityManager.register(ShowDetailsEvent.class, activity -> switchSection(SectionType.CONTENT));
-        activityManager.register(PlayVideoEvent.class, activity -> switchSection(SectionType.PLAYER));
-        activityManager.register(LoadEvent.class, activity -> switchSection(SectionType.LOADER));
-
-        activityManager.register(ClosePlayerEvent.class, activity -> switchSection(SectionType.CONTENT));
-        activityManager.register(CloseLoadEvent.class, activity -> switchSection(SectionType.CONTENT));
     }
 
     //endregion
@@ -141,53 +117,13 @@ public class MainDesktopController extends AbstractMainController implements Mai
     }
 
     private void processFiles(List<File> files) {
-        File file = files.get(0);
-        String title = FilenameUtils.getBaseName(file.getName());
+        var file = files.get(0);
+        var title = FilenameUtils.getBaseName(file.getName());
 
-        activityManager.register(new PlayVideoEvent() {
-            @Override
-            public String getUrl() {
-                return file.getAbsolutePath();
-            }
-
-            @Override
-            public String getTitle() {
-                return title;
-            }
-
-            @Override
-            public boolean isSubtitlesEnabled() {
-                return false;
-            }
-        });
-    }
-
-    private void switchSection(SectionType sectionType) {
-        AtomicReference<Pane> content = new AtomicReference<>();
-
-        switch (sectionType) {
-            case CONTENT:
-                content.set(contentPane);
-                break;
-            case PLAYER:
-                content.set(playerPane);
-                break;
-            case LOADER:
-                content.set(loaderPane);
-                break;
-        }
-
-        Platform.runLater(() -> {
-            rootPane.getChildren().removeIf(e -> e != notificationPane);
-            rootPane.getChildren().add(0, content.get());
-        });
+        eventPublisher.publishEvent(new PlayVideoEvent(this, file.getAbsolutePath(), title, false));
     }
 
     //endregion
 
-    private enum SectionType {
-        CONTENT,
-        PLAYER,
-        LOADER
-    }
+
 }

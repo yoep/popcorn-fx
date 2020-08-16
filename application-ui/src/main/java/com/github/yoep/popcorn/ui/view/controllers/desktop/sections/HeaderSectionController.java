@@ -23,8 +23,9 @@ import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -35,7 +36,7 @@ import java.util.stream.Collectors;
 public class HeaderSectionController extends AbstractFilterSectionController implements Initializable {
     private static final String STYLE_ACTIVE = "active";
 
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final PopcornProperties properties;
     private final LocaleText localeText;
 
@@ -64,11 +65,21 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     //region Constructors
 
-    public HeaderSectionController(ActivityManager activityManager, PopcornProperties properties, LocaleText localeText, SettingsService settingsService) {
+    public HeaderSectionController(ApplicationEventPublisher eventPublisher, PopcornProperties properties, LocaleText localeText,
+                                   SettingsService settingsService) {
         super(settingsService);
-        this.activityManager = activityManager;
+        this.eventPublisher = eventPublisher;
         this.properties = properties;
         this.localeText = localeText;
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener(CloseSettingsEvent.class)
+    public void onCloseSettings() {
+        onSettingsClosed();
     }
 
     //endregion
@@ -81,15 +92,6 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         initializeSearchListener();
         initializeIcons();
         initializeSceneListener(headerPane);
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        activityManager.register(CloseSettingsEvent.class, activity -> onSettingsClosed());
     }
 
     //endregion
@@ -122,12 +124,12 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         search.addListener(new SearchListener() {
             @Override
             public void onSearchValueChanged(String newValue) {
-                activityManager.register((SearchEvent) () -> newValue);
+                eventPublisher.publishEvent(new SearchEvent(this, newValue));
             }
 
             @Override
             public void onSearchValueCleared() {
-                activityManager.register((SearchEvent) () -> null);
+                eventPublisher.publishEvent(new SearchEvent(this, null));
             }
         });
     }
@@ -185,7 +187,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
         // invoke the chang activity first before changing the genre & sort by
         log.trace("Category is being changed to \"{}\"", category.get());
-        activityManager.register((CategoryChangedEvent) category::get);
+        eventPublisher.publishEvent(new CategoryChangedEvent(this, category.get()));
 
         // clear the current search
         search.clear();
@@ -196,13 +198,19 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     }
 
     private void switchGenre(Genre genre) {
+        if (genre == null)
+            return;
+
         log.trace("Genre is being changed to \"{}\"", genre);
-        activityManager.register((GenreChangeEvent) () -> genre);
+        eventPublisher.publishEvent(new GenreChangeEvent(this, genre));
     }
 
     private void switchSortBy(SortBy sortBy) {
+        if (sortBy == null)
+            return;
+
         log.trace("SortBy is being changed to \"{}\"", sortBy);
-        activityManager.register((SortByChangeEvent) () -> sortBy);
+        eventPublisher.publishEvent(new SortByChangeEvent(this, sortBy));
     }
 
     private void switchIcon(Icon icon) {
@@ -259,22 +267,19 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     @FXML
     private void onWatchlistClicked() {
         switchIcon(watchlistIcon);
-        activityManager.register(new ShowWatchlistEvent() {
-        });
+        eventPublisher.publishEvent(new ShowWatchlistEvent(this));
     }
 
     @FXML
     private void onTorrentCollectionClicked() {
         switchIcon(torrentCollectionIcon);
-        activityManager.register(new ShowTorrentCollectionEvent() {
-        });
+        eventPublisher.publishEvent(new ShowTorrentCollectionEvent(this));
     }
 
     @FXML
     private void onSettingsClicked() {
         switchIcon(settingsIcon);
-        activityManager.register(new ShowSettingsEvent() {
-        });
+        eventPublisher.publishEvent(new ShowSettingsEvent(this));
     }
 
     //endregion

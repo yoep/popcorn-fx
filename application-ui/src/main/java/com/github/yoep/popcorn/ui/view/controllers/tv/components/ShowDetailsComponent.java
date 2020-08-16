@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
@@ -13,8 +12,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -22,8 +21,6 @@ import java.util.concurrent.CompletableFuture;
 public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> {
     private static final double POSTER_WIDTH = 298.0;
     private static final double POSTER_HEIGHT = 315.0;
-
-    private final ActivityManager activityManager;
 
     @FXML
     private Label title;
@@ -40,19 +37,17 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> {
 
     //region Constructors
 
-    public ShowDetailsComponent(LocaleText localeText, ActivityManager activityManager, TorrentService torrentService, ImageService imageService, SettingsService settingsService) {
+    public ShowDetailsComponent(LocaleText localeText, TorrentService torrentService, ImageService imageService, SettingsService settingsService) {
         super(localeText, imageService, torrentService, settingsService);
-        this.activityManager = activityManager;
     }
 
     //endregion
 
-    //region PostConstruct
+    //region Methods
 
-    @PostConstruct
-    private void init() {
-        activityManager.register(ShowSerieDetailsEvent.class, activity ->
-                Platform.runLater(() -> load(activity.getMedia())));
+    @EventListener
+    public void onShowSerieDetails(ShowSerieDetailsEvent event) {
+        Platform.runLater(() -> load(event.getMedia()));
     }
 
     //endregion

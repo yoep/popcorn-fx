@@ -9,6 +9,8 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 
 import javax.annotation.PostConstruct;
@@ -17,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @RequiredArgsConstructor
 public class DetailsSectionController {
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
 
@@ -29,12 +31,40 @@ public class DetailsSectionController {
     @FXML
     private Pane detailPane;
 
+    //region Methods
+
+    @EventListener(ShowMovieDetailsEvent.class)
+    public void onShowMovieDetails() {
+        switchContent(DetailsType.MOVIE_DETAILS);
+    }
+
+    @EventListener(ShowSerieDetailsEvent.class)
+    public void onShowSerieDetails() {
+        switchContent(DetailsType.SHOW_DETAILS);
+    }
+
+    @EventListener(ShowTorrentDetailsEvent.class)
+    public void onShowTorrentDetails() {
+        switchContent(DetailsType.TORRENT_DETAILS);
+    }
+
+    @EventListener(CloseDetailsEvent.class)
+    public void onCloseDetails() {
+        onDetailsClosed();
+    }
+
+    @EventListener(CloseTorrentDetailsEvent.class)
+    public void onCloseTorrentDetails() {
+        onTorrentDetailsClosed();
+    }
+
+    //endregion
+
     //region PostConstruct
 
     @PostConstruct
     private void init() {
         initializePanes();
-        initializeListeners();
     }
 
     private void initializePanes() {
@@ -47,14 +77,6 @@ public class DetailsSectionController {
             anchor(showDetailsPane);
             anchor(torrentDetailsPane);
         });
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ShowMovieDetailsEvent.class, activity -> switchContent(DetailsType.MOVIE_DETAILS));
-        activityManager.register(ShowSerieDetailsEvent.class, activity -> switchContent(DetailsType.SHOW_DETAILS));
-        activityManager.register(ShowTorrentDetailsEvent.class, activity -> switchContent(DetailsType.TORRENT_DETAILS));
-        activityManager.register(CloseDetailsEvent.class, activity -> onDetailsClosed());
-        activityManager.register(CloseTorrentDetailsEvent.class, activity -> onTorrentDetailsClosed());
     }
 
     //endregion
@@ -111,8 +133,7 @@ public class DetailsSectionController {
         }
 
         // close the details view
-        activityManager.register(new CloseDetailsEvent() {
-        });
+        eventPublisher.publishEvent(new CloseDetailsEvent(this));
     }
 
     private void anchor(Node node) {

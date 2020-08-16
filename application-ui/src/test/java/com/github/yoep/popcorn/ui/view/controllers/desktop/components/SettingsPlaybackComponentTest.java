@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -14,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 public class SettingsPlaybackComponentTest {
     @Mock
-    private ActivityManager activityManager;
+    private ApplicationEventPublisher activityManager;
     @Mock
     private LocaleText localeText;
     @Mock
@@ -41,7 +41,7 @@ public class SettingsPlaybackComponentTest {
 
     @Test
     void testShowNotification_whenActivityIsInvokedInvoked_shouldCallLocaleTextWithSettingsSaved() {
-        doAnswer(this::invokeSuccessNotification).when(activityManager).register(isA(SuccessNotificationEvent.class));
+        doAnswer(this::invokeSuccessNotification).when(activityManager).publishEvent(isA(SuccessNotificationEvent.class));
 
         settingsPlaybackComponent.onQualityChanged(PlaybackSettings.Quality.p720);
 
@@ -52,7 +52,7 @@ public class SettingsPlaybackComponentTest {
     void testOnQualityChanged_whenInvoked_shouldShowNotification() {
         settingsPlaybackComponent.onQualityChanged(PlaybackSettings.Quality.p1080);
 
-        verify(activityManager).register(isA(SuccessNotificationEvent.class));
+        verify(activityManager).publishEvent(isA(SuccessNotificationEvent.class));
     }
 
     @Test
@@ -68,7 +68,7 @@ public class SettingsPlaybackComponentTest {
     void testOnFullscreenChanged_whenInvoked_shouldShowNotification() {
         settingsPlaybackComponent.onFullscreenChanged(false);
 
-        verify(activityManager).register(isA(SuccessNotificationEvent.class));
+        verify(activityManager).publishEvent(isA(SuccessNotificationEvent.class));
     }
 
     @Test
@@ -82,7 +82,7 @@ public class SettingsPlaybackComponentTest {
     void testOnAutoPlayNextEpisodeChanged_whenInvoked_shouldShowNotification() {
         settingsPlaybackComponent.onAutoPlayNextEpisodeChanged(true);
 
-        verify(activityManager).register(isA(SuccessNotificationEvent.class));
+        verify(activityManager).publishEvent(isA(SuccessNotificationEvent.class));
     }
 
     @Test

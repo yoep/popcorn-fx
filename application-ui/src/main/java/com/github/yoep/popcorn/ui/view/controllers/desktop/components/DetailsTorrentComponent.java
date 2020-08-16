@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
@@ -21,8 +20,9 @@ import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,7 +35,8 @@ import static java.util.Arrays.asList;
 @RequiredArgsConstructor
 public class DetailsTorrentComponent implements Initializable {
     private static final List<String> SUPPORTED_FILES = asList("mp4", "m4v", "avi", "mov", "mkv", "wmv");
-    private final ActivityManager activityManager;
+
+    private final ApplicationEventPublisher eventPublisher;
     private final TorrentCollectionService torrentCollectionService;
     private final LocaleText localeText;
 
@@ -51,23 +52,36 @@ public class DetailsTorrentComponent implements Initializable {
 
     //region Methods
 
+    @EventListener
+    public void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
+        log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
+        this.magnetUri = event.getMagnetUri();
+        this.torrentInfo = event.getTorrentInfo();
+        var filenames = new ArrayList<String>();
+        var files = torrentInfo.getFiles();
+
+        for (TorrentFileInfo file : files) {
+            var extension = FilenameUtils.getExtension(file.getFilename());
+
+            if (SUPPORTED_FILES.contains(extension.toLowerCase()))
+                filenames.add(file.getFilename());
+        }
+
+        // sort files to make it easier for the user
+        filenames.sort(Comparator.comparing(String::toLowerCase));
+
+        Platform.runLater(() -> {
+            fileList.getItems().clear();
+            fileList.getItems().addAll(filenames);
+        });
+
+        updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
+    }
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeFileShadow();
         initializeFileList();
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        initializeListeners();
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ShowTorrentDetailsEvent.class, this::onShowTorrentDetails);
     }
 
     //endregion
@@ -94,43 +108,8 @@ public class DetailsTorrentComponent implements Initializable {
         });
     }
 
-    private void onShowTorrentDetails(ShowTorrentDetailsEvent activity) {
-        log.debug("Processing details of torrent info {}", activity.getTorrentInfo().getName());
-        this.magnetUri = activity.getMagnetUri();
-        this.torrentInfo = activity.getTorrentInfo();
-        var filenames = new ArrayList<String>();
-        var files = torrentInfo.getFiles();
-
-        for (TorrentFileInfo file : files) {
-            var extension = FilenameUtils.getExtension(file.getFilename());
-
-            if (SUPPORTED_FILES.contains(extension.toLowerCase()))
-                filenames.add(file.getFilename());
-        }
-
-        // sort files to make it easier for the user
-        filenames.sort(Comparator.comparing(String::toLowerCase));
-
-        Platform.runLater(() -> {
-            fileList.getItems().clear();
-            fileList.getItems().addAll(filenames);
-        });
-
-        updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
-    }
-
     private void onFileClicked(TorrentFileInfo fileInfo) {
-        activityManager.register(new LoadUrlTorrentEvent() {
-            @Override
-            public TorrentInfo getTorrentInfo() {
-                return torrentInfo;
-            }
-
-            @Override
-            public TorrentFileInfo getTorrentFileInfo() {
-                return fileInfo;
-            }
-        });
+        eventPublisher.publishEvent(new LoadUrlTorrentEvent(this, torrentInfo, fileInfo));
     }
 
     private void updateStoreTorrent(boolean isStored) {
@@ -155,8 +134,7 @@ public class DetailsTorrentComponent implements Initializable {
     private void close() {
         reset();
 
-        activityManager.register(new CloseTorrentDetailsEvent() {
-        });
+        eventPublisher.publishEvent(new CloseTorrentDetailsEvent(this));
     }
 
     @FXML

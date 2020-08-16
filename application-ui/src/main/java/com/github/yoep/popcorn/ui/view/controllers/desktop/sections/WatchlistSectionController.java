@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.ui.events.ShowWatchlistEvent;
 import com.github.yoep.popcorn.ui.media.providers.MediaException;
@@ -23,19 +22,20 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
-import lombok.Builder;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
+@RequiredArgsConstructor
 public class WatchlistSectionController implements Initializable {
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final ViewLoader viewLoader;
     private final LocaleText localeText;
     private final TraktService traktService;
@@ -46,30 +46,12 @@ public class WatchlistSectionController implements Initializable {
     @FXML
     private InfiniteScrollPane<Media> scrollPane;
 
-    //region Constructors
+    //rgion Methods
 
-    @Builder
-    public WatchlistSectionController(ActivityManager activityManager,
-                                      ViewLoader viewLoader,
-                                      LocaleText localeText,
-                                      TraktService traktService,
-                                      ProviderService<Movie> movieProviderService,
-                                      ProviderService<Show> showProviderService,
-                                      ImageService imageService) {
-        Assert.notNull(activityManager, "activityManager cannot be null");
-        Assert.notNull(viewLoader, "viewLoader cannot be null");
-        Assert.notNull(localeText, "localeText cannot be null");
-        Assert.notNull(traktService, "traktService cannot be null");
-        Assert.notNull(movieProviderService, "movieProviderService cannot be null");
-        Assert.notNull(showProviderService, "showProviderService cannot be null");
-        Assert.notNull(imageService, "imageService cannot be null");
-        this.activityManager = activityManager;
-        this.viewLoader = viewLoader;
-        this.localeText = localeText;
-        this.traktService = traktService;
-        this.movieProviderService = movieProviderService;
-        this.showProviderService = showProviderService;
-        this.imageService = imageService;
+    @EventListener(ShowWatchlistEvent.class)
+    public void onShowWatchlist() {
+        scrollPane.reset();
+        scrollPane.loadNewPage();
     }
 
     //endregion
@@ -79,20 +61,6 @@ public class WatchlistSectionController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeScrollPane();
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        activityManager.register(ShowWatchlistEvent.class, this::loadWatchlist);
-    }
-
-    private void loadWatchlist(ShowWatchlistEvent activity) {
-        scrollPane.reset();
-        scrollPane.loadNewPage();
     }
 
     //endregion
@@ -159,7 +127,7 @@ public class WatchlistSectionController implements Initializable {
             return movieProviderService.getDetails(item.getMovie().getIds().getImdb()).get();
         } catch (InterruptedException | ExecutionException ex) {
             log.error(ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationEvent) () -> localeText.get(WatchlistMessage.FAILED_TO_PARSE_MOVIE));
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(WatchlistMessage.FAILED_TO_PARSE_MOVIE)));
             return null;
         }
     }

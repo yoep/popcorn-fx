@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.media.providers;
 
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.config.properties.ProviderProperties;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
@@ -11,6 +10,7 @@ import com.github.yoep.popcorn.ui.view.models.Genre;
 import com.github.yoep.popcorn.ui.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.ResponseEntity;
@@ -30,8 +30,10 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     private static final Category CATEGORY = Category.MOVIES;
     private final ProviderProperties providerConfig;
 
-    public MovieProviderService(RestTemplate restTemplate, ActivityManager activityManager, PopcornProperties popcornConfig) {
-        super(restTemplate, activityManager);
+    public MovieProviderService(RestTemplate restTemplate,
+                                ApplicationEventPublisher eventPublisher,
+                                PopcornProperties popcornConfig) {
+        super(restTemplate, eventPublisher);
         this.providerConfig = popcornConfig.getProvider(CATEGORY.getProviderName());
     }
 
@@ -70,7 +72,7 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     public void showDetails(Media media) {
         final Movie movie = (Movie) media;
 
-        activityManager.register((ShowMovieDetailsEvent) () -> movie);
+        eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, movie));
     }
 
     public Page<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

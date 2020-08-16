@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
@@ -14,6 +13,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.DirectoryChooser;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.File;
 import java.net.URL;
@@ -34,8 +34,8 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     @FXML
     private CheckBox clearCache;
 
-    public SettingsTorrentComponent(ActivityManager activityManager, LocaleText localeText, SettingsService settingsService) {
-        super(activityManager, localeText, settingsService);
+    public SettingsTorrentComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+        super(eventPublisher, localeText, settingsService);
     }
 
     @Override

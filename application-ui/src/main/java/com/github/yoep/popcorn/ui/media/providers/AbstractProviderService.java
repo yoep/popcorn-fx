@@ -1,11 +1,11 @@
 package com.github.yoep.popcorn.ui.media.providers;
 
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.view.models.Genre;
 import com.github.yoep.popcorn.ui.view.models.SortBy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.client.RestTemplate;
@@ -29,7 +29,7 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
     public static final int MAX_ITEMS = 50;
 
     protected final RestTemplate restTemplate;
-    protected final ActivityManager activityManager;
+    protected final ApplicationEventPublisher eventPublisher;
 
     protected URI getUriFor(URI baseUrl, String resource, Genre genre, SortBy sortBy, String keywords, int page) {
         log.trace("Creating uri for base \"{}\", resource \"{}\", genre \"{}\", sort \"{}\", keywords \"{}\" and page \"{}\"",

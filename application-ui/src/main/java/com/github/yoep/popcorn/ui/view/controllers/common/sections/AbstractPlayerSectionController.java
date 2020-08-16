@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.messages.VideoMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -31,19 +30,22 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebView;
 import javafx.util.Duration;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractPlayerSectionController implements Initializable {
     private static final int OVERLAY_FADE_DURATION = 1500;
     private static final int INFO_FADE_DURATION = 2000;
     private static final String BUFFER_STYLE_CLASS = "buffer";
 
-    protected final ActivityManager activityManager;
     protected final SettingsService settingsService;
     protected final VideoPlayerService videoPlayerService;
     protected final LocaleText localeText;
@@ -75,16 +77,11 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     @FXML
     protected SubtitleTrack subtitleTrack;
 
-    //region Constructors
+    //region Methods
 
-    protected AbstractPlayerSectionController(ActivityManager activityManager,
-                                              SettingsService settingsService,
-                                              VideoPlayerService videoPlayerService,
-                                              LocaleText localeText) {
-        this.activityManager = activityManager;
-        this.settingsService = settingsService;
-        this.videoPlayerService = videoPlayerService;
-        this.localeText = localeText;
+    @EventListener(ClosePlayerEvent.class)
+    public void onClosePlayer() {
+        onClose();
     }
 
     //endregion
@@ -163,12 +160,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     @PostConstruct
     private void init() {
         log.trace("Initializing video player component for Spring");
-        initializeListeners();
         initializeVideoListeners();
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ClosePlayerEvent.class, this::onClose);
     }
 
     private void initializeVideoListeners() {
@@ -323,7 +315,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         subtitleTrack.onTimeChanged(newValue.longValue());
     }
 
-    private void onClose(ClosePlayerEvent activity) {
+    private void onClose() {
         reset();
     }
 

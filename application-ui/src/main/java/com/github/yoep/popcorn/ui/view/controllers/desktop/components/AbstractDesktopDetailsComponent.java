@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -27,6 +26,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
@@ -43,7 +43,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected static final String LIKED_STYLE_CLASS = "liked";
     protected static final String QUALITY_ACTIVE_CLASS = "active";
 
-    protected final ActivityManager activityManager;
+    protected final ApplicationEventPublisher eventPublisher;
     protected final LocaleText localeText;
     protected final SubtitleService subtitleService;
     protected final SubtitlePickerService subtitlePickerService;
@@ -63,7 +63,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     //region Constructors
 
-    protected AbstractDesktopDetailsComponent(ActivityManager activityManager,
+    protected AbstractDesktopDetailsComponent(ApplicationEventPublisher eventPublisher,
                                               LocaleText localeText,
                                               TorrentService torrentService,
                                               SubtitleService subtitleService,
@@ -71,7 +71,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               ImageService imageService,
                                               SettingsService settingsService) {
         super(localeText, imageService, torrentService, settingsService);
-        this.activityManager = activityManager;
+        this.eventPublisher = eventPublisher;
         this.localeText = localeText;
         this.subtitleService = subtitleService;
         this.subtitlePickerService = subtitlePickerService;
@@ -118,7 +118,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     }
 
     protected void openMagnetLink(MediaTorrentInfo torrentInfo) {
-        activityManager.register((OpenMagnetLinkEvent) torrentInfo::getUrl);
+        eventPublisher.publishEvent(new OpenMagnetLinkEvent(this, torrentInfo.getUrl()));
     }
 
     protected void copyMagnetLink(MediaTorrentInfo torrentInfo) {
@@ -127,7 +127,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         clipboardContent.putString(torrentInfo.getUrl());
         Clipboard.getSystemClipboard().setContent(clipboardContent);
 
-        activityManager.register((SuccessNotificationEvent) () -> localeText.get(DetailsMessage.MAGNET_LINK_COPIED_TO_CLIPBOARD));
+        eventPublisher.publishEvent(new SuccessNotificationEvent(this, localeText.get(DetailsMessage.MAGNET_LINK_COPIED_TO_CLIPBOARD)));
     }
 
     /**

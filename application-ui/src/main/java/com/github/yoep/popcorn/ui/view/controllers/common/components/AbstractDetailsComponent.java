@@ -17,6 +17,8 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
@@ -30,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractDetailsComponent<T extends Media> {
     private static final String POSTER_HOLDER_URI = "/images/posterholder.png";
     private static final Image POSTER_HOLDER = loadPosterHolder();
@@ -53,21 +56,6 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     protected BackgroundImageCover backgroundImage;
 
     private CompletableFuture<TorrentHealth> healthFuture;
-
-    //region Constructors
-
-    protected AbstractDetailsComponent(LocaleText localeText, ImageService imageService, TorrentService torrentService, SettingsService settingsService) {
-        Assert.notNull(localeText, "localeText cannot be null");
-        Assert.notNull(imageService, "imageService cannot be null");
-        Assert.notNull(torrentService, "torrentService cannot be null");
-        Assert.notNull(settingsService, "settingsService cannot be null");
-        this.localeText = localeText;
-        this.imageService = imageService;
-        this.torrentService = torrentService;
-        this.settingsService = settingsService;
-    }
-
-    //endregion
 
     //region Methods
 

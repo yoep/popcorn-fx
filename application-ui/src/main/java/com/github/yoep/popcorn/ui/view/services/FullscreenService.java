@@ -85,9 +85,11 @@ public class FullscreenService {
         });
     }
 
-    @EventListener(condition = "!optionsService.options().isKioskMode()")
-    public void onClosePlayer(ClosePlayerEvent event) {
-        Platform.runLater(() -> primaryStage.setFullScreen(false));
+    @EventListener(ClosePlayerEvent.class)
+    public void onClosePlayer() {
+        if (!optionsService.options().isKioskMode()) {
+            Platform.runLater(() -> primaryStage.setFullScreen(false));
+        }
     }
 
     //endregion

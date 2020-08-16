@@ -8,16 +8,15 @@ import javafx.fxml.Initializable;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @RequiredArgsConstructor
 public class ContentSectionController implements Initializable {
-    private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
 
@@ -28,6 +27,35 @@ public class ContentSectionController implements Initializable {
 
     @FXML
     private Pane contentPane;
+
+    //region Methods
+
+    @EventListener(ShowSettingsEvent.class)
+    public void onShowSettings() {
+        switchContent(ContentType.SETTINGS);
+    }
+
+    @EventListener(ShowDetailsEvent.class)
+    public void onShowDetails() {
+        switchContent(ContentType.DETAILS);
+    }
+
+    @EventListener(CategoryChangedEvent.class)
+    public void onCategoryChanged() {
+        switchContent(ContentType.LIST);
+    }
+
+    @EventListener(CloseDetailsEvent.class)
+    public void onCloseDetails() {
+        switchContent(ContentType.LIST);
+    }
+
+    @EventListener(CloseSettingsEvent.class)
+    public void onCloseSettings() {
+        switchContent(ContentType.LIST);
+    }
+
+    //endregion
 
     //region Initializable
 
@@ -48,24 +76,6 @@ public class ContentSectionController implements Initializable {
             setAnchor(detailsPane);
             setAnchor(settingsPane);
         });
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        initializeListeners();
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ShowSettingsEvent.class, activity -> switchContent(ContentType.SETTINGS));
-        activityManager.register(ShowDetailsEvent.class, activity -> switchContent(ContentType.DETAILS));
-        activityManager.register(CategoryChangedEvent.class, activity -> switchContent(ContentType.LIST));
-
-        activityManager.register(CloseDetailsEvent.class, activity -> switchContent(ContentType.LIST));
-        activityManager.register(CloseSettingsEvent.class, activity -> switchContent(ContentType.LIST));
     }
 
     //endregion

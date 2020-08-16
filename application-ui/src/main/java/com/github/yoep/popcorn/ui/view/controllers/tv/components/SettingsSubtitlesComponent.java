@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.ui.subtitles.models.DecorationType;
@@ -11,6 +10,7 @@ import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSet
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -28,8 +28,8 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
 
     //region Constructors
 
-    public SettingsSubtitlesComponent(ActivityManager activityManager, LocaleText localeText, SettingsService settingsService) {
-        super(activityManager, localeText, settingsService);
+    public SettingsSubtitlesComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+        super(eventPublisher, localeText, settingsService);
     }
 
     //endregion

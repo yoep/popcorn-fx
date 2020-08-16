@@ -2,16 +2,18 @@ package com.github.yoep.popcorn.ui.events;
 
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.subtitles.Subtitle;
+import com.github.yoep.torrent.adapter.model.Torrent;
+import com.github.yoep.torrent.adapter.model.TorrentStream;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
 
 import java.util.Optional;
 
 @Getter
 @EqualsAndHashCode(callSuper = false)
-public class PlayMediaEvent extends PlayVideoEvent {
+public class PlayMediaEvent extends PlayTorrentEvent {
     /**
      * The media that needs to be played.
      */
@@ -28,10 +30,17 @@ public class PlayMediaEvent extends PlayVideoEvent {
     @Nullable
     private final Subtitle subtitle;
 
-    public PlayMediaEvent(Object source, String url, String title, boolean subtitlesEnabled, Media media, String quality, @Nullable Subtitle subtitle) {
-        super(source, url, title, subtitlesEnabled);
-        Assert.notNull(media, "media cannot be null");
-        Assert.notNull(quality, "quality cannot be null");
+    @Builder(builderMethodName = "mediaBuilder")
+    public PlayMediaEvent(Object source,
+                          String url,
+                          String title,
+                          boolean subtitlesEnabled,
+                          Torrent torrent,
+                          TorrentStream torrentStream,
+                          Media media,
+                          String quality,
+                          @Nullable Subtitle subtitle) {
+        super(source, url, title, subtitlesEnabled, torrent, torrentStream);
         this.media = media;
         this.quality = quality;
         this.subtitle = subtitle;

@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
-import com.github.yoep.popcorn.ui.events.PlayMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
@@ -38,17 +38,17 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.util.Assert;
 
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
 public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderComponent implements Initializable {
-    protected final ActivityManager activityManager;
+    protected final ApplicationEventPublisher eventPublisher;
     protected final ImageService imageService;
     protected final SubtitleService subtitleService;
     protected final TaskExecutor taskExecutor;
@@ -87,14 +87,16 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
 
     //region Constructors
 
-    protected AbstractLoaderTorrentComponent(LocaleText localeText, TorrentService torrentService, TorrentStreamService torrentStreamService, ActivityManager activityManager, ImageService imageService, SubtitleService subtitleService, TaskExecutor taskExecutor, SettingsService settingsService) {
+    protected AbstractLoaderTorrentComponent(LocaleText localeText,
+                                             TorrentService torrentService,
+                                             TorrentStreamService torrentStreamService,
+                                             ApplicationEventPublisher eventPublisher,
+                                             ImageService imageService,
+                                             SubtitleService subtitleService,
+                                             TaskExecutor taskExecutor,
+                                             SettingsService settingsService) {
         super(localeText, torrentService, torrentStreamService);
-        Assert.notNull(activityManager, "activityManager cannot be null");
-        Assert.notNull(imageService, "imageService cannot be null");
-        Assert.notNull(subtitleService, "subtitleService cannot be null");
-        Assert.notNull(taskExecutor, "taskExecutor cannot be null");
-        Assert.notNull(settingsService, "settingsService cannot be null");
-        this.activityManager = activityManager;
+        this.eventPublisher = eventPublisher;
         this.imageService = imageService;
         this.subtitleService = subtitleService;
         this.taskExecutor = taskExecutor;
@@ -195,9 +197,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
             torrentStreamService.stopStream(torrentStream);
         }
 
-        activityManager.register(new CloseLoadEvent() {
-        });
-
+        eventPublisher.publishEvent(new CloseLoadEvent(this));
         reset();
     }
 
@@ -278,92 +278,23 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
     }
 
     private void invokePlayVideoActivity() {
-        // store information locally
         var url = torrentStream.getStreamUrl();
-        var torrent = this.torrent;
-        var torrentStream = this.torrentStream;
-        var title = this.title;
 
-        activityManager.register(new PlayVideoTorrentEvent() {
-            @Override
-            public Torrent getTorrent() {
-                return torrent;
-            }
-
-            @Override
-            public TorrentStream getTorrentStream() {
-                return torrentStream;
-            }
-
-            @Override
-            public String getUrl() {
-                return url;
-            }
-
-            @Override
-            public String getTitle() {
-                return title;
-            }
-
-            @Override
-            public boolean isSubtitlesEnabled() {
-                return true;
-            }
-        });
+        eventPublisher.publishEvent(new PlayVideoTorrentEvent(this, url, title, true, torrent, torrentStream));
     }
 
     private void invokePlayMediaActivity() {
-        // store information locally
-        var url = torrentStream.getStreamUrl();
-        var torrent = this.torrent;
-        var torrentStream = this.torrentStream;
-        var title = this.title;
-        var media = this.media;
-        var quality = this.quality;
-        var subtitle = this.subtitle;
-
-        activityManager.register(new PlayMediaTorrentEvent() {
-            @Override
-            public Torrent getTorrent() {
-                return torrent;
-            }
-
-            @Override
-            public TorrentStream getTorrentStream() {
-                return torrentStream;
-            }
-
-            @Override
-            public String getUrl() {
-                return url;
-            }
-
-            @Override
-            public String getTitle() {
-                return title;
-            }
-
-            @Override
-            public boolean isSubtitlesEnabled() {
-                return true;
-            }
-
-            @Override
-            public Media getMedia() {
-                return media;
-            }
-
-            @Override
-            public String getQuality() {
-                return quality;
-            }
-
-            @Override
-            public Optional<Subtitle> getSubtitle() {
-                return Optional.ofNullable(subtitle)
-                        .or(() -> Optional.of(Subtitle.none()));
-            }
-        });
+        eventPublisher.publishEvent(PlayMediaEvent.mediaBuilder()
+                .source(this)
+                .media(media)
+                .quality(quality)
+                .subtitle(subtitle)
+                .subtitlesEnabled(true)
+                .title(title)
+                .torrent(torrent)
+                .torrentStream(torrentStream)
+                .url(torrentStream.getStreamUrl())
+                .build());
     }
 
     private TorrentListener createTorrentListener() {

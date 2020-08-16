@@ -8,7 +8,6 @@ import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -32,8 +31,9 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Optional;
@@ -72,18 +72,21 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     //region Constructors
 
-    public MovieDetailsComponent(ActivityManager activityManager,
-                                 LocaleText localeText,
-                                 TorrentService torrentService,
-                                 SubtitleService subtitleService,
-                                 SubtitlePickerService subtitlePickerService,
-                                 FavoriteService favoriteService,
-                                 WatchedService watchedService,
-                                 ImageService imageService,
-                                 SettingsService settingsService) {
-        super(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService);
+    public MovieDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, TorrentService torrentService,
+                                 SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
+                                 SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService) {
+        super(eventPublisher, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener
+    public void onShowMovieDetails(ShowMovieDetailsEvent event) {
+        Platform.runLater(() -> load(event.getMedia()));
     }
 
     //endregion
@@ -135,20 +138,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
         qualitySelectionPane.getChildren().clear();
         poster.setImage(null);
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        initializeListeners();
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ShowMovieDetailsEvent.class, activity ->
-                Platform.runLater(() -> load(activity.getMedia())));
     }
 
     //endregion
@@ -271,49 +260,17 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @FXML
     private void onWatchNowClicked(MouseEvent event) {
+        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+
         event.consume();
-        activityManager.register(new LoadMediaTorrentEvent() {
-            @Override
-            public String getQuality() {
-                return quality;
-            }
-
-            @Override
-            public Media getMedia() {
-                return media;
-            }
-
-            @Override
-            public MediaTorrentInfo getTorrent() {
-                return media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-            }
-
-            @Override
-            public Optional<SubtitleInfo> getSubtitle() {
-                return Optional.ofNullable(subtitle);
-            }
-        });
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, quality, subtitle));
     }
 
     @FXML
     private void onTrailerClicked(MouseEvent event) {
         event.consume();
-        activityManager.register(new PlayVideoEvent() {
-            @Override
-            public String getUrl() {
-                return media.getTrailer();
-            }
 
-            @Override
-            public String getTitle() {
-                return media.getTitle();
-            }
-
-            @Override
-            public boolean isSubtitlesEnabled() {
-                return false;
-            }
-        });
+        eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false));
     }
 
     @FXML
@@ -345,8 +302,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private void close(MouseEvent event) {
         event.consume();
-        activityManager.register(new CloseDetailsEvent() {
-        });
+        eventPublisher.publishEvent(new CloseDetailsEvent(this));
         reset();
     }
 

@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.StartScreen;
 import com.github.yoep.popcorn.ui.settings.models.UIScale;
@@ -11,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListCell;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.URL;
 import java.util.Locale;
@@ -24,10 +24,8 @@ public class SettingsUIComponent extends AbstractSettingsComponent implements In
     @FXML
     private ComboBox<StartScreen> startScreen;
 
-    public SettingsUIComponent(ActivityManager activityManager,
-                               LocaleText localeText,
-                               SettingsService settingsService) {
-        super(activityManager, localeText, settingsService);
+    public SettingsUIComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+        super(eventPublisher, localeText, settingsService);
     }
 
     @Override

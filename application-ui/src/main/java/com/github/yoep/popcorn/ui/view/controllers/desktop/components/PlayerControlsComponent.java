@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
@@ -23,6 +22,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
+import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.Collections;
@@ -48,15 +48,41 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
 
     //region Constructors
 
-    public PlayerControlsComponent(ActivityManager activityManager,
-                                   VideoPlayerService videoPlayerService,
+    public PlayerControlsComponent(VideoPlayerService videoPlayerService,
                                    SubtitleService subtitleService,
                                    LocaleText localeText) {
-        super(activityManager, videoPlayerService);
+        super(videoPlayerService);
         this.subtitleService = subtitleService;
         this.localeText = localeText;
     }
 
+    //endregion
+
+    //region Methods
+
+    @EventListener
+    public void onPlayVideo(PlayVideoEvent activity) {
+        // update the visibility of the subtitles section
+        Platform.runLater(() -> subtitleSection.setVisible(activity.isSubtitlesEnabled()));
+
+        // check if the activity contains media information
+        if (activity instanceof PlayMediaEvent) {
+            var mediaActivity = (PlayMediaEvent) activity;
+            onPlayMedia(mediaActivity);
+            return;
+        }
+
+        if (activity.isSubtitlesEnabled()) {
+            // set the default subtitle to "none" when loading
+            SubtitleInfo defaultSubtitle = SubtitleInfo.none();
+            updateAvailableSubtitles(Collections.singletonList(defaultSubtitle), defaultSubtitle);
+
+            String filename = FilenameUtils.getName(activity.getUrl());
+
+            log.debug("Retrieving subtitles for \"{}\"", filename);
+            subtitleService.retrieveSubtitles(filename).whenComplete(this::handleSubtitlesResponse);
+        }
+    }
 
     //endregion
 
@@ -100,12 +126,6 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     //endregion
 
     //region PostConstruct
-
-    @Override
-    protected void initializeActivityListeners() {
-        super.initializeActivityListeners();
-        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
-    }
 
     @Override
     protected void initializeVideoListeners() {
@@ -152,29 +172,6 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
         languageSelection.addListener(this::onSubtitleChanged);
         videoPlayerService.subtitleProperty().addListener((observable, oldValue, newValue) ->
                 languageSelection.select(newValue.getSubtitleInfo().orElse(SubtitleInfo.none())));
-    }
-
-    private void onPlayVideo(PlayVideoEvent activity) {
-        // update the visibility of the subtitles section
-        Platform.runLater(() -> subtitleSection.setVisible(activity.isSubtitlesEnabled()));
-
-        // check if the activity contains media information
-        if (activity instanceof PlayMediaEvent) {
-            var mediaActivity = (PlayMediaEvent) activity;
-            onPlayMedia(mediaActivity);
-            return;
-        }
-
-        if (activity.isSubtitlesEnabled()) {
-            // set the default subtitle to "none" when loading
-            SubtitleInfo defaultSubtitle = SubtitleInfo.none();
-            updateAvailableSubtitles(Collections.singletonList(defaultSubtitle), defaultSubtitle);
-
-            String filename = FilenameUtils.getName(activity.getUrl());
-
-            log.debug("Retrieving subtitles for \"{}\"", filename);
-            subtitleService.retrieveSubtitles(filename).whenComplete(this::handleSubtitlesResponse);
-        }
     }
 
     private void onPlayMedia(PlayMediaEvent activity) {

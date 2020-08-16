@@ -8,7 +8,6 @@ import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -30,8 +29,9 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -45,7 +45,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private static final String SUBTITLE_SUCCESS_STYLE_CLASS = "success";
     private static final String SUBTITLE_FAILED_STYLE_CLASS = "failed";
 
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final SubtitleService subtitleService;
     private final FavoriteService favoriteService;
 
@@ -80,17 +80,21 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     //region Constructors
 
-    public MovieDetailsComponent(LocaleText localeText,
-                                 ActivityManager activityManager,
-                                 SubtitleService subtitleService,
-                                 FavoriteService favoriteService,
-                                 TorrentService torrentService,
-                                 ImageService imageService,
-                                 SettingsService settingsService) {
+    public MovieDetailsComponent(LocaleText localeText, ImageService imageService, TorrentService torrentService, SettingsService settingsService,
+                                 ApplicationEventPublisher eventPublisher, SubtitleService subtitleService, FavoriteService favoriteService) {
         super(localeText, imageService, torrentService, settingsService);
-        this.activityManager = activityManager;
+        this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
         this.favoriteService = favoriteService;
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener
+    public void onShowMovieDetails(ShowMovieDetailsEvent event) {
+        Platform.runLater(() -> load(event.getMedia()));
     }
 
     //endregion
@@ -146,16 +150,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     //endregion
 
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        activityManager.register(ShowMovieDetailsEvent.class, activity ->
-                Platform.runLater(() -> load(activity.getMedia())));
-    }
-
-    //endregion
-
     //region Functions
 
     private void loadText() {
@@ -206,46 +200,13 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void onPlay() {
-        activityManager.register(new LoadMediaTorrentEvent() {
-            @Override
-            public String getQuality() {
-                return quality;
-            }
+        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
 
-            @Override
-            public Media getMedia() {
-                return media;
-            }
-
-            @Override
-            public MediaTorrentInfo getTorrent() {
-                return media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-            }
-
-            @Override
-            public Optional<SubtitleInfo> getSubtitle() {
-                return Optional.ofNullable(subtitle);
-            }
-        });
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, quality, subtitle));
     }
 
     private void onWatchTrailer() {
-        activityManager.register(new PlayVideoEvent() {
-            @Override
-            public String getUrl() {
-                return media.getTrailer();
-            }
-
-            @Override
-            public String getTitle() {
-                return media.getTitle();
-            }
-
-            @Override
-            public boolean isSubtitlesEnabled() {
-                return false;
-            }
-        });
+        eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false));
     }
 
     private void onQuality() {
@@ -274,8 +235,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     private void onClose() {
-        activityManager.register(new CloseDetailsEvent() {
-        });
+        eventPublisher.publishEvent(new CloseDetailsEvent(this));
     }
 
     private void switchFavorite(boolean isLiked) {

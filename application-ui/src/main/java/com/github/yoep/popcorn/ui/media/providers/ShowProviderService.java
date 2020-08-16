@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.ui.media.providers;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.config.properties.ProviderProperties;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -14,6 +13,7 @@ import com.github.yoep.popcorn.ui.view.models.Genre;
 import com.github.yoep.popcorn.ui.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.ResponseEntity;
@@ -36,10 +36,10 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     private final LocaleText localeText;
 
     public ShowProviderService(RestTemplate restTemplate,
-                               ActivityManager activityManager,
+                               ApplicationEventPublisher eventPublisher,
                                PopcornProperties popcornConfig,
                                LocaleText localeText) {
-        super(restTemplate, activityManager);
+        super(restTemplate, eventPublisher);
         this.providerConfig = popcornConfig.getProvider(CATEGORY.getProviderName());
         this.localeText = localeText;
     }
@@ -68,10 +68,10 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     public void showDetails(Media media) {
         try {
             var show = getDetailsInternal(media.getId());
-            activityManager.register((ShowSerieDetailsEvent) () -> show);
+            eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, show));
         } catch (Exception ex) {
             log.error("Failed to load show details, " + ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationEvent) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
         }
     }
 

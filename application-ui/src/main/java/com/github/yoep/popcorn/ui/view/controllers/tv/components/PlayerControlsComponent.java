@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractPlayerControlsComponent;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
@@ -11,6 +10,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 
 @Slf4j
 public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
@@ -20,8 +20,17 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
 
     //region Constructors
 
-    public PlayerControlsComponent(ActivityManager activityManager, VideoPlayerService videoPlayerService) {
-        super(activityManager, videoPlayerService);
+    public PlayerControlsComponent(VideoPlayerService videoPlayerService) {
+        super(videoPlayerService);
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener(PlayVideoEvent.class)
+    public void onPlayVideo() {
+        Platform.runLater(() -> playPauseIcon.requestFocus());
     }
 
     //endregion
@@ -53,21 +62,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
 
     //endregion
 
-    //region PostConstruct
-
-    @Override
-    protected void initializeActivityListeners() {
-        super.initializeActivityListeners();
-        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
-    }
-
-    //endregion
-
     //region Functions
-
-    private void onPlayVideo(PlayVideoEvent activity) {
-        Platform.runLater(() -> playPauseIcon.requestFocus());
-    }
 
     private void onPlayPause() {
         videoPlayerService.changePlayPauseState();
@@ -79,10 +74,6 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
 
     private void onForward() {
         videoPlayerService.videoTimeOffset(5000);
-    }
-
-    private void onClose() {
-        videoPlayerService.close();
     }
 
     @FXML

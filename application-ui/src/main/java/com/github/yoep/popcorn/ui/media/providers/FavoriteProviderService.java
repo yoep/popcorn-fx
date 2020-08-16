@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.media.providers;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -13,6 +12,7 @@ import com.github.yoep.popcorn.ui.view.models.Category;
 import com.github.yoep.popcorn.ui.view.models.Genre;
 import com.github.yoep.popcorn.ui.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -35,12 +35,12 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     private final LocaleText localeText;
 
     public FavoriteProviderService(RestTemplate restTemplate,
-                                   ActivityManager activityManager,
+                                   ApplicationEventPublisher eventPublisher,
                                    FavoriteService favoriteService,
                                    WatchedService watchedService,
                                    List<ProviderService<?>> providers,
                                    LocaleText localeText) {
-        super(restTemplate, activityManager);
+        super(restTemplate, eventPublisher);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
         this.providers = providers;
@@ -123,7 +123,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
             provider.showDetails(media);
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
-            activityManager.register((ErrorNotificationEvent) () -> localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD));
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
         }
     }
 

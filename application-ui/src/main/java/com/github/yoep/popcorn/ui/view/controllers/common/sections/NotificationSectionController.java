@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.NotificationEvent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.NotificationComponent;
 import javafx.animation.Animation;
@@ -13,29 +12,23 @@ import javafx.fxml.FXML;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
-
-import javax.annotation.PostConstruct;
+import org.springframework.context.event.EventListener;
 
 @ViewController
 @RequiredArgsConstructor
 public class NotificationSectionController {
     private static final int SAFETY_OFFSET = 20;
 
-    private final ActivityManager activityManager;
     private final ViewLoader viewLoader;
 
     @FXML
     private Pane rootPane;
 
-    //region PostConstruct
+    //region Methods
 
-    @PostConstruct
-    private void init() {
-        initializeEventListeners();
-    }
-
-    private void initializeEventListeners() {
-        activityManager.register(NotificationEvent.class, this::displayNotification);
+    @EventListener
+    public void onNotification(NotificationEvent event) {
+        displayNotification(event);
     }
 
     //endregion

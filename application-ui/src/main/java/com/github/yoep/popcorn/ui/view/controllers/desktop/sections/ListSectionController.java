@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -27,13 +26,12 @@ public class ListSectionController extends AbstractListSectionController impleme
     //region Constructors
 
     @Builder
-    public ListSectionController(ActivityManager activityManager,
-                                 List<ProviderService<? extends Media>> providerServices,
+    public ListSectionController(List<ProviderService<? extends Media>> providerServices,
                                  FavoriteService favoriteService,
                                  WatchedService watchedService,
                                  ViewLoader viewLoader,
                                  LocaleText localeText, ImageService imageService) {
-        super(activityManager, providerServices, viewLoader, localeText);
+        super(providerServices, viewLoader, localeText);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
         this.imageService = imageService;

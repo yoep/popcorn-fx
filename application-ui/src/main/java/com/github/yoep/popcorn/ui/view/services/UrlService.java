@@ -74,12 +74,7 @@ public class UrlService {
 
             if (isWebUrl(type)) {
                 log.debug("Opening web url: {}", url);
-                eventPublisher.publishEvent(PlayVideoEvent.builder()
-                        .source(this)
-                        .url(url)
-                        .title("")
-                        .subtitlesEnabled(false)
-                        .build());
+                eventPublisher.publishEvent(new PlayVideoEvent(this, url, "", false));
 
                 return true;
             } else if (isMagnetLink(type)) {
@@ -95,12 +90,7 @@ public class UrlService {
                     try {
                         if (isVideoFile(file)) {
                             log.debug("Opening video file: {}", url);
-                            eventPublisher.publishEvent(PlayVideoEvent.builder()
-                                    .source(this)
-                                    .url(url)
-                                    .title(FilenameUtils.getBaseName(url))
-                                    .subtitlesEnabled(false)
-                                    .build());
+                            eventPublisher.publishEvent(new PlayVideoEvent(this, url, FilenameUtils.getBaseName(url), false));
 
                             return true;
                         }

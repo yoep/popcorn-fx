@@ -18,15 +18,14 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
 @RequiredArgsConstructor
 public class PlayerHeaderComponent implements Initializable {
-    private final ActivityManager activityManager;
     private final VideoPlayerService videoPlayerService;
     private final LocaleText localeText;
 
@@ -38,6 +37,32 @@ public class PlayerHeaderComponent implements Initializable {
     private Label quality;
     @FXML
     private StreamInfo streamInfo;
+
+    //region Methods
+
+    @EventListener
+    public void onPlayVideo(PlayVideoEvent event) {
+        // set the title of the video as it should be always present
+        Platform.runLater(() -> {
+            this.title.setText(event.getTitle());
+            this.quality.setVisible(false);
+        });
+    }
+
+    @EventListener
+    public void onPlayMedia(PlayMediaEvent event) {
+        Platform.runLater(() -> {
+            this.quality.setText(event.getQuality());
+            this.quality.setVisible(true);
+        });
+    }
+
+    @EventListener
+    public void onPlayTorrent(PlayTorrentEvent event) {
+        showTorrentProgress(event.getTorrent());
+    }
+
+    //endregion
 
     //region Initializable
 
@@ -53,51 +78,7 @@ public class PlayerHeaderComponent implements Initializable {
 
     //endregion
 
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        initializeActivityListeners();
-    }
-
-    private void initializeActivityListeners() {
-        activityManager.register(PlayVideoEvent.class, this::onPlayVideo);
-        activityManager.register(ClosePlayerEvent.class, this::onClose);
-    }
-
-    //endregion
-
     //region Functions
-
-    private void onPlayVideo(PlayVideoEvent activity) {
-        // set the title of the video as it should be always present
-        Platform.runLater(() -> {
-            this.title.setText(activity.getTitle());
-            this.quality.setVisible(false);
-        });
-
-        // check if the video contains media information
-        // if so, update additional information of the media
-        if (activity instanceof PlayMediaEvent) {
-            var mediaActivity = (PlayMediaEvent) activity;
-            onPlayMedia(mediaActivity);
-        }
-
-        // check if the activity contains torrent information
-        if (PlayTorrentEvent.class.isAssignableFrom(activity.getClass())) {
-            var torrentActivity = (PlayTorrentEvent) activity;
-            var torrent = torrentActivity.getTorrent();
-
-            showTorrentProgress(torrent);
-        }
-    }
-
-    private void onPlayMedia(PlayMediaEvent activity) {
-        Platform.runLater(() -> {
-            this.quality.setText(activity.getQuality());
-            this.quality.setVisible(true);
-        });
-    }
 
     private void onClose(ClosePlayerEvent activity) {
         reset();

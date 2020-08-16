@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
@@ -35,9 +34,10 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.util.CollectionUtils;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -91,18 +91,21 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     //region Constructors
 
-    public ShowDetailsComponent(ActivityManager activityManager,
-                                LocaleText localeText,
-                                TorrentService torrentService,
-                                SubtitleService subtitleService,
-                                SubtitlePickerService subtitlePickerService,
-                                FavoriteService favoriteService,
-                                WatchedService watchedService,
-                                ImageService imageService,
-                                SettingsService settingsService) {
-        super(activityManager, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService);
+    public ShowDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, TorrentService torrentService,
+                                SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
+                                SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService) {
+        super(eventPublisher, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener
+    public void onShowSerieDetails(ShowSerieDetailsEvent event) {
+        Platform.runLater(() -> load(event.getMedia()));
     }
 
     //endregion
@@ -148,19 +151,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         initializeSeasons();
         initializeEpisodes();
         initializeLanguageSelection();
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    public void init() {
-        initializeListeners();
-    }
-
-    private void initializeListeners() {
-        activityManager.register(ShowSerieDetailsEvent.class, activity -> Platform.runLater(() -> load(activity.getMedia())));
     }
 
     //endregion
@@ -415,33 +405,15 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     @FXML
     private void onWatchNowClicked() {
-        activityManager.register(new LoadMediaTorrentEvent() {
-            @Override
-            public MediaTorrentInfo getTorrent() {
-                return episode.getTorrents().get(quality);
-            }
+        var mediaTorrentInfo = episode.getTorrents().get(quality);
 
-            @Override
-            public Media getMedia() {
-                return episode;
-            }
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, episode, quality, subtitle));
 
-            @Override
-            public String getQuality() {
-                return quality;
-            }
-
-            @Override
-            public Optional<SubtitleInfo> getSubtitle() {
-                return Optional.ofNullable(subtitle);
-            }
-        });
     }
 
     @FXML
     private void close() {
-        activityManager.register(new CloseDetailsEvent() {
-        });
+        eventPublisher.publishEvent(new CloseDetailsEvent(this));
         reset();
     }
 

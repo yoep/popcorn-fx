@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
@@ -11,6 +10,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListCell;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -27,8 +27,8 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
 
     //region Constructors
 
-    public SettingsPlaybackComponent(ActivityManager activityManager, LocaleText localeText, SettingsService settingsService) {
-        super(activityManager, localeText, settingsService);
+    public SettingsPlaybackComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+        super(eventPublisher, localeText, settingsService);
     }
 
     //endregion

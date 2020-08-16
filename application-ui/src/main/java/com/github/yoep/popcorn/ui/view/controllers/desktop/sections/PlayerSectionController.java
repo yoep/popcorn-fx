@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractPlayerSectionController;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
@@ -16,11 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 public class PlayerSectionController extends AbstractPlayerSectionController {
     //region Constructors
 
-    public PlayerSectionController(ActivityManager activityManager,
-                                   SettingsService settingsService,
+    public PlayerSectionController(SettingsService settingsService,
                                    VideoPlayerService videoPlayerService,
                                    LocaleText localeText) {
-        super(activityManager, settingsService, videoPlayerService, localeText);
+        super(settingsService, videoPlayerService, localeText);
     }
 
     //endregion

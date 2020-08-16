@@ -19,18 +19,18 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class MenuSectionController extends AbstractFilterSectionController implements Initializable {
     private static final String ACTIVE_STYLE_CLASS = "active";
 
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final PopcornProperties properties;
 
     @FXML
@@ -52,9 +52,9 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     @FXML
     private DelayedTextField searchField;
 
-    public MenuSectionController(ActivityManager activityManager, SettingsService settingsService, PopcornProperties properties) {
+    public MenuSectionController(SettingsService settingsService, ApplicationEventPublisher eventPublisher, PopcornProperties properties) {
         super(settingsService);
-        this.activityManager = activityManager;
+        this.eventPublisher = eventPublisher;
         this.properties = properties;
     }
 
@@ -82,7 +82,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     }
 
     private void initializeSearch() {
-        searchField.valueProperty().addListener((observable, oldValue, newValue) -> activityManager.register((SearchEvent) () -> newValue));
+        searchField.valueProperty().addListener((observable, oldValue, newValue) -> eventPublisher.publishEvent(new SearchEvent(this, newValue)));
     }
 
     @Override
@@ -110,7 +110,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     }
 
     private void switchCategory(Pane categoryPane) {
-        final var category = new AtomicReference<>(Category.MOVIES);
+        var category = Category.MOVIES;
 
         moviesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         seriesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
@@ -119,30 +119,32 @@ public class MenuSectionController extends AbstractFilterSectionController imple
         categoryPane.getStyleClass().add(ACTIVE_STYLE_CLASS);
 
         if (categoryPane == seriesCategory) {
-            category.set(Category.SERIES);
+            category = Category.SERIES;
         }
         if (categoryPane == favoritesCategory) {
-            category.set(Category.FAVORITES);
+            category = Category.FAVORITES;
         }
 
-        activityManager.register((CategoryChangedEvent) category::get);
-        updateGenres(category.get());
-        updateSortBy(category.get());
+        eventPublisher.publishEvent(new CategoryChangedEvent(this, category));
+        updateGenres(category);
+        updateSortBy(category);
         clearSearch();
     }
 
     //TODO: find a clever way to incorporate this into the UI
     private void updateGenres(Category category) {
         var providerProperties = properties.getProvider(category.getProviderName());
+        var genre = new Genre(providerProperties.getGenres().get(0), null);
 
-        activityManager.register((GenreChangeEvent) () -> new Genre(providerProperties.getGenres().get(0), null));
+        eventPublisher.publishEvent(new GenreChangeEvent(this, genre));
     }
 
     //TODO: find a clever way to incorporate this into the UI
     private void updateSortBy(Category category) {
         var providerProperties = properties.getProvider(category.getProviderName());
+        var sortBy = new SortBy(providerProperties.getSortBy().get(0), null);
 
-        activityManager.register((SortByChangeEvent) () -> new SortBy(providerProperties.getSortBy().get(0), null));
+        eventPublisher.publishEvent(new SortByChangeEvent(this, sortBy));
     }
 
     private void clearSearch() {
@@ -150,8 +152,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     }
 
     private void showSettings() {
-        activityManager.register(new ShowSettingsEvent() {
-        });
+        eventPublisher.publishEvent(new ShowSettingsEvent(this));
     }
 
     private void focusSearchField() {

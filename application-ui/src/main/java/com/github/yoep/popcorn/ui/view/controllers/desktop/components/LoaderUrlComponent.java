@@ -1,60 +1,43 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ActivityManager;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
-import com.github.yoep.torrent.adapter.model.TorrentInfo;
 import com.github.yoep.torrent.adapter.state.SessionState;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
-
-import javax.annotation.PostConstruct;
 
 @Slf4j
 public class LoaderUrlComponent extends AbstractLoaderComponent {
-    private final ActivityManager activityManager;
+    private final ApplicationEventPublisher eventPublisher;
     private final TaskExecutor taskExecutor;
 
     private Thread torrentThread;
 
     //region Constructors
 
-    public LoaderUrlComponent(LocaleText localeText,
-                              TorrentService torrentService,
-                              TorrentStreamService torrentStreamService,
-                              ActivityManager activityManager,
-                              TaskExecutor taskExecutor) {
+    public LoaderUrlComponent(LocaleText localeText, TorrentService torrentService, TorrentStreamService torrentStreamService,
+                              ApplicationEventPublisher eventPublisher, TaskExecutor taskExecutor) {
         super(localeText, torrentService, torrentStreamService);
-        this.activityManager = activityManager;
+        this.eventPublisher = eventPublisher;
         this.taskExecutor = taskExecutor;
     }
 
     //endregion
 
-    //region PostConstruct
+    //region Methods
 
-    @PostConstruct
-    private void init() {
-        initializeListeners();
-    }
-
-    private void initializeListeners() {
-        activityManager.register(LoadUrlEvent.class, this::onLoadUrl);
-    }
-
-    //endregion
-
-    //region Functions
-
-    private void onLoadUrl(LoadUrlEvent activity) {
-        var magnetUri = activity.getUrl();
+    @EventListener
+    public void onLoadUrl(LoadUrlEvent event) {
+        var magnetUri = event.getUrl();
 
         this.torrentThread = new Thread(() -> {
             // reset the progress bar to infinite
@@ -70,17 +53,7 @@ public class LoaderUrlComponent extends AbstractLoaderComponent {
             log.debug("Resolving torrent information for \"{}\"", magnetUri);
             torrentService.getTorrentInfo(magnetUri).whenComplete((torrentInfo, throwable) -> {
                 if (throwable == null) {
-                    activityManager.register(new ShowTorrentDetailsEvent() {
-                        @Override
-                        public String getMagnetUri() {
-                            return magnetUri;
-                        }
-
-                        @Override
-                        public TorrentInfo getTorrentInfo() {
-                            return torrentInfo;
-                        }
-                    });
+                    eventPublisher.publishEvent(new ShowTorrentDetailsEvent(this, magnetUri, torrentInfo));
                 } else {
                     log.error("Failed to retrieve torrent, " + throwable.getMessage(), throwable);
                     updateProgressToErrorState();
@@ -91,12 +64,15 @@ public class LoaderUrlComponent extends AbstractLoaderComponent {
         taskExecutor.execute(this.torrentThread);
     }
 
+    //endregion
+
+    //region Functions
+
     private void close() {
         if (torrentThread != null && torrentThread.isAlive())
             torrentThread.interrupt();
 
-        activityManager.register(new CloseLoadEvent() {
-        });
+        eventPublisher.publishEvent(new CloseLoadEvent(this));
     }
 
     @FXML

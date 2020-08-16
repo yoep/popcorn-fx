@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
+import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -16,6 +17,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.HashMap;
+
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,7 +27,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PlayNextServiceTest {
     @Mock
-    private ApplicationEventPublisher activityManager;
+    private ApplicationEventPublisher eventPublisher;
     @Mock
     private VideoPlayerService videoPlayerService;
     @Mock
@@ -138,6 +141,7 @@ class PlayNextServiceTest {
         var episode = createEpisode();
         var videoLength = 90000;
         when(activity.getMedia()).thenReturn(episode);
+        when(activity.getQuality()).thenReturn("480p");
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
         playNextService.onPlayMedia(activity);
@@ -153,19 +157,21 @@ class PlayNextServiceTest {
         var episode = createEpisode();
         var videoLength = 90000;
         when(activity.getMedia()).thenReturn(episode);
+        when(activity.getQuality()).thenReturn("480p");
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
         playNextService.onPlayMedia(activity);
         playNextService.onDurationChanged(videoLength);
         playNextService.onTimeChanged(videoLength);
 
-        verify(activityManager).publishEvent(isA(LoadMediaTorrentEvent.class));
+        verify(eventPublisher).publishEvent(isA(LoadMediaTorrentEvent.class));
     }
 
     private Episode createEpisode() {
         var nextEpisode = new Episode();
 
         nextEpisode.setEpisode(2);
+        nextEpisode.setTorrents(new HashMap<>());
 
         return createEpisode(nextEpisode);
     }
@@ -173,8 +179,13 @@ class PlayNextServiceTest {
     private Episode createEpisode(Episode nextEpisode) {
         var episode = new Episode();
         var show = new Show();
+        var torrents = new HashMap<String, MediaTorrentInfo>();
 
         episode.setEpisode(1);
+        episode.setTorrents(torrents);
+        nextEpisode.setTorrents(torrents);
+        torrents.put("480p", mock(MediaTorrentInfo.class));
+        torrents.put("720p", mock(MediaTorrentInfo.class));
         show.setEpisodes(asList(episode, nextEpisode));
 
         return episode;

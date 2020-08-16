@@ -158,7 +158,7 @@ public class PlayNextService {
         if (remainingTime <= COUNTDOWN_FROM) {
             playingIn.set(remainingTime);
 
-            if (remainingTime == 1) {
+            if (remainingTime <= 1) {
                 onPlayNextEpisode();
             }
         }
@@ -179,6 +179,7 @@ public class PlayNextService {
         }
 
         var episode = nextEpisode.get();
+        var mediaTorrentInfo = episode.getTorrents().get(quality);
 
         // close the current video player
         videoPlayerService.close();
@@ -186,7 +187,7 @@ public class PlayNextService {
         // start loading the next episode
         eventPublisher.publishEvent(LoadMediaTorrentEvent.builder()
                 .source(this)
-                .torrent(episode.getTorrents().get(quality))
+                .torrent(mediaTorrentInfo)
                 .media(episode)
                 .quality(quality)
                 .subtitle(null)

@@ -49,18 +49,24 @@ public abstract class TestFxBase extends ApplicationTest {
     }
 
     private static void initializeLibTorrentPath() {
-        if (System.getProperty("os.arch").equals("amd64")) {
-            String path;
-            var applicationPath = new File("../assets/linux/libjlibtorrent.so");
-            var rootPath = new File("assets/linux/libjlibtorrent.so");
+        File applicationPath;
+        File rootPath;
+        String path;
 
-            if (applicationPath.exists()) {
-                path = applicationPath.getAbsolutePath();
-            } else {
-                path = rootPath.getAbsolutePath();
-            }
-
-            System.setProperty("jlibtorrent.jni.path", path);
+        if (System.getProperty("os.name").contains("Windows")) {
+            applicationPath = new File("../assets/windows/jlibtorrent.dll");
+            rootPath = new File("assets/windows/jlibtorrent.dll");
+        } else {
+            applicationPath = new File("../assets/linux/libjlibtorrent.so");
+            rootPath = new File("assets/linux/libjlibtorrent.so");
         }
+
+        if (applicationPath.exists()) {
+            path = applicationPath.getAbsolutePath();
+        } else {
+            path = rootPath.getAbsolutePath();
+        }
+
+        System.setProperty("jlibtorrent.jni.path", path);
     }
 }

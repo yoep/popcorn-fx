@@ -199,6 +199,7 @@ public class TorrentServiceImpl implements TorrentService {
         // create a new torrent creation listener
         var creationListener = new TorrentCreationListener(torrentName, torrentHandle -> {
             synchronized (this) {
+                log.debug("Received torrent handle for \"{}\"", torrentFile.getFilename());
                 handle.set(torrentHandle);
                 notifyAll();
             }
@@ -214,7 +215,7 @@ public class TorrentServiceImpl implements TorrentService {
         // pause this thread and wait for the torrent to be created
         synchronized (this) {
             try {
-                log.debug("Waiting for torrent \"{}\" to be created", torrentName);
+                log.debug("Waiting for torrent handle \"{}\" to be created", torrentName);
                 wait();
             } catch (InterruptedException ex) {
                 log.error("Torrent creation monitor unexpectedly quit", ex);

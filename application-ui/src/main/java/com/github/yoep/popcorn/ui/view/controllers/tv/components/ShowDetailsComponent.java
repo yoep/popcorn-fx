@@ -5,8 +5,8 @@ import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.torrent.adapter.TorrentService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -37,8 +37,8 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> {
 
     //region Constructors
 
-    public ShowDetailsComponent(LocaleText localeText, TorrentService torrentService, ImageService imageService, SettingsService settingsService) {
-        super(localeText, imageService, torrentService, settingsService);
+    public ShowDetailsComponent(LocaleText localeText, HealthService healthService, ImageService imageService, SettingsService settingsService) {
+        super(localeText, imageService, healthService, settingsService);
     }
 
     //endregion

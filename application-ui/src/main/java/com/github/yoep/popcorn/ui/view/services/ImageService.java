@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.ui.media.providers.models.Images;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
  * Image service for loading external images over HTTP/HTTPS.
  * This image service selects the correct image from the {@link Media} items and will handle redirects automatically.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ImageService {
@@ -117,7 +119,17 @@ public class ImageService {
 
     @PostConstruct
     private void init() {
-        posterHolder = new Image(POSTER_HOLDER, POSTER_WIDTH, POSTER_HEIGHT, true, true);
+        loadPosterHolder();
+    }
+
+    void loadPosterHolder() {
+        try {
+            var resource = getPosterHolderResource();
+
+            posterHolder = new Image(resource.getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
+        } catch (Exception ex) {
+            log.error("Failed to load poster holder, " + ex.getMessage(), ex);
+        }
     }
 
     //endregion

@@ -14,8 +14,8 @@ import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
+import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.torrent.adapter.TorrentService;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
@@ -80,9 +80,9 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     //region Constructors
 
-    public MovieDetailsComponent(LocaleText localeText, ImageService imageService, TorrentService torrentService, SettingsService settingsService,
+    public MovieDetailsComponent(LocaleText localeText, ImageService imageService, HealthService healthService, SettingsService settingsService,
                                  ApplicationEventPublisher eventPublisher, SubtitleService subtitleService, FavoriteService favoriteService) {
-        super(localeText, imageService, torrentService, settingsService);
+        super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
         this.favoriteService = favoriteService;

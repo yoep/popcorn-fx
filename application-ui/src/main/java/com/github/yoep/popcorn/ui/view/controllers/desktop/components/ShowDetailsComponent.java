@@ -21,8 +21,8 @@ import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controls.Episodes;
 import com.github.yoep.popcorn.ui.view.controls.Seasons;
 import com.github.yoep.popcorn.ui.view.models.Season;
+import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.torrent.adapter.TorrentService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -91,10 +91,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     //region Constructors
 
-    public ShowDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, TorrentService torrentService,
+    public ShowDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, HealthService healthService,
                                 SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
                                 SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService) {
-        super(eventPublisher, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService);
+        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
     }

@@ -9,8 +9,8 @@ import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.HealthIcon;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
+import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.model.TorrentHealth;
 import javafx.fxml.FXML;
 import javafx.scene.control.Tooltip;
@@ -39,7 +39,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
 
     protected final LocaleText localeText;
     protected final ImageService imageService;
-    protected final TorrentService torrentService;
+    protected final HealthService healthService;
     protected final SettingsService settingsService;
 
     protected T media;
@@ -54,8 +54,6 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     protected ImageCover poster;
     @FXML
     protected BackgroundImageCover backgroundImage;
-
-    private CompletableFuture<TorrentHealth> healthFuture;
 
     //region Methods
 
@@ -99,18 +97,12 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     protected void switchHealth(MediaTorrentInfo torrentInfo) {
         this.health.setUpdating(true);
 
-        // cancel the previous future
-        if (healthFuture != null && !healthFuture.isDone()) {
-            healthFuture.cancel(true);
-        }
-
         // set the health based on the API information
-        var health = torrentService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
+        var health = healthService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
         updateHealthIcon(health);
 
         // request the real-time health
-        this.healthFuture = torrentService.getTorrentHealth(torrentInfo.getUrl());
-        this.healthFuture.whenComplete((torrentHealth, throwable) -> {
+        healthService.getTorrentHealth(torrentInfo.getUrl()).whenComplete((torrentHealth, throwable) -> {
             if (throwable == null) {
                 updateHealthIcon(torrentHealth);
                 this.health.setUpdating(false);

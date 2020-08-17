@@ -144,12 +144,16 @@ public class FrostTorrent implements Torrent, AlertListener {
     @Override
     public void addListener(TorrentListener listener) {
         Assert.notNull(listener, "listener cannot be null");
-        listeners.add(listener);
+        synchronized (listeners) {
+            listeners.add(listener);
+        }
     }
 
     @Override
     public void removeListener(TorrentListener listener) {
-        listeners.remove(listener);
+        synchronized (listeners) {
+            listeners.remove(listener);
+        }
     }
 
     @Override
@@ -244,10 +248,12 @@ public class FrostTorrent implements Torrent, AlertListener {
     private void initializeStateListener() {
         state.addListener((observable, oldValue, newValue) -> {
             log.debug("Torrent \"{}\" changed from state {} to {}", getFilename(), oldValue, newValue);
-            listeners.forEach(e -> safeInvoke(() -> e.onStateChanged(oldValue, newValue)));
+            synchronized (listeners) {
+                listeners.forEach(e -> safeInvoke(() -> e.onStateChanged(oldValue, newValue)));
 
-            if (newValue == TorrentState.ERROR) {
-                listeners.forEach(e -> safeInvoke(() -> e.onError(error)));
+                if (newValue == TorrentState.ERROR) {
+                    listeners.forEach(e -> safeInvoke(() -> e.onError(error)));
+                }
             }
         });
     }
@@ -313,7 +319,9 @@ public class FrostTorrent implements Torrent, AlertListener {
         var pieceIndex = pieceFinishedAlert.pieceIndex() - pieces.getFirstPieceIndex();
 
         // notify all listeners
-        listeners.forEach(e -> safeInvoke(() -> e.onPieceFinished(pieceIndex)));
+        synchronized (listeners) {
+            listeners.forEach(e -> safeInvoke(() -> e.onPieceFinished(pieceIndex)));
+        }
 
         // check if we need to update the torrent state
         if (getState() != TorrentState.COMPLETED) {
@@ -339,7 +347,9 @@ public class FrostTorrent implements Torrent, AlertListener {
             this.state.set(TorrentState.COMPLETED);
         }
 
-        listeners.forEach(e -> safeInvoke(() -> e.onDownloadProgress(downloadStatus)));
+        synchronized (listeners) {
+            listeners.forEach(e -> safeInvoke(() -> e.onDownloadProgress(downloadStatus)));
+        }
     }
 
     private void safeInvoke(Runnable runnable) {

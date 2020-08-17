@@ -155,28 +155,28 @@ public class DesktopConfig {
     @Bean
     public MovieDetailsComponent movieDetailsComponent(ApplicationEventPublisher eventPublisher,
                                                        LocaleText localeText,
-                                                       TorrentService torrentService,
+                                                       HealthService healthService,
                                                        SubtitleService subtitleService,
                                                        SubtitlePickerService subtitlePickerService,
                                                        ImageService imageService,
                                                        SettingsService settingsService,
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService) {
-        return new MovieDetailsComponent(eventPublisher, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService,
+        return new MovieDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
                 favoriteService, watchedService);
     }
 
     @Bean
     public ShowDetailsComponent showDetailsComponent(ApplicationEventPublisher eventPublisher,
                                                      LocaleText localeText,
-                                                     TorrentService torrentService,
+                                                     HealthService healthService,
                                                      SubtitleService subtitleService,
                                                      SubtitlePickerService subtitlePickerService,
                                                      ImageService imageService,
                                                      SettingsService settingsService,
                                                      FavoriteService favoriteService,
                                                      WatchedService watchedService) {
-        return new ShowDetailsComponent(eventPublisher, localeText, torrentService, subtitleService, subtitlePickerService, imageService, settingsService,
+        return new ShowDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
                 favoriteService, watchedService);
     }
 

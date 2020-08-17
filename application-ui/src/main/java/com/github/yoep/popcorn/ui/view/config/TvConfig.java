@@ -14,6 +14,7 @@ import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.tv.MainTvController;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.tv.sections.*;
+import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
@@ -92,20 +93,20 @@ public class TvConfig {
     @Bean
     public MovieDetailsComponent movieDetailsComponent(LocaleText localeText,
                                                        ImageService imageService,
-                                                       TorrentService torrentService,
+                                                       HealthService healthService,
                                                        SettingsService settingsService,
                                                        ApplicationEventPublisher eventPublisher,
                                                        SubtitleService subtitleService,
                                                        FavoriteService favoriteService) {
-        return new MovieDetailsComponent(localeText, imageService, torrentService, settingsService, eventPublisher, subtitleService, favoriteService);
+        return new MovieDetailsComponent(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService, favoriteService);
     }
 
     @Bean
     public ShowDetailsComponent showDetailsComponent(LocaleText localeText,
-                                                     TorrentService torrentService,
+                                                     HealthService healthService,
                                                      ImageService imageService,
                                                      SettingsService settingsService) {
-        return new ShowDetailsComponent(localeText, torrentService, imageService, settingsService);
+        return new ShowDetailsComponent(localeText, healthService, imageService, settingsService);
     }
 
     @Bean

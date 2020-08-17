@@ -14,8 +14,8 @@ import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelectionListener;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
+import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.torrent.adapter.TorrentService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -65,12 +65,12 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     protected AbstractDesktopDetailsComponent(ApplicationEventPublisher eventPublisher,
                                               LocaleText localeText,
-                                              TorrentService torrentService,
+                                              HealthService healthService,
                                               SubtitleService subtitleService,
                                               SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
                                               SettingsService settingsService) {
-        super(localeText, imageService, torrentService, settingsService);
+        super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.localeText = localeText;
         this.subtitleService = subtitleService;

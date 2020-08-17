@@ -228,7 +228,10 @@ public class TorrentServiceImpl implements TorrentService {
         // lookup the actual torrent handle which can be used in the session
         // and create a new Torrent instance for it
         log.trace("Looking up torrent handle in the torrent session for \"{}\"", torrentFile.getFilename());
-        return sessionManager.find(handle.get().infoHash());
+        var torrentHandle = sessionManager.find(handle.get().infoHash());
+
+        log.debug("Torrent handle has been created for \"{}\"", torrentFile.getFilename());
+        return torrentHandle;
     }
 
     //endregion

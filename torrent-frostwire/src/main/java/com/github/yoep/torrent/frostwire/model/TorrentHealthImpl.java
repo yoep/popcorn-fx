@@ -2,9 +2,13 @@ package com.github.yoep.torrent.frostwire.model;
 
 import com.github.yoep.torrent.adapter.model.TorrentHealth;
 import com.github.yoep.torrent.adapter.state.TorrentHealthState;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 
 @Getter
+@ToString
+@EqualsAndHashCode
 public class TorrentHealthImpl implements TorrentHealth {
     private final TorrentHealthState state;
     private final double ratio;

@@ -1,5 +1,7 @@
-package com.github.yoep.popcorn;
+package com.github.yoep.popcorn.ui.view.controllers;
 
+import com.github.yoep.popcorn.PopcornTimeApplicationTest;
+import com.github.yoep.popcorn.TestFxBase;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
 import org.testfx.api.FxAssert;
@@ -14,7 +16,7 @@ public class MainControllerIT extends TestFxBase {
     static final String PLAYER_PANE_ID = "#playerPane";
 
     @Override
-    void setUp() {
+    public void setUp() {
         //no-op
     }
 

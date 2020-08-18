@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.SettingsSectionController" styleClass="settings-section">
+           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.SettingsSectionController" fx:id="settings" styleClass="settings-section">
     <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER">
         <VBox>
             <!-- Title -->

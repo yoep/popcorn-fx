@@ -15,7 +15,7 @@ import java.util.ResourceBundle;
 
 @Slf4j
 public class MainTvController extends AbstractMainController implements MainController {
-    private static final String TV_STYLESHEET = "/styles/tv.css";
+    static final String TV_STYLESHEET = "/styles/tv.css";
 
     //region Constructors
 

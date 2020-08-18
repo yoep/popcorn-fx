@@ -42,6 +42,8 @@ public class UrlService {
      * @param url The url link to open.
      */
     public void open(String url) {
+        Assert.notNull(url, "url cannot be null");
+
         try {
             application.getHostServices().showDocument(url);
             eventPublisher.publishEvent(new InfoNotificationEvent(this, localeText.get(DetailsMessage.MAGNET_LINK_OPENING)));

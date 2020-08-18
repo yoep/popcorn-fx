@@ -2,15 +2,15 @@ package com.github.yoep.popcorn.ui.view.controllers.tv;
 
 import com.github.yoep.popcorn.PopcornTimeApplicationTest;
 import com.github.yoep.popcorn.TestFxBase;
+import com.github.yoep.popcorn.matchers.StylesheetMatcher;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
+import org.testfx.api.FxAssert;
 import org.testfx.api.FxToolkit;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.util.concurrent.TimeoutException;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MainTvControllerIT extends TestFxBase {
     @Override
@@ -34,8 +34,6 @@ public class MainTvControllerIT extends TestFxBase {
         FxToolkit.showStage();
         WaitForAsyncUtils.waitForFxEvents(100);
 
-        var pane = (Pane) lookup("#rootPane").query();
-
-        assertTrue(pane.getStylesheets().contains(MainTvController.TV_STYLESHEET));
+        FxAssert.verifyThat(lookup("#rootPane").queryAs(Pane.class), StylesheetMatcher.hasStyleSheet(MainTvController.TV_STYLESHEET));
     }
 }

@@ -14,7 +14,6 @@ import org.springframework.context.event.EventListener;
 
 @Slf4j
 public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
-
     @FXML
     private ProgressControl progress;
 
@@ -76,17 +75,21 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
         videoPlayerService.videoTimeOffset(5000);
     }
 
+    private void close() {
+        videoPlayerService.close();
+    }
+
     @FXML
     private void onCloseClicked(MouseEvent event) {
         event.consume();
-        onClose();
+        close();
     }
 
     @FXML
     private void onCloseKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            onClose();
+            close();
         }
     }
 

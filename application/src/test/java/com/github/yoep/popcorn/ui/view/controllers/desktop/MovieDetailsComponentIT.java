@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop;
 
 import com.github.yoep.popcorn.TestFxBase;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
@@ -25,6 +24,10 @@ public class MovieDetailsComponentIT extends TestFxBase {
         clickOn(posters.stream().findFirst().orElse(null));
 
         FxAssert.verifyThat(".movie-details", Node::isVisible);
-        FxAssert.verifyThat("#title", node -> StringUtils.isNotEmpty(((Label) node).getText()));
+        FxAssert.verifyThat(lookup("#title").queryLabeled(), node -> StringUtils.isNotEmpty(node.getText()));
+        FxAssert.verifyThat(lookup("#year").queryLabeled(), node -> StringUtils.isNotEmpty(node.getText()));
+        FxAssert.verifyThat(lookup("#duration").queryLabeled(), node -> StringUtils.isNotEmpty(node.getText()));
+        FxAssert.verifyThat(lookup("#genres").queryLabeled(), node -> StringUtils.isNotEmpty(node.getText()));
+        FxAssert.verifyThat(lookup("#overview").queryLabeled(), node -> StringUtils.isNotEmpty(node.getText()));
     }
 }

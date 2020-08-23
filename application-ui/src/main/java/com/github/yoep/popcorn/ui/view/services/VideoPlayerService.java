@@ -290,7 +290,7 @@ public class VideoPlayerService {
     }
 
     /**
-     * Close the video player.
+     * Stop the video playback and close the video player.
      */
     public void close() {
         onClose();

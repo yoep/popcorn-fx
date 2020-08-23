@@ -65,6 +65,15 @@ public class SubtitleInfo implements Comparable<SubtitleInfo> {
     }
 
     /**
+     * Check if this subtitle is a special subtitle.
+     *
+     * @return Returns true if this subtitle is a special one, else false.
+     */
+    public boolean isSpecial() {
+        return isNone() || isCustom();
+    }
+
+    /**
      * Check if this subtitle is the special "none" subtitle.
      *
      * @return Returns true if this subtitle is the "none" subtitle, else false.

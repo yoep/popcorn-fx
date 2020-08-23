@@ -81,8 +81,12 @@ public class TorrentServiceImpl implements TorrentService {
             var torrentHealth = new FrostTorrentHealth(handle, health -> completableFuture.complete(calculateHealth(health.getSeeds(), health.getPeers())));
 
             completableFuture.whenComplete((health, throwable) -> {
+                var healthHandle = torrentHealth.getHandle();
+                var name = handle.name();
+
                 session.removeListener(torrentHealth);
-                session.remove(torrentHealth.getHandle());
+                session.remove(healthHandle);
+                log.debug("Torrent health handle \"{}\" has been removed from the torrent session", name);
             });
             session.addListener(torrentHealth);
 
@@ -128,6 +132,7 @@ public class TorrentServiceImpl implements TorrentService {
 
             session.removeListener(frostTorrent);
             session.remove(frostTorrent.getHandle());
+            log.info("Torrent \"{}\" has been removed from the torrent session", torrent.getFilename());
         } else {
             throw new TorrentException("Invalid torrent, torrent is not a frost torrent type");
         }
@@ -215,7 +220,7 @@ public class TorrentServiceImpl implements TorrentService {
         // pause this thread and wait for the torrent to be created
         synchronized (this) {
             try {
-                log.debug("Waiting for torrent handle \"{}\" to be created", torrentName);
+                log.trace("Waiting for torrent handle \"{}\" to be created", torrentName);
                 wait();
             } catch (InterruptedException ex) {
                 log.error("Torrent creation monitor unexpectedly quit", ex);

@@ -270,14 +270,14 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         if (media != null) {
             invokePlayMediaActivity();
         } else {
-            invokePlayVideoActivity();
+            invokePlayVideoEvent();
         }
 
         // reset this load after invoking the activity for memory cleanup
         reset();
     }
 
-    private void invokePlayVideoActivity() {
+    private void invokePlayVideoEvent() {
         var url = torrentStream.getStreamUrl();
 
         eventPublisher.publishEvent(new PlayVideoTorrentEvent(this, url, title, true, torrent, torrentStream));

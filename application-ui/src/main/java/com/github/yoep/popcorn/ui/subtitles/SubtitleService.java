@@ -353,11 +353,16 @@ public class SubtitleService {
                                 .build());
                     }
 
+                    // get the amount of found subtitles excluding the special ones
+                    var totalFoundSubtitles = subtitles.stream()
+                            .filter(e -> !e.isSpecial())
+                            .count();
+
                     // always subtract the "none" subtitle from the count
                     if (media != null) {
-                        log.debug("Found {} subtitles for \"{}\" media ({})", subtitles.size() - 1, media.getTitle(), media.getId());
+                        log.debug("Found {} subtitles for \"{}\" media ({})", totalFoundSubtitles, media.getTitle(), media.getId());
                     } else {
-                        log.debug("Found {} subtitles", subtitles.size() - 1);
+                        log.debug("Found {} subtitles", totalFoundSubtitles);
                     }
 
                     completableFuture.complete(subtitles);

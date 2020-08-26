@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn;
 
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
-import javafx.application.Application;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -14,7 +13,7 @@ import java.io.File;
 import java.util.concurrent.TimeoutException;
 
 public abstract class TestFxBase extends ApplicationTest {
-    protected Application application;
+    protected PopcornTimeApplicationTest application;
 
     @BeforeAll
     public static void config() {
@@ -29,7 +28,7 @@ public abstract class TestFxBase extends ApplicationTest {
     @BeforeEach
     public void setUp() throws TimeoutException {
         FxToolkit.registerStage(Stage::new);
-        application = FxToolkit.setupApplication(PopcornTimeApplicationTest.class);
+        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class);
         FxToolkit.showStage();
         WaitForAsyncUtils.waitForFxEvents(100);
     }

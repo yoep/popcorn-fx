@@ -107,6 +107,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
                 updateHealthIcon(torrentHealth);
                 this.health.setUpdating(false);
             } else if (!(throwable instanceof CancellationException)) {
+                removeHealthState();
                 log.error("Failed to retrieve health info, " + throwable.getMessage(), throwable);
             }
         });
@@ -228,8 +229,12 @@ public abstract class AbstractDetailsComponent<T extends Media> {
         instantTooltip(healthTooltip);
         Tooltip.install(this.health, healthTooltip);
 
-        this.health.getStyleClass().removeIf(e -> !e.equals("health"));
+        removeHealthState();
         this.health.getStyleClass().add(health.getState().getStyleClass());
+    }
+
+    private void removeHealthState() {
+        this.health.getStyleClass().removeIf(e -> !e.equals("health"));
     }
 
     private String getHealthTooltip(TorrentHealth health) {

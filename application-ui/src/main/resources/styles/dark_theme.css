@@ -958,12 +958,16 @@
 }
 
 .root .player .playing-next {
-    -fx-min-width: 450px;
+    -fx-min-width: 400px;
     -fx-max-width: 450px;
-    -fx-min-height: 140px;
+    -fx-min-height: 100px;
     -fx-max-height: 140px;
     -fx-background-color: rgba(0, 0, 0, 0.5);
     -fx-cursor: hand;
+}
+
+.root .player .playing-next:hover {
+    -fx-background-color: rgba(45, 114, 217, 0.5);
 }
 
 .root .player .playing-next .info {
@@ -994,7 +998,7 @@
 
 .root .player .playing-next .playing-in-countdown {
     -fx-font-family: "Open Sans Bold";
-    -fx-font-size: 2em;
+    -fx-font-size: 2.5em;
     -fx-text-fill: #fff;
     -fx-alignment: center;
 }

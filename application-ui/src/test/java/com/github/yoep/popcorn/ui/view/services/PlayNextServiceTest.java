@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
+import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
@@ -46,12 +47,22 @@ class PlayNextServiceTest {
     }
 
     @Test
+    void testOnPlayVideo_whenEventIsPlayTorrentEvent_shouldNotUpdateNextEpisode() {
+        var activity = mock(PlayTorrentEvent.class);
+        when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+
+        playNextService.onPlayVideo(activity);
+
+        assertTrue(playNextService.getNextEpisode().isEmpty());
+    }
+
+    @Test
     void testOnPlayMedia_whenMediaIsMovie_shouldNotUpdateNextEpisode() {
         var activity = mock(PlayMediaEvent.class);
         when(activity.getMedia()).thenReturn(mock(Movie.class));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
 
         assertTrue(playNextService.getNextEpisode().isEmpty());
     }
@@ -63,7 +74,7 @@ class PlayNextServiceTest {
         lenient().when(activity.getMedia()).thenReturn(episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(false);
 
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
 
         assertTrue(playNextService.getNextEpisode().isEmpty());
     }
@@ -76,7 +87,7 @@ class PlayNextServiceTest {
         when(activity.getMedia()).thenReturn(episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
         var result = playNextService.getNextEpisode();
 
         assertTrue(result.isPresent());
@@ -95,7 +106,7 @@ class PlayNextServiceTest {
         when(activity.getMedia()).thenReturn(episode2);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
         var result = playNextService.getNextEpisode();
 
         assertTrue(result.isEmpty());
@@ -109,7 +120,7 @@ class PlayNextServiceTest {
 
         // update the next episode
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
 
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(false);
         playNextService.onDurationChanged(90);
@@ -127,7 +138,7 @@ class PlayNextServiceTest {
         when(activity.getMedia()).thenReturn(episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
         playNextService.onDurationChanged(90000);
         playNextService.onTimeChanged(70000);
         var result = playNextService.getPlayingIn();
@@ -144,7 +155,7 @@ class PlayNextServiceTest {
         when(activity.getQuality()).thenReturn("480p");
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
         playNextService.onDurationChanged(videoLength);
         playNextService.onTimeChanged(videoLength);
 
@@ -160,7 +171,7 @@ class PlayNextServiceTest {
         when(activity.getQuality()).thenReturn("480p");
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
-        playNextService.onPlayMedia(activity);
+        playNextService.onPlayVideo(activity);
         playNextService.onDurationChanged(videoLength);
         playNextService.onTimeChanged(videoLength);
 

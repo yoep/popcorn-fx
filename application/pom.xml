@@ -88,7 +88,7 @@
                 <plugin>
                     <groupId>com.gluonhq</groupId>
                     <artifactId>client-maven-plugin</artifactId>
-                    <version>0.1.27</version>
+                    <version>0.1.31</version>
                 </plugin>
             </plugins>
         </pluginManagement>

@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -91,29 +92,18 @@ public class PlayNextService {
     }
 
     @EventListener
-    public void onPlayMedia(PlayMediaEvent activity) {
+    public void onPlayVideo(PlayVideoEvent event) {
         // check if the play next option is enabled
         // if not, ignore this event
         if (isPlayNextDisabled()) {
-            return;
-        }
-
-        var media = activity.getMedia();
-
-        // check if the current media is an episode
-        // if not, ignore the update of information
-        if (!isEpisode(media)) {
             reset();
             return;
         }
 
-        var episode = (Episode) media;
-        var show = episode.getShow();
-        var nextEpisodeIndex = episode.getEpisode();
+        if (PlayMediaEvent.class.isAssignableFrom(event.getClass())) {
+            var mediaEvent = (PlayMediaEvent) event;
 
-        if (nextEpisodeIndex <= show.getEpisodes().size() - 1) {
-            this.nextEpisode.set(show.getEpisodes().get(nextEpisodeIndex));
-            this.quality = activity.getQuality();
+            onPlayMedia(mediaEvent);
         } else {
             reset();
         }
@@ -166,6 +156,28 @@ public class PlayNextService {
 
     void onDurationChanged(long newValue) {
         this.duration = newValue;
+    }
+
+    private void onPlayMedia(PlayMediaEvent event) {
+        var media = event.getMedia();
+
+        // check if the current media is an episode
+        // if not, ignore the update of information
+        if (!isEpisode(media)) {
+            reset();
+            return;
+        }
+
+        var episode = (Episode) media;
+        var show = episode.getShow();
+        var nextEpisodeIndex = episode.getEpisode();
+
+        if (nextEpisodeIndex <= show.getEpisodes().size() - 1) {
+            this.nextEpisode.set(show.getEpisodes().get(nextEpisodeIndex));
+            this.quality = event.getQuality();
+        } else {
+            reset();
+        }
     }
 
     private void onPlayNextEpisode() {

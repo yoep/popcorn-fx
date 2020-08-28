@@ -6,6 +6,7 @@ import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.frostwire.jlibtorrent.alerts.ScrapeFailedAlert;
 import com.frostwire.jlibtorrent.alerts.ScrapeReplyAlert;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,8 @@ import org.springframework.util.Assert;
 import java.util.function.Consumer;
 
 @Slf4j
-@ToString
+@ToString(exclude = "handle")
+@EqualsAndHashCode
 public class FrostTorrentHealth implements AlertListener {
     @Getter
     private final TorrentHandle handle;
@@ -76,6 +78,7 @@ public class FrostTorrentHealth implements AlertListener {
     //region Functions
 
     private void init() {
+        log.debug("Retrieving torrent health for \"{}\"", handle.name());
         handle.resume();
     }
 
@@ -83,11 +86,19 @@ public class FrostTorrentHealth implements AlertListener {
         seeds = alert.getComplete();
         peers = alert.getIncomplete();
 
-        handle.pause();
-        onComplete.accept(this);
+        onComplete();
     }
 
     private void onScrapeFailed(ScrapeFailedAlert alert) {
+    }
+
+    private void onComplete() {
+        var name = handle.name();
+
+        handle.pause();
+
+        log.debug("Health has been retrieved for \"{}\", {}", name, this);
+        onComplete.accept(this);
     }
 
     //endregion

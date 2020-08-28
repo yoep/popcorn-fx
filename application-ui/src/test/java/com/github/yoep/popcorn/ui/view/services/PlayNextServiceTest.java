@@ -159,7 +159,7 @@ class PlayNextServiceTest {
         playNextService.onDurationChanged(videoLength);
         playNextService.onTimeChanged(videoLength);
 
-        verify(videoPlayerService).close();
+        verify(videoPlayerService).stop();
     }
 
     @Test

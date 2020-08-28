@@ -62,6 +62,11 @@ public class PlayerHeaderComponent implements Initializable {
         showTorrentProgress(event.getTorrent());
     }
 
+    @EventListener(ClosePlayerEvent.class)
+    public void onClosePlayer() {
+        reset();
+    }
+
     //endregion
 
     //region Initializable
@@ -79,10 +84,6 @@ public class PlayerHeaderComponent implements Initializable {
     //endregion
 
     //region Functions
-
-    private void onClose(ClosePlayerEvent activity) {
-        reset();
-    }
 
     private void reset() {
         Platform.runLater(() -> {

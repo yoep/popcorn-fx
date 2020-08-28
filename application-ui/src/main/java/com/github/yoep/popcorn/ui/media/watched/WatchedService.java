@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.media.watched;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
-import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaType;
 import com.github.yoep.popcorn.ui.media.watched.models.Watchable;
@@ -124,7 +124,7 @@ public class WatchedService {
     }
 
     @EventListener
-    public void onClosePlayer(ClosePlayerEvent event) {
+    public void onPlayerStopped(PlayerStoppedEvent event) {
         // check if the media is present
         // if not, the played video might have been a trailer or video file
         if (event.getMedia().isEmpty())
@@ -135,7 +135,7 @@ public class WatchedService {
 
         // check if both the time and duration of the video are known
         // if not, the close activity media is not eligible for being auto marked as watched
-        if (time == ClosePlayerEvent.UNKNOWN || duration == ClosePlayerEvent.UNKNOWN)
+        if (time == PlayerStoppedEvent.UNKNOWN || duration == PlayerStoppedEvent.UNKNOWN)
             return;
 
         var percentageWatched = ((double) time / duration) * 100;

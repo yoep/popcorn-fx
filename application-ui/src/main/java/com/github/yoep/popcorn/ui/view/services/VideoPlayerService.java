@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
-import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
-import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.ui.messages.VideoMessage;
@@ -209,6 +206,13 @@ public class VideoPlayerService {
 
         if (videoPlayer != null)
             videoPlayer.seek(time);
+    }
+
+    /**
+     * Stop the video playback.
+     */
+    public void stop() {
+        onStop();
     }
 
     /**
@@ -429,11 +433,9 @@ public class VideoPlayerService {
         setSubtitle(Subtitle.NONE);
     }
 
-    private void onClose() {
-        // keep a copy of the information for later use in the activity
-        var url = this.url;
-        var media = this.media;
-        var quality = this.quality;
+    private void onStop() {
+        // cache the current time & duration
+        // the stop on the video player might reset the time & duration to 0
         var time = this.time;
         var duration = this.duration;
 
@@ -441,15 +443,23 @@ public class VideoPlayerService {
         Optional.ofNullable(getVideoPlayer())
                 .ifPresent(VideoPlayer::stop);
 
-        eventPublisher.publishEvent(ClosePlayerEvent.builder()
+        eventPublisher.publishEvent(PlayerStoppedEvent.builder()
                 .source(this)
                 .url(url)
                 .media(media)
                 .quality(quality)
-                .time(Optional.ofNullable(time).orElse(ClosePlayerEvent.UNKNOWN))
-                .duration(Optional.ofNullable(duration).orElse(ClosePlayerEvent.UNKNOWN))
+                .time(Optional.ofNullable(time).orElse(PlayerStoppedEvent.UNKNOWN))
+                .duration(Optional.ofNullable(duration).orElse(PlayerStoppedEvent.UNKNOWN))
                 .build());
         torrentStreamService.stopAllStreams();
+    }
+
+    private void onClose() {
+        // stop the playback
+        onStop();
+
+        // close the player
+        eventPublisher.publishEvent(new ClosePlayerEvent(this));
 
         reset();
     }

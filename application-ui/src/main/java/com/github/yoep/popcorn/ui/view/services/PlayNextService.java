@@ -193,8 +193,8 @@ public class PlayNextService {
         var episode = nextEpisode.get();
         var mediaTorrentInfo = episode.getTorrents().get(quality);
 
-        // close the current video player
-        videoPlayerService.close();
+        // stop the video playback
+        videoPlayerService.stop();
 
         // start loading the next episode
         eventPublisher.publishEvent(LoadMediaTorrentEvent.builder()

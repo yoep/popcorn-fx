@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.media.resume;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
-import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.resume.models.AutoResume;
 import com.github.yoep.popcorn.ui.media.resume.models.VideoTimestamp;
@@ -68,13 +68,13 @@ public class AutoResumeService {
     }
 
     @EventListener
-    public void onClosePlayer(ClosePlayerEvent event) {
+    public void onClosePlayer(PlayerStoppedEvent event) {
         var time = event.getTime();
         var duration = event.getDuration();
 
         // check if both the time and duration of the video are known
         // if not, the close activity media is not eligible for being auto resumed
-        if (time == ClosePlayerEvent.UNKNOWN || duration == ClosePlayerEvent.UNKNOWN)
+        if (time == PlayerStoppedEvent.UNKNOWN || duration == PlayerStoppedEvent.UNKNOWN)
             return;
 
         // check if the duration is longer than 5 mins.

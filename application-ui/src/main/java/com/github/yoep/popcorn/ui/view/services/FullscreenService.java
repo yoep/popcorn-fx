@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.ui.settings.OptionsService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -85,7 +85,7 @@ public class FullscreenService {
         });
     }
 
-    @EventListener(ClosePlayerEvent.class)
+    @EventListener(PlayerStoppedEvent.class)
     public void onClosePlayer() {
         if (!optionsService.options().isKioskMode()) {
             Platform.runLater(() -> primaryStage.setFullScreen(false));

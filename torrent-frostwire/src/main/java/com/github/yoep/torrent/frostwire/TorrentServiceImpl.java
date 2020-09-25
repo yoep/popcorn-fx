@@ -82,11 +82,15 @@ public class TorrentServiceImpl implements TorrentService {
 
             completableFuture.whenComplete((health, throwable) -> {
                 var healthHandle = torrentHealth.getHandle();
-                var name = handle.name();
+
+                if (healthHandle != null) {
+                    var name = handle.name();
+
+                    session.remove(healthHandle);
+                    log.debug("Torrent health handle \"{}\" has been removed from the torrent session", name);
+                }
 
                 session.removeListener(torrentHealth);
-                session.remove(healthHandle);
-                log.debug("Torrent health handle \"{}\" has been removed from the torrent session", name);
             });
             session.addListener(torrentHealth);
 

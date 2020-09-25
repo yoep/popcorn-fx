@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
-import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.LoadEvent;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.model.TorrentHealth;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +42,7 @@ public class HealthService {
     /**
      * Cancel the current health retrieval when the media details are being closed or the media is being played.
      */
-    @EventListener({LoadMediaTorrentEvent.class, CloseDetailsEvent.class})
+    @EventListener({LoadEvent.class, CloseDetailsEvent.class})
     public void onCancelHealthRetrieval() {
         cancelPreviousFutureIfNeeded();
     }

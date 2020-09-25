@@ -109,6 +109,8 @@ public abstract class AbstractDetailsComponent<T extends Media> {
             } else if (!(throwable instanceof CancellationException)) {
                 removeHealthState();
                 log.error("Failed to retrieve health info, " + throwable.getMessage(), throwable);
+            } else {
+                removeHealthState();
             }
         });
     }

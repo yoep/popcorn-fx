@@ -31,6 +31,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -99,14 +100,14 @@ public abstract class AbstractListSectionController implements Initializable {
 
     @EventListener
     public void onSearch(SearchEvent event) {
-        event.getValue().ifPresent(newValue -> {
-            if (Objects.equals(search, newValue))
-                return;
+        var newValue = event.getValue().orElse(null);
 
-            this.search = newValue;
-            reset();
-            invokeNewPageLoad();
-        });
+        if (Objects.equals(search, newValue))
+            return;
+
+        this.search = newValue;
+        reset();
+        invokeNewPageLoad();
     }
 
     //endregion
@@ -182,13 +183,13 @@ public abstract class AbstractListSectionController implements Initializable {
     protected Media[] onMediaRequestFailed(Throwable throwable) {
         // check if the media request was cancelled
         // if so, ignore this failure
-        if (throwable instanceof CancellationException) {
+        if (throwable instanceof CancellationException || throwable instanceof CompletionException) {
             log.trace("Media request has been cancelled by the user");
             return new Media[0];
         }
 
-        Throwable rootCause = throwable.getCause();
-        AtomicReference<String> message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
+        var rootCause = throwable.getCause();
+        var message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
         log.error("Failed to retrieve media list, " + rootCause.getMessage(), throwable);
 
         if (rootCause instanceof HttpStatusCodeException) {

@@ -1,6 +1,10 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.settings.models.ApplicationSettings;
+import com.github.yoep.popcorn.ui.settings.models.TorrentSettings;
 import com.github.yoep.torrent.adapter.TorrentService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,8 +20,23 @@ import static org.mockito.Mockito.*;
 class HealthServiceTest {
     @Mock
     private TorrentService torrentService;
+    @Mock
+    private SettingsService settingsService;
+    @Mock
+    private ApplicationSettings settings;
+    @Mock
+    private TorrentSettings torrentSettings;
+    @Mock
+    private File torrentDirectory;
     @InjectMocks
     private HealthService healthService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(settingsService.getSettings()).thenReturn(settings);
+        lenient().when(settings.getTorrentSettings()).thenReturn(torrentSettings);
+        lenient().when(torrentSettings.getDirectory()).thenReturn(torrentDirectory);
+    }
 
     @Test
     void testCalculateHealth_whenInvoked_shouldCallCalculateHealthOnTorrentService() {
@@ -34,8 +53,8 @@ class HealthServiceTest {
         var firstUrl = "lorem";
         var secondUrl = "ipsum";
         var future = mock(CompletableFuture.class);
-        var torrentDirectory = mock(File.class);
         when(torrentService.getTorrentHealth(firstUrl, torrentDirectory)).thenReturn(future);
+        when(torrentService.getTorrentHealth(secondUrl, torrentDirectory)).thenReturn(future);
         when(future.isDone()).thenReturn(false);
 
         healthService.getTorrentHealth(firstUrl);
@@ -48,7 +67,6 @@ class HealthServiceTest {
     void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
         var firstUrl = "lorem";
         var future = mock(CompletableFuture.class);
-        var torrentDirectory = mock(File.class);
         when(torrentService.getTorrentHealth(firstUrl, torrentDirectory)).thenReturn(future);
         when(future.isDone()).thenReturn(false);
 

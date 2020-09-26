@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop;
 
+import com.github.yoep.popcorn.Categories;
 import com.github.yoep.popcorn.TestFxBase;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.state.SessionState;
@@ -16,7 +17,7 @@ import java.util.concurrent.TimeoutException;
 public class MovieDetailsComponentIT extends TestFxBase {
     @Test
     void testMovieDetails_whenMovieIsClick_shouldShowDetails() throws TimeoutException {
-        var movieCategory = lookup("#moviesCategory").queryLabeled();
+        var movieCategory = lookup(Categories.MOVIES).queryLabeled();
 
         clickOn(movieCategory);
 

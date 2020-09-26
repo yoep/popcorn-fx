@@ -17,7 +17,7 @@ import java.util.List;
 
 @Slf4j
 public class SearchField extends StackPane {
-    private static final int MILLIS_BETWEEN_INVOKES = 300;
+    private static final int MILLIS_BETWEEN_INVOKES = 500;
     private static final int WATCHER_TTL = 5000;
     private static final String STYLE_CLASS = "search-field";
     private static final String STYLE_CLASS_SEARCH_ICON = "search-icon";

@@ -10,7 +10,7 @@
 
     <groupId>com.github.yoep</groupId>
     <artifactId>popcorn-time</artifactId>
-    <version>0.0.4</version>
+    <version>0.0.5-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -55,7 +55,7 @@
     <scm>
         <url>https://github.com/yoep/popcorn-desktop-javafx</url>
         <connection>scm:git:git@github.com:yoep/popcorn-desktop-javafx.git</connection>
-        <tag>v0.0.4</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>

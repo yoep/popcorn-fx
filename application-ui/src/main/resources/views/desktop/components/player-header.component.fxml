@@ -28,7 +28,7 @@
         <StreamInfo fx:id="streamInfo" cache="true">
             <Icon fx:constant="EYE_UNICODE" />
         </StreamInfo>
-        <Icon styleClass="close-button" onMouseClicked="#close" cache="true">
+        <Icon id="closePlayer" styleClass="close-button" onMouseClicked="#close" cache="true">
             <padding>
                 <Insets right="15"/>
             </padding>

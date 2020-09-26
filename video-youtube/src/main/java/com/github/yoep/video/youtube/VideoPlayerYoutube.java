@@ -16,6 +16,7 @@ import javafx.scene.web.WebView;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
 import org.apache.commons.io.IOUtils;
 import org.springframework.core.io.ClassPathResource;
@@ -24,6 +25,7 @@ import org.springframework.util.StringUtils;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.text.MessageFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -152,7 +154,14 @@ public class VideoPlayerYoutube implements VideoPlayer {
     public void seek(long time) throws VideoPlayerNotInitializedException {
         checkInitialized();
 
-        Platform.runLater(() -> getEngine().executeScript("seek(" + time + ")"));
+        Platform.runLater(() -> {
+            try {
+                getEngine().executeScript("seek(" + time + ")");
+            } catch (JSException ex) {
+                var message = MessageFormat.format("Failed to seek youtube player, {0}", ex.getMessage());
+                log.error(message, ex);
+            }
+        });
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.PopcornTimeApplicationTest;
 import com.github.yoep.popcorn.TestFxBase;
 import javafx.stage.Stage;
@@ -9,6 +10,7 @@ import org.testfx.api.FxToolkit;
 import org.testfx.matcher.base.NodeMatchers;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class MainControllerIT extends TestFxBase {
@@ -28,6 +30,7 @@ public class MainControllerIT extends TestFxBase {
     @Override
     public void stop() throws Exception {
         FxToolkit.hideStage();
+        application.stop();
     }
 
     @Test
@@ -46,5 +49,12 @@ public class MainControllerIT extends TestFxBase {
         WaitForAsyncUtils.waitForFxEvents(100);
 
         FxAssert.verifyThat(PLAYER_PANE_ID, NodeMatchers.isNotNull());
+
+        // close the video player
+        var closePlayerIcon = lookup("#closePlayer").queryAs(Icon.class);
+
+        clickOn(closePlayerIcon);
+
+        WaitForAsyncUtils.waitFor(20, TimeUnit.SECONDS, () -> lookup(CONTENT_PANE_ID).tryQuery().isPresent());
     }
 }

@@ -1,10 +1,12 @@
 package com.github.yoep.popcorn.ui.settings.models;
 
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
 import java.util.Optional;
 
+@Slf4j
 @EqualsAndHashCode(callSuper = false)
 @Data
 @Builder
@@ -38,6 +40,7 @@ public class TraktSettings extends AbstractSettings {
         if (Objects.equals(this.accessToken, accessToken))
             return;
 
+        log.trace("Access token has been updated");
         var oldValue = this.accessToken;
         this.accessToken = accessToken;
         changes.firePropertyChange(ACCESS_TOKEN_PROPERTY, oldValue, accessToken);

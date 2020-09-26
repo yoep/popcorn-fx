@@ -1,16 +1,23 @@
 package com.github.yoep.popcorn.ui.trakt;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.media.watched.WatchedService;
+import com.github.yoep.popcorn.ui.messages.TraktMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.trakt.models.*;
+import javafx.application.Platform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.oauth2.client.OAuth2RestOperations;
+import org.springframework.security.oauth2.client.resource.OAuth2AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -32,6 +39,8 @@ public class TraktService {
     private final SettingsService settingsService;
     private final WatchedService watchedService;
     private final TaskExecutor taskExecutor;
+    private final LocaleText localeText;
+    private final ApplicationEventPublisher eventPublisher;
 
     //region Methods
 
@@ -114,14 +123,20 @@ public class TraktService {
         log.debug("Starting Trakt.tv synchronisation");
         try {
             syncMovies();
+        } catch (OAuth2AccessDeniedException ex) {
+            handleAccessDenied(ex);
         } catch (Exception ex) {
             log.error("Failed to sync trakt.tv movies, " + ex.getMessage(), ex);
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(TraktMessage.SYNCHRONIZATION_FAILED)));
         }
 
         try {
             syncShows();
+        } catch (OAuth2AccessDeniedException ex) {
+            // no-op
         } catch (Exception ex) {
             log.error("Failed to sync trakt.tv shows, " + ex.getMessage(), ex);
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(TraktMessage.SYNCHRONIZATION_FAILED)));
         }
     }
 
@@ -253,6 +268,26 @@ public class TraktService {
 
     private TraktSettings getSettings() {
         return settingsService.getSettings().getTraktSettings();
+    }
+
+    private void handleAccessDenied(OAuth2AccessDeniedException ex) {
+        var traktSettings = getSettings();
+        log.warn(ex.getMessage(), ex);
+
+        traktSettings.setAccessToken(null);
+
+        Platform.runLater(() -> {
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(TraktMessage.TOKEN_EXPIRED)));
+
+            authorize().whenComplete((successful, throwable) -> {
+                if (throwable == null && successful) {
+                    log.info("Successfully re-authenticated with Trakt.tv");
+                    eventPublisher.publishEvent(new SuccessNotificationEvent(this, localeText.get(TraktMessage.AUTHENTICATION_SUCCESS)));
+                } else {
+                    eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(TraktMessage.AUTHENTICATION_FAILED)));
+                }
+            });
+        });
     }
 
     //endregion

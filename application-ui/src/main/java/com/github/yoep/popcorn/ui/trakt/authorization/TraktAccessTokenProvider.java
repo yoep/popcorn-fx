@@ -38,14 +38,13 @@ public class TraktAccessTokenProvider extends AuthorizationCodeAccessTokenProvid
     public OAuth2AccessToken obtainAccessToken(OAuth2ProtectedResourceDetails details, AccessTokenRequest parameters)
             throws UserRedirectRequiredException, UserApprovalRequiredException, AccessDeniedException {
         try {
-            Optional<OAuth2AccessTokenWrapper> optionalAccessToken = getSettings().getAccessToken();
+            var optionalAccessToken = getSettings().getAccessToken();
 
             return optionalAccessToken
                     .map(accessTokenWrapper -> resolveAccessToken(details, accessTokenWrapper))
                     .orElseGet(() -> super.obtainAccessToken(details, parameters));
         } catch (RefreshTokenMissingException ex) {
             logger.error(ex);
-
             return handleRefreshTokenMissing(details, parameters);
         } catch (UserRedirectRequiredException ex) {
             return startUserRedirect(details, ex);
@@ -87,12 +86,12 @@ public class TraktAccessTokenProvider extends AuthorizationCodeAccessTokenProvid
     }
 
     private OAuth2AccessToken retrieveRefreshToken(OAuth2ProtectedResourceDetails resource, OAuth2AccessToken accessToken) {
-        final AccessTokenRequest request = new DefaultAccessTokenRequest();
-
-        DefaultOAuth2AccessToken oAuth2AccessToken
+        var request = new DefaultAccessTokenRequest();
+        var oAuth2AccessToken
                 = (DefaultOAuth2AccessToken) retrieveToken(request, resource, getParametersForRefreshTokenRequest(accessToken), new HttpHeaders());
         oAuth2AccessToken.setRefreshToken(accessToken.getRefreshToken());
         saveAccessToken(oAuth2AccessToken);
+
         return oAuth2AccessToken;
     }
 

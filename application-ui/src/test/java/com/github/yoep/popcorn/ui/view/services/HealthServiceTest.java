@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.*;
@@ -33,7 +34,8 @@ class HealthServiceTest {
         var firstUrl = "lorem";
         var secondUrl = "ipsum";
         var future = mock(CompletableFuture.class);
-        when(torrentService.getTorrentHealth(firstUrl)).thenReturn(future);
+        var torrentDirectory = mock(File.class);
+        when(torrentService.getTorrentHealth(firstUrl, torrentDirectory)).thenReturn(future);
         when(future.isDone()).thenReturn(false);
 
         healthService.getTorrentHealth(firstUrl);
@@ -46,7 +48,8 @@ class HealthServiceTest {
     void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
         var firstUrl = "lorem";
         var future = mock(CompletableFuture.class);
-        when(torrentService.getTorrentHealth(firstUrl)).thenReturn(future);
+        var torrentDirectory = mock(File.class);
+        when(torrentService.getTorrentHealth(firstUrl, torrentDirectory)).thenReturn(future);
         when(future.isDone()).thenReturn(false);
 
         healthService.getTorrentHealth(firstUrl);

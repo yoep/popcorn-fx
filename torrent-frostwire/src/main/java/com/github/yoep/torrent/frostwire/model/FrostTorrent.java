@@ -179,7 +179,12 @@ public class FrostTorrent implements Torrent, AlertListener {
             return;
 
         state.set(TorrentState.PAUSED);
-        handle.pause();
+
+        if (handle.isValid()) {
+            handle.pause();
+        } else {
+            log.warn("Unable to pause torrent {}, torrent handle is not valid anymore", filename);
+        }
     }
 
     @Override

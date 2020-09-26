@@ -21,8 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -31,8 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @RequiredArgsConstructor
 public class TorrentServiceImpl implements TorrentService {
-    private static final String TEMP_DIR_PREFIX = "popcorn-time-torrent";
-
     private final TorrentSessionManager sessionManager;
     private final TorrentResolverService torrentResolverService;
 
@@ -63,42 +59,43 @@ public class TorrentServiceImpl implements TorrentService {
     }
 
     @Override
-    public CompletableFuture<TorrentHealth> getTorrentHealth(String url) {
+    public CompletableFuture<TorrentHealth> getTorrentHealth(String url, File torrentDirectory) {
         Assert.hasText(url, "url cannot be empty");
         var torrentInfo = torrentResolverService.resolveUrl(url);
 
-        return getTorrentHealth(torrentInfo.getLargestFile());
+        return getTorrentHealth(torrentInfo.getLargestFile(), torrentDirectory);
     }
 
     @Override
-    public CompletableFuture<TorrentHealth> getTorrentHealth(TorrentFileInfo torrentFile) {
+    public CompletableFuture<TorrentHealth> getTorrentHealth(TorrentFileInfo torrentFile, File torrentDirectory) {
         Assert.notNull(torrentFile, "torrentFile cannot be null");
+        Assert.notNull(torrentDirectory, "torrentDirectory cannot be null");
         var session = sessionManager.getSession();
         var completableFuture = new CompletableFuture<TorrentHealth>();
+        var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
+        var torrentHealth = new FrostTorrentHealth(handle, health -> completableFuture.complete(calculateHealth(health.getSeeds(), health.getPeers())));
 
-        try {
-            var handle = internalCreateTorrentHandle(torrentFile, Files.createTempDirectory(TEMP_DIR_PREFIX).toFile());
-            var torrentHealth = new FrostTorrentHealth(handle, health -> completableFuture.complete(calculateHealth(health.getSeeds(), health.getPeers())));
+        completableFuture.whenComplete((health, throwable) -> {
+            var healthHandle = torrentHealth.getHandle();
 
-            completableFuture.whenComplete((health, throwable) -> {
-                var healthHandle = torrentHealth.getHandle();
+            // check if we need to remove the handle from the session
+            if (healthHandle != null && isDeletable(healthHandle)) {
+                var name = healthHandle.name();
 
-                if (healthHandle != null) {
-                    var name = handle.name();
+                // pause the handle for deletion
+                handle.pause();
 
-                    session.remove(healthHandle);
-                    log.debug("Torrent health handle \"{}\" has been removed from the torrent session", name);
-                }
+                // delete the handle
+                session.remove(healthHandle);
+                log.debug("Torrent health handle \"{}\" has been removed from the torrent session", name);
+            }
 
-                session.removeListener(torrentHealth);
-            });
-            session.addListener(torrentHealth);
+            session.removeListener(torrentHealth);
+        });
 
-            return completableFuture;
-        } catch (IOException ex) {
-            log.error("Failed to provision temporary directory for torrent, " + ex.getMessage(), ex);
-            throw new TorrentException(ex.getMessage(), ex);
-        }
+        session.addListener(torrentHealth);
+
+        return completableFuture;
     }
 
     @Override
@@ -201,6 +198,15 @@ public class TorrentServiceImpl implements TorrentService {
         var priorities = new Priority[torrentInfo.getTotalFiles()];
         var handle = new AtomicReference<TorrentHandle>();
 
+        // check if the torrent already exists
+        var existingHandle = findTorrent(torrentFile);
+
+        // if the handle already exists, return it
+        if (existingHandle.isPresent()) {
+            log.trace("Found an already existing handle for {}, returning cached torrent handle", torrentName);
+            return existingHandle.get();
+        }
+
         // by default, ignore all files
         // this should prevent the torrent from starting to download immediately
         Arrays.fill(priorities, Priority.IGNORE);
@@ -242,6 +248,29 @@ public class TorrentServiceImpl implements TorrentService {
 
         log.debug("Torrent handle has been created for \"{}\"", torrentFile.getFilename());
         return torrentHandle;
+    }
+
+    private Optional<TorrentHandle> findTorrent(TorrentFileInfo torrentFile) {
+        var torrentInfo = (TorrentInfoWrapper) torrentFile.getTorrentInfo();
+        var torrentInfoNative = torrentInfo.getNative();
+
+        // check if we can find the torrent in the session
+        // and that the handle is still valid
+        // if not, return empty()
+        return Optional.ofNullable(sessionManager.find(torrentInfoNative.infoHash()))
+                .filter(TorrentHandle::isValid);
+    }
+
+    private boolean isDeletable(TorrentHandle handle) {
+        if (handle.isValid()) {
+            // check if the torrent is still only being used for health purpose
+            // if a file priority is present, than it isn't the case anymore
+            // and the handle may not be deleted
+            return Arrays.stream(handle.filePriorities())
+                    .allMatch(e -> e == Priority.IGNORE);
+        }
+
+        return false;
     }
 
     //endregion

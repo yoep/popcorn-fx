@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
+import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.settings.models.TorrentSettings;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.model.TorrentHealth;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class HealthService {
     private final TorrentService torrentService;
+    private final SettingsService settingsService;
 
     private CompletableFuture<TorrentHealth> healthFuture;
 
@@ -29,12 +32,13 @@ public class HealthService {
     }
 
     /**
-     * @see TorrentService#getTorrentHealth(String)
+     * @see TorrentService#getTorrentHealth(String, java.io.File)
      */
     public CompletableFuture<TorrentHealth> getTorrentHealth(String url) {
         cancelPreviousFutureIfNeeded();
+        var torrentSettings = getTorrentSettings();
 
-        healthFuture = torrentService.getTorrentHealth(url);
+        healthFuture = torrentService.getTorrentHealth(url, torrentSettings.getDirectory());
 
         return healthFuture;
     }
@@ -56,6 +60,10 @@ public class HealthService {
             log.trace("Cancelling current health request");
             healthFuture.cancel(true);
         }
+    }
+
+    private TorrentSettings getTorrentSettings() {
+        return settingsService.getSettings().getTorrentSettings();
     }
 
     //endregion

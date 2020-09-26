@@ -1,11 +1,11 @@
 package com.github.yoep.torrent.frostwire.listeners;
 
 import com.frostwire.jlibtorrent.AlertListener;
+import com.frostwire.jlibtorrent.ErrorCode;
 import com.frostwire.jlibtorrent.TorrentHandle;
+import com.frostwire.jlibtorrent.alerts.AddTorrentAlert;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
-import com.frostwire.jlibtorrent.alerts.TorrentAlert;
-import com.frostwire.jlibtorrent.swig.add_torrent_alert;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -43,16 +43,28 @@ public class TorrentCreationListener implements AlertListener {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void alert(Alert<?> alert) {
-        var addTorrentAlert = (TorrentAlert<add_torrent_alert>) alert;
+        var addTorrentAlert = (AddTorrentAlert) alert;
         var torrentName = addTorrentAlert.torrentName();
+
+        // check if the alert contains an error
+        if (addTorrentAlert.error().isError()) {
+            handleError(addTorrentAlert.error());
+        }
 
         // check if this alert matches the expected torrent
         // if not, ignore this creation alert
         if (this.name.equals(torrentName)) {
             onCompleteConsumer.accept(addTorrentAlert.handle());
         }
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void handleError(ErrorCode error) {
+        log.error("An error occurred while adding a torrent (code {}), {}", error.value(), error.message());
     }
 
     //endregion

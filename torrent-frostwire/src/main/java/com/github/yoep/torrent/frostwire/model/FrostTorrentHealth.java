@@ -95,8 +95,6 @@ public class FrostTorrentHealth implements AlertListener {
     private void onComplete() {
         var name = handle.name();
 
-        handle.pause();
-
         log.debug("Health has been retrieved for \"{}\", {}", name, this);
         onComplete.accept(this);
     }

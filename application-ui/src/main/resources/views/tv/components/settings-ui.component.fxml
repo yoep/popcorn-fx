@@ -24,6 +24,7 @@
     <Label text="%settings_ui_language"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
     <HBox fx:id="defaultLanguageCombo" styleClass="combo-box-base,combo-box" focusTraversable="true"
+          onKeyPressed="#onDefaultLanguageKeyPressed" onMouseClicked="#onDefaultLanguageClicked"
                GridPane.columnIndex="2" GridPane.rowIndex="0">
         <Label fx:id="defaultLanguage" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
         <StackPane styleClass="arrow-button">

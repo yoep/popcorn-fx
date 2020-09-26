@@ -236,15 +236,15 @@
     -fx-text-fill: #fff;
 }
 
-.root .content-section .movie-details .overlay {
+.root .content-section .overlay {
     -fx-background-color: rgba(0, 0, 0, 0.5);
 }
 
-.root .content-section .movie-details .overlay .list-view {
+.root .content-section .overlay .list-view {
     -fx-background-color: transparent;
 }
 
-.root .content-section .movie-details .overlay .list-view .list-cell {
+.root .content-section .overlay .list-view .list-cell {
     -fx-pref-width: 100;
     -fx-pref-height: 50;
     -fx-background-color: rgba(0, 0, 0, 0.3);
@@ -260,13 +260,13 @@
     -fx-cursor: hand;
 }
 
-.root .content-section .movie-details .overlay .list-view .list-cell:focused {
+.root .content-section .overlay .list-view .list-cell:focused {
     -fx-background-color: rgba(45, 114, 217, 0.6);
     -fx-border-color: #fff;
     -fx-text-fill: #fff;
 }
 
-.root .content-section .movie-details .overlay .list-view .list-cell:empty {
+.root .content-section .overlay .list-view .list-cell:empty {
     -fx-opacity: 0;
     -fx-focus-traversable: false;
 }

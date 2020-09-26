@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.yoep.popcorn.ui.view.controls.ManageableScrollPane?>
+<?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
@@ -21,4 +22,7 @@
             <fx:include source="../components/settings-subtitles.component.fxml"/>
         </VBox>
     </ManageableScrollPane>
+
+    <!-- Overlay -->
+    <Overlay fx:id="overlay" visible="false" />
 </StackPane>

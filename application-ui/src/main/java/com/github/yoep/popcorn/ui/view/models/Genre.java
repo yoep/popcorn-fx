@@ -2,8 +2,10 @@ package com.github.yoep.popcorn.ui.view.models;
 
 import lombok.Getter;
 
+import java.io.Serializable;
+
 @Getter
-public class Genre implements Comparable<Genre> {
+public class Genre implements Comparable<Genre>, Serializable {
     private static final String ALL_KEYWORD = "all";
 
     private final String key;

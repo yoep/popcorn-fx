@@ -132,7 +132,7 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer<MediaPlayer> {
     @Override
     protected MediaPlayerFactory createFactory(NativeDiscovery nativeDiscovery) {
         return new MediaPlayerFactory(nativeDiscovery,
-                "--intf=dummy", "--no-video-deco", "--no-embedded-video", "--no-video-title-show", "--video-wallpaper");
+                "--intf=dummy", "--no-video-deco", "--no-embedded-video", "--no-video-title-show");
     }
 
     private void initializeListeners() {

@@ -44,7 +44,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected static final String QUALITY_ACTIVE_CLASS = "active";
 
     protected final ApplicationEventPublisher eventPublisher;
-    protected final LocaleText localeText;
     protected final SubtitleService subtitleService;
     protected final SubtitlePickerService subtitlePickerService;
 
@@ -72,7 +71,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SettingsService settingsService) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
-        this.localeText = localeText;
         this.subtitleService = subtitleService;
         this.subtitlePickerService = subtitlePickerService;
     }

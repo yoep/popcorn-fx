@@ -452,14 +452,22 @@ public class SubtitleService {
                 // and search for the .srt file
                 while (entries.hasMoreElements()) {
                     var entry = entries.nextElement();
+                    var filename = entry.getName();
 
                     // check if the entry is a file
                     if (!entry.isDirectory()) {
-                        var filename = entry.getName();
                         var entryExtension = FilenameUtils.getExtension(filename);
 
                         if (entryExtension.equalsIgnoreCase("srt")) {
                             var destinationSubtitleFile = new File(subtitleDirectory + File.separator + filename);
+
+                            // CVE-2018-1263, CVE-2018-16131
+                            // verify that the zip file is not trying to leave the intended target directory
+                            if (!isValidDestinationPath(destinationSubtitleFile, subtitleDirectory)) {
+                                var message = MessageFormat.format("Unable to extract file \"{0}\", file is trying to leaving destination directory \"{1}\"",
+                                        filename, subtitleDirectory.getAbsolutePath());
+                                throw new SubtitleException(message);
+                            }
 
                             // check if the destination file already exists
                             // if so, return the cached file
@@ -491,6 +499,13 @@ public class SubtitleService {
         }
 
         return new File(url);
+    }
+
+    private boolean isValidDestinationPath(File destinationFile, File destinationDirectory) throws IOException {
+        var destinationDirectoryPath = destinationDirectory.getCanonicalPath();
+        var destinationFilePath = destinationFile.getCanonicalPath();
+
+        return destinationFilePath.startsWith(destinationDirectoryPath);
     }
 
     private File internalDownload(SubtitleFile subtitle) {

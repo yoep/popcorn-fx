@@ -9,6 +9,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
  */
 @Data
 @EqualsAndHashCode(of = {"imdbId", "language"})
-public class SubtitleInfo implements Comparable<SubtitleInfo> {
+public class SubtitleInfo implements Comparable<SubtitleInfo>, Serializable {
     private static final SubtitleInfo NONE = new SubtitleInfo(SubtitleLanguage.NONE);
 
     private final String imdbId;

@@ -430,7 +430,7 @@ public class VideoPlayerService {
 
     private void disableSubtitleTrack() {
         log.debug("Disabling the subtitle track for the video playback");
-        setSubtitle(Subtitle.NONE);
+        setSubtitle(Subtitle.none());
     }
 
     private void onStop() {

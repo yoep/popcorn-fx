@@ -69,8 +69,6 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
     private TorrentStream torrentStream;
 
     @FXML
-    protected Label statusText;
-    @FXML
     protected Label progressPercentage;
     @FXML
     protected Label downloadText;

@@ -3,12 +3,13 @@ package com.github.yoep.popcorn.ui.media.providers.models;
 import com.github.yoep.popcorn.ui.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.ui.media.watched.models.Watchable;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
  * Interface definition of media items of the Popcorn Time API.
  */
-public interface Media extends Watchable, Favorable {
+public interface Media extends Watchable, Favorable, Serializable {
     /**
      * Get the unique ID of the media.
      * This can be a IMDB ID or TVDB ID value that is returned.

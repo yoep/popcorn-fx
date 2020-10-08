@@ -1,8 +1,9 @@
 package com.github.yoep.torrent.adapter.model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public interface TorrentInfo {
+public interface TorrentInfo extends Serializable {
     /**
      * Get the name of the torrent info.
      *

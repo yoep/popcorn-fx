@@ -1,6 +1,8 @@
 package com.github.yoep.torrent.adapter.model;
 
-public interface TorrentFileInfo {
+import java.io.Serializable;
+
+public interface TorrentFileInfo extends Serializable {
     /**
      * Get the filename of the torrent file.
      *

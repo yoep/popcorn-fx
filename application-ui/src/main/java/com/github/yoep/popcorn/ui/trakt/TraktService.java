@@ -25,6 +25,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -88,14 +89,15 @@ public class TraktService {
         log.trace("Retrieving the user's watchlist at \"{}\"", uri.toString());
         ResponseEntity<WatchListItem[]> response = traktTemplate.getForEntity(uri, WatchListItem[].class);
 
-        // check if the response body is present
-        if (response.getBody() == null) {
-            log.trace("Failed to retrieve the user's watchlist, body is null");
-            return CompletableFuture.failedFuture(new TraktException("Failed to retrieve watchlist, response body is null"));
-        }
-
-        log.trace("Retrieved {} items from the user's watchlist", response.getBody().length);
-        return CompletableFuture.completedFuture(asList(response.getBody()));
+        return Optional.ofNullable(response.getBody())
+                .map(e -> {
+                    log.trace("Retrieved {} items from the user's watchlist", e.length);
+                    return CompletableFuture.completedFuture(asList(e));
+                })
+                .orElseGet(() -> {
+                    log.trace("Failed to retrieve the user's watchlist, body is null");
+                    return CompletableFuture.failedFuture(new TraktException("Failed to retrieve watchlist, response body is null"));
+                });
     }
 
     /**

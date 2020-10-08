@@ -10,6 +10,7 @@ import lombok.ToString;
 import org.springframework.util.Assert;
 
 import java.io.File;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,9 +21,9 @@ import java.util.Optional;
  */
 @ToString
 @EqualsAndHashCode
-public class Subtitle {
+public class Subtitle implements Serializable {
     public static final String INDEXES_PROPERTY = "indexes";
-    public static final Subtitle NONE = new Subtitle(SubtitleInfo.none());
+    private static final Subtitle NONE = new Subtitle(SubtitleInfo.none());
 
     private final SimpleListProperty<SubtitleIndex> indexes = new SimpleListProperty<>(this, INDEXES_PROPERTY, FXCollections.observableArrayList());
     private final SubtitleInfo subtitleInfo;

@@ -171,6 +171,9 @@
                         <param>-Dprism.lcdtext=false</param>
                         <param>-XX:+UseG1GC</param>
                     </vmArgs>
+                    <linuxConfig>
+                        <generateRpm>false</generateRpm>
+                    </linuxConfig>
                 </configuration>
                 <executions>
                     <execution>

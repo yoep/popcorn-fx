@@ -314,6 +314,10 @@
     -fx-font-size: 2em;
 }
 
+.root .content-section .settings-section .list-view {
+    -fx-max-width: 250px;
+}
+
 .root .content-section .settings-section .sub-section .text {
     -fx-font-size: 1.25em;
 }

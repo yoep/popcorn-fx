@@ -5,18 +5,17 @@ import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.StartScreen;
 import com.github.yoep.popcorn.ui.settings.models.UIScale;
 import com.github.yoep.popcorn.ui.settings.models.UISettings;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ListCell;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
-public class SettingsUIComponent extends AbstractSettingsComponent implements Initializable {
+public class SettingsUIComponent extends AbstractSettingsUiComponent implements Initializable {
     @FXML
     private ComboBox<Locale> defaultLanguage;
     @FXML
@@ -76,35 +75,7 @@ public class SettingsUIComponent extends AbstractSettingsComponent implements In
         showNotification();
     }
 
-    private ListCell<Locale> createLanguageCell() {
-        return new ListCell<>() {
-            @Override
-            protected void updateItem(Locale item, boolean empty) {
-                super.updateItem(item, empty);
 
-                if (!empty) {
-                    setText(localeText.get("language_" + item.getLanguage()));
-                } else {
-                    setText(null);
-                }
-            }
-        };
-    }
-
-    private ListCell<StartScreen> createStartScreenCell() {
-        return new ListCell<>() {
-            @Override
-            protected void updateItem(StartScreen item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (!empty) {
-                    setText(localeText.get("filter_" + item.name().toLowerCase()));
-                } else {
-                    setText(null);
-                }
-            }
-        };
-    }
 
     private UISettings getUiSettings() {
         return settingsService.getSettings().getUiSettings();

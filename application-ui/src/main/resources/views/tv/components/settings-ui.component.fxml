@@ -35,7 +35,8 @@
     <!-- UI scale -->
     <Label text="%settings_ui_scale" labelFor="$uiScale"
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox fx:id="uiScaleCombo" styleClass="combo-box-base,combo-box" focusTraversable="true"
+          onKeyPressed="#onUiScaleKeyPressed" onMouseClicked="#onUiScaleClicked"
                GridPane.columnIndex="2" GridPane.rowIndex="1">
         <Label fx:id="uiScale" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
         <StackPane styleClass="arrow-button">
@@ -46,8 +47,9 @@
     <!-- Start screen -->
     <Label text="%settings_start_screen" labelFor="$startScreen"
            GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
-               GridPane.columnIndex="2" GridPane.rowIndex="2">
+    <HBox fx:id="startScreenCombo" styleClass="combo-box-base,combo-box" focusTraversable="true"
+               GridPane.columnIndex="2" GridPane.rowIndex="2"
+          onKeyPressed="#onStartScreenKeyPressed" onMouseClicked="#onStartScreenClicked">
         <Label fx:id="startScreen" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
         <StackPane styleClass="arrow-button">
             <Region styleClass="arrow" />

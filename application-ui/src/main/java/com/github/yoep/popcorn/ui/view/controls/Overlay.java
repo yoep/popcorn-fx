@@ -77,7 +77,9 @@ public class Overlay extends StackPane {
     }
 
     private void onKeyEvent(KeyEvent event) {
-        if (event.getCode() == KeyCode.ENTER) {
+        var code = event.getCode();
+
+        if (code == KeyCode.ENTER || code == KeyCode.BACK_SPACE || code == KeyCode.ESCAPE) {
             event.consume();
             onClose();
         }

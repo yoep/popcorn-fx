@@ -6,14 +6,13 @@ import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.StartScreen;
 import com.github.yoep.popcorn.ui.settings.models.UIScale;
 import com.github.yoep.popcorn.ui.settings.models.UISettings;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.sections.SettingsSectionController;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -28,7 +27,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 @Slf4j
-public class SettingsUiComponent extends AbstractSettingsComponent implements Initializable {
+public class SettingsUiComponent extends AbstractSettingsUiComponent implements Initializable {
     private final SettingsSectionController settingsSection;
 
     @FXML
@@ -36,10 +35,17 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
     @FXML
     private Label defaultLanguage;
     @FXML
+    private Pane uiScaleCombo;
+    @FXML
     private Label uiScale;
     @FXML
+    private Pane startScreenCombo;
+    @FXML
     private Label startScreen;
-    private ListView<Locale> languages;
+
+    private ListView<Locale> languageList;
+    private ListView<UIScale> uiScaleList;
+    private ListView<StartScreen> startScreenList;
 
     //region Constructors
 
@@ -68,6 +74,8 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
         initializeUIScale();
         initializeStartScreen();
         initializeLanguages();
+        initializeUiScales();
+        initializeStartScreens();
     }
 
     private void initializeDefaultLanguage() {
@@ -104,26 +112,40 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
     }
 
     private void initializeLanguages() {
-        languages = new ListView<>();
+        languageList = new ListView<>();
 
-        languages.setMaxWidth(150);
-        languages.getItems().addListener((InvalidationListener) observable -> languages.setMaxHeight(50.0 * languages.getItems().size()));
-        languages.getItems().addAll(UISettings.supportedLanguages());
-        languages.setCellFactory(param -> new ListCell<>() {
-            @Override
-            protected void updateItem(Locale item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (!empty) {
-                    setText(localeText.get("language_" + item.getLanguage()));
-                } else {
-                    setText(null);
-                }
-            }
-        });
-        languages.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+        languageList.getItems().addListener((InvalidationListener) observable -> languageList.setMaxHeight(50.0 * languageList.getItems().size()));
+        languageList.getItems().addAll(UISettings.supportedLanguages());
+        languageList.setCellFactory(param -> createLanguageCell());
+        languageList.getSelectionModel().select(getUiSettings().getDefaultLanguage());
+        languageList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             var uiSettings = getUiSettings();
             uiSettings.setDefaultLanguage(newValue);
+        });
+    }
+
+    private void initializeUiScales() {
+        uiScaleList = new ListView<>();
+
+        uiScaleList.getItems().addListener((InvalidationListener) observable -> uiScaleList.setMaxHeight(50.0 * uiScaleList.getItems().size()));
+        uiScaleList.getItems().addAll(SettingsService.supportedUIScales());
+        uiScaleList.getSelectionModel().select(getUiSettings().getUiScale());
+        uiScaleList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            var uiSettings = getUiSettings();
+            uiSettings.setUiScale(newValue);
+        });
+    }
+
+    private void initializeStartScreens() {
+        startScreenList = new ListView<>();
+
+        startScreenList.getItems().addListener((InvalidationListener) observable -> startScreenList.setMaxHeight(50.0 * startScreenList.getItems().size()));
+        startScreenList.getItems().addAll(StartScreen.values());
+        startScreenList.setCellFactory(param -> createStartScreenCell());
+        startScreenList.getSelectionModel().select(getUiSettings().getStartScreen());
+        startScreenList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            var uiSettings = getUiSettings();
+            uiSettings.setStartScreen(newValue);
         });
     }
 
@@ -150,7 +172,15 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
     }
 
     private void onDefaultLanguageEvent() {
-        settingsSection.showOverlay(defaultLanguageCombo, languages);
+        settingsSection.showOverlay(defaultLanguageCombo, languageList);
+    }
+
+    private void onUiScaleEvent() {
+        settingsSection.showOverlay(uiScaleCombo, uiScaleList);
+    }
+
+    private void onStartScreenEvent() {
+        settingsSection.showOverlay(startScreenCombo, startScreenList);
     }
 
     @FXML
@@ -162,9 +192,37 @@ public class SettingsUiComponent extends AbstractSettingsComponent implements In
     }
 
     @FXML
+    private void onUiScaleKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onUiScaleEvent();
+        }
+    }
+
+    @FXML
+    private void onStartScreenKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onStartScreenEvent();
+        }
+    }
+
+    @FXML
     private void onDefaultLanguageClicked(MouseEvent event) {
         event.consume();
         onDefaultLanguageEvent();
+    }
+
+    @FXML
+    private void onUiScaleClicked(MouseEvent event) {
+        event.consume();
+        onUiScaleEvent();
+    }
+
+    @FXML
+    private void onStartScreenClicked(MouseEvent event) {
+        event.consume();
+        onStartScreenEvent();
     }
 
     //endregion

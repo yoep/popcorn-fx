@@ -98,6 +98,7 @@ public class HeaderSectionControllerIT extends TestFxBase {
 
             // wait for poster items
             WaitForAsyncUtils.waitFor(20, TimeUnit.SECONDS, () -> lookup(".poster-item").queryAll().size() > 1);
+            assertTrue(lookup(".poster-item").queryAll().size() > 1);
         }
     }
 }

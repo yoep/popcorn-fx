@@ -25,7 +25,7 @@ public class Subtitle implements Serializable {
     public static final String INDEXES_PROPERTY = "indexes";
     private static final Subtitle NONE = new Subtitle(SubtitleInfo.none());
 
-    private final SimpleListProperty<SubtitleIndex> indexes = new SimpleListProperty<>(this, INDEXES_PROPERTY, FXCollections.observableArrayList());
+    private final transient SimpleListProperty<SubtitleIndex> indexes = new SimpleListProperty<>(this, INDEXES_PROPERTY, FXCollections.observableArrayList());
     private final SubtitleInfo subtitleInfo;
     private final File file;
 

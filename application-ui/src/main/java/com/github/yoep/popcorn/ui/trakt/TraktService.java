@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.ui.trakt.models.*;
 import javafx.application.Platform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.ResponseEntity;
@@ -188,7 +189,7 @@ public class TraktService {
                             .noneMatch(movie -> movie.getMovie().getId().equals(key)))
                     .collect(Collectors.toList());
 
-            if (moviesToSync.size() > 0) {
+            if (CollectionUtils.isNotEmpty(moviesToSync)) {
                 addMoviesToTraktWatchlist(moviesToSync);
                 log.debug("Local DB movies to trakt.tv sync completed");
             }
@@ -210,7 +211,7 @@ public class TraktService {
                             .noneMatch(show -> key.equals(String.valueOf(show.getShow().getIds().getTvdb()))))
                     .collect(Collectors.toList());
 
-            if (showsToSync.size() > 0) {
+            if (CollectionUtils.isNotEmpty(showsToSync)) {
                 addShowsToTraktWatchlist(showsToSync);
                 log.debug("Local DB shows to trakt.tv sync completed");
             }

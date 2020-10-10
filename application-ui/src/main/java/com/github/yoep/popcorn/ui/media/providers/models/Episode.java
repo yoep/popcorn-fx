@@ -21,9 +21,9 @@ import java.util.Map;
 @ToString(exclude = {"watched", "liked", "show"})
 public class Episode implements Media {
     @JsonIgnore
-    private BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
+    private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
     @JsonIgnore
-    private BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
+    private final transient BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
     /**
      * The unique video ID of the {@link Episode}.

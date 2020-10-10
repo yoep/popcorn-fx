@@ -232,10 +232,8 @@ public class SettingsService {
     private void createApplicationSettingsDirectory() {
         File appDir = new File(PopcornTimeApplication.APP_DIR);
 
-        if (!appDir.exists()) {
-            if (!appDir.mkdirs()) {
-                log.error("Unable to create application directory in " + appDir.getAbsolutePath());
-            }
+        if (!appDir.exists() && !appDir.mkdirs()) {
+            log.error("Unable to create application directory in " + appDir.getAbsolutePath());
         }
     }
 

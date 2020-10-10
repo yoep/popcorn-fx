@@ -18,9 +18,9 @@ import java.util.Optional;
 @AllArgsConstructor
 public abstract class AbstractMedia implements Media {
     @JsonIgnore
-    private transient final BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
+    private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
     @JsonIgnore
-    private transient final BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
+    private final transient BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
     /**
      * The unique ID of the media item.

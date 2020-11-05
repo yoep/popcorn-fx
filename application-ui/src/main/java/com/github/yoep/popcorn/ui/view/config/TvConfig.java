@@ -120,8 +120,9 @@ public class TvConfig {
     @Bean
     public SettingsPlaybackComponent settingsPlaybackComponent(ApplicationEventPublisher eventPublisher,
                                                                LocaleText localeText,
-                                                               SettingsService settingsService) {
-        return new SettingsPlaybackComponent(eventPublisher, localeText, settingsService);
+                                                               SettingsService settingsService,
+                                                               SettingsSectionController settingsSection) {
+        return new SettingsPlaybackComponent(eventPublisher, localeText, settingsService, settingsSection);
     }
 
     @Bean

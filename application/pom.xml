@@ -251,14 +251,12 @@
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
                             </additionalResources>
                             <vmArgs>
-                                <param>-Djavafx.platform=monocle</param>
-                                <param>-Dembedded=monocle</param>
-                                <param>-Dglass.platform=Monocle</param>
+                                <param>-Dvlc.path=/usr/lib/arm-linux-gnueabihf/</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
                                 <param>-Dprism.lcdtext=false</param>
                                 <param>-Dprism.forceGPU=true</param>
-                                <param>-Dprism.order=es2</param>
+                                <param>-Dprism.maxvram=256m</param>
                                 <param>-Dcom.sun.javafx.transparentFramebuffer=true</param>
                                 <param>-XX:+UseG1GC</param>
                                 <param>-Xmx512m</param>

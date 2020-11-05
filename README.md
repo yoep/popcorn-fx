@@ -23,6 +23,7 @@ force-arm-video-player          | Force the use of the arm video player.
 big-picture                     | Activate the big picture mode.
 kiosk                           | Activate the kiosk mode (use alt+f4 to close the application).
 tv                              | Activate the tv mode (easier to use UI but less functionality).
+maximized                       | Maximize the window on startup.
 
 ### Java launch options
 

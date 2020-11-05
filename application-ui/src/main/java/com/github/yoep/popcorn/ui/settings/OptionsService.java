@@ -20,6 +20,7 @@ public class OptionsService {
     public static final String BIG_PICTURE_MODE_OPTION = "big-picture";
     public static final String KIOSK_MODE_OPTION = "kiosk";
     public static final String TV_MODE_OPTION = "tv";
+    public static final String MAXIMIZED_OPTION = "maximized";
 
     private final ApplicationArguments arguments;
 
@@ -39,6 +40,7 @@ public class OptionsService {
         var bigPictureMode = arguments.containsOption(BIG_PICTURE_MODE_OPTION);
         var kioskMode = arguments.containsOption(KIOSK_MODE_OPTION);
         var tvMode = arguments.containsOption(TV_MODE_OPTION);
+        var maximized = arguments.containsOption(MAXIMIZED_OPTION);
 
         if (bigPictureMode)
             log.debug("Activating big-picture mode");
@@ -51,6 +53,7 @@ public class OptionsService {
                 .bigPictureMode(bigPictureMode)
                 .kioskMode(kioskMode)
                 .tvMode(tvMode)
+                .maximized(maximized)
                 .build();
     }
 }

@@ -22,4 +22,8 @@ public class ApplicationOptions {
      * Indicates if the tv mode is enabled.
      */
     private final boolean tvMode;
+    /**
+     * Indicates if the window should be maximized on startup.
+     */
+    private final boolean maximized;
 }

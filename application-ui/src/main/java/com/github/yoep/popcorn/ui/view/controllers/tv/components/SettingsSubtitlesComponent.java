@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.ui.view.controllers.tv.sections.SettingsSectionCo
 import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
@@ -34,6 +35,8 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
     @FXML
     private Label fontSize;
     @FXML
+    private CheckBox clearCache;
+    @FXML
     private Pane defaultSubtitlePane;
 
     private ListView<SubtitleLanguage> defaultSubtitleList;
@@ -56,6 +59,7 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         initializeFontFamily();
         initializeDecoration();
         initializeFontSize();
+        initializeClearCache();
     }
 
     private void initializeDefaultSubtitle() {
@@ -111,6 +115,17 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         });
     }
 
+    private void initializeClearCache() {
+        var settings = getSubtitleSettings();
+
+        updateClearCache(settings.isAutoCleaningEnabled());
+        settings.addListener(evt -> {
+            if (evt.getPropertyName().equals(SubtitleSettings.AUTO_CLEANING_PROPERTY)) {
+                updateClearCache((Boolean) evt.getNewValue());
+            }
+        });
+    }
+
     //endregion
 
     //region Functions
@@ -131,8 +146,17 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         this.fontSize.setText(String.valueOf(fontSize));
     }
 
+    private void updateClearCache(boolean enabled) {
+        this.clearCache.setSelected(enabled);
+    }
+
     private void onDefaultSubtitleEvent() {
         settingsSection.showOverlay(defaultSubtitlePane, defaultSubtitleList);
+    }
+
+    private void onClearCacheEvent() {
+        var settings = getSubtitleSettings();
+        settings.setAutoCleaningEnabled(clearCache.isSelected());
     }
 
     private SubtitleSettings getSubtitleSettings() {
@@ -144,6 +168,14 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             onDefaultSubtitleEvent();
+        }
+    }
+
+    @FXML
+    private void onClearCacheKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onClearCacheEvent();
         }
     }
 

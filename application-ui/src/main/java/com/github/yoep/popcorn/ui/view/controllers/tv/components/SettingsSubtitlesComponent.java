@@ -35,6 +35,8 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
     @FXML
     private Label fontSize;
     @FXML
+    private CheckBox fontBold;
+    @FXML
     private CheckBox clearCache;
     @FXML
     private Pane defaultSubtitlePane;
@@ -59,6 +61,7 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         initializeFontFamily();
         initializeDecoration();
         initializeFontSize();
+        initializeFontBold();
         initializeClearCache();
     }
 
@@ -115,6 +118,17 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         });
     }
 
+    private void initializeFontBold() {
+        var settings = getSubtitleSettings();
+
+        updateFontBold(settings.isBold());
+        settings.addListener(evt -> {
+            if (evt.getPropertyName().equals(SubtitleSettings.BOLD_PROPERTY)) {
+                updateFontBold((Boolean) evt.getNewValue());
+            }
+        });
+    }
+
     private void initializeClearCache() {
         var settings = getSubtitleSettings();
 
@@ -146,12 +160,21 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         this.fontSize.setText(String.valueOf(fontSize));
     }
 
+    private void updateFontBold(boolean enabled) {
+        this.fontBold.setSelected(enabled);
+    }
+
     private void updateClearCache(boolean enabled) {
         this.clearCache.setSelected(enabled);
     }
 
     private void onDefaultSubtitleEvent() {
         settingsSection.showOverlay(defaultSubtitlePane, defaultSubtitleList);
+    }
+
+    private void onFontBoldEvent() {
+        var settings = getSubtitleSettings();
+        settings.setBold(fontBold.isSelected());
     }
 
     private void onClearCacheEvent() {
@@ -180,9 +203,29 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
     }
 
     @FXML
+    private void onFontBoldKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onFontBoldEvent();
+        }
+    }
+
+    @FXML
     private void onDefaultSubtitleClicked(MouseEvent event) {
         event.consume();
         onDefaultSubtitleEvent();
+    }
+
+    @FXML
+    private void onClearCacheClicked(MouseEvent event) {
+        event.consume();
+        onClearCacheEvent();
+    }
+
+    @FXML
+    private void onFontBoldClicked(MouseEvent event) {
+        event.consume();
+        onFontBoldEvent();
     }
 
     //endregion

@@ -26,8 +26,9 @@
     <!-- Default language -->
     <Label text="%settings_subtitles_default"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
-          GridPane.columnIndex="2" GridPane.rowIndex="0">
+    <HBox fx:id="defaultSubtitlePane" styleClass="combo-box-base,combo-box" focusTraversable="true"
+          GridPane.columnIndex="2" GridPane.rowIndex="0"
+          onKeyPressed="#onDefaultSubtitleKeyPressed" onMouseClicked="#onDefaultSubtitleClicked">
         <Label fx:id="defaultSubtitle" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
         <StackPane styleClass="arrow-button">
             <Region styleClass="arrow" />

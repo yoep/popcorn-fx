@@ -128,8 +128,9 @@ public class TvConfig {
     @Bean
     public SettingsSubtitlesComponent settingsSubtitlesComponent(ApplicationEventPublisher eventPublisher,
                                                                  LocaleText localeText,
-                                                                 SettingsService settingsService) {
-        return new SettingsSubtitlesComponent(eventPublisher, localeText, settingsService);
+                                                                 SettingsService settingsService,
+                                                                 SettingsSectionController settingsSection) {
+        return new SettingsSubtitlesComponent(eventPublisher, localeText, settingsService, settingsSection);
     }
 
     @Bean

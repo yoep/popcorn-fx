@@ -20,8 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -88,7 +86,7 @@ public class SettingsSubtitlesComponent implements Initializable {
     private void initializeSize() {
         SubtitleSettings settings = getSettings();
 
-        fontSize.getItems().addAll(getFontSizes());
+        fontSize.getItems().addAll(SubtitleSettings.supportedFontSizes());
         fontSize.getSelectionModel().select((Integer) settings.getFontSize());
         fontSize.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> settings.setFontSize(newValue));
     }
@@ -138,17 +136,6 @@ public class SettingsSubtitlesComponent implements Initializable {
                 }
             }
         };
-    }
-
-    private static List<Integer> getFontSizes() {
-        var sizes = new ArrayList<Integer>();
-
-        // increase sizes always by 2
-        for (int i = 20; i <= 80; i += 2) {
-            sizes.add(i);
-        }
-
-        return sizes;
     }
 
     @FXML

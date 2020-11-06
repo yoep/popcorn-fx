@@ -24,6 +24,7 @@ import java.io.File;
 @SpringBootApplication
 public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String ICON_NAME = "icon_64.png";
+    public static final String APPLICATION_TITLE = "Popcorn Time";
     public static final String APP_DIR = getDefaultAppDirLocation();
     public static final String ARM_ARCHITECTURE = "arm";
 
@@ -68,7 +69,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var maximizeService = applicationContext.getBean(MaximizeService.class);
         var options = optionsService.options();
         var properties = ViewProperties.builder()
-                .title("Popcorn Time")
+                .title(APPLICATION_TITLE)
                 .icon(ICON_NAME)
                 .background(getBackgroundColor());
 

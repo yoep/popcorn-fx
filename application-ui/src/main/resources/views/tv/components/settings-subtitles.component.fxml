@@ -38,7 +38,8 @@
     <!-- Font family -->
     <Label text="%settings_subtitles_font_family"
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox fx:id="fontFamilyPane" styleClass="combo-box-base,combo-box" focusTraversable="true"
+          onKeyPressed="#onFontFamilyKeyPressed" onMouseClicked="#onFontFamilyClicked"
           GridPane.columnIndex="2" GridPane.rowIndex="1">
         <Label fx:id="fontFamily" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
         <StackPane styleClass="arrow-button">
@@ -49,7 +50,8 @@
     <!-- Decoration -->
     <Label text="%settings_subtitles_decoration"
            GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox fx:id="decorationPane" styleClass="combo-box-base,combo-box" focusTraversable="true"
+          onKeyPressed="#onDecorationKeyPressed" onMouseClicked="#onDecorationClicked"
           GridPane.columnIndex="2" GridPane.rowIndex="2">
         <Label fx:id="decoration" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
         <StackPane styleClass="arrow-button">
@@ -60,7 +62,8 @@
     <!-- Font size -->
     <Label text="%settings_subtitles_font_size"
            GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-    <HBox styleClass="combo-box-base,combo-box" focusTraversable="true"
+    <HBox fx:id="fontSizePane" styleClass="combo-box-base,combo-box" focusTraversable="true"
+          onKeyPressed="#onFontSizeKeyPressed" onMouseClicked="#onFontSizeClicked"
           GridPane.columnIndex="2" GridPane.rowIndex="3">
         <Label fx:id="fontSize" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
         <StackPane styleClass="arrow-button">

@@ -7,6 +7,8 @@ import com.github.yoep.popcorn.ui.subtitles.models.SubtitleLanguage;
 import lombok.*;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @EqualsAndHashCode(callSuper = false)
@@ -130,6 +132,21 @@ public class SubtitleSettings extends AbstractSettings {
         var oldValue = this.bold;
         this.bold = bold;
         changes.firePropertyChange(BOLD_PROPERTY, oldValue, bold);
+    }
+
+    //endregion
+
+    //region Methods
+
+    public static List<Integer> supportedFontSizes() {
+        var sizes = new ArrayList<Integer>();
+
+        // increase sizes always by 2
+        for (int i = 20; i <= 80; i += 2) {
+            sizes.add(i);
+        }
+
+        return sizes;
     }
 
     //endregion

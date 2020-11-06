@@ -8,11 +8,11 @@ import com.github.yoep.popcorn.ui.subtitles.models.SubtitleFamily;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleLanguage;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.sections.SettingsSectionController;
-import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -40,8 +40,17 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
     private CheckBox clearCache;
     @FXML
     private Pane defaultSubtitlePane;
+    @FXML
+    private Pane fontFamilyPane;
+    @FXML
+    private Pane decorationPane;
+    @FXML
+    private Pane fontSizePane;
 
     private ListView<SubtitleLanguage> defaultSubtitleList;
+    private ListView<SubtitleFamily> fontFamilyList;
+    private ListView<DecorationType> decorationList;
+    private ListView<Integer> fontSizeList;
 
     //region Constructors
 
@@ -76,7 +85,7 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         });
 
         defaultSubtitleList = new ListView<>();
-        defaultSubtitleList.getItems().addListener((InvalidationListener) observable -> defaultSubtitleList.setMaxHeight(50.0 * defaultSubtitleList.getItems().size()));
+        makeListViewHeightAdaptive(defaultSubtitleList);
         defaultSubtitleList.getItems().addAll(SubtitleLanguage.values());
         defaultSubtitleList.getSelectionModel().select(settings.getDefaultSubtitle());
         defaultSubtitleList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
@@ -94,6 +103,15 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
                 updateFontFamily((SubtitleFamily) evt.getNewValue());
             }
         });
+
+        fontFamilyList = new ListView<>();
+        makeListViewHeightAdaptive(fontFamilyList);
+        fontFamilyList.getItems().addAll(SubtitleFamily.values());
+        fontFamilyList.getSelectionModel().select(settings.getFontFamily());
+        fontFamilyList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            var subtitleSettings = getSubtitleSettings();
+            subtitleSettings.setFontFamily(newValue);
+        });
     }
 
     private void initializeDecoration() {
@@ -105,6 +123,16 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
                 updateDecoration((DecorationType) evt.getNewValue());
             }
         });
+
+        decorationList = new ListView<>();
+        makeListViewHeightAdaptive(decorationList);
+        decorationList.setCellFactory(param -> createDecorationListCell());
+        decorationList.getItems().addAll(DecorationType.values());
+        decorationList.getSelectionModel().select(settings.getDecoration());
+        decorationList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            var subtitleSettings = getSubtitleSettings();
+            subtitleSettings.setDecoration(newValue);
+        });
     }
 
     private void initializeFontSize() {
@@ -115,6 +143,15 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
             if (evt.getPropertyName().equals(SubtitleSettings.FONT_SIZE_PROPERTY)) {
                 updateFontSize((Integer) evt.getNewValue());
             }
+        });
+
+        fontSizeList = new ListView<>();
+        makeListViewHeightAdaptive(fontSizeList);
+        fontSizeList.getItems().addAll(SubtitleSettings.supportedFontSizes());
+        fontSizeList.getSelectionModel().select((Integer) settings.getFontSize());
+        fontSizeList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            var subtitleSettings = getSubtitleSettings();
+            subtitleSettings.setFontSize(newValue);
         });
     }
 
@@ -172,6 +209,18 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         settingsSection.showOverlay(defaultSubtitlePane, defaultSubtitleList);
     }
 
+    private void onFontFamilyEvent() {
+        settingsSection.showOverlay(fontFamilyPane, fontFamilyList);
+    }
+
+    private void onDecorationEvent() {
+        settingsSection.showOverlay(decorationPane, decorationList);
+    }
+
+    private void onFontSizeEvent() {
+        settingsSection.showOverlay(fontSizePane, fontSizeList);
+    }
+
     private void onFontBoldEvent() {
         var settings = getSubtitleSettings();
         settings.setBold(fontBold.isSelected());
@@ -186,11 +235,50 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         return settingsService.getSettings().getSubtitleSettings();
     }
 
+    private ListCell<DecorationType> createDecorationListCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(DecorationType item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty) {
+                    setText(null);
+                } else {
+                    setText(localeText.get("settings_subtitles_style_" + item.toString().toLowerCase()));
+                }
+            }
+        };
+    }
+
     @FXML
     private void onDefaultSubtitleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             onDefaultSubtitleEvent();
+        }
+    }
+
+    @FXML
+    private void onFontFamilyKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onFontFamilyEvent();
+        }
+    }
+
+    @FXML
+    private void onDecorationKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onDecorationEvent();
+        }
+    }
+
+    @FXML
+    private void onFontSizeKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onFontSizeEvent();
         }
     }
 
@@ -214,6 +302,24 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
     private void onDefaultSubtitleClicked(MouseEvent event) {
         event.consume();
         onDefaultSubtitleEvent();
+    }
+
+    @FXML
+    private void onFontFamilyClicked(MouseEvent event) {
+        event.consume();
+        onFontFamilyEvent();
+    }
+
+    @FXML
+    private void onDecorationClicked(MouseEvent event) {
+        event.consume();
+        onDecorationEvent();
+    }
+
+    @FXML
+    private void onFontSizeClicked(MouseEvent event) {
+        event.consume();
+        onFontSizeEvent();
     }
 
     @FXML

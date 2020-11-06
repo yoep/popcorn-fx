@@ -120,7 +120,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
                     subtitleTrack.setFontFamily((String) evt.getNewValue());
                     break;
                 case SubtitleSettings.FONT_SIZE_PROPERTY:
-                    subtitleTrack.setFontSize((Integer) evt.getNewValue());
+                    videoPlayerService.setSubtitleSize((Integer) evt.getNewValue());
                     break;
                 case SubtitleSettings.BOLD_PROPERTY:
                     var bold = (Boolean) evt.getNewValue();

@@ -85,8 +85,10 @@ public class DesktopConfig {
     @Bean
     public PlayerSectionController playerSectionController(SettingsService settingsService,
                                                            VideoPlayerService videoPlayerService,
+                                                           VideoPlayerManagerService videoPlayerManagerService,
+                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
                                                            LocaleText localeText) {
-        return new PlayerSectionController(settingsService, videoPlayerService, localeText);
+        return new PlayerSectionController(settingsService, videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, localeText);
     }
 
     @Bean
@@ -188,9 +190,11 @@ public class DesktopConfig {
 
     @Bean
     public PlayerControlsComponent playerControlsComponent(VideoPlayerService videoPlayerService,
+                                                           VideoPlayerManagerService videoPlayerManagerService,
+                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
                                                            SubtitleService subtitleService,
                                                            LocaleText localeText) {
-        return new PlayerControlsComponent(videoPlayerService, subtitleService, localeText);
+        return new PlayerControlsComponent(videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, subtitleService, localeText);
     }
 
     @Bean

@@ -3,7 +3,9 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractPlayerControlsComponent;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerManagerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerSubtitleService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
@@ -19,8 +21,9 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
 
     //region Constructors
 
-    public PlayerControlsComponent(VideoPlayerService videoPlayerService) {
-        super(videoPlayerService);
+    public PlayerControlsComponent(VideoPlayerService videoPlayerService, VideoPlayerManagerService videoPlayerManagerService,
+                                   VideoPlayerSubtitleService videoPlayerSubtitleService) {
+        super(videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService);
     }
 
     //endregion

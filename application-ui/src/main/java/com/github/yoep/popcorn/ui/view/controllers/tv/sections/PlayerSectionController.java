@@ -3,7 +3,9 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractPlayerSectionController;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerManagerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerSubtitleService;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.scene.input.MouseEvent;
@@ -16,8 +18,10 @@ public class PlayerSectionController extends AbstractPlayerSectionController {
 
     public PlayerSectionController(SettingsService settingsService,
                                    VideoPlayerService videoPlayerService,
+                                   VideoPlayerManagerService videoPlayerManagerService,
+                                   VideoPlayerSubtitleService videoPlayerSubtitleService,
                                    LocaleText localeText) {
-        super(settingsService, videoPlayerService, localeText);
+        super(settingsService, videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, localeText);
     }
 
     //endregion

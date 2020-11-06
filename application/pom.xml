@@ -252,14 +252,14 @@
                             </additionalResources>
                             <vmArgs>
                                 <param>-Dvlc.path=/usr/lib/arm-linux-gnueabihf/</param>
+                                <param>-Djava.library.path=".:$PATH"</param>
+                                <param>-Djavafx.platform=gtk</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
                                 <param>-Dprism.lcdtext=false</param>
-                                <param>-Dprism.forceGPU=true</param>
-                                <param>-Dprism.maxvram=256m</param>
                                 <param>-Dcom.sun.javafx.transparentFramebuffer=true</param>
                                 <param>-XX:+UseG1GC</param>
-                                <param>-Xmx512m</param>
+                                <param>-Xmx200m</param>
                             </vmArgs>
                         </configuration>
                     </plugin>

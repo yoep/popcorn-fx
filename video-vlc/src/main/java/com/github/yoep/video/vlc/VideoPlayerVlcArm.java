@@ -103,6 +103,11 @@ public class VideoPlayerVlcArm extends AbstractVideoPlayer<MediaPlayer> {
         reset();
     }
 
+    @Override
+    public boolean supportsNativeSubtitleFile() {
+        return true;
+    }
+
     //endregion
 
     //region PostConstruct

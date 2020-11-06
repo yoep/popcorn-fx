@@ -23,6 +23,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
@@ -172,6 +173,21 @@ public class VideoPlayerYoutube implements VideoPlayer {
             getEngine().executeScript("stop()");
             reset();
         });
+    }
+
+    @Override
+    public boolean supportsNativeSubtitleFile() {
+        return false;
+    }
+
+    @Override
+    public void subtitleFile(File file) {
+        throw new UnsupportedOperationException("Subtitle file is not supported within the Youtube player");
+    }
+
+    @Override
+    public void subtitleDelay(long delay) {
+        throw new UnsupportedOperationException("Subtitle delay is not supported within the Youtube player");
     }
 
     //endregion

@@ -14,7 +14,9 @@ import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelection;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractPlayerControlsComponent;
 import com.github.yoep.popcorn.ui.view.controls.ProgressSliderControl;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerManagerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerSubtitleService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -49,9 +51,11 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     //region Constructors
 
     public PlayerControlsComponent(VideoPlayerService videoPlayerService,
+                                   VideoPlayerManagerService videoPlayerManagerService,
+                                   VideoPlayerSubtitleService videoPlayerSubtitleService,
                                    SubtitleService subtitleService,
                                    LocaleText localeText) {
-        super(videoPlayerService);
+        super(videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService);
         this.subtitleService = subtitleService;
         this.localeText = localeText;
     }
@@ -170,7 +174,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
             }
         });
         languageSelection.addListener(this::onSubtitleChanged);
-        videoPlayerService.subtitleProperty().addListener((observable, oldValue, newValue) ->
+        videoPlayerSubtitleService.subtitleProperty().addListener((observable, oldValue, newValue) ->
                 languageSelection.select(newValue.getSubtitleInfo().orElse(SubtitleInfo.none())));
     }
 
@@ -203,11 +207,11 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
     }
 
     private void onSubtitleChanged(SubtitleInfo newValue) {
-        videoPlayerService.setSubtitle(newValue);
+        videoPlayerSubtitleService.setSubtitle(newValue);
     }
 
     private void onSubtitleSizeChanged(int pixelChange) {
-        videoPlayerService.setSubtitleSize(videoPlayerService.getSubtitleSize() + pixelChange);
+        videoPlayerSubtitleService.setSubtitleSize(videoPlayerSubtitleService.getSubtitleSize() + pixelChange);
     }
 
     private void setVideoTime(double time) {

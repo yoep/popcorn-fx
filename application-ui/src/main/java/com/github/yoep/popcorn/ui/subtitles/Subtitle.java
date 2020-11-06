@@ -106,4 +106,8 @@ public class Subtitle implements Serializable {
     public Optional<SubtitleInfo> getSubtitleInfo() {
         return Optional.ofNullable(subtitleInfo);
     }
+
+    public File getFile() {
+        return file;
+    }
 }

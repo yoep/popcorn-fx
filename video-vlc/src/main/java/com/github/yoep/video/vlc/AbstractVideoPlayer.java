@@ -12,6 +12,8 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 
+import java.io.File;
+
 /**
  * Abstract implementation of the {@link VideoPlayer} adapter.
  *
@@ -102,6 +104,21 @@ abstract class AbstractVideoPlayer<T extends MediaPlayer> implements VideoPlayer
     @Override
     public Throwable getError() {
         return error;
+    }
+
+    //endregion
+
+    //region VideoPlayer
+
+    @Override
+    public void subtitleFile(File file) {
+        mediaPlayer.subpictures().setSubTitleFile(file);
+    }
+
+    @Override
+    public void subtitleDelay(long delay) {
+        log.trace("Updated subtitle delay to {} milliseconds", delay);
+        mediaPlayer.subpictures().setDelay(delay * 1000);
     }
 
     //endregion

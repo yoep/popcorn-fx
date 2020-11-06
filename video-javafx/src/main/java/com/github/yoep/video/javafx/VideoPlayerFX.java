@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
+import java.io.File;
 
 @Slf4j
 @ToString
@@ -158,6 +159,21 @@ public class VideoPlayerFX implements VideoPlayer {
         mediaPlayer.stop();
         mediaPlayer = null;
         reset();
+    }
+
+    @Override
+    public boolean supportsNativeSubtitleFile() {
+        return false;
+    }
+
+    @Override
+    public void subtitleFile(File file) {
+        throw new UnsupportedOperationException("Subtitle file is not supported within the JavaFX player");
+    }
+
+    @Override
+    public void subtitleDelay(long delay) {
+        throw new UnsupportedOperationException("Subtitle delay is not supported within the JavaFX player");
     }
 
     //endregion

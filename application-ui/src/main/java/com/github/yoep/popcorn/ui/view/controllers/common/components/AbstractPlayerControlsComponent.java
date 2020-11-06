@@ -3,7 +3,9 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerManagerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerSubtitleService;
 import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
 import com.github.yoep.torrent.adapter.listeners.TorrentListener;
 import com.github.yoep.torrent.adapter.model.DownloadStatus;
@@ -25,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractPlayerControlsComponent {
     protected final VideoPlayerService videoPlayerService;
+    protected final VideoPlayerManagerService videoPlayerManagerService;
+    protected final VideoPlayerSubtitleService videoPlayerSubtitleService;
 
     private final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
     private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(newValue);
@@ -67,7 +71,7 @@ public abstract class AbstractPlayerControlsComponent {
     }
 
     protected void initializeVideoListeners() {
-        videoPlayerService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
+        videoPlayerManagerService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
             if (oldValue != null) {
                 oldValue.playerStateProperty().removeListener(playerStateListener);
                 oldValue.timeProperty().removeListener(timeListener);

@@ -8,7 +8,9 @@ import com.github.yoep.popcorn.ui.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.ui.subtitles.Subtitle;
 import com.github.yoep.popcorn.ui.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.ui.subtitles.models.DecorationType;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerManagerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
+import com.github.yoep.popcorn.ui.view.services.VideoPlayerSubtitleService;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.state.PlayerState;
 import javafx.animation.FadeTransition;
@@ -48,6 +50,8 @@ public abstract class AbstractPlayerSectionController implements Initializable {
 
     protected final SettingsService settingsService;
     protected final VideoPlayerService videoPlayerService;
+    protected final VideoPlayerManagerService videoPlayerManagerService;
+    protected final VideoPlayerSubtitleService videoPlayerSubtitleService;
     protected final LocaleText localeText;
 
     protected final PauseTransition idleTimer = getIdleTimer();
@@ -113,7 +117,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         subtitleTrack.setDecoration(subtitleSettings.getDecoration());
 
         // bind the subtitle size to the video player service
-        subtitleTrack.fontSizeProperty().bind(videoPlayerService.subtitleSizeProperty());
+        subtitleTrack.fontSizeProperty().bind(videoPlayerSubtitleService.subtitleSizeProperty());
 
         subtitleSettings.addListener(evt -> {
             log.trace("Subtitle setting \"{}\" is being changed, updating subtitle track", evt.getPropertyName());
@@ -122,7 +126,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
                     subtitleTrack.setFontFamily((String) evt.getNewValue());
                     break;
                 case SubtitleSettings.FONT_SIZE_PROPERTY:
-                    videoPlayerService.setSubtitleSize((Integer) evt.getNewValue());
+                    videoPlayerSubtitleService.setSubtitleSize((Integer) evt.getNewValue());
                     break;
                 case SubtitleSettings.BOLD_PROPERTY:
                     var bold = (Boolean) evt.getNewValue();
@@ -141,7 +145,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
 
         subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
             subtitleOffset.setText(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
-            videoPlayerService.setSubtitleOffset(newValue.longValue() * 1000);
+            videoPlayerSubtitleService.setSubtitleOffset(newValue.longValue() * 1000);
             fadeTransition.stop();
             subtitleOffset.setOpacity(1);
             offsetTimer.playFromStart();
@@ -171,7 +175,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     }
 
     private void initializeVideoListeners() {
-        videoPlayerService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
+        videoPlayerManagerService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
             if (oldValue != null) {
                 oldValue.playerStateProperty().removeListener(playerStateListener);
                 oldValue.timeProperty().removeListener(timeListener);
@@ -182,7 +186,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
 
             onVideoPlayerChanged(newValue);
         });
-        videoPlayerService.subtitleProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
+        videoPlayerSubtitleService.subtitleProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
     }
 
     //endregion
@@ -210,7 +214,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         if (uiBlocked)
             return;
 
-        var videoPlayer = videoPlayerService.getVideoPlayer();
+        var videoPlayer = videoPlayerManagerService.getVideoPlayer();
 
         if (videoPlayer == null || videoPlayer.getPlayerState() != PlayerState.PLAYING)
             return;
@@ -327,7 +331,11 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     }
 
     private void onSubtitleChanged(Subtitle subtitle) {
-        if (subtitle.isNone()) {
+        var supportNativeSubtitlePlayback = videoPlayerManagerService.getActivePlayer()
+                .map(VideoPlayer::supportsNativeSubtitleFile)
+                .orElse(false);
+
+        if (subtitle.isNone() || supportNativeSubtitlePlayback) {
             subtitleTrack.clear();
         } else {
             subtitleTrack.setSubtitle(subtitle);

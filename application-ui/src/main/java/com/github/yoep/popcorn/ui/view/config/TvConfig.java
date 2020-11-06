@@ -14,10 +14,7 @@ import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.tv.MainTvController;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.tv.sections.*;
-import com.github.yoep.popcorn.ui.view.services.HealthService;
-import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.UrlService;
-import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
+import com.github.yoep.popcorn.ui.view.services.*;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import org.springframework.boot.ApplicationArguments;
@@ -77,8 +74,10 @@ public class TvConfig {
     @Bean
     public PlayerSectionController playerSectionController(SettingsService settingsService,
                                                            VideoPlayerService videoPlayerService,
+                                                           VideoPlayerManagerService videoPlayerManagerService,
+                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
                                                            LocaleText localeText) {
-        return new PlayerSectionController(settingsService, videoPlayerService, localeText);
+        return new PlayerSectionController(settingsService, videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, localeText);
     }
 
     @Bean
@@ -139,8 +138,10 @@ public class TvConfig {
     }
 
     @Bean
-    public PlayerControlsComponent playerControlsComponent(VideoPlayerService videoPlayerService) {
-        return new PlayerControlsComponent(videoPlayerService);
+    public PlayerControlsComponent playerControlsComponent(VideoPlayerService videoPlayerService,
+                                                           VideoPlayerManagerService videoPlayerManagerService,
+                                                           VideoPlayerSubtitleService videoPlayerSubtitleService) {
+        return new PlayerControlsComponent(videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService);
     }
 
     @Bean

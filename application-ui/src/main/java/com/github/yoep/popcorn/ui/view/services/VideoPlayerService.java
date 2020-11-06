@@ -1,24 +1,19 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
+import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
-import com.github.yoep.popcorn.ui.messages.VideoMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.subtitles.Subtitle;
-import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleMatcher;
 import com.github.yoep.popcorn.ui.view.listeners.VideoPlayerListener;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import com.github.yoep.video.adapter.VideoPlayer;
-import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import javafx.application.Platform;
-import javafx.beans.property.*;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -40,23 +34,15 @@ import java.util.function.Consumer;
 @Service
 @RequiredArgsConstructor
 public class VideoPlayerService {
-    public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
-    public static final String SUBTITLE_PROPERTY = "subtitle";
-    public static final String SUBTITLE_SIZE_PROPERTY = "subtitleSize";
 
     private final ApplicationEventPublisher eventPublisher;
     private final AutoResumeService autoResumeService;
     private final FullscreenService fullscreenService;
     private final TorrentStreamService torrentStreamService;
     private final SettingsService settingsService;
-    private final SubtitleService subtitleService;
-    private final SubtitlePickerService subtitlePickerService;
-    private final LocaleText localeText;
-    private final List<VideoPlayer> videoPlayers;
+    private final VideoPlayerManagerService videoPlayerManagerService;
+    private final VideoPlayerSubtitleService videoPlayerSubtitleService;
 
-    private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
-    private final ObjectProperty<Subtitle> subtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, Subtitle.none());
-    private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
     private final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
     private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(newValue);
     private final ChangeListener<Number> durationListener = (observable, oldValue, newValue) -> onDurationChanged(newValue);
@@ -71,80 +57,6 @@ public class VideoPlayerService {
     private long videoChangeTime;
 
     //region Properties
-
-    /**
-     * Get the current active video player of the service.
-     *
-     * @return Returns the active video player.
-     */
-    @Nullable
-    public VideoPlayer getVideoPlayer() {
-        return videoPlayer.get();
-    }
-
-    /**
-     * Get the video player property.
-     *
-     * @return Returns the video player property.
-     */
-    public ReadOnlyObjectProperty<VideoPlayer> videoPlayerProperty() {
-        return videoPlayer;
-    }
-
-    /**
-     * Get the current subtitle of the video player.
-     *
-     * @return Returns the subtitle.
-     */
-    public Subtitle getSubtitle() {
-        return subtitle.get();
-    }
-
-    /**
-     * Get the subtitle property.
-     *
-     * @return Returns the subtitle property.
-     */
-    public ObjectProperty<Subtitle> subtitleProperty() {
-        return subtitle;
-    }
-
-    /**
-     * Set the subtitle for the video player.
-     *
-     * @param subtitle The subtitle for the video player.
-     */
-    public void setSubtitle(Subtitle subtitle) {
-        Assert.notNull(subtitle, "subtitle cannot be null");
-        this.subtitle.set(subtitle);
-    }
-
-    /**
-     * Get the subtitle font size.
-     *
-     * @return Returns the subtitle font size.
-     */
-    public int getSubtitleSize() {
-        return subtitleSize.get();
-    }
-
-    /**
-     * Get the subtitle size property.
-     *
-     * @return Returns the subtitle size property.
-     */
-    public IntegerProperty subtitleSizeProperty() {
-        return subtitleSize;
-    }
-
-    /**
-     * Set the new subtitle size.
-     *
-     * @param subtitleSize The new subtitle size.
-     */
-    public void setSubtitleSize(int subtitleSize) {
-        this.subtitleSize.set(subtitleSize);
-    }
 
     /**
      * Get the fullscreen property of the application.
@@ -177,10 +89,8 @@ public class VideoPlayerService {
      * @throws VideoPlayerNotInitializedException Is thrown when the video player has not yet been initialized.
      */
     public void resume() {
-        var videoPlayer = getVideoPlayer();
-
-        if (videoPlayer != null)
-            videoPlayer.resume();
+        videoPlayerManagerService.getActivePlayer()
+                .ifPresent(VideoPlayer::resume);
     }
 
     /**
@@ -189,10 +99,8 @@ public class VideoPlayerService {
      * @throws VideoPlayerNotInitializedException Is thrown when the video player has not yet been initialized.
      */
     public void pause() {
-        var videoPlayer = getVideoPlayer();
-
-        if (videoPlayer != null)
-            videoPlayer.pause();
+        videoPlayerManagerService.getActivePlayer()
+                .ifPresent(VideoPlayer::pause);
     }
 
     /**
@@ -202,10 +110,8 @@ public class VideoPlayerService {
      * @throws VideoPlayerNotInitializedException Is thrown when the video player has not yet been initialized.
      */
     public void seek(long time) {
-        var videoPlayer = getVideoPlayer();
-
-        if (videoPlayer != null)
-            videoPlayer.seek(time);
+        videoPlayerManagerService.getActivePlayer()
+                .ifPresent(e -> e.seek(time));
     }
 
     /**
@@ -221,12 +127,9 @@ public class VideoPlayerService {
      * @return Returns the last error of the video player (can be null).
      */
     public Throwable getError() {
-        var videoPlayer = getVideoPlayer();
-
-        if (videoPlayer != null)
-            return videoPlayer.getError();
-
-        return null;
+        return videoPlayerManagerService.getActivePlayer()
+                .map(VideoPlayer::getError)
+                .orElse(null);
     }
 
     /**
@@ -236,7 +139,7 @@ public class VideoPlayerService {
      */
     public void videoTimeOffset(long millis) {
         log.trace("Updating video time with {} offset", millis);
-        var videoPlayer = getVideoPlayer();
+        var videoPlayer = videoPlayerManagerService.getVideoPlayer();
 
         // check if a video player is currently active
         // if not, ignore the time offset update
@@ -260,7 +163,7 @@ public class VideoPlayerService {
      * Change the current play/pause state of the video player.
      */
     public void changePlayPauseState() {
-        var videoPlayer = getVideoPlayer();
+        var videoPlayer = videoPlayerManagerService.getVideoPlayer();
 
         // check if the video player present
         // if not, ignore this action
@@ -274,16 +177,6 @@ public class VideoPlayerService {
             log.trace("Video player state is being changed to \"paused\"");
             videoPlayer.pause();
         }
-    }
-
-    /**
-     * Set the new subtitle info for the video playback.
-     * This method will automatically download and parse the new subtitle.
-     *
-     * @param subtitleInfo The new subtitle info.
-     */
-    public void setSubtitle(SubtitleInfo subtitleInfo) {
-        onSubtitleChanged(subtitleInfo);
     }
 
     /**
@@ -323,16 +216,11 @@ public class VideoPlayerService {
     @PostConstruct
     private void init() {
         log.trace("Initializing video player service");
-        initializeSubtitleSize();
         initializeVideoListeners();
     }
 
-    private void initializeSubtitleSize() {
-        subtitleSize.set(settingsService.getSettings().getSubtitleSettings().getFontSize());
-    }
-
     private void initializeVideoListeners() {
-        videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
+        videoPlayerManagerService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
             if (oldValue != null) {
                 oldValue.playerStateProperty().removeListener(playerStateListener);
                 oldValue.timeProperty().removeListener(timeListener);
@@ -343,15 +231,6 @@ public class VideoPlayerService {
             newValue.timeProperty().addListener(timeListener);
             newValue.durationProperty().addListener(durationListener);
         });
-    }
-
-    //endregion
-
-    //region PreDestroy
-
-    @PreDestroy
-    private void dispose() {
-        videoPlayers.forEach(VideoPlayer::dispose);
     }
 
     //endregion
@@ -375,62 +254,10 @@ public class VideoPlayerService {
 
         // check if a subtitle was selected
         if (activitySubtitle.isPresent() && !activitySubtitle.get().isNone()) {
-            setSubtitle(activitySubtitle.get());
+            videoPlayerSubtitleService.setSubtitle(activitySubtitle.get());
         }
 
         playUrl(activity.getUrl());
-    }
-
-    private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
-        // check if the subtitle is being disabled
-        // if so, update the subtitle to none and ignore the subtitle download & parsing
-        if (subtitleInfo == null || subtitleInfo.isNone()) {
-            disableSubtitleTrack();
-            return;
-        }
-
-        final var imdbId = subtitleInfo.getImdbId();
-        final var language = subtitleInfo.getLanguage();
-
-        // check if the subtitle is a custom subtitle and doesn't contain any files yet
-        // if so, pause the playback and let the user pick a custom subtitle file
-        // if the custom subtitle contains files, than the passed subtitle file is from the details components
-        if (subtitleInfo.isCustom() && subtitleInfo.getFiles().isEmpty()) {
-            // pause the video playback as a popup will be shown
-            pause();
-
-            // show the subtitle picker popup
-            var customSubtitle = subtitlePickerService.pickCustomSubtitle();
-
-            if (customSubtitle.isPresent()) {
-                // overrule the given subtitleInfo with the custom subtitle file picked by the user
-                subtitleInfo = customSubtitle.get();
-            } else {
-                disableSubtitleTrack();
-                return;
-            }
-
-            // resume the video playback
-            resume();
-        }
-
-        log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
-        var matcher = SubtitleMatcher.from(FilenameUtils.getBaseName(url), quality);
-
-        subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitles, throwable) -> {
-            if (throwable == null) {
-                log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
-                this.setSubtitle(subtitles);
-            } else {
-                log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
-                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
-            }
-        });
-    }
-
-    private void disableSubtitleTrack() {
-        log.debug("Disabling the subtitle track for the video playback");
-        setSubtitle(Subtitle.none());
     }
 
     private void onStop() {
@@ -440,7 +267,7 @@ public class VideoPlayerService {
         var duration = this.duration;
 
         // stop the video player in case it might be still playing
-        Optional.ofNullable(getVideoPlayer())
+        Optional.ofNullable(videoPlayerManagerService.getVideoPlayer())
                 .ifPresent(VideoPlayer::stop);
 
         eventPublisher.publishEvent(PlayerStoppedEvent.builder()
@@ -465,9 +292,9 @@ public class VideoPlayerService {
     }
 
     private void playUrl(String url) {
-        updateActiveVideoPlayer(url);
+        videoPlayerManagerService.updateActiveVideoPlayer(url);
         this.url = url;
-        var videoPlayer = getVideoPlayer();
+        var videoPlayer = videoPlayerManagerService.getVideoPlayer();
         var filename = FilenameUtils.getName(url);
         var playbackSettings = settingsService.getSettings().getPlaybackSettings();
 
@@ -495,20 +322,6 @@ public class VideoPlayerService {
                         .ifPresent(videoPlayer::seek);
             }
         });
-    }
-
-    private void updateActiveVideoPlayer(String url) {
-        var videoPlayer = videoPlayers.stream()
-                .filter(e -> e.supports(url))
-                .findFirst()
-                .orElseThrow(() -> new VideoPlayerException("No compatible video player found for " + url));
-
-        // check if the video player is the same
-        // if so, do not update the active video player
-        if (videoPlayer == getVideoPlayer())
-            return;
-
-        this.videoPlayer.set(videoPlayer);
     }
 
     private void onTimeChanged(Number newValue) {

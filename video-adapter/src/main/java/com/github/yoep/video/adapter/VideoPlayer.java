@@ -5,6 +5,8 @@ import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.scene.Node;
 
+import java.io.File;
+
 /**
  * Adapter definition of a video player.
  */
@@ -134,6 +136,33 @@ public interface VideoPlayer {
      * Stop the current media playback in the video player.
      */
     void stop();
+
+    /**
+     * Check if the video player supports displaying subtitle files (SRT files).
+     * This means that the {@link #subtitleFile(File)} and {@link #subtitleDelay(long)} can be used.
+     * Otherwise, both methods might throw {@link UnsupportedOperationException} if this methods returns {@code false}.
+     *
+     * @return Returns true if the video player supports subtitle files, else false.
+     */
+    boolean supportsNativeSubtitleFile();
+
+    /**
+     * The subtitle file for the current playback.
+     * Before using this method, check that native subtitles are supported with {@link #supportsNativeSubtitleFile()}.
+     *
+     * @param file The SRT subtitle file.
+     * @throws UnsupportedOperationException Is thrown when native subtitle files are not supported by the player.
+     */
+    void subtitleFile(File file);
+
+    /**
+     * The subtitle delay in milliseconds.
+     * Before using this method, check that native subtitles are supported with {@link #supportsNativeSubtitleFile()}.
+     *
+     * @param delay The delay of the subtitle.µ
+     * @throws UnsupportedOperationException Is thrown when native subtitle files are not supported by the player.
+     */
+    void subtitleDelay(long delay);
 
     //endregion
 }

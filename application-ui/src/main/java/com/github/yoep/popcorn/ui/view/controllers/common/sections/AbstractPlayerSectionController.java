@@ -55,6 +55,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     protected final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
     protected final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(newValue);
 
+    protected FadeTransition fadeTransition;
     protected Pane bufferIndicator;
     protected boolean uiBlocked;
 
@@ -94,6 +95,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         initializeSceneEvents();
         initializeSubtitleTrack();
         initializePaneListeners();
+        initializeFaders();
     }
 
     private void initializeSceneEvents() {
@@ -133,13 +135,14 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         });
 
         offsetTimer.setOnFinished(event -> {
-            FadeTransition fadeTransition = new FadeTransition(Duration.millis(INFO_FADE_DURATION), subtitleOffset);
             fadeTransition.setToValue(0);
-            fadeTransition.play();
+            fadeTransition.playFromStart();
         });
 
         subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
             subtitleOffset.setText(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
+            videoPlayerService.setSubtitleOffset(newValue.longValue() * 1000);
+            fadeTransition.stop();
             subtitleOffset.setOpacity(1);
             offsetTimer.playFromStart();
         }));
@@ -151,6 +154,10 @@ public abstract class AbstractPlayerSectionController implements Initializable {
 
         playerControlsPane.setOnMouseEntered(event -> uiBlocked = true);
         playerControlsPane.setOnMouseExited(event -> uiBlocked = false);
+    }
+
+    private void initializeFaders() {
+        fadeTransition = new FadeTransition(Duration.millis(INFO_FADE_DURATION), subtitleOffset);
     }
 
     //endregion

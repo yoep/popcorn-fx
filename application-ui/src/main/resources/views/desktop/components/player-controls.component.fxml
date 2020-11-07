@@ -9,9 +9,9 @@
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerControlsComponent" styleClass="player-controls">
     <columnConstraints>
         <ColumnConstraints/>
-        <ColumnConstraints minWidth="45"/>
+        <ColumnConstraints minWidth="55" halignment="RIGHT"/>
         <ColumnConstraints hgrow="ALWAYS"/>
-        <ColumnConstraints minWidth="45"/>
+        <ColumnConstraints minWidth="55" halignment="LEFT"/>
         <ColumnConstraints/>
         <ColumnConstraints/>
     </columnConstraints>

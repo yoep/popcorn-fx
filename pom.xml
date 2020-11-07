@@ -19,6 +19,7 @@
         <module>video-adapter</module>
         <module>video-javafx</module>
         <module>video-vlc</module>
+        <module>video-vlc-native</module>
         <module>video-youtube</module>
         <module>torrent-adapter</module>
         <module>torrent-stream</module>

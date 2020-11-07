@@ -1,4 +1,5 @@
 .idea/
+.cmake/
 target/
 
 **/*.iml

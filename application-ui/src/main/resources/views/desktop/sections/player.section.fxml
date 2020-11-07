@@ -5,11 +5,11 @@
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.PlayerSectionController" fx:id="playerPane" styleClass="player">
-    <!-- Video Player -->
+    <!-- Video VideoPlayer -->
     <StackPane fx:id="videoView"
                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
-    <!-- Video Player subtitle -->
+    <!-- Video VideoPlayer subtitle -->
     <SubtitleTrack fx:id="subtitleTrack"
                    AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="50" AnchorPane.leftAnchor="0"/>
 
@@ -24,7 +24,7 @@
     <Label fx:id="errorText" styleClass="video-info" textAlignment="CENTER" alignment="CENTER" cache="true"
            AnchorPane.topAnchor="100" AnchorPane.rightAnchor="15" AnchorPane.leftAnchor="15" AnchorPane.bottomAnchor="100"/>
 
-    <!-- Video Player Cover -->
+    <!-- Video VideoPlayer Cover -->
     <BorderPane fx:id="playerVideoOverlay" styleClass="player-overlay" onMouseClicked="#onPlayerClick" cache="true" cacheHint="SCALE"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
@@ -32,11 +32,11 @@
     <fx:include fx:id="playerPlayNextPane" source="../components/player-play-next.component.fxml"
                 AnchorPane.bottomAnchor="50" AnchorPane.rightAnchor="0"/>
 
-    <!-- Player Header -->
+    <!-- VideoPlayer Header -->
     <fx:include fx:id="playerHeaderPane" source="../components/player-header.component.fxml"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0"/>
 
-    <!-- Player Controls -->
+    <!-- VideoPlayer Controls -->
     <fx:include fx:id="playerControlsPane" source="../components/player-controls.component.fxml"
                 AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
 </AnchorPane>

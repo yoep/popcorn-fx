@@ -38,6 +38,11 @@
         </dependency>
         <dependency>
             <groupId>com.github.yoep</groupId>
+            <artifactId>video-vlc-native</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
             <artifactId>video-youtube</artifactId>
             <version>${project.version}</version>
         </dependency>

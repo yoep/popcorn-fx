@@ -80,6 +80,16 @@ To run the application from source code locally, add the following VM options.
     -Djava.library.path=assets/<<OS>>:${PATH}
     --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.web,javafx.swing
 
+### Building native VLC player
+
+The module `video-vlc-native` makes use of a native VLC player build on top
+of `QT5+` for video playbacks. This is used for the Raspberry Pi video playbacks
+to increase the performance as the JavaFX rendering is too heavy for video playbacks.
+
+To install the native VLC player, run the following maven command:
+
+    mvn clean install -Pcmake -Dqt.compiler="QT_COMPILER_LOCATION" -Dcmake.dir="CMAKE_INSTALLATION_DIR"
+
 ## Features
 
 ### v1.0.0

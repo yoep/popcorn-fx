@@ -4,15 +4,11 @@
 
 using namespace std;
 
-VideoPlayer::VideoPlayer() : QWidget() {
+VideoPlayer::VideoPlayer() : QFrame() {
     cout << "Initializing player" << endl;
-    videoWidget = new QFrame(this);
-
     vlcInstance = libvlc_new(0, nullptr);
     mediaPlayer = nullptr;
     media = nullptr;
-
-    initializeLayout();
 }
 
 VideoPlayer::~VideoPlayer() {
@@ -36,12 +32,6 @@ void VideoPlayer::playUrl(char const *url) {
     play();
 }
 
-void VideoPlayer::initializeLayout() {
-    auto *layout = new QStackedLayout();
-    layout->addWidget(videoWidget);
-    setLayout(layout);
-}
-
 void VideoPlayer::play() {
     // check if a media is present
     // if not, raise an exception that the play was called to early
@@ -51,8 +41,9 @@ void VideoPlayer::play() {
 
     // create a new media player for the current media
     mediaPlayer = libvlc_media_player_new_from_media(media);
+    libvlc_media_player_retain(mediaPlayer);
 
-    void *drawable = (void *) videoWidget->winId();
+    void *drawable = (void *) this->winId();
 
 #if defined(Q_OS_WIN)
     libvlc_media_player_set_hwnd(mediaPlayer, drawable);
@@ -68,10 +59,12 @@ void VideoPlayer::play() {
 }
 
 void VideoPlayer::pause() {
+    cout << "Pausing media player" << endl;
     libvlc_media_player_set_pause(mediaPlayer, 1);
 }
 
 void VideoPlayer::resume() {
+    cout << "Resuming media player" << endl;
     libvlc_media_player_set_pause(mediaPlayer, 0);
 }
 
@@ -79,6 +72,7 @@ void VideoPlayer::stop() {
     if (mediaPlayer != nullptr) {
         cout << "Stopping current media player" << endl;
         libvlc_media_player_stop(mediaPlayer);
+        libvlc_media_player_release(mediaPlayer);
     }
 
     if (media != nullptr) {

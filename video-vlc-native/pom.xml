@@ -15,6 +15,9 @@
         <java.version>11</java.version>
 
         <jna.version>5.6.0</jna.version>
+
+        <cmake.download>false</cmake.download>
+        <cmake-maven-plugin.version>3.18.4-b1</cmake-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -26,11 +29,6 @@
         </dependency>
 
         <!-- JNA -->
-        <dependency>
-            <groupId>net.java.dev.jna</groupId>
-            <artifactId>jna</artifactId>
-            <version>${jna.version}</version>
-        </dependency>
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
@@ -85,4 +83,62 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.googlecode.cmake-maven-project</groupId>
+                    <artifactId>cmake-maven-plugin</artifactId>
+                    <version>${cmake-maven-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>cmake</id>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.googlecode.cmake-maven-project</groupId>
+                        <artifactId>cmake-maven-plugin</artifactId>
+                        <version>3.18.4-b1</version>
+                        <executions>
+                            <execution>
+                                <id>cmake-generate</id>
+                                <goals>
+                                    <goal>generate</goal>
+                                </goals>
+                                <configuration>
+                                    <sourcePath>${project.parent.basedir}</sourcePath>
+                                    <targetPath>${build.directory}/cmake</targetPath>
+                                    <options>
+                                        <option>-DCMAKE_MODULE_PATH=${qt.compiler.dir}/lib</option>
+                                        <option>-DCMAKE_PREFIX_PATH=${qt.compiler.dir}</option>
+                                    </options>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>cmake-compile</id>
+                                <goals>
+                                    <goal>compile</goal>
+                                </goals>
+                                <configuration>
+                                    <projectDirectory>${build.directory}/cmake</projectDirectory>
+                                    <target>all</target>
+                                    <options>
+                                        <option>-DCMAKE_MODULE_PATH=${qt.compiler}/lib</option>
+                                        <option>-DCMAKE_PREFIX_PATH=${qt.compiler}</option>
+                                    </options>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -1,17 +1,23 @@
 package com.github.yoep.video.vlcnative;
 
 import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
-import com.sun.jna.StringArray;
+import com.github.yoep.video.vlcnative.bindings.popcorn_desktop_player_t;
 import javafx.beans.property.*;
+import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
 
+@Slf4j
 public class VideoPlayerVlcNative implements VideoPlayer {
     private static final Pane videoSurfaceTracker = new StackPane();
 
@@ -19,7 +25,9 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
     private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
 
+    private popcorn_desktop_player_t instance;
     private boolean initialized;
+    private boolean boundToWindow;
 
     //region VideoPlayer
 
@@ -75,22 +83,29 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     @Override
     public void dispose() {
-
+        if (instance != null) {
+            log.debug("Releasing the native VLC player");
+            PopcornTimePlayerLib.popcorn_desktop_player_release(instance);
+        }
     }
 
     @Override
     public void play(String url) throws VideoPlayerNotInitializedException {
-
+        checkInitialized();
+        PopcornTimePlayerLib.popcorn_desktop_player_show_maximized(instance);
+        PopcornTimePlayerLib.popcorn_desktop_player_play(instance, url);
     }
 
     @Override
     public void pause() throws VideoPlayerNotInitializedException {
-
+        checkInitialized();
+        PopcornTimePlayerLib.popcorn_desktop_player_pause(instance);
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
-
+        checkInitialized();
+        PopcornTimePlayerLib.popcorn_desktop_player_resume(instance);
     }
 
     @Override
@@ -100,7 +115,8 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     @Override
     public void stop() {
-
+        checkInitialized();
+        PopcornTimePlayerLib.popcorn_desktop_player_stop(instance);
     }
 
     @Override
@@ -124,11 +140,73 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     @PostConstruct
     private void init() {
-        new Thread(() -> {
-            PopcornTimePlayerLib.popcorn_desktop_new(0, new StringArray(new String[0]));
+        log.trace("Initializing VLC native player");
+        try {
+            initializeTracker();
+            instance = PopcornTimePlayerLib.popcorn_desktop_player_new();
+
+            if (instance == null) {
+                throw new VideoPlayerException("Failed to initialize native VLC player");
+            }
 
             initialized = true;
-        }).start();
+
+            new Thread(() -> {
+                try {
+                    var result = PopcornTimePlayerLib.popcorn_desktop_player_exec(instance);
+                    log.debug("Qt Application exited with {}", result);
+                } catch (Exception ex) {
+                    log.error(ex.getMessage(), ex);
+                }
+            }, "QtThread").start();
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void checkInitialized() {
+        if (!initialized) {
+            throw new VideoPlayerException("VLC native player has not yet been initialized");
+        }
+    }
+
+    private void initializeTracker() {
+        videoSurfaceTracker.sceneProperty().addListener((observableScene, oldValueScene, newValueScene) -> {
+            if (newValueScene != null) {
+                var stage = (Stage) newValueScene.getWindow();
+
+                if (!boundToWindow)
+                    bindFrameToWindow(newValueScene);
+
+                stage.setAlwaysOnTop(true);
+            } else if (oldValueScene != null) {
+                var stage = (Stage) oldValueScene.getWindow();
+
+                stage.setAlwaysOnTop(false);
+            }
+        });
+
+    }
+
+    private void bindFrameToWindow(Scene scene) {
+        updateTransparentComponents(scene);
+
+        boundToWindow = true;
+        log.debug("ARM video player has been bound to the JavaFX window");
+    }
+
+    private void updateTransparentComponents(Scene scene) {
+        var videoView = videoSurfaceTracker.getParent();
+        var playerPane = videoView.getParent();
+        var root = (Group) scene.getRoot();
+        var mainPane = root.getChildren().get(0);
+
+        playerPane.setStyle("-fx-background-color: transparent");
+        mainPane.setStyle("-fx-background-color: transparent");
     }
 
     //endregion

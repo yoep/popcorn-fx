@@ -1,63 +1,117 @@
 #include <QtCore/QCoreApplication>
 #include <QtWidgets/QApplication>
 #include <iostream>
-#include <getopt.h>
 #include <regex>
+#include <QtWidgets/QStackedLayout>
 #include "PlayerWindow.h"
 #include "VideoPlayer.h"
 
 using namespace std;
 
-static const char *const ApplicationTitle = "Popcorn Time VideoPlayer";
-
 PlayerWindow::PlayerWindow(int &argc, char **argv) : argc(argc) {
     this->argv = argv;
+    this->app = nullptr;
+    this->window = nullptr;
     this->player = nullptr;
 }
 
+VideoPlayer *PlayerWindow::getPlayer() const {
+    return player;
+}
+
 int PlayerWindow::exec() {
-    cout << "Creating QT application" << endl;
-    QCoreApplication::setApplicationName(ApplicationTitle);
-    QApplication app(argc, argv);
+    cout << "Initializing Qt Application" << endl;
+    this->app = new QApplication(argc, argv);
 
     // create a new video player
     player = new VideoPlayer();
 
+    window = new QWidget();
+    auto *layout = new QStackedLayout();
+    layout->addWidget(player);
+    window->setLayout(layout);
+
     // make the  QT window undecorated
-    cout << "Configuring QT Window Flags" << endl;
-    player->setWindowFlag(Qt::FramelessWindowHint);
+    window->setWindowFlags(Qt::FramelessWindowHint);
+    window->setWindowFlag(Qt::Window);
 
-    // maximize the QT window on startup
-    cout << "Showing QT window" << endl;
-    player->showMaximized();
-
-    // retrieve the playback url from the command line
-    char *url = parseArguments();
-
-    // check if a playback url was retrieved
-    if (url != nullptr) {
-        play(url);
-    }
-
-    return QApplication::exec();
+    int exit = QApplication::exec();
+    cout << "QApplication finished " << endl;
+    return exit;
 }
 
-void PlayerWindow::play(char *mrl) {
+bool PlayerWindow::isInitialized() {
+    // check if the app & player have been assigned
+    return this->app != nullptr && this->player != nullptr;
+}
+
+void PlayerWindow::show() {
+    if (window == nullptr) {
+        cerr << "QT Window is not initialized" << endl;
+        return;
+    }
+
+    QMetaObject::invokeMethod(this->app, [&] {
+        cout << "Showing QT Player Window" << endl;
+        window->showNormal();
+    });
+}
+
+void PlayerWindow::showMaximized() {
+    if (window == nullptr) {
+        cerr << "QT Window is not initialized" << endl;
+        return;
+    }
+
+    QMetaObject::invokeMethod(this->app, [&] {
+        cout << "Showing QT Player Window" << endl;
+        window->showMaximized();
+    });
+}
+
+void PlayerWindow::close() {
+    if (this->app == nullptr) {
+        cerr << "QT Application has not been initialized" << endl;
+        return;
+    }
+
+    QMetaObject::invokeMethod(this->app, [&] {
+        player->close();
+        QApplication::exit(0);
+    });
+}
+
+void PlayerWindow::play(const char *mrl) {
     if (mrl == nullptr)
         return;
 
-    if (isHttpUrl(mrl)) {
-        player->playUrl(mrl);
+    if (this->app == nullptr) {
+        cerr << "QT Application has not been initialized" << endl;
+        return;
+    }
+
+    QMetaObject::invokeMethod(this->app, [&, mrl] {
+        if (isHttpUrl(mrl)) {
+            player->playUrl(mrl);
+        } else {
+            player->playFile(mrl);
+        }
+    });
+}
+
+bool PlayerWindow::isMaximized() {
+    return player->isMaximized();
+}
+
+void PlayerWindow::setMaximized(bool maximized) {
+    if (maximized) {
+        player->showMaximized();
     } else {
-        player->playFile(mrl);
+        player->showNormal();
     }
 }
 
-char *PlayerWindow::parseArguments() {
-    return argv[optind];
-}
-
-bool PlayerWindow::isHttpUrl(char *url) {
+bool PlayerWindow::isHttpUrl(const char *url) {
     std::string value = url;
     return std::regex_match(value, std::regex("^(https?:\\/\\/).*"));
 }

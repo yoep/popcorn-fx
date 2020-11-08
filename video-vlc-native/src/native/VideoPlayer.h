@@ -5,7 +5,7 @@
 #ifndef POPCORNDESKTOPPLAYER_PLAYER_H
 #define POPCORNDESKTOPPLAYER_PLAYER_H
 
-class VideoPlayer : public QWidget {
+class VideoPlayer : public QFrame {
 public:
     VideoPlayer();
 
@@ -25,11 +25,8 @@ private:
     libvlc_instance_t *vlcInstance;
     libvlc_media_player_t *mediaPlayer;
     libvlc_media_t *media;
-    QFrame *videoWidget;
 
     void play();
-
-    void initializeLayout();
 
     static void handleVlcError();
 };

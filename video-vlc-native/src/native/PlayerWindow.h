@@ -8,18 +8,32 @@ class PlayerWindow {
 public:
     PlayerWindow(int &argc, char **argv);
 
-    void play(char *mrl);
+    [[nodiscard]] VideoPlayer *getPlayer() const;
 
     int exec();
+
+    void show();
+
+    void play(const char *mrl);
+
+    void showMaximized();
+
+    void close();
+
+    bool isInitialized();
+
+    bool isMaximized();
+
+    void setMaximized(bool maximized);
 
 private:
     int &argc;
     char **argv;
+    QApplication *app;
+    QWidget *window;
     VideoPlayer *player;
 
-    char *parseArguments();
-
-    static bool isHttpUrl(char *string);
+    static bool isHttpUrl(const char *string);
 };
 
 

@@ -4,7 +4,7 @@ import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
-import com.github.yoep.video.vlcnative.bindings.popcorn_desktop_player_t;
+import com.github.yoep.video.vlcnative.bindings.popcorn_player_t;
 import javafx.beans.property.*;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -25,7 +25,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
     private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
 
-    private popcorn_desktop_player_t instance;
+    private popcorn_player_t instance;
     private boolean initialized;
     private boolean boundToWindow;
 
@@ -85,27 +85,27 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     public void dispose() {
         if (instance != null) {
             log.debug("Releasing the native VLC player");
-            PopcornTimePlayerLib.popcorn_desktop_player_release(instance);
+            PopcornPlayerLib.popcorn_player_release(instance);
         }
     }
 
     @Override
     public void play(String url) throws VideoPlayerNotInitializedException {
         checkInitialized();
-        PopcornTimePlayerLib.popcorn_desktop_player_show_maximized(instance);
-        PopcornTimePlayerLib.popcorn_desktop_player_play(instance, url);
+        PopcornPlayerLib.popcorn_player_show_maximized(instance);
+        PopcornPlayerLib.popcorn_player_play(instance, url);
     }
 
     @Override
     public void pause() throws VideoPlayerNotInitializedException {
         checkInitialized();
-        PopcornTimePlayerLib.popcorn_desktop_player_pause(instance);
+        PopcornPlayerLib.popcorn_player_pause(instance);
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
         checkInitialized();
-        PopcornTimePlayerLib.popcorn_desktop_player_resume(instance);
+        PopcornPlayerLib.popcorn_player_resume(instance);
     }
 
     @Override
@@ -116,7 +116,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     @Override
     public void stop() {
         checkInitialized();
-        PopcornTimePlayerLib.popcorn_desktop_player_stop(instance);
+        PopcornPlayerLib.popcorn_player_stop(instance);
     }
 
     @Override
@@ -143,17 +143,17 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         log.trace("Initializing VLC native player");
         try {
             initializeTracker();
-            instance = PopcornTimePlayerLib.popcorn_desktop_player_new();
-
-            if (instance == null) {
-                throw new VideoPlayerException("Failed to initialize native VLC player");
-            }
-
-            initialized = true;
-
             new Thread(() -> {
                 try {
-                    var result = PopcornTimePlayerLib.popcorn_desktop_player_exec(instance);
+                    instance = PopcornPlayerLib.popcorn_player_new();
+
+                    if (instance == null) {
+                        throw new VideoPlayerException("Failed to initialize native VLC player");
+                    }
+
+                    initialized = true;
+
+                    var result = PopcornPlayerLib.popcorn_player_exec(instance);
                     log.debug("Qt Application exited with {}", result);
                 } catch (Exception ex) {
                     log.error(ex.getMessage(), ex);

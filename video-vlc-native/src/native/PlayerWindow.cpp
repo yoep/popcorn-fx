@@ -8,6 +8,8 @@
 
 using namespace std;
 
+const char *const ApplicationTitle = "Popcorn Player";
+
 PlayerWindow::PlayerWindow(int &argc, char **argv) : argc(argc) {
     this->argv = argv;
     this->app = nullptr;
@@ -21,6 +23,7 @@ VideoPlayer *PlayerWindow::getPlayer() const {
 
 int PlayerWindow::exec() {
     cout << "Initializing Qt Application" << endl;
+    QCoreApplication::setApplicationName(ApplicationTitle);
     this->app = new QApplication(argc, argv);
 
     // create a new video player
@@ -82,8 +85,10 @@ void PlayerWindow::close() {
 }
 
 void PlayerWindow::play(const char *mrl) {
-    if (mrl == nullptr)
+    if (mrl == nullptr) {
+        cerr << "No MRL has been passed to the play function, ignoring play action" << endl;
         return;
+    }
 
     if (this->app == nullptr) {
         cerr << "QT Application has not been initialized" << endl;

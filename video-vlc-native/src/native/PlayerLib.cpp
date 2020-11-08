@@ -1,13 +1,16 @@
 #include <thread>
+#include <iostream>
 #include "PlayerLib.h"
 #include "PlayerWindow.h"
 
-struct popcorn_desktop_player_t {
+using namespace std;
+
+struct popcorn_player_t {
     void *window;
 };
 
-popcorn_desktop_player_t *popcorn_desktop_player_new() {
-    popcorn_desktop_player_t *pdp;
+popcorn_player_t *popcorn_player_new() {
+    popcorn_player_t *pdp;
 
     // initialize the return type
     pdp = (typeof(pdp)) malloc(sizeof(*pdp));
@@ -24,7 +27,7 @@ popcorn_desktop_player_t *popcorn_desktop_player_new() {
     return pdp;
 }
 
-int popcorn_desktop_player_exec(popcorn_desktop_player_t *pdp) {
+int popcorn_player_exec(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return -1;
 
@@ -34,7 +37,7 @@ int popcorn_desktop_player_exec(popcorn_desktop_player_t *pdp) {
     return window->exec();
 }
 
-void popcorn_desktop_player_release(popcorn_desktop_player_t *pdp) {
+void popcorn_player_release(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return;
 
@@ -47,9 +50,11 @@ void popcorn_desktop_player_release(popcorn_desktop_player_t *pdp) {
     free(pdp);
 }
 
-void popcorn_desktop_player_play(popcorn_desktop_player_t *pdp, const char *mrl) {
+void popcorn_player_play(popcorn_player_t *pdp, const char *mrl) {
     if (pdp == nullptr)
         return;
+
+    cout << std::string("Received popcorn_player_play mrl: ") + mrl << endl;
 
     PlayerWindow *window;
 
@@ -57,7 +62,7 @@ void popcorn_desktop_player_play(popcorn_desktop_player_t *pdp, const char *mrl)
     window->play(mrl);
 }
 
-void popcorn_desktop_player_pause(popcorn_desktop_player_t *pdp) {
+void popcorn_player_pause(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return;
 
@@ -67,7 +72,7 @@ void popcorn_desktop_player_pause(popcorn_desktop_player_t *pdp) {
     window->getPlayer()->pause();
 }
 
-void popcorn_desktop_player_resume(popcorn_desktop_player_t *pdp) {
+void popcorn_player_resume(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return;
 
@@ -77,7 +82,7 @@ void popcorn_desktop_player_resume(popcorn_desktop_player_t *pdp) {
     window->getPlayer()->resume();
 }
 
-void popcorn_desktop_player_stop(popcorn_desktop_player_t *pdp) {
+void popcorn_player_stop(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return;
 
@@ -87,7 +92,7 @@ void popcorn_desktop_player_stop(popcorn_desktop_player_t *pdp) {
     window->getPlayer()->stop();
 }
 
-void popcorn_desktop_player_show(popcorn_desktop_player_t *pdp) {
+void popcorn_player_show(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return;
 
@@ -97,7 +102,7 @@ void popcorn_desktop_player_show(popcorn_desktop_player_t *pdp) {
     window->show();
 }
 
-void popcorn_desktop_player_show_maximized(popcorn_desktop_player_t *pdp) {
+void popcorn_player_show_maximized(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return;
 

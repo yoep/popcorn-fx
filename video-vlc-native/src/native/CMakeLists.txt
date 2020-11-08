@@ -26,8 +26,8 @@ file(GLOB SOURCES
         ${LIBVLC_LIBS})
 message("Including: ${SOURCES}")
 
-add_library(PopcornDesktopPlayer SHARED ${SOURCES})
-add_executable(PopcornDesktopPlayerRunner ${SOURCES})
+add_library(PopcornPlayer SHARED ${SOURCES})
+add_executable(PopcornPlayerRunner ${SOURCES})
 
-target_link_libraries(PopcornDesktopPlayer Qt5::Widgets ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY})
-target_link_libraries(PopcornDesktopPlayerRunner Qt5::Widgets ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY})
+target_link_libraries(PopcornPlayer Qt5::Widgets ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY})
+target_link_libraries(PopcornPlayerRunner Qt5::Widgets ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY})

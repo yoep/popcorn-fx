@@ -14,6 +14,8 @@ import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 
 import java.io.File;
 
+import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
+
 /**
  * Abstract implementation of the {@link VideoPlayer} adapter.
  *
@@ -188,7 +190,10 @@ abstract class AbstractVideoPlayer<T extends MediaPlayer> implements VideoPlayer
 
             @Override
             public void error(MediaPlayer mediaPlayer) {
-                setError(new VideoPlayerException("VLC media player went into error state"));
+                var message = libvlc_errmsg();
+
+                log.error("VLC error encountered, error: {}", message);
+                setError(new VideoPlayerException("VLC media player went into error state, error: " + message));
             }
 
             @Override

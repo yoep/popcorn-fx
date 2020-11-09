@@ -12,26 +12,45 @@ if (WIN32)
     SET(CMAKE_FIND_LIBRARY_SUFFIXES ".dll" ".a" ".lib")
 endif ()
 
-FIND_LIBRARY(
-        LIBVLC_LIBRARY
-        NAMES vlc libvlc
-        HINTS "$ENV{LIBVLC_LIBRARY_PATH}"
-        PATHS
-        "${PROJECT_SOURCE_DIR}/assets/linux/vlc"
-        "${PROJECT_SOURCE_DIR}/assets/linux-arm/vlc"
-        "${PROJECT_SOURCE_DIR}/assets/maxosx/vlc"
-        "${PROJECT_SOURCE_DIR}/assets/windows/vlc"
-)
-FIND_LIBRARY(
-        LIBVLCCORE_LIBRARY
-        NAMES vlccore libvlccore
-        HINTS "$ENV{LIBVLC_LIBRARY_PATH}"
-        PATHS
-        "${PROJECT_SOURCE_DIR}/assets/linux/vlc"
-        "${PROJECT_SOURCE_DIR}/assets/linux-arm/vlc"
-        "${PROJECT_SOURCE_DIR}/assets/maxosx/vlc"
-        "${PROJECT_SOURCE_DIR}/assets/windows/vlc"
-)
+# check if the ARM flag is defined
+# if this is the case, we're only going to check the linux-arm directory for the VLC libraries
+if (ARM)
+    FIND_LIBRARY(
+            LIBVLC_LIBRARY
+            NAMES vlc libvlc
+            HINTS "$ENV{LIBVLC_LIBRARY_PATH}"
+            PATHS
+            "${PROJECT_SOURCE_DIR}/assets/linux-arm/vlc"
+    )
+    FIND_LIBRARY(
+            LIBVLCCORE_LIBRARY
+            NAMES vlccore libvlccore
+            HINTS "$ENV{LIBVLC_LIBRARY_PATH}"
+            PATHS
+            "${PROJECT_SOURCE_DIR}/assets/linux-arm/vlc"
+    )
+else ()
+    FIND_LIBRARY(
+            LIBVLC_LIBRARY
+            NAMES vlc libvlc
+            HINTS "$ENV{LIBVLC_LIBRARY_PATH}"
+            PATHS
+            "${PROJECT_SOURCE_DIR}/assets/linux/vlc"
+            "${PROJECT_SOURCE_DIR}/assets/linux-arm/vlc"
+            "${PROJECT_SOURCE_DIR}/assets/maxosx/vlc"
+            "${PROJECT_SOURCE_DIR}/assets/windows/vlc"
+    )
+    FIND_LIBRARY(
+            LIBVLCCORE_LIBRARY
+            NAMES vlccore libvlccore
+            HINTS "$ENV{LIBVLC_LIBRARY_PATH}"
+            PATHS
+            "${PROJECT_SOURCE_DIR}/assets/linux/vlc"
+            "${PROJECT_SOURCE_DIR}/assets/linux-arm/vlc"
+            "${PROJECT_SOURCE_DIR}/assets/maxosx/vlc"
+            "${PROJECT_SOURCE_DIR}/assets/windows/vlc"
+    )
+endif ()
 
 IF (LIBVLC_INCLUDE_DIR AND LIBVLC_LIBRARY AND LIBVLCCORE_LIBRARY)
     SET(LIBVLC_FOUND TRUE)

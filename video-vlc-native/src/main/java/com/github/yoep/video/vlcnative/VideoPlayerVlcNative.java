@@ -12,10 +12,12 @@ import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
+import java.util.Optional;
 
 @Slf4j
 public class VideoPlayerVlcNative implements VideoPlayer {
@@ -94,8 +96,13 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     @Override
     public void play(String url) throws VideoPlayerNotInitializedException {
         checkInitialized();
+
+        // start the native player through JNA
         PopcornPlayerLib.popcorn_player_show_maximized(instance);
         PopcornPlayerLib.popcorn_player_play(instance, url);
+
+        // request the current window to be focused again
+        getWindow().ifPresent(Window::requestFocus);
     }
 
     @Override
@@ -197,6 +204,8 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private void bindFrameToWindow(Scene scene) {
         updateTransparentComponents(scene);
 
+        getWindow().ifPresent(Window::requestFocus);
+
         boundToWindow = true;
         log.debug("Native VLC player has been bound to the JavaFX window");
     }
@@ -209,6 +218,17 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
         playerPane.setStyle("-fx-background-color: transparent");
         mainPane.setStyle("-fx-background-color: transparent");
+    }
+
+    private Optional<Window> getWindow() {
+        var scene = videoSurfaceTracker.getScene();
+
+        if (scene == null) {
+            log.warn("Unable to retrieve scene of current video player");
+            return Optional.empty();
+        }
+
+        return Optional.ofNullable(scene.getWindow());
     }
 
     //endregion

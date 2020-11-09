@@ -5,9 +5,9 @@
 #ifndef POPCORNDESKTOPPLAYER_PLAYER_H
 #define POPCORNDESKTOPPLAYER_PLAYER_H
 
-class VideoPlayer : public QFrame {
+class VideoPlayer : public QWidget {
 public:
-    VideoPlayer();
+    explicit VideoPlayer(QWidget* parent = nullptr);
 
     ~VideoPlayer() override;
 

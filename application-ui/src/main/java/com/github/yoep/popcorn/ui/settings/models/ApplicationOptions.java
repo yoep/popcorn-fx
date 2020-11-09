@@ -26,4 +26,8 @@ public class ApplicationOptions {
      * Indicates if the window should be maximized on startup.
      */
     private final boolean maximized;
+    /**
+     * Indicates if the mouse should be permanently disabled from the application.
+     */
+    private final boolean mouseDisabled;
 }

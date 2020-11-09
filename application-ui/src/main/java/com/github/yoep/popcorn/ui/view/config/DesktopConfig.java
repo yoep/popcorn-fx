@@ -41,8 +41,9 @@ public class DesktopConfig {
                                          TaskExecutor taskExecutor,
                                          ApplicationArguments arguments,
                                          UrlService urlService,
-                                         SettingsService settingsService) {
-        return new MainDesktopController(eventPublisher, viewLoader, taskExecutor, arguments, urlService, settingsService);
+                                         SettingsService settingsService,
+                                         OptionsService optionsService) {
+        return new MainDesktopController(eventPublisher, viewLoader, taskExecutor, arguments, urlService, settingsService, optionsService);
     }
 
     //region Sections

@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.watched.WatchedService;
+import com.github.yoep.popcorn.ui.settings.OptionsService;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
@@ -34,8 +35,9 @@ public class TvConfig {
                                          ApplicationArguments arguments,
                                          UrlService urlService,
                                          SettingsService settingsService,
+                                         OptionsService optionsService,
                                          TaskExecutor taskExecutor) {
-        return new MainTvController(eventPublisher, viewLoader, arguments, urlService, settingsService, taskExecutor);
+        return new MainTvController(eventPublisher, viewLoader, arguments, urlService, settingsService, optionsService, taskExecutor);
     }
 
     //region Sections

@@ -3,23 +3,26 @@ package com.github.yoep.popcorn.ui.view.controllers.common;
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.settings.OptionsService;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.Cursor;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
@@ -27,10 +30,12 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractMainController extends ScaleAwareImpl implements MainController {
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.ADD, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_2 = new KeyCodeCombination(KeyCode.PLUS, KeyCombination.CONTROL_DOWN);
-    private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_3 = new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_3 = new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN,
+            KeyCombination.SHIFT_DOWN);
     private static final KeyCodeCombination UI_REDUCE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.SUBTRACT, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_REDUCE_KEY_COMBINATION_2 = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
 
@@ -39,6 +44,7 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
     protected final ApplicationArguments arguments;
     protected final UrlService urlService;
     protected final SettingsService settingsService;
+    protected final OptionsService optionsService;
     protected final TaskExecutor taskExecutor;
 
     protected Pane contentPane;
@@ -48,30 +54,6 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
 
     @FXML
     protected AnchorPane rootPane;
-
-    //region Constructors
-
-    protected AbstractMainController(ApplicationEventPublisher eventPublisher,
-                                     ViewLoader viewLoader,
-                                     ApplicationArguments arguments,
-                                     UrlService urlService,
-                                     SettingsService settingsService,
-                                     TaskExecutor taskExecutor) {
-        Assert.notNull(eventPublisher, "eventPublisher cannot be null");
-        Assert.notNull(viewLoader, "viewLoader cannot be null");
-        Assert.notNull(arguments, "arguments cannot be null");
-        Assert.notNull(urlService, "urlService cannot be null");
-        Assert.notNull(settingsService, "settingsService cannot be null");
-        Assert.notNull(taskExecutor, "taskExecutor cannot be null");
-        this.eventPublisher = eventPublisher;
-        this.viewLoader = viewLoader;
-        this.arguments = arguments;
-        this.urlService = urlService;
-        this.settingsService = settingsService;
-        this.taskExecutor = taskExecutor;
-    }
-
-    //endregion
 
     //region Methods
 
@@ -109,6 +91,7 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
         initializeNotificationPane();
         initializeSceneListeners();
         initializeSection();
+        initializeOptions();
     }
 
     private void initializeSceneListeners() {
@@ -118,6 +101,19 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
     private void initializeSection() {
         if (!processApplicationArguments())
             switchSection(SectionType.CONTENT);
+    }
+
+    private void initializeOptions() {
+        var options = optionsService.options();
+
+        if (options.isMouseDisabled()) {
+            rootPane.setCursor(Cursor.NONE);
+            rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue != null) {
+                    newValue.setCursor(Cursor.NONE);
+                }
+            });
+        }
     }
 
     //endregion

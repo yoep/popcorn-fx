@@ -3,6 +3,8 @@
 #include <iostream>
 #include <regex>
 #include <QtWidgets/QStackedLayout>
+#include <QtWidgets/QStackedWidget>
+#include <QtWidgets/QMainWindow>
 #include "PlayerWindow.h"
 #include "VideoPlayer.h"
 
@@ -26,11 +28,12 @@ int PlayerWindow::exec() {
     QCoreApplication::setApplicationName(ApplicationTitle);
     this->app = new QApplication(argc, argv);
 
+    cout << "Initializing Qt Player Window" << endl;
+    window = new QWidget();
+
     // create a new video player
     player = new VideoPlayer();
 
-    cout << "Initializing Qt Player Window" << endl;
-    window = new QWidget();
     auto *layout = new QStackedLayout();
     layout->addWidget(player);
     window->setLayout(layout);
@@ -41,6 +44,9 @@ int PlayerWindow::exec() {
     // make the QT window undecorated
     window->setWindowFlags(Qt::FramelessWindowHint);
     window->setWindowFlag(Qt::Window);
+    window->setAttribute(Qt::WA_ShowWithoutActivating);
+
+    // set the initialize base size of the window
     cout << "Qt Player Window initialized" << endl;
 
     int exit = QApplication::exec();

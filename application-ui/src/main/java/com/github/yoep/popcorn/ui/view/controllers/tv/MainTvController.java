@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.ui.settings.OptionsService;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.common.AbstractMainController;
@@ -24,8 +25,9 @@ public class MainTvController extends AbstractMainController implements MainCont
                             ApplicationArguments arguments,
                             UrlService urlService,
                             SettingsService settingsService,
+                            OptionsService optionsService,
                             TaskExecutor taskExecutor) {
-        super(eventPublisher, viewLoader, arguments, urlService, settingsService, taskExecutor);
+        super(eventPublisher, viewLoader, arguments, urlService, settingsService, optionsService, taskExecutor);
     }
 
     //endregion

@@ -26,17 +26,10 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String ICON_NAME = "icon_64.png";
     public static final String APPLICATION_TITLE = "Popcorn Time";
     public static final String APP_DIR = getDefaultAppDirLocation();
-    public static final String ARM_ARCHITECTURE = "arm";
 
     public static void main(String[] args) {
         System.setProperty("app.dir", APP_DIR);
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
-    }
-
-    public static boolean isArmDevice() {
-        var architecture = System.getProperty("os.arch");
-
-        return architecture.equals(ARM_ARCHITECTURE);
     }
 
     @Override
@@ -56,6 +49,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     }
 
     private void initializeStage(Stage primaryStage) {
+        log.trace("Initializing the primary stage");
         if (Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW)) {
             primaryStage.initStyle(StageStyle.TRANSPARENT);
         } else {

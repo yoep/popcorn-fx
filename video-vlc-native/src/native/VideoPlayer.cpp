@@ -4,7 +4,7 @@
 
 using namespace std;
 
-VideoPlayer::VideoPlayer() : QFrame() {
+VideoPlayer::VideoPlayer(QWidget *parent) : QWidget(parent) {
     cout << "Initializing player" << endl;
     vlcInstance = libvlc_new(0, nullptr);
     mediaPlayer = nullptr;

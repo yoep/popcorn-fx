@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
+import com.github.yoep.popcorn.ui.settings.OptionsService;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
@@ -33,8 +34,9 @@ public class MainDesktopController extends AbstractMainController implements Mai
                                  TaskExecutor taskExecutor,
                                  ApplicationArguments arguments,
                                  UrlService urlService,
-                                 SettingsService settingsService) {
-        super(eventPublisher, viewLoader, arguments, urlService, settingsService, taskExecutor);
+                                 SettingsService settingsService,
+                                 OptionsService optionsService) {
+        super(eventPublisher, viewLoader, arguments, urlService, settingsService, optionsService, taskExecutor);
     }
 
     //endregion

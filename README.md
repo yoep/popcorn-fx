@@ -24,6 +24,7 @@ big-picture                     | Activate the big picture mode.
 kiosk                           | Activate the kiosk mode (use alt+f4 to close the application).
 tv                              | Activate the tv mode (easier to use UI but less functionality).
 maximized                       | Maximize the window on startup.
+disable-mouse                   | Permanently hides the mouse from the application.
 
 ### Java launch options
 
@@ -70,8 +71,18 @@ If you don't do this, the application will crash when trying to attach to the Ja
 ### White box glitch
 
 Add the following VM option if you're experiencing white boxes in the UI.
+This option is enabled by default on the pre-built versions.
 
     -Dprism.dirtyopts=false
+
+### Raspberry Pi 4
+
+By default, the transparency of windows is not working correctly on the Raspberry Pi 4.
+To fix this issue, make sure the `xcompmgr` is started and contains the following values:
+
+    @xcompmgr -C -c -o 0.5 -l -19 -t -10 -r 14 -f -O 0.05 -I 0.05
+    
+These changes are best applied to `/etc/xdg/lxsession/LXDE-pi/autostart`.
 
 ## Development
 

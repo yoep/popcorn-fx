@@ -21,6 +21,7 @@ public class OptionsService {
     public static final String KIOSK_MODE_OPTION = "kiosk";
     public static final String TV_MODE_OPTION = "tv";
     public static final String MAXIMIZED_OPTION = "maximized";
+    public static final String DISABLE_MOUSE_OPTION = "disable-mouse";
 
     private final ApplicationArguments arguments;
 
@@ -41,6 +42,7 @@ public class OptionsService {
         var kioskMode = arguments.containsOption(KIOSK_MODE_OPTION);
         var tvMode = arguments.containsOption(TV_MODE_OPTION);
         var maximized = arguments.containsOption(MAXIMIZED_OPTION);
+        var disableMouse = arguments.containsOption(DISABLE_MOUSE_OPTION);
 
         if (bigPictureMode)
             log.debug("Activating big-picture mode");
@@ -48,12 +50,15 @@ public class OptionsService {
             log.debug("Activating kiosk mode");
         if (tvMode)
             log.debug("Activating tv mode");
+        if(disableMouse)
+            log.debug("Disabling mouse application wide");
 
         options = ApplicationOptions.builder()
                 .bigPictureMode(bigPictureMode)
                 .kioskMode(kioskMode)
                 .tvMode(tvMode)
                 .maximized(maximized)
+                .mouseDisabled(disableMouse)
                 .build();
     }
 }

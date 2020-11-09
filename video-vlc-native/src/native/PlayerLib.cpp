@@ -1,4 +1,3 @@
-#include <thread>
 #include <iostream>
 #include "PlayerLib.h"
 #include "PlayerWindow.h"
@@ -16,10 +15,9 @@ popcorn_player_t *popcorn_player_new() {
     pdp = (typeof(pdp)) malloc(sizeof(*pdp));
 
     int argc = 0;
-    char **argv = nullptr;
 
     // create a new PlayerWindow instance
-    auto *window = new PlayerWindow(argc, argv);
+    auto *window = new PlayerWindow(argc, nullptr);
 
     // assign the window to the return struct for later use
     pdp->window = window;
@@ -55,7 +53,6 @@ void popcorn_player_play(popcorn_player_t *pdp, const char *mrl) {
         return;
 
     cout << std::string("Received popcorn_player_play mrl: ") + mrl << endl;
-
     PlayerWindow *window;
 
     window = static_cast<PlayerWindow *>(pdp->window);
@@ -89,7 +86,7 @@ void popcorn_player_stop(popcorn_player_t *pdp) {
     PlayerWindow *window;
 
     window = static_cast<PlayerWindow *>(pdp->window);
-    window->getPlayer()->stop();
+    window->stop();
 }
 
 void popcorn_player_show(popcorn_player_t *pdp) {
@@ -106,6 +103,7 @@ void popcorn_player_show_maximized(popcorn_player_t *pdp) {
     if (pdp == nullptr)
         return;
 
+    cout << std::string("Received popcorn_player_show_maximized") << endl;
     PlayerWindow *window;
 
     window = static_cast<PlayerWindow *>(pdp->window);

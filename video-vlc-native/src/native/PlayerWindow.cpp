@@ -29,17 +29,22 @@ int PlayerWindow::exec() {
     // create a new video player
     player = new VideoPlayer();
 
+    cout << "Initializing Qt Player Window" << endl;
     window = new QWidget();
     auto *layout = new QStackedLayout();
     layout->addWidget(player);
     window->setLayout(layout);
 
-    // make the  QT window undecorated
+    // make the window background black
+    window->setStyleSheet("background-color:black;");
+
+    // make the QT window undecorated
     window->setWindowFlags(Qt::FramelessWindowHint);
     window->setWindowFlag(Qt::Window);
+    cout << "Qt Player Window initialized" << endl;
 
     int exit = QApplication::exec();
-    cout << "QApplication finished " << endl;
+    cout << "QApplication finished with " + std::to_string(exit) << endl;
     return exit;
 }
 
@@ -53,8 +58,12 @@ void PlayerWindow::show() {
         cerr << "QT Window is not initialized" << endl;
         return;
     }
+    if (this->app == nullptr) {
+        cerr << "QT Application has not been initialized" << endl;
+        return;
+    }
 
-    QMetaObject::invokeMethod(this->app, [&] {
+    invokeOnQt([&] {
         cout << "Showing QT Player Window" << endl;
         window->showNormal();
     });
@@ -65,9 +74,13 @@ void PlayerWindow::showMaximized() {
         cerr << "QT Window is not initialized" << endl;
         return;
     }
+    if (this->app == nullptr) {
+        cerr << "QT Application has not been initialized" << endl;
+        return;
+    }
 
-    QMetaObject::invokeMethod(this->app, [&] {
-        cout << "Showing QT Player Window" << endl;
+    invokeOnQt([&] {
+        cout << "Showing QT Player Window as maximized" << endl;
         window->showMaximized();
     });
 }
@@ -78,8 +91,8 @@ void PlayerWindow::close() {
         return;
     }
 
-    QMetaObject::invokeMethod(this->app, [&] {
-        player->close();
+    invokeOnQt([&] {
+        window->close();
         QApplication::exit(0);
     });
 }
@@ -95,7 +108,7 @@ void PlayerWindow::play(const char *mrl) {
         return;
     }
 
-    QMetaObject::invokeMethod(this->app, [&, mrl] {
+    invokeOnQt([&, mrl] {
         if (isHttpUrl(mrl)) {
             player->playUrl(mrl);
         } else {
@@ -104,19 +117,41 @@ void PlayerWindow::play(const char *mrl) {
     });
 }
 
+void PlayerWindow::stop() {
+    invokeOnQt([&] {
+        player->stop();
+        window->hide();
+    });
+}
+
 bool PlayerWindow::isMaximized() {
-    return player->isMaximized();
+    return window->isMaximized();
 }
 
 void PlayerWindow::setMaximized(bool maximized) {
     if (maximized) {
-        player->showMaximized();
+        window->showMaximized();
     } else {
-        player->showNormal();
+        window->showNormal();
     }
 }
 
 bool PlayerWindow::isHttpUrl(const char *url) {
     std::string value = url;
     return std::regex_match(value, std::regex("^(https?:\\/\\/).*"));
+}
+
+template<typename Func>
+void PlayerWindow::invokeOnQt(Func func) {
+#if defined(Q_OS_WIN)
+    QMetaObject::invokeMethod(this->app, [&] {
+#endif
+    try {
+        func();
+    } catch (std::exception &ex) {
+        cerr << std::string("Qt invocation failed, ") + ex.what() << endl;
+    }
+#if defined(Q_OS_WIN)
+    });
+#endif
 }

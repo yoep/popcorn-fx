@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(PopcornPlayer)
+project(PopcornPlayer LANGUAGES CXX)
 
 message("")
 message("The following CMAKE variables should be configured for this project:")

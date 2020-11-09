@@ -233,6 +233,8 @@
                         <configuration>
                             <additionalResources>
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/libvlc.so</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.so</param>
                             </additionalResources>
                         </configuration>
                     </plugin>
@@ -254,6 +256,8 @@
                         <configuration>
                             <additionalResources>
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/libvlc.so</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.so</param>
                             </additionalResources>
                             <vmArgs>
                                 <param>-Dvlc.path=/usr/lib/arm-linux-gnueabihf/</param>

@@ -9,6 +9,7 @@ VideoPlayer::VideoPlayer() : QFrame() {
     vlcInstance = libvlc_new(0, nullptr);
     mediaPlayer = nullptr;
     media = nullptr;
+    cout << "Player initialized" << endl;
 }
 
 VideoPlayer::~VideoPlayer() {
@@ -43,14 +44,13 @@ void VideoPlayer::play() {
     mediaPlayer = libvlc_media_player_new_from_media(media);
     libvlc_media_player_retain(mediaPlayer);
 
-    void *drawable = (void *) this->winId();
-
 #if defined(Q_OS_WIN)
+    void *drawable = (void *) this->winId();
     libvlc_media_player_set_hwnd(mediaPlayer, drawable);
 #elif defined(Q_OS_MAC)
-    libvlc_media_player_set_agl(mediaPlayer, drawable);
+    libvlc_media_player_set_agl(mediaPlayer, this->winId());
 #else
-    libvlc_media_player_set_xwindow(mediaPlayer, drawable);
+    libvlc_media_player_set_xwindow(mediaPlayer, this->winId());
 #endif
 
     if (libvlc_media_player_play(mediaPlayer) == -1) {

@@ -17,8 +17,11 @@ int main(int argc, char *argv[]) {
     std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
     // run some QT options on another thread that the current QApplication thread
-    popcorn_player_show_maximized(instance);
-    popcorn_player_play(instance, argv[optind]);
+    std::thread t2([&] {
+        popcorn_player_show_maximized(instance);
+        popcorn_player_play(instance, argv[optind]);
+    });
+    t2.detach();
 
     // keep the main thread alive for some additional time
     std::this_thread::sleep_for(std::chrono::milliseconds(60000));

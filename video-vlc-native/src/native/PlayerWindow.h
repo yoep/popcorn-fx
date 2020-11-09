@@ -26,6 +26,8 @@ public:
 
     void setMaximized(bool maximized);
 
+    void stop();
+
 private:
     int &argc;
     char **argv;
@@ -34,6 +36,8 @@ private:
     VideoPlayer *player;
 
     static bool isHttpUrl(const char *string);
+
+    template<typename Func> void invokeOnQt(Func func);
 };
 
 

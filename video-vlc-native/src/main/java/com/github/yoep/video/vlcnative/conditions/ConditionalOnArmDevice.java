@@ -1,4 +1,4 @@
-package com.github.yoep.video.vlc.conditions;
+package com.github.yoep.video.vlcnative.conditions;
 
 import org.springframework.context.annotation.Conditional;
 

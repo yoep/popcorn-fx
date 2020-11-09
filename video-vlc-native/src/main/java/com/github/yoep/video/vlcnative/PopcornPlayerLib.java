@@ -2,21 +2,13 @@ package com.github.yoep.video.vlcnative;
 
 import com.github.yoep.video.vlcnative.bindings.popcorn_player_t;
 import com.sun.jna.Native;
-import com.sun.jna.NativeLibrary;
 
 public class PopcornPlayerLib {
-    private static final String OS_NAME = System.getProperty("os.name").toLowerCase();
-    private static final String WINDOWS_OS_INDICATOR = "win";
-    private static final String LIBRARY_NAME_WINDOWS = "libPopcornPlayer";
-    private static final String LIBRARY_NAME_UNIX = "PopcornPlayer";
 
     //region Constructors
 
     static {
-        var libraryName = getLibraryName();
-
-        NativeLibrary.addSearchPath(libraryName, "C:\\projects\\popcorn-desktop-javafx\\cmake-build-debug-mingw-64\\video-vlc-native\\src\\native");
-        Native.register(libraryName);
+        Native.register(PopcornPlayerLibRuntime.getLibraryName());
     }
 
     private PopcornPlayerLib() {
@@ -43,18 +35,6 @@ public class PopcornPlayerLib {
     public static native void popcorn_player_show(popcorn_player_t instance);
 
     public static native void popcorn_player_show_maximized(popcorn_player_t instance);
-
-    //endregion
-
-    //region Functions
-
-    private static String getLibraryName() {
-        return isWindows() ? LIBRARY_NAME_WINDOWS : LIBRARY_NAME_UNIX;
-    }
-
-    private static boolean isWindows() {
-        return OS_NAME.contains(WINDOWS_OS_INDICATOR);
-    }
 
     //endregion
 }

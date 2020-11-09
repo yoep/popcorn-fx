@@ -63,7 +63,9 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     @Override
     public boolean supports(String url) {
-        return true;
+        // if the native player could be initialized
+        // than use it for every playback
+        return initialized;
     }
 
     @Override
@@ -154,7 +156,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
                     initialized = true;
 
                     var result = PopcornPlayerLib.popcorn_player_exec(instance);
-                    log.debug("Qt Application exited with {}", result);
+                    log.debug("Native VLC player exited with {}", result);
                 } catch (Exception ex) {
                     log.error(ex.getMessage(), ex);
                 }
@@ -196,7 +198,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         updateTransparentComponents(scene);
 
         boundToWindow = true;
-        log.debug("ARM video player has been bound to the JavaFX window");
+        log.debug("Native VLC player has been bound to the JavaFX window");
     }
 
     private void updateTransparentComponents(Scene scene) {

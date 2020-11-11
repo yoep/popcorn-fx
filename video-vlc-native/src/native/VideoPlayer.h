@@ -2,8 +2,8 @@
 #include <QtWidgets/QFrame>
 #include "vlc/vlc.h"
 
-#ifndef POPCORNDESKTOPPLAYER_PLAYER_H
-#define POPCORNDESKTOPPLAYER_PLAYER_H
+#ifndef POPCORN_PLAYER_PLAYER_H
+#define POPCORN_PLAYER_PLAYER_H
 
 class VideoPlayer : public QWidget {
 public:
@@ -28,8 +28,10 @@ private:
 
     void play();
 
+    void initializeUi();
+
     static void handleVlcError();
 };
 
 
-#endif //POPCORNDESKTOPPLAYER_PLAYER_H
+#endif //POPCORN_PLAYER_PLAYER_H

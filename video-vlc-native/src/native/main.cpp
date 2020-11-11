@@ -1,13 +1,13 @@
 #include <thread>
 #include <getopt.h>
-#include "PlayerLib.h"
+#include "PopcornPlayerLib.h"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
     popcorn_player_t *instance = popcorn_player_new();
 
-    // an example of the JNA invoking the initial window on a separate thread
+    // an example of the JNA invoking the initial player on a separate thread
     std::thread t1([&, instance] {
         popcorn_player_exec(instance);
     });
@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
 
     // run some QT options on another thread that the current QApplication thread
     std::thread t2([&, instance] {
-        popcorn_player_show_maximized(instance);
+        popcorn_player_show(instance);
         popcorn_player_play(instance, argv[optind]);
     });
     t2.detach();

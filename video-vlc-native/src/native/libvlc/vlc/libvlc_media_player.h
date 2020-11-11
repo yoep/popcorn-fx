@@ -384,15 +384,15 @@ typedef void (*libvlc_video_cleanup_cb)(void *opaque);
  * to configure the decoded format.
  *
  * \warning Rendering video into custom memory buffers is considerably less
- * efficient than rendering in a custom window as normal.
+ * efficient than rendering in a custom player as normal.
  *
- * For optimal perfomances, VLC media player renders into a custom window, and
+ * For optimal perfomances, VLC media player renders into a custom player, and
  * does not use this function and associated callbacks. It is <b>highly
  * recommended</b> that other LibVLC-based application do likewise.
- * To embed video in a window, use libvlc_media_player_set_xid() or equivalent
+ * To embed video in a player, use libvlc_media_player_set_xid() or equivalent
  * depending on the operating system.
  *
- * If window embedding does not fit the application use case, then a custom
+ * If player embedding does not fit the application use case, then a custom
  * LibVLC video output display plugin is required to maintain optimal video
  * rendering performances.
  *
@@ -509,7 +509,7 @@ LIBVLC_API void * libvlc_media_player_get_nsobject ( libvlc_media_player_t *p_mi
  *
  * By default, LibVLC will capture input events on the video rendering area.
  * Use libvlc_video_set_mouse_input() and libvlc_video_set_key_input() to
- * disable that and deliver events to the parent window / to the application
+ * disable that and deliver events to the parent player / to the application
  * instead. By design, the X11 protocol delivers input events to only one
  * recipient.
  *
@@ -521,21 +521,21 @@ LIBVLC_API void * libvlc_media_player_get_nsobject ( libvlc_media_player_t *p_mi
  * crash the process. That is a limitation of Xlib.
  *
  * \param p_mi media player
- * \param drawable X11 window ID
+ * \param drawable X11 player ID
  *
  * \note
  * The specified identifier must correspond to an existing Input/Output class
- * X11 window. Pixmaps are <b>not</b> currently supported. The default X11
+ * X11 player. Pixmaps are <b>not</b> currently supported. The default X11
  * server is assumed, i.e. that specified in the DISPLAY environment variable.
  *
  * \warning
  * LibVLC can deal with invalid X11 handle errors, however some display drivers
- * (EGL, GLX, VA and/or VDPAU) can unfortunately not. Thus the window handle
+ * (EGL, GLX, VA and/or VDPAU) can unfortunately not. Thus the player handle
  * must remain valid until playback is stopped, otherwise the process may
  * abort or crash.
  *
  * \bug
- * No more than one window handle per media player instance can be specified.
+ * No more than one player handle per media player instance can be specified.
  * If the media has multiple simultaneously active video tracks, extra tracks
  * will be rendered into external windows beyond the control of the
  * application.
@@ -544,18 +544,18 @@ LIBVLC_API void libvlc_media_player_set_xwindow(libvlc_media_player_t *p_mi,
                                                 uint32_t drawable);
 
 /**
- * Get the X Window System window identifier previously set with
+ * Get the X Window System player identifier previously set with
  * libvlc_media_player_set_xwindow(). Note that this will return the identifier
  * even if VLC is not currently using it (for instance if it is playing an
  * audio-only input).
  *
  * \param p_mi the Media VideoPlayer
- * \return an X window ID, or 0 if none where set.
+ * \return an X player ID, or 0 if none where set.
  */
 LIBVLC_API uint32_t libvlc_media_player_get_xwindow ( libvlc_media_player_t *p_mi );
 
 /**
- * Set a Win32/Win64 API window handle (HWND) where the media player should
+ * Set a Win32/Win64 API player handle (HWND) where the media player should
  * render its video output. If LibVLC was built without Win32/Win64 API output
  * support, then this has no effects.
  *
@@ -565,12 +565,12 @@ LIBVLC_API uint32_t libvlc_media_player_get_xwindow ( libvlc_media_player_t *p_m
 LIBVLC_API void libvlc_media_player_set_hwnd ( libvlc_media_player_t *p_mi, void *drawable );
 
 /**
- * Get the Windows API window handle (HWND) previously set with
+ * Get the Windows API player handle (HWND) previously set with
  * libvlc_media_player_set_hwnd(). The handle will be returned even if LibVLC
  * is not currently outputting any video to it.
  *
  * \param p_mi the Media VideoPlayer
- * \return a window handle or NULL if there are none.
+ * \return a player handle or NULL if there are none.
  */
 LIBVLC_API void *libvlc_media_player_get_hwnd ( libvlc_media_player_t *p_mi );
 
@@ -1042,11 +1042,11 @@ LIBVLC_API void libvlc_toggle_fullscreen( libvlc_media_player_t *p_mi );
 /**
  * Enable or disable fullscreen.
  *
- * @warning With most window managers, only a top-level windows can be in
+ * @warning With most player managers, only a top-level windows can be in
  * full-screen mode. Hence, this function will not operate properly if
  * libvlc_media_player_set_xwindow() was used to embed the video in a
- * non-top-level window. In that case, the embedding window must be reparented
- * to the root window <b>before</b> fullscreen mode is enabled. You will want
+ * non-top-level player. In that case, the embedding player must be reparented
+ * to the root player <b>before</b> fullscreen mode is enabled. You will want
  * to reparent it back to its normal parent when disabling fullscreen.
  *
  * \param p_mi the media player
@@ -1070,8 +1070,8 @@ LIBVLC_API int libvlc_get_fullscreen( libvlc_media_player_t *p_mi );
  * handled by the LibVLC video widget.
  *
  * \note On X11, there can be only one subscriber for key press and mouse
- * click events per window. If your application has subscribed to those events
- * for the X window ID of the video widget, then LibVLC will not be able to
+ * click events per player. If your application has subscribed to those events
+ * for the X player ID of the video widget, then LibVLC will not be able to
  * handle key presses and mouse clicks in any case.
  *
  * \warning This function is only implemented for X11 and Win32 at the moment.
@@ -1142,7 +1142,7 @@ int libvlc_video_get_cursor( libvlc_media_player_t *p_mi, unsigned num,
  *
  * \param p_mi the media player
  * \return the currently configured zoom factor, or 0. if the video is set
- * to fit to the output window/drawable automatically.
+ * to fit to the output player/drawable automatically.
  */
 LIBVLC_API float libvlc_video_get_scale( libvlc_media_player_t *p_mi );
 
@@ -1150,7 +1150,7 @@ LIBVLC_API float libvlc_video_get_scale( libvlc_media_player_t *p_mi );
  * Set the video scaling factor. That is the ratio of the number of pixels on
  * screen to the number of pixels in the original decoded video in each
  * dimension. Zero is a special value; it will adjust the video to the output
- * window/drawable (in windowed mode) or the entire screen.
+ * player/drawable (in windowed mode) or the entire screen.
  *
  * Note that not all video outputs support scaling.
  *
@@ -1398,7 +1398,7 @@ LIBVLC_API
 int libvlc_video_set_track( libvlc_media_player_t *p_mi, int i_track );
 
 /**
- * Take a snapshot of the current video window.
+ * Take a snapshot of the current video player.
  *
  * If i_width AND i_height is 0, original size is used.
  * If i_width XOR i_height is 0, original aspect-ratio is preserved.

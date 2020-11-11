@@ -1,20 +1,35 @@
 #include "VideoPlayer.h"
+#include "AppProperties.h"
 #include <iostream>
 #include <QtWidgets/QStackedLayout>
+#include <QtWidgets/QMessageBox>
 
 using namespace std;
 
 VideoPlayer::VideoPlayer(QWidget *parent) : QWidget(parent) {
-    cout << "Initializing player" << endl;
+    cout << "Initializing video player" << endl;
     vlcInstance = libvlc_new(0, nullptr);
+
+    if (vlcInstance == nullptr) {
+        QMessageBox::critical(this, ApplicationTitle, "Failed to initialize libVLC");
+    }
+
     mediaPlayer = nullptr;
     media = nullptr;
-    cout << "Player initialized" << endl;
+
+    initializeUi();
+    cout << "Video player initialized" << endl;
 }
 
 VideoPlayer::~VideoPlayer() {
     stop();
     libvlc_release(vlcInstance);
+}
+
+void VideoPlayer::initializeUi() {
+    // set the initial background of the video player
+    this->setStyleSheet("background-color:black;");
+    this->setMinimumSize(800, 600);
 }
 
 void VideoPlayer::playFile(char const *path) {
@@ -87,6 +102,6 @@ void VideoPlayer::handleVlcError() {
     const char *message = libvlc_errmsg();
 
     if (message != nullptr) {
-        cerr << std::string("A VLC error occurred: ") + message << endl;
+        cerr << "A VLC error occurred: " << message << endl;
     }
 }

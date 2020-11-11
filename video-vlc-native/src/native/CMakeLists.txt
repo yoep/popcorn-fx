@@ -12,7 +12,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 
 find_package(LIBVLC REQUIRED)
 include_directories("${LIBVLC_INCLUDE_DIR}")
@@ -23,11 +24,18 @@ file(GLOB LIBVLC_LIBS
 file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.ui
         ${LIBVLC_LIBS})
 message("Including: ${SOURCES}")
 
 add_library(PopcornPlayer SHARED ${SOURCES})
 add_executable(PopcornPlayerRunner ${SOURCES})
 
-target_link_libraries(PopcornPlayer Qt5::Widgets ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY} -lpthread)
-target_link_libraries(PopcornPlayerRunner Qt5::Widgets ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY} -lpthread)
+target_link_libraries(PopcornPlayer
+        Qt${QT_VERSION_MAJOR}::Widgets
+        ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY}
+        -lpthread)
+target_link_libraries(PopcornPlayerRunner
+        Qt${QT_VERSION_MAJOR}::Widgets
+        ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY}
+        -lpthread)

@@ -30,6 +30,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private popcorn_player_t instance;
     private boolean initialized;
     private boolean boundToWindow;
+    private Thread popcornPlayerThread;
 
     //region VideoPlayer
 
@@ -91,6 +92,11 @@ public class VideoPlayerVlcNative implements VideoPlayer {
             log.debug("Releasing the native VLC player");
             PopcornPlayerLib.popcorn_player_release(instance);
         }
+        if (popcornPlayerThread != null && popcornPlayerThread.isAlive()) {
+            log.debug("Stopping Popcorn PopcornPlayer");
+            popcornPlayerThread.interrupt();
+            popcornPlayerThread = null;
+        }
     }
 
     @Override
@@ -100,8 +106,9 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         // start the native player through JNA
         PopcornPlayerLib.popcorn_player_show_maximized(instance);
         PopcornPlayerLib.popcorn_player_play(instance, url);
+        playerState.set(PlayerState.PLAYING);
 
-        // request the current window to be focused again
+        // request the current player to be focused again
         getWindow().ifPresent(Window::requestFocus);
     }
 
@@ -109,12 +116,14 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     public void pause() throws VideoPlayerNotInitializedException {
         checkInitialized();
         PopcornPlayerLib.popcorn_player_pause(instance);
+        playerState.set(PlayerState.PAUSED);
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
         checkInitialized();
         PopcornPlayerLib.popcorn_player_resume(instance);
+        playerState.set(PlayerState.PLAYING);
     }
 
     @Override
@@ -126,6 +135,8 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     public void stop() {
         checkInitialized();
         PopcornPlayerLib.popcorn_player_stop(instance);
+        playerState.set(PlayerState.STOPPED);
+        reset();
     }
 
     @Override
@@ -152,7 +163,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         log.trace("Initializing VLC native player");
         try {
             initializeTracker();
-            new Thread(() -> {
+            popcornPlayerThread = new Thread(() -> {
                 try {
                     instance = PopcornPlayerLib.popcorn_player_new();
 
@@ -167,7 +178,8 @@ public class VideoPlayerVlcNative implements VideoPlayer {
                 } catch (Exception ex) {
                     log.error(ex.getMessage(), ex);
                 }
-            }, "QtThread").start();
+            }, "PopcornPlayerQtThread");
+            popcornPlayerThread.start();
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }
@@ -207,7 +219,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         getWindow().ifPresent(Window::requestFocus);
 
         boundToWindow = true;
-        log.debug("Native VLC player has been bound to the JavaFX window");
+        log.debug("Native VLC player has been bound to the JavaFX player");
     }
 
     private void updateTransparentComponents(Scene scene) {
@@ -229,6 +241,11 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         }
 
         return Optional.ofNullable(scene.getWindow());
+    }
+
+    private void reset() {
+        time.set(0);
+        duration.set(0);
     }
 
     //endregion

@@ -4,6 +4,8 @@
 
 using namespace std;
 
+// THIS IS A TEST CASE SCENARIO
+// ONLY USE THE LIBRARY FOR PLAYBACKS AND NOT THE RUNNER
 int main(int argc, char *argv[]) {
     popcorn_player_t *instance = popcorn_player_new();
 
@@ -14,7 +16,7 @@ int main(int argc, char *argv[]) {
     t1.detach();
 
     // wait some time for the application to initialize
-    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     // run some QT options on another thread that the current QApplication thread
     std::thread t2([&, instance] {

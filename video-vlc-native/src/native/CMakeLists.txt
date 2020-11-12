@@ -25,6 +25,7 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/*.ui
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.qrc
         ${LIBVLC_LIBS})
 message("Including: ${SOURCES}")
 

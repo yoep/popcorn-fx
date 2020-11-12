@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/fonts/">
+        <file alias="FontAwesomeRegular.ttf">./fonts/fontawesome-regular.ttf</file>
+        <file alias="FontAwesomeSolid.ttf">./fonts/fontawesome-solid.ttf</file>
+        <file alias="OpenSansBold.ttf">./fonts/OpenSans-Bold.ttf</file>
+        <file alias="OpenSansRegular.ttf">./fonts/OpenSans-Regular.ttf</file>
+        <file alias="OpenSansSemibold.ttf">./fonts/OpenSans-Semibold.ttf</file>
+    </qresource>
+</RCC>

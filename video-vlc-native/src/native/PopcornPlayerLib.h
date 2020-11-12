@@ -12,7 +12,7 @@ typedef struct popcorn_player_t popcorn_player_t;
  *
  * @return Returns the Popcorn PopcornPlayer instance.
  */
-popcorn_player_t *popcorn_player_new();
+popcorn_player_t* popcorn_player_new();
 
 /**
  * Execute the Popcorn PopcornPlayer.
@@ -22,14 +22,14 @@ popcorn_player_t *popcorn_player_new();
  * @param pdp The Popcorn PopcornPlayer instance.
  * @return Returns the exit code of the Popcorn PopcornPlayer.
  */
-int popcorn_player_exec(popcorn_player_t *pdp);
+int popcorn_player_exec(popcorn_player_t* pdp);
 
 /**
  * Release the Popcorn PopcornPlayer and release it's resources.
  *
  * @param pdp The Popcorn PopcornPlayer instance to release.
  */
-void popcorn_player_release(popcorn_player_t *pdp);
+void popcorn_player_release(popcorn_player_t* pdp);
 
 /**
  * Play the given MRL in the Popcorn PopcornPlayer.
@@ -37,35 +37,35 @@ void popcorn_player_release(popcorn_player_t *pdp);
  * @param pdp The Popcorn PopcornPlayer instance.
  * @param mrl The MRL to start playing.
  */
-void popcorn_player_play(popcorn_player_t *pdp, const char *mrl);
+void popcorn_player_play(popcorn_player_t* pdp, const char* mrl);
 
 /**
  * Pause the current playback of the Popcorn PopcornPlayer.
  *
  * @param pdp The Popcorn PopcornPlayer instance.
  */
-void popcorn_player_pause(popcorn_player_t *pdp);
+void popcorn_player_pause(popcorn_player_t* pdp);
 
 /**
  * Resume the playback of the Popcorn PopcornPlayer.
  *
  * @param pdp The Popcorn PopcornPlayer instance.
  */
-void popcorn_player_resume(popcorn_player_t *pdp);
+void popcorn_player_resume(popcorn_player_t* pdp);
 
 /**
  * Stop the current playback of the Popcorn PopcornPlayer.
  *
  * @param pdp The Popcorn PopcornPlayer instance.
  */
-void popcorn_player_stop(popcorn_player_t *pdp);
+void popcorn_player_stop(popcorn_player_t* pdp);
 
 /**
  * Show the Popcorn PopcornPlayer.
  *
  * @param pdp The Popcorn PopcornPlayer instance.
  */
-void popcorn_player_show(popcorn_player_t *pdp);
+void popcorn_player_show(popcorn_player_t* pdp);
 
 #ifdef __cplusplus
 }

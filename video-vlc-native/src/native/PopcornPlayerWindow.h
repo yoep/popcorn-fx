@@ -1,25 +1,28 @@
 #ifndef POPCORN_PLAYER_POPCORNPLAYERWINDOW_H
 #define POPCORN_PLAYER_POPCORNPLAYERWINDOW_H
 
-#include <QMainWindow>
 #include "VideoPlayer.h"
+#include <QMainWindow>
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class PopcornPlayerWindow; }
+namespace Ui {
+class PopcornPlayerWindow;
+}
 QT_END_NAMESPACE
 
 class PopcornPlayerWindow : public QMainWindow {
-Q_OBJECT
+    Q_OBJECT
 
 public:
-    PopcornPlayerWindow(QWidget *parent = nullptr);
+    PopcornPlayerWindow(QWidget* parent = nullptr);
 
     ~PopcornPlayerWindow();
 
-    VideoPlayer *player;
+    VideoPlayer* player;
 
 private:
-    Ui::PopcornPlayerWindow *ui;
+    Ui::PopcornPlayerWindow* ui;
+    void initializeUi();
 };
 
 #endif // POPCORN_PLAYER_POPCORNPLAYERWINDOW_H

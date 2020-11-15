@@ -17,6 +17,7 @@ public class ApplicationSettings extends AbstractSettings {
     public static final String TRAKT_PROPERTY = "traktSettings";
     public static final String LOGGING_PROPERTY = "loggingSettings";
     public static final String PLAYBACK_PROPERTY = "playbackSettings";
+    public static final String SERVER_PROPERTY = "serverSettings";
 
     /**
      * The torrent settings of the application.
@@ -43,6 +44,11 @@ public class ApplicationSettings extends AbstractSettings {
      */
     @Builder.Default
     private PlaybackSettings playbackSettings = PlaybackSettings.builder().build();
+    /**
+     * The server settings of the application.
+     */
+    @Builder.Default
+    private ServerSettings serverSettings = ServerSettings.builder().build();
 
     //region Getters & Setters
 
@@ -79,6 +85,13 @@ public class ApplicationSettings extends AbstractSettings {
             playbackSettings = PlaybackSettings.builder().build();
 
         return playbackSettings;
+    }
+
+    public ServerSettings getServerSettings() {
+        if (serverSettings == null)
+            serverSettings = ServerSettings.builder().build();
+
+        return serverSettings;
     }
 
     public void setTorrentSettings(TorrentSettings torrentSettings) {
@@ -124,6 +137,15 @@ public class ApplicationSettings extends AbstractSettings {
         var oldValue = this.playbackSettings;
         this.playbackSettings = playbackSettings;
         changes.firePropertyChange(PLAYBACK_PROPERTY, oldValue, this.playbackSettings);
+    }
+
+    public void setServerSettings(ServerSettings serverSettings) {
+        if (Objects.equals(this.serverSettings, serverSettings))
+            return;
+
+        var oldValue = this.serverSettings;
+        this.serverSettings = serverSettings;
+        changes.firePropertyChange(SERVER_PROPERTY, oldValue, this.serverSettings);
     }
 
     //endregion

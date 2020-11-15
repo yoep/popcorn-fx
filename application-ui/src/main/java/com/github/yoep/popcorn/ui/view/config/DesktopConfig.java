@@ -49,8 +49,11 @@ public class DesktopConfig {
     //region Sections
 
     @Bean
-    public ContentSectionController contentSectionController(ViewLoader viewLoader, TaskExecutor taskExecutor) {
-        return new ContentSectionController(viewLoader, taskExecutor);
+    public ContentSectionController contentSectionController(ViewLoader viewLoader,
+                                                             TaskExecutor taskExecutor,
+                                                             LocaleText localeText,
+                                                             ApplicationEventPublisher eventPublisher) {
+        return new ContentSectionController(viewLoader, taskExecutor, localeText, eventPublisher);
     }
 
     @Bean
@@ -220,6 +223,13 @@ public class DesktopConfig {
                                                                LocaleText localeText,
                                                                SettingsService settingsService) {
         return new SettingsPlaybackComponent(eventPublisher, localeText, settingsService);
+    }
+
+    @Bean
+    public SettingsServerComponent settingsServerComponent(ApplicationEventPublisher eventPublisher,
+                                                           LocaleText localeText,
+                                                           SettingsService settingsService) {
+        return new SettingsServerComponent(eventPublisher, localeText, settingsService);
     }
 
     @Bean

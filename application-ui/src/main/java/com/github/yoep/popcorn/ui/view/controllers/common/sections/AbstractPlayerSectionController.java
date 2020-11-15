@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.ui.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.ui.subtitles.Subtitle;
 import com.github.yoep.popcorn.ui.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.ui.subtitles.models.DecorationType;
+import com.github.yoep.popcorn.ui.view.services.KeepAliveService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerManagerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerSubtitleService;
@@ -25,7 +26,6 @@ import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -350,7 +350,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
 
             // verify that the key event is not the key used by the keep alive service
             // if so, don't show the overlay and ignore the event
-            if (keyEvent.getCode() == KeyCode.ALT)
+            if (keyEvent.getCode() == KeepAliveService.SIGNAL)
                 return;
         }
 

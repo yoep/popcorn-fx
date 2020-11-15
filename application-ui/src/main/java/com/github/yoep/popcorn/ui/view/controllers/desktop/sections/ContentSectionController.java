@@ -1,7 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.messages.ContentMessage;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -9,6 +11,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 
@@ -21,6 +24,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ContentSectionController implements Initializable {
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
+    private final LocaleText localeText;
+    private final ApplicationEventPublisher eventPublisher;
 
     private Pane listPane;
     private Pane detailsPane;
@@ -133,7 +138,12 @@ public class ContentSectionController implements Initializable {
             if (contentPane.getChildren().size() > 1)
                 contentPane.getChildren().remove(0);
 
-            contentPane.getChildren().add(0, pane.get());
+            try {
+                contentPane.getChildren().add(0, pane.get());
+            } catch (Exception ex) {
+                log.error(ex.getMessage(), ex);
+                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ContentMessage.CONTENT_PANE_FAILED)));
+            }
         });
     }
 

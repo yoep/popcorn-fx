@@ -28,6 +28,9 @@
 
             <!-- Trakt -->
             <fx:include source="../components/settings-trakt.component.fxml"/>
+
+            <!-- Server -->
+            <fx:include source="../components/settings-server.component.fxml"/>
         </VBox>
     </ScrollPane>
 

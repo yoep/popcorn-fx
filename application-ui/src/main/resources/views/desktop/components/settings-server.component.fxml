@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.DelayedTextField?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.SettingsServerComponent" styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints prefWidth="200"/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <!-- User interface title -->
+    <Label styleClass="subsection-title" text="%settings_server"
+           GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <!-- Default language -->
+    <Label text="%settings_server_api"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <DelayedTextField fx:id="apiServer" styleClass="long" userDelay="1500" invocationDelay="500" promptText="https://www.my-api.com"
+                      GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <!-- Separator -->
+    <Separator
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+</GridPane>

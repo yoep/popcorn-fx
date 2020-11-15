@@ -1119,10 +1119,13 @@
     -fx-background-color: #4bfff4;
 }
 
-.root .settings-section .sub-section .text-field {
+.root .settings-section .sub-section .text-field,
+.root .settings-section .sub-section .text-field.long {
     -fx-min-width: 300;
+    -fx-max-width: 300;
     -fx-background-color: #393b3d;
     -fx-text-fill: #c3c5c7;
+    -fx-prompt-text-fill: #646566;
 }
 
 .root .settings-section .sub-section .text-field.small {

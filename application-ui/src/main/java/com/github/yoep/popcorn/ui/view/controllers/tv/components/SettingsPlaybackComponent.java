@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.ui.view.controllers.tv.sections.SettingsSectionCo
 import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.input.KeyCode;
@@ -26,6 +27,8 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
     private Label quality;
     @FXML
     private Pane qualityCombo;
+    @FXML
+    private CheckBox autoPlayNextEpisode;
 
     private ListView<PlaybackSettings.Quality> qualityList;
 
@@ -44,6 +47,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeQuality();
+        initializeAutoPlayNextEpisode();
     }
 
     private void initializeQuality() {
@@ -63,8 +67,17 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
         qualityList.getSelectionModel().select(playbackSettings.getQuality());
         qualityList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             var settings = getPlaybackSettings();
+
             settings.setQuality(newValue);
+            showNotification();
         });
+    }
+
+    private void initializeAutoPlayNextEpisode() {
+        var playbackSettings = getPlaybackSettings();
+
+        autoPlayNextEpisode.setSelected(playbackSettings.isAutoPlayNextEpisodeEnabled());
+        autoPlayNextEpisode.selectedProperty().addListener((observable, oldValue, newValue) -> onAutoPlayNextEpisodeChanged(newValue));
     }
 
     //endregion
@@ -81,6 +94,13 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
 
     private void onQualityEvent() {
         settingsSection.showOverlay(qualityCombo, qualityList);
+    }
+
+    private void onAutoPlayNextEpisodeChanged(Boolean newValue) {
+        var settings = getPlaybackSettings();
+
+        settings.setAutoPlayNextEpisodeEnabled(newValue);
+        showNotification();
     }
 
     private PlaybackSettings getPlaybackSettings() {

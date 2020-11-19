@@ -10,7 +10,7 @@
     <artifactId>torrent-frostwire</artifactId>
 
     <properties>
-        <jlibtorrent.version>1.2.3.0</jlibtorrent.version>
+        <jlibtorrent.version>1.2.10.0</jlibtorrent.version>
     </properties>
 
     <dependencies>
@@ -101,8 +101,8 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${basedir}/../assets/jlibtorrent-1.2.3.0.jar</file>
-                            <sources>${basedir}/../assets/jlibtorrent-1.2.3.0-sources.jar</sources>
+                            <file>${basedir}/../assets/jlibtorrent-${jlibtorrent.version}.jar</file>
+                            <sources>${basedir}/../assets/jlibtorrent-${jlibtorrent.version}-sources.jar</sources>
                             <groupId>com.frostwire</groupId>
                             <artifactId>jlibtorrent</artifactId>
                             <version>${jlibtorrent.version}</version>

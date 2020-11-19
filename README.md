@@ -75,15 +75,6 @@ This option is enabled by default on the pre-built versions.
 
     -Dprism.dirtyopts=false
 
-### Raspberry Pi 4
-
-By default, the transparency of windows is not working correctly on the Raspberry Pi 4.
-To fix this issue, make sure the `xcompmgr` is started and contains the following values:
-
-    @xcompmgr -C -c -o 0.5 -l -19 -t -10 -r 14 -f -O 0.05 -I 0.05
-    
-These changes are best applied to `/etc/xdg/lxsession/LXDE-pi/autostart`.
-
 ## Development
 
 To run the application from source code locally, add the following VM options.

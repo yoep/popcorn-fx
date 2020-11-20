@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,6 +22,8 @@ import static java.util.Arrays.asList;
 @Slf4j
 public class SimpleMediaCardComponent extends AbstractMediaCardComponent {
     private static final String WATCHED_STYLE_CLASS = "watched";
+    private static final int TV_POSTER_WIDTH = 250;
+    private static final int TV_POSTER_HEIGHT = 368;
 
     private final List<SimpleItemListener> listeners = new ArrayList<>();
     private boolean requestFocus;
@@ -41,8 +44,15 @@ public class SimpleMediaCardComponent extends AbstractMediaCardComponent {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         super.initialize(url, resourceBundle);
         initializeWatched();
-        initializeKeyEvents();
         initializeRequestFocus();
+    }
+
+    @Override
+    protected void initializeImage() {
+        setPosterHolderImage();
+
+        var loadPosterFuture = imageService.loadPoster(media, TV_POSTER_WIDTH, TV_POSTER_HEIGHT);
+        handlePosterLoadFuture(loadPosterFuture);
     }
 
     private void initializeWatched() {
@@ -56,15 +66,6 @@ public class SimpleMediaCardComponent extends AbstractMediaCardComponent {
         }
     }
 
-    private void initializeKeyEvents() {
-        posterItem.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                event.consume();
-                showDetails();
-            }
-        });
-    }
-
     private void switchWatched(boolean isWatched) {
         if (isWatched) {
             posterItem.getStyleClass().add(WATCHED_STYLE_CLASS);
@@ -76,5 +77,13 @@ public class SimpleMediaCardComponent extends AbstractMediaCardComponent {
     @FXML
     private void showDetails() {
         listeners.forEach(listener -> listener.onClicked(media));
+    }
+
+    @FXML
+    private void mediaCardKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            showDetails();
+        }
     }
 }

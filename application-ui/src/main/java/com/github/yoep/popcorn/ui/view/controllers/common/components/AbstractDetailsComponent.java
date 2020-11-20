@@ -188,6 +188,16 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     }
 
     /**
+     * Get the rating text to display.
+     *
+     * @return Returns the rating display text.
+     */
+    protected String getRatingText() {
+        var score = media.getRating().getPercentage() / 10;
+        return score + "/10";
+    }
+
+    /**
      * Reset the details component back to it's idle state.
      */
     protected void reset() {

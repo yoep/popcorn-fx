@@ -23,6 +23,7 @@ import com.github.yoep.popcorn.ui.view.controls.Seasons;
 import com.github.yoep.popcorn.ui.view.models.Season;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import com.github.yoep.popcorn.ui.view.services.ShowHelperService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -36,24 +37,24 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
-import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.net.URL;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> {
-    private static final DateTimeFormatter AIRED_DATE_PATTERN = DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy hh:mm a");
+
     private static final double POSTER_WIDTH = 198.0;
     private static final double POSTER_HEIGHT = 215.0;
 
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
+    private final ShowHelperService showHelperService;
 
     private Episode episode;
     private boolean batchUpdating;
@@ -91,12 +92,20 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     //region Constructors
 
-    public ShowDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, HealthService healthService,
-                                SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
-                                SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService) {
+    public ShowDetailsComponent(ApplicationEventPublisher eventPublisher,
+                                LocaleText localeText,
+                                HealthService healthService,
+                                SubtitleService subtitleService,
+                                SubtitlePickerService subtitlePickerService,
+                                ImageService imageService,
+                                SettingsService settingsService,
+                                FavoriteService favoriteService,
+                                WatchedService watchedService,
+                                ShowHelperService showHelperService) {
         super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
+        this.showHelperService = showHelperService;
     }
 
     //endregion
@@ -242,10 +251,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     }
 
     private void loadSeasons() {
-        for (int i = 1; i <= media.getNumberOfSeasons(); i++) {
-            seasons.getItems().add(new Season(i, localeText.get(DetailsMessage.SEASON, i)));
-        }
-
+        seasons.getItems().addAll(showHelperService.getSeasons(media));
         selectUnwatchedSeason();
     }
 
@@ -257,7 +263,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         if (newSeason == null)
             return;
 
-        List<Episode> episodes = getSeasonEpisodes(newSeason);
+        List<Episode> episodes = showHelperService.getSeasonEpisodes(newSeason, media);
 
         this.episodes.getItems().clear();
 
@@ -280,7 +286,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
         episodeTitle.setText(episode.getTitle());
         episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
-        airDate.setText(localeText.get(DetailsMessage.AIR_DATE, AIRED_DATE_PATTERN.format(airDateTime)));
+        airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(airDateTime)));
         episodeOverview.setText(episode.getSynopsis());
 
         loadQualitySelection(episode.getTorrents());
@@ -292,41 +298,30 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         subtitleService.retrieveSubtitles(media, episode).whenComplete(this::handleSubtitlesResponse);
     }
 
-    private List<Episode> getSeasonEpisodes(Season season) {
-        return media.getEpisodes().stream()
-                .filter(Objects::nonNull)
-                .filter(e -> e.getSeason() == season.getSeason())
-                .sorted(Comparator.comparing(Episode::getEpisode))
-                .collect(Collectors.toList());
-    }
-
     private boolean isSeasonEmpty(Season season) {
-        return getSeasonEpisodes(season).size() == 0;
+        return showHelperService.getSeasonEpisodes(season, media).size() == 0;
     }
 
     private boolean isSeasonWatched(Season season) {
-        return getSeasonEpisodes(season).stream()
+        return showHelperService.getSeasonEpisodes(season, media).stream()
                 .allMatch(watchedService::isWatched);
     }
 
     private void markSeasonAsWatched(Season season) {
         batchUpdating = true;
-        getSeasonEpisodes(season).forEach(e -> e.setWatched(true));
+        showHelperService.getSeasonEpisodes(season, media).forEach(e -> e.setWatched(true));
         batchUpdating = false;
     }
 
     private void unmarkSeasonAsWatched(Season season) {
         batchUpdating = true;
-        getSeasonEpisodes(season).forEach(e -> e.setWatched(false));
+        showHelperService.getSeasonEpisodes(season, media).forEach(e -> e.setWatched(false));
         batchUpdating = false;
     }
 
     private void selectUnwatchedSeason() {
         var seasons = this.seasons.getItems();
-        var season = seasons.stream()
-                .filter(e -> !isSeasonWatched(e))
-                .findFirst()
-                .orElseGet(() -> CollectionUtils.lastElement(seasons));
+        var season = showHelperService.getUnwatchedSeason(seasons, media);
 
         Platform.runLater(() -> {
             this.seasons.getSelectionModel().select(season);
@@ -336,16 +331,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     private void selectUnwatchedEpisode() {
         var episodes = this.episodes.getItems();
-        var episode = episodes.stream()
-                .filter(Objects::nonNull)
-                .filter(e -> !watchedService.isWatched(e))
-                .findFirst()
-                .orElseGet(() -> {
-                    // check if the current season should be marked as watched
-                    updateSeasonIfNeeded(this.seasons.getSelectionModel().getSelectedItem());
+        var episode = showHelperService.getUnwatchedEpisode(episodes);
 
-                    return CollectionUtils.lastElement(episodes);
-                });
+        // check if the current season should be marked as watched
+        updateSeasonIfNeeded(this.seasons.getSelectionModel().getSelectedItem());
 
         Platform.runLater(() -> {
             this.episodes.getSelectionModel().select(episode);
@@ -408,7 +397,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         var mediaTorrentInfo = episode.getTorrents().get(quality);
 
         eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, episode, quality, subtitle));
-
     }
 
     @FXML

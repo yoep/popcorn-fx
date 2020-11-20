@@ -20,6 +20,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     public static final String PAGE_PROPERTY = "page";
     public static final String ITEM_FACTORY_PROPERTY = "itemFactory";
     public static final String LOADER_FACTORY_PROPERTY = "loaderFactory";
+    public static final String CONTENT_STYLE_CLASS = "infinite-content";
 
     private static final int SCROLLBAR_THRESHOLD = 90;
 
@@ -215,6 +216,8 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     private void initializeContent() {
         this.setFitToWidth(true);
         this.setContent(itemsPane);
+
+        itemsPane.getStyleClass().add(CONTENT_STYLE_CLASS);
     }
 
     private void initializeListeners() {

@@ -106,8 +106,11 @@ public class TvConfig {
     public ShowDetailsComponent showDetailsComponent(LocaleText localeText,
                                                      HealthService healthService,
                                                      ImageService imageService,
-                                                     SettingsService settingsService) {
-        return new ShowDetailsComponent(localeText, healthService, imageService, settingsService);
+                                                     SettingsService settingsService,
+                                                     ShowHelperService showHelperService,
+                                                     WatchedService watchedService,
+                                                     ApplicationEventPublisher eventPublisher) {
+        return new ShowDetailsComponent(localeText, healthService, imageService, settingsService, showHelperService, watchedService, eventPublisher);
     }
 
     @Bean

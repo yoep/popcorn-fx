@@ -17,18 +17,14 @@ import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
-import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 
@@ -49,7 +45,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private final SubtitleService subtitleService;
     private final FavoriteService favoriteService;
 
-    private String quality;
     private SubtitleInfo subtitle;
 
     @FXML
@@ -67,16 +62,11 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @FXML
     private Icon subtitleStatus;
     @FXML
-    private Pane qualityButton;
-    @FXML
-    private Label qualityButtonLabel;
-    @FXML
     private Icon likeButton;
     @FXML
     private Label likeText;
     @FXML
     private Overlay overlay;
-    private ListView<String> qualityList;
 
     //region Constructors
 
@@ -103,20 +93,12 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        super.initialize(location, resources);
         initializePlayButton();
-        initializeQualityList();
     }
 
     private void initializePlayButton() {
         playButton.requestFocus();
-    }
-
-    private void initializeQualityList() {
-        qualityList = new ListView<>();
-
-        qualityList.setMaxWidth(100);
-        qualityList.getItems().addListener((InvalidationListener) observable -> qualityList.setMaxHeight(50.0 * qualityList.getItems().size()));
-        qualityList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
     }
 
     //endregion
@@ -151,6 +133,11 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     //endregion
 
     //region Functions
+
+    @Override
+    protected void loadHealth(String quality) {
+        switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality));
+    }
 
     private void loadText() {
         title.setText(media.getTitle());
@@ -211,15 +198,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     private void onQuality() {
         overlay.show(qualityButton, qualityList);
-    }
-
-    private void onQualityChanged(String newValue) {
-        if (StringUtils.isEmpty(newValue))
-            return;
-
-        quality = newValue;
-        qualityButtonLabel.setText(newValue);
-        switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(newValue));
     }
 
     private void onLikeChanged() {

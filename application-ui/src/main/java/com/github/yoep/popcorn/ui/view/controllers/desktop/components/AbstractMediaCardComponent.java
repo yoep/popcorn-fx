@@ -16,7 +16,9 @@ import org.springframework.util.Assert;
 
 import java.net.URL;
 import java.text.MessageFormat;
+import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public abstract class AbstractMediaCardComponent extends AbstractCardComponent implements Initializable {
@@ -54,13 +56,9 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
 
     protected void initializeImage() {
         setPosterHolderImage();
-        imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT).whenComplete((image, throwable) -> {
-            if (throwable == null) {
-                image.ifPresent(e -> setBackgroundImage(e, true));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
+
+        var loadPosterFuture = imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT);
+        handlePosterLoadFuture(loadPosterFuture);
     }
 
     protected void initializeText() {
@@ -81,13 +79,23 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
         Tooltip.install(title, new Tooltip(media.getTitle()));
     }
 
-    private void setPosterHolderImage() {
+    protected void setPosterHolderImage() {
         try {
             // use the post holder as the default image while the media image is being loaded
             setBackgroundImage(POSTER_HOLDER_IMAGE, false);
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }
+    }
+
+    protected void handlePosterLoadFuture(CompletableFuture<Optional<Image>> loadPosterFuture) {
+        loadPosterFuture.whenComplete((image, throwable) -> {
+            if (throwable == null) {
+                image.ifPresent(e -> setBackgroundImage(e, true));
+            } else {
+                log.error(throwable.getMessage(), throwable);
+            }
+        });
     }
 
     private static Image loadPosterHolderImage() {

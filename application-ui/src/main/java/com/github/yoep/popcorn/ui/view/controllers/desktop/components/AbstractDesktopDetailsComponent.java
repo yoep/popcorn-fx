@@ -82,7 +82,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     @Override
     protected void loadStars() {
         super.loadStars();
-        Tooltip tooltip = new Tooltip(media.getRating().getPercentage() / 10 + "/10");
+
+        var tooltip = new Tooltip(getRatingText());
         instantTooltip(tooltip);
         Tooltip.install(ratingStars, tooltip);
     }

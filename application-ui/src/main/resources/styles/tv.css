@@ -81,13 +81,18 @@
     -fx-background-color: linear-gradient(to right, rgba(0, 0, 0, 1), rgba(255, 255, 255, 0));
 }
 
+.root .list-section .infinite-content {
+    -fx-padding: 5 15 5 15;
+}
+
 .root .list-section .poster-item {
-    -fx-min-height: 378;
-    -fx-max-height: 378;
-    -fx-pref-height: 378;
-    -fx-min-width: 231;
-    -fx-max-width: 231;
-    -fx-pref-width: 231;
+    -fx-min-height: 368;
+    -fx-max-height: 368;
+    -fx-pref-height: 368;
+    -fx-min-width: 250;
+    -fx-max-width: 250;
+    -fx-pref-width: 250;
+    -fx-padding: 1;
 }
 
 .root .list-section .poster-item:focused,
@@ -95,21 +100,21 @@
     -fx-opacity: 1;
 }
 
-.root .list-section .poster-item .poster-image {
-    -fx-pref-width: 201;
-    -fx-pref-height: 294;
-}
-
-.root .list-section .poster-item:focused .poster .poster-image {
+.root .list-section .poster-item:focused .poster-image {
     -fx-border-color: transparent;
     -fx-border-width: 3px;
+    -fx-border-style: inset;
 }
 
-.root .list-section .poster-item:focused .poster .poster-image {
+.root .list-section .poster-item:focused .poster-image {
     -fx-border-color: #2d72d9;
 }
 
-.root .list-section .poster-item .title {
+.root .list-section .poster-item .poster-details {
+    -fx-background-color: linear-gradient(rgba(23, 24, 27, 0.3) 0%, rgba(23, 24, 27, 0.8) 70%);
+}
+
+.root .list-section .poster-item .poster-details .title {
     -fx-font-size: 1.5em;
 }
 
@@ -120,6 +125,8 @@
 .root .list-section .poster-item .year,
 .root .list-section .poster-item .seasons {
     -fx-font-size: 1em;
+    -fx-text-fill: #737373;
+    -fx-fill: #737373;
 }
 
 .root .list-section .poster-item:focused .year,
@@ -185,23 +192,27 @@
     -fx-text-fill: #fff;
 }
 
-.root .content-section .movie-details .actions {
+.root .content-section .movie-details .actions,
+.root .content-section .show-details .actions {
     -fx-spacing: 20;
 }
 
-.root .content-section .movie-details .actions .action {
+.root .content-section .movie-details .actions .action,
+.root .content-section .show-details .actions .action {
     -fx-alignment: center;
     -fx-spacing: 5;
     -fx-cursor: hand;
 }
 
-.root .content-section .movie-details .actions .action Label {
+.root .content-section .movie-details .actions .action Label,
+.root .content-section .show-details .actions .action Label {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #ccc;
     -fx-font-size: 1.5em;
 }
 
-.root .content-section .movie-details .actions .action .button {
+.root .content-section .movie-details .actions .action .button,
+.root .content-section .show-details .actions .action .button {
     -fx-pref-width: 50;
     -fx-pref-height: 50;
     -fx-background-color: rgba(0, 0, 0, 0.3);
@@ -214,25 +225,31 @@
     -fx-font-size: 2em;
 }
 
-.root .content-section .movie-details .actions .action .button.text {
+.root .content-section .movie-details .actions .action .button.text,
+.root .content-section .show-details .actions .action .button.text {
     -fx-pref-width: 100;
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1.5em;
 }
 
-.root .content-section .movie-details .actions .action .button.liked {
+.root .content-section .movie-details .actions .action .button.liked,
+.root .content-section .show-details .actions .action .button.liked {
     -fx-text-fill: #df2d37;
 }
 
 .root .content-section .movie-details .actions .action:hover .button,
-.root .content-section .movie-details .actions .action:focused .button {
+.root .content-section .movie-details .actions .action:focused .button,
+.root .content-section .show-details .actions .action:hover .button,
+.root .content-section .show-details .actions .action:focused .button {
     -fx-background-color: rgba(45, 114, 217, 0.6);
     -fx-border-color: #fff;
     -fx-text-fill: #fff;
 }
 
 .root .content-section .movie-details .actions .action:hover Label,
-.root .content-section .movie-details .actions .action:focused Label {
+.root .content-section .movie-details .actions .action:focused Label,
+.root .content-section .show-details .actions .action:hover Label,
+.root .content-section .show-details .actions .action:focused Label {
     -fx-text-fill: #fff;
 }
 
@@ -274,6 +291,67 @@
 .root .show-details-section .show-header .poster {
     -fx-max-width: 298;
     -fx-max-height: 315;
+}
+
+.root .show-details-section .show-header .rating {
+    -fx-padding: 0 0 0 5;
+}
+
+.root .show-details-section .show-header .title {
+    -fx-font-size: 3em;
+}
+
+.root .show-details-section .show-header .metadata {
+    -fx-font-size: 1.25em;
+}
+
+.root .show-details-section .show-header .overview {
+    -fx-font-size: 1.5em;
+}
+
+.root .show-details-section .seasons {
+    -fx-background-color: #1f375f;
+    -fx-padding: 0 20 0 20;
+}
+
+.root .show-details-section .seasons .item {
+    -fx-cursor: hand;
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #ccc;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-style: solid;
+    -fx-padding: 10 15 10 15;
+}
+
+.root .show-details-section .seasons .item.active {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-border-color: #fff;
+}
+
+.root .show-details-section .seasons .item:focused {
+    -fx-text-fill: #fff;
+    -fx-border-color: #2d72d9;
+}
+
+.root .show-details-section .show-details {
+    -fx-padding: 0 15 0 15;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-title {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 2.5em;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-meta {
+    -fx-font-size: 1.25em;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-synopsis {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.5em;
 }
 
 .root .player .player-controls {

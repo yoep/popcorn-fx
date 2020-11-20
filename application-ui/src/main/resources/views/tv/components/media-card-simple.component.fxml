@@ -3,31 +3,32 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
-<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:id="posterItem" styleClass="poster-item" onMouseClicked="#showDetails" cache="true" focusTraversable="true">
-    <columnConstraints>
-        <ColumnConstraints/>
-        <ColumnConstraints/>
-    </columnConstraints>
-    <rowConstraints>
-        <RowConstraints/>
-        <RowConstraints/>
-        <RowConstraints/>
-    </rowConstraints>
-    <padding>
-        <Insets topRightBottomLeft="10"/>
-    </padding>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:id="posterItem" styleClass="poster-item" onKeyPressed="#mediaCardKeyPressed" onMouseClicked="#showDetails" cache="true" focusTraversable="true">
+    <StackPane fx:id="poster" styleClass="poster-image"
+               AnchorPane.topAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0"/>
 
-    <AnchorPane styleClass="poster"
-                GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0">
-        <StackPane fx:id="poster" styleClass="poster-image"/>
-    </AnchorPane>
+    <GridPane styleClass="poster-details"
+              AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="50"/>
+            <ColumnConstraints percentWidth="50"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints/>
+            <RowConstraints/>
+            <RowConstraints/>
+        </rowConstraints>
 
-    <Label fx:id="title" styleClass="title"
-           GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-    <Label fx:id="year" styleClass="year"
-           GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-    <Label fx:id="seasons" styleClass="seasons"
-           GridPane.halignment="RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+        <padding>
+            <Insets top="5" right="10" bottom="5" left="10"/>
+        </padding>
 
-</GridPane>
+        <Label fx:id="title" styleClass="title"
+               GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <Label fx:id="year" styleClass="year"
+               GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <Label fx:id="seasons" styleClass="seasons"
+               GridPane.halignment="RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    </GridPane>
+</AnchorPane>

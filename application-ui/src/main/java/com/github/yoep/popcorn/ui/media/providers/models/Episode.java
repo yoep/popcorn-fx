@@ -4,9 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.*;
 import org.apache.commons.text.StringEscapeUtils;
 
 import java.time.Instant;
@@ -17,6 +15,9 @@ import java.util.List;
 import java.util.Map;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @EqualsAndHashCode(exclude = {"watched", "liked", "show"})
 @ToString(exclude = {"watched", "liked", "show"})
 public class Episode implements Media {

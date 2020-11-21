@@ -1,4 +1,7 @@
 # Popcorn Time Desktop JavaFX
+![build](https://github.com/yoep/popcorn-desktop-javafx/workflows/maven-build/badge.svg)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![codecov](https://codecov.io/gh/yoep/popcorn-desktop-javafx/branch/master/graph/badge.svg?token=A801IOOZAH)](https://codecov.io/gh/yoep/popcorn-desktop-javafx)
 
 Popcorn Time Desktop JavaFX is based on the original Popcorn Time Desktop and Popcorn Time Android versions.
 Popcorn Time Desktop JavaFX uses **Java 11+** and **OpenJFX 13+**.
@@ -81,6 +84,15 @@ To run the application from source code locally, add the following VM options.
 
     -Djava.library.path=assets/<<OS>>:${PATH}
     --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.web,javafx.swing
+
+### Dependencies
+
+The following dependencies are required for development.
+
+- Java 11+
+- OpenJFX 13+
+- Qt5+ (only required when building the `video-vlc-native` player)
+- CMake (only required when building the `video-vlc-native` player)
 
 ### Building native VLC player
 

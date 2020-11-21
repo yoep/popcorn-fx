@@ -27,8 +27,10 @@ jobs:
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-maven-
+    - name: Prepare build
+      run: mvn -B clean -Plinux
     - name: Build
-      run: mvn -B clean verify -Plinux
+      run: mvn -B verify -DskipITs -Plinux
     - uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

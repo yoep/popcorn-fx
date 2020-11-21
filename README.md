@@ -1,5 +1,5 @@
 # Popcorn Time Desktop JavaFX
-![build](https://github.com/yoep/popcorn-desktop-javafx/workflows/maven-build/badge.svg)
+![Build](https://github.com/yoep/popcorn-desktop-javafx/workflows/Build/badge.svg)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![codecov](https://codecov.io/gh/yoep/popcorn-desktop-javafx/branch/master/graph/badge.svg?token=A801IOOZAH)](https://codecov.io/gh/yoep/popcorn-desktop-javafx)
 

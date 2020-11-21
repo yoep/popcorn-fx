@@ -114,7 +114,7 @@
                                 </goals>
                                 <configuration>
                                     <sourcePath>${project.parent.basedir}</sourcePath>
-                                    <targetPath>${build.directory}/cmake</targetPath>
+                                    <targetPath>${project.build.directory}/cmake</targetPath>
                                     <options>
                                         <option>-DCMAKE_MODULE_PATH=${qt.compiler.dir}/lib</option>
                                         <option>-DCMAKE_PREFIX_PATH=${qt.compiler.dir}</option>
@@ -127,7 +127,7 @@
                                     <goal>compile</goal>
                                 </goals>
                                 <configuration>
-                                    <projectDirectory>${build.directory}/cmake</projectDirectory>
+                                    <projectDirectory>${project.build.directory}/cmake</projectDirectory>
                                     <target>all</target>
                                     <options>
                                         <option>-DCMAKE_MODULE_PATH=${qt.compiler}/lib</option>

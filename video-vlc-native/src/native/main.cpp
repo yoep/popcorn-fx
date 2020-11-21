@@ -1,13 +1,14 @@
-#include <thread>
-#include <getopt.h>
 #include "PopcornPlayerLib.h"
+#include <getopt.h>
+#include <thread>
 
 using namespace std;
 
 // THIS IS A TEST CASE SCENARIO
 // ONLY USE THE LIBRARY FOR PLAYBACKS AND NOT THE RUNNER
-int main(int argc, char *argv[]) {
-    popcorn_player_t *instance = popcorn_player_new();
+int main(int argc, char* argv[])
+{
+    popcorn_player_t* instance = popcorn_player_new(argc, argv);
 
     // an example of the JNA invoking the initial player on a separate thread
     std::thread t1([&, instance] {
@@ -36,5 +37,7 @@ int main(int argc, char *argv[]) {
 
     // keep the main thread alive for some additional time
     std::this_thread::sleep_for(std::chrono::milliseconds(30000));
+    popcorn_player_release(instance);
+
     return 0;
 }

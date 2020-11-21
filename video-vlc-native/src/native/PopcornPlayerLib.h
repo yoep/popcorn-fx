@@ -8,64 +8,88 @@ extern "C" {
 typedef struct popcorn_player_t popcorn_player_t;
 
 /**
- * Create a new Popcorn PopcornPlayer instance.
+ * Create a new Popcorn Player instance.
  *
- * @return Returns the Popcorn PopcornPlayer instance.
+ * @return Returns the Popcorn Player instance.
  */
-popcorn_player_t* popcorn_player_new();
+popcorn_player_t *popcorn_player_new(int argc, char **argv);
 
 /**
- * Execute the Popcorn PopcornPlayer.
- * This function will exit when the Popcorn PopcornPlayer is exited with a status code.
- * It's recommended to run this on a separate thread which isn't disposed until the Popcorn PopcornPlayer exists.
+ * Execute the Popcorn Player.
+ * This function will exit when the Popcorn Player is exited with a status code.
+ * It's recommended to run this on a separate thread which isn't disposed until the Popcorn Player exists.
  *
- * @param pdp The Popcorn PopcornPlayer instance.
- * @return Returns the exit code of the Popcorn PopcornPlayer.
+ * @param pdp The Popcorn Player instance.
+ * @return Returns the exit code of the Popcorn Player.
  */
-int popcorn_player_exec(popcorn_player_t* pdp);
+int popcorn_player_exec(popcorn_player_t *pdp);
 
 /**
- * Release the Popcorn PopcornPlayer and release it's resources.
+ * Release the Popcorn Player and release it's resources.
  *
- * @param pdp The Popcorn PopcornPlayer instance to release.
+ * @param pdp The Popcorn Player instance to release.
  */
-void popcorn_player_release(popcorn_player_t* pdp);
+void popcorn_player_release(popcorn_player_t *pdp);
 
 /**
- * Play the given MRL in the Popcorn PopcornPlayer.
+ * Play the given MRL in the Popcorn Player.
  *
- * @param pdp The Popcorn PopcornPlayer instance.
+ * @param pdp The Popcorn Player instance.
  * @param mrl The MRL to start playing.
  */
-void popcorn_player_play(popcorn_player_t* pdp, const char* mrl);
+void popcorn_player_play(popcorn_player_t *pdp, const char *mrl);
 
 /**
- * Pause the current playback of the Popcorn PopcornPlayer.
+ * Pause the current playback of the Popcorn Player.
  *
- * @param pdp The Popcorn PopcornPlayer instance.
+ * @param pdp The Popcorn Player instance.
  */
-void popcorn_player_pause(popcorn_player_t* pdp);
+void popcorn_player_pause(popcorn_player_t *pdp);
 
 /**
- * Resume the playback of the Popcorn PopcornPlayer.
+ * Resume the playback of the Popcorn Player.
  *
- * @param pdp The Popcorn PopcornPlayer instance.
+ * @param pdp The Popcorn Player instance.
  */
-void popcorn_player_resume(popcorn_player_t* pdp);
+void popcorn_player_resume(popcorn_player_t *pdp);
 
 /**
- * Stop the current playback of the Popcorn PopcornPlayer.
+ * Stop the current playback of the Popcorn Player.
  *
- * @param pdp The Popcorn PopcornPlayer instance.
+ * @param pdp The Popcorn Player instance.
  */
-void popcorn_player_stop(popcorn_player_t* pdp);
+void popcorn_player_stop(popcorn_player_t *pdp);
 
 /**
- * Show the Popcorn PopcornPlayer.
+ * Show the Popcorn Player.
  *
- * @param pdp The Popcorn PopcornPlayer instance.
+ * @param pdp The Popcorn Player instance.
  */
-void popcorn_player_show(popcorn_player_t* pdp);
+void popcorn_player_show(popcorn_player_t *pdp);
+
+/**
+ * Change the fullscreen mode of the popcorn player.
+ *
+ * @param pdp The Popcorn Player instance.
+ * @param fullscreen The fullscreen switch.
+ */
+void popcorn_player_fullscreen(popcorn_player_t *pdp, bool fullscreen);
+
+/**
+ * Add the given subtitle file uri to the current media playback.
+ *
+ * @param pdp The Popcorn Player instance.
+ * @param uri The subtitle file uri to add.
+ */
+void popcorn_player_subtitle(popcorn_player_t *pdp, const char *uri);
+
+/**
+ * Update the subtitle delay for the current media playback.
+ *
+ * @param pdp The Popcorn Player instance.
+ * @param delay The delay in micro seconds.
+ */
+void popcorn_player_subtitle_delay(popcorn_player_t *pdp, long delay);
 
 #ifdef __cplusplus
 }

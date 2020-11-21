@@ -5,19 +5,16 @@ import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import com.github.yoep.video.vlcnative.bindings.popcorn_player_t;
+import com.sun.jna.StringArray;
 import javafx.beans.property.*;
-import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import javafx.stage.Stage;
-import javafx.stage.Window;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
-import java.util.Optional;
 
 @Slf4j
 public class VideoPlayerVlcNative implements VideoPlayer {
@@ -29,7 +26,6 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     private popcorn_player_t instance;
     private boolean initialized;
-    private boolean boundToWindow;
     private Thread popcornPlayerThread;
 
     //region VideoPlayer
@@ -104,12 +100,10 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         checkInitialized();
 
         // start the native player through JNA
-        PopcornPlayerLib.popcorn_player_show_maximized(instance);
+        PopcornPlayerLib.popcorn_player_show(instance);
+        PopcornPlayerLib.popcorn_player_fullscreen(instance, true);
         PopcornPlayerLib.popcorn_player_play(instance, url);
         playerState.set(PlayerState.PLAYING);
-
-        // request the current player to be focused again
-        getWindow().ifPresent(Window::requestFocus);
     }
 
     @Override
@@ -146,12 +140,15 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     @Override
     public void subtitleFile(File file) {
-
+        Assert.notNull(file, "file cannot be null");
+        log.trace("Adding subtitle file {} to the current playback", file.getAbsolutePath());
+        PopcornPlayerLib.popcorn_player_subtitle(instance, file.getAbsolutePath());
     }
 
     @Override
     public void subtitleDelay(long delay) {
-
+        log.trace("Updating subtitle delay to {} milliseconds", delay);
+        PopcornPlayerLib.popcorn_player_subtitle_delay(instance, delay * 1000);
     }
 
     //endregion
@@ -162,10 +159,10 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private void init() {
         log.trace("Initializing VLC native player");
         try {
-            initializeTracker();
             popcornPlayerThread = new Thread(() -> {
                 try {
-                    instance = PopcornPlayerLib.popcorn_player_new();
+                    var argv = new String[]{"", "-l", "debug"};
+                    instance = PopcornPlayerLib.popcorn_player_new(argv.length, new StringArray(argv));
 
                     if (instance == null) {
                         throw new VideoPlayerException("Failed to initialize native VLC player");
@@ -193,54 +190,6 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         if (!initialized) {
             throw new VideoPlayerException("VLC native player has not yet been initialized");
         }
-    }
-
-    private void initializeTracker() {
-        videoSurfaceTracker.sceneProperty().addListener((observableScene, oldValueScene, newValueScene) -> {
-            if (newValueScene != null) {
-                var stage = (Stage) newValueScene.getWindow();
-
-                if (!boundToWindow)
-                    bindFrameToWindow(newValueScene);
-
-                stage.setAlwaysOnTop(true);
-            } else if (oldValueScene != null) {
-                var stage = (Stage) oldValueScene.getWindow();
-
-                stage.setAlwaysOnTop(false);
-            }
-        });
-
-    }
-
-    private void bindFrameToWindow(Scene scene) {
-        updateTransparentComponents(scene);
-
-        getWindow().ifPresent(Window::requestFocus);
-
-        boundToWindow = true;
-        log.debug("Native VLC player has been bound to the JavaFX player");
-    }
-
-    private void updateTransparentComponents(Scene scene) {
-        var videoView = videoSurfaceTracker.getParent();
-        var playerPane = videoView.getParent();
-        var root = (Group) scene.getRoot();
-        var mainPane = root.getChildren().get(0);
-
-        playerPane.setStyle("-fx-background-color: transparent");
-        mainPane.setStyle("-fx-background-color: transparent");
-    }
-
-    private Optional<Window> getWindow() {
-        var scene = videoSurfaceTracker.getScene();
-
-        if (scene == null) {
-            log.warn("Unable to retrieve scene of current video player");
-            return Optional.empty();
-        }
-
-        return Optional.ofNullable(scene.getWindow());
     }
 
     private void reset() {

@@ -11,13 +11,16 @@ QT_END_NAMESPACE
 
 class PlayerHeader : public QWidget {
     Q_OBJECT
+
 public:
-    PlayerHeader(QWidget* parent = nullptr);
+    PlayerHeader(QWidget *parent = nullptr);
 
     ~PlayerHeader();
 
 private:
-    Ui::PlayerHeader* ui;
+    Ui::PlayerHeader *ui;
+
+    void initializeUi();
 };
 
 #endif //POPCORNPLAYER_PLAYERHEADER_H

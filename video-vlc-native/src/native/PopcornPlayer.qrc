@@ -6,4 +6,7 @@
         <file alias="OpenSansRegular.ttf">./fonts/OpenSans-Regular.ttf</file>
         <file alias="OpenSansSemibold.ttf">./fonts/OpenSans-Semibold.ttf</file>
     </qresource>
+    <qresource prefix="/images/">
+        <file alias="icon.png">./images/icon.png</file>
+    </qresource>
 </RCC>

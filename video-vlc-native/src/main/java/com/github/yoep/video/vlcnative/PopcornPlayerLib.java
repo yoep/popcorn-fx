@@ -2,6 +2,7 @@ package com.github.yoep.video.vlcnative;
 
 import com.github.yoep.video.vlcnative.bindings.popcorn_player_t;
 import com.sun.jna.Native;
+import com.sun.jna.StringArray;
 
 public class PopcornPlayerLib {
 
@@ -18,7 +19,7 @@ public class PopcornPlayerLib {
 
     //region Methods
 
-    public static native popcorn_player_t popcorn_player_new();
+    public static native popcorn_player_t popcorn_player_new(int argc, StringArray argv);
 
     public static native int popcorn_player_exec(popcorn_player_t instance);
 
@@ -34,7 +35,11 @@ public class PopcornPlayerLib {
 
     public static native void popcorn_player_show(popcorn_player_t instance);
 
-    public static native void popcorn_player_show_maximized(popcorn_player_t instance);
+    public static native void popcorn_player_fullscreen(popcorn_player_t instance, boolean fullscreen);
+
+    public static native void popcorn_player_subtitle(popcorn_player_t instance, String url);
+
+    public static native void popcorn_player_subtitle_delay(popcorn_player_t instance, long delay);
 
     //endregion
 }

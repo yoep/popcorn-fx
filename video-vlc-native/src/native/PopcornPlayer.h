@@ -2,15 +2,16 @@
 #define POPCORN_PLAYER_PLAYERWINDOW_H
 
 #include "Log.h"
-#include "PopcornPlayerWindow.h"
-#include "VideoPlayer.h"
+#include "widgets/PopcornPlayerWindow.h"
+#include "widgets/VideoWidget.h"
 
 #include <QGuiApplication>
 #include <QtWidgets/QMainWindow>
+#include <player/MediaPlayer.h>
 
 class PopcornPlayer {
 public:
-    PopcornPlayer(int& argc, char** argv);
+    PopcornPlayer(int &argc, char **argv);
 
     ~PopcornPlayer();
 
@@ -18,17 +19,9 @@ public:
 
     void show();
 
-    void showMaximized();
-
     void close();
 
-    bool isInitialized();
-
-    bool isMaximized();
-
-    void setMaximized(bool maximized);
-
-    void play(const char* mrl);
+    void play(const char *mrl);
 
     void pause();
 
@@ -36,19 +29,28 @@ public:
 
     void stop();
 
+    void setSubtitleFile(const char* uri);
+
+    void setSubtitleDelay(long delay);
+
+    void setFullscreen(bool fullscreen);
+
 private:
-    int& argc;
-    char** argv;
-    QApplication* app;
-    PopcornPlayerWindow* window;
-    Log* log;
+    int &argc;
+    char **argv;
+    QApplication *app;
+    PopcornPlayerWindow *window;
+    MediaPlayer *mediaPlayer;
+    Log *log;
 
     template <typename Func>
     void invokeOnQt(Func func);
 
     void loadFonts();
 
-    static bool isHttpUrl(const char* string);
+    void parseArguments();
+
+    void updateLogLevel(char *levelArg);
 
     static void loadIcon();
 };

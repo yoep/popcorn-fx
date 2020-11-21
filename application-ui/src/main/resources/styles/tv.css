@@ -103,7 +103,7 @@
 .root .list-section .poster-item:focused .poster-image {
     -fx-border-color: transparent;
     -fx-border-width: 3px;
-    -fx-border-style: inset;
+    -fx-border-style: solid;
 }
 
 .root .list-section .poster-item:focused .poster-image {
@@ -159,15 +159,18 @@
     -fx-font-size: 1.25em;
 }
 
-.root .movie-details .subtitle.loading {
+.root .movie-details .subtitle.loading,
+.root .show-details .subtitle.loading {
     -fx-text-fill: #2d8ef5;
 }
 
-.root .movie-details .subtitle.success {
+.root .movie-details .subtitle.success,
+.root .show-details .subtitle.success {
     -fx-text-fill: #2ad942;
 }
 
-.root .movie-details .subtitle.failed {
+.root .movie-details .subtitle.failed,
+.root .show-details .subtitle.failed {
     -fx-text-fill: #d53f3f;
 }
 
@@ -334,6 +337,14 @@
 .root .show-details-section .seasons .item:focused {
     -fx-text-fill: #fff;
     -fx-border-color: #2d72d9;
+}
+
+.root .show-details-section .episodes .table-row-cell:selected {
+    -fx-background-color: #1f375f;
+}
+
+.root .show-details-section .episodes:focused .table-row-cell:selected {
+    -fx-background-color: #2d72d9;
 }
 
 .root .show-details-section .show-details {

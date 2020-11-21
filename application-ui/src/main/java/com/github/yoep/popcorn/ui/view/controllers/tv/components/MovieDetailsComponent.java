@@ -29,6 +29,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 
 import java.net.URL;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
@@ -37,15 +38,8 @@ import java.util.concurrent.CompletableFuture;
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
     private static final String LIKED_STYLE_CLASS = "liked";
-    private static final String SUBTITLE_LOADING_STYLE_CLASS = "loading";
-    private static final String SUBTITLE_SUCCESS_STYLE_CLASS = "success";
-    private static final String SUBTITLE_FAILED_STYLE_CLASS = "failed";
 
-    private final ApplicationEventPublisher eventPublisher;
-    private final SubtitleService subtitleService;
     private final FavoriteService favoriteService;
-
-    private SubtitleInfo subtitle;
 
     @FXML
     private Icon playButton;
@@ -60,8 +54,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @FXML
     private Label genres;
     @FXML
-    private Icon subtitleStatus;
-    @FXML
     private Icon likeButton;
     @FXML
     private Label likeText;
@@ -70,11 +62,14 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     //region Constructors
 
-    public MovieDetailsComponent(LocaleText localeText, ImageService imageService, HealthService healthService, SettingsService settingsService,
-                                 ApplicationEventPublisher eventPublisher, SubtitleService subtitleService, FavoriteService favoriteService) {
-        super(localeText, imageService, healthService, settingsService);
-        this.eventPublisher = eventPublisher;
-        this.subtitleService = subtitleService;
+    public MovieDetailsComponent(LocaleText localeText,
+                                 ImageService imageService,
+                                 HealthService healthService,
+                                 SettingsService settingsService,
+                                 ApplicationEventPublisher eventPublisher,
+                                 SubtitleService subtitleService,
+                                 FavoriteService favoriteService) {
+        super(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService);
         this.favoriteService = favoriteService;
     }
 
@@ -121,13 +116,14 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     @Override
+    protected CompletableFuture<List<SubtitleInfo>> retrieveSubtitles() {
+        return subtitleService.retrieveSubtitles(media);
+    }
+
+    @Override
     protected void reset() {
         super.reset();
-        Platform.runLater(() -> {
-            subtitleStatus.getStyleClass().remove(SUBTITLE_LOADING_STYLE_CLASS);
-            qualityList.getItems().clear();
-            overlay.setVisible(false);
-        });
+        Platform.runLater(() -> overlay.setVisible(false));
     }
 
     //endregion
@@ -155,26 +151,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
             qualityList.getItems().clear();
             qualityList.getItems().addAll(qualities);
             qualityList.getSelectionModel().select(defaultQuality);
-        });
-    }
-
-    private void loadSubtitles() {
-        subtitleStatus.getStyleClass().add(SUBTITLE_LOADING_STYLE_CLASS);
-        subtitleService.retrieveSubtitles(media).whenComplete((subtitleInfos, throwable) -> {
-            subtitleStatus.getStyleClass().remove(SUBTITLE_LOADING_STYLE_CLASS);
-
-            if (throwable == null) {
-                subtitle = subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos);
-
-                if (subtitle.isNone()) {
-                    subtitleStatus.getStyleClass().add(SUBTITLE_FAILED_STYLE_CLASS);
-                } else {
-                    subtitleStatus.getStyleClass().add(SUBTITLE_SUCCESS_STYLE_CLASS);
-                }
-            } else {
-                log.error(throwable.getMessage(), throwable);
-                subtitleStatus.getStyleClass().add(SUBTITLE_FAILED_STYLE_CLASS);
-            }
         });
     }
 

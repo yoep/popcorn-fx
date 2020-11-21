@@ -12,6 +12,9 @@ import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.media.watched.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
+import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.ui.view.controls.Episodes;
 import com.github.yoep.popcorn.ui.view.controls.HorizontalBar;
 import com.github.yoep.popcorn.ui.view.models.Season;
@@ -31,20 +34,23 @@ import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
 
 import java.net.URL;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
+@Service
+@ConditionalOnTvMode
 public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> implements Initializable {
     private static final double POSTER_WIDTH = 298.0;
     private static final double POSTER_HEIGHT = 315.0;
 
     private final ShowHelperService showHelperService;
     private final WatchedService watchedService;
-    private final ApplicationEventPublisher eventPublisher;
     private final ChangeListener<Boolean> watchedListener = createWatchListener();
 
     private Episode episode;
@@ -89,11 +95,11 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
                                 SettingsService settingsService,
                                 ShowHelperService showHelperService,
                                 WatchedService watchedService,
-                                ApplicationEventPublisher eventPublisher) {
-        super(localeText, imageService, healthService, settingsService);
+                                ApplicationEventPublisher eventPublisher,
+                                SubtitleService subtitleService) {
+        super(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService);
         this.showHelperService = showHelperService;
         this.watchedService = watchedService;
-        this.eventPublisher = eventPublisher;
     }
 
     //endregion
@@ -160,6 +166,11 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
     @Override
     protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
         return imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT);
+    }
+
+    @Override
+    protected CompletableFuture<List<SubtitleInfo>> retrieveSubtitles() {
+        return subtitleService.retrieveSubtitles(media, episode);
     }
 
     @Override
@@ -237,6 +248,7 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
 
         loadQualities();
         loadWatched();
+        loadSubtitles();
     }
 
     private void loadWatched() {

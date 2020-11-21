@@ -5,13 +5,19 @@ import com.github.yoep.popcorn.ui.media.watched.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.media.watched.controls.WatchedCellFactory;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
+import java.awt.*;
 import java.util.Optional;
 
+@Slf4j
 public class Episodes extends TableView<Episode> {
     private static final String WATCHED_FACTORY_PROPERTY = "watchedFactory";
 
@@ -64,6 +70,11 @@ public class Episodes extends TableView<Episode> {
 
     //region Methods
 
+    @Override
+    public void requestFocus() {
+        super.requestFocus();
+    }
+
     //endregion
 
     //region Functions
@@ -71,6 +82,8 @@ public class Episodes extends TableView<Episode> {
     private void init() {
         initializeColumns();
         initializeListeners();
+        initializeKeyEvents();
+        initializeFocus();
     }
 
     private void initializeColumns() {
@@ -122,6 +135,37 @@ public class Episodes extends TableView<Episode> {
             watchedColumn.setCellFactory(param -> newValue.get());
             refresh();
         });
+    }
+
+    private void initializeKeyEvents() {
+        try {
+            var robot = new Robot();
+            var focusMoveCode = KeyCode.TAB.getCode();
+            var previousCode = KeyCode.SHIFT.getCode();
+
+            this.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+                if (event.getCode() == KeyCode.RIGHT) {
+                    event.consume();
+
+                    robot.keyPress(focusMoveCode);
+                    robot.keyRelease(focusMoveCode);
+                } else if (event.getCode() == KeyCode.LEFT) {
+                    event.consume();
+
+                    robot.keyPress(previousCode);
+                    robot.keyPress(focusMoveCode);
+                    robot.keyRelease(previousCode);
+                    robot.keyRelease(focusMoveCode);
+                }
+            });
+        } catch (AWTException ex) {
+            log.error("Failed to create episodes robot, " + ex.getMessage(), ex);
+        }
+    }
+
+    private void initializeFocus() {
+        getSelectionModel().setCellSelectionEnabled(false);
+        getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
     }
 
     //endregion

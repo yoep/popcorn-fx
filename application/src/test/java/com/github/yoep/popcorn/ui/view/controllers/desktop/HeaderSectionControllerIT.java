@@ -62,7 +62,7 @@ public class HeaderSectionControllerIT extends TestFxBase {
             sleep(500);
 
             // wait for the expected poster items
-            WaitForAsyncUtils.waitFor(30, TimeUnit.SECONDS, () -> lookup(".poster-item").queryAll().size() == 2);
+            WaitForAsyncUtils.waitFor(30, TimeUnit.SECONDS, () -> lookup(".poster-item").queryAll().size() >= 2);
 
             // check the labels of the poster items
             var titleLabels = lookup(".poster-item .title").queryAllAs(Labeled.class);

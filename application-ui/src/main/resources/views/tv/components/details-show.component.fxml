@@ -118,8 +118,11 @@
                    GridPane.columnIndex="0" GridPane.rowIndex="2"/>
 
             <!-- Magnet & Health -->
-            <HBox alignment="TOP_RIGHT"
+            <HBox alignment="TOP_RIGHT" spacing="5"
                   GridPane.rowSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                <Icon fx:id="subtitleStatus" styleClass="subtitle">
+                    <Icon fx:constant="COMMENT_UNICODE"/>
+                </Icon>
                 <HealthIcon fx:id="health" styleClass="health"/>
             </HBox>
 

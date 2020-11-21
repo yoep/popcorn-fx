@@ -22,12 +22,14 @@ PopcornPlayer::PopcornPlayer(int &argc, char **argv)
     this->argv = argv;
     this->app = nullptr;
     this->window = nullptr;
-    this->mediaPlayer = MediaPlayerFactory::create();
 
     // check if we need to parse program arguments
     if (argc > 0 && argv != nullptr) {
         parseArguments();
     }
+
+    // initialize the media player after we've parsed the program arguments
+    this->mediaPlayer = MediaPlayerFactory::create();
 }
 
 PopcornPlayer::~PopcornPlayer()

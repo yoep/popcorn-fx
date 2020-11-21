@@ -3,7 +3,6 @@
 #include "MediaPlayer.h"
 
 #include <Log.h>
-#include <QtWidgets/QMessageBox>
 #include <libvlc/vlc/vlc.h>
 
 MediaPlayerFactory *MediaPlayerFactory::instance = nullptr;
@@ -25,7 +24,7 @@ MediaPlayer *MediaPlayerFactory::create()
 
     // initialize VLC args
     factory->log->trace("Creating new media player");
-    const char *vlcArgs = factory->log->getLevel() & TRACE_FLAG ? "--verbose=2" : "";
+    const char *vlcArgs = factory->log->getLevel() & TRACE_FLAG ? "--verbose=2" : nullptr;
     int argc = factory->log->getLevel() & TRACE_FLAG ? 1 : 0;
     const char *const *argv = &vlcArgs;
 

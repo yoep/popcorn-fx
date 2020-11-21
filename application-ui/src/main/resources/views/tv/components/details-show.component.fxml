@@ -168,6 +168,15 @@
                     </Icon>
                     <Label fx:id="watchedButtonText" text="%details_mark_as_watched"/>
                 </VBox>
+
+                <VBox styleClass="action" focusTraversable="true"
+                      onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
+                      GridPane.columnIndex="3" GridPane.rowIndex="0">
+                    <Icon styleClass="button">
+                        <Icon fx:constant="TIMES_UNICODE"/>
+                    </Icon>
+                    <Label text="%close"/>
+                </VBox>
             </GridPane>
         </GridPane>
     </GridPane>

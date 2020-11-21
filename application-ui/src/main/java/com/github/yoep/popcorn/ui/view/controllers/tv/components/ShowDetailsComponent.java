@@ -31,7 +31,9 @@ import javafx.scene.input.InputEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -85,6 +87,8 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
     private Icon watchedButtonIcon;
     @FXML
     private Label watchedButtonText;
+    @FXML
+    private Pane episodeDetails;
 
 
     //region Constructors
@@ -225,6 +229,8 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
 
         this.episodes.getItems().clear();
         this.episodes.getItems().addAll(episodes);
+        this.episodeDetails.setVisible(CollectionUtils.isNotEmpty(episodes));
+
         selectUnwatchedEpisode();
     }
 
@@ -280,6 +286,11 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
         var episodes = this.episodes.getItems();
         var episode = showHelperService.getUnwatchedEpisode(episodes);
 
+        // check if an episode can be selected
+        // if not, end the function as we don't need to select an episode/change focus
+        if (episode == null)
+            return;
+
         Platform.runLater(() -> {
             this.episodes.getSelectionModel().select(episode);
             this.episodes.scrollTo(episode);
@@ -318,6 +329,10 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
         } else {
             watchedService.removeFromWatchList(episode);
         }
+    }
+
+    private void onCloseEvent() {
+        eventPublisher.publishEvent(new CloseDetailsEvent(this));
     }
 
     private ChangeListener<Boolean> createWatchListener() {
@@ -371,6 +386,20 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             onWatchedEvent();
+        }
+    }
+
+    @FXML
+    private void onCloseClicked(MouseEvent event) {
+        event.consume();
+        onCloseEvent();
+    }
+
+    @FXML
+    private void onCloseKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onCloseEvent();
         }
     }
 

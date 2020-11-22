@@ -1,40 +1,42 @@
 #include "PopcornPlayerWindow.h"
 
 #include "PlayerHeader.h"
+#include "ui_popcornplayerwindow.h"
 
 #include <QResizeEvent>
+#include <QtWidgets/QGridLayout>
 
 PopcornPlayerWindow::PopcornPlayerWindow(QWidget *parent)
     : QMainWindow(parent)
+    , ui(new Ui::PopcornPlayerWindow)
 {
-    this->player = new VideoWidget(this);
-//    this->header = new PlayerHeader(this);
-//    this->controls = new PlayerControls(this);
-
     initializeUi();
 }
 
 PopcornPlayerWindow::~PopcornPlayerWindow()
 {
-    delete (this->player);
+    delete (ui);
 }
 
 WId PopcornPlayerWindow::requestVideoSurface()
 {
-    return player->request();
+    return ui->player->request();
 }
 
 void PopcornPlayerWindow::releaseVideoSurface()
 {
-    player->release();
+    ui->player->release();
+}
+
+void PopcornPlayerWindow::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
 }
 
 void PopcornPlayerWindow::initializeUi()
 {
-    setCentralWidget(player);
-}
+    ui->setupUi(this);
 
-void PopcornPlayerWindow::resizeEvent(QResizeEvent *event)
-{
-    QWidget::resizeEvent(event);
+    ui->rootLayout->setRowStretch(1, QLAYOUTSIZE_MAX);
+    ui->rootLayout->setRowMinimumHeight(3, 75);
 }

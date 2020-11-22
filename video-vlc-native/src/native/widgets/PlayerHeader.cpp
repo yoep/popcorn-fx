@@ -18,8 +18,8 @@ void PlayerHeader::initializeUi()
 {
     ui->setupUi(this);
 
-    setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     setAttribute(Qt::WA_NoSystemBackground);
     setAttribute(Qt::WA_TranslucentBackground);
+    setAttribute(Qt::WA_PaintOnScreen);
     setStyleSheet("background-color: rgba(0,0,0,0)");
 }

@@ -1,73 +1,68 @@
 #include "MediaPlayer.h"
 
+#include <QList>
 #include <QtGui/QWidgetSet>
-#include <regex>
 #include <string>
 
 using namespace std;
 
-//region Constructors
-
 MediaPlayer::MediaPlayer(libvlc_instance_t *vlcInstance)
 {
-    this->log = Log::getInstance();
-    this->vlcInstance = vlcInstance;
-    this->vlcMediaPlayer = libvlc_media_player_new(vlcInstance);
-    this->media = nullptr;
+    this->_log = Log::getInstance();
+    this->_vlcInstance = vlcInstance;
+    this->_vlcMediaPlayer = libvlc_media_player_new(vlcInstance);
+    this->_media = nullptr;
 
-    libvlc_media_player_retain(vlcMediaPlayer);
+    initializeMediaPlayer();
 }
 
 MediaPlayer::~MediaPlayer()
 {
+    unsubscribeEvents();
     releaseMediaPlayerIfNeeded();
 }
 
-//endregion
-
-//region Methods
-
-bool MediaPlayer::play(const char *mrl)
+bool MediaPlayer::play(Media *media)
 {
-    if (mrl == nullptr) {
-        log->warn("Unable to play empty MRL, ignoring media player play");
-        return false;
-    }
+    libvlc_media_player_set_media(_vlcMediaPlayer, media->vlcMedia());
 
-    if (isHttpUrl(mrl)) {
-        return playUrl(mrl);
+    int result = libvlc_media_player_play(_vlcMediaPlayer);
+
+    if (result == -1) {
+        handleVlcError();
+        return false;
     } else {
-        return playFile(mrl);
+        return true;
     }
 }
 
 void MediaPlayer::pause()
 {
     try {
-        log->info("Pausing media player");
-        libvlc_media_player_set_pause(vlcMediaPlayer, 1);
+        _log->info("Pausing media player");
+        libvlc_media_player_set_pause(_vlcMediaPlayer, 1);
     } catch (std::exception &ex) {
-        log->error("An error occurred while pausing the media playback", ex);
+        _log->error("An error occurred while pausing the media playback", ex);
     }
 }
 
 void MediaPlayer::resume()
 {
     try {
-        log->info("Resuming media player");
-        libvlc_media_player_set_pause(vlcMediaPlayer, 0);
+        _log->info("Resuming media player");
+        libvlc_media_player_set_pause(_vlcMediaPlayer, 0);
     } catch (std::exception &ex) {
-        log->error("An error occurred while resuming the media playback", ex);
+        _log->error("An error occurred while resuming the media playback", ex);
     }
 }
 
 void MediaPlayer::stop()
 {
     try {
-        log->info("Stopping media player");
-        libvlc_media_player_stop(vlcMediaPlayer);
+        _log->info("Stopping media player");
+        libvlc_media_player_stop(_vlcMediaPlayer);
     } catch (std::exception &ex) {
-        log->error("An error occurred while resuming the media playback", ex);
+        _log->error("An error occurred while resuming the media playback", ex);
     }
 }
 
@@ -82,90 +77,109 @@ void MediaPlayer::setVideoSurface(WId wid)
     void *drawable = (void *)wid;
     libvlc_media_player_set_nsobject(vlcMediaPlayer, drawable);
 #else
-    log->trace("Adding X window to the VLC media player");
-    libvlc_media_player_set_xwindow(vlcMediaPlayer, wid);
+    _log->trace("Adding X window to the VLC media player");
+    libvlc_media_player_set_xwindow(_vlcMediaPlayer, wid);
 #endif
 }
 
 void MediaPlayer::setSubtitleFile(const char *uri)
 {
-    log->debug(std::string("Adding new subtitle track: ") + uri);
+    _log->debug(std::string("Adding new subtitle track: ") + uri);
 
-    if (libvlc_media_player_add_slave(vlcMediaPlayer, libvlc_media_slave_type_subtitle, uri, true) == 0) {
-        log->info(std::string("Subtitle track \"") + uri + "\" has been added with success");
+    if (libvlc_media_player_add_slave(_vlcMediaPlayer, libvlc_media_slave_type_subtitle, uri, true) == 0) {
+        _log->info(std::string("Subtitle track \"") + uri + "\" has been added with success");
     } else {
-        log->error(std::string("Failed to add subtitle track ") + uri);
+        _log->error(std::string("Failed to add subtitle track ") + uri);
     }
 }
 
 void MediaPlayer::setSubtitleDelay(long delay)
 {
-    log->debug(std::string("Updating subtitle delay to ") + std::to_string(delay) + "ms");
-    libvlc_video_set_spu_delay(vlcMediaPlayer, delay);
-}
-
-//endregion
-
-//region Functions
-
-bool MediaPlayer::playFile(const char *path)
-{
-    log->debug(std::string("Creating media for file path: ") + path);
-    media = libvlc_media_new_path(vlcInstance, path);
-
-    if (media == nullptr) {
-        log->warn(std::string("Unable to create media for path ") + path);
-        return false;
-    }
-
-    log->info(std::string("Playing file path: ") + path);
-    return play();
-}
-bool MediaPlayer::playUrl(const char *url)
-{
-    log->debug(std::string("Creating media for url: ") + url);
-    media = libvlc_media_new_location(vlcInstance, url);
-
-    if (media == nullptr) {
-        log->warn(std::string("Unable to create media for url ") + url);
-        return false;
-    }
-
-    log->info(std::string("Playing url: ") + url);
-    return play();
-}
-
-bool MediaPlayer::play()
-{
-    libvlc_media_player_set_media(vlcMediaPlayer, media);
-
-    int result = libvlc_media_player_play(vlcMediaPlayer);
-
-    if (result == -1) {
-        handleVlcError();
-        return false;
-    } else {
-        return true;
-    }
-}
-
-bool MediaPlayer::isHttpUrl(const char *url)
-{
-    std::string value = url;
-    return std::regex_match(value, std::regex("^(https?:\\/\\/).*"));
+    _log->debug(std::string("Updating subtitle delay to ") + std::to_string(delay) + "ms");
+    libvlc_video_set_spu_delay(_vlcMediaPlayer, delay);
 }
 
 void MediaPlayer::releaseMediaPlayerIfNeeded()
 {
-    if (vlcMediaPlayer == nullptr) {
+    if (_vlcMediaPlayer == nullptr) {
         return;
     }
 
-    log->trace("Releasing current VLC media player resources");
+    _log->trace("Releasing current VLC media player resources");
     // stop the current media playback in case any media is still playing
     stop();
     // release the media player which was retained during construction if this media player
-    libvlc_media_player_release(vlcMediaPlayer);
+    libvlc_media_player_release(_vlcMediaPlayer);
+}
+
+void MediaPlayer::initializeMediaPlayer()
+{
+    libvlc_media_player_retain(_vlcMediaPlayer);
+    _vlcEventManager = libvlc_media_player_event_manager(_vlcMediaPlayer);
+
+    subscribeEvents();
+}
+
+void MediaPlayer::subscribeEvents()
+{
+    if (_vlcEventManager == nullptr) {
+        _log->warn("Unable to subscribe to VLC events, no VLC event manager present");
+        return;
+    }
+
+    _log->trace("Subscribing to VLC media events");
+    foreach (const libvlc_event_e event, eventList()) {
+        libvlc_event_attach(_vlcEventManager, event, vlcCallback, this);
+    }
+    _log->debug("Subscribed to VLC media events");
+}
+
+void MediaPlayer::unsubscribeEvents()
+{
+    if (_vlcEventManager == nullptr) {
+        _log->warn("Unable to unsubscribe from VLC events, no VLC event manager present");
+        return;
+    }
+
+    _log->trace("Unsubscribing from VLC media events");
+    foreach (const libvlc_event_e event, eventList()) {
+        libvlc_event_detach(_vlcEventManager, event, vlcCallback, this);
+    }
+    _log->debug("Unsubscribed from VLC media events");
+}
+
+void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
+{
+    Log *log = Log::getInstance();
+
+    // check if the instance is valid
+    // if not, throw an error as we'll be unable to do anything with the event
+    if (instance == nullptr) {
+        log->error("Invalid VLC callback event, instance is NULL");
+    }
+
+    auto *mediaPlayer = static_cast<MediaPlayer *>(instance);
+
+    switch (event->type) {
+    case libvlc_MediaPlayerPlaying:
+
+        break;
+    case libvlc_MediaPlayerPaused:
+
+        break;
+    case libvlc_MediaPlayerBuffering:
+
+        break;
+    case libvlc_MediaPlayerStopped:
+
+        break;
+    case libvlc_MediaPlayerTimeChanged:
+        emit mediaPlayer->timeChanged(event->u.media_player_time_changed.new_time);
+        break;
+    default:
+        log->warn(std::string("Unknown VLC media player event type ") + std::to_string(event->type));
+        break;
+    }
 }
 
 void MediaPlayer::handleVlcError()
@@ -173,8 +187,18 @@ void MediaPlayer::handleVlcError()
     const char *message = libvlc_errmsg();
 
     if (message != nullptr) {
-        log->error(std::string("Media player encountered a VLC error: ") + message);
+        _log->error(std::string("Media player encountered a VLC error: ") + message);
     }
 }
 
-//endregion
+QList<libvlc_event_e> MediaPlayer::eventList()
+{
+    QList<libvlc_event_e> eventList;
+    eventList << libvlc_MediaPlayerPlaying;
+    eventList << libvlc_MediaPlayerPaused;
+    eventList << libvlc_MediaPlayerBuffering;
+    eventList << libvlc_MediaPlayerStopped;
+    eventList << libvlc_MediaPlayerTimeChanged;
+
+    return eventList;
+}

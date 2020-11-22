@@ -29,7 +29,7 @@ PopcornPlayer::PopcornPlayer(int &argc, char **argv)
     }
 
     // initialize the media player after we've parsed the program arguments
-    this->mediaPlayer = MediaPlayerFactory::create();
+    this->mediaPlayer = MediaPlayerFactory::createPlayer();
 }
 
 PopcornPlayer::~PopcornPlayer()
@@ -52,7 +52,6 @@ int PopcornPlayer::exec()
     try {
         log->trace("Initializing Popcorn Player application");
         QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-        QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
         QApplication::setApplicationName(APPLICATION_TITLE);
         QApplication application(argc, argv);
         this->app = &application;
@@ -133,7 +132,6 @@ void PopcornPlayer::close()
     }
 
     invokeOnQt([&] {
-        stop();
         window->close();
         QApplication::quit();
     });
@@ -141,9 +139,13 @@ void PopcornPlayer::close()
 
 void PopcornPlayer::play(const char *mrl)
 {
-    // add the video surface to the media player
-    mediaPlayer->setVideoSurface(window->requestVideoSurface());
-    mediaPlayer->play(mrl);
+    invokeOnQt([this, mrl] {
+        // add the video surface to the media player
+        mediaPlayer->setVideoSurface(window->requestVideoSurface());
+
+        auto *media = MediaPlayerFactory::createMedia(mrl);
+        mediaPlayer->play(media);
+    });
 }
 
 void PopcornPlayer::pause()

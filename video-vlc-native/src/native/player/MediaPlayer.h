@@ -1,11 +1,16 @@
 #ifndef POPCORNPLAYER_MEDIAPLAYER_H
 #define POPCORNPLAYER_MEDIAPLAYER_H
 
+#include "Media.h"
+
 #include <Log.h>
+#include <QObject>
 #include <QtGui/QWidgetSet>
 #include <libvlc/vlc/vlc.h>
 
-class MediaPlayer {
+class MediaPlayer : public QObject {
+    Q_OBJECT
+
 public:
     /**
      * Create a new media player instance.
@@ -21,12 +26,12 @@ public:
     ~MediaPlayer();
 
     /**
-     * Play the given MRL within the media player.
+     * Play the given media item in this media player instance.
      *
-     * @param mrl The MRL to play.
-     * @return Returns true if the MRL playback was started, else false.
+     * @param media The media item to play.
+     * @return Returns true if the media playback was started with success, else false.
      */
-    bool play(const char *mrl);
+    bool play(Media *media);
 
     /**
      * Pause the current media playback.
@@ -64,23 +69,40 @@ public:
      */
     void setSubtitleDelay(long delay);
 
+signals:
+    /**
+     * Signals that the time has been changed of the media player.
+     *
+     * @param newValue The new time value of the media player.
+     */
+    void timeChanged(long newValue);
+
 private:
-    libvlc_instance_t *vlcInstance;
-    libvlc_media_player_t *vlcMediaPlayer;
-    libvlc_media_t *media;
-    Log *log;
+    libvlc_instance_t *_vlcInstance;
+    libvlc_media_player_t *_vlcMediaPlayer;
+    libvlc_event_manager_t *_vlcEventManager;
+    Media *_media;
+    Log *_log;
 
-    bool playFile(const char *path);
+    /**
+     * Initialize this media player instance.
+     */
+    void initializeMediaPlayer();
 
-    bool playUrl(const char *url);
-
-    bool play();
-
+    /**
+     * Handle the VLC error that occurred.
+     */
     void handleVlcError();
 
     void releaseMediaPlayerIfNeeded();
 
-    static bool isHttpUrl(const char *url);
+    void subscribeEvents();
+
+    void unsubscribeEvents();
+
+    static void vlcCallback(const libvlc_event_t *event, void *instance);
+
+    static QList<libvlc_event_e> eventList();
 };
 
 #endif //POPCORNPLAYER_MEDIAPLAYER_H

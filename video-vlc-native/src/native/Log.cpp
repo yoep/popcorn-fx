@@ -1,6 +1,7 @@
 #include "Log.h"
 
 #include "AppProperties.h"
+#include "LogLevelFlags.h"
 
 #include <iostream>
 #include <sstream>
@@ -45,6 +46,13 @@ void Log::trace(const char *message)
 {
     if (level & TRACE_FLAG) {
         log(message, "TRACE");
+    }
+}
+
+void Log::trace(const basic_string<char> &message)
+{
+    if (level & TRACE_FLAG) {
+        trace(message.c_str());
     }
 }
 

@@ -7,6 +7,12 @@
 
 #include <QMainWindow>
 
+QT_BEGIN_NAMESPACE
+namespace Ui {
+class PopcornPlayerWindow;
+}
+QT_END_NAMESPACE
+
 class PopcornPlayerWindow : public QMainWindow {
     Q_OBJECT
 
@@ -29,14 +35,12 @@ public:
     void releaseVideoSurface();
 
 private:
-    VideoWidget *player;
-    PlayerHeader *header;
-    PlayerControls *controls;
+    Ui::PopcornPlayerWindow* ui;
 
     void initializeUi();
 
 protected:
-    void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 };
 
 #endif // POPCORN_PLAYER_POPCORNPLAYERWINDOW_H

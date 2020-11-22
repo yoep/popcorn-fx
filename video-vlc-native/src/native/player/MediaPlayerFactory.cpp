@@ -3,50 +3,65 @@
 #include "MediaPlayer.h"
 
 #include <Log.h>
+#include <LogLevelFlags.h>
 #include <libvlc/vlc/vlc.h>
 
 MediaPlayerFactory *MediaPlayerFactory::instance = nullptr;
 
-//region Constructors
-
 MediaPlayerFactory::MediaPlayerFactory()
 {
-    this->log = Log::getInstance();
+    this->_log = Log::getInstance();
 }
 
-//endregion
-
-//region Methods
-
-MediaPlayer *MediaPlayerFactory::create()
+MediaPlayer *MediaPlayerFactory::createPlayer()
 {
-    MediaPlayerFactory *factory = getInstance();
+    auto *factory = getInstance();
+    auto *vlcInstance = factory->getVlcInstance();
 
-    // initialize VLC args
-    factory->log->trace("Creating new media player");
-    const char *vlcArgs = factory->log->getLevel() & TRACE_FLAG ? "--verbose=2" : nullptr;
-    int argc = factory->log->getLevel() & TRACE_FLAG ? 1 : 0;
-    const char *const *argv = &vlcArgs;
-
-    // create a new vlc instance
-    factory->log->trace("Initializing new VLC instance");
-    auto *vlcInstance = libvlc_new(argc, argv);
-
-    // check if a vlc instance was created with success
-    // if not, show an error dialog
     if (vlcInstance == nullptr) {
-        factory->log->error("Failed to initialize new VLC instance");
         return nullptr;
     }
 
     auto *player = new MediaPlayer(vlcInstance);
-    factory->log->debug("Media player created");
+
+    factory->_log->debug("Media player created");
     return player;
 }
 
-//endregion
+Media *MediaPlayerFactory::createMedia(const char *mrl)
+{
+    auto *factory = getInstance();
+    auto *vlcInstance = factory->getVlcInstance();
 
-//region Functions
+    if (vlcInstance == nullptr) {
+        return nullptr;
+    }
+
+    return new Media(mrl, vlcInstance);
+}
+
+libvlc_instance_t *MediaPlayerFactory::getVlcInstance()
+{
+    if (_vlcInstance == nullptr) {
+        // initialize VLC args
+        _log->trace("Creating new media player");
+        const char *vlcArgs = _log->getLevel() & TRACE_FLAG ? "--verbose=2" : nullptr;
+        int argc = _log->getLevel() & TRACE_FLAG ? 1 : 0;
+        const char *const *argv = &vlcArgs;
+
+        // create a new vlc instance
+        _log->trace("Initializing new VLC instance");
+        this->_vlcInstance = libvlc_new(argc, argv);
+
+        // check if a vlc instance was created with success
+        // if not, show an error dialog
+        if (this->_vlcInstance == nullptr) {
+            _log->error("Failed to initialize new VLC instance");
+        }
+    }
+
+    return this->_vlcInstance;
+}
 
 MediaPlayerFactory *MediaPlayerFactory::getInstance()
 {
@@ -56,5 +71,3 @@ MediaPlayerFactory *MediaPlayerFactory::getInstance()
 
     return instance;
 }
-
-//endregion

@@ -1,33 +1,9 @@
 #ifndef POPCORNPLAYER_LOG_H
 #define POPCORNPLAYER_LOG_H
 
+#include "LogLevel.h"
+
 #include <string>
-
-enum LogLevel {
-    // 0001 1111
-    TRACE = 31,
-    // 0000 1111
-    DEBUG = 15,
-    // 0000 0111
-    INFO = 7,
-    // 0000 0011
-    WARN = 3,
-    // 0000 0001
-    ERROR = 1
-};
-
-enum LevelFlags {
-    // 0001 0000
-    TRACE_FLAG = 16,
-    // 0000 1000
-    DEBUG_FLAG = 8,
-    // 0000 0100
-    INFO_FLAG = 4,
-    // 0000 0010
-    WARN_FLAG = 2,
-    // 0000 0001
-    ERROR_FLAG = 1
-};
 
 class Log {
 public:
@@ -40,6 +16,8 @@ public:
     void setLevel(LogLevel level);
 
     void trace(const char *message);
+
+    void trace(const std::basic_string<char> &message);
 
     void debug(const char *message);
 

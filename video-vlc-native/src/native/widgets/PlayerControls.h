@@ -16,18 +16,13 @@ public:
 
     ~PlayerControls();
 
-protected:
-    void resizeEvent(QResizeEvent *event) override;
+public slots:
+
 
 private:
     Ui::PlayerControls *ui;
 
     void initializeUi();
-
-    void updatePosition();
-
-protected:
-    //    void paintEvent(QPaintEvent *event) override;
 };
 
 #endif //POPCORNPLAYER_PLAYERCONTROLS_H

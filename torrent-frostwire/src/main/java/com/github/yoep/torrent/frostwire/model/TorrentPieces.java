@@ -17,8 +17,8 @@ class TorrentPieces {
     private int lastPieceIndex = -1;
 
     /**
-     * Get the torrent piece index for the given file piece index.
-     * This method calculates the index of the torrent file piece in the while torrent.
+     * Get the torrent piece index for the given relative file piece index.
+     * This method calculates the absolute index of the torrent piece within the torrent.
      *
      * @param pieceIndex The file piece index.
      * @return Returns the torrent piece index.

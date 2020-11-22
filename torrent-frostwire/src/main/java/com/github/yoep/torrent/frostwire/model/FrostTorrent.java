@@ -109,8 +109,8 @@ public class FrostTorrent implements Torrent, AlertListener {
         for (int pieceIndex : pieceIndexes) {
             var torrentPieceIndex = pieces.getTorrentPieceIndex(pieceIndex);
 
-            // verify if the piece index is within the download range
-            if (pieces.isInDownloadRange(pieceIndex)) {
+            // verify if the torrent piece index is within the download range
+            if (pieces.isInDownloadRange(torrentPieceIndex)) {
                 prioritizePiece(torrentPieceIndex, true);
             } else {
                 log.error("Torrent piece {} cannot be prioritized as it's not within the torrent download range [{}-{}]",

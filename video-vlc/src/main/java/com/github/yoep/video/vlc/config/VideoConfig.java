@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
 @Slf4j
@@ -18,8 +19,16 @@ public class VideoConfig {
     @Order(Ordered.HIGHEST_PRECEDENCE + 10)
     @ConditionalOnVlcInstall
     @ConditionalOnVlcVideoEnabled
-    public VideoPlayer vlcVideoPlayer(NativeDiscovery nativeDiscovery) {
+    public VideoPlayer vlcVideoPlayer(MediaPlayerFactory mediaPlayerFactory) {
         log.info("Using VLC player for video playbacks");
-        return new VideoPlayerVlc(nativeDiscovery);
+        return new VideoPlayerVlc(mediaPlayerFactory);
+    }
+
+    @Bean
+    @ConditionalOnVlcInstall
+    @ConditionalOnVlcVideoEnabled
+    public MediaPlayerFactory mediaPlayerFactory(NativeDiscovery nativeDiscovery) {
+        log.trace("Creating VLC media player factory instance");
+        return new MediaPlayerFactory(nativeDiscovery);
     }
 }

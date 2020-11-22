@@ -13,12 +13,14 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
+import uk.co.caprica.vlcj.player.base.MediaPlayer;
+import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
 
+import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
 import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactory.videoSurfaceForImageView;
 
 @Slf4j
@@ -40,11 +42,13 @@ public class VideoPlayerVlc implements VideoPlayer {
     //region Constructors
 
     /**
-     * Instantiate a new video player.
+     * Initialize a new {@link VideoPlayerVlc} instance.
+     *
+     * @param mediaPlayerFactory The VLC media player factory to use.
      */
-    public VideoPlayerVlc(NativeDiscovery nativeDiscovery) {
-        mediaPlayerFactory = new MediaPlayerFactory(nativeDiscovery);
-        mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
+    public VideoPlayerVlc(MediaPlayerFactory mediaPlayerFactory) {
+        this.mediaPlayerFactory = mediaPlayerFactory;
+        this.mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
 
         initialize();
     }
@@ -73,10 +77,6 @@ public class VideoPlayerVlc implements VideoPlayer {
         return time;
     }
 
-    protected void setTime(long time) {
-        this.time.set(time);
-    }
-
     @Override
     public long getDuration() {
         return duration.get();
@@ -85,10 +85,6 @@ public class VideoPlayerVlc implements VideoPlayer {
     @Override
     public ReadOnlyLongProperty durationProperty() {
         return duration;
-    }
-
-    protected void setDuration(long duration) {
-        this.duration.set(duration);
     }
 
     //endregion
@@ -184,7 +180,7 @@ public class VideoPlayerVlc implements VideoPlayer {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         log.trace("Initializing VLC player");
 
         try {
@@ -204,6 +200,7 @@ public class VideoPlayerVlc implements VideoPlayer {
 
     private void initialize() {
         initializeListeners();
+        initializeEvents();
         initializeVideoSurface();
     }
 
@@ -213,6 +210,58 @@ public class VideoPlayerVlc implements VideoPlayer {
                 var parent = (Pane) newValue;
 
                 bindToParent(parent);
+            }
+        });
+    }
+
+    private void initializeEvents() {
+        mediaPlayer.events().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
+            @Override
+            public void playing(MediaPlayer mediaPlayer) {
+                playerState.set(PlayerState.PLAYING);
+            }
+
+            @Override
+            public void paused(MediaPlayer mediaPlayer) {
+                playerState.set(PlayerState.PAUSED);
+            }
+
+            @Override
+            public void stopped(MediaPlayer mediaPlayer) {
+                playerState.set(PlayerState.STOPPED);
+            }
+
+            @Override
+            public void finished(MediaPlayer mediaPlayer) {
+                playerState.set(PlayerState.FINISHED);
+            }
+
+            @Override
+            public void buffering(MediaPlayer mediaPlayer, float newCache) {
+                log.trace("VLC buffer is now {}%", newCache);
+                if (newCache < 100) {
+                    playerState.set(PlayerState.BUFFERING);
+                } else {
+                    playerState.set(PlayerState.PLAYING);
+                }
+            }
+
+            @Override
+            public void error(MediaPlayer mediaPlayer) {
+                var message = libvlc_errmsg();
+
+                log.error("VLC error encountered, error: {}", message);
+                setError(new VideoPlayerException("VLC media player went into error state, error: " + message));
+            }
+
+            @Override
+            public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
+                time.set(newTime);
+            }
+
+            @Override
+            public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
+                duration.set(newLength);
             }
         });
     }
@@ -231,8 +280,8 @@ public class VideoPlayerVlc implements VideoPlayer {
     private void reset() {
         error = null;
 
-        setTime(0);
-        setDuration(0);
+        time.set(0);
+        duration.set(0);
     }
 
     private void setError(Throwable throwable) {

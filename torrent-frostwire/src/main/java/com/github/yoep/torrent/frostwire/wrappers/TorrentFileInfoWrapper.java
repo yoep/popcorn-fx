@@ -11,7 +11,7 @@ import org.springframework.util.Assert;
 @EqualsAndHashCode(exclude = "torrentInfo")
 public class TorrentFileInfoWrapper implements TorrentFileInfo {
     private final TorrentInfo torrentInfo;
-    private final FileStorage fileStorage;
+    private transient final FileStorage fileStorage;
     private final int index;
 
     //region Constructors
@@ -30,6 +30,11 @@ public class TorrentFileInfoWrapper implements TorrentFileInfo {
     @Override
     public String getFilename() {
         return fileStorage.fileName(index);
+    }
+
+    @Override
+    public String getFilePath() {
+        return fileStorage.filePath(index);
     }
 
     @Override

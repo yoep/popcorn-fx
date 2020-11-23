@@ -226,11 +226,13 @@ public class FavoriteService {
         var newShowsCache = cache.getShows().stream()
                 .map(e -> showProviderService.getDetails(e.getImdbId()))
                 .map(CompletableFuture::join)
-                .peek(show -> {
-                    show.setEpisodes(null);
-                    show.setSynopsis(null);
-                })
                 .collect(Collectors.toList());
+
+        // remove the nested episodes & overview text from the cache
+        newShowsCache.forEach(show -> {
+            show.setEpisodes(null);
+            show.setSynopsis(null);
+        });
 
         cache.setShows(newShowsCache);
     }

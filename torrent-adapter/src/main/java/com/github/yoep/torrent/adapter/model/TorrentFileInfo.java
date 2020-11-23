@@ -11,6 +11,14 @@ public interface TorrentFileInfo extends Serializable {
     String getFilename();
 
     /**
+     * Get the file path of the torrent file within the torrent.
+     * This path is relative to the torrent directory.
+     *
+     * @return Returns the file path of the torrent file.
+     */
+    String getFilePath();
+
+    /**
      * Get the file size of the torrent file.
      *
      * @return Returns the size of the torrent in bytes.

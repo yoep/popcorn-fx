@@ -8,11 +8,17 @@ import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @ToString
 @EqualsAndHashCode
 public class TorrentInfoWrapper implements TorrentInfo {
-    private final com.frostwire.jlibtorrent.TorrentInfo nativeInfo;
+    private transient final com.frostwire.jlibtorrent.TorrentInfo nativeInfo;
+
+    /**
+     * The cached files of this {@link TorrentInfo}.
+     */
+    private List<TorrentFileInfo> files;
 
     //region Constructors
 
@@ -46,11 +52,10 @@ public class TorrentInfoWrapper implements TorrentInfo {
 
     @Override
     public List<TorrentFileInfo> getFiles() {
-        var files = new ArrayList<TorrentFileInfo>();
-        var totalFiles = getTotalFiles();
-
-        for (int i = 0; i < totalFiles; i++) {
-            files.add(createFileInfo(i));
+        // check if a cache is already present
+        // if not, load the torrent files into the cache and return the cache
+        if (files == null) {
+            files = internalGetFiles();
         }
 
         return files;
@@ -71,9 +76,38 @@ public class TorrentInfoWrapper implements TorrentInfo {
         return largestFileInfo;
     }
 
+    @Override
+    public Optional<TorrentFileInfo> getByFilename(String filename) {
+        var torrentDirectory = getTorrentDirectoryName();
+        var expectedFilePath = getSimplifiedFilePath(torrentDirectory + filename);
+
+        return getFiles().stream()
+                .filter(e -> getSimplifiedFilePath(e.getFilePath()).equalsIgnoreCase(expectedFilePath))
+                .findFirst();
+    }
+
     //endregion
 
     //region Functions
+
+    private List<TorrentFileInfo> internalGetFiles() {
+        var files = new ArrayList<TorrentFileInfo>();
+        var totalFiles = getTotalFiles();
+
+        for (int i = 0; i < totalFiles; i++) {
+            files.add(createFileInfo(i));
+        }
+
+        return files;
+    }
+
+    private String getSimplifiedFilePath(String filePath) {
+        return filePath.replaceAll("[\\\\/]", "").trim();
+    }
+
+    private String getTorrentDirectoryName() {
+        return nativeInfo.files().name();
+    }
 
     private TorrentFileInfo createFileInfo(int index) {
         return new TorrentFileInfoWrapper(this, index);

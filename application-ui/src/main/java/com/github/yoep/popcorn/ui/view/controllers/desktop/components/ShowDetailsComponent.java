@@ -277,10 +277,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     }
 
     private void switchEpisode(Episode episode) {
+        this.episode = episode;
+
         if (episode == null)
             return;
-
-        this.episode = episode;
 
         LocalDateTime airDateTime = episode.getAirDate();
 

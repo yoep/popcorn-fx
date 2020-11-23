@@ -221,7 +221,12 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
     private void onTorrentInfoRetrieved(TorrentInfo torrentInfo, Throwable throwable) {
         if (throwable == null) {
             var torrentSettings = getTorrentSettings();
-            var torrentFileInfo = torrentInfo.getLargestFile();
+            var torrentFileInfo = mediaTorrent.getFile()
+                    // if a filename has been given by the api
+                    // then search for the file given by the api
+                    .flatMap(torrentInfo::getByFilename)
+                    // otherwise, take the largest file we can find within the torrent
+                    .orElseGet(torrentInfo::getLargestFile);
 
             // check if the subtitle needs to be downloaded
             if (subtitleInfo != null) {

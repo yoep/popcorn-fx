@@ -2,6 +2,7 @@ package com.github.yoep.torrent.adapter.model;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 
 public interface TorrentInfo extends Serializable {
     /**
@@ -31,4 +32,12 @@ public interface TorrentInfo extends Serializable {
      * @return Returns the largest torrent file info from this torrent info.
      */
     TorrentFileInfo getLargestFile();
+
+    /**
+     * Get the torrent file based on the filename of the torrent file.
+     *
+     * @param filename The filename of the torrent file to search for.
+     * @return Returns the torrent file if found, else {@link Optional#empty()}.
+     */
+    Optional<TorrentFileInfo> getByFilename(String filename);
 }

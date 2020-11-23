@@ -13,7 +13,6 @@ import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -57,8 +56,6 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private Icon likeButton;
     @FXML
     private Label likeText;
-    @FXML
-    private Overlay overlay;
 
     //region Constructors
 

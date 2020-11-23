@@ -89,6 +89,7 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
     /**
      * Reset the view details.
      */
+    @Override
     protected void reset() {
         cancelSubtitleRetrievalIfNeeded();
 

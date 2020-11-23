@@ -22,7 +22,6 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -60,10 +59,10 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
 
         // retrieve all favorable items from the favoriteService
         // from the liked items, filter all Media items and cast them appropriately
-        Stream<Media> mediaStream = favoriteService.getAll().stream()
+        var mediaStream = favoriteService.getAll().stream()
                 .filter(e -> e instanceof Media)
                 .map(e -> (Media) e)
-                .peek(e -> e.setWatched(watchedService.isWatched(e)))
+                .map(this::updateWatchedState)
                 .sorted(this::sortByWatchedState);
 
         if (!genre.isAllGenre()) {
@@ -125,6 +124,14 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
             log.error(ex.getMessage(), ex);
             eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
         }
+    }
+
+    private Media updateWatchedState(Media media) {
+        var watched = watchedService.isWatched(media);
+
+        media.setWatched(watched);
+
+        return media;
     }
 
     private int sortByWatchedState(Media o1, Media o2) {

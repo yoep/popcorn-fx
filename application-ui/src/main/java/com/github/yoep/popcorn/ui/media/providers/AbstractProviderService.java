@@ -112,11 +112,11 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
                     .ifPresent(uriProviders::add);
 
             // add all available uri from the provider config to the uri providers
-            var uriProviders = providerConfig.getUris().stream()
+            var newUriProviders = providerConfig.getUris().stream()
                     .map(DefaultUriProvider::from)
                     .collect(Collectors.toList());
 
-            this.uriProviders.addAll(uriProviders);
+            uriProviders.addAll(newUriProviders);
         }
     }
 

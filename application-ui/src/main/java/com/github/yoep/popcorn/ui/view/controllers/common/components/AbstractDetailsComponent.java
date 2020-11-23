@@ -109,8 +109,6 @@ public abstract class AbstractDetailsComponent<T extends Media> {
             } else if (!(throwable instanceof CancellationException)) {
                 removeHealthState();
                 log.error("Failed to retrieve health info, " + throwable.getMessage(), throwable);
-            } else {
-                removeHealthState();
             }
         });
     }
@@ -241,12 +239,15 @@ public abstract class AbstractDetailsComponent<T extends Media> {
         instantTooltip(healthTooltip);
         Tooltip.install(this.health, healthTooltip);
 
-        removeHealthState();
+        if (removeHealthState()) {
+            log.trace("Health states have been removed from the health icon");
+        }
+
         this.health.getStyleClass().add(health.getState().getStyleClass());
     }
 
-    private void removeHealthState() {
-        this.health.getStyleClass().removeIf(e -> !e.equals("health"));
+    private boolean removeHealthState() {
+        return this.health.getStyleClass().removeIf(e -> !e.equals("health"));
     }
 
     private String getHealthTooltip(TorrentHealth health) {

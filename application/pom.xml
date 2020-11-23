@@ -88,7 +88,7 @@
                 <plugin>
                     <groupId>io.github.fvarrui</groupId>
                     <artifactId>javapackager</artifactId>
-                    <version>1.1.0</version>
+                    <version>1.4.1</version>
                 </plugin>
                 <plugin>
                     <groupId>com.gluonhq</groupId>
@@ -179,6 +179,16 @@
                     <linuxConfig>
                         <generateRpm>false</generateRpm>
                     </linuxConfig>
+                    <winConfig>
+                        <generateMsi>false</generateMsi>
+                        <generateMsm>false</generateMsm>
+                        <productName>Popcorn Time</productName>
+                        <setupLanguages>
+                            <english>compiler:Default.isl</english>
+                            <dutch>compiler:Languages\Dutch.isl</dutch>
+                        </setupLanguages>
+                        <createDesktopIconTask>true</createDesktopIconTask>
+                    </winConfig>
                 </configuration>
                 <executions>
                     <execution>

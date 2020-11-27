@@ -78,6 +78,10 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     @Override
     public File getFile() {
+        if (!handle.isValid()) {
+            throw new TorrentException("Failed to get file, torrent handle has been invalidated");
+        }
+
         var files = handle.torrentFile().files();
         var savePath = handle.savePath();
         var filePath = files.filePath(fileIndex);

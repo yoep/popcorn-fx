@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public abstract class AbstractDetailsComponent<T extends Media> {
     private static final String POSTER_HOLDER_URI = "/images/posterholder.png";
     private static final Image POSTER_HOLDER = loadPosterHolder();
+    private static final Pattern QUALITY_PATTERN = Pattern.compile("(?i)[0-9]+p?");
 
     protected final LocaleText localeText;
     protected final ImageService imageService;
@@ -122,7 +124,10 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      */
     protected List<String> getVideoResolutions(Map<String, MediaTorrentInfo> torrents) {
         return torrents.keySet().stream()
-                .filter(e -> !e.equals("0")) // filter out the 0 quality
+                // filter out the 0 quality
+                .filter(e -> !e.equals("0"))
+                // filter out any specials, e.g. "3D"
+                .filter(e -> QUALITY_PATTERN.matcher(e).matches())
                 .sorted(Comparator.comparing(this::toResolution))
                 .collect(Collectors.toList());
     }

@@ -23,6 +23,21 @@ public:
      */
     libvlc_media_t *vlcMedia();
 
+    /**
+     * Get the duration of the media item.
+     *
+     * @return Returns the duration of the media item in milliseconds.
+     */
+    long getDuration();
+
+signals:
+    /**
+     * Signal that the duration of the media item has been changed.
+     *
+     * @param newValue The new duration value.
+     */
+    void durationChanged(long newValue);
+
 private:
     libvlc_instance_t *_vlcInstance;
     libvlc_event_manager_t *_vlcEvent;

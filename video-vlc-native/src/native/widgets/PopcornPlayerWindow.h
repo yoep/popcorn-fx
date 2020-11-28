@@ -6,6 +6,8 @@
 #include "widgets/VideoWidget.h"
 
 #include <QMainWindow>
+#include <player/Media.h>
+#include <player/MediaPlayer.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -34,13 +36,27 @@ public:
      */
     void releaseVideoSurface();
 
+    /**
+     * Connect the media events to the current player controls.
+     *
+     * @param media The media to connect to.
+     */
+    void connectMediaEvents(Media *media);
+
+    /**
+     * Connect the media player events to the current player controls.
+     *
+     * @param mediaPlayer The media player to connect to.
+     */
+    void connectMediaPlayerEvents(MediaPlayer *mediaPlayer);
+
 private:
-    Ui::PopcornPlayerWindow* ui;
+    Ui::PopcornPlayerWindow *ui;
 
     void initializeUi();
 
 protected:
-    void showEvent(QShowEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
 };
 
 #endif // POPCORN_PLAYER_POPCORNPLAYERWINDOW_H

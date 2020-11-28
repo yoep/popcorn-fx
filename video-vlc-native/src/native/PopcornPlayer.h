@@ -15,8 +15,6 @@ public:
 
     ~PopcornPlayer();
 
-    int exec();
-
     void show();
 
     void close();
@@ -29,22 +27,20 @@ public:
 
     void stop();
 
-    void setSubtitleFile(const char* uri);
+    void setSubtitleFile(const char *uri);
 
     void setSubtitleDelay(long delay);
 
     void setFullscreen(bool fullscreen);
 
 private:
-    int &argc;
-    char **argv;
-    QApplication *app;
-    PopcornPlayerWindow *window;
-    MediaPlayer *mediaPlayer;
-    Log *log;
+    int &_argc;
+    char **_argv;
+    std::shared_ptr<PopcornPlayerWindow> _window;
+    std::shared_ptr<MediaPlayer> _mediaPlayer;
+    Log *_log;
 
-    template <typename Func>
-    void invokeOnQt(Func func);
+    void init();
 
     void loadFonts();
 

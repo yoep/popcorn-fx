@@ -12,9 +12,9 @@ using namespace std;
 VideoWidget::VideoWidget(QWidget *parent)
     : QFrame(parent)
 {
-    this->log = Log::getInstance();
-    this->layout = new QStackedLayout(this);
-    this->videoSurface = nullptr;
+    this->_log = Log::instance();
+    this->_layout = new QStackedLayout(this);
+    this->_videoSurface = nullptr;
 
     initializeUi();
 }
@@ -30,42 +30,42 @@ VideoWidget::~VideoWidget()
 
 WId VideoWidget::request()
 {
-    if (videoSurface) {
-        log->warn("Video surface is already in use, release it before requesting a new one");
+    if (_videoSurface) {
+        _log->warn("Video surface is already in use, release it before requesting a new one");
         return -1;
     }
 
-    videoSurface = new QWidget();
+    _videoSurface = new QWidget();
 
-    videoSurface->setContextMenuPolicy(Qt::PreventContextMenu);
+    _videoSurface->setContextMenuPolicy(Qt::PreventContextMenu);
     QPalette plt = palette();
     plt.setColor(QPalette::Window, Qt::black);
-    videoSurface->setPalette(plt);
-    videoSurface->setAutoFillBackground(true);
+    _videoSurface->setPalette(plt);
+    _videoSurface->setAutoFillBackground(true);
     // Force the widget to be native so that it gets a winId()
-    videoSurface->setAttribute(Qt::WA_NativeWindow, true);
+    _videoSurface->setAttribute(Qt::WA_NativeWindow, true);
 
 #if !defined(QT5_HAS_X11)
-    videoSurface->setAttribute(Qt::WA_PaintOnScreen, true);
+    _videoSurface->setAttribute(Qt::WA_PaintOnScreen, true);
 #else
     videoSurface->setMouseTracking(true);
     this->setMouseTracking(true);
 #endif
 
-    layout->addWidget(videoSurface);
+    _layout->addWidget(_videoSurface);
 
     sync();
-    return videoSurface->winId();
+    return _videoSurface->winId();
 }
 
 void VideoWidget::release()
 {
-    if (videoSurface) {
-        log->trace("Video surface is being released");
-        layout->removeWidget(videoSurface);
-        videoSurface->deleteLater();
-        videoSurface = nullptr;
-        log->debug("Video surface released");
+    if (_videoSurface != nullptr) {
+        _log->trace("Video surface is being released");
+        _layout->removeWidget(_videoSurface);
+        _videoSurface->deleteLater();
+        _videoSurface = nullptr;
+        _log->debug("Video surface released");
     }
 }
 
@@ -75,15 +75,15 @@ void VideoWidget::release()
 
 void VideoWidget::initializeUi()
 {
-    log->trace("Initializing video widget");
+    _log->trace("Initializing video widget");
     // update the layout
-    layout->setContentsMargins(0, 0, 0, 0);
+    _layout->setContentsMargins(0, 0, 0, 0);
 
     // set the pallet of this widget
     QPalette plt = palette();
     plt.setColor(QPalette::Window, Qt::black);
     this->setPalette(plt);
-    log->debug("Video widget initialized");
+    _log->debug("Video widget initialized");
 }
 
 void VideoWidget::sync()

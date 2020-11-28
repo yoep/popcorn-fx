@@ -28,16 +28,10 @@ public:
      */
     void release();
 
-protected:
-    QPaintEngine *paintEngine() const Q_DECL_OVERRIDE
-    {
-        return NULL;
-    }
-
 private:
-    Log *log;
-    QWidget *videoSurface;
-    QLayout *layout;
+    Log *_log;
+    QWidget *_videoSurface;
+    QLayout *_layout;
 
     void initializeUi();
 

@@ -2,6 +2,7 @@
 #define POPCORNPLAYER_MEDIAPLAYER_H
 
 #include "Media.h"
+#include "MediaPlayerState.h"
 
 #include <Log.h>
 #include <QObject>
@@ -49,13 +50,6 @@ public:
     void stop();
 
     /**
-     * Set the video surface this media player must render on.
-     *
-     * @param wid The window handle to use.
-     */
-    void setVideoSurface(WId wid);
-
-    /**
      * Set the subtitle file for the current playback.
      *
      * @param uri The absolute uri path to the subtitle file.
@@ -69,6 +63,21 @@ public:
      */
     void setSubtitleDelay(long delay);
 
+public slots:
+    /**
+     * Set the media duration of the current media playback.
+     *
+     * @param newValue The new media duration in milliseconds.
+     */
+    void setMediaDuration(long newValue);
+
+    /**
+     * Set the video surface this media player must render on.
+     *
+     * @param wid The window handle to use.
+     */
+    void setVideoSurface(WId wid);
+
 signals:
     /**
      * Signals that the time has been changed of the media player.
@@ -77,11 +86,19 @@ signals:
      */
     void timeChanged(long newValue);
 
+    /**
+     * Signals that the duration has been changed of the current media playback.
+     *
+     * @param newValue The new duration value of the media playback.
+     */
+    void durationChanged(long newValue);
+
 private:
     libvlc_instance_t *_vlcInstance;
     libvlc_media_player_t *_vlcMediaPlayer;
     libvlc_event_manager_t *_vlcEventManager;
     Media *_media;
+    MediaPlayerState _state = UNKNOWN;
     Log *_log;
 
     /**

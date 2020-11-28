@@ -4,8 +4,7 @@ import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
-import com.github.yoep.video.vlcnative.bindings.popcorn_player_t;
-import com.sun.jna.StringArray;
+import com.github.yoep.video.vlcnative.player.PopcornPlayer;
 import javafx.beans.property.*;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
@@ -24,9 +23,8 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
     private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
 
-    private popcorn_player_t instance;
+    private PopcornPlayer popcornPlayer;
     private boolean initialized;
-    private Thread popcornPlayerThread;
 
     //region VideoPlayer
 
@@ -84,14 +82,9 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     @Override
     public void dispose() {
-        if (instance != null) {
-            log.debug("Releasing the native VLC player");
-            PopcornPlayerLib.popcorn_player_release(instance);
-        }
-        if (popcornPlayerThread != null && popcornPlayerThread.isAlive()) {
-            log.debug("Stopping Popcorn PopcornPlayer");
-            popcornPlayerThread.interrupt();
-            popcornPlayerThread = null;
+        if (popcornPlayer != null) {
+            log.debug("Releasing the native Popcorn Player");
+            popcornPlayer.release();
         }
     }
 
@@ -100,23 +93,22 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         checkInitialized();
 
         // start the native player through JNA
-        PopcornPlayerLib.popcorn_player_show(instance);
-        PopcornPlayerLib.popcorn_player_fullscreen(instance, true);
-        PopcornPlayerLib.popcorn_player_play(instance, url);
-        playerState.set(PlayerState.PLAYING);
+        popcornPlayer.show();
+        popcornPlayer.fullscreen(true);
+        popcornPlayer.play(url);
     }
 
     @Override
     public void pause() throws VideoPlayerNotInitializedException {
         checkInitialized();
-        PopcornPlayerLib.popcorn_player_pause(instance);
+        popcornPlayer.pause();
         playerState.set(PlayerState.PAUSED);
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
         checkInitialized();
-        PopcornPlayerLib.popcorn_player_resume(instance);
+        popcornPlayer.resume();
         playerState.set(PlayerState.PLAYING);
     }
 
@@ -128,7 +120,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     @Override
     public void stop() {
         checkInitialized();
-        PopcornPlayerLib.popcorn_player_stop(instance);
+        popcornPlayer.stop();
         playerState.set(PlayerState.STOPPED);
         reset();
     }
@@ -142,13 +134,13 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     public void subtitleFile(File file) {
         Assert.notNull(file, "file cannot be null");
         log.trace("Adding subtitle file {} to the current playback", file.getAbsolutePath());
-        PopcornPlayerLib.popcorn_player_subtitle(instance, file.getAbsolutePath());
+//        PopcornPlayerLib.popcorn_player_subtitle(popcornPlayer, file.getAbsolutePath());
     }
 
     @Override
     public void subtitleDelay(long delay) {
         log.trace("Updating subtitle delay to {} milliseconds", delay);
-        PopcornPlayerLib.popcorn_player_subtitle_delay(instance, delay * 1000);
+//        PopcornPlayerLib.popcorn_player_subtitle_delay(popcornPlayer, delay * 1000);
     }
 
     //endregion
@@ -159,24 +151,11 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private void init() {
         log.trace("Initializing VLC native player");
         try {
-            popcornPlayerThread = new Thread(() -> {
-                try {
-                    var argv = new String[]{"", "-l", "debug"};
-                    instance = PopcornPlayerLib.popcorn_player_new(argv.length, new StringArray(argv));
+            var level = getPlayerLogLevel();
+            var args = new String[]{"PopcornPlayer", "-l", level};
 
-                    if (instance == null) {
-                        throw new VideoPlayerException("Failed to initialize native VLC player");
-                    }
-
-                    initialized = true;
-
-                    var result = PopcornPlayerLib.popcorn_player_exec(instance);
-                    log.debug("Native VLC player exited with {}", result);
-                } catch (Exception ex) {
-                    log.error(ex.getMessage(), ex);
-                }
-            }, "PopcornPlayerQtThread");
-            popcornPlayerThread.start();
+            popcornPlayer = new PopcornPlayer(args);
+            initialized = true;
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }
@@ -195,6 +174,16 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private void reset() {
         time.set(0);
         duration.set(0);
+    }
+
+    private String getPlayerLogLevel() {
+        if (log.isTraceEnabled()) {
+            return "trace";
+        } else if (log.isDebugEnabled()) {
+            return "debug";
+        }
+
+        return "info";
     }
 
     //endregion

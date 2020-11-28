@@ -26,17 +26,6 @@ popcorn_player_t *popcorn_player_new(int argc, char **argv)
     return pdp;
 }
 
-int popcorn_player_exec(popcorn_player_t *pdp)
-{
-    if (pdp == nullptr)
-        return -1;
-
-    PopcornPlayer *player;
-
-    player = static_cast<PopcornPlayer *>(pdp->player);
-    return player->exec();
-}
-
 void popcorn_player_release(popcorn_player_t *pdp)
 {
     if (pdp == nullptr)

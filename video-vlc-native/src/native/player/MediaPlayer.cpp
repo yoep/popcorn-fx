@@ -8,9 +8,12 @@ using namespace std;
 
 MediaPlayer::MediaPlayer(libvlc_instance_t *vlcInstance)
 {
-    this->_log = Log::getInstance();
+    this->_log = Log::instance();
+
+    _log->trace("Creating new media player");
     this->_vlcInstance = vlcInstance;
     this->_vlcMediaPlayer = libvlc_media_player_new(vlcInstance);
+    this->_vlcEventManager = nullptr;
     this->_media = nullptr;
 
     initializeMediaPlayer();
@@ -24,14 +27,30 @@ MediaPlayer::~MediaPlayer()
 
 bool MediaPlayer::play(Media *media)
 {
+    // check if the media reference is not empty
+    // if so, log an error and exit with a failure
+    if (media == nullptr) {
+        _log->error("Cannot play NULL media");
+        return false;
+    }
+
+    // connect the media events to this media player
+    QObject::connect(media, &Media::durationChanged,
+        this, &MediaPlayer::setMediaDuration);
+
+    // set the VLC media in the media player
     libvlc_media_player_set_media(_vlcMediaPlayer, media->vlcMedia());
 
+    // start playing the media
     int result = libvlc_media_player_play(_vlcMediaPlayer);
 
+    // check the result from the playback
+    // if it failed, handle the error
     if (result == -1) {
         handleVlcError();
         return false;
     } else {
+        emit this->durationChanged(media->getDuration());
         return true;
     }
 }
@@ -66,6 +85,11 @@ void MediaPlayer::stop()
     }
 }
 
+void MediaPlayer::setMediaDuration(long newValue)
+{
+    emit this->durationChanged(newValue);
+}
+
 void MediaPlayer::setVideoSurface(WId wid)
 {
 #if defined(Q_OS_WIN)
@@ -80,6 +104,8 @@ void MediaPlayer::setVideoSurface(WId wid)
     _log->trace("Adding X window to the VLC media player");
     libvlc_media_player_set_xwindow(_vlcMediaPlayer, wid);
 #endif
+
+    _log->debug("Video surface has been updated of the media player");
 }
 
 void MediaPlayer::setSubtitleFile(const char *uri)
@@ -114,10 +140,12 @@ void MediaPlayer::releaseMediaPlayerIfNeeded()
 
 void MediaPlayer::initializeMediaPlayer()
 {
+    _log->trace("Initializing media player");
     libvlc_media_player_retain(_vlcMediaPlayer);
     _vlcEventManager = libvlc_media_player_event_manager(_vlcMediaPlayer);
 
     subscribeEvents();
+    _log->debug("Media player initialized");
 }
 
 void MediaPlayer::subscribeEvents()
@@ -150,7 +178,7 @@ void MediaPlayer::unsubscribeEvents()
 
 void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
 {
-    Log *log = Log::getInstance();
+    Log *log = Log::instance();
 
     // check if the instance is valid
     // if not, throw an error as we'll be unable to do anything with the event
@@ -162,16 +190,16 @@ void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
 
     switch (event->type) {
     case libvlc_MediaPlayerPlaying:
-
+        mediaPlayer->_state = PLAYING;
         break;
     case libvlc_MediaPlayerPaused:
-
+        mediaPlayer->_state = PAUSED;
         break;
     case libvlc_MediaPlayerBuffering:
-
+        mediaPlayer->_state = BUFFERING;
         break;
     case libvlc_MediaPlayerStopped:
-
+        mediaPlayer->_state = STOPPED;
         break;
     case libvlc_MediaPlayerTimeChanged:
         emit mediaPlayer->timeChanged(event->u.media_player_time_changed.new_time);

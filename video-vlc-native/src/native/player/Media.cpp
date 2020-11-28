@@ -6,8 +6,10 @@ using namespace std;
 
 Media::Media(const char *mrl, libvlc_instance_t *vlcInstance)
 {
-    this->_log = Log::getInstance();
+    this->_log = Log::instance();
     this->_vlcInstance = vlcInstance;
+    this->_vlcMedia = nullptr;
+    this->_vlcEvent = nullptr;
     this->_mrl = mrl;
 
     initializeMedia();
@@ -22,6 +24,11 @@ Media::~Media()
 libvlc_media_t *Media::vlcMedia()
 {
     return this->_vlcMedia;
+}
+
+long Media::getDuration()
+{
+    return libvlc_media_get_duration(_vlcMedia);
 }
 
 void Media::initializeMedia()
@@ -101,7 +108,7 @@ void Media::unsubscribeEvents()
 
 void Media::vlcCallback(const libvlc_event_t *event, void *instance)
 {
-    Log *log = Log::getInstance();
+    Log *log = Log::instance();
 
     // check if the instance is valid
     // if not, throw an error as we'll be unable to do anything with the event
@@ -113,7 +120,7 @@ void Media::vlcCallback(const libvlc_event_t *event, void *instance)
 
     switch (event->type) {
     case libvlc_MediaDurationChanged:
-
+        emit media->durationChanged(event->u.media_duration_changed.new_duration);
         break;
     case libvlc_MediaStateChanged:
 

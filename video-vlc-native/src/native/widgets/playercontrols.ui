@@ -34,7 +34,7 @@
                     <item row="0" column="0">
                         <widget class="QLabel" name="stopButton">
                             <property name="styleSheet">
-                                <string notr="true">color:rgb(255, 255, 255);</string>
+                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignCenter</set>
@@ -44,7 +44,7 @@
                     <item row="0" column="1">
                         <widget class="QLabel" name="backwardButton">
                             <property name="styleSheet">
-                                <string notr="true">color: rgb(255, 0, 0);font: 12pt &quot;Font Awesome 5 Free&quot;;</string>
+                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignCenter</set>
@@ -52,22 +52,39 @@
                         </widget>
                     </item>
                     <item row="0" column="2">
-                        <widget class="QLabel" name="playPauseButton"/>
+                        <widget class="QLabel" name="playPauseButton">
+                            <property name="styleSheet">
+                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                            </property>
+                            <property name="alignment">
+                                <set>Qt::AlignCenter</set>
+                            </property>
+                        </widget>
                     </item>
                     <item row="0" column="3">
-                        <widget class="QLabel" name="forwardButton"/>
+                        <widget class="QLabel" name="forwardButton">
+                            <property name="styleSheet">
+                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                            </property>
+                            <property name="alignment">
+                                <set>Qt::AlignCenter</set>
+                            </property>
+                        </widget>
                     </item>
                     <item row="0" column="4">
-                        <widget class="QLabel" name="moreButton"/>
+                        <widget class="QLabel" name="moreButton">
+                            <property name="styleSheet">
+                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                            </property>
+                            <property name="alignment">
+                                <set>Qt::AlignCenter</set>
+                            </property>
+                        </widget>
                     </item>
                     <item row="1" column="0">
-                        <widget class="QLabel" name="time">
+                        <widget class="TimeLabel" name="time">
                             <property name="styleSheet">
-                                <string notr="true">color: rgb(255, 255, 255);
-                                </string>
-                            </property>
-                            <property name="text">
-                                <string>00:00</string>
+                                <string notr="true">color: rgb(255, 255, 255);</string>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -75,12 +92,9 @@
                         </widget>
                     </item>
                     <item row="1" column="4">
-                        <widget class="QLabel" name="duration">
+                        <widget class="TimeLabel" name="duration">
                             <property name="styleSheet">
                                 <string notr="true">color: rgb(255, 255, 255);</string>
-                            </property>
-                            <property name="text">
-                                <string>00:00</string>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -91,6 +105,13 @@
             </item>
         </layout>
     </widget>
+    <customwidgets>
+        <customwidget>
+            <class>TimeLabel</class>
+            <extends>QLabel</extends>
+            <header>widgets/TimeLabel.h</header>
+        </customwidget>
+    </customwidgets>
     <resources/>
     <connections/>
 </ui>

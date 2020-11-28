@@ -21,8 +21,6 @@ public class PopcornPlayerLib {
 
     public static native popcorn_player_t popcorn_player_new(int argc, StringArray argv);
 
-    public static native int popcorn_player_exec(popcorn_player_t instance);
-
     public static native void popcorn_player_release(popcorn_player_t instance);
 
     public static native void popcorn_player_play(popcorn_player_t instance, String mrl);

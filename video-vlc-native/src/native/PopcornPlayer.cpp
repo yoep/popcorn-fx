@@ -1,9 +1,11 @@
 #include "PopcornPlayer.h"
 
 #include "AppProperties.h"
+#include "QApplicationManager.h"
 #include "widgets/VideoWidget.h"
 
 #include <QDesktopWidget>
+#include <QtConcurrent/QtConcurrent>
 #include <QtGui/QFontDatabase>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtWidgets/QApplication>
@@ -16,45 +18,36 @@
 using namespace std;
 
 PopcornPlayer::PopcornPlayer(int &argc, char **argv)
-    : argc(argc)
+    : _argc(argc)
 {
-    this->log = Log::getInstance();
-    this->argv = argv;
-    this->app = nullptr;
-    this->window = nullptr;
+    this->_log = Log::instance();
+
+    this->_log->info("Popcorn Player is being started");
+    this->_argv = argv;
+    this->_window = nullptr;
+    this->_mediaPlayer = nullptr;
 
     // check if we need to parse program arguments
     if (argc > 0 && argv != nullptr) {
         parseArguments();
     }
 
-    // initialize the media player after we've parsed the program arguments
-    this->mediaPlayer = MediaPlayerFactory::createPlayer();
+    // initialize the media player
+    this->_mediaPlayer = std::shared_ptr<MediaPlayer>(MediaPlayerFactory::createPlayer());
+
+    init();
 }
 
 PopcornPlayer::~PopcornPlayer()
 {
-    log->debug("Releasing Popcorn Player resources");
-
-    if (this->app != nullptr) {
-        log->trace("Quiting the QT application");
-        QApplication::quit();
-    }
-
-    delete (mediaPlayer);
-    delete (log);
+    _log->debug("Releasing Popcorn Player resources");
+    stop();
 }
 
-int PopcornPlayer::exec()
+void PopcornPlayer::init()
 {
-    Q_INIT_RESOURCE(PopcornPlayer);
-
-    try {
-        log->trace("Initializing Popcorn Player application");
-        QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-        QApplication::setApplicationName(APPLICATION_TITLE);
-        QApplication application(argc, argv);
-        this->app = &application;
+    QApplicationManager::instance()->runInQt(new QLambda([this]() {
+        _log->trace("Initializing Popcorn Player application");
 
         // set the icon of the window
         loadIcon();
@@ -62,156 +55,102 @@ int PopcornPlayer::exec()
         // load the fonts used by this application
         loadFonts();
 
-        log->trace("Initializing Popcorn Player");
-        window = new PopcornPlayerWindow();
+        _log->trace("Initializing Popcorn Player");
+        _window = std::make_shared<PopcornPlayerWindow>();
 
-        // hide mouse
-        QCursor cursor(Qt::BlankCursor);
-        QApplication::setOverrideCursor(cursor);
-        QApplication::changeOverrideCursor(cursor);
+        // connect the events
+        _window->connectMediaPlayerEvents(_mediaPlayer.get());
+
+        // add the video surface to the media player
+        _mediaPlayer->setVideoSurface(_window->requestVideoSurface());
 
         // set the initialize base size of the player
-        log->debug("Popcorn Player initialized");
-
-        int exit = QApplication::exec();
-        log->info(std::string("Finished with status " + std::to_string(exit)));
-
-        // stop the player in case it might be still playing
-        mediaPlayer->stop();
-
-        return exit;
-    } catch (std::exception &ex) {
-        log->error("Popcorn Player execution failed ", ex);
-        return -1;
-    }
+        _log->debug("Popcorn Player initialized");
+    }));
 }
 
 void PopcornPlayer::show()
 {
-    if (this->app == nullptr) {
-        log->error(APPLICATION_NOT_INITIALIZED);
-        return;
-    }
-    if (window == nullptr) {
-        log->error(WINDOW_NOT_INITIALIZED);
-        return;
-    }
+    QApplicationManager::instance()->runInQt(new QLambda([this]() {
+        if (_window == nullptr) {
+            _log->error(WINDOW_NOT_INITIALIZED);
+            return;
+        }
 
-    invokeOnQt([&] {
-        log->debug("Showing Popcorn Player");
-        window->showMaximized();
-    });
+        _log->debug("Showing Popcorn Player");
+        _window->showMaximized();
+    }));
 }
 
 void PopcornPlayer::setFullscreen(bool fullscreen)
 {
-    if (this->app == nullptr) {
-        log->error(APPLICATION_NOT_INITIALIZED);
-        return;
-    }
-    if (window == nullptr) {
-        log->error(WINDOW_NOT_INITIALIZED);
-        return;
-    }
+    QApplicationManager::instance()->runInQt(new QLambda([this, fullscreen]() {
+        if (_window == nullptr) {
+            _log->error(WINDOW_NOT_INITIALIZED);
+            return;
+        }
 
-    invokeOnQt([&, fullscreen] {
         if (fullscreen) {
-            log->debug("Showing Popcorn Player in fullscreen mode");
-            window->showFullScreen();
+            _log->debug("Showing Popcorn Player in fullscreen mode");
+            _window->showFullScreen();
         } else {
             show();
         }
-    });
+    }));
 }
 
 void PopcornPlayer::close()
 {
-    if (this->app == nullptr) {
-        log->error(APPLICATION_NOT_INITIALIZED);
-        return;
-    }
-
-    invokeOnQt([&] {
-        window->close();
+    QApplicationManager::instance()->runInQt(new QLambda([this]() {
+        _window->close();
         QApplication::quit();
-    });
+    }));
 }
 
 void PopcornPlayer::play(const char *mrl)
 {
-    invokeOnQt([this, mrl] {
-        // add the video surface to the media player
-        mediaPlayer->setVideoSurface(window->requestVideoSurface());
-
-        auto *media = MediaPlayerFactory::createMedia(mrl);
-        mediaPlayer->play(media);
-    });
+    auto *media = MediaPlayerFactory::createMedia(mrl);
+    _mediaPlayer->play(media);
 }
 
 void PopcornPlayer::pause()
 {
-    mediaPlayer->pause();
+    _mediaPlayer->pause();
 }
 
 void PopcornPlayer::resume()
 {
-    mediaPlayer->resume();
+    _mediaPlayer->resume();
 }
 
 void PopcornPlayer::stop()
 {
-    if (this->app == nullptr) {
-        cerr << APPLICATION_NOT_INITIALIZED << endl;
-        return;
-    }
-    if (window == nullptr) {
-        cerr << WINDOW_NOT_INITIALIZED << endl;
-        return;
-    }
+    QApplicationManager::instance()->runInQt(new QLambda([this]() {
+        _mediaPlayer->stop();
 
-    invokeOnQt([&] {
-        mediaPlayer->stop();
-        window->releaseVideoSurface();
-        window->hide();
-    });
+        if (_window == nullptr) {
+            cerr << WINDOW_NOT_INITIALIZED << endl;
+            return;
+        }
+
+        _window->hide();
+    }));
 }
 
 void PopcornPlayer::setSubtitleFile(const char *uri)
 {
-    if (this->app == nullptr) {
-        cerr << APPLICATION_NOT_INITIALIZED << endl;
-        return;
-    }
-
-    mediaPlayer->setSubtitleFile(uri);
+    _mediaPlayer->setSubtitleFile(uri);
 }
 
 void PopcornPlayer::setSubtitleDelay(long delay)
 {
-    if (this->app == nullptr) {
-        cerr << APPLICATION_NOT_INITIALIZED << endl;
-        return;
-    }
-
-    mediaPlayer->setSubtitleDelay(delay);
-}
-
-template <typename Func>
-void PopcornPlayer::invokeOnQt(Func func)
-{
-    QMetaObject::invokeMethod(this->app, [this, func] {
-        try {
-            func();
-        } catch (std::exception &ex) {
-            log->error("Qt invocation failed", ex);
-        }
-    });
+    _mediaPlayer->setSubtitleDelay(delay);
 }
 
 void PopcornPlayer::parseArguments()
 {
     int arg;
-    while ((arg = getopt(argc, argv, "l:h")) != -1) {
+    while ((arg = getopt(_argc, _argv, "l:h")) != -1) {
         switch (arg) {
         case 'l':
             if (optarg) {
@@ -239,15 +178,15 @@ void PopcornPlayer::updateLogLevel(char *levelArg)
     std::string level(levelArg);
 
     if (level == "trace") {
-        this->log->setLevel(TRACE);
+        this->_log->setLevel(TRACE);
     } else if (level == "debug") {
-        this->log->setLevel(DEBUG);
+        this->_log->setLevel(DEBUG);
     } else if (level == "info") {
-        this->log->setLevel(INFO);
+        this->_log->setLevel(INFO);
     } else if (level == "warn") {
-        this->log->setLevel(WARN);
+        this->_log->setLevel(WARN);
     } else if (level == "error") {
-        this->log->setLevel(ERROR);
+        this->_log->setLevel(ERROR);
     }
 }
 
@@ -258,21 +197,21 @@ void PopcornPlayer::loadIcon()
 
 void PopcornPlayer::loadFonts()
 {
-    log->trace("Loading custom fonts");
+    _log->trace("Loading custom fonts");
     if (QFontDatabase::addApplicationFont(":/fonts/FontAwesomeRegular.ttf") == -1) {
-        log->warn("Failed to load font FontAwesomeRegular.ttf");
+        _log->warn("Failed to load font FontAwesomeRegular.ttf");
     }
     if (QFontDatabase::addApplicationFont(":/fonts/FontAwesomeSolid.ttf") == -1) {
-        log->warn("Failed to load font FontAwesomeSolid.ttf");
+        _log->warn("Failed to load font FontAwesomeSolid.ttf");
     }
     if (QFontDatabase::addApplicationFont(":/fonts/OpenSansBold.ttf") == -1) {
-        log->warn("Failed to load font OpenSansBold.ttf");
+        _log->warn("Failed to load font OpenSansBold.ttf");
     }
     if (QFontDatabase::addApplicationFont(":/fonts/OpenSansRegular.ttf") == -1) {
-        log->warn("Failed to load font OpenSansRegular.ttf");
+        _log->warn("Failed to load font OpenSansRegular.ttf");
     }
     if (QFontDatabase::addApplicationFont(":/fonts/OpenSansSemibold.ttf") == -1) {
-        log->warn("Failed to load font OpenSansSemibold.ttf");
+        _log->warn("Failed to load font OpenSansSemibold.ttf");
     }
-    log->debug("Fonts have been loaded");
+    _log->debug("Fonts have been loaded");
 }

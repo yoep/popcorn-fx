@@ -15,16 +15,6 @@ typedef struct popcorn_player_t popcorn_player_t;
 popcorn_player_t *popcorn_player_new(int argc, char **argv);
 
 /**
- * Execute the Popcorn Player.
- * This function will exit when the Popcorn Player is exited with a status code.
- * It's recommended to run this on a separate thread which isn't disposed until the Popcorn Player exists.
- *
- * @param pdp The Popcorn Player instance.
- * @return Returns the exit code of the Popcorn Player.
- */
-int popcorn_player_exec(popcorn_player_t *pdp);
-
-/**
  * Release the Popcorn Player and release it's resources.
  *
  * @param pdp The Popcorn Player instance to release.

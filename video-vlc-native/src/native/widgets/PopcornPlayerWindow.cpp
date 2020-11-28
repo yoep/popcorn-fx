@@ -5,6 +5,8 @@
 
 #include <QResizeEvent>
 #include <QtWidgets/QGridLayout>
+#include <player/Media.h>
+#include <player/MediaPlayer.h>
 
 PopcornPlayerWindow::PopcornPlayerWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -15,7 +17,9 @@ PopcornPlayerWindow::PopcornPlayerWindow(QWidget *parent)
 
 PopcornPlayerWindow::~PopcornPlayerWindow()
 {
-    delete (ui);
+    releaseVideoSurface();
+
+    delete ui;
 }
 
 WId PopcornPlayerWindow::requestVideoSurface()
@@ -28,14 +32,28 @@ void PopcornPlayerWindow::releaseVideoSurface()
     ui->player->release();
 }
 
-void PopcornPlayerWindow::showEvent(QShowEvent *event)
+void PopcornPlayerWindow::connectMediaEvents(Media *media)
 {
-    QWidget::showEvent(event);
+}
+
+void PopcornPlayerWindow::connectMediaPlayerEvents(MediaPlayer *mediaPlayer)
+{
+    QObject::connect(mediaPlayer, &MediaPlayer::timeChanged,
+        ui->controls, &PlayerControls::setTime);
+    QObject::connect(mediaPlayer, &MediaPlayer::durationChanged,
+        ui->controls, &PlayerControls::setDuration);
+}
+
+void PopcornPlayerWindow::paintEvent(QPaintEvent *event)
+{
+    QWidget::paintEvent(event);
 }
 
 void PopcornPlayerWindow::initializeUi()
 {
     ui->setupUi(this);
+
+    setAutoFillBackground(true);
 
     ui->rootLayout->setRowStretch(1, QLAYOUTSIZE_MAX);
     ui->rootLayout->setRowMinimumHeight(3, 75);

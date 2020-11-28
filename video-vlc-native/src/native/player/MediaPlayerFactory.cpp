@@ -10,7 +10,8 @@ MediaPlayerFactory *MediaPlayerFactory::instance = nullptr;
 
 MediaPlayerFactory::MediaPlayerFactory()
 {
-    this->_log = Log::getInstance();
+    this->_log = Log::instance();
+    this->_vlcInstance = nullptr;
 }
 
 MediaPlayer *MediaPlayerFactory::createPlayer()
@@ -45,8 +46,8 @@ libvlc_instance_t *MediaPlayerFactory::getVlcInstance()
     if (_vlcInstance == nullptr) {
         // initialize VLC args
         _log->trace("Creating new media player");
-        const char *vlcArgs = _log->getLevel() & TRACE_FLAG ? "--verbose=2" : nullptr;
-        int argc = _log->getLevel() & TRACE_FLAG ? 1 : 0;
+        const char *vlcArgs = _log->level() & TRACE_FLAG ? "--verbose=2" : nullptr;
+        int argc = _log->level() & TRACE_FLAG ? 1 : 0;
         const char *const *argv = &vlcArgs;
 
         // create a new vlc instance
@@ -58,6 +59,8 @@ libvlc_instance_t *MediaPlayerFactory::getVlcInstance()
         if (this->_vlcInstance == nullptr) {
             _log->error("Failed to initialize new VLC instance");
         }
+    } else {
+        _log->trace("Using cached VLC instance");
     }
 
     return this->_vlcInstance;

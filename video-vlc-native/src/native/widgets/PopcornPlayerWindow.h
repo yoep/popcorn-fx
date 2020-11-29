@@ -6,7 +6,6 @@
 #include "widgets/VideoWidget.h"
 
 #include <QMainWindow>
-#include <player/Media.h>
 #include <player/MediaPlayer.h>
 
 QT_BEGIN_NAMESPACE
@@ -37,26 +36,33 @@ public:
     void releaseVideoSurface();
 
     /**
-     * Connect the media events to the current player controls.
-     *
-     * @param media The media to connect to.
-     */
-    void connectMediaEvents(Media *media);
-
-    /**
      * Connect the media player events to the current player controls.
      *
      * @param mediaPlayer The media player to connect to.
      */
     void connectMediaPlayerEvents(MediaPlayer *mediaPlayer);
 
+public slots:
+    /**
+     * Invoked when the UI needs to be hidden.
+     */
+    void hideUi();
+
+    /**
+     * Invoked when the media player state has been changed.
+     *
+     * @param newState The new player state.
+     */
+    void onStateChanged(MediaPlayerState newState);
+
 private:
     Ui::PopcornPlayerWindow *ui;
+    QTimer *_fadeTimer;
+    Log *_log;
 
     void initializeUi();
 
-protected:
-    void paintEvent(QPaintEvent *event) override;
+    void connectEvents();
 };
 
 #endif // POPCORN_PLAYER_POPCORNPLAYERWINDOW_H

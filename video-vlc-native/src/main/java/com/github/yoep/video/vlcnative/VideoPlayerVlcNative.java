@@ -5,6 +5,8 @@ import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
 import com.github.yoep.video.adapter.state.PlayerState;
 import com.github.yoep.video.vlcnative.player.PopcornPlayer;
+import com.github.yoep.video.vlcnative.player.PopcornPlayerEventListener;
+import com.github.yoep.video.vlcnative.player.PopcornPlayerState;
 import javafx.beans.property.*;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
@@ -102,26 +104,24 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     public void pause() throws VideoPlayerNotInitializedException {
         checkInitialized();
         popcornPlayer.pause();
-        playerState.set(PlayerState.PAUSED);
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
         checkInitialized();
         popcornPlayer.resume();
-        playerState.set(PlayerState.PLAYING);
     }
 
     @Override
     public void seek(long time) throws VideoPlayerNotInitializedException {
-
+        checkInitialized();
+        popcornPlayer.seek(time);
     }
 
     @Override
     public void stop() {
         checkInitialized();
         popcornPlayer.stop();
-        playerState.set(PlayerState.STOPPED);
         reset();
     }
 
@@ -133,8 +133,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     @Override
     public void subtitleFile(File file) {
         Assert.notNull(file, "file cannot be null");
-        log.trace("Adding subtitle file {} to the current playback", file.getAbsolutePath());
-//        PopcornPlayerLib.popcorn_player_subtitle(popcornPlayer, file.getAbsolutePath());
+        popcornPlayer.subtitleFile(file);
     }
 
     @Override
@@ -155,10 +154,50 @@ public class VideoPlayerVlcNative implements VideoPlayer {
             var args = new String[]{"PopcornPlayer", "-l", level};
 
             popcornPlayer = new PopcornPlayer(args);
+
+            initializeListener();
             initialized = true;
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }
+    }
+
+    private void initializeListener() {
+        popcornPlayer.addListener(new PopcornPlayerEventListener() {
+            @Override
+            public void onStateChanged(PopcornPlayerState newState) {
+                switch (newState) {
+                    case PLAYING:
+                        updateState(PlayerState.PLAYING);
+                        break;
+                    case PAUSED:
+                        updateState(PlayerState.PAUSED);
+                        break;
+                    case BUFFERING:
+                        updateState(PlayerState.BUFFERING);
+                        break;
+                    case STOPPED:
+                        updateState(PlayerState.STOPPED);
+                        break;
+                    case UNKNOWN:
+                        updateState(PlayerState.UNKNOWN);
+                        break;
+                    default:
+                        log.error("Received unknown popcorn player state " + newState);
+                        break;
+                }
+            }
+
+            @Override
+            public void onTimeChanged(long newValue) {
+                time.set(newValue);
+            }
+
+            @Override
+            public void onDurationChanged(long newValue) {
+                duration.setValue(newValue);
+            }
+        });
     }
 
     //endregion
@@ -174,6 +213,11 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     private void reset() {
         time.set(0);
         duration.set(0);
+    }
+
+    private void updateState(PlayerState newState) {
+        log.debug("Popcorn player state changed to " + newState);
+        playerState.set(newState);
     }
 
     private String getPlayerLogLevel() {

@@ -45,6 +45,13 @@ public:
     bool isRunning();
 
     /**
+     * Get the QT application instance which is being managed.
+     *
+     * @return Returns the QT application.
+     */
+    QCoreApplication *application();
+
+    /**
      * Execute/run the given QLambda within the QApplication event loop.
      *
      * @param runnable The lambda to execute.

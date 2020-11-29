@@ -3,6 +3,7 @@
 
 #include <Log.h>
 #include <QtWidgets/QWidget>
+#include <player/MediaPlayerState.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -31,6 +32,13 @@ public slots:
      * @param newValue The new duration value.
      */
     void setDuration(long newValue);
+
+    /**
+     * Set the new media player state.
+     *
+     * @param newValue The new state of the media player.
+     */
+    void setPlayerState(MediaPlayerState newValue);
 
 private:
     Ui::PlayerControls *ui;

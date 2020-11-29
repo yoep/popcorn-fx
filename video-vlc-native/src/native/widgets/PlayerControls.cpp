@@ -33,6 +33,15 @@ void PlayerControls::setDuration(long newValue)
     ui->duration->setTime(newValue);
 }
 
+void PlayerControls::setPlayerState(MediaPlayerState newValue)
+{
+    if (newValue == PAUSED) {
+        ui->playPauseButton->setText(QString(PLAY_UNICODE));
+    } else {
+        ui->playPauseButton->setText(QString(PAUSE_UNICODE));
+    }
+}
+
 void PlayerControls::initializeUi()
 {
     log->trace("Initializing player controls");

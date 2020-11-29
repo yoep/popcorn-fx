@@ -1,5 +1,6 @@
 #include "Media.h"
 
+#include <QApplicationManager.h>
 #include <regex>
 
 using namespace std;
@@ -106,6 +107,12 @@ void Media::unsubscribeEvents()
     _log->debug("Unsubscribed from VLC media events");
 }
 
+void Media::updateDuration(long duration)
+{
+    _log->trace("Media duration changed to " + std::to_string(duration));
+    emit durationChanged(duration);
+}
+
 void Media::vlcCallback(const libvlc_event_t *event, void *instance)
 {
     Log *log = Log::instance();
@@ -120,7 +127,7 @@ void Media::vlcCallback(const libvlc_event_t *event, void *instance)
 
     switch (event->type) {
     case libvlc_MediaDurationChanged:
-        emit media->durationChanged(event->u.media_duration_changed.new_duration);
+        media->updateDuration(event->u.media_duration_changed.new_duration);
         break;
     case libvlc_MediaStateChanged:
 

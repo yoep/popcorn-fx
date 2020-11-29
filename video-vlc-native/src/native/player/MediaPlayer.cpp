@@ -35,8 +35,10 @@ bool MediaPlayer::play(Media *media)
     }
 
     // connect the media events to this media player
-    QObject::connect(media, &Media::durationChanged,
-        this, &MediaPlayer::setMediaDuration);
+    subscribeToMediaEvents(media);
+
+    // update the active media item
+    updateActiveMediaItem(media);
 
     // set the VLC media in the media player
     libvlc_media_player_set_media(_vlcMediaPlayer, media->vlcMedia());
@@ -50,8 +52,17 @@ bool MediaPlayer::play(Media *media)
         handleVlcError();
         return false;
     } else {
-        emit this->durationChanged(media->getDuration());
         return true;
+    }
+}
+
+void MediaPlayer::seek(long time)
+{
+    try {
+        _log->info(std::string("Seeking time ") + std::to_string(time) + std::string(" in the current media playback"));
+        libvlc_media_player_set_time(_vlcMediaPlayer, time);
+    } catch (std::exception &ex) {
+        _log->error("An error occurred while seeking the time in the media playback", ex);
     }
 }
 
@@ -80,6 +91,8 @@ void MediaPlayer::stop()
     try {
         _log->info("Stopping media player");
         libvlc_media_player_stop(_vlcMediaPlayer);
+
+        releaseMediaItem();
     } catch (std::exception &ex) {
         _log->error("An error occurred while resuming the media playback", ex);
     }
@@ -87,6 +100,7 @@ void MediaPlayer::stop()
 
 void MediaPlayer::setMediaDuration(long newValue)
 {
+    _log->debug("Media player duration has changed to " + std::to_string(newValue));
     emit this->durationChanged(newValue);
 }
 
@@ -141,6 +155,8 @@ void MediaPlayer::releaseMediaPlayerIfNeeded()
 void MediaPlayer::initializeMediaPlayer()
 {
     _log->trace("Initializing media player");
+    qRegisterMetaType<MediaPlayerState>("MediaPlayerState");
+
     libvlc_media_player_retain(_vlcMediaPlayer);
     _vlcEventManager = libvlc_media_player_event_manager(_vlcMediaPlayer);
 
@@ -176,6 +192,50 @@ void MediaPlayer::unsubscribeEvents()
     _log->debug("Unsubscribed from VLC media events");
 }
 
+void MediaPlayer::subscribeToMediaEvents(Media *media)
+{
+    // check if we currently know about a previous media item
+    // if so, disconnect the events from the old media first
+    if (_media != nullptr) {
+        _log->trace("Removing old media item listeners");
+        disconnect(_media, &Media::durationChanged,
+            this, &MediaPlayer::setMediaDuration);
+    }
+
+    _log->trace("Adding listeners to new media item");
+    connect(media, &Media::durationChanged,
+        this, &MediaPlayer::setMediaDuration);
+}
+
+void MediaPlayer::updateState(MediaPlayerState newState)
+{
+    // check if the old state is the same as the new state
+    // if so, ignore the state update
+    if (this->_state == newState)
+        return;
+
+    this->_state = newState;
+    emit stateChanged(newState);
+}
+
+void MediaPlayer::updateActiveMediaItem(Media *media)
+{
+    // check if we know about a previous media item
+    // if so, release the old media item first
+    if (this->_media != nullptr) {
+        releaseMediaItem();
+    }
+
+    this->_media = media;
+}
+
+void MediaPlayer::releaseMediaItem()
+{
+    _log->debug("Releasing media item");
+    delete _media;
+    _media = nullptr;
+}
+
 void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
 {
     Log *log = Log::instance();
@@ -190,16 +250,20 @@ void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
 
     switch (event->type) {
     case libvlc_MediaPlayerPlaying:
-        mediaPlayer->_state = PLAYING;
+        mediaPlayer->updateState(PLAYING);
         break;
     case libvlc_MediaPlayerPaused:
-        mediaPlayer->_state = PAUSED;
+        mediaPlayer->updateState(PAUSED);
         break;
     case libvlc_MediaPlayerBuffering:
-        mediaPlayer->_state = BUFFERING;
+        if (event->u.media_player_buffering.new_cache < 100) {
+            mediaPlayer->updateState(BUFFERING);
+        } else {
+            mediaPlayer->updateState(PLAYING);
+        }
         break;
     case libvlc_MediaPlayerStopped:
-        mediaPlayer->_state = STOPPED;
+        mediaPlayer->updateState(STOPPED);
         break;
     case libvlc_MediaPlayerTimeChanged:
         emit mediaPlayer->timeChanged(event->u.media_player_time_changed.new_time);

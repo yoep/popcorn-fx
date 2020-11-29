@@ -49,6 +49,11 @@ bool QApplicationManager::isRunning()
     return _running;
 }
 
+QCoreApplication *QApplicationManager::application()
+{
+    return _qtApp;
+}
+
 void QApplicationManager::runInQt(AbstractQLambda *runnable)
 {
     if (isFinished()) {
@@ -85,7 +90,7 @@ void QApplicationManager::initialize()
 
         Q_INIT_RESOURCE(PopcornPlayer);
 
-        _log->trace("Creating new QT Application");
+        _log->trace("Initializing QT application instance");
         QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
         QApplication::setApplicationName(APPLICATION_TITLE);
         _qtApp = new QApplication(argc, argv);
@@ -93,6 +98,8 @@ void QApplicationManager::initialize()
         QObject::connect(_qtApp, &QApplication::aboutToQuit, _qtApp, [this]() {
             _qtAppFinished = true;
         });
+
+        QApplication::setOverrideCursor(Qt::BlankCursor);
 
         _log->debug("Starting application");
         _running = true;

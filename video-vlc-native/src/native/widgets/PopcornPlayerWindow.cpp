@@ -42,6 +42,8 @@ void PopcornPlayerWindow::connectMediaPlayerEvents(MediaPlayer *mediaPlayer)
         ui->controls, &PlayerControls::setTime);
     QObject::connect(mediaPlayer, &MediaPlayer::durationChanged,
         ui->controls, &PlayerControls::setDuration);
+    QObject::connect(mediaPlayer, &MediaPlayer::stateChanged,
+        ui->controls, &PlayerControls::setPlayerState);
 }
 
 void PopcornPlayerWindow::paintEvent(QPaintEvent *event)

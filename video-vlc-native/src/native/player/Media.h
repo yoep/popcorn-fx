@@ -77,6 +77,13 @@ private:
     void unsubscribeEvents();
 
     /**
+     * Update the duration of the media item.
+     *
+     * @param duration The new duration value.
+     */
+    void updateDuration(long duration);
+
+    /**
      * Verify if the given mrl is a HTTP url.
      *
      * @param mrl The mrl to verify.

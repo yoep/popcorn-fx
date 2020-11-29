@@ -12,6 +12,7 @@
 #include <QtWidgets/QStackedLayout>
 #include <getopt.h>
 #include <iostream>
+#include <memory>
 #include <player/MediaPlayerFactory.h>
 #include <regex>
 
@@ -26,14 +27,12 @@ PopcornPlayer::PopcornPlayer(int &argc, char **argv)
     this->_argv = argv;
     this->_window = nullptr;
     this->_mediaPlayer = nullptr;
+    this->_eventManager = nullptr;
 
     // check if we need to parse program arguments
     if (argc > 0 && argv != nullptr) {
         parseArguments();
     }
-
-    // initialize the media player
-    this->_mediaPlayer = std::shared_ptr<MediaPlayer>(MediaPlayerFactory::createPlayer());
 
     init();
 }
@@ -58,11 +57,20 @@ void PopcornPlayer::init()
         _log->trace("Initializing Popcorn Player");
         _window = std::make_shared<PopcornPlayerWindow>();
 
+        // initialize the media player & event manager
+        _mediaPlayer = std::shared_ptr<MediaPlayer>(MediaPlayerFactory::createPlayer());
+        _eventManager = std::make_shared<PopcornPlayerEventManager>(_mediaPlayer.get());
+
         // connect the events
         _window->connectMediaPlayerEvents(_mediaPlayer.get());
 
         // add the video surface to the media player
         _mediaPlayer->setVideoSurface(_window->requestVideoSurface());
+
+        QObject::connect(QApplicationManager::instance()->application(), &QCoreApplication::aboutToQuit,
+            [this] {
+                _mediaPlayer->stop();
+            });
 
         // set the initialize base size of the player
         _log->debug("Popcorn Player initialized");
@@ -110,7 +118,15 @@ void PopcornPlayer::close()
 void PopcornPlayer::play(const char *mrl)
 {
     auto *media = MediaPlayerFactory::createMedia(mrl);
-    _mediaPlayer->play(media);
+
+    QApplicationManager::instance()->runInQt(new QLambda([this, media]() {
+        _mediaPlayer->play(media);
+    }));
+}
+
+void PopcornPlayer::seek(long time)
+{
+    _mediaPlayer->seek(time);
 }
 
 void PopcornPlayer::pause()
@@ -145,6 +161,27 @@ void PopcornPlayer::setSubtitleFile(const char *uri)
 void PopcornPlayer::setSubtitleDelay(long delay)
 {
     _mediaPlayer->setSubtitleDelay(delay);
+}
+
+void PopcornPlayer::registerStateCallback(popcorn_player_state_callback_t callback)
+{
+    if (waitForEventManager()) {
+        _eventManager->addStateCallback(callback);
+    }
+}
+
+void PopcornPlayer::registerTimeCallback(popcorn_player_time_callback_t callback)
+{
+    if (waitForEventManager()) {
+        _eventManager->addTimeCallback(callback);
+    }
+}
+
+void PopcornPlayer::registerDurationCallback(popcorn_player_duration_callback_t callback)
+{
+    if (waitForEventManager()) {
+        _eventManager->addDurationCallback(callback);
+    }
 }
 
 void PopcornPlayer::parseArguments()
@@ -188,6 +225,27 @@ void PopcornPlayer::updateLogLevel(char *levelArg)
     } else if (level == "error") {
         this->_log->setLevel(ERROR);
     }
+}
+
+bool PopcornPlayer::waitForEventManager()
+{
+    const auto startTime = std::chrono::system_clock::now();
+
+    // block the calling thread until the event manager is initialized
+    while (_eventManager == nullptr) {
+        const auto currentTime = chrono::system_clock::now();
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime).count();
+
+        // check if we're not waiting indefinitely
+        if (elapsedTime > 5) {
+            _log->error("Failed to wait for event manager condition");
+            return false;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    return true;
 }
 
 void PopcornPlayer::loadIcon()

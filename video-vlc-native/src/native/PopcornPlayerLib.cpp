@@ -34,10 +34,15 @@ void popcorn_player_release(popcorn_player_t *pdp)
     PopcornPlayer *player;
 
     player = static_cast<PopcornPlayer *>(pdp->player);
-    player->close();
 
-    delete static_cast<PopcornPlayer *>(pdp->player);
-    free(pdp);
+    try {
+        player->close();
+
+        delete static_cast<PopcornPlayer *>(pdp->player);
+        free(pdp);
+    } catch (std::exception &ex) {
+        cerr << "Failed to release Popcorn Player instance, " << ex.what() << endl;
+    }
 }
 
 void popcorn_player_play(popcorn_player_t *pdp, const char *mrl)
@@ -49,6 +54,17 @@ void popcorn_player_play(popcorn_player_t *pdp, const char *mrl)
 
     player = static_cast<PopcornPlayer *>(pdp->player);
     player->play(mrl);
+}
+
+void popcorn_player_seek(popcorn_player_t *pdp, long time)
+{
+    if (pdp == nullptr)
+        return;
+
+    PopcornPlayer *player;
+
+    player = static_cast<PopcornPlayer *>(pdp->player);
+    player->seek(time);
 }
 
 void popcorn_player_pause(popcorn_player_t *pdp)
@@ -126,4 +142,37 @@ void popcorn_player_subtitle_delay(popcorn_player_t *pdp, long delay)
 
     player = static_cast<PopcornPlayer *>(pdp->player);
     player->setSubtitleDelay(delay);
+}
+
+void popcorn_player_state_callback(popcorn_player_t *pdp, popcorn_player_state_callback_t callback)
+{
+    if (pdp == nullptr)
+        return;
+
+    PopcornPlayer *player;
+
+    player = static_cast<PopcornPlayer *>(pdp->player);
+    player->registerStateCallback(callback);
+}
+
+void popcorn_player_time_callback(popcorn_player_t *pdp, popcorn_player_time_callback_t callback)
+{
+    if (pdp == nullptr)
+        return;
+
+    PopcornPlayer *player;
+
+    player = static_cast<PopcornPlayer *>(pdp->player);
+    player->registerTimeCallback(callback);
+}
+
+void popcorn_player_duration_callback(popcorn_player_t *pdp, popcorn_player_duration_callback_t callback)
+{
+    if (pdp == nullptr)
+        return;
+
+    PopcornPlayer *player;
+
+    player = static_cast<PopcornPlayer *>(pdp->player);
+    player->registerDurationCallback(callback);
 }

@@ -4,10 +4,16 @@ import com.github.yoep.video.vlcnative.PopcornPlayerLib;
 import com.github.yoep.video.vlcnative.bindings.popcorn_player_t;
 import com.sun.jna.StringArray;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
+
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 @Slf4j
 public class PopcornPlayer {
     private final popcorn_player_t instance;
+    private final PopcornPlayerEventManager eventManager;
 
     /**
      * Initialize a new {@link PopcornPlayer} instance.
@@ -22,6 +28,8 @@ public class PopcornPlayer {
         if (instance == null) {
             throw new PopcornPlayerException("Failed to initialize Popcorn Player");
         }
+
+        this.eventManager = new PopcornPlayerEventManager(instance);
     }
 
     /**
@@ -50,6 +58,17 @@ public class PopcornPlayer {
     }
 
     /**
+     * Seek the given time within the current media playback.
+     * This has no effect if no media is currently being played.
+     *
+     * @param time The time to seek in millis.
+     */
+    public void seek(long time) {
+        // normalize the time to 0 if the time is smaller than 0
+        PopcornPlayerLib.popcorn_player_seek(instance, Math.max(time, 0));
+    }
+
+    /**
      * Pause the current media playback.
      * This has no effect if no media is currently playing.
      */
@@ -72,6 +91,41 @@ public class PopcornPlayer {
      */
     public void stop() {
         PopcornPlayerLib.popcorn_player_stop(instance);
+    }
+
+    /**
+     * The subtitle file for the current media playback.
+     *
+     * @param file The .srt file to add to the current playback.
+     */
+    public void subtitleFile(File file) {
+        log.trace("Adding subtitle file {} to the current playback", file.getAbsolutePath());
+        try {
+            var subtitleUri = new URI(file.getAbsolutePath());
+
+            PopcornPlayerLib.popcorn_player_subtitle(instance, subtitleUri.toString());
+        } catch (URISyntaxException ex) {
+            log.error("Failed to add subtitle file, " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Register the given listener to this player instance.
+     *
+     * @param listener The listener to register (non-null).
+     */
+    public void addListener(PopcornPlayerEventListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        eventManager.addListener(listener);
+    }
+
+    /**
+     * Remove an existing listener from this player.
+     *
+     * @param listener The player to remove from this listener.
+     */
+    public void removeListener(PopcornPlayerEventListener listener) {
+        eventManager.removeListener(listener);
     }
 
     /**

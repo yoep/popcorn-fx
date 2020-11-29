@@ -9,6 +9,8 @@
 #include <QtGui/QWidgetSet>
 #include <libvlc/vlc/vlc.h>
 
+Q_DECLARE_METATYPE(MediaPlayerState)
+
 class MediaPlayer : public QObject {
     Q_OBJECT
 
@@ -33,6 +35,13 @@ public:
      * @return Returns true if the media playback was started with success, else false.
      */
     bool play(Media *media);
+
+    /**
+     * Seek the given time in this media player.
+     *
+     * @param time The time to seek in millis.
+     */
+    void seek(long time);
 
     /**
      * Pause the current media playback.
@@ -93,6 +102,13 @@ signals:
      */
     void durationChanged(long newValue);
 
+    /**
+     * Signals that the player state has been changed.
+     *
+     * @param newState The new player state.
+     */
+    void stateChanged(MediaPlayerState newState);
+
 private:
     libvlc_instance_t *_vlcInstance;
     libvlc_media_player_t *_vlcMediaPlayer;
@@ -111,11 +127,46 @@ private:
      */
     void handleVlcError();
 
+    /**
+     * Release this media player instance if needed.
+     */
     void releaseMediaPlayerIfNeeded();
 
+    /**
+     * Subscribe this media player to the VLC events.
+     */
     void subscribeEvents();
 
+    /**
+     * Unsubscribe this media player instance from the VLC events.
+     */
     void unsubscribeEvents();
+
+    /**
+     * Connect the media events to this media player.
+     *
+     * @param media The media item to connect the events of.
+     */
+    void subscribeToMediaEvents(Media *media);
+
+    /**
+     * Update the current player state.
+     *
+     * @param newState The new media player state.
+     */
+    void updateState(MediaPlayerState newState);
+
+    /**
+     * Update the active media playback item.
+     *
+     * @param media The new active media playback item.
+     */
+    void updateActiveMediaItem(Media *media);
+
+    /**
+     * Release the old media item from this media player.
+     */
+    void releaseMediaItem();
 
     static void vlcCallback(const libvlc_event_t *event, void *instance);
 

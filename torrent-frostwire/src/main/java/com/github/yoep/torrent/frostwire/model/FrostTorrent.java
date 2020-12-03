@@ -18,10 +18,10 @@ import org.springframework.util.Assert;
 
 import java.io.File;
 import java.text.MessageFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
 @ToString(exclude = "handle")
@@ -30,7 +30,7 @@ public class FrostTorrent implements Torrent, AlertListener {
     public static final String STATE_PROPERTY = "state";
 
     private final ReadOnlyObjectWrapper<TorrentState> state = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, TorrentState.CREATING);
-    private final List<TorrentListener> listeners = new ArrayList<>();
+    private final Queue<TorrentListener> listeners = new ConcurrentLinkedQueue<>();
     private final TorrentPieces pieces = new TorrentPieces();
     private final TorrentHandle handle;
     private final String filename;
@@ -165,7 +165,7 @@ public class FrostTorrent implements Torrent, AlertListener {
         if (getState() != TorrentState.READY)
             return;
 
-        state.set(TorrentState.STARTING);
+        updateState(TorrentState.STARTING);
         resume();
     }
 
@@ -182,7 +182,7 @@ public class FrostTorrent implements Torrent, AlertListener {
         if (getState() == TorrentState.COMPLETED)
             return;
 
-        state.set(TorrentState.PAUSED);
+        updateState(TorrentState.PAUSED);
 
         if (handle.isValid()) {
             handle.pause();
@@ -288,7 +288,7 @@ public class FrostTorrent implements Torrent, AlertListener {
         var priorities = handle.piecePriorities();
 
         pieces.determineDownloadPieceIndexes(priorities);
-        state.set(TorrentState.READY);
+        updateState(TorrentState.READY);
     }
 
     private void initializeAutoStart() {
@@ -329,12 +329,14 @@ public class FrostTorrent implements Torrent, AlertListener {
 
         // notify all listeners
         synchronized (listeners) {
-            listeners.forEach(e -> safeInvoke(() -> e.onPieceFinished(pieceIndex)));
+            for (TorrentListener listener : listeners) {
+                safeInvoke(() -> listener.onPieceFinished(pieceIndex));
+            }
         }
 
         // check if we need to update the torrent state
         if (getState() != TorrentState.COMPLETED) {
-            state.set(TorrentState.DOWNLOADING);
+            updateState(TorrentState.DOWNLOADING);
         }
     }
 
@@ -353,7 +355,7 @@ public class FrostTorrent implements Torrent, AlertListener {
         // check if the torrent state is finished
         // if so, update this torrent state to completed
         if (state == TorrentStatus.State.FINISHED || state == TorrentStatus.State.SEEDING) {
-            this.state.set(TorrentState.COMPLETED);
+            updateState(TorrentState.COMPLETED);
         }
 
         synchronized (listeners) {
@@ -375,6 +377,17 @@ public class FrostTorrent implements Torrent, AlertListener {
         if (useDeadline) {
             handle.setPieceDeadline(pieceIndex, 1000);
         }
+    }
+
+    private void updateState(TorrentState newState) {
+        // check if the torrent was previously in an error state
+        // if so, we refuse the torrent state to be updated
+        if (getState() == TorrentState.ERROR) {
+            log.debug("Unable to update torrent state to \"{}\", current state is \"{}\"", newState, getState());
+            return;
+        }
+
+        state.set(newState);
     }
 
     /**

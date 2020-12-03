@@ -248,10 +248,32 @@ public class TorrentStreamImpl implements TorrentStream {
         pieces.add(totalPieces - 1);
         pieces.add(totalPieces);
 
-        return pieces.toArray(new Integer[0]);
+        return pieces
+                .stream()
+                .filter(this::isValidPreparationPiece)
+                .toArray(Integer[]::new);
+    }
+
+    private boolean isValidPreparationPiece(Integer index) {
+        var totalPieces = getTotalPieces();
+        var isValid = index >= 0 && index <= totalPieces;
+
+        if (!isValid) {
+            log.warn("Preparation piece index {} is invalid", index);
+        }
+
+        return isValid;
     }
 
     private void onPieceFinished() {
+        verifyPrepareState();
+    }
+
+    private void onTorrentStateChanged() {
+        verifyPrepareState();
+    }
+
+    private void verifyPrepareState() {
         // check if the torrent is already streaming or stopped
         // if so, ignore this piece finished event
         if (getStreamState() != TorrentStreamState.PREPARING)
@@ -262,15 +284,29 @@ public class TorrentStreamImpl implements TorrentStream {
                 .allMatch(this::hasPiece);
 
         if (preparationCompleted) {
-            log.info("Torrent stream \"{}\" is ready to be streamed", getFilename());
-            streamState.set(TorrentStreamState.STREAMING);
-            // update the torrent download to sequential mode
-            sequentialMode();
+            updateStateToStreaming();
         }
+    }
+
+    private void updateStateToStreaming() {
+        // verify if the torrent stream isn't already streaming
+        // if so, ignore this action
+        if (getStreamState() == TorrentStreamState.STREAMING)
+            return;
+
+        log.info("Torrent stream \"{}\" is ready to be streamed", getFilename());
+        streamState.set(TorrentStreamState.STREAMING);
+        // update the torrent download to sequential mode
+        sequentialMode();
     }
 
     private TorrentListener createTorrentListener() {
         return new AbstractTorrentListener() {
+            @Override
+            public void onStateChanged(TorrentState oldState, TorrentState newState) {
+                TorrentStreamImpl.this.onTorrentStateChanged();
+            }
+
             @Override
             public void onPieceFinished(int pieceIndex) {
                 TorrentStreamImpl.this.onPieceFinished();

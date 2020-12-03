@@ -197,11 +197,16 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-release-plugin</artifactId>
+                <groupId>com.amashchenko.maven.plugin</groupId>
+                <artifactId>gitflow-maven-plugin</artifactId>
+                <version>1.15.0</version>
                 <configuration>
-                    <tagNameFormat>v@{project.version}</tagNameFormat>
-                    <preparationGoals>clean install</preparationGoals>
+                    <gitFlowConfig>
+                        <developmentBranch>master</developmentBranch>
+                        <versionTagPrefix>v</versionTagPrefix>
+                        <preReleaseGoals>clean install</preReleaseGoals>
+                        <postReleaseGoals/>
+                    </gitFlowConfig>
                 </configuration>
             </plugin>
             <plugin>

@@ -31,14 +31,14 @@ public:
      *
      * @return Returns the log level.
      */
-    LogLevel level();
+    logLevel::LogLevel level();
 
     /**
      * Set the log level of the logger.
      *
      * @param level The new log level for the logger.
      */
-    void setLevel(LogLevel level);
+    void setLevel(logLevel::LogLevel level);
 
     /**
      * Log a trace message with the logger.
@@ -75,7 +75,7 @@ public:
     void error(const std::basic_string<char> &message, const std::exception &ex);
 
 private:
-    std::atomic<LogLevel> _level = INFO;
+    std::atomic<logLevel::LogLevel> _level = logLevel::INFO;
     static shared_ptr<Log> _instance;
 
     static void log(const char *message, const char string[6]);

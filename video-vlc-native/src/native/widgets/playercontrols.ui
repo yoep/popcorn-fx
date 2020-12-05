@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
     <class>PlayerControls</class>
-    <widget class="QWidget" name="PlayerControls">
+    <widget class="QFrame" name="PlayerControls">
         <property name="geometry">
             <rect>
                 <x>0</x>
@@ -11,30 +11,53 @@
             </rect>
         </property>
         <property name="styleSheet">
-            <string notr="true">background-color: rgb(23, 24, 27);</string>
+            <string notr="true">
+                PlayerControls {
+                background-color: rgb(23, 24, 27);
+                }
+                Icon{
+                width: 50;
+                height: 50;
+                color: rgb(204, 204, 204);
+                border: 2px solid rgb(204, 204, 204);
+                border-radius: 10;
+                font-size: 21pt;
+                }
+                Icon:focus{
+                color: rgb(255, 255, 255);
+                background-color: rgba(45, 114, 217, 0.6);
+                border-color: rgb(255, 255, 255);
+                }
+            </string>
         </property>
         <layout class="QGridLayout" name="controlsLayout">
             <property name="leftMargin">
-                <number>0</number>
+                <number>10</number>
             </property>
             <property name="topMargin">
-                <number>0</number>
+                <number>15</number>
             </property>
             <property name="rightMargin">
-                <number>0</number>
+                <number>10</number>
             </property>
             <property name="bottomMargin">
-                <number>0</number>
+                <number>15</number>
             </property>
             <item row="0" column="0">
                 <layout class="QGridLayout">
-                    <property name="spacing">
+                    <property name="verticalSpacing">
                         <number>0</number>
                     </property>
+                    <property name="horizontalSpacing">
+                        <number>10</number>
+                    </property>
                     <item row="0" column="0">
-                        <widget class="QLabel" name="stopButton">
-                            <property name="styleSheet">
-                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                        <widget class="Icon" name="stopButton">
+                            <property name="maximumSize">
+                                <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                </size>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignCenter</set>
@@ -42,9 +65,12 @@
                         </widget>
                     </item>
                     <item row="0" column="1">
-                        <widget class="QLabel" name="backwardButton">
-                            <property name="styleSheet">
-                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                        <widget class="Icon" name="backwardButton">
+                            <property name="maximumSize">
+                                <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                </size>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignCenter</set>
@@ -52,9 +78,12 @@
                         </widget>
                     </item>
                     <item row="0" column="2">
-                        <widget class="QLabel" name="playPauseButton">
-                            <property name="styleSheet">
-                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                        <widget class="Icon" name="playPauseButton">
+                            <property name="maximumSize">
+                                <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                </size>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignCenter</set>
@@ -62,9 +91,12 @@
                         </widget>
                     </item>
                     <item row="0" column="3">
-                        <widget class="QLabel" name="forwardButton">
-                            <property name="styleSheet">
-                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                        <widget class="Icon" name="forwardButton">
+                            <property name="maximumSize">
+                                <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                </size>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignCenter</set>
@@ -72,9 +104,12 @@
                         </widget>
                     </item>
                     <item row="0" column="4">
-                        <widget class="QLabel" name="moreButton">
-                            <property name="styleSheet">
-                                <string notr="true">color:rgb(255, 255, 255);font: 21pt &quot;Font Awesome 5 Free&quot;;</string>
+                        <widget class="Icon" name="moreButton">
+                            <property name="maximumSize">
+                                <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                </size>
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignCenter</set>
@@ -110,6 +145,11 @@
             <class>TimeLabel</class>
             <extends>QLabel</extends>
             <header>widgets/TimeLabel.h</header>
+        </customwidget>
+        <customwidget>
+            <class>Icon</class>
+            <extends>QLabel</extends>
+            <header>widgets/Icon.h</header>
         </customwidget>
     </customwidgets>
     <resources/>

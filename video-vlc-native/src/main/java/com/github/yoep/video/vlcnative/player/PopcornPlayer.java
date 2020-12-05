@@ -7,8 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 @Slf4j
 public class PopcornPlayer {
@@ -100,13 +98,7 @@ public class PopcornPlayer {
      */
     public void subtitleFile(File file) {
         log.trace("Adding subtitle file {} to the current playback", file.getAbsolutePath());
-        try {
-            var subtitleUri = new URI(file.getAbsolutePath());
-
-            PopcornPlayerLib.popcorn_player_subtitle(instance, subtitleUri.toString());
-        } catch (URISyntaxException ex) {
-            log.error("Failed to add subtitle file, " + ex.getMessage(), ex);
-        }
+        PopcornPlayerLib.popcorn_player_subtitle(instance, file.toURI().toASCIIString());
     }
 
     /**

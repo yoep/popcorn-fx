@@ -1,6 +1,8 @@
 #ifndef POPCORNPLAYER_MEDIA_H
 #define POPCORNPLAYER_MEDIA_H
 
+#include "MediaState.h"
+
 #include <Log.h>
 #include <QList>
 #include <QObject>
@@ -24,6 +26,29 @@ public:
     libvlc_media_t *vlcMedia();
 
     /**
+     * Get the VLC subitems of this media item.
+     * The state of the media item should be PARSED before using this method.
+     *
+     * @return Returns the VLC media subitems.
+     */
+    libvlc_media_list_t *subitems();
+
+    /**
+     * Verify if this media item has sub items.
+     * The state of the media item should be PARSED before using this method.
+     *
+     * @return Returns true if this item has subitems, else false.
+     */
+    bool hasSubitems();
+
+    /**
+     * Get the state of the media item.
+     *
+     * @return Returns the current state.
+     */
+    MediaState state();
+
+    /**
      * Get the duration of the media item.
      *
      * @return Returns the duration of the media item in milliseconds.
@@ -32,16 +57,29 @@ public:
 
 signals:
     /**
-     * Signal that the duration of the media item has been changed.
+     * Signals that the duration of the media item has been changed.
      *
      * @param newValue The new duration value.
      */
     void durationChanged(long newValue);
 
+    /**
+     * Signals that the state of the media item has been changed.
+     *
+     * @param newState The new state of the media item.
+     */
+    void stateChanged(MediaState newState);
+
+    /**
+     * Signals that the media item has been parsed and ready to use.
+     */
+    void parsed();
+
 private:
     libvlc_instance_t *_vlcInstance;
     libvlc_event_manager_t *_vlcEvent;
     libvlc_media_t *_vlcMedia;
+    MediaState _state = MediaState::UNKNOWN;
     Log *_log;
     const char *_mrl;
 
@@ -82,6 +120,24 @@ private:
      * @param duration The new duration value.
      */
     void updateDuration(long duration);
+
+    /**
+     * Update the media state based on the VLC state.
+     *
+     * @param vlcState The new vlc media state.
+     */
+    void updateState(int vlcState);
+
+    void onParsedEvent();
+
+    void invokeStateChange(MediaState newState);
+
+    /**
+     * Get the total subitems of the media item.
+     *
+     * @return Returns the total subitems.
+     */
+    int countSubitems();
 
     /**
      * Verify if the given mrl is a HTTP url.

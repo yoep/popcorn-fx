@@ -47,20 +47,40 @@ void PopcornPlayerWindow::connectMediaPlayerEvents(MediaPlayer *mediaPlayer)
         ui->controls, &PlayerControls::setPlayerState);
     connect(mediaPlayer, &MediaPlayer::stateChanged,
         this, &PopcornPlayerWindow::onStateChanged);
+
+    connect(ui->controls, &PlayerControls::stop,
+        mediaPlayer, [mediaPlayer] {
+            mediaPlayer->stop();
+        });
+    connect(ui->controls, &PlayerControls::backward,
+        mediaPlayer, [&] {
+            updateTime(-5000);
+        });
+    connect(ui->controls, &PlayerControls::playPause,
+        mediaPlayer, [&] {
+            togglePlayback();
+        });
+    connect(ui->controls, &PlayerControls::forward,
+        mediaPlayer, [&] {
+            updateTime(5000);
+        });
+
+    // store the media player reference
+    this->_mediaPlayer = mediaPlayer;
 }
 
-void PopcornPlayerWindow::hideUi()
+void PopcornPlayerWindow::onHideUI()
 {
-    _log->trace("Hiding popcorn player window UI");
-    ui->controls->hide();
+    hideOverlay();
 }
 
 void PopcornPlayerWindow::onStateChanged(MediaPlayerState newState)
 {
-    if (newState == PLAYING) {
+    if (newState == MediaPlayerState::PLAYING) {
         _fadeTimer->start();
-    } else if (newState == PAUSED) {
-        ui->controls->show();
+    } else if (newState == MediaPlayerState::PAUSED) {
+        _fadeTimer->stop();
+        showOverlay();
     }
 }
 
@@ -83,6 +103,57 @@ void PopcornPlayerWindow::connectEvents()
 {
     _log->trace("Connecting popcorn player window slots");
     connect(_fadeTimer, &QTimer::timeout,
-        this, &PopcornPlayerWindow::hideUi);
+        this, &PopcornPlayerWindow::onHideUI);
     _log->debug("Popcorn player window slots have been connected");
+}
+
+void PopcornPlayerWindow::keyPressEvent(QKeyEvent *event)
+{
+    showOverlay();
+
+    if (_mediaPlayer->state() != MediaPlayerState::PAUSED) {
+        _fadeTimer->start();
+    }
+
+    QWidget::keyPressEvent(event);
+}
+
+void PopcornPlayerWindow::showOverlay()
+{
+    _log->trace("Showing UI player overlay");
+    ui->controls->show();
+}
+
+void PopcornPlayerWindow::hideOverlay()
+{
+    _log->trace("Hiding UI player overlay");
+    ui->controls->hide();
+}
+
+void PopcornPlayerWindow::togglePlayback()
+{
+    auto state = _mediaPlayer->state();
+
+    if (state == MediaPlayerState::PLAYING) {
+        _mediaPlayer->pause();
+    } else if (state == MediaPlayerState::PAUSED) {
+        _mediaPlayer->resume();
+    } else {
+        _log->warn(std::string("Unable to toggle the playback, media player is in invalid state ") + media_player_state_as_string(state));
+    }
+}
+
+void PopcornPlayerWindow::updateTime(long offset)
+{
+    auto currentTime = _mediaPlayer->time();
+    auto duration = _mediaPlayer->duration();
+    auto newTime = currentTime + offset;
+
+    if (newTime < 0) {
+        _mediaPlayer->seek(0);
+    } else if (newTime > duration) {
+        _mediaPlayer->seek(duration);
+    } else {
+        _mediaPlayer->seek(newTime);
+    }
 }

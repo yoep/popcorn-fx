@@ -12,7 +12,8 @@ MediaPlayer::MediaPlayer(libvlc_instance_t *vlcInstance)
 
     _log->trace("Creating new media player");
     this->_vlcInstance = vlcInstance;
-    this->_vlcMediaPlayer = libvlc_media_player_new(vlcInstance);
+    this->_vlcMediaPlayer = libvlc_media_player_new(_vlcInstance);
+    this->_vlcMediaList = libvlc_media_list_player_new(_vlcInstance);
     this->_vlcEventManager = nullptr;
     this->_media = nullptr;
 
@@ -25,13 +26,12 @@ MediaPlayer::~MediaPlayer()
     releaseMediaPlayerIfNeeded();
 }
 
-bool MediaPlayer::play(Media *media)
+void MediaPlayer::play(Media *media)
 {
     // check if the media reference is not empty
     // if so, log an error and exit with a failure
     if (media == nullptr) {
         _log->error("Cannot play NULL media");
-        return false;
     }
 
     // connect the media events to this media player
@@ -40,19 +40,11 @@ bool MediaPlayer::play(Media *media)
     // update the active media item
     updateActiveMediaItem(media);
 
-    // set the VLC media in the media player
-    libvlc_media_player_set_media(_vlcMediaPlayer, media->vlcMedia());
-
-    // start playing the media
-    int result = libvlc_media_player_play(_vlcMediaPlayer);
-
-    // check the result from the playback
-    // if it failed, handle the error
-    if (result == -1) {
-        handleVlcError();
-        return false;
-    } else {
-        return true;
+    // check if the media is already parsed
+    // if so, play the media subitems
+    // otherwise, the bound event will trigger the playback
+    if (media->state() == MediaState::PARSED) {
+        onMediaParsed();
     }
 }
 
@@ -98,12 +90,6 @@ void MediaPlayer::stop()
     }
 }
 
-void MediaPlayer::setMediaDuration(long newValue)
-{
-    _log->debug("Media player duration has changed to " + std::to_string(newValue));
-    emit this->durationChanged(newValue);
-}
-
 void MediaPlayer::setVideoSurface(WId wid)
 {
 #if defined(Q_OS_WIN)
@@ -122,9 +108,31 @@ void MediaPlayer::setVideoSurface(WId wid)
     _log->debug("Video surface has been updated of the media player");
 }
 
+void MediaPlayer::setMediaDuration(long newValue)
+{
+    _log->debug("Media player duration has changed to " + std::to_string(newValue));
+    emit this->durationChanged(newValue);
+}
+
+void MediaPlayer::onMediaParsed()
+{
+    // check if the media contains subitems
+    if (_media->hasSubitems()) {
+        libvlc_media_list_player_set_media_list(_vlcMediaList, _media->subitems());
+        libvlc_media_list_player_play(_vlcMediaList);
+    } else {
+        libvlc_media_player_set_media(_vlcMediaPlayer, _media->vlcMedia());
+        libvlc_media_player_play(_vlcMediaPlayer);
+    }
+}
+
 void MediaPlayer::setSubtitleFile(const char *uri)
 {
     _log->debug(std::string("Adding new subtitle track: ") + uri);
+
+    if (_media == nullptr) {
+        _log->warn("No media is currently playing, the subtitle track might not be applied");
+    }
 
     if (libvlc_media_player_add_slave(_vlcMediaPlayer, libvlc_media_slave_type_subtitle, uri, true) == 0) {
         _log->info(std::string("Subtitle track \"") + uri + "\" has been added with success");
@@ -137,6 +145,25 @@ void MediaPlayer::setSubtitleDelay(long delay)
 {
     _log->debug(std::string("Updating subtitle delay to ") + std::to_string(delay) + "ms");
     libvlc_video_set_spu_delay(_vlcMediaPlayer, delay);
+}
+
+MediaPlayerState MediaPlayer::state()
+{
+    return _state;
+}
+
+long MediaPlayer::time()
+{
+    return libvlc_media_player_get_time(_vlcMediaPlayer);
+}
+
+long MediaPlayer::duration()
+{
+    if (_media == nullptr) {
+        return -1;
+    }
+
+    return libvlc_media_get_duration(_media->vlcMedia());
 }
 
 void MediaPlayer::releaseMediaPlayerIfNeeded()
@@ -159,6 +186,9 @@ void MediaPlayer::initializeMediaPlayer()
 
     libvlc_media_player_retain(_vlcMediaPlayer);
     _vlcEventManager = libvlc_media_player_event_manager(_vlcMediaPlayer);
+
+    // set the player used by this media player in the list
+    libvlc_media_list_player_set_media_player(_vlcMediaList, _vlcMediaPlayer);
 
     subscribeEvents();
     _log->debug("Media player initialized");
@@ -205,13 +235,15 @@ void MediaPlayer::subscribeToMediaEvents(Media *media)
     _log->trace("Adding listeners to new media item");
     connect(media, &Media::durationChanged,
         this, &MediaPlayer::setMediaDuration);
+    connect(media, &Media::parsed,
+        this, &MediaPlayer::onMediaParsed);
 }
 
 void MediaPlayer::updateState(MediaPlayerState newState)
 {
     // check if the old state is the same as the new state
     // if so, ignore the state update
-    if (this->_state == newState)
+    if (state() == newState)
         return;
 
     this->_state = newState;
@@ -250,20 +282,20 @@ void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
 
     switch (event->type) {
     case libvlc_MediaPlayerPlaying:
-        mediaPlayer->updateState(PLAYING);
+        mediaPlayer->updateState(MediaPlayerState::PLAYING);
         break;
     case libvlc_MediaPlayerPaused:
-        mediaPlayer->updateState(PAUSED);
+        mediaPlayer->updateState(MediaPlayerState::PAUSED);
         break;
     case libvlc_MediaPlayerBuffering:
         if (event->u.media_player_buffering.new_cache < 100) {
-            mediaPlayer->updateState(BUFFERING);
+            mediaPlayer->updateState(MediaPlayerState::BUFFERING);
         } else {
-            mediaPlayer->updateState(PLAYING);
+            mediaPlayer->updateState(MediaPlayerState::PLAYING);
         }
         break;
     case libvlc_MediaPlayerStopped:
-        mediaPlayer->updateState(STOPPED);
+        mediaPlayer->updateState(MediaPlayerState::STOPPED);
         break;
     case libvlc_MediaPlayerTimeChanged:
         emit mediaPlayer->timeChanged(event->u.media_player_time_changed.new_time);

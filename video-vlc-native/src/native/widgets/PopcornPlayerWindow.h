@@ -46,7 +46,7 @@ public slots:
     /**
      * Invoked when the UI needs to be hidden.
      */
-    void hideUi();
+    void onHideUI();
 
     /**
      * Invoked when the media player state has been changed.
@@ -58,11 +58,28 @@ public slots:
 private:
     Ui::PopcornPlayerWindow *ui;
     QTimer *_fadeTimer;
+    MediaPlayer *_mediaPlayer;
     Log *_log;
 
     void initializeUi();
 
     void connectEvents();
+
+    void showOverlay();
+
+    void hideOverlay();
+
+    void togglePlayback();
+
+    /**
+     * Update the time of the media player with the given offset.
+     *
+     * @param offset The offset to apply to the time.
+     */
+    void updateTime(long offset);
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
 };
 
 #endif // POPCORN_PLAYER_POPCORNPLAYERWINDOW_H

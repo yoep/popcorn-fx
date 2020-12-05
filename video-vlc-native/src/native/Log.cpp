@@ -23,12 +23,12 @@ Log *Log::instance()
     return _instance.get();
 }
 
-LogLevel Log::level()
+logLevel::LogLevel Log::level()
 {
     return this->_level;
 }
 
-void Log::setLevel(LogLevel logLevel)
+void Log::setLevel(logLevel::LogLevel logLevel)
 {
     this->_level = logLevel;
 }

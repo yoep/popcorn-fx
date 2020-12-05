@@ -4,7 +4,7 @@
 /**
  * Enumeration of the possible states of a media player.
  */
-enum MediaPlayerState {
+enum class MediaPlayerState {
     UNKNOWN = -1,
     PLAYING = 1,
     PAUSED = 2,

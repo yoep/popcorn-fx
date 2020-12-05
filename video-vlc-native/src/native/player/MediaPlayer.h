@@ -32,9 +32,8 @@ public:
      * Play the given media item in this media player instance.
      *
      * @param media The media item to play.
-     * @return Returns true if the media playback was started with success, else false.
      */
-    bool play(Media *media);
+    void play(Media *media);
 
     /**
      * Seek the given time in this media player.
@@ -72,7 +71,37 @@ public:
      */
     void setSubtitleDelay(long delay);
 
+    /**
+     * Get the current media player state.
+     *
+     * @return Returns the state of the media player.
+     */
+    MediaPlayerState state();
+
+    /**
+     * Get the current time of the media player.
+     *
+     * @return Returns the current time of the media player.
+     */
+    long time();
+
+    /**
+     * Get the current duration of the media player.
+     * The duration is -1 if no media is playing.
+     *
+     * @return Returns the duration of the current media playback.
+     */
+    long duration();
+
 public slots:
+    /**
+     * Set the video surface this media player must render on.
+     *
+     * @param wid The window handle to use.
+     */
+    void setVideoSurface(WId wid);
+
+private slots:
     /**
      * Set the media duration of the current media playback.
      *
@@ -81,11 +110,9 @@ public slots:
     void setMediaDuration(long newValue);
 
     /**
-     * Set the video surface this media player must render on.
-     *
-     * @param wid The window handle to use.
+     * Invoked when the media is parsed.
      */
-    void setVideoSurface(WId wid);
+    void onMediaParsed();
 
 signals:
     /**
@@ -112,9 +139,10 @@ signals:
 private:
     libvlc_instance_t *_vlcInstance;
     libvlc_media_player_t *_vlcMediaPlayer;
+    libvlc_media_list_player_t *_vlcMediaList;
     libvlc_event_manager_t *_vlcEventManager;
     Media *_media;
-    MediaPlayerState _state = UNKNOWN;
+    MediaPlayerState _state = MediaPlayerState::UNKNOWN;
     Log *_log;
 
     /**

@@ -4,15 +4,15 @@
 const char *media_player_state_as_string(MediaPlayerState state)
 {
     switch (state) {
-    case UNKNOWN:
+    case MediaPlayerState::UNKNOWN:
         return "UNKNOWN";
-    case PLAYING:
+    case MediaPlayerState::PLAYING:
         return "PLAYING";
-    case PAUSED:
+    case MediaPlayerState::PAUSED:
         return "PAUSED";
-    case BUFFERING:
+    case MediaPlayerState::BUFFERING:
         return "BUFFERING";
-    case STOPPED:
+    case MediaPlayerState::STOPPED:
         return "STOPPED";
     default:
         return "NOT_MAPPED";

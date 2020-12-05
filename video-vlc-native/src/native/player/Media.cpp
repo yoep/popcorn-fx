@@ -27,6 +27,21 @@ libvlc_media_t *Media::vlcMedia()
     return this->_vlcMedia;
 }
 
+libvlc_media_list_t *Media::subitems()
+{
+    return libvlc_media_subitems(_vlcMedia);
+}
+
+bool Media::hasSubitems()
+{
+    return countSubitems() > 0;
+}
+
+MediaState Media::state()
+{
+    return this->_state;
+}
+
 long Media::getDuration()
 {
     return libvlc_media_get_duration(_vlcMedia);
@@ -75,6 +90,13 @@ libvlc_media_t *Media::createFromUrl(const char *url)
         return nullptr;
     }
 
+    auto parseResult = libvlc_media_parse_with_options(media, libvlc_media_parse_flag_t::libvlc_media_parse_network, 30000);
+
+    if (parseResult == -1) {
+        _log->warn(std::string("Failed to start parsing of media url ") + url);
+        return nullptr;
+    }
+
     _log->debug(std::string("Media has been created with success for ") + url);
     return media;
 }
@@ -113,6 +135,63 @@ void Media::updateDuration(long duration)
     emit durationChanged(duration);
 }
 
+void Media::updateState(int vlcState)
+{
+    _log->trace("Parsing new VLC media item state");
+    MediaState newState;
+
+    switch (vlcState) {
+    case 1:
+        newState = MediaState::OPENING;
+        break;
+    case 3:
+        newState = MediaState::PLAYING;
+        break;
+    case 4:
+        newState = MediaState::PAUSED;
+        break;
+    case 6:
+        newState = MediaState::ENDED;
+        break;
+    case 7:
+        newState = MediaState::ERROR;
+        break;
+    default:
+        _log->warn("Unknown VLC media item state " + std::to_string(vlcState));
+        newState = MediaState::UNKNOWN;
+        break;
+    }
+
+    invokeStateChange(newState);
+}
+
+void Media::onParsedEvent()
+{
+    _log->debug("Found a total of " + std::to_string(countSubitems()) + " media sub items");
+    invokeStateChange(MediaState::PARSED);
+    emit this->parsed();
+}
+
+int Media::countSubitems()
+{
+    return libvlc_media_list_count(subitems());
+}
+
+void Media::invokeStateChange(MediaState newState)
+{
+    // check if the state is the same as the current known state
+    // if so, ignore the state update
+    if (newState == this->_state) {
+        return;
+    }
+
+    // store the new state
+    this->_state = newState;
+
+    _log->debug(string("Media item state changed to ") + media_state_as_string(_state));
+    emit stateChanged(_state);
+}
+
 void Media::vlcCallback(const libvlc_event_t *event, void *instance)
 {
     Log *log = Log::instance();
@@ -130,13 +209,13 @@ void Media::vlcCallback(const libvlc_event_t *event, void *instance)
         media->updateDuration(event->u.media_duration_changed.new_duration);
         break;
     case libvlc_MediaStateChanged:
-
+        media->updateState(event->u.media_state_changed.new_state);
         break;
     case libvlc_MediaFreed:
 
         break;
     case libvlc_MediaParsedChanged:
-
+        media->onParsedEvent();
         break;
     default:
         log->warn(std::string("Unknown VLC media event type ") + std::to_string(event->type));

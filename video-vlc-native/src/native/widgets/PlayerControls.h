@@ -2,7 +2,7 @@
 #define POPCORNPLAYER_PLAYERCONTROLS_H
 
 #include <Log.h>
-#include <QtWidgets/QWidget>
+#include <QtWidgets/QFrame>
 #include <player/MediaPlayerState.h>
 
 QT_BEGIN_NAMESPACE
@@ -11,7 +11,7 @@ class PlayerControls;
 }
 QT_END_NAMESPACE
 
-class PlayerControls : public QWidget {
+class PlayerControls : public QFrame {
     Q_OBJECT
 public:
     PlayerControls(QWidget *parent = nullptr);
@@ -40,6 +40,48 @@ public slots:
      */
     void setPlayerState(MediaPlayerState newValue);
 
+private slots:
+    /**
+     * Invoked when the stop button is invoked.
+     */
+    void onStop();
+
+    /**
+     * Invoked when the backward button is invoked.
+     */
+    void onBackward();
+
+    /**
+     * Invoked when the play pause is invoked.
+     */
+    void onPlayPause();
+
+    /**
+     * Invoked when the forward button is invoked.
+     */
+    void onForward();
+
+signals:
+    /**
+     * Signals that the stop button has been invoked.
+     */
+    void stop();
+
+    /**
+     * Signals that the backward button has been invoked.
+     */
+    void backward();
+
+    /**
+     * Signals that the play/pause button has been invoked.
+     */
+    void playPause();
+
+    /**
+     * Signals that the forward button has been invoked.
+     */
+    void forward();
+
 private:
     Ui::PlayerControls *ui;
     Log *log;
@@ -47,7 +89,7 @@ private:
     void initializeUi();
 
 protected:
-    void paintEvent(QPaintEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 };
 
 #endif //POPCORNPLAYER_PLAYERCONTROLS_H

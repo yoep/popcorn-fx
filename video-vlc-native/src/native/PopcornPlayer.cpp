@@ -215,15 +215,15 @@ void PopcornPlayer::updateLogLevel(char *levelArg)
     std::string level(levelArg);
 
     if (level == "trace") {
-        this->_log->setLevel(TRACE);
+        this->_log->setLevel(logLevel::TRACE);
     } else if (level == "debug") {
-        this->_log->setLevel(DEBUG);
+        this->_log->setLevel(logLevel::DEBUG);
     } else if (level == "info") {
-        this->_log->setLevel(INFO);
+        this->_log->setLevel(logLevel::INFO);
     } else if (level == "warn") {
-        this->_log->setLevel(WARN);
+        this->_log->setLevel(logLevel::WARN);
     } else if (level == "error") {
-        this->_log->setLevel(ERROR);
+        this->_log->setLevel(logLevel::ERROR);
     }
 }
 

@@ -50,7 +50,7 @@ void PopcornPlayerEventManager::onStateChanged(MediaPlayerState newState)
 {
     _log->trace(std::string("Event manager received new player state ") + media_player_state_as_string(newState));
     for (auto const &callback : _stateCallbacks) {
-        callback(newState);
+        callback(static_cast<int>(newState));
     }
 }
 

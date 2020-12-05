@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     });
     playThread.join();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20000));
     std::thread t3([&, instance] {
         popcorn_player_pause(instance);
     });

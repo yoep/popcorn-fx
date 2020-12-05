@@ -291,6 +291,19 @@
     -fx-focus-traversable: false;
 }
 
+.root .content-section .overlay .text-field {
+    -fx-pref-width: 350;
+    -fx-max-width: 350;
+    -fx-pref-height: 50;
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+    -fx-border-color: #ccc;
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #ccc;
+    -fx-focus-traversable: true;
+    -fx-cursor: hand;
+}
+
 .root .show-details-section .show-header .poster {
     -fx-max-width: 298;
     -fx-max-height: 315;

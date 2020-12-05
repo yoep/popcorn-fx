@@ -2,7 +2,11 @@ package com.github.yoep.popcorn.ui.view.controls;
 
 import javafx.beans.property.*;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import lombok.extern.slf4j.Slf4j;
+
+import java.awt.*;
 
 /**
  * The {@link DelayedTextField} invokes the value changed event after the last input event on the {@link TextField} to prevent event stacking.
@@ -150,6 +154,7 @@ public class DelayedTextField extends TextField {
         initializeValue();
         initializeListeners();
         initializeActionListener();
+        initializeKeyEvents();
     }
 
     private void initializeValue() {
@@ -174,6 +179,32 @@ public class DelayedTextField extends TextField {
         // if the ENTER key is pressed
         // force the value invocation
         setOnAction(event -> onChanged());
+    }
+
+    private void initializeKeyEvents() {
+        try {
+            var robot = new Robot();
+            var focusMoveCode = KeyCode.TAB.getCode();
+            var previousCode = KeyCode.SHIFT.getCode();
+
+            this.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+                if (event.getCode() == KeyCode.DOWN) {
+                    event.consume();
+
+                    robot.keyPress(focusMoveCode);
+                    robot.keyRelease(focusMoveCode);
+                } else if (event.getCode() == KeyCode.UP) {
+                    event.consume();
+
+                    robot.keyPress(previousCode);
+                    robot.keyPress(focusMoveCode);
+                    robot.keyRelease(previousCode);
+                    robot.keyRelease(focusMoveCode);
+                }
+            });
+        } catch (AWTException ex) {
+            log.error("Failed to create episodes robot, " + ex.getMessage(), ex);
+        }
     }
 
     private void createWatcher() {

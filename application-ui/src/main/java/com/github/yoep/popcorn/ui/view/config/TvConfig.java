@@ -127,6 +127,14 @@ public class TvConfig {
     }
 
     @Bean
+    public SettingsServerComponent settingsServerComponent(ApplicationEventPublisher eventPublisher,
+                                                           LocaleText localeText,
+                                                           SettingsService settingsService,
+                                                           SettingsSectionController settingsSection) {
+        return new SettingsServerComponent(eventPublisher, localeText, settingsService, settingsSection);
+    }
+
+    @Bean
     public PlayerHeaderComponent playerHeaderComponent() {
         return new PlayerHeaderComponent();
     }

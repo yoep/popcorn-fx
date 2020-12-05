@@ -20,6 +20,9 @@
 
             <!-- Subtitles -->
             <fx:include source="../components/settings-subtitles.component.fxml"/>
+
+            <!-- Server -->
+            <fx:include source="../components/settings-server.component.fxml"/>
         </VBox>
     </ManageableScrollPane>
 

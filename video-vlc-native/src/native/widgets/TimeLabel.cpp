@@ -18,7 +18,7 @@ void TimeLabel::reset()
 
 QString TimeLabel::toDisplayTime(long millis)
 {
-    int minutes = (int)((millis / (1000 * 60)) % 60);
+    int minutes = (int)(millis / (1000 * 60));
     int seconds = (int)(millis / 1000) % 60;
 
     return QString("%1:%2")

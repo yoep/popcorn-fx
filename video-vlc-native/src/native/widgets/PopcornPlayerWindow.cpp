@@ -3,7 +3,6 @@
 #include "PlayerHeader.h"
 #include "ui_popcornplayerwindow.h"
 
-#include <QResizeEvent>
 #include <QTimer>
 #include <QtWidgets/QGridLayout>
 #include <player/MediaPlayer.h>
@@ -88,8 +87,6 @@ void PopcornPlayerWindow::initializeUi()
 {
     _log->trace("Initializing popcorn player window");
     ui->setupUi(this);
-
-    setAutoFillBackground(true);
 
     ui->rootLayout->setRowStretch(1, QLAYOUTSIZE_MAX);
     ui->rootLayout->setRowMinimumHeight(3, 75);

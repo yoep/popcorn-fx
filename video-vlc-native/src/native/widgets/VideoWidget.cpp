@@ -96,4 +96,9 @@ void VideoWidget::sync()
 #endif
 }
 
+QPaintEngine *VideoWidget::paintEngine() const
+{
+    return nullptr;
+}
+
 //endregion

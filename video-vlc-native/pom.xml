@@ -115,10 +115,6 @@
                                 <configuration>
                                     <sourcePath>${project.parent.basedir}</sourcePath>
                                     <targetPath>${project.build.directory}/cmake</targetPath>
-                                    <options>
-                                        <option>-DCMAKE_MODULE_PATH=${qt.compiler.dir}/lib</option>
-                                        <option>-DCMAKE_PREFIX_PATH=${qt.compiler.dir}</option>
-                                    </options>
                                 </configuration>
                             </execution>
                             <execution>
@@ -128,11 +124,7 @@
                                 </goals>
                                 <configuration>
                                     <projectDirectory>${project.build.directory}/cmake</projectDirectory>
-                                    <target>all</target>
-                                    <options>
-                                        <option>-DCMAKE_MODULE_PATH=${qt.compiler}/lib</option>
-                                        <option>-DCMAKE_PREFIX_PATH=${qt.compiler}</option>
-                                    </options>
+                                    <target>PopcornPlayer</target>
                                 </configuration>
                             </execution>
                         </executions>

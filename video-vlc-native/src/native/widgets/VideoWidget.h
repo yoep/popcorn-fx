@@ -27,6 +27,7 @@ public:
      * Release the current video playback surface.
      */
     void release();
+    QPaintEngine *paintEngine() const override;
 
 private:
     Log *_log;

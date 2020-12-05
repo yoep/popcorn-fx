@@ -78,11 +78,31 @@ void PlayerControls::initializeUi()
 
 void PlayerControls::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Space) {
-        onPlayPause();
-    }
+    auto key = event->key();
 
-    QWidget::keyPressEvent(event);
+    switch (key) {
+    case Qt::Key_Space:
+    case Qt::Key_MediaTogglePlayPause:
+        onPlayPause();
+        break;
+    case Qt::Key_MediaPrevious:
+    case Qt::Key_Back:
+        onBackward();
+        break;
+    case Qt::Key_MediaNext:
+    case Qt::Key_Forward:
+        onForward();
+        break;
+    case Qt::Key_Left: {
+        focusPreviousChild();
+    } break;
+    case Qt::Key_Right: {
+        focusNextChild();
+    } break;
+    default:
+        QWidget::keyPressEvent(event);
+        break;
+    }
 }
 
 void PlayerControls::onStop()

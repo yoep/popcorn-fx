@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     popcorn_player_resume(instance);
 
     // keep the main thread alive for some additional time
-    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(60000));
     popcorn_player_release(instance);
 
     return 0;

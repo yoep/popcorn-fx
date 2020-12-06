@@ -30,4 +30,8 @@ public class ApplicationOptions {
      * Indicates if the mouse should be permanently disabled from the application.
      */
     private final boolean mouseDisabled;
+    /**
+     * Indicates if the keep alive should be permanently disabled from the application.
+     */
+    private final boolean keepAliveDisabled;
 }

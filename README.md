@@ -22,6 +22,7 @@ disable-arm-video-player        | Disable the arm video player from being activa
 disable-vlc-video-player        | Disable the VLC video player from being activated.
 disable-youtube-video-player    | Disabled the youtube player from being activated.
 disable-javafx-video-player     | Disabled the JavaFX player from being activated.
+disable-keep-alive              | Disable the keep alive service which sends periodic key events.
 force-arm-video-player          | Force the use of the arm video player.
 big-picture                     | Activate the big picture mode.
 kiosk                           | Activate the kiosk mode (use alt+f4 to close the application).

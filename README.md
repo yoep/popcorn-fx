@@ -138,6 +138,8 @@ To install the native VLC player, run the following maven command:
 
 #### TV mode
 
-![TV preview](https://i.imgur.com/QIx9NA2.png)
+![TV preview](https://i.imgur.com/QHQQKQk.png)
 
-![TV Movie details](https://i.imgur.com/VUFAdwV.png)
+![TV Movie details](https://i.imgur.com/FD0Hp3o.png)
+
+![TV player trailer](https://i.imgur.com/O5iFbTl.png)

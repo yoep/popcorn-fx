@@ -91,7 +91,7 @@ void PopcornPlayerWindow::initializeUi()
     ui->rootLayout->setRowStretch(1, QLAYOUTSIZE_MAX);
     ui->rootLayout->setRowMinimumHeight(3, 75);
 
-    _fadeTimer->setInterval(2000);
+    _fadeTimer->setInterval(3000);
     _fadeTimer->setSingleShot(true);
     _log->debug("Popcorn player window initialized");
 }

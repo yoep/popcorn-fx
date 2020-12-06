@@ -2,6 +2,7 @@
 
 #include <QList>
 #include <QtGui/QWidgetSet>
+#include <regex>
 #include <string>
 
 using namespace std;
@@ -124,20 +125,20 @@ void MediaPlayer::onMediaParsed()
         libvlc_media_player_set_media(_vlcMediaPlayer, _media->vlcMedia());
         libvlc_media_player_play(_vlcMediaPlayer);
     }
+
+    applySubtitleFile(this->_subtitleUri);
 }
 
 void MediaPlayer::setSubtitleFile(const char *uri)
 {
     _log->debug(std::string("Adding new subtitle track: ") + uri);
 
+    this->_subtitleUri = std::string(uri);
+
     if (_media == nullptr) {
         _log->warn("No media is currently playing, the subtitle track might not be applied");
-    }
-
-    if (libvlc_media_player_add_slave(_vlcMediaPlayer, libvlc_media_slave_type_subtitle, uri, true) == 0) {
-        _log->info(std::string("Subtitle track \"") + uri + "\" has been added with success");
     } else {
-        _log->error(std::string("Failed to add subtitle track ") + uri);
+        applySubtitleFile(this->_subtitleUri);
     }
 }
 
@@ -268,6 +269,28 @@ void MediaPlayer::releaseMediaItem()
     _media = nullptr;
 }
 
+void MediaPlayer::applySubtitleFile(const std::string &subtitleUri)
+{
+    // verify if the subtitleUri is valid
+    // if not, log an error and don't add the subtitle
+    if (!isValidSubtitleUri(subtitleUri)) {
+        _log->error(std::string("Subtitle uri \"") + std::string(subtitleUri) + "\" is invalid");
+        return;
+    }
+
+    // add the subtitle uri to the media player
+    if (libvlc_media_player_add_slave(_vlcMediaPlayer, libvlc_media_slave_type_subtitle, subtitleUri.c_str(), true) == 0) {
+        _log->info(std::string("Subtitle track \"") + subtitleUri + "\" has been added with success");
+    } else {
+        _log->error(std::string("Failed to add subtitle track ") + subtitleUri);
+    }
+}
+
+bool MediaPlayer::isValidSubtitleUri(const std::string &subtitleUri)
+{
+    return std::regex_match(subtitleUri, std::regex("^(file|https?):\\/\\/.*"));
+}
+
 void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
 {
     Log *log = Log::instance();
@@ -276,6 +299,7 @@ void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
     // if not, throw an error as we'll be unable to do anything with the event
     if (instance == nullptr) {
         log->error("Invalid VLC callback event, instance is NULL");
+        return;
     }
 
     auto *mediaPlayer = static_cast<MediaPlayer *>(instance);
@@ -300,6 +324,9 @@ void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
     case libvlc_MediaPlayerTimeChanged:
         emit mediaPlayer->timeChanged(event->u.media_player_time_changed.new_time);
         break;
+    case libvlc_MediaPlayerEncounteredError:
+        mediaPlayer->handleVlcError();
+        break;
     default:
         log->warn(std::string("Unknown VLC media player event type ") + std::to_string(event->type));
         break;
@@ -323,6 +350,7 @@ QList<libvlc_event_e> MediaPlayer::eventList()
     eventList << libvlc_MediaPlayerBuffering;
     eventList << libvlc_MediaPlayerStopped;
     eventList << libvlc_MediaPlayerTimeChanged;
+    eventList << libvlc_MediaPlayerEncounteredError;
 
     return eventList;
 }

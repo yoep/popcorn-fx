@@ -7,11 +7,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import java.io.File;
+import java.util.Objects;
 
 @Slf4j
 public class PopcornPlayer {
     private final popcorn_player_t instance;
     private final PopcornPlayerEventManager eventManager;
+
+    private String subtitleFileUri;
 
     /**
      * Initialize a new {@link PopcornPlayer} instance.
@@ -28,6 +31,7 @@ public class PopcornPlayer {
         }
 
         this.eventManager = new PopcornPlayerEventManager(instance);
+        log.debug("Popcorn player library initialized");
     }
 
     /**
@@ -97,8 +101,16 @@ public class PopcornPlayer {
      * @param file The .srt file to add to the current playback.
      */
     public void subtitleFile(File file) {
-        log.trace("Adding subtitle file {} to the current playback", file.getAbsolutePath());
-        PopcornPlayerLib.popcorn_player_subtitle(instance, file.toURI().toASCIIString());
+        var subtitleFileUri = file.toURI().toASCIIString();
+
+        if (Objects.equals(this.subtitleFileUri, subtitleFileUri)) {
+            log.trace("Subtitle file \"{}\" has already been added to the media playback, ignoring action", subtitleFileUri);
+            return;
+        }
+
+        log.debug("Adding subtitle file \"{}\" to the current media playback", file.getAbsolutePath());
+        this.subtitleFileUri = subtitleFileUri;
+        PopcornPlayerLib.popcorn_player_subtitle(instance, toLocalFileUri(this.subtitleFileUri));
     }
 
     /**
@@ -124,6 +136,15 @@ public class PopcornPlayer {
      * Release the popcorn player instance.
      */
     public void release() {
+        log.debug("Releasing popcorn player");
         PopcornPlayerLib.popcorn_player_release(instance);
+    }
+
+    private String toLocalFileUri(String uri) {
+        if (uri.startsWith("file://")) {
+            return uri;
+        } else {
+            return uri.replaceFirst("file:/", "file:///");
+        }
     }
 }

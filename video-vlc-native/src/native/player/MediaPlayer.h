@@ -143,6 +143,7 @@ private:
     libvlc_event_manager_t *_vlcEventManager;
     Media *_media;
     MediaPlayerState _state = MediaPlayerState::UNKNOWN;
+    std::string _subtitleUri;
     Log *_log;
 
     /**
@@ -195,6 +196,22 @@ private:
      * Release the old media item from this media player.
      */
     void releaseMediaItem();
+
+    /**
+     * Apply the stored subtitle uri file to the current media playback.
+     *
+     * @param subtitleUri The subtitle uri to apply.
+     */
+    void applySubtitleFile(const std::string &subtitleUri);
+
+    /**
+     * Verify if the given subtitle uri is valid.
+     * This will validate if the subtitle uri contains a scheme.
+     *
+     * @param subtitleUri The subtitle uri to verify.
+     * @return Returns true if the given uri is valid, else false.
+     */
+    static bool isValidSubtitleUri(const std::string &subtitleUri);
 
     static void vlcCallback(const libvlc_event_t *event, void *instance);
 

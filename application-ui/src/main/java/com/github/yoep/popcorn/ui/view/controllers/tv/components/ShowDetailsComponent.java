@@ -52,7 +52,6 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
     private static final double POSTER_HEIGHT = 315.0;
 
     private final ShowHelperService showHelperService;
-    private final WatchedService watchedService;
     private final ChangeListener<Boolean> watchedListener = createWatchListener();
 
     private Episode episode;
@@ -101,9 +100,8 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
                                 WatchedService watchedService,
                                 ApplicationEventPublisher eventPublisher,
                                 SubtitleService subtitleService) {
-        super(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService);
+        super(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService, watchedService);
         this.showHelperService = showHelperService;
-        this.watchedService = watchedService;
     }
 
     //endregion

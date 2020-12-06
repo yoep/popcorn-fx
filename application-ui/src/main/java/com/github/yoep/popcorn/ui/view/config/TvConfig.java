@@ -98,8 +98,9 @@ public class TvConfig {
                                                        SettingsService settingsService,
                                                        ApplicationEventPublisher eventPublisher,
                                                        SubtitleService subtitleService,
+                                                       WatchedService watchedService,
                                                        FavoriteService favoriteService) {
-        return new MovieDetailsComponent(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService, favoriteService);
+        return new MovieDetailsComponent(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService, watchedService, favoriteService);
     }
 
     @Bean

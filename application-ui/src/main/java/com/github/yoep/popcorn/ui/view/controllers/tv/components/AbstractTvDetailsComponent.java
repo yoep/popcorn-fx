@@ -1,8 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
+import com.github.yoep.popcorn.ui.media.watched.WatchedService;
+import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
@@ -15,6 +16,7 @@ import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
@@ -29,24 +31,23 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public abstract class AbstractTvDetailsComponent<T extends Media> extends AbstractDetailsComponent<T> implements Initializable {
-    protected static final String SUBTITLE_STYLE_CLASS = "subtitle";
-    protected static final String SUBTITLE_LOADING_STYLE_CLASS = "loading";
-    protected static final String SUBTITLE_SUCCESS_STYLE_CLASS = "success";
-    protected static final String SUBTITLE_FAILED_STYLE_CLASS = "failed";
-
     protected final ApplicationEventPublisher eventPublisher;
     protected final SubtitleService subtitleService;
+    protected final WatchedService watchedService;
 
     @FXML
     protected Overlay overlay;
     @FXML
-    protected Icon subtitleStatus;
+    protected Pane subtitleButton;
+    @FXML
+    protected Label subtitleLabel;
     @FXML
     protected Pane qualityButton;
     @FXML
     protected Label qualityButtonLabel;
 
     protected ListView<String> qualityList;
+    protected ListView<SubtitleInfo> subtitleList;
     protected String quality;
     protected SubtitleInfo subtitle;
 
@@ -59,10 +60,11 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
                                          HealthService healthService,
                                          SettingsService settingsService,
                                          ApplicationEventPublisher eventPublisher,
-                                         SubtitleService subtitleService) {
+                                         SubtitleService subtitleService, WatchedService watchedService) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
+        this.watchedService = watchedService;
     }
 
     //endregion
@@ -72,14 +74,35 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeQualityList();
+        initializeSubtitleList();
     }
 
     protected void initializeQualityList() {
         qualityList = new ListView<>();
 
-        qualityList.setMaxWidth(100);
+        qualityList.setMaxWidth(200);
         qualityList.getItems().addListener((InvalidationListener) observable -> qualityList.setMaxHeight(50.0 * qualityList.getItems().size()));
         qualityList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
+    }
+
+    protected void initializeSubtitleList() {
+        subtitleList = new ListView<>();
+
+        subtitleList.setMaxWidth(200);
+        subtitleList.getItems().addListener((InvalidationListener) observable -> subtitleList.setMaxHeight(50.0 * subtitleList.getItems().size()));
+        subtitleList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
+        subtitleList.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(SubtitleInfo item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty) {
+                    setText(item.getLanguage().getNativeName());
+                } else {
+                    setText(null);
+                }
+            }
+        });
     }
 
     //endregion
@@ -97,8 +120,8 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
         this.subtitleRetrieveFuture = null;
 
         Platform.runLater(() -> {
-            subtitleStatus.getStyleClass().removeIf(e -> !e.equals(SUBTITLE_STYLE_CLASS));
             qualityList.getItems().clear();
+            subtitleList.getItems().clear();
         });
     }
 
@@ -117,27 +140,22 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
     protected abstract void loadHealth(String quality);
 
     protected void loadSubtitles() {
-        subtitleStatus.getStyleClass().add(SUBTITLE_LOADING_STYLE_CLASS);
-
         // check if another subtitle is already being retrieved
         cancelSubtitleRetrievalIfNeeded();
 
         subtitleRetrieveFuture = retrieveSubtitles();
 
         subtitleRetrieveFuture.whenComplete((subtitleInfos, throwable) -> {
-            subtitleStatus.getStyleClass().remove(SUBTITLE_LOADING_STYLE_CLASS);
-
             if (throwable == null) {
-                subtitle = subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos);
+                this.subtitle = subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos);
 
-                if (subtitle.isNone()) {
-                    subtitleStatus.getStyleClass().add(SUBTITLE_FAILED_STYLE_CLASS);
-                } else {
-                    subtitleStatus.getStyleClass().add(SUBTITLE_SUCCESS_STYLE_CLASS);
-                }
+                Platform.runLater(() -> {
+                    subtitleList.getItems().clear();
+                    subtitleList.getItems().addAll(subtitleInfos);
+                    subtitleList.getSelectionModel().select(this.subtitle);
+                });
             } else if (isNotACancellationException(throwable)) {
                 log.error(throwable.getMessage(), throwable);
-                subtitleStatus.getStyleClass().add(SUBTITLE_FAILED_STYLE_CLASS);
             }
         });
     }
@@ -153,6 +171,16 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
         quality = newValue;
         qualityButtonLabel.setText(newValue);
         loadHealth(newValue);
+    }
+
+    private void onSubtitleChanged(SubtitleInfo newValue) {
+        this.subtitle = newValue;
+
+        if (newValue != null) {
+            subtitleLabel.setText(newValue.getLanguage().getNativeName());
+        } else {
+            subtitleLabel.setText(localeText.get(MediaMessage.SUBTITLE_NONE));
+        }
     }
 
     private void cancelSubtitleRetrievalIfNeeded() {

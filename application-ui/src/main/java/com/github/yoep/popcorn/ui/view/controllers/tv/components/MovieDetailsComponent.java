@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
+import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
@@ -18,6 +19,7 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
@@ -36,12 +38,13 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> implements Initializable {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
+    private static final String WATCHED_STYLE_CLASS = "watched";
     private static final String LIKED_STYLE_CLASS = "liked";
 
     private final FavoriteService favoriteService;
 
     @FXML
-    private Icon playButton;
+    private Node playButton;
     @FXML
     private Label title;
     @FXML
@@ -53,20 +56,20 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     @FXML
     private Label genres;
     @FXML
+    private Icon watchedButton;
+    @FXML
+    private Label watchedText;
+    @FXML
     private Icon likeButton;
     @FXML
     private Label likeText;
 
     //region Constructors
 
-    public MovieDetailsComponent(LocaleText localeText,
-                                 ImageService imageService,
-                                 HealthService healthService,
-                                 SettingsService settingsService,
-                                 ApplicationEventPublisher eventPublisher,
-                                 SubtitleService subtitleService,
+    public MovieDetailsComponent(LocaleText localeText, ImageService imageService, HealthService healthService, SettingsService settingsService,
+                                 ApplicationEventPublisher eventPublisher, SubtitleService subtitleService, WatchedService watchedService,
                                  FavoriteService favoriteService) {
-        super(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService);
+        super(localeText, imageService, healthService, settingsService, eventPublisher, subtitleService, watchedService);
         this.favoriteService = favoriteService;
     }
 
@@ -104,6 +107,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         loadText();
         loadQualities();
         loadSubtitles();
+        initializeWatched();
         initializeFavorite();
     }
 
@@ -151,6 +155,14 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         });
     }
 
+    private void initializeWatched() {
+        var watched = watchedService.isWatched(media);
+
+        media.setWatched(watched);
+        media.watchedProperty().addListener((observable, oldValue, newValue) -> switchWatched(newValue));
+        switchWatched(watched);
+    }
+
     private void initializeFavorite() {
         boolean liked = favoriteService.isLiked(media);
 
@@ -173,6 +185,22 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         overlay.show(qualityButton, qualityList);
     }
 
+    private void onSubtitle() {
+        overlay.show(subtitleButton, subtitleList);
+    }
+
+    private void onWatchedChanged() {
+        boolean watched = !media.isWatched();
+
+        media.setWatched(watched);
+
+        if (watched) {
+            watchedService.addToWatchList(media);
+        } else {
+            watchedService.removeFromWatchList(media);
+        }
+    }
+
     private void onLikeChanged() {
         boolean liked = !media.isLiked();
 
@@ -189,15 +217,30 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
         eventPublisher.publishEvent(new CloseDetailsEvent(this));
     }
 
+    private void switchWatched(boolean isWatched) {
+        Platform.runLater(() -> {
+            watchedButton.getStyleClass().removeIf(e -> e.equals(WATCHED_STYLE_CLASS));
+
+            if (isWatched) {
+                watchedButton.setText(Icon.EYE_UNICODE);
+                watchedButton.getStyleClass().add(WATCHED_STYLE_CLASS);
+                watchedText.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
+            } else {
+                watchedButton.setText(Icon.EYE_SLASH_UNICODE);
+                watchedText.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
+            }
+        });
+    }
+
     private void switchFavorite(boolean isLiked) {
         Platform.runLater(() -> {
             likeButton.getStyleClass().removeIf(e -> e.equals(LIKED_STYLE_CLASS));
 
             if (isLiked) {
                 likeButton.getStyleClass().add(LIKED_STYLE_CLASS);
-                likeText.setText(localeText.get(DetailsMessage.UNFAVORED));
+                likeText.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
             } else {
-                likeText.setText(localeText.get(DetailsMessage.FAVORITE));
+                likeText.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
             }
         });
     }
@@ -253,9 +296,37 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     }
 
     @FXML
+    private void onSubtitleClicked(MouseEvent event) {
+        event.consume();
+        onSubtitle();
+    }
+
+    @FXML
+    private void onSubtitleKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onSubtitle();
+        }
+    }
+
+    @FXML
+    private void onWatchedClicked(MouseEvent event) {
+        event.consume();
+        onWatchedChanged();
+    }
+
+    @FXML
     private void onLikeClicked(MouseEvent event) {
         event.consume();
         onLikeChanged();
+    }
+
+    @FXML
+    private void onWatchedKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onWatchedChanged();
+        }
     }
 
     @FXML

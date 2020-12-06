@@ -1,141 +1,175 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
-<?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
-<?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
-<?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
-<?import com.github.yoep.popcorn.ui.view.controls.Stars?>
+<?import com.github.yoep.popcorn.ui.view.controls.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import com.github.yoep.popcorn.ui.view.controls.HealthIcon?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.MovieDetailsComponent"
           styleClass="movie-details" onKeyPressed="#onDetailsKeyPressed">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="10"/>
-        <ColumnConstraints minWidth="400" percentWidth="80" hgrow="ALWAYS"/>
+        <ColumnConstraints minWidth="400" percentWidth="30" hgrow="ALWAYS"/>
+        <ColumnConstraints minWidth="15" maxWidth="15" hgrow="NEVER"/>
+        <ColumnConstraints minWidth="400" percentWidth="50" hgrow="ALWAYS"/>
         <ColumnConstraints minWidth="20" percentWidth="10"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="20" percentHeight="10"/>
-        <RowConstraints minHeight="300" percentHeight="80" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="100"/>
+        <RowConstraints minHeight="75"/>
+        <RowConstraints vgrow="ALWAYS"/>
+        <RowConstraints/>
         <RowConstraints minHeight="20" percentHeight="10"/>
     </rowConstraints>
 
+    <!-- Details background -->
     <BackgroundImageCover fx:id="backgroundImage"
-                          GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                          GridPane.columnIndex="0" GridPane.columnSpan="5" GridPane.rowIndex="0" GridPane.rowSpan="6"/>
 
-    <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1">
+    <!-- Banner -->
+    <VBox styleClass="banner"
+          GridPane.columnSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="2">
+        <StackPane styleClass="top"/>
+        <StackPane styleClass="bottom"/>
+    </VBox>
+
+    <!-- Poster -->
+    <StackPane fx:id="posterHolder"
+               GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.rowSpan="4">
+        <ImageCover fx:id="poster" styleClass="poster-image"/>
+    </StackPane>
+
+    <!-- Playback -->
+    <GridPane styleClass="banner-actions"
+              GridPane.columnIndex="3" GridPane.rowIndex="2">
         <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS" percentWidth="40" halignment="RIGHT"/>
-            <ColumnConstraints hgrow="NEVER" minWidth="10"/>
-            <ColumnConstraints hgrow="ALWAYS" prefWidth="60" halignment="LEFT"/>
+            <ColumnConstraints percentWidth="25"/>
+            <ColumnConstraints percentWidth="25"/>
+            <ColumnConstraints percentWidth="25"/>
+            <ColumnConstraints percentWidth="25"/>
         </columnConstraints>
         <rowConstraints>
-            <RowConstraints vgrow="ALWAYS"/>
+            <RowConstraints valignment="CENTER"/>
         </rowConstraints>
 
-        <StackPane fx:id="posterHolder" GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <ImageCover fx:id="poster" styleClass="poster-image"/>
-            <Icon fx:id="playButton" styleClass="poster-play" focusTraversable="true" onMouseClicked="#onPlayClicked" onKeyPressed="#onPlayKeyPressed">
+        <VBox fx:id="playButton" styleClass="action" focusTraversable="true"
+              onMouseClicked="#onPlayClicked" onKeyPressed="#onPlayKeyPressed"
+              GridPane.columnIndex="0" GridPane.rowIndex="0">
+            <Icon styleClass="graphic">
                 <Icon fx:constant="PLAY_UNICODE"/>
             </Icon>
-        </StackPane>
+            <Label labelFor="$playButton" text="%details_watch_now"/>
+        </VBox>
 
-        <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
-            <columnConstraints>
-                <ColumnConstraints/>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints maxWidth="30"/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints/>
-                <RowConstraints minHeight="30" valignment="CENTER"/>
-                <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
-                <RowConstraints minHeight="60" valignment="BOTTOM"/>
-            </rowConstraints>
+        <VBox styleClass="action" focusTraversable="true"
+              onMouseClicked="#onWatchTrailerClicked" onKeyPressed="#onWatchTrailerKeyPressed"
+              GridPane.columnIndex="1" GridPane.rowIndex="0">
+            <Icon styleClass="graphic">
+                <Icon fx:constant="FILM_UNICODE"/>
+            </Icon>
+            <Label text="%details_watch_trailer"/>
+        </VBox>
 
-            <Label fx:id="title" styleClass="title"
-                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <VBox fx:id="qualityButton" styleClass="action" focusTraversable="true"
+              onMouseClicked="#onQualityClicked" onKeyPressed="#onQualityKeyPressed"
+              GridPane.columnIndex="2" GridPane.rowIndex="0">
+            <Label fx:id="qualityButtonLabel" styleClass="graphic, text"/>
+            <Label text="%details_quality"/>
+        </VBox>
 
-            <HBox styleClass="metadata" alignment="CENTER_LEFT"
-                  GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1">
+        <VBox fx:id="subtitleButton" styleClass="action" focusTraversable="true"
+              onMouseClicked="#onSubtitleClicked" onKeyPressed="#onSubtitleKeyPressed"
+              GridPane.columnIndex="3" GridPane.rowIndex="0">
+            <Label fx:id="subtitleLabel" styleClass="graphic, text"/>
+            <Label text="%details_subtitle"/>
+        </VBox>
+    </GridPane>
 
-                <Label fx:id="year"/>
-                <Icon styleClass="separator">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-                <Label fx:id="duration"/>
-                <Icon styleClass="separator">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-                <Label fx:id="genres"/>
-                <Icon styleClass="separator">
-                    <Icon fx:constant="CIRCLE_UNICODE"/>
-                </Icon>
-                <Stars fx:id="ratingStars" alignment="CENTER"/>
-            </HBox>
+    <!-- Details -->
+    <GridPane GridPane.columnIndex="3" GridPane.rowIndex="3">
+        <columnConstraints>
+            <ColumnConstraints/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints maxWidth="30"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints/>
+            <RowConstraints minHeight="30" valignment="CENTER"/>
+            <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
+            <RowConstraints minHeight="60" valignment="BOTTOM"/>
+        </rowConstraints>
 
-            <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT" spacing="5">
-                <Icon fx:id="subtitleStatus" styleClass="subtitle">
-                    <Icon fx:constant="COMMENT_UNICODE"/>
-                </Icon>
-                <HealthIcon fx:id="health" styleClass="health" />
-            </HBox>
+        <Label fx:id="title" styleClass="title"
+               GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
+        <HBox styleClass="metadata" alignment="CENTER_LEFT"
+              GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
-            <!-- Overview text -->
-            <Label fx:id="overview" styleClass="overview" wrapText="true"
-                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+            <Label fx:id="year"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="duration"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="genres"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Stars fx:id="ratingStars" alignment="CENTER"/>
+        </HBox>
 
-            <!-- Actions -->
-            <GridPane styleClass="actions"
-                      GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="3">
-                <columnConstraints>
-                    <ColumnConstraints percentWidth="25"/>
-                    <ColumnConstraints percentWidth="25"/>
-                    <ColumnConstraints percentWidth="25"/>
-                    <ColumnConstraints percentWidth="25"/>
-                </columnConstraints>
-                <rowConstraints>
-                    <RowConstraints/>
-                </rowConstraints>
+        <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT" spacing="5">
+            <HealthIcon fx:id="health" styleClass="health"/>
+        </HBox>
 
-                <VBox styleClass="action" focusTraversable="true"
-                      onMouseClicked="#onWatchTrailerClicked" onKeyPressed="#onWatchTrailerKeyPressed"
-                      GridPane.columnIndex="0" GridPane.rowIndex="0">
-                    <Icon styleClass="button">
-                        <Icon fx:constant="FILM_UNICODE"/>
-                    </Icon>
-                    <Label text="%details_watch_trailer"/>
-                </VBox>
-                <VBox fx:id="qualityButton" styleClass="action" focusTraversable="true"
-                      onMouseClicked="#onQualityClicked" onKeyPressed="#onQualityKeyPressed"
-                      GridPane.columnIndex="1" GridPane.rowIndex="0">
-                    <Label fx:id="qualityButtonLabel" styleClass="button, text"/>
-                    <Label text="%details_quality"/>
-                </VBox>
-                <VBox styleClass="action" focusTraversable="true"
-                      onMouseClicked="#onLikeClicked" onKeyPressed="#onLikeKeyPressed"
-                      GridPane.columnIndex="2" GridPane.rowIndex="0">
-                    <Icon fx:id="likeButton" styleClass="button">
-                        <Icon fx:constant="HEART_UNICODE"/>
-                    </Icon>
-                    <Label fx:id="likeText" text="%details_add_to_bookmarks"/>
-                </VBox>
-                <VBox styleClass="action" focusTraversable="true"
-                      onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
-                      GridPane.columnIndex="3" GridPane.rowIndex="0">
-                    <Icon styleClass="button">
-                        <Icon fx:constant="TIMES_UNICODE"/>
-                    </Icon>
-                    <Label text="%close"/>
-                </VBox>
-            </GridPane>
-        </GridPane>
+        <!-- Overview text -->
+        <Label fx:id="overview" styleClass="overview" wrapText="true"
+               GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+    </GridPane>
+
+    <!-- Options/actions -->
+    <GridPane styleClass="actions"
+              GridPane.columnIndex="3" GridPane.rowIndex="4">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="25"/>
+            <ColumnConstraints percentWidth="25"/>
+            <ColumnConstraints percentWidth="25"/>
+            <ColumnConstraints percentWidth="25"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints/>
+        </rowConstraints>
+
+        <VBox styleClass="action" focusTraversable="true"
+              onMouseClicked="#onWatchedClicked" onKeyPressed="#onWatchedKeyPressed"
+              GridPane.columnIndex="0" GridPane.rowIndex="0">
+            <Icon fx:id="watchedButton" styleClass="button">
+                <Icon fx:constant="EYE_UNICODE"/>
+            </Icon>
+            <Label fx:id="watchedText" text="%details_mark_as_watched"/>
+        </VBox>
+        <VBox styleClass="action" focusTraversable="true"
+              onMouseClicked="#onLikeClicked" onKeyPressed="#onLikeKeyPressed"
+              GridPane.columnIndex="1" GridPane.rowIndex="0">
+            <Icon fx:id="likeButton" styleClass="button">
+                <Icon fx:constant="HEART_UNICODE"/>
+            </Icon>
+            <Label fx:id="likeText" text="%details_add_to_bookmarks"/>
+        </VBox>
+        <VBox styleClass="action" focusTraversable="true"
+              onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
+              GridPane.columnIndex="3" GridPane.rowIndex="0">
+            <Icon styleClass="button">
+                <Icon fx:constant="TIMES_UNICODE"/>
+            </Icon>
+            <Label text="%close"/>
+        </VBox>
     </GridPane>
 
     <!-- Overlay -->
     <Overlay fx:id="overlay" visible="false"
-             GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+             GridPane.columnIndex="0" GridPane.columnSpan="5" GridPane.rowIndex="0" GridPane.rowSpan="6"/>
 </GridPane>

@@ -174,25 +174,16 @@
     -fx-text-fill: #d53f3f;
 }
 
-.root .content-section .movie-details .poster-play {
-    -fx-pref-width: 70;
-    -fx-pref-height: 70;
-    -fx-background-color: rgba(0, 0, 0, 0.6);
-    -fx-background-radius: 35;
-    -fx-border-color: #ccc;
-    -fx-border-width: 2;
-    -fx-border-radius: 35;
-    -fx-cursor: hand;
-    -fx-font-size: 3em;
-    -fx-text-fill: #ccc;
-    -fx-alignment: center;
+.root .content-section .movie-details .banner .top {
+    -fx-min-height: 60;
+    -fx-background-color: rgba(45, 114, 217, 0.7);
+    -fx-padding: 5 0 7 0;
 }
 
-.root .content-section .movie-details .poster-play:hover,
-.root .content-section .movie-details .poster-play:focused {
-    -fx-background-color: rgba(45, 114, 217, 0.6);
-    -fx-border-color: #fff;
-    -fx-text-fill: #fff;
+.root .content-section .movie-details .banner .bottom {
+    -fx-min-height: 35;
+    -fx-background-color: rgba(31, 35, 95, 0.5);
+    -fx-padding: 5 0 0 0;
 }
 
 .root .content-section .movie-details .actions,
@@ -200,6 +191,7 @@
     -fx-spacing: 20;
 }
 
+.root .content-section .movie-details .banner-actions .action,
 .root .content-section .movie-details .actions .action,
 .root .content-section .show-details .actions .action {
     -fx-alignment: center;
@@ -207,11 +199,30 @@
     -fx-cursor: hand;
 }
 
+.root .content-section .movie-details .banner-actions .action Label,
 .root .content-section .movie-details .actions .action Label,
 .root .content-section .show-details .actions .action Label {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #ccc;
     -fx-font-size: 1.5em;
+}
+
+.root .content-section .movie-details .banner-actions .action .graphic {
+    -fx-min-height: 60;
+    -fx-max-height: 60;
+    -fx-border-width: 0 0 4 0;
+    -fx-border-color: transparent;
+    -fx-border-style: solid;
+    -fx-alignment: center;
+    -fx-text-fill: #ccc;
+    -fx-font-size: 3em;
+    -fx-padding: 3 10 2 10;
+}
+
+.root .content-section .movie-details .banner-actions .action:focused .graphic,
+.root .content-section .movie-details .banner-actions .action:hover .graphic {
+    -fx-border-color: #fff;
+    -fx-text-fill: #fff;
 }
 
 .root .content-section .movie-details .actions .action .button,
@@ -228,6 +239,7 @@
     -fx-font-size: 2em;
 }
 
+.root .content-section .movie-details .banner-actions .action .button.text,
 .root .content-section .movie-details .actions .action .button.text,
 .root .content-section .show-details .actions .action .button.text {
     -fx-pref-width: 100;
@@ -240,6 +252,11 @@
     -fx-text-fill: #df2d37;
 }
 
+.root .content-section .movie-details .actions .action .button.watched,
+.root .content-section .show-details .actions .action .button.watched {
+    -fx-text-fill: #fff;
+}
+
 .root .content-section .movie-details .actions .action:hover .button,
 .root .content-section .movie-details .actions .action:focused .button,
 .root .content-section .show-details .actions .action:hover .button,
@@ -249,6 +266,8 @@
     -fx-text-fill: #fff;
 }
 
+.root .content-section .movie-details .banner-actions .action:hover Label,
+.root .content-section .movie-details .banner-actions .action:focused Label,
 .root .content-section .movie-details .actions .action:hover Label,
 .root .content-section .movie-details .actions .action:focused Label,
 .root .content-section .show-details .actions .action:hover Label,

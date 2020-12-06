@@ -271,6 +271,12 @@ void MediaPlayer::releaseMediaItem()
 
 void MediaPlayer::applySubtitleFile(const std::string &subtitleUri)
 {
+    // check if a subtitle is set
+    // if not, ignore this action
+    if (subtitleUri.length() == 0) {
+        return;
+    }
+
     // verify if the subtitleUri is valid
     // if not, log an error and don't add the subtitle
     if (!isValidSubtitleUri(subtitleUri)) {

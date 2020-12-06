@@ -27,11 +27,13 @@ PlayerControls::~PlayerControls()
 void PlayerControls::setTime(long newValue)
 {
     ui->time->setTime(newValue);
+    ui->slider->setValue(toSliderValue(newValue));
 }
 
 void PlayerControls::setDuration(long newValue)
 {
     ui->duration->setTime(newValue);
+    ui->slider->setMaximum(toSliderValue(newValue));
 }
 
 void PlayerControls::setPlayerState(MediaPlayerState newValue)
@@ -100,9 +102,10 @@ void PlayerControls::keyPressEvent(QKeyEvent *event)
         focusNextChild();
     } break;
     default:
-        QWidget::keyPressEvent(event);
         break;
     }
+
+    QWidget::keyPressEvent(event);
 }
 
 void PlayerControls::onStop()
@@ -123,4 +126,9 @@ void PlayerControls::onPlayPause()
 void PlayerControls::onForward()
 {
     emit forward();
+}
+
+int PlayerControls::toSliderValue(long value)
+{
+    return (int)value / 1000;
 }

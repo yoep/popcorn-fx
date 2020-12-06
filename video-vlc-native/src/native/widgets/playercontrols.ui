@@ -38,10 +38,10 @@
             <item row="0" column="0">
                 <layout class="QGridLayout">
                     <property name="verticalSpacing">
-                        <number>0</number>
+                        <number>10</number>
                     </property>
                     <property name="horizontalSpacing">
-                        <number>10</number>
+                        <number>20</number>
                     </property>
                     <item row="0" column="0">
                         <widget class="Icon" name="stopButton">
@@ -115,6 +115,37 @@
                             </property>
                             <property name="alignment">
                                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                        </widget>
+                    </item>
+                    <item row="1" column="1" colspan="3">
+                        <widget class="QSlider" name="slider">
+                            <property name="styleSheet">
+                                <string notr="true">
+                                    QSlider {
+                                    min-height: 50px;
+                                    max-height: 50px;
+                                    }
+                                    QSlider::groove:horizontal {
+                                    border: 1px solid #999999;
+                                    border-radius: 10;
+                                    height: 15px;
+                                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);
+                                    position: absolute;
+                                    }
+                                    QSlider::handle:horizontal {
+                                    max-width: 0px;
+                                    max-height: 0px;
+                                    background: transparent;
+                                    }
+                                    QSlider::sub-page {
+                                    border-radius: 10;
+                                    background: rgb(45, 114, 217);
+                                    }
+                                </string>
+                            </property>
+                            <property name="orientation">
+                                <enum>Qt::Horizontal</enum>
                             </property>
                         </widget>
                     </item>

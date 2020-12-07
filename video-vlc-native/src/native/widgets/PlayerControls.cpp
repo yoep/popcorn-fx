@@ -73,6 +73,7 @@ void PlayerControls::initializeUi()
     ui->playPauseButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     ui->forwardButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     ui->moreButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
+    ui->slider->setFocusPolicy(Qt::FocusPolicy::NoFocus);
     ui->playPauseButton->setFocus();
 
     log->debug("Player controls have been initialized");

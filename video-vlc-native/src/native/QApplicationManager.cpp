@@ -92,6 +92,7 @@ void QApplicationManager::initialize()
 
         _log->trace("Initializing QT application instance");
         QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+        QApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
         QApplication::setApplicationName(APPLICATION_TITLE);
         _qtApp = new QApplication(argc, argv);
 

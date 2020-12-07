@@ -144,6 +144,7 @@ private:
     Media *_media;
     MediaPlayerState _state = MediaPlayerState::UNKNOWN;
     std::string _subtitleUri;
+    std::atomic<long> _seek = -1;
     Log *_log;
 
     /**
@@ -203,6 +204,13 @@ private:
      * @param subtitleUri The subtitle uri to apply.
      */
     void applySubtitleFile(const std::string &subtitleUri);
+
+    /**
+     * Apply the given seek value to the current media playback.
+     *
+     * @param time The new timestamp value to seek.
+     */
+    void applySeek(long time);
 
     /**
      * Verify if the given subtitle uri is valid.

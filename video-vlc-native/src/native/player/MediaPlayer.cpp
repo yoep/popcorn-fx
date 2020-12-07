@@ -51,11 +51,11 @@ void MediaPlayer::play(Media *media)
 
 void MediaPlayer::seek(long time)
 {
-    try {
-        _log->info(std::string("Seeking time ") + std::to_string(time) + std::string(" in the current media playback"));
-        libvlc_media_player_set_time(_vlcMediaPlayer, time);
-    } catch (std::exception &ex) {
-        _log->error("An error occurred while seeking the time in the media playback", ex);
+    if (_media != nullptr && _media->state() != MediaState::PARSING) {
+        applySeek(time);
+    } else {
+        _log->trace("Buffering the seek timestamp for later use");
+        this->_seek = time;
     }
 }
 
@@ -127,6 +127,12 @@ void MediaPlayer::onMediaParsed()
     }
 
     applySubtitleFile(this->_subtitleUri);
+
+    // check if a seek timestamp has been buffered
+    // if so, apply the seek time
+    if (this->_seek > 0) {
+        applySeek(this->_seek);
+    }
 }
 
 void MediaPlayer::setSubtitleFile(const char *uri)
@@ -266,7 +272,10 @@ void MediaPlayer::releaseMediaItem()
 {
     _log->debug("Releasing media item");
     delete _media;
+
     _media = nullptr;
+    _subtitleUri = "";
+    _seek = -1;
 }
 
 void MediaPlayer::applySubtitleFile(const std::string &subtitleUri)
@@ -289,6 +298,16 @@ void MediaPlayer::applySubtitleFile(const std::string &subtitleUri)
         _log->info(std::string("Subtitle track \"") + subtitleUri + "\" has been added with success");
     } else {
         _log->error(std::string("Failed to add subtitle track ") + subtitleUri);
+    }
+}
+
+void MediaPlayer::applySeek(long time)
+{
+    try {
+        _log->info(std::string("Seeking time ") + std::to_string(time) + std::string(" in the current media playback"));
+        libvlc_media_player_set_time(_vlcMediaPlayer, time);
+    } catch (std::exception &ex) {
+        _log->error("An error occurred while seeking the time in the media playback", ex);
     }
 }
 

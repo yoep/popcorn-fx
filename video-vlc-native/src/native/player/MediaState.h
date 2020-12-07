@@ -6,12 +6,13 @@
  */
 enum class MediaState {
     UNKNOWN = -1,
-    OPENING = 3,
-    PARSED = 0,
-    PLAYING = 1,
-    PAUSED = 2,
-    ENDED = 4,
-    ERROR = 5
+    PARSING = 2,
+    PARSED = 3,
+    OPENING = 4,
+    PLAYING = 0,
+    PAUSED = 1,
+    ENDED = 5,
+    ERROR = 6
 };
 
 /**

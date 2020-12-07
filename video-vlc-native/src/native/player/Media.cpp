@@ -63,6 +63,8 @@ void Media::initializeMedia()
         _log->trace("Creating new VLC event manager for the media");
         _vlcEvent = libvlc_media_event_manager(_vlcMedia);
         subscribeEvents();
+    } else {
+        invokeStateChange(MediaState::ERROR);
     }
 }
 
@@ -90,6 +92,7 @@ libvlc_media_t *Media::createFromUrl(const char *url)
         return nullptr;
     }
 
+    invokeStateChange(MediaState::PARSING);
     auto parseResult = libvlc_media_parse_with_options(media, libvlc_media_parse_flag_t::libvlc_media_parse_network, 30000);
 
     if (parseResult == -1) {

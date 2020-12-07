@@ -8,6 +8,8 @@ const char *media_state_as_string(MediaState state)
         return "UNKNOWN";
     case MediaState::OPENING:
         return "OPENING";
+    case MediaState::PARSING:
+        return "PARSING";
     case MediaState::PARSED:
         return "PARSED";
     case MediaState::PLAYING:

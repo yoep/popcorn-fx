@@ -80,6 +80,7 @@ private:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 };
 
 #endif // POPCORN_PLAYER_POPCORNPLAYERWINDOW_H

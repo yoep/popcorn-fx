@@ -25,6 +25,22 @@
                 <item row="0" column="0" rowspan="4" colspan="3">
                     <widget class="VideoWidget" name="player" native="true"/>
                 </item>
+                <item row="0" column="0" rowspan="4" colspan="3">
+                    <widget class="BufferIndicator" name="buffer">
+                        <property name="minimumSize">
+                            <size>
+                                <width>200</width>
+                                <height>200</height>
+                            </size>
+                        </property>
+                        <property name="maximumSize">
+                            <size>
+                                <width>200</width>
+                                <height>200</height>
+                            </size>
+                        </property>
+                    </widget>
+                </item>
                 <!--<item row="0" column="0" colspan="3">
                     <widget class="PlayerHeader" name="header" native="true">
                         <property name="maximumSize">
@@ -57,7 +73,7 @@
     <customwidgets>
         <customwidget>
             <class>VideoWidget</class>
-            <extends>QWidget</extends>
+            <extends>QFrame</extends>
             <header>widgets/VideoWidget.h</header>
         </customwidget>
         <customwidget>
@@ -67,8 +83,13 @@
         </customwidget>
         <customwidget>
             <class>PlayerControls</class>
-            <extends>QWidget</extends>
+            <extends>QFrame</extends>
             <header>widgets/PlayerControls.h</header>
+        </customwidget>
+        <customwidget>
+            <class>BufferIndicator</class>
+            <extends>QFrame</extends>
+            <header>widgets/BufferIndicator.h</header>
         </customwidget>
     </customwidgets>
     <resources/>

@@ -34,7 +34,7 @@ file(GLOB SOURCES_RUNNER
         ${LIBVLC_LIBS})
 
 # exclude the main.cpp from the library
-set(SOURCES ${SOURCES_RUNNER})
+set(SOURCES ${SOURCES_RUNNER} widgets/BufferIndicator.cpp widgets/BufferIndicator.h)
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 message("Including: ${SOURCES}")
 

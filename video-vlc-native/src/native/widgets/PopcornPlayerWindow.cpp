@@ -81,6 +81,8 @@ void PopcornPlayerWindow::onStateChanged(MediaPlayerState newState)
         _fadeTimer->stop();
         showOverlay();
     }
+
+    ui->buffer->setVisible(newState == MediaPlayerState::BUFFERING);
 }
 
 void PopcornPlayerWindow::initializeUi()
@@ -90,6 +92,7 @@ void PopcornPlayerWindow::initializeUi()
 
     ui->rootLayout->setRowStretch(1, QLAYOUTSIZE_MAX);
     ui->rootLayout->setRowMinimumHeight(3, 75);
+    ui->buffer->setContentsMargins(10, 10, 10, 10);
 
     _fadeTimer->setInterval(3000);
     _fadeTimer->setSingleShot(true);
@@ -102,6 +105,17 @@ void PopcornPlayerWindow::connectEvents()
     connect(_fadeTimer, &QTimer::timeout,
         this, &PopcornPlayerWindow::onHideUI);
     _log->debug("Popcorn player window slots have been connected");
+}
+
+void PopcornPlayerWindow::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+
+    int x = width() / 2 - ui->buffer->width() / 2;
+    int y = height() / 2 - ui->buffer->height() / 2;
+
+    ui->buffer->move(x, y);
+    repaint();
 }
 
 void PopcornPlayerWindow::keyPressEvent(QKeyEvent *event)

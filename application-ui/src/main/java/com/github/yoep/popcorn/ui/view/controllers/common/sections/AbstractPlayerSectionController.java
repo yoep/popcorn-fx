@@ -2,13 +2,13 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.keepalive.KeepAliveService;
 import com.github.yoep.popcorn.ui.messages.VideoMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.ui.subtitles.Subtitle;
 import com.github.yoep.popcorn.ui.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.ui.subtitles.models.DecorationType;
-import com.github.yoep.popcorn.ui.view.services.KeepAliveService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerManagerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerService;
 import com.github.yoep.popcorn.ui.view.services.VideoPlayerSubtitleService;

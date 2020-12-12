@@ -45,6 +45,8 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
     protected Pane qualityButton;
     @FXML
     protected Label qualityButtonLabel;
+    @FXML
+    protected Label rating;
 
     protected ListView<String> qualityList;
     protected ListView<SubtitleInfo> subtitleList;
@@ -120,9 +122,18 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
         this.subtitleRetrieveFuture = null;
 
         Platform.runLater(() -> {
+            this.rating.setText(null);
+
             qualityList.getItems().clear();
             subtitleList.getItems().clear();
         });
+    }
+
+    @Override
+    protected void load(T media) {
+        super.load(media);
+
+        loadRating();
     }
 
     /**
@@ -158,6 +169,10 @@ public abstract class AbstractTvDetailsComponent<T extends Media> extends Abstra
                 log.error(throwable.getMessage(), throwable);
             }
         });
+    }
+
+    private void loadRating() {
+        rating.setText(getRatingText());
     }
 
     private boolean isNotACancellationException(Throwable throwable) {

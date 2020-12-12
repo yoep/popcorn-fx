@@ -278,7 +278,7 @@
                                 <param>-Dprism.lcdtext=false</param>
                                 <param>-Dcom.sun.javafx.transparentFramebuffer=true</param>
                                 <param>-XX:+UseG1GC</param>
-                                <param>-Xmx200m</param>
+                                <param>-Xmx350m</param>
                             </vmArgs>
                         </configuration>
                     </plugin>

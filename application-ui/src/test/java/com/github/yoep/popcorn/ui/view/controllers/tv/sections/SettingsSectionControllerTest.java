@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -21,13 +22,15 @@ class SettingsSectionControllerTest {
     @Mock
     private Overlay overlay;
     @Mock
+    private ApplicationEventPublisher eventPublisher;
+    @Mock
     private ResourceBundle resourceBundle;
 
     private SettingsSectionController settingsSectionController;
 
     @BeforeEach
     void setUp() {
-        settingsSectionController = new SettingsSectionController(overlay);
+        settingsSectionController = new SettingsSectionController(eventPublisher, overlay);
     }
 
     @Test
@@ -63,7 +66,7 @@ class SettingsSectionControllerTest {
         @Test
         void testAddListener_whenOverlayIsNotPresent_shouldAddListenerToBuffer() {
             var listener = createListener();
-            var settingsSectionController = new SettingsSectionController();
+            var settingsSectionController = new SettingsSectionController(eventPublisher);
 
             settingsSectionController.addListener(listener);
 
@@ -73,7 +76,7 @@ class SettingsSectionControllerTest {
         @Test
         void testAddListener_whenInitializeIsInvoked_shouldUnloadListenersBuffer() throws MalformedURLException {
             var listener = createListener();
-            var settingsSectionController = new SettingsSectionController();
+            var settingsSectionController = new SettingsSectionController(eventPublisher);
             var url = new URL("http://www.lipsum.com");
 
             settingsSectionController.addListener(listener);

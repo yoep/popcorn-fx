@@ -69,8 +69,6 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
     @FXML
     private Label overview;
     @FXML
-    private Label rating;
-    @FXML
     private HorizontalBar<Season> seasons;
     @FXML
     private Episodes episodes;
@@ -182,7 +180,6 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
         this.title.setText(null);
         this.year.setText(null);
         this.duration.setText(null);
-        this.rating.setText(null);
         this.seasons.getItems().clear();
     }
 
@@ -202,7 +199,6 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
         status.setText(media.getStatus());
         genres.setText(String.join(" / ", media.getGenres()));
         overview.setText(media.getSynopsis());
-        rating.setText(getRatingText());
     }
 
     private void loadSeasons() {
@@ -339,7 +335,7 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
 
     @FXML
     private void onShowDetailsKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.BACK_SPACE) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.UNDEFINED) {
             event.consume();
             eventPublisher.publishEvent(new CloseDetailsEvent(this));
         }

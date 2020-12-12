@@ -83,8 +83,8 @@ public class TvConfig {
     }
 
     @Bean
-    public SettingsSectionController settingsSectionController() {
-        return new SettingsSectionController();
+    public SettingsSectionController settingsSectionController(ApplicationEventPublisher eventPublisher) {
+        return new SettingsSectionController(eventPublisher);
     }
 
     //endregion

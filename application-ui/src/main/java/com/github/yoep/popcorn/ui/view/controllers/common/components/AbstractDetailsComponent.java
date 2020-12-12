@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -20,6 +21,7 @@ import javafx.util.Duration;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
 
@@ -60,14 +62,21 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     //region Methods
 
     /**
+     * Invoked when the details are being closed.
+     * This method will reset the details events.
+     */
+    @EventListener(CloseDetailsEvent.class)
+    public void onCloseDetails() {
+        reset();
+    }
+
+    /**
      * Load the details of the given {@link Media} item.
      *
      * @param media The media item to load the details of.
      */
     protected void load(T media) {
         Assert.notNull(media, "media cannot be null");
-        reset();
-
         this.media = media;
 
         loadBackgroundImage();

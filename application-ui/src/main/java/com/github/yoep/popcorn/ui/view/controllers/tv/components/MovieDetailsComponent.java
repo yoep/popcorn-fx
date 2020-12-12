@@ -247,7 +247,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
 
     @FXML
     private void onDetailsKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode().ordinal() == 187) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.UNDEFINED) {
             event.consume();
             onClose();
         }

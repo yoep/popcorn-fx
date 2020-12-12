@@ -328,6 +328,7 @@
     -fx-max-height: 315;
 }
 
+.root .movie-details .metadata .rating,
 .root .show-details-section .show-header .rating {
     -fx-padding: 0 0 0 5;
 }
@@ -461,8 +462,8 @@
 }
 
 .root .content-section .settings-section .sub-section .combo-box .label {
-    -fx-pref-width: 126px;
-    -fx-max-width: 126px;
+    -fx-pref-width: 300px;
+    -fx-max-width: 300px;
     -fx-background-color: transparent;
     -fx-padding: 3 5 3 5;
 }

@@ -119,6 +119,7 @@
                 <Icon fx:constant="CIRCLE_UNICODE"/>
             </Icon>
             <Stars fx:id="ratingStars" alignment="CENTER"/>
+            <Label fx:id="rating" styleClass="rating"/>
         </HBox>
 
         <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT" spacing="5">
@@ -134,10 +135,9 @@
     <GridPane styleClass="actions"
               GridPane.columnIndex="3" GridPane.rowIndex="4">
         <columnConstraints>
-            <ColumnConstraints percentWidth="25"/>
-            <ColumnConstraints percentWidth="25"/>
-            <ColumnConstraints percentWidth="25"/>
-            <ColumnConstraints percentWidth="25"/>
+            <ColumnConstraints percentWidth="33"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="33"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints/>
@@ -161,7 +161,7 @@
         </VBox>
         <VBox styleClass="action" focusTraversable="true"
               onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
-              GridPane.columnIndex="3" GridPane.rowIndex="0">
+              GridPane.columnIndex="2" GridPane.rowIndex="0">
             <Icon styleClass="button">
                 <Icon fx:constant="TIMES_UNICODE"/>
             </Icon>

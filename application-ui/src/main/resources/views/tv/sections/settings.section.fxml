@@ -6,7 +6,8 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.sections.SettingsSectionController" styleClass="settings-section">
+           fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.sections.SettingsSectionController" styleClass="settings-section"
+           onKeyPressed="#onSettingsKeyPressed">
     <ManageableScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" shortKeysEnabled="false">
         <VBox>
             <!-- Title -->
@@ -27,5 +28,5 @@
     </ManageableScrollPane>
 
     <!-- Overlay -->
-    <Overlay fx:id="overlay" visible="false" />
+    <Overlay fx:id="overlay" visible="false"/>
 </StackPane>

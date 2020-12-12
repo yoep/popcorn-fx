@@ -4,6 +4,8 @@
 #include <QLabel>
 
 class TimeLabel : public QLabel {
+    Q_OBJECT
+
 public:
     /**
      * Initialize a new instance of TimeLabel.

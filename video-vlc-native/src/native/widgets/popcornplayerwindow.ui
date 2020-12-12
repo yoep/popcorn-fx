@@ -55,13 +55,13 @@
                     <widget class="PlayerControls" name="controls">
                         <property name="minimumSize">
                             <size>
-                                <width>500</width>
+                                <width>600</width>
                                 <height>150</height>
                             </size>
                         </property>
                         <property name="maximumSize">
                             <size>
-                                <width>500</width>
+                                <width>600</width>
                                 <height>150</height>
                             </size>
                         </property>

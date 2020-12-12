@@ -54,7 +54,6 @@ public class VideoPlayerService {
     private String url;
     private Long time;
     private Long duration;
-    private long videoChangeTime;
 
     //region Properties
 
@@ -195,8 +194,6 @@ public class VideoPlayerService {
 
     @EventListener
     public void onPlayVideo(PlayVideoEvent activity) {
-        this.videoChangeTime = System.currentTimeMillis();
-
         // check if the activity contains media information
         // if so, play the video as a media instead of a plain url playback
         if (activity instanceof PlayMediaEvent) {
@@ -337,9 +334,15 @@ public class VideoPlayerService {
     }
 
     private void onVideoStopped() {
-        // check if the video has been started for more than 30 sec before exiting the video player
-        // this should fix the issue of the video player closing directly in some cases
-        if (System.currentTimeMillis() - videoChangeTime <= 30000)
+        var isDurationUnknown = videoPlayerManagerService.getActivePlayer()
+                .map(e -> e.getDuration() == 0)
+                .orElse(false);
+
+        // check if the duration is not 0 for the active player
+        // if so, don't close the player and wait
+        // the playback of youtube videos in VLC will report a STOPPED event before actually starting the video playback
+        // this causes the player to instantly close before the actual video playback has started
+        if (isDurationUnknown)
             return;
 
         close();

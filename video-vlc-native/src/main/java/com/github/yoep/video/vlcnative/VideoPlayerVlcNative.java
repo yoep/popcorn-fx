@@ -195,6 +195,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
             @Override
             public void onDurationChanged(long newValue) {
+                log.debug("Popcorn player duration changed to {}", newValue);
                 duration.setValue(newValue);
             }
         });
@@ -206,7 +207,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     private void checkInitialized() {
         if (!initialized) {
-            throw new VideoPlayerException("VLC native player has not yet been initialized");
+            throw new VideoPlayerException("Popcorn player has not yet been initialized");
         }
     }
 

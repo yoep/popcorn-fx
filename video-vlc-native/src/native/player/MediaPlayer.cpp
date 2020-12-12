@@ -235,13 +235,11 @@ void MediaPlayer::subscribeToMediaEvents(Media *media)
     // if so, disconnect the events from the old media first
     if (_media != nullptr) {
         _log->trace("Removing old media item listeners");
-        disconnect(_media, &Media::durationChanged,
-            this, &MediaPlayer::setMediaDuration);
+        disconnect(_media, &Media::parsed,
+            this, &MediaPlayer::onMediaParsed);
     }
 
     _log->trace("Adding listeners to new media item");
-    connect(media, &Media::durationChanged,
-        this, &MediaPlayer::setMediaDuration);
     connect(media, &Media::parsed,
         this, &MediaPlayer::onMediaParsed);
 }
@@ -349,6 +347,9 @@ void MediaPlayer::vlcCallback(const libvlc_event_t *event, void *instance)
     case libvlc_MediaPlayerTimeChanged:
         emit mediaPlayer->timeChanged(event->u.media_player_time_changed.new_time);
         break;
+    case libvlc_MediaPlayerLengthChanged:
+        emit mediaPlayer->durationChanged(event->u.media_player_length_changed.new_length);
+        break;
     case libvlc_MediaPlayerEncounteredError:
         mediaPlayer->handleVlcError();
         break;
@@ -375,6 +376,7 @@ QList<libvlc_event_e> MediaPlayer::eventList()
     eventList << libvlc_MediaPlayerBuffering;
     eventList << libvlc_MediaPlayerStopped;
     eventList << libvlc_MediaPlayerTimeChanged;
+    eventList << libvlc_MediaPlayerLengthChanged;
     eventList << libvlc_MediaPlayerEncounteredError;
 
     return eventList;

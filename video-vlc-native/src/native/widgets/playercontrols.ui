@@ -8,29 +8,39 @@
                 background-color: rgb(23, 24, 27);
                 }
                 Icon{
-                width: 50;
-                height: 50;
+                width: 60px;
+                min-width: 60px;
+                height: 60px;
+                min-height: 60px;
                 color: rgb(204, 204, 204);
                 border: 2px solid rgb(204, 204, 204);
                 border-radius: 10;
-                font-size: 21pt;
+                font-size: 26px;
                 }
                 Icon:focus{
                 color: rgb(255, 255, 255);
                 background-color: rgba(45, 114, 217, 0.6);
                 border-color: rgb(255, 255, 255);
                 }
+                TimeLabel{
+                color: rgb(255, 255, 255);
+                font-family: "Open Sans Semibold";
+                font-size: 24px;
+                }
             </string>
         </property>
         <layout class="QGridLayout" name="controlsLayout">
+            <property name="sizeConstraint">
+                <enum>QLayout::SetFixedSize</enum>
+            </property>
             <property name="leftMargin">
-                <number>10</number>
+                <number>20</number>
             </property>
             <property name="topMargin">
                 <number>15</number>
             </property>
             <property name="rightMargin">
-                <number>10</number>
+                <number>20</number>
             </property>
             <property name="bottomMargin">
                 <number>15</number>
@@ -110,9 +120,6 @@
                     </item>
                     <item row="1" column="0">
                         <widget class="TimeLabel" name="time">
-                            <property name="styleSheet">
-                                <string notr="true">color: rgb(255, 255, 255);</string>
-                            </property>
                             <property name="alignment">
                                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                             </property>
@@ -151,9 +158,6 @@
                     </item>
                     <item row="1" column="4">
                         <widget class="TimeLabel" name="duration">
-                            <property name="styleSheet">
-                                <string notr="true">color: rgb(255, 255, 255);</string>
-                            </property>
                             <property name="alignment">
                                 <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
                             </property>

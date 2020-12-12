@@ -42,11 +42,6 @@ MediaState Media::state()
     return this->_state;
 }
 
-long Media::getDuration()
-{
-    return libvlc_media_get_duration(_vlcMedia);
-}
-
 void Media::initializeMedia()
 {
     _log->trace(std::string("Initializing media for ") + _mrl);
@@ -132,12 +127,6 @@ void Media::unsubscribeEvents()
     _log->debug("Unsubscribed from VLC media events");
 }
 
-void Media::updateDuration(long duration)
-{
-    _log->trace("Media duration changed to " + std::to_string(duration));
-    emit durationChanged(duration);
-}
-
 void Media::updateState(int vlcState)
 {
     _log->trace("Parsing new VLC media item state");
@@ -208,14 +197,8 @@ void Media::vlcCallback(const libvlc_event_t *event, void *instance)
     auto *media = static_cast<Media *>(instance);
 
     switch (event->type) {
-    case libvlc_MediaDurationChanged:
-        media->updateDuration(event->u.media_duration_changed.new_duration);
-        break;
     case libvlc_MediaStateChanged:
         media->updateState(event->u.media_state_changed.new_state);
-        break;
-    case libvlc_MediaFreed:
-
         break;
     case libvlc_MediaParsedChanged:
         media->onParsedEvent();
@@ -235,9 +218,7 @@ bool Media::isHttpUrl(const char *mrl)
 QList<libvlc_event_e> Media::eventList()
 {
     QList<libvlc_event_e> eventList;
-    eventList << libvlc_MediaDurationChanged;
     eventList << libvlc_MediaStateChanged;
-    eventList << libvlc_MediaFreed;
     eventList << libvlc_MediaParsedChanged;
 
     return eventList;

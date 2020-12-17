@@ -105,27 +105,6 @@ To install the native VLC player, run the following maven command:
 
     mvn clean install -Pcmake -Dqt.compiler="QT_COMPILER_LOCATION" -Dcmake.dir="CMAKE_INSTALLATION_DIR"
 
-## Features
-
-### v1.0.0
-
-- List, filter & play movies
-- List, filter & play shows
-- Select video quality
-- Select video subtitle
-- Custom subtitle support
-- Increase/decrease subtitle offset
-- Mark media as watched
-- Add media to favorites
-- Paste & store magnet link
-- Trakt.tv integration
-- Dynamic torrent buffering when seeking through video
-- Resume video from last known timestamp
-- Torrent collection
-- Big-picture, kiosk & tv mode
-- Watchlist
-- TV remote support (tested with Andoer mx3)
-
 ## Screenshots
 
 #### Desktop mode

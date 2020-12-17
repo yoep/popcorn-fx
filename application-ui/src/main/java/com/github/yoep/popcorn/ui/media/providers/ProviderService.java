@@ -54,7 +54,8 @@ public interface ProviderService<T extends Media> {
      * Show the details of the given media item.
      *
      * @param media The media item to show the details of.
+     * @return Returns true if the details could be loaded with success, else false.
      */
     @Async
-    void showDetails(Media media);
+    CompletableFuture<Boolean> showDetails(Media media);
 }

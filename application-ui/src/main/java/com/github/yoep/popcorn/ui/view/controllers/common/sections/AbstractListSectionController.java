@@ -19,6 +19,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -53,6 +54,10 @@ public abstract class AbstractListSectionController implements Initializable {
     protected Pane failedPane;
     @FXML
     protected Label failedText;
+    @FXML
+    protected Pane overlay;
+
+    private ProgressIndicator loadingIndicator;
 
     //region Constructors
 
@@ -118,6 +123,7 @@ public abstract class AbstractListSectionController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeScrollPane();
         initializeFailedPane();
+        initializeOverlay();
     }
 
     protected void initializeScrollPane() {
@@ -139,6 +145,10 @@ public abstract class AbstractListSectionController implements Initializable {
 
     protected void initializeFailedPane() {
         failedPane.setVisible(false);
+    }
+
+    protected void initializeOverlay() {
+        overlay.setVisible(false);
     }
 
     //endregion
@@ -234,6 +244,27 @@ public abstract class AbstractListSectionController implements Initializable {
             currentLoadRequest.cancel(true);
 
         scrollPane.reset();
+    }
+
+    protected void showOverlay() {
+        // check if the overlay is already shown
+        // if so, ignore the action
+        if (overlay.isVisible())
+            return;
+
+        if (loadingIndicator == null)
+            loadingIndicator = new ProgressIndicator();
+
+        overlay.getChildren().clear();
+        overlay.getChildren().add(loadingIndicator);
+        overlay.setVisible(true);
+    }
+
+    protected void hideOverlay() {
+        overlay.setVisible(false);
+
+        overlay.getChildren().clear();
+        loadingIndicator = null;
     }
 
     //endregion

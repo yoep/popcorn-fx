@@ -71,10 +71,11 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     @Override
-    public void showDetails(Media media) {
+    public CompletableFuture<Boolean> showDetails(Media media) {
         final Movie movie = (Movie) media;
 
         eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, movie));
+        return CompletableFuture.completedFuture(true);
     }
 
     public Page<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

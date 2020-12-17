@@ -65,14 +65,18 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     @Override
-    public void showDetails(Media media) {
+    public CompletableFuture<Boolean> showDetails(Media media) {
         try {
             var show = getDetailsInternal(media.getId());
             eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, show));
+
+            return CompletableFuture.completedFuture(true);
         } catch (Exception ex) {
             log.error("Failed to load show details, " + ex.getMessage(), ex);
             eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
         }
+
+        return CompletableFuture.completedFuture(false);
     }
 
     public Page<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

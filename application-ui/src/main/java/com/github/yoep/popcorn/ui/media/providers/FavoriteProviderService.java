@@ -103,27 +103,31 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     }
 
     @Override
-    public void showDetails(Media media) {
+    public CompletableFuture<Boolean> showDetails(Media media) {
+        Category category;
+
         if (media instanceof Movie) {
-            providers.stream()
-                    .filter(e -> e.supports(Category.MOVIES))
-                    .findFirst()
-                    .ifPresent(e -> showDetails(e, media));
+            category = Category.MOVIES;
         } else {
-            providers.stream()
-                    .filter(e -> e.supports(Category.SERIES))
-                    .findFirst()
-                    .ifPresent(e -> showDetails(e, media));
+            category = Category.SERIES;
         }
+
+        return providers.stream()
+                .filter(e -> e.supports(category))
+                .findFirst()
+                .map(e -> showDetails(e, media))
+                .orElseThrow(() -> new MediaException("Could not find ProviderService for category " + category));
     }
 
-    private void showDetails(ProviderService<?> provider, Media media) {
+    private CompletableFuture<Boolean> showDetails(ProviderService<?> provider, Media media) {
         try {
-            provider.showDetails(media);
+            return provider.showDetails(media);
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
             eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
         }
+
+        return CompletableFuture.completedFuture(false);
     }
 
     private Media updateWatchedState(Media media) {

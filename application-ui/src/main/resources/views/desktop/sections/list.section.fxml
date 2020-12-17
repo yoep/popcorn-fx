@@ -8,12 +8,14 @@
 <?import javafx.scene.layout.VBox?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.ListSectionController" styleClass="list-section">
-    <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true" />
+    <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true"/>
 
     <VBox fx:id="failedPane" styleClass="failed" alignment="CENTER">
         <Icon>
-            <Icon fx:constant="MEH_O_UNICODE" />
+            <Icon fx:constant="MEH_O_UNICODE"/>
         </Icon>
-        <Label fx:id="failedText" text="%list_failed_generic" />
+        <Label fx:id="failedText" text="%list_failed_generic"/>
     </VBox>
+
+    <StackPane fx:id="overlay" styleClass="overlay"/>
 </StackPane>

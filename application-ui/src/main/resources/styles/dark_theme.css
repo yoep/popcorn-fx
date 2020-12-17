@@ -439,6 +439,11 @@
     -fx-font-size: 0.85em;
 }
 
+.root .list-section .overlay,
+.root .content-section .overlay {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+}
+
 .root .movie-details .poster .poster-image {
     -fx-background-radius: 2em;
 }

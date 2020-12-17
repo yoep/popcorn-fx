@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractListS
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayMediaCardComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.Builder;
@@ -81,10 +82,16 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private void onItemClicked(Media media) {
+        showOverlay();
         providerServices.stream()
                 .filter(e -> e.supports(category))
                 .findFirst()
-                .ifPresent(provider -> provider.showDetails(media));
+                .ifPresent(provider -> showMediaDetails(media, provider));
+    }
+
+    private void showMediaDetails(Media media, ProviderService<? extends Media> provider) {
+        provider.showDetails(media)
+                .whenComplete((loaded, throwable) -> Platform.runLater(this::hideOverlay));
     }
 
     //endregion

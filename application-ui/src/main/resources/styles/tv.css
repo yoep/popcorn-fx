@@ -275,10 +275,6 @@
     -fx-text-fill: #fff;
 }
 
-.root .content-section .overlay {
-    -fx-background-color: rgba(0, 0, 0, 0.5);
-}
-
 .root .content-section .overlay .list-view {
     -fx-background-color: transparent;
 }

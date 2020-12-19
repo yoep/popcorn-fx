@@ -40,17 +40,24 @@ PopcornPlayer::PopcornPlayer(int &argc, char **argv)
 PopcornPlayer::~PopcornPlayer()
 {
     _log->debug("Releasing Popcorn Player resources");
-    stop();
 
     // release the fonts from Qt
-    QApplicationManager::instance()->runInQt(new QLambda([this]() {
+    try {
         QFontDatabase::removeApplicationFont(this->_fontAwesomeRegularId);
         QFontDatabase::removeApplicationFont(this->_fontAwesomeSolidId);
         QFontDatabase::removeApplicationFont(this->_openSansBoldId);
         QFontDatabase::removeApplicationFont(this->_openSansRegularId);
         QFontDatabase::removeApplicationFont(this->_openSansSemiBoldId);
-    }));
+    } catch (std::exception &ex) {
+        _log->error(std::string("Failed to release fonts, ") + ex.what(), ex);
+    }
 
+    // dispose media player/item resources
+    this->_mediaPlayer.reset();
+    this->_eventManager.reset();
+
+    // do not dispose the media player factory before the media player is disposed
+    // otherwise, the VLC instance will already have been freed before any media items/media players can be freed
     MediaPlayerFactory::dispose();
 }
 
@@ -80,7 +87,7 @@ void PopcornPlayer::init()
 
         QObject::connect(QApplicationManager::instance()->application(), &QCoreApplication::aboutToQuit,
             [this] {
-                _mediaPlayer->stop();
+                stop();
             });
 
         // set the initialize base size of the player
@@ -152,11 +159,14 @@ void PopcornPlayer::resume()
 
 void PopcornPlayer::stop()
 {
+    if (_mediaPlayer == nullptr)
+        return;
+
     QApplicationManager::instance()->runInQt(new QLambda([this]() {
         _mediaPlayer->stop();
 
         if (_window == nullptr) {
-            cerr << WINDOW_NOT_INITIALIZED << endl;
+            this->_log->error(WINDOW_NOT_INITIALIZED);
             return;
         }
 

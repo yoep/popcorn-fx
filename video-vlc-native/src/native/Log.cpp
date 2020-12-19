@@ -42,77 +42,77 @@ void Log::trace(const char *message)
 
 void Log::trace(const basic_string<char> &message)
 {
-    if (_level & TRACE_FLAG) {
+    if (this->_level & TRACE_FLAG) {
         trace(message.c_str());
     }
 }
 
 void Log::debug(const char *message)
 {
-    if (_level & DEBUG_FLAG) {
+    if (this->_level & DEBUG_FLAG) {
         log(message, "DEBUG");
     }
 }
 
 void Log::debug(const basic_string<char> &message)
 {
-    if (_level & DEBUG_FLAG) {
+    if (this->_level & DEBUG_FLAG) {
         debug(message.c_str());
     }
 }
 
 void Log::info(const std::basic_string<char> &message)
 {
-    if (_level & INFO_FLAG) {
+    if (this->_level & INFO_FLAG) {
         info(message.c_str());
     }
 }
 
 void Log::info(const char *message)
 {
-    if (_level & INFO_FLAG) {
+    if (this->_level & INFO_FLAG) {
         log(message, "INFO");
     }
 }
 
 void Log::warn(const char *message)
 {
-    if (_level & WARN_FLAG) {
+    if (this->_level & WARN_FLAG) {
         logToSysError(message, "WARN");
     }
 }
 
 void Log::warn(const basic_string<char> &message)
 {
-    if (_level & WARN_FLAG) {
+    if (this->_level & WARN_FLAG) {
         warn(message.c_str());
     }
 }
 
 void Log::error(const basic_string<char> &message)
 {
-    if (_level & ERROR_FLAG) {
+    if (this->_level & ERROR_FLAG) {
         error(message.c_str());
     }
 }
 
 void Log::error(const basic_string<char> &message, const exception &ex)
 {
-    if (_level & ERROR_FLAG) {
+    if (this->_level & ERROR_FLAG) {
         error(message.c_str(), ex);
     }
 }
 
 void Log::error(const char *message)
 {
-    if (_level & ERROR_FLAG) {
+    if (this->_level & ERROR_FLAG) {
         logToSysError(message, "ERROR");
     }
 }
 
 void Log::error(const char *message, const std::exception &ex)
 {
-    if (_level & ERROR_FLAG) {
+    if (this->_level & ERROR_FLAG) {
         error(message + std::string(", error: ") + ex.what());
     }
 }

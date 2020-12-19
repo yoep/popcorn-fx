@@ -19,7 +19,12 @@ Media::Media(const char *mrl, libvlc_instance_t *vlcInstance)
 Media::~Media()
 {
     unsubscribeEvents();
-    libvlc_media_release(_vlcMedia);
+
+    if (_vlcMedia != nullptr) {
+        this->_log->trace("Releasing media item resources");
+        libvlc_media_release(_vlcMedia);
+        this->_vlcMedia = nullptr;
+    }
 }
 
 libvlc_media_t *Media::vlcMedia()

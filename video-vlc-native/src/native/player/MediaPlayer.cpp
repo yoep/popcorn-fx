@@ -24,7 +24,7 @@ MediaPlayer::MediaPlayer(libvlc_instance_t *vlcInstance)
 MediaPlayer::~MediaPlayer()
 {
     unsubscribeEvents();
-    releaseMediaPlayerIfNeeded();
+    releaseMediaPlayer();
 }
 
 void MediaPlayer::play(Media *media)
@@ -81,6 +81,11 @@ void MediaPlayer::resume()
 
 void MediaPlayer::stop()
 {
+    if (_vlcMediaPlayer == nullptr) {
+        _log->error("Failed to stop media player, media player has been disposed");
+        return;
+    }
+
     try {
         _log->info("Stopping media player");
         libvlc_media_player_stop(_vlcMediaPlayer);
@@ -173,7 +178,7 @@ long MediaPlayer::duration()
     return libvlc_media_get_duration(_media->vlcMedia());
 }
 
-void MediaPlayer::releaseMediaPlayerIfNeeded()
+void MediaPlayer::releaseMediaPlayer()
 {
     if (_vlcMediaPlayer == nullptr) {
         return;
@@ -181,9 +186,27 @@ void MediaPlayer::releaseMediaPlayerIfNeeded()
 
     _log->trace("Releasing current VLC media player resources");
     // stop the current media playback in case any media is still playing
-    stop();
+    if (_state != MediaPlayerState::STOPPED) {
+        stop();
+    }
+
+    // release the media list
+    releaseMediaList();
+
     // release the media player which was retained during construction if this media player
     libvlc_media_player_release(_vlcMediaPlayer);
+    this->_vlcInstance = nullptr;
+    this->_vlcMediaPlayer = nullptr;
+}
+
+void MediaPlayer::releaseMediaList()
+{
+    if (this->_vlcMediaList == nullptr)
+        return;
+
+    this->_log->trace("Releasing VLC media list");
+    libvlc_media_list_player_release(this->_vlcMediaList);
+    this->_vlcMediaList = nullptr;
 }
 
 void MediaPlayer::initializeMediaPlayer()

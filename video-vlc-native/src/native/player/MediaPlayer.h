@@ -158,9 +158,14 @@ private:
     void handleVlcError();
 
     /**
-     * Release this media player instance if needed.
+     * Release this media player instance.
      */
-    void releaseMediaPlayerIfNeeded();
+    void releaseMediaPlayer();
+
+    /**
+     * Release the media list from this media player instance.
+     */
+    void releaseMediaList();
 
     /**
      * Subscribe this media player to the VLC events.

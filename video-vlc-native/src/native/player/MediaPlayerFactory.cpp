@@ -16,7 +16,11 @@ MediaPlayerFactory::MediaPlayerFactory()
 
 MediaPlayerFactory::~MediaPlayerFactory()
 {
-    libvlc_free(this->_vlcInstance);
+    if (this->_vlcInstance != nullptr) {
+        this->_log->trace("Releasing media player actory resources");
+        libvlc_free(this->_vlcInstance);
+        this->_vlcInstance = nullptr;
+    }
 }
 
 MediaPlayer *MediaPlayerFactory::createPlayer()

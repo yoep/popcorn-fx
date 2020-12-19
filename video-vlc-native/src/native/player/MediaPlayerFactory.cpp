@@ -14,6 +14,11 @@ MediaPlayerFactory::MediaPlayerFactory()
     this->_vlcInstance = nullptr;
 }
 
+MediaPlayerFactory::~MediaPlayerFactory()
+{
+    libvlc_free(this->_vlcInstance);
+}
+
 MediaPlayer *MediaPlayerFactory::createPlayer()
 {
     auto *factory = getInstance();
@@ -27,6 +32,12 @@ MediaPlayer *MediaPlayerFactory::createPlayer()
 
     factory->_log->debug("Media player created");
     return player;
+}
+
+void MediaPlayerFactory::dispose()
+{
+    auto *factory = getInstance();
+    delete factory;
 }
 
 Media *MediaPlayerFactory::createMedia(const char *mrl)

@@ -7,12 +7,19 @@
 
 class MediaPlayerFactory {
 public:
+    virtual ~MediaPlayerFactory();
+
     /**
      * Create a new media player instance.
      *
      * @return Returns the new media player.
      */
     static MediaPlayer *createPlayer();
+
+    /**
+     * Dispose the MediaPlayerFactory resources.
+     */
+    static void dispose();
 
     /**
      * Create a new media instance for the given MRL.

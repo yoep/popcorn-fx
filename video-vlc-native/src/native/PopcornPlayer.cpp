@@ -41,6 +41,17 @@ PopcornPlayer::~PopcornPlayer()
 {
     _log->debug("Releasing Popcorn Player resources");
     stop();
+
+    // release the fonts from Qt
+    QApplicationManager::instance()->runInQt(new QLambda([this]() {
+        QFontDatabase::removeApplicationFont(this->_fontAwesomeRegularId);
+        QFontDatabase::removeApplicationFont(this->_fontAwesomeSolidId);
+        QFontDatabase::removeApplicationFont(this->_openSansBoldId);
+        QFontDatabase::removeApplicationFont(this->_openSansRegularId);
+        QFontDatabase::removeApplicationFont(this->_openSansSemiBoldId);
+    }));
+
+    MediaPlayerFactory::dispose();
 }
 
 void PopcornPlayer::init()
@@ -256,20 +267,31 @@ void PopcornPlayer::loadIcon()
 void PopcornPlayer::loadFonts()
 {
     _log->trace("Loading custom fonts");
-    if (QFontDatabase::addApplicationFont(":/fonts/FontAwesomeRegular.ttf") == -1) {
+
+    _fontAwesomeRegularId = QFontDatabase::addApplicationFont(":/fonts/FontAwesomeRegular.ttf");
+    if (_fontAwesomeRegularId == -1) {
         _log->warn("Failed to load font FontAwesomeRegular.ttf");
     }
-    if (QFontDatabase::addApplicationFont(":/fonts/FontAwesomeSolid.ttf") == -1) {
+
+    _fontAwesomeSolidId = QFontDatabase::addApplicationFont(":/fonts/FontAwesomeSolid.ttf");
+    if (_fontAwesomeSolidId == -1) {
         _log->warn("Failed to load font FontAwesomeSolid.ttf");
     }
-    if (QFontDatabase::addApplicationFont(":/fonts/OpenSansBold.ttf") == -1) {
+
+    _openSansBoldId = QFontDatabase::addApplicationFont(":/fonts/OpenSansBold.ttf");
+    if (_openSansBoldId == -1) {
         _log->warn("Failed to load font OpenSansBold.ttf");
     }
-    if (QFontDatabase::addApplicationFont(":/fonts/OpenSansRegular.ttf") == -1) {
+
+    _openSansRegularId = QFontDatabase::addApplicationFont(":/fonts/OpenSansRegular.ttf");
+    if (_openSansRegularId == -1) {
         _log->warn("Failed to load font OpenSansRegular.ttf");
     }
-    if (QFontDatabase::addApplicationFont(":/fonts/OpenSansSemibold.ttf") == -1) {
+
+    _openSansSemiBoldId = QFontDatabase::addApplicationFont(":/fonts/OpenSansSemibold.ttf");
+    if (_openSansSemiBoldId == -1) {
         _log->warn("Failed to load font OpenSansSemibold.ttf");
     }
+
     _log->debug("Fonts have been loaded");
 }

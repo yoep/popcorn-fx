@@ -8,6 +8,7 @@ BufferIndicator::BufferIndicator(QWidget *parent)
     : QFrame(parent)
 {
     this->_animationTimer = new QTimer(this);
+    this->_animationIndex = 0;
 
     init();
 }

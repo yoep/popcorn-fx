@@ -7,6 +7,10 @@
 ProgressControl::ProgressControl(QWidget *parent)
     : QFrame(parent)
 {
+    this->_time = 0;
+    this->_duration = 0;
+    this->_loadProgress = 0;
+
     init();
 }
 

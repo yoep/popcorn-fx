@@ -123,6 +123,11 @@ private:
     std::shared_ptr<PopcornPlayerWindow> _window;
     std::shared_ptr<MediaPlayer> _mediaPlayer;
     std::shared_ptr<PopcornPlayerEventManager> _eventManager;
+    int _fontAwesomeRegularId = -1;
+    int _fontAwesomeSolidId = -1;
+    int _openSansBoldId = -1;
+    int _openSansRegularId = -1;
+    int _openSansSemiBoldId = -1;
     Log *_log;
 
     void init();

@@ -457,9 +457,13 @@
     -fx-background-color: #2d72d9;
 }
 
+.root .content-section .settings-section .sub-section .combo-box {
+    -fx-max-width: 250px;
+}
+
 .root .content-section .settings-section .sub-section .combo-box .label {
-    -fx-pref-width: 300px;
-    -fx-max-width: 300px;
+    -fx-pref-width: 250px;
+    -fx-max-width: 250px;
     -fx-background-color: transparent;
     -fx-padding: 3 5 3 5;
 }

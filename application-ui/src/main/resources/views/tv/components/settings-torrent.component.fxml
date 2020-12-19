@@ -28,7 +28,7 @@
     <HBox GridPane.columnIndex="2" GridPane.rowIndex="0">
         <Pane fx:id="downloadLimitPane" styleClass="combo-box-base,combo-box" focusTraversable="true"
               onKeyPressed="#onDownloadLimitKeyPressed" onMouseClicked="#onDownloadLimitClicked">
-            <Label fx:id="downloadLimit" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+            <Label fx:id="downloadLimit" styleClass="cell,list-cell" alignment="CENTER_RIGHT" textAlignment="RIGHT"/>
         </Pane>
         <Label text="%kilobyte_rate"/>
     </HBox>
@@ -40,7 +40,7 @@
         <Pane fx:id="uploadLimitPane" styleClass="combo-box-base,combo-box" focusTraversable="true"
               GridPane.columnIndex="2" GridPane.rowIndex="1"
               onKeyPressed="#onUploadLimitKeyPressed" onMouseClicked="#onUploadLimitClicked">
-            <Label fx:id="uploadLimit" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+            <Label fx:id="uploadLimit" styleClass="cell,list-cell" alignment="CENTER_RIGHT" textAlignment="RIGHT"/>
         </Pane>
         <Label text="%kilobyte_rate"/>
     </HBox>
@@ -51,7 +51,7 @@
     <HBox fx:id="connectionLimitPane" styleClass="combo-box-base,combo-box" focusTraversable="true"
           GridPane.columnIndex="2" GridPane.rowIndex="2"
           onKeyPressed="#onConnectionLimitKeyPressed" onMouseClicked="#onConnectionLimitClicked">
-        <Label fx:id="connectionLimit" styleClass="cell,list-cell" StackPane.alignment="CENTER_LEFT"/>
+        <Label fx:id="connectionLimit" styleClass="cell,list-cell" alignment="CENTER_RIGHT" textAlignment="RIGHT"/>
     </HBox>
 
     <!-- Bold -->

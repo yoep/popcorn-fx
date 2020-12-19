@@ -16,4 +16,6 @@
         </Icon>
         <Label fx:id="failedText" text="%list_failed_generic"/>
     </VBox>
+
+    <StackPane fx:id="overlay" styleClass="overlay"/>
 </StackPane>

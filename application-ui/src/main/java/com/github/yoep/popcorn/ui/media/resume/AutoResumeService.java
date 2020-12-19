@@ -74,14 +74,17 @@ public class AutoResumeService {
 
         // check if both the time and duration of the video are known
         // if not, the close activity media is not eligible for being auto resumed
-        if (time == PlayerStoppedEvent.UNKNOWN || duration == PlayerStoppedEvent.UNKNOWN)
+        if (time == PlayerStoppedEvent.UNKNOWN || duration == PlayerStoppedEvent.UNKNOWN) {
+            log.trace("Video player time or duration is UNKNOWN, skipping auto resume check");
             return;
+        }
 
         // check if the duration is longer than 5 mins.
         // if not, assume that the played media was a trailer which we don't want to auto resume
         if (duration < 5 * 60 * 1000)
             return;
 
+        log.trace("Video playback was stopped with last known info: [time: {}, duration: {}]", time, duration);
         var percentageWatched = ((double) time / duration) * 100;
         var id = event.getMedia().map(Media::getId).orElse(null);
         var filename = FilenameUtils.getName(event.getUrl());
@@ -100,6 +103,7 @@ public class AutoResumeService {
                     .lastKnownTime(event.getTime())
                     .build());
         } else {
+            log.debug("Removing auto resume timestamp of \"{}\" ({}) as it has been fully watched", filename, id);
             // we remove the video from the auto resume list as the user has completed video
             // and auto resuming the video is not required anymore the next time
             removeVideoTimestamp(id, filename);

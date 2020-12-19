@@ -21,7 +21,7 @@
     <Label styleClass="subsection-title" text="%settings_server"
            GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-    <!-- Default language -->
+    <!-- Server API -->
     <Label text="%settings_server_api"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
     <HBox fx:id="apiServerPane" styleClass="combo-box-base,combo-box" focusTraversable="true"

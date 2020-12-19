@@ -267,6 +267,7 @@ public class VideoPlayerService {
         Optional.ofNullable(videoPlayerManagerService.getVideoPlayer())
                 .ifPresent(VideoPlayer::stop);
 
+        log.trace("Publishing player stopped event with info: [time: {}, duration: {}]", time, duration);
         eventPublisher.publishEvent(PlayerStoppedEvent.builder()
                 .source(this)
                 .url(url)

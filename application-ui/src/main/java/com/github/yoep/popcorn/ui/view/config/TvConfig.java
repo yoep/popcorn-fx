@@ -136,6 +136,15 @@ public class TvConfig {
     }
 
     @Bean
+    public SettingsTorrentComponent settingsTorrentComponent(ApplicationEventPublisher eventPublisher,
+                                                             LocaleText localeText,
+                                                             SettingsService settingsService,
+                                                             TorrentSettingService torrentSettingService,
+                                                             SettingsSectionController settingsSection) {
+        return new SettingsTorrentComponent(eventPublisher, localeText, settingsService, torrentSettingService, settingsSection);
+    }
+
+    @Bean
     public PlayerHeaderComponent playerHeaderComponent() {
         return new PlayerHeaderComponent();
     }

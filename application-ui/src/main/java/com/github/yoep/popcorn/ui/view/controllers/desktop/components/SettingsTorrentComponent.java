@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
+import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
@@ -23,6 +24,8 @@ import java.util.ResourceBundle;
 public class SettingsTorrentComponent extends AbstractSettingsComponent implements Initializable {
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
 
+    private final TorrentSettingService torrentSettingService;
+
     @FXML
     private DelayedTextField downloadLimit;
     @FXML
@@ -34,8 +37,12 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     @FXML
     private CheckBox clearCache;
 
-    public SettingsTorrentComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+    public SettingsTorrentComponent(ApplicationEventPublisher eventPublisher,
+                                    LocaleText localeText,
+                                    SettingsService settingsService,
+                                    TorrentSettingService torrentSettingService) {
         super(eventPublisher, localeText, settingsService);
+        this.torrentSettingService = torrentSettingService;
     }
 
     @Override
@@ -51,10 +58,10 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         var settings = getSettings();
 
         downloadLimit.setTextFormatter(numericTextFormatter());
-        downloadLimit.setValue(toDisplayValue(settings.getDownloadRateLimit()));
+        downloadLimit.setValue(torrentSettingService.toDisplayValue(settings.getDownloadRateLimit()));
         downloadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
             try {
-                settings.setDownloadRateLimit(toSettingsValue(newValue));
+                settings.setDownloadRateLimit(torrentSettingService.toSettingsValue(newValue));
                 showNotification();
             } catch (NumberFormatException ex) {
                 log.warn("Download rate limit is invalid, " + ex.getMessage(), ex);
@@ -66,10 +73,10 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         var settings = getSettings();
 
         uploadLimit.setTextFormatter(numericTextFormatter());
-        uploadLimit.setValue(toDisplayValue(settings.getUploadRateLimit()));
+        uploadLimit.setValue(torrentSettingService.toDisplayValue(settings.getUploadRateLimit()));
         uploadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
             try {
-                settings.setUploadRateLimit(toSettingsValue(newValue));
+                settings.setUploadRateLimit(torrentSettingService.toSettingsValue(newValue));
                 showNotification();
             } catch (NumberFormatException ex) {
                 log.warn("Upload rate limit is invalid, " + ex.getMessage(), ex);
@@ -121,18 +128,6 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
 
         settings.setAutoCleaningEnabled(newValue);
         showNotification();
-    }
-
-    private String toDisplayValue(int value) {
-        var kb = value / 1024;
-
-        return String.valueOf(kb);
-    }
-
-    private int toSettingsValue(String value) {
-        var kb = Integer.parseInt(value);
-
-        return kb * 1024;
     }
 
     private TorrentSettings getSettings() {

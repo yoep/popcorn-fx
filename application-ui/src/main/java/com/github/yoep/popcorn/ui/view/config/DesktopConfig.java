@@ -210,8 +210,9 @@ public class DesktopConfig {
     @Bean
     public SettingsTorrentComponent settingsTorrentComponent(ApplicationEventPublisher eventPublisher,
                                                              LocaleText localeText,
-                                                             SettingsService settingsService) {
-        return new SettingsTorrentComponent(eventPublisher, localeText, settingsService);
+                                                             SettingsService settingsService,
+                                                             TorrentSettingService torrentSettingService) {
+        return new SettingsTorrentComponent(eventPublisher, localeText, settingsService, torrentSettingService);
     }
 
     @Bean

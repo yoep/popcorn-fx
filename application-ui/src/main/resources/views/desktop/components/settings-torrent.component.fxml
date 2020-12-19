@@ -29,7 +29,7 @@
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
     <HBox GridPane.columnIndex="2" GridPane.rowIndex="0" alignment="CENTER_LEFT">
         <DelayedTextField fx:id="downloadLimit" styleClass="small" userDelay="1500" invocationDelay="500"/>
-        <Label text="KB/sec"/>
+        <Label text="%kilobyte_rate"/>
     </HBox>
 
 
@@ -38,7 +38,7 @@
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>
     <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" alignment="CENTER_LEFT">
         <DelayedTextField fx:id="uploadLimit" styleClass="small" userDelay="1500" invocationDelay="500"/>
-        <Label text="KB/sec"/>
+        <Label text="%kilobyte_rate"/>
     </HBox>
 
     <!-- Connection limit -->

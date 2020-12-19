@@ -90,14 +90,6 @@ private:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
-
-    /**
-     * Convert the given time value to an applicable slider value.
-     *
-     * @param value The time value to convert.
-     * @return Returns the converted value for the slider.
-     */
-    static int toSliderValue(long value);
 };
 
 #endif //POPCORNPLAYER_PLAYERCONTROLS_H

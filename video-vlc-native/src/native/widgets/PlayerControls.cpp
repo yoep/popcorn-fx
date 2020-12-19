@@ -27,13 +27,13 @@ PlayerControls::~PlayerControls()
 void PlayerControls::setTime(long newValue)
 {
     ui->time->setTime(newValue);
-    ui->slider->setValue(toSliderValue(newValue));
+    ui->progress->onTimeChanged(newValue);
 }
 
 void PlayerControls::setDuration(long newValue)
 {
     ui->duration->setTime(newValue);
-    ui->slider->setMaximum(toSliderValue(newValue));
+    ui->progress->onDurationChanged(newValue);
 }
 
 void PlayerControls::setPlayerState(MediaPlayerState newValue)
@@ -73,7 +73,7 @@ void PlayerControls::initializeUi()
     ui->playPauseButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     ui->forwardButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     ui->moreButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
-    ui->slider->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+    ui->progress->setFocusPolicy(Qt::FocusPolicy::NoFocus);
     ui->playPauseButton->setFocus();
 
     log->debug("Player controls have been initialized");
@@ -127,9 +127,4 @@ void PlayerControls::onPlayPause()
 void PlayerControls::onForward()
 {
     emit forward();
-}
-
-int PlayerControls::toSliderValue(long value)
-{
-    return (int)value / 1000;
 }

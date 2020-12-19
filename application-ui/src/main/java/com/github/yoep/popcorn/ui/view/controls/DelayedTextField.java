@@ -148,6 +148,16 @@ public class DelayedTextField extends TextField {
 
     //endregion
 
+    //region Methods
+
+    @Override
+    public void clear() {
+        super.clear();
+        onChanged();
+    }
+
+    //endregion
+
     //region Functions
 
     private void init() {

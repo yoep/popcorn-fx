@@ -190,38 +190,6 @@ public abstract class AbstractListSectionController implements Initializable {
         }
     }
 
-    protected Media[] onMediaRequestFailed(Throwable throwable) {
-        // check if the media request was cancelled
-        // if so, ignore this failure
-        if (throwable instanceof CancellationException || throwable instanceof CompletionException) {
-            log.trace("Media request has been cancelled by the user");
-            return new Media[0];
-        }
-
-        var rootCause = throwable.getCause();
-        var message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
-        log.error("Failed to retrieve media list, " + rootCause.getMessage(), throwable);
-
-        if (rootCause instanceof HttpStatusCodeException) {
-            HttpStatusCodeException ex = (HttpStatusCodeException) rootCause;
-            message.set(localeText.get(ListMessage.API_UNAVAILABLE, ex.getStatusCode()));
-        }
-
-        Platform.runLater(() -> {
-            failedText.setText(message.get());
-            failedPane.setVisible(true);
-        });
-
-        return new Media[0];
-    }
-
-    protected Media[] onMediaRequestCompleted(final Page<? extends Media> page) {
-        // filter out any duplicate items
-        return page.get()
-                .filter(e -> !scrollPane.getItems().containsKey(e))
-                .toArray(Media[]::new);
-    }
-
     protected CompletableFuture<Media[]> retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
         if (StringUtils.isEmpty(search)) {
             currentLoadRequest = provider.getPage(genre, sortBy, page);
@@ -260,11 +228,56 @@ public abstract class AbstractListSectionController implements Initializable {
         overlay.setVisible(true);
     }
 
-    protected void hideOverlay() {
+    protected void onItemClicked(Media media) {
+        showOverlay();
+        providerServices.stream()
+                .filter(e -> e.supports(category))
+                .findFirst()
+                .ifPresent(provider -> showMediaDetails(media, provider));
+    }
+
+    private void hideOverlay() {
         overlay.setVisible(false);
 
         overlay.getChildren().clear();
         loadingIndicator = null;
+    }
+
+    private Media[] onMediaRequestFailed(Throwable throwable) {
+        // check if the media request was cancelled
+        // if so, ignore this failure
+        if (throwable instanceof CancellationException || throwable instanceof CompletionException) {
+            log.trace("Media request has been cancelled by the user");
+            return new Media[0];
+        }
+
+        var rootCause = throwable.getCause();
+        var message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
+        log.error("Failed to retrieve media list, " + rootCause.getMessage(), throwable);
+
+        if (rootCause instanceof HttpStatusCodeException) {
+            HttpStatusCodeException ex = (HttpStatusCodeException) rootCause;
+            message.set(localeText.get(ListMessage.API_UNAVAILABLE, ex.getStatusCode()));
+        }
+
+        Platform.runLater(() -> {
+            failedText.setText(message.get());
+            failedPane.setVisible(true);
+        });
+
+        return new Media[0];
+    }
+
+    private Media[] onMediaRequestCompleted(final Page<? extends Media> page) {
+        // filter out any duplicate items
+        return page.get()
+                .filter(e -> !scrollPane.getItems().containsKey(e))
+                .toArray(Media[]::new);
+    }
+
+    private void showMediaDetails(Media media, ProviderService<? extends Media> provider) {
+        provider.showDetails(media)
+                .whenComplete((loaded, throwable) -> Platform.runLater(this::hideOverlay));
     }
 
     //endregion

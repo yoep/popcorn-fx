@@ -73,12 +73,5 @@ public class ListSectionController extends AbstractListSectionController impleme
         return viewLoader.load("components/media-card-simple.component.fxml", mediaCardComponent);
     }
 
-    private void onItemClicked(Media media) {
-        providerServices.stream()
-                .filter(e -> e.supports(category))
-                .findFirst()
-                .ifPresent(provider -> provider.showDetails(media));
-    }
-
     //endregion
 }

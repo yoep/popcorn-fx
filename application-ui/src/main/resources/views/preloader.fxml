@@ -4,6 +4,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.StackPane?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           prefWidth="300" prefHeight="300"
            stylesheets="/styles/preloader.css" cache="true" cacheHint="SCALE">
     <ImageView>
         <Image url="/images/icon.png"/>

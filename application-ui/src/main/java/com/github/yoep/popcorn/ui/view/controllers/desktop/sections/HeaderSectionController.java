@@ -7,7 +7,6 @@ import com.github.yoep.popcorn.ui.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.ui.settings.models.StartScreen;
 import com.github.yoep.popcorn.ui.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.ui.view.controls.SearchField;
@@ -29,27 +28,15 @@ import org.springframework.context.event.EventListener;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class HeaderSectionController extends AbstractFilterSectionController implements Initializable {
-    private static final String STYLE_ACTIVE = "active";
-
-    private final ApplicationEventPublisher eventPublisher;
     private final PopcornProperties properties;
     private final LocaleText localeText;
 
-    private Label lastKnownSelectedCategory;
-
     @FXML
     private Pane headerPane;
-    @FXML
-    private Label moviesCategory;
-    @FXML
-    private Label seriesCategory;
-    @FXML
-    private Label favoritesCategory;
     @FXML
     private ComboBox<Genre> genreCombo;
     @FXML
@@ -67,8 +54,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     public HeaderSectionController(ApplicationEventPublisher eventPublisher, PopcornProperties properties, LocaleText localeText,
                                    SettingsService settingsService) {
-        super(settingsService);
-        this.eventPublisher = eventPublisher;
+        super(eventPublisher, settingsService);
         this.properties = properties;
         this.localeText = localeText;
     }
@@ -99,20 +85,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     //region Functions
 
     @Override
-    protected void initializeStartScreen(StartScreen startScreen) {
-        log.trace("Initializing start screen");
-
-        switch (startScreen) {
-            case SERIES:
-                switchCategory(seriesCategory);
-                break;
-            case FAVORITES:
-                switchCategory(favoritesCategory);
-                break;
-            default:
-                switchCategory(moviesCategory);
-                break;
-        }
+    protected void clearSearch() {
+        search.clear();
     }
 
     private void initializeComboListeners() {
@@ -145,7 +119,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         });
     }
 
-    private void updateGenres(Category category) {
+    @Override
+    protected void updateGenres(Category category) {
         ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
         List<Genre> genres = providerProperties.getGenres().stream()
                 .map(e -> new Genre(e, localeText.get("genre_" + e)))
@@ -157,7 +132,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         genreCombo.getSelectionModel().select(0);
     }
 
-    private void updateSortBy(Category category) {
+    @Override
+    protected void updateSortBy(Category category) {
         ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
         List<SortBy> sortBy = providerProperties.getSortBy().stream()
                 .map(e -> new SortBy(e, localeText.get("sort-by_" + e)))
@@ -166,35 +142,6 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         sortByCombo.getItems().clear();
         sortByCombo.getItems().addAll(sortBy);
         sortByCombo.getSelectionModel().select(0);
-    }
-
-    private void switchCategory(Label item) {
-        final AtomicReference<Category> category = new AtomicReference<>();
-        this.lastKnownSelectedCategory = item;
-
-        removeAllActiveStates();
-        activateItem(item);
-
-        if (item == moviesCategory) {
-            category.set(Category.MOVIES);
-        }
-        if (item == seriesCategory) {
-            category.set(Category.SERIES);
-        }
-        if (item == favoritesCategory) {
-            category.set(Category.FAVORITES);
-        }
-
-        // invoke the chang activity first before changing the genre & sort by
-        log.trace("Category is being changed to \"{}\"", category.get());
-        eventPublisher.publishEvent(new CategoryChangedEvent(this, category.get()));
-
-        // clear the current search
-        search.clear();
-
-        // set the category specific genres and sort by filters
-        updateGenres(category.get());
-        updateSortBy(category.get());
     }
 
     private void switchGenre(Genre genre) {
@@ -219,23 +166,14 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         activateItem(icon);
     }
 
-    private void activateItem(Label item) {
-        if (item == null)
-            return;
-
-        item.getStyleClass().add(STYLE_ACTIVE);
-    }
-
-    private void removeAllActiveStates() {
-        // categories
-        moviesCategory.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
-        seriesCategory.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
-        favoritesCategory.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+    @Override
+    protected void removeAllActiveStates() {
+        super.removeAllActiveStates();
 
         // icons
-        watchlistIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
-        torrentCollectionIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
-        settingsIcon.getStyleClass().removeIf(e -> e.equals(STYLE_ACTIVE));
+        watchlistIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
+        torrentCollectionIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
+        settingsIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
     }
 
     private void onSettingsClosed() {

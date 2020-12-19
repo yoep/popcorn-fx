@@ -88,7 +88,7 @@ public class HeaderSectionControllerIT extends TestFxBase {
             write(searchText);
 
             // wait for the search field invoke
-            sleep(500);
+            sleep(1000);
 
             // wait for the expected poster items
             WaitForAsyncUtils.waitFor(30, TimeUnit.SECONDS, () -> lookup(".poster-item").queryAll().size() == 0);

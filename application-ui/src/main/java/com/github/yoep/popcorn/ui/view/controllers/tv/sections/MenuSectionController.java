@@ -1,9 +1,11 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
+import com.github.yoep.popcorn.ui.events.SearchEvent;
+import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.settings.models.StartScreen;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
 import com.github.yoep.popcorn.ui.view.models.Category;
@@ -28,9 +30,6 @@ import java.util.ResourceBundle;
 
 @Slf4j
 public class MenuSectionController extends AbstractFilterSectionController implements Initializable {
-    private static final String ACTIVE_STYLE_CLASS = "active";
-
-    private final ApplicationEventPublisher eventPublisher;
     private final PopcornProperties properties;
 
     @FXML
@@ -40,12 +39,6 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     @FXML
     private Pane searchCategory;
     @FXML
-    private Pane moviesCategory;
-    @FXML
-    private Pane seriesCategory;
-    @FXML
-    private Pane favoritesCategory;
-    @FXML
     private Pane settingsItem;
     @FXML
     private Pane shutdownItem;
@@ -53,8 +46,7 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     private DelayedTextField searchField;
 
     public MenuSectionController(SettingsService settingsService, ApplicationEventPublisher eventPublisher, PopcornProperties properties) {
-        super(settingsService);
-        this.eventPublisher = eventPublisher;
+        super(eventPublisher, settingsService);
         this.properties = properties;
     }
 
@@ -71,6 +63,11 @@ public class MenuSectionController extends AbstractFilterSectionController imple
 
     //region Functions
 
+    @Override
+    protected void clearSearch() {
+        searchField.clear();
+    }
+
     private void initializeHeader() {
         var headerResource = new ClassPathResource("images/header-small.png");
 
@@ -85,54 +82,9 @@ public class MenuSectionController extends AbstractFilterSectionController imple
         searchField.valueProperty().addListener((observable, oldValue, newValue) -> eventPublisher.publishEvent(new SearchEvent(this, newValue)));
     }
 
-    @Override
-    protected void initializeStartScreen(StartScreen startScreen) {
-        log.trace("Initializing start screen");
-        Pane category;
-
-        switch (startScreen) {
-            case SERIES:
-                log.trace("Switching to series category");
-                category = seriesCategory;
-                break;
-            case FAVORITES:
-                log.trace("Switching to favorites category");
-                category = favoritesCategory;
-                break;
-            default:
-                log.trace("Switching to movies category");
-                category = moviesCategory;
-                break;
-        }
-
-        category.requestFocus();
-        switchCategory(category);
-    }
-
-    private void switchCategory(Pane categoryPane) {
-        var category = Category.MOVIES;
-
-        moviesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
-        seriesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
-        favoritesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
-
-        categoryPane.getStyleClass().add(ACTIVE_STYLE_CLASS);
-
-        if (categoryPane == seriesCategory) {
-            category = Category.SERIES;
-        }
-        if (categoryPane == favoritesCategory) {
-            category = Category.FAVORITES;
-        }
-
-        eventPublisher.publishEvent(new CategoryChangedEvent(this, category));
-        updateGenres(category);
-        updateSortBy(category);
-        clearSearch();
-    }
-
     //TODO: find a clever way to incorporate this into the UI
-    private void updateGenres(Category category) {
+    @Override
+    protected void updateGenres(Category category) {
         var providerProperties = properties.getProvider(category.getProviderName());
         var genre = new Genre(providerProperties.getGenres().get(0), null);
 
@@ -140,15 +92,12 @@ public class MenuSectionController extends AbstractFilterSectionController imple
     }
 
     //TODO: find a clever way to incorporate this into the UI
-    private void updateSortBy(Category category) {
+    @Override
+    protected void updateSortBy(Category category) {
         var providerProperties = properties.getProvider(category.getProviderName());
         var sortBy = new SortBy(providerProperties.getSortBy().get(0), null);
 
         eventPublisher.publishEvent(new SortByChangeEvent(this, sortBy));
-    }
-
-    private void clearSearch() {
-        searchField.setValue(null);
     }
 
     private void showSettings() {

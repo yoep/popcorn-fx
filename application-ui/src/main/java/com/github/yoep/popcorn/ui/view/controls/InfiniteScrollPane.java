@@ -6,14 +6,19 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableMap;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
+
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class InfiniteScrollPane<T> extends ManageableScrollPane {
@@ -42,7 +47,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     /**
      * The items of this {@link InfiniteScrollPane}.
      */
-    private final ObservableMap<T, Node> items = FXCollections.observableHashMap();
+    private final ObservableList<ItemWrapper> items = FXCollections.observableArrayList();
 
     private final Object loaderLock = new Object();
     private final Object contentUpdaterLock = new Object();
@@ -146,18 +151,20 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         this.loaderFactory.set(loaderFactory);
     }
 
-    /**
-     * Get the items of the infinite scroll pane.
-     *
-     * @return Returns the items of this instance.
-     */
-    public ObservableMap<T, Node> getItems() {
-        return items;
-    }
-
     //endregion
 
     //region Methods
+
+    /**
+     * Check if the {@link InfiniteScrollPane} contains the given item.
+     *
+     * @param item The item to check for.
+     * @return Returns true if it contains the item, else false.
+     */
+    public boolean contains(T item) {
+        return items.stream()
+                .anyMatch(e -> e.getItem() == item);
+    }
 
     /**
      * Reset the infinite scroll pane.
@@ -176,7 +183,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         endOfItems = false;
         updating = true;
         synchronized (contentUpdaterLock) {
-            getItems().clear();
+            items.clear();
             setPage(0);
         }
         updating = false;
@@ -222,7 +229,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
 
     private void initializeListeners() {
         pageProperty().addListener((observable, oldValue, newValue) -> onPageChanged());
-        getItems().addListener(this::onItemsChanged);
+        items.addListener(this::onItemsChanged);
     }
 
     private void onScroll() {
@@ -232,16 +239,16 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
             loadNewPage();
     }
 
-    private void addNode(Node node) {
+    private void addNodes(Node... nodes) {
         // remove the loader if it still present
         removeLoaderItem();
 
         // add the new node to the list
-        runOnFx(() -> itemsPane.getChildren().add(node));
+        runOnFx(() -> itemsPane.getChildren().addAll(nodes));
     }
 
-    private void removeNode(Node node) {
-        runOnFx(() -> itemsPane.getChildren().remove(node));
+    private void removeNodes(Node... nodes) {
+        runOnFx(() -> itemsPane.getChildren().removeAll(nodes));
     }
 
     private void finished() {
@@ -289,35 +296,23 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         // retrieve all the new items for the new page
         itemFactory
                 .loadPage(getPage())
-                .thenAccept(items -> {
+                .thenAccept(pageItems -> {
                     synchronized (contentUpdaterLock) {
                         log.trace("Creating new content updater");
                         contentUpdater = new Thread(() -> {
-                            if (items.size() == 0)
+                            // when the total page items is smaller than 10
+                            // assume that we have reached the end
+                            if (pageItems.size() < 10)
                                 endOfItems = true;
 
-                            for (T item : items) {
-                                runOnFx(() -> {
-                                    // safely iterate over the new item and add it to the infinite scroll pane
-                                    try {
-                                        this.items.put(item, itemFactory.createCell(item));
-                                    } catch (Exception ex) {
-                                        log.error(ex.getMessage(), ex);
-                                    }
-                                });
-                            }
+                            var nodes = pageItems.stream()
+                                    .map(this::createWrapperForItem)
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toList());
 
-                            runOnFx(() -> {
-                                // check if enough items were loaded for the scrollbar to be scrollable
-                                if (!endOfItems && itemsPane.getHeight() < (this.getHeight() * 1.5) && getPage() < 5) {
-                                    // load an additional page
-                                    updating = false;
-                                    increasePage();
-                                } else {
-                                    // remove the loader
-                                    finished();
-                                }
-                            });
+                            this.items.addAll(nodes);
+
+                            startAutomaticPageLoaderWatcher();
                         }, "InfiniteScrollPane-contentUpdater");
 
                         log.trace("Starting new content updater thread");
@@ -326,11 +321,35 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
                 });
     }
 
-    private void onItemsChanged(MapChangeListener.Change<? extends T, ? extends Node> change) {
-        if (change.wasAdded()) {
-            addNode(change.getValueAdded());
-        } else {
-            removeNode(change.getValueRemoved());
+    private ItemWrapper createWrapperForItem(T item) {
+        var itemFactory = getItemFactory();
+
+        try {
+            var graphicsNode = itemFactory.createCell(item);
+
+            return new ItemWrapper(item, graphicsNode);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+
+        return null;
+    }
+
+    private void onItemsChanged(ListChangeListener.Change<? extends ItemWrapper> change) {
+        while (change.next()) {
+            if (change.wasAdded()) {
+                var nodes = change.getAddedSubList().stream()
+                        .map(ItemWrapper::getGraphicsNode)
+                        .toArray(Node[]::new);
+
+                addNodes(nodes);
+            } else if (change.wasRemoved()) {
+                var nodes = change.getRemoved().stream()
+                        .map(ItemWrapper::getGraphicsNode)
+                        .toArray(Node[]::new);
+
+                removeNodes(nodes);
+            }
         }
     }
 
@@ -341,6 +360,63 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
                 contentUpdater.interrupt();
             }
         }
+    }
+
+    private void startAutomaticPageLoaderWatcher() {
+        var lastChange = System.currentTimeMillis();
+        var originHeight = itemsPane.getHeight();
+
+        // wait till the content pane is stable
+        // as long as the content pane is changing in height, we keep waiting
+        while (System.currentTimeMillis() - lastChange < 500) {
+            var currentHeight = itemsPane.getHeight();
+
+            if (originHeight != currentHeight) {
+                originHeight = currentHeight;
+                lastChange = System.currentTimeMillis();
+            }
+        }
+
+        // once the content pane is stable
+        // we verify if we need to automatically load the next page
+        Platform.runLater(() -> {
+            var scrollPaneHeight = this.getHeight();
+            var minContentHeight = scrollPaneHeight * 1.25;
+            var actualContentHeight = itemsPane.getHeight();
+
+            // check if enough items were loaded for the scrollbar to be scrollable
+            // if not, load an additional page
+            if (!endOfItems && actualContentHeight < minContentHeight && getPage() <= 3) {
+                updating = false;
+                increasePage();
+            } else {
+                // remove the loader
+                finished();
+            }
+
+            // check if we need to traverse the focus to an item in the list
+            traverseFocusToItems();
+        });
+    }
+
+    private void traverseFocusToItems() {
+        // check if any items is focusable and already has the focus
+        // if so, we're not going to traverse the focus
+        var focusAlreadyTraversed = items.stream()
+                .map(ItemWrapper::getGraphicsNode)
+                .filter(Node::isFocusTraversable)
+                .anyMatch(Node::isFocused);
+
+        if (focusAlreadyTraversed)
+            return;
+
+        // if we can traverse the focus and none of the items has the focus
+        // we move
+        items.stream()
+                .map(ItemWrapper::getGraphicsNode)
+                .filter(Node::isFocusTraversable)
+                .findFirst()
+                .ifPresent(Node::requestFocus);
     }
 
     private void runOnFx(Runnable runnable) {
@@ -360,4 +436,11 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     }
 
     //endregion
+
+    @Getter
+    @AllArgsConstructor
+    private class ItemWrapper {
+        private final T item;
+        private final Node graphicsNode;
+    }
 }

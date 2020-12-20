@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.watched.WatchedService;
@@ -11,17 +13,16 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 
-import java.net.URL;
 import java.util.List;
-import java.util.ResourceBundle;
 
 @Slf4j
 public class ListSectionController extends AbstractListSectionController implements Initializable {
     private final WatchedService watchedService;
     private final ImageService imageService;
 
-    private boolean requestFocus;
+    private boolean listHasBeenReset;
 
     //region Constructors
 
@@ -37,20 +38,30 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     //endregion
 
-    //region Initializable
+    //region Methods
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-        super.initialize(location, resources);
-        initializePageListener();
+    @EventListener(PlayMediaEvent.class)
+    public void onPlayerMedia() {
+        // release all items from the scroll list
+        // this should free some memory used by the images in the scroll list
+        // and we assume that when we're in TV mode,
+        // we don't have much memory and want to allocate the memory to the video playback
+        reset();
+        listHasBeenReset = true;
+
+        // request the JVM to execute a garbage collection
+        System.gc();
     }
 
-    private void initializePageListener() {
-        scrollPane.pageProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue.intValue() == 1) {
-                requestFocus = true;
-            }
-        });
+    @EventListener(CloseDetailsEvent.class)
+    public void onDetailsClosed() {
+        // if the items have been removed from the list
+        // it will be empty when the details are being closed
+        // to resolve this, request the list to load a new page
+        if (listHasBeenReset) {
+            invokeNewPageLoad();
+            listHasBeenReset = false;
+        }
     }
 
     //endregion
@@ -62,13 +73,6 @@ public class ListSectionController extends AbstractListSectionController impleme
         item.setWatched(watchedService.isWatched(item));
 
         var mediaCardComponent = new SimpleMediaCardComponent(item, localeText, imageService, this::onItemClicked);
-
-        // check if this media card item should request the focus
-        // update the request focus later on back to false so only one item requests the focus
-        if (requestFocus) {
-            mediaCardComponent.setRequestFocus(true);
-            requestFocus = false;
-        }
 
         return viewLoader.load("components/media-card-simple.component.fxml", mediaCardComponent);
     }

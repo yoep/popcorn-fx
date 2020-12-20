@@ -46,6 +46,7 @@ public class PopcornTimePreloader extends Preloader {
 
     @Override
     public void handleStateChangeNotification(StateChangeNotification info) {
+        log.trace("Received state change notification {}", info.getType());
         if (info.getType() == StateChangeNotification.Type.BEFORE_START) {
             this.stage.close();
             this.stage = null;

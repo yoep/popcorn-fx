@@ -29,7 +29,10 @@ import org.springframework.util.Assert;
 import org.springframework.web.client.HttpStatusCodeException;
 
 import java.net.URL;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -173,12 +176,13 @@ public abstract class AbstractListSectionController implements Initializable {
         // hide the failed pane in case it might be visible from the last failure
         Platform.runLater(() -> failedPane.setVisible(false));
 
-        // cancel the current load request if present
-        if (currentLoadRequest != null)
+        // cancel the current load request if one is present
+        // and has not yet been completed
+        if (currentLoadRequest != null && !currentLoadRequest.isDone())
             currentLoadRequest.cancel(true);
 
         log.trace("Retrieving media page {} for {} category", page, category);
-        Optional<ProviderService<? extends Media>> provider = providerServices.stream()
+        var provider = providerServices.stream()
                 .filter(e -> e.supports(category))
                 .findFirst();
 
@@ -244,6 +248,8 @@ public abstract class AbstractListSectionController implements Initializable {
     }
 
     private Media[] onMediaRequestFailed(Throwable throwable) {
+        releaseCurrentLoadRequest();
+
         // check if the media request was cancelled
         // if so, ignore this failure
         if (throwable instanceof CancellationException || throwable instanceof CompletionException) {
@@ -269,15 +275,26 @@ public abstract class AbstractListSectionController implements Initializable {
     }
 
     private Media[] onMediaRequestCompleted(final Page<? extends Media> page) {
+        releaseCurrentLoadRequest();
+
         // filter out any duplicate items
         return page.get()
-                .filter(e -> !scrollPane.getItems().containsKey(e))
+                .filter(e -> !scrollPane.contains(e))
                 .toArray(Media[]::new);
     }
 
     private void showMediaDetails(Media media, ProviderService<? extends Media> provider) {
         provider.showDetails(media)
                 .whenComplete((loaded, throwable) -> Platform.runLater(this::hideOverlay));
+    }
+
+    private void releaseCurrentLoadRequest() {
+        if (!this.currentLoadRequest.isDone()) {
+            log.warn("Unable to release the current load request, load request is still in progress");
+            return;
+        }
+
+        this.currentLoadRequest = null;
     }
 
     //endregion

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.subtitles;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleIndex;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleLine;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleText;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.Assert;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Slf4j
 public class SrtParser {
     private static final Pattern INDEX_PATTERN = Pattern.compile("([0-9]+)");
     private static final Pattern TIME_PATTERN = Pattern.compile("(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})");
@@ -63,6 +65,17 @@ public class SrtParser {
             if (StringUtils.isBlank(line))
                 stage = Stage.FINISH;
 
+            processLine(lineIndex, line);
+        }
+
+        // finish the last subtitle as it might not have been completed
+        finishSubtitle();
+
+        return subtitles;
+    }
+
+    private void processLine(int lineIndex, String line) {
+        try {
             switch (stage) {
                 case INDEX:
                     createNewSubtitle();
@@ -78,13 +91,11 @@ public class SrtParser {
                     finishSubtitle();
                     break;
             }
-
+        } catch (SubtitleParsingException ex) {
+            var message = MessageFormat.format("Subtitle line {0} is invalid and will be ignored", lineIndex);
+            log.warn(message, ex);
+            resetSubtitle();
         }
-
-        // finish the last subtitle as it might not have been completed
-        finishSubtitle();
-
-        return subtitles;
     }
 
     private void createNewSubtitle() {
@@ -157,6 +168,13 @@ public class SrtParser {
         lines = null;
 
         nextStage();
+    }
+
+    private void resetSubtitle() {
+        subtitleBuilder = null;
+        lines = null;
+
+        stage = Stage.INDEX;
     }
 
     private long toMillis(LocalTime time) {

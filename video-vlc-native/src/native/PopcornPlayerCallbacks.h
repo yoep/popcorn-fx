@@ -17,13 +17,13 @@ typedef void (*popcorn_player_state_callback_t)(int newState);
  *
  * @param newTime The new player time in millis.
  */
-typedef void (*popcorn_player_time_callback_t)(long newTime);
+typedef void (*popcorn_player_time_callback_t)(const char *newTime);
 /**
  * Callback function for the popcorn player duration change.
  *
  * @param newDuration The new player duration in millis.
  */
-typedef void (*popcorn_player_duration_callback_t)(long newDuration);
+typedef void (*popcorn_player_duration_callback_t)(const char *newDuration);
 
 #ifdef __cplusplus
 }

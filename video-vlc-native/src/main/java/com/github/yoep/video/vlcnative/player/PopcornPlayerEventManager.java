@@ -7,10 +7,13 @@ import com.github.yoep.video.vlcnative.bindings.popcorn_player_t;
 import com.github.yoep.video.vlcnative.bindings.popcorn_player_time_callback_t;
 import com.sun.jna.CallbackThreadInitializer;
 import com.sun.jna.Native;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
+@Slf4j
 class PopcornPlayerEventManager {
     private final List<PopcornPlayerEventListener> listeners = new ArrayList<>();
     private final StateCallback stateCallback = new StateCallback();
@@ -82,8 +85,14 @@ class PopcornPlayerEventManager {
         }
 
         @Override
-        public void callback(long newValue) {
-            onTimeChanged(newValue);
+        public void callback(String newValue) {
+            Optional.ofNullable(newValue)
+                    .map(Long::parseLong)
+                    .ifPresentOrElse(PopcornPlayerEventManager.this::onTimeChanged, this::onCallbackValueEmpty);
+        }
+
+        private void onCallbackValueEmpty() {
+            log.warn("Time callback value is NULL, unable to resolve callback correctly");
         }
     }
 
@@ -96,8 +105,14 @@ class PopcornPlayerEventManager {
         }
 
         @Override
-        public void callback(long newValue) {
-            onDurationChanged(newValue);
+        public void callback(String newValue) {
+            Optional.ofNullable(newValue)
+                    .map(Long::parseLong)
+                    .ifPresentOrElse(PopcornPlayerEventManager.this::onDurationChanged, this::onCallbackValueEmpty);
+        }
+
+        private void onCallbackValueEmpty() {
+            log.warn("Duration callback value is NULL, unable to resolve callback correctly");
         }
     }
 }

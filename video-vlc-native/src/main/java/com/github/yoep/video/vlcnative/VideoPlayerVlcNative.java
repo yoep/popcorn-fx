@@ -190,13 +190,21 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
             @Override
             public void onTimeChanged(long newValue) {
-                time.set(newValue);
+                if (newValue >= 0) {
+                    time.set(newValue);
+                } else {
+                    log.warn("Received invalid time value {}", newValue);
+                }
             }
 
             @Override
             public void onDurationChanged(long newValue) {
-                log.debug("Popcorn player duration changed to {}", newValue);
-                duration.setValue(newValue);
+                if (newValue >= 0) {
+                    log.trace("Popcorn player duration changed to {}", newValue);
+                    duration.setValue(newValue);
+                } else {
+                    log.warn("Received invalid duration value {}", newValue);
+                }
             }
         });
     }

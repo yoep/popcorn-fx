@@ -57,16 +57,22 @@ void PopcornPlayerEventManager::onStateChanged(MediaPlayerState newState)
 void PopcornPlayerEventManager::onTimeChanged(long newValue)
 {
     _log->trace(std::string("Event manager received new player time ") + std::to_string(newValue));
+    const auto &timeValue = std::to_string(newValue);
+    auto time = timeValue.c_str();
+
     for (auto const &callback : _timeCallbacks) {
-        callback(newValue);
+        callback(time);
     }
 }
 
 void PopcornPlayerEventManager::onDurationChanged(long newValue)
 {
     _log->trace(std::string("Event manager received new player duration ") + std::to_string(newValue));
+    const auto &durationValue = std::to_string(newValue);
+    auto duration = durationValue.c_str();
+    
     for (auto const &callback : _durationCallbacks) {
-        callback(newValue);
+        callback(duration);
     }
 }
 

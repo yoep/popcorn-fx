@@ -229,24 +229,28 @@ public class TorrentStreamImpl implements TorrentStream {
     }
 
     private void updatePiecePriorities() {
-        log.debug("Preparing the following pieces {} for torrent stream \"{}\"", preparePieces, getFilename());
+        log.debug("Prioritizing {} preparation pieces", preparePieces.length);
+        log.trace("Preparing the following pieces {} for torrent stream \"{}\"", preparePieces, getFilename());
         // update the torrent file priorities to prepare the first 5 pieces and the last piece
         prioritizePieces(preparePieces);
     }
 
     private Integer[] determinePreparationPieces() {
         var totalPieces = getTotalPieces();
+        var numberOfPreparationPieces = Math.max(8, totalPieces * 0.08);
         var pieces = new ArrayList<Integer>();
 
-        // prepare the first 8 pieces if it doesn't exceed the total pieces
-        for (int i = 0; i < 8 && i < totalPieces - 1; i++) {
+        // prepare the first 10% of pieces if it doesn't exceed the total pieces
+        // otherwise, prepare the first 8
+        for (int i = 0; i < numberOfPreparationPieces && i < totalPieces - 1; i++) {
             pieces.add(i);
         }
 
-        // add the last 2 pieces for preparation
+        // add the last 3 pieces for preparation
         // this is done for determining the video length during streaming
-        pieces.add(totalPieces - 1);
-        pieces.add(totalPieces);
+        for (int i = totalPieces; i > totalPieces - 3; i--) {
+            pieces.add(i);
+        }
 
         return pieces
                 .stream()

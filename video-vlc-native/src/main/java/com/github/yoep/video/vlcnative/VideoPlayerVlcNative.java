@@ -139,7 +139,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     @Override
     public void subtitleDelay(long delay) {
         log.trace("Updating subtitle delay to {} milliseconds", delay);
-//        PopcornPlayerLib.popcorn_player_subtitle_delay(popcornPlayer, delay * 1000);
+        popcornPlayer.subtitleDelay(delay);
     }
 
     //endregion
@@ -148,7 +148,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
     @PostConstruct
     private void init() {
-        log.trace("Initializing VLC native player");
+        log.trace("Initializing popcorn native player");
         try {
             var level = getPlayerLogLevel();
             var args = new String[]{"PopcornPlayer", "-l", level};
@@ -157,6 +157,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
 
             initializeListener();
             initialized = true;
+            log.debug("Popcorn player has been initialized");
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }

@@ -144,6 +144,28 @@ void popcorn_player_subtitle_delay(popcorn_player_t *pdp, long delay)
     player->setSubtitleDelay(delay);
 }
 
+int popcorn_player_volume(popcorn_player_t *pdp)
+{
+    if (pdp == nullptr)
+        return -1;
+
+    PopcornPlayer *player;
+
+    player = static_cast<PopcornPlayer *>(pdp->player);
+    return 0;
+}
+
+void popcorn_player_set_volume(popcorn_player_t *pdp, int volume)
+{
+    if (pdp == nullptr)
+        return -1;
+
+    PopcornPlayer *player;
+
+    player = static_cast<PopcornPlayer *>(pdp->player);
+
+}
+
 void popcorn_player_state_callback(popcorn_player_t *pdp, popcorn_player_state_callback_t callback)
 {
     if (pdp == nullptr)

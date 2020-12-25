@@ -72,6 +72,13 @@ public:
     void setSubtitleDelay(long delay);
 
     /**
+     * Set the media player audio volume.
+     *
+     * @param volume The volume in percents (0 = mute, 100 = 0dB).
+     */
+    void setVolume(int volume);
+
+    /**
      * Get the current media player state.
      *
      * @return Returns the state of the media player.
@@ -80,8 +87,9 @@ public:
 
     /**
      * Get the current time of the media player.
+     * The time is -1 if the media player is being disposed.
      *
-     * @return Returns the current time of the media player.
+     * @return Returns the current time of the media player, or -1 on failure.
      */
     long time();
 
@@ -89,7 +97,7 @@ public:
      * Get the current duration of the media player.
      * The duration is -1 if no media is playing.
      *
-     * @return Returns the duration of the current media playback.
+     * @return Returns the duration of the current media playback, or -1 on failure.
      */
     long duration();
 

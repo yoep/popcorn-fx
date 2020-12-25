@@ -51,6 +51,7 @@ void MediaPlayer::play(Media *media)
 
 void MediaPlayer::seek(long time)
 {
+    _log->debug("Media player seeking " + std::to_string(time));
     if (_media != nullptr && _media->state() != MediaState::PARSING) {
         applySeek(time);
     } else {
@@ -155,8 +156,22 @@ void MediaPlayer::setSubtitleFile(const char *uri)
 
 void MediaPlayer::setSubtitleDelay(long delay)
 {
+    if (_vlcMediaPlayer == nullptr)
+        return;
+
     _log->debug(std::string("Updating subtitle delay to ") + std::to_string(delay) + "ms");
     libvlc_video_set_spu_delay(_vlcMediaPlayer, delay);
+}
+
+void MediaPlayer::setVolume(int volume)
+{
+    if (_vlcMediaPlayer == nullptr)
+        return;
+
+    _log->debug("Updating media player volume to " + std::to_string(volume));
+    if (libvlc_audio_set_volume(_vlcMediaPlayer, volume) != 0) {
+        _log->warn("Failed to update media player audio volume");
+    }
 }
 
 MediaPlayerState MediaPlayer::state()
@@ -166,14 +181,16 @@ MediaPlayerState MediaPlayer::state()
 
 long MediaPlayer::time()
 {
+    if (_vlcMediaPlayer == nullptr)
+        return -1;
+
     return libvlc_media_player_get_time(_vlcMediaPlayer);
 }
 
 long MediaPlayer::duration()
 {
-    if (_media == nullptr) {
+    if (_media == nullptr)
         return -1;
-    }
 
     return libvlc_media_get_duration(_media->vlcMedia());
 }
@@ -219,6 +236,9 @@ void MediaPlayer::initializeMediaPlayer()
 
     // set the player used by this media player in the list
     libvlc_media_list_player_set_media_player(_vlcMediaList, _vlcMediaPlayer);
+
+    // set the initial volume of the media player to 100
+    setVolume(100);
 
     subscribeEvents();
     _log->debug("Media player initialized");

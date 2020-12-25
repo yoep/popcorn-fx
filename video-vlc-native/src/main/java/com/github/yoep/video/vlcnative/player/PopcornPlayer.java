@@ -114,6 +114,17 @@ public class PopcornPlayer {
     }
 
     /**
+     * The subtitle file delay for the current media playback.
+     *
+     * @param delay The delay in milliseconds.
+     */
+    public void subtitleDelay(long delay) {
+        var microSeconds = delay * 1000;
+
+        PopcornPlayerLib.popcorn_player_subtitle_delay(instance, microSeconds);
+    }
+
+    /**
      * Register the given listener to this player instance.
      *
      * @param listener The listener to register (non-null).

@@ -92,6 +92,22 @@ void popcorn_player_subtitle(popcorn_player_t *pdp, const char *uri);
 void popcorn_player_subtitle_delay(popcorn_player_t *pdp, long delay);
 
 /**
+ * Get the current volume of the media playback.
+ *
+ * @param pdp The Popcorn Player instance.
+ * @return Returns te volume in percents (0 = mute, 100 = 0dB), else -1 on failure.
+ */
+int popcorn_player_volume(popcorn_player_t *pdp);
+
+/**
+ * Set the volume of the media playback.
+ *
+ * @param pdp The Popcorn Player instance.
+ * @param volume The volume of the media playback in percents (0 = mute, 100 = 0dB).
+ */
+void popcorn_player_set_volume(popcorn_player_t *pdp, int volume);
+
+/**
  * Register a callback for when the player state is being changed.
  *
  * @param pdp The Popcorn Player instance.

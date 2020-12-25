@@ -51,12 +51,38 @@ public abstract class AbstractLoaderComponent {
         });
     }
 
+    /**
+     * Reset the UI elements to there default neutral state.
+     */
+    protected void reset() {
+        runOnFx(() -> statusText.setText(null));
+        resetProgress();
+    }
+
+    /**
+     * Reset the progress bar UI element to it's default state.
+     */
     protected void resetProgress() {
-        Platform.runLater(() -> {
+        runOnFx(() -> {
             progressBar.setProgress(0.0);
             progressBar.setVisible(false);
             progressBar.getStyleClass().remove(PROGRESS_ERROR_STYLE_CLASS);
         });
+    }
+
+    /**
+     * Execute the given {@link Runnable} on the JavaFX thread.
+     * This will run the executable directly if the current thread is the JavaFX thread, otherwise,
+     * it queues the executable for execution on the JavaFX thread.
+     *
+     * @param runnable The executable to execute.
+     */
+    protected void runOnFx(Runnable runnable) {
+        if (Platform.isFxApplicationThread()) {
+            runnable.run();
+        } else {
+            Platform.runLater(runnable);
+        }
     }
 
     private void onSessionStateChanged(SessionState newValue) {

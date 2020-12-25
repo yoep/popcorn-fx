@@ -119,7 +119,10 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
 
     //region Functions
 
+    @Override
     protected void reset() {
+        super.reset();
+
         this.title = null;
         this.media = null;
         this.subtitleInfo = null;
@@ -245,7 +248,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
     }
 
     private void onDownloadProgress(DownloadStatus status) {
-        Platform.runLater(() -> {
+        runOnFx(() -> {
             progressStatus.setVisible(true);
             progressBar.setProgress(status.getProgress());
             progressBar.setVisible(true);
@@ -259,7 +262,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
 
     private void onStreamReady() {
         log.debug("Torrent is ready to be displayed");
-        Platform.runLater(() -> {
+        runOnFx(() -> {
             statusText.setText(localeText.get(TorrentMessage.READY));
             progressBar.setProgress(1);
             progressBar.setVisible(true);

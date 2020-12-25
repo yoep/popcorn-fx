@@ -38,7 +38,7 @@ public class PopcornTimePreloader extends Preloader {
         primaryStage.getIcons().add(icon);
 
         updateBackground(primaryStage, scene);
-        processParameters(scene);
+        processParameters(primaryStage, scene);
 
         primaryStage.show();
         primaryStage.centerOnScreen();
@@ -48,6 +48,7 @@ public class PopcornTimePreloader extends Preloader {
     public void handleStateChangeNotification(StateChangeNotification info) {
         log.trace("Received state change notification {}", info.getType());
         if (info.getType() == StateChangeNotification.Type.BEFORE_START) {
+            log.trace("Closing preloader stage");
             this.stage.close();
             this.stage = null;
         }
@@ -64,14 +65,23 @@ public class PopcornTimePreloader extends Preloader {
             stage.initStyle(StageStyle.TRANSPARENT);
             scene.setFill(Color.TRANSPARENT);
         } else {
+            log.debug("Transparency is not supported, using black preloader background instead");
             stage.initStyle(StageStyle.UNDECORATED);
             scene.setFill(Color.BLACK);
         }
     }
 
-    private void processParameters(Scene scene) {
+    private void processParameters(Stage primaryStage, Scene scene) {
+        // check if the mouse should be hidden
         if (containsOption(OptionsService.DISABLE_MOUSE_OPTION)) {
+            log.trace("Hiding preloader cursor");
             scene.setCursor(Cursor.NONE);
+        }
+
+        // check if the preload should be maximized
+        if (containsOption(OptionsService.MAXIMIZED_OPTION)) {
+            log.trace("Maximizing preloader window");
+            primaryStage.setMaximized(true);
         }
     }
 

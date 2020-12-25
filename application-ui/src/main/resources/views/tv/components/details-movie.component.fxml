@@ -8,11 +8,11 @@
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.MovieDetailsComponent"
           styleClass="movie-details" onKeyPressed="#onDetailsKeyPressed">
     <columnConstraints>
-        <ColumnConstraints minWidth="20" percentWidth="10"/>
-        <ColumnConstraints minWidth="400" percentWidth="30" hgrow="ALWAYS"/>
+        <ColumnConstraints minWidth="20" percentWidth="5"/>
+        <ColumnConstraints minWidth="400" percentWidth="35" hgrow="ALWAYS"/>
         <ColumnConstraints minWidth="15" maxWidth="15" hgrow="NEVER"/>
-        <ColumnConstraints minWidth="400" percentWidth="50" hgrow="ALWAYS"/>
-        <ColumnConstraints minWidth="20" percentWidth="10"/>
+        <ColumnConstraints minWidth="400" percentWidth="55" hgrow="ALWAYS"/>
+        <ColumnConstraints minWidth="20" percentWidth="5"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="20" percentHeight="10"/>

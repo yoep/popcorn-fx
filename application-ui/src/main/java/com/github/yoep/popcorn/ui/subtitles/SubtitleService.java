@@ -476,9 +476,7 @@ public class SubtitleService {
                                 return destinationSubtitleFile;
                             }
 
-                            try (var inputStream = zipFile.getInputStream(entry)) {
-                                var outputStream = new FileOutputStream(destinationSubtitleFile);
-
+                            try (var inputStream = zipFile.getInputStream(entry); var outputStream = new FileOutputStream(destinationSubtitleFile)) {
                                 log.trace("Copying subtitle file from archive to {}", destinationSubtitleFile.getAbsolutePath());
                                 IOUtils.copy(inputStream, outputStream);
                             }

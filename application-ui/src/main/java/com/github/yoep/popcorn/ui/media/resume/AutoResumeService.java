@@ -207,11 +207,12 @@ public class AutoResumeService {
     }
 
     private void save(AutoResume autoResume) {
-        File file = getFile();
+        var file = getFile();
 
         try {
             log.debug("Saving auto resume timestamps to {}", file.getAbsolutePath());
             FileUtils.writeStringToFile(file, objectMapper.writeValueAsString(autoResume), Charset.defaultCharset());
+            log.info("Auto resume file has been saved");
         } catch (IOException ex) {
             log.error("Failed to save the auto resume timestamps with error " + ex.getMessage(), ex);
         }

@@ -22,7 +22,6 @@ import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
@@ -274,9 +273,15 @@ public abstract class AbstractPlayerSectionController implements Initializable {
     }
 
     private void onVideoPlayerChanged(final VideoPlayer newValue) {
+        // check if the video player supports native subtitles
+        // if so, clear the potential subtitle track
+        if (newValue.supportsNativeSubtitleFile()) {
+            subtitleTrack.clear();
+        }
+
         Platform.runLater(() -> {
             videoView.getChildren().clear();
-            Node videoSurface = newValue.getVideoSurface();
+            var videoSurface = newValue.getVideoSurface();
 
             if (videoSurface instanceof Canvas) {
                 var canvas = (Canvas) videoSurface;

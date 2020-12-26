@@ -37,7 +37,7 @@ void popcorn_player_play(popcorn_player_t *pdp, const char *mrl);
  * @param pdp  The Popcorn Player instance.
  * @param time The time to seek in millis.
  */
-void popcorn_player_seek(popcorn_player_t *pdp, long time);
+void popcorn_player_seek(popcorn_player_t *pdp, const char *time);
 
 /**
  * Pause the current playback of the Popcorn Player.

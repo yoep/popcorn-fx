@@ -2,7 +2,6 @@
 #define POPCORN_PLAYER_POPCORNPLAYERWINDOW_H
 
 #include "PlayerControls.h"
-#include "PlayerHeader.h"
 #include "widgets/VideoWidget.h"
 
 #include <QMainWindow>
@@ -77,6 +76,14 @@ private:
      * @param offset The offset to apply to the time.
      */
     void updateTime(long offset);
+
+    /**
+     * Update the current subtitle offset with the given offset.
+     * This will add the offset on top of current subtitle offset.
+     *
+     * @param offset The offset to add.
+     */
+    void updateSubtitleOffset(long offset);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

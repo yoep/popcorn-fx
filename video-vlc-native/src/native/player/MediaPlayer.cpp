@@ -154,6 +154,14 @@ void MediaPlayer::setSubtitleFile(const char *uri)
     }
 }
 
+long MediaPlayer::subtitleDelay()
+{
+    if (_vlcMediaPlayer == nullptr)
+        return -9999;
+
+    return libvlc_video_get_spu_delay(_vlcMediaPlayer);
+}
+
 void MediaPlayer::setSubtitleDelay(long delay)
 {
     if (_vlcMediaPlayer == nullptr)

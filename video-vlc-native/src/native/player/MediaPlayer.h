@@ -65,6 +65,13 @@ public:
     void setSubtitleFile(const char *uri);
 
     /**
+     * Get the current subtitle delay.
+     *
+     * @return Returns the current subtitle delay in microseconds, else -9999 on failure.
+     */
+    long subtitleDelay();
+
+    /**
      * Set the subtitle delay for the current subtitle file (if one is set).
      *
      * @param delay The delay in microseconds.

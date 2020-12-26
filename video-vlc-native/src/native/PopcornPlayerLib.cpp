@@ -56,7 +56,7 @@ void popcorn_player_play(popcorn_player_t *pdp, const char *mrl)
     player->play(mrl);
 }
 
-void popcorn_player_seek(popcorn_player_t *pdp, long time)
+void popcorn_player_seek(popcorn_player_t *pdp, const char *time)
 {
     if (pdp == nullptr)
         return;
@@ -64,7 +64,8 @@ void popcorn_player_seek(popcorn_player_t *pdp, long time)
     PopcornPlayer *player;
 
     player = static_cast<PopcornPlayer *>(pdp->player);
-    player->seek(time);
+    auto seekTime = std::stol(time);
+    player->seek(seekTime);
 }
 
 void popcorn_player_pause(popcorn_player_t *pdp)
@@ -158,12 +159,11 @@ int popcorn_player_volume(popcorn_player_t *pdp)
 void popcorn_player_set_volume(popcorn_player_t *pdp, int volume)
 {
     if (pdp == nullptr)
-        return -1;
+        return;
 
     PopcornPlayer *player;
 
     player = static_cast<PopcornPlayer *>(pdp->player);
-
 }
 
 void popcorn_player_state_callback(popcorn_player_t *pdp, popcorn_player_state_callback_t callback)

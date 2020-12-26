@@ -2,6 +2,15 @@
 <ui version="4.0">
     <class>PopcornPlayerWindow</class>
     <widget class="QMainWindow" name="PopcornPlayerWindow">
+        <property name="styleSheet">
+            <string notr="true">
+                SubtitleOffset{
+                color: rgb(255, 255, 255);
+                font-family: "Open Sans Semibold";
+                font-size: 24px;
+                }
+            </string>
+        </property>
         <property name="autoFillBackground">
             <bool>true</bool>
         </property>
@@ -41,16 +50,16 @@
                         </property>
                     </widget>
                 </item>
-                <!--<item row="0" column="0" colspan="3">
-                    <widget class="PlayerHeader" name="header" native="true">
+                <item row="0" column="0" colspan="3">
+                    <widget class="SubtitleOffset" name="subtitleOffset" native="true">
                         <property name="maximumSize">
                             <size>
-                                <width>16777215</width>
+                                <width>200</width>
                                 <height>75</height>
                             </size>
                         </property>
                     </widget>
-                </item>-->
+                </item>
                 <item row="2" column="1">
                     <widget class="PlayerControls" name="controls">
                         <property name="minimumSize">
@@ -77,9 +86,9 @@
             <header>widgets/VideoWidget.h</header>
         </customwidget>
         <customwidget>
-            <class>PlayerHeader</class>
-            <extends>QWidget</extends>
-            <header>widgets/PlayerHeader.h</header>
+            <class>SubtitleOffset</class>
+            <extends>QLabel</extends>
+            <header>widgets/SubtitleOffset.h</header>
         </customwidget>
         <customwidget>
             <class>PlayerControls</class>

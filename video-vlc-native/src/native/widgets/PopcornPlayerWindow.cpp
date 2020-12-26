@@ -1,8 +1,8 @@
 #include "PopcornPlayerWindow.h"
 
-#include "PlayerHeader.h"
 #include "ui_popcornplayerwindow.h"
 
+#include <QKeyEvent>
 #include <QTimer>
 #include <QtWidgets/QGridLayout>
 #include <player/MediaPlayer.h>
@@ -13,6 +13,7 @@ PopcornPlayerWindow::PopcornPlayerWindow(QWidget *parent)
 {
     this->_log = Log::instance();
     this->_fadeTimer = new QTimer(this);
+    this->_mediaPlayer = nullptr;
 
     initializeUi();
     connectEvents();
@@ -121,6 +122,21 @@ void PopcornPlayerWindow::resizeEvent(QResizeEvent *event)
 
 void PopcornPlayerWindow::keyPressEvent(QKeyEvent *event)
 {
+    auto key = event->key();
+
+    switch (key) {
+    case Qt::Key_G:
+    case Qt::Key_PageDown:
+        updateSubtitleOffset(-500 * 1000);
+        return;
+    case Qt::Key_H:
+    case Qt::Key_PageUp:
+        updateSubtitleOffset(500 * 1000);
+        return;
+    default:
+        break;
+    }
+
     showOverlay();
 
     if (_mediaPlayer->state() != MediaPlayerState::PAUSED) {
@@ -168,4 +184,19 @@ void PopcornPlayerWindow::updateTime(long offset)
     } else {
         _mediaPlayer->seek(newTime);
     }
+}
+
+void PopcornPlayerWindow::updateSubtitleOffset(long offset)
+{
+    auto currentOffset = _mediaPlayer->subtitleDelay();
+
+    if (currentOffset == -9999) {
+        this->_log->warn("Unable to update subtitle offset, current offset is invalid/unknown");
+        return;
+    }
+
+    auto newOffset = currentOffset + offset;
+
+    _mediaPlayer->setSubtitleDelay(newOffset);
+    this->ui->subtitleOffset->showOffset(newOffset);
 }

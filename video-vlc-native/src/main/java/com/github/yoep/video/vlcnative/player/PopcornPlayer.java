@@ -67,7 +67,8 @@ public class PopcornPlayer {
      */
     public void seek(long time) {
         // normalize the time to 0 if the time is smaller than 0
-        PopcornPlayerLib.popcorn_player_seek(instance, Math.max(time, 0));
+        var seekTime = Math.max(time, 0);
+        PopcornPlayerLib.popcorn_player_seek(instance, String.valueOf(seekTime));
     }
 
     /**

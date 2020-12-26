@@ -28,7 +28,7 @@ public class PopcornPlayerLib {
 
     public static native void popcorn_player_play(popcorn_player_t instance, String mrl);
 
-    public static native void popcorn_player_seek(popcorn_player_t instance, long time);
+    public static native void popcorn_player_seek(popcorn_player_t instance, String time);
 
     public static native void popcorn_player_pause(popcorn_player_t instance);
 

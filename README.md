@@ -10,7 +10,7 @@ but it also works on desktop environments such as **Linux & Windows** (not teste
 
 Popcorn Time Desktop Java has been tested with **Raspberry Pi 3B+ and 4**.
 
-![Desktop preview](https://i.imgur.com/5NDWam2.png)
+![Desktop preview](https://i.imgur.com/hkmMGDb.png)
 
 ## Launch options
 
@@ -109,16 +109,14 @@ To install the native VLC player, run the following maven command:
 
 #### Desktop mode
 
-![Desktop preview](https://i.imgur.com/5NDWam2.png)
+![Desktop preview](https://i.imgur.com/hkmMGDb.png)
 
-![Desktop Movie details](https://i.imgur.com/zqQelcV.png)
+![Desktop Movie details](https://i.imgur.com/Rz6ABUu.png)
 
-![Desktop watchlist](https://i.imgur.com/aZex7J0.png)
+![Desktop watchlist](https://i.imgur.com/bG5MiKF.png)
 
 #### TV mode
 
 ![TV preview](https://i.imgur.com/QHQQKQk.png)
 
 ![TV Movie details](https://i.imgur.com/FD0Hp3o.png)
-
-![TV player trailer](https://i.imgur.com/O5iFbTl.png)

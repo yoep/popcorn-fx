@@ -102,7 +102,7 @@
 
 .root .list-section .poster-item:focused .poster-image {
     -fx-border-color: transparent;
-    -fx-border-width: 3px;
+    -fx-border-width: 5px;
     -fx-border-style: solid;
 }
 
@@ -114,12 +114,12 @@
     -fx-background-color: linear-gradient(rgba(23, 24, 27, 0.3) 0%, rgba(23, 24, 27, 0.8) 70%);
 }
 
-.root .list-section .poster-item .poster-details .title {
-    -fx-font-size: 1.5em;
+.root .list-section .poster-item:focused .poster-details {
+    -fx-background-color: linear-gradient(rgba(45, 114, 217, 0.3) 0%, rgba(45, 114, 217, 0.8) 70%);
 }
 
-.root .list-section .poster-item:focused .title {
-    -fx-text-fill: #2d72d9;
+.root .list-section .poster-item .poster-details .title {
+    -fx-font-size: 1.5em;
 }
 
 .root .list-section .poster-item .year,

@@ -1,9 +1,8 @@
 #ifndef POPCORNPLAYER_MEDIAPLAYERFACTORY_H
 #define POPCORNPLAYER_MEDIAPLAYERFACTORY_H
 
+#include "../../../../shared/Log.h"
 #include "MediaPlayer.h"
-
-#include <Log.h>
 
 class MediaPlayerFactory {
 public:

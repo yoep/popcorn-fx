@@ -1,7 +1,7 @@
 #ifndef POPCORNPLAYER_QAPPLICATIONMANAGER_H
 #define POPCORNPLAYER_QAPPLICATIONMANAGER_H
 
-#include "Log.h"
+#include "../../../shared/Log.h"
 #include "QLamba.h"
 
 #include <QtCore/QCoreApplication>

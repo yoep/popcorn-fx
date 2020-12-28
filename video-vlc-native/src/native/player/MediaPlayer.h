@@ -1,10 +1,10 @@
 #ifndef POPCORNPLAYER_MEDIAPLAYER_H
 #define POPCORNPLAYER_MEDIAPLAYER_H
 
+#include "../../../../shared/Log.h"
 #include "Media.h"
 #include "MediaPlayerState.h"
 
-#include <Log.h>
 #include <QObject>
 #include <QtGui/QWidgetSet>
 #include <libvlc/vlc/vlc.h>

@@ -1,9 +1,9 @@
 #include "MediaPlayerFactory.h"
 
+#include "../../../../shared/Log.h"
+#include "../../../../shared/LogLevelFlags.h"
 #include "MediaPlayer.h"
 
-#include <Log.h>
-#include <LogLevelFlags.h>
 #include <libvlc/vlc/vlc.h>
 
 MediaPlayerFactory *MediaPlayerFactory::instance = nullptr;

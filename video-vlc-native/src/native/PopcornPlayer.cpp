@@ -14,7 +14,6 @@
 #include <iostream>
 #include <memory>
 #include <player/MediaPlayerFactory.h>
-#include <regex>
 
 using namespace std;
 
@@ -22,6 +21,7 @@ PopcornPlayer::PopcornPlayer(int &argc, char **argv)
     : _argc(argc)
 {
     this->_log = Log::instance();
+    this->_log->setApplicationName(APPLICATION_TITLE);
 
     this->_log->info("Popcorn Player is being started");
     this->_argv = argv;
@@ -209,43 +209,23 @@ void PopcornPlayer::parseArguments()
 {
     int arg;
     while ((arg = getopt(_argc, _argv, "l:h")) != -1) {
-        switch (arg) {
-        case 'l':
-            if (optarg) {
-                updateLogLevel(optarg);
-            }
-            break;
-        case 'h':
-        default:
+        if (arg == 'h') {
             cout << APPLICATION_TITLE << " usage: libPopcornPlayer <options> <mrl>" << endl;
             cout << "Options:" << endl;
             cout << "\t-l <level>\tSet the log level (trace, debug, info, warn, error)" << endl;
             cout << "\t-h\t\t\tShow this help message" << endl;
-            break;
         }
     }
-}
 
-void PopcornPlayer::updateLogLevel(char *levelArg)
-{
-    // put the level to lower case
-    for (int i = 0; i < strlen(levelArg); i++) {
-        levelArg[i] = std::tolower(levelArg[i]);
+    auto *result = (logLevel::LogLevel *)malloc(sizeof(enum logLevel::LogLevel));
+    Log::parseLogLevel(_argc, _argv, result);
+
+    if (result != nullptr) {
+        this->_log->setLevel(*result);
     }
 
-    std::string level(levelArg);
-
-    if (level == "trace") {
-        this->_log->setLevel(logLevel::TRACE);
-    } else if (level == "debug") {
-        this->_log->setLevel(logLevel::DEBUG);
-    } else if (level == "info") {
-        this->_log->setLevel(logLevel::INFO);
-    } else if (level == "warn") {
-        this->_log->setLevel(logLevel::WARN);
-    } else if (level == "error") {
-        this->_log->setLevel(logLevel::ERROR);
-    }
+    // free the allocated memory for the log level
+    free(result);
 }
 
 bool PopcornPlayer::waitForEventManager()

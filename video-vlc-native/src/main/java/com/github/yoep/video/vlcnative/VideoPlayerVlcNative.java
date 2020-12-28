@@ -85,8 +85,11 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     @Override
     public void dispose() {
         if (popcornPlayer != null) {
-            log.debug("Releasing the native Popcorn Player");
+            log.debug("Releasing the Popcorn Player");
             popcornPlayer.release();
+            popcornPlayer = null;
+        } else {
+            log.trace("Popcorn Player has already been disposed");
         }
     }
 
@@ -159,7 +162,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
             initialized = true;
             log.debug("Popcorn player has been initialized");
         } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
+            log.error("Failed to load the popcorn player library, " + ex.getMessage(), ex);
         }
     }
 

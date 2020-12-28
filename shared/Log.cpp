@@ -1,16 +1,20 @@
 #include "Log.h"
 
-#include "AppProperties.h"
 #include "LogLevelFlags.h"
 
+#include <cstring>
 #include <iostream>
-#include <sstream>
+#include <regex>
+#include <vector>
 
 using namespace std;
 
 shared_ptr<Log> Log::_instance = nullptr;
 
-Log::Log() = default;
+Log::Log()
+{
+    this->_appName = {};
+}
 
 Log::~Log() = default;
 
@@ -23,6 +27,59 @@ Log *Log::instance()
     return _instance.get();
 }
 
+void Log::parseLogLevel(int argc, char **argv, logLevel::LogLevel *result)
+{
+    std::regex levelRegex("^(-l)(\\s|=)?([a-zA-Z]*)");
+    char *levelArg = nullptr;
+
+    for (int i = 0; i < argc; ++i) {
+        auto argument = argv[i];
+        std::cmatch matches;
+
+        // check if the current argument matched
+        if (std::regex_search(argument, matches, levelRegex)) {
+            if (matches.size() == 4) {
+                auto &match = matches[3];
+                auto value = match.str();
+
+                if (value.empty()) {
+                    // assume that the level value is the next within the array
+                    levelArg = argv[i + 1];
+                } else {
+                    levelArg = value.data();
+                }
+            }
+
+            break;
+        }
+    }
+
+    // check if a level arg was found
+    // if not, exit the parsing
+    if (levelArg == nullptr) {
+        return;
+    }
+
+    // put the level to lower case
+    for (int i = 0; i < strlen(levelArg); i++) {
+        levelArg[i] = std::tolower(levelArg[i]);
+    }
+
+    std::string levelString(levelArg);
+
+    if (levelString == "trace") {
+        *result = logLevel::TRACE;
+    } else if (levelString == "debug") {
+        *result = logLevel::DEBUG;
+    } else if (levelString == "info") {
+        *result = logLevel::INFO;
+    } else if (levelString == "warn") {
+        *result = logLevel::WARN;
+    } else if (levelString == "error") {
+        *result = logLevel::ERROR;
+    }
+}
+
 logLevel::LogLevel Log::level()
 {
     return this->_level;
@@ -31,6 +88,11 @@ logLevel::LogLevel Log::level()
 void Log::setLevel(logLevel::LogLevel logLevel)
 {
     this->_level = logLevel;
+}
+
+void Log::setApplicationName(const char *name)
+{
+    this->_appName = name;
 }
 
 void Log::trace(const char *message)
@@ -127,7 +189,7 @@ void Log::logToSysError(const char *message, const char level[6])
 basic_string<char> Log::appName()
 {
     std::ostringstream oss;
-    oss << "[" << APPLICATION_TITLE << "]";
+    oss << "[" << this->_appName << "]";
     std::string name = oss.str();
 
     return name;

@@ -1,7 +1,7 @@
 #ifndef POPCORN_PLAYER_PLAYERWINDOW_H
 #define POPCORN_PLAYER_PLAYERWINDOW_H
 
-#include "Log.h"
+#include "../../../shared/Log.h"
 #include "PopcornPlayerCallbacks.h"
 #include "PopcornPlayerEventManager.h"
 #include "widgets/PopcornPlayerWindow.h"
@@ -135,8 +135,6 @@ private:
     void loadFonts();
 
     void parseArguments();
-
-    void updateLogLevel(char *levelArg);
 
     bool waitForEventManager();
 

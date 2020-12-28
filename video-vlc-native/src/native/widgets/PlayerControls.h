@@ -1,7 +1,8 @@
 #ifndef POPCORNPLAYER_PLAYERCONTROLS_H
 #define POPCORNPLAYER_PLAYERCONTROLS_H
 
-#include <Log.h>
+#include "../../../../shared/Log.h"
+
 #include <QtWidgets/QFrame>
 #include <player/MediaPlayerState.h>
 

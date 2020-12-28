@@ -241,7 +241,7 @@ public abstract class AbstractPlayerSectionController implements Initializable {
         switch (event.getCode()) {
             case SPACE:
             case P:
-                videoPlayerService.changePlayPauseState();
+                videoPlayerService.togglePlayPause();
                 event.consume();
                 break;
             case F11:

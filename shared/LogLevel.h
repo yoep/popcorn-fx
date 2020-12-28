@@ -1,5 +1,5 @@
-#ifndef POPCORNPLAYER_LOGLEVEL_H
-#define POPCORNPLAYER_LOGLEVEL_H
+#ifndef POPCORN_SHARED_LOGLEVEL_H
+#define POPCORN_SHARED_LOGLEVEL_H
 
 #include <type_traits>
 
@@ -22,4 +22,4 @@ enum LogLevel {
 
 }
 
-#endif //POPCORNPLAYER_LOGLEVEL_H
+#endif //POPCORN_SHARED_LOGLEVEL_H

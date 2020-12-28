@@ -1,6 +1,6 @@
 #include "VideoWidget.h"
 
-#include "Log.h"
+#include "../../../../shared/Log.h"
 #include "PlayerControls.h"
 
 #include <QtWidgets/QStackedLayout>

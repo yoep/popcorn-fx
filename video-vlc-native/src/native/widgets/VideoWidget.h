@@ -1,4 +1,4 @@
-#include "Log.h"
+#include "../../../../shared/Log.h"
 #include "vlc/vlc.h"
 
 #include <QtWidgets/QFrame>

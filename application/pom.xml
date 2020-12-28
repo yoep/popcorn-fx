@@ -266,19 +266,20 @@
                         <configuration>
                             <additionalResources>
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
+                                <param>${project.basedir}/../assets/${platform}/libPopcornPlayer.so</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlc.so</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.so</param>
                             </additionalResources>
                             <vmArgs>
-                                <param>-Dvlc.path=/usr/lib/arm-linux-gnueabihf/</param>
-                                <param>-Djava.library.path=".:$PATH"</param>
+                                <param>-Dvlc.path=/usr/lib/arm-linux-gnueabihf</param>
+                                <param>-Djava.library.path=".:/usr/lib/arm-linux-gnueabihf:$PATH"</param>
                                 <param>-Djavafx.platform=gtk</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
                                 <param>-Dprism.lcdtext=false</param>
-                                <param>-Dcom.sun.javafx.transparentFramebuffer=true</param>
                                 <param>-XX:+UseG1GC</param>
-                                <param>-Xmx350m</param>
+                                <param>-Xmx400M</param>
+                                <param>-Xms100M</param>
                             </vmArgs>
                         </configuration>
                     </plugin>

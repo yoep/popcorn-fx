@@ -1,5 +1,5 @@
-#ifndef POPCORNPLAYER_LOG_H
-#define POPCORNPLAYER_LOG_H
+#ifndef POPCORN_SHARED_LOG_H
+#define POPCORN_SHARED_LOG_H
 
 #include "LogLevel.h"
 
@@ -27,6 +27,17 @@ public:
     static Log *instance();
 
     /**
+     * Parse the log level from the command line arguments.
+     * The arguments are matched against the "-l" option from which the value is retrieved and stored in the result.
+     *
+     * @param argc The total arguments.
+     * @param argv The arguments.
+     * @param result The result pointer in which the parsed log level will be stored.
+     * @see logLevel::LogLevel
+     */
+    static void parseLogLevel(int argc, char **argv, logLevel::LogLevel *result);
+
+    /**
      * Get the current log level of the logger.
      *
      * @return Returns the log level.
@@ -39,6 +50,13 @@ public:
      * @param level The new log level for the logger.
      */
     void setLevel(logLevel::LogLevel level);
+
+    /**
+     * Set the application name to use within the logger.
+     *
+     * @param name The name of the application to log.
+     */
+    void setApplicationName(const char *name);
 
     /**
      * Log a trace message with the logger.
@@ -76,13 +94,14 @@ public:
 
 private:
     std::atomic<logLevel::LogLevel> _level = logLevel::INFO;
+    std::atomic<const char *> _appName;
     static shared_ptr<Log> _instance;
 
-    static void log(const char *message, const char string[6]);
+    void log(const char *message, const char string[6]);
 
-    static void logToSysError(const char *message, const char string[6]);
+    void logToSysError(const char *message, const char string[6]);
 
-    static std::__cxx11::basic_string<char> appName();
+    std::__cxx11::basic_string<char> appName();
 };
 
-#endif //POPCORNPLAYER_LOG_H
+#endif //POPCORN_SHARED_LOG_H

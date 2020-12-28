@@ -63,7 +63,7 @@ public class PlayerSectionController extends AbstractPlayerSectionController {
     @FXML
     private void onPlayerClick(MouseEvent event) {
         event.consume();
-        videoPlayerService.changePlayPauseState();
+        videoPlayerService.togglePlayPause();
     }
 
     //endregion

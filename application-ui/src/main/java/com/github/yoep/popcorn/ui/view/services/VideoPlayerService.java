@@ -159,9 +159,11 @@ public class VideoPlayerService {
     }
 
     /**
-     * Change the current play/pause state of the video player.
+     * Toggle the current playback state of the video player.
+     * When the video player is {@link PlayerState#PAUSED}, then the video playback will be resumed.
+     * Otherwise, the video playback will be paused.
      */
-    public void changePlayPauseState() {
+    public void togglePlayPause() {
         var videoPlayer = videoPlayerManagerService.getVideoPlayer();
 
         // check if the video player present

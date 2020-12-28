@@ -67,7 +67,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent {
     //region Functions
 
     private void onPlayPause() {
-        videoPlayerService.changePlayPauseState();
+        videoPlayerService.togglePlayPause();
     }
 
     private void onBackward() {

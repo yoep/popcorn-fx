@@ -253,7 +253,7 @@ public class PlayerControlsComponent extends AbstractPlayerControlsComponent imp
 
     @FXML
     private void onPlayPauseClicked() {
-        videoPlayerService.changePlayPauseState();
+        videoPlayerService.togglePlayPause();
     }
 
     @FXML

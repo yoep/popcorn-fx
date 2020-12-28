@@ -1,9 +1,9 @@
 #ifndef POPCORNPLAYER_MEDIA_H
 #define POPCORNPLAYER_MEDIA_H
 
+#include "../../../../shared/Log.h"
 #include "MediaState.h"
 
-#include <Log.h>
 #include <QList>
 #include <QObject>
 #include <QtCore/QArgument>

@@ -10,7 +10,7 @@ class LinuxInputEventsBridge : public IInputEventsBridge {
 public:
     LinuxInputEventsBridge();
 
-    virtual ~LinuxInputEventsBridge();
+    ~LinuxInputEventsBridge();
 
 private:
     IInputEvents *_inputEvents;

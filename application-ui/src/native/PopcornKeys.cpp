@@ -18,7 +18,8 @@ PopcornKeys::PopcornKeys(int argc, char **argv)
 
 PopcornKeys::~PopcornKeys()
 {
-    delete _log;
+    _log->debug("Releasing the Popcorn Keys resources");
+    delete _eventsBridge;
 }
 
 void PopcornKeys::init()
@@ -33,7 +34,7 @@ void PopcornKeys::init()
 
 #endif
 
-    this->_log->debug("initialized");
+    this->_log->debug("Popcorn keys has been initialized");
 }
 
 void PopcornKeys::parseArguments()

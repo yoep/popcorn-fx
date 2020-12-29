@@ -19,6 +19,8 @@ LinuxInputEventsBridge::LinuxInputEventsBridge()
 
 LinuxInputEventsBridge::~LinuxInputEventsBridge()
 {
+    _log->trace("Releasing the linux input events bridge resources");
+    delete _inputEvents;
 }
 
 void LinuxInputEventsBridge::init()

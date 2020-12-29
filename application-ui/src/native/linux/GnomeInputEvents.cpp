@@ -1,8 +1,6 @@
 #include "GnomeInputEvents.h"
 
-#include <dbus/dbus-glib.h>
-#include <dbus/dbus.h>
-#include <glib.h>
+#include <gio/gio.h>
 #include <iostream>
 #include <thread>
 
@@ -10,23 +8,20 @@ GnomeInputEvents::GnomeInputEvents()
 {
     this->_log = Log::instance();
 
-    this->_dbusConnection = nullptr;
-    this->_proxy = nullptr;
     this->_loop = nullptr;
+    this->_proxy = nullptr;
 
     init();
 }
 
 GnomeInputEvents::~GnomeInputEvents()
 {
-    if (_loop) {
-        g_main_loop_quit(_loop);
-        free(_loop);
-    }
+    _log->trace("Releasing the Gnome input events resource");
 
+    // check if a proxy was created
+    // if so, free all resources used by the proxy
     if (_proxy) {
-        dbus_g_proxy_disconnect_signal(_proxy, "MediaPlayerKeyPressed", G_CALLBACK(onMediaKeyPressed), this);
-        free(_proxy);
+        releaseProxy();
     }
 }
 
@@ -38,83 +33,83 @@ void GnomeInputEvents::init()
 
 void GnomeInputEvents::createDBusConnection()
 {
-    auto *error = (GError *)malloc(sizeof(GError));
+    GError *error = nullptr;
+    GDBusProxyFlags flags;
+
+    _loop = g_main_loop_new(nullptr, FALSE);
 
     // request a new dbus connection
     _log->trace("Trying to establish a new DBus connection");
-    _dbusConnection = ::dbus_g_bus_get(DBusBusType::DBUS_BUS_SESSION, &error);
+    _proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION, flags, nullptr,
+        "org.gnome.SettingsDaemon.MediaKeys",
+        "/org/gnome/SettingsDaemon/MediaKeys",
+        "org.gnome.SettingsDaemon.MediaKeys",
+        nullptr, &error);
 
     // check if the connection was created with success
-    if (_dbusConnection) {
-        _log->debug("Connection to DBus has been established");
-
-        createDBusProxy();
-    } else {
-        auto *message = error->message;
-
-        if (message != nullptr) {
-            _log->error(std::string("Failed to create DBus connection, ") + error->message);
-        } else {
-            _log->error("Failed to create DBus connection");
-        }
-    }
-
-    g_error_free(error);
-}
-
-void GnomeInputEvents::createDBusProxy()
-{
-    // check if a connection was established before creating a proxy
-    // if no connection is present, log an error and exit
-    if (!_dbusConnection) {
-        _log->error("Unable to create proxy, DBus connection has not been established");
-        return;
-    }
-
-    auto *error = (GError *)malloc(sizeof(GError));
-
-    _log->trace("Creating DBus proxy");
-    _proxy = ::dbus_g_proxy_new_for_name(_dbusConnection, "org.gnome.SettingsDaemon", "/org/gnome/SettingsDaemon/MediaKeys",
-        "org.gnome.SettingsDaemon.MediaKeys");
-
-    // check if a proxy could be created
     if (_proxy) {
-        _log->debug("DBus proxy created with success");
+        _log->debug("Connection to DBus has been established");
+        _log->trace("Registering signal callback");
+        g_signal_connect(_proxy, "g-signal", G_CALLBACK(onMediaKeyPressed), this);
 
-        auto result = dbus_g_proxy_call(_proxy, "GrabMediaPlayerKeys", &error, G_TYPE_STRING, "WebMediaKeys",
-            G_TYPE_UINT, 0, G_TYPE_INVALID, G_TYPE_INVALID);
+        grabMediaKeys();
 
-        if (result) {
-            dbus_g_proxy_add_signal(_proxy, "MediaPlayerKeyPressed",
-                G_TYPE_STRING, G_TYPE_STRING, G_TYPE_INVALID);
-
-            dbus_g_proxy_connect_signal(_proxy, "MediaPlayerKeyPressed", G_CALLBACK(onMediaKeyPressed),
-                this, nullptr);
-
-            _loop = g_main_loop_new(nullptr, false);
-
-            std::thread t([&] {
-                g_main_loop_run(_loop);
-            });
-        } else {
-            _log->error(std::string("Failed to grab media player keys, ") + error->message);
-        }
+        _gThread = std::thread([&] {
+            _log->trace("Starting gmain loop");
+            g_main_loop_run(_loop);
+        });
     } else {
-        _log->error("Failed to create DBus proxy");
+        handleDBusError(error);
     }
-
-    g_error_free(error);
 }
 
-void GnomeInputEvents::onMediaKeyPressed(DBusGProxy *proxy, const char *value1, const char *value2, gpointer instance)
+void GnomeInputEvents::handleDBusError(GError *error)
 {
-    // check if the instance data is set
-    // if not, log an error and exit as we cannot handle the event correctly
-    if (!instance) {
-        cerr << "Invalid media key pressed callback, instance data is missing" << endl;
-        return;
+    auto *message = error->message;
+
+    if (message != nullptr) {
+        _log->error(std::string("Failed to create DBus connection, ") + message);
+    } else {
+        _log->error("Failed to create DBus connection");
+    }
+}
+
+void GnomeInputEvents::releaseProxy()
+{
+    releaseMediaKeys();
+
+    g_object_unref(_proxy);
+    g_main_loop_quit(_loop);
+
+    // wait for the loop thread to end
+    if (_gThread.joinable()) {
+        _gThread.join();
+    }
+}
+
+void GnomeInputEvents::grabMediaKeys()
+{
+    _log->debug("Grabbing the media player keys");
+    g_dbus_proxy_call(_proxy, "GrabMediaPlayerKeys", g_variant_new("(su)", "PopcornKeys", 0),
+        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, nullptr, nullptr);
+}
+
+void GnomeInputEvents::releaseMediaKeys()
+{
+    _log->debug("Releasing the media player keys");
+    g_dbus_proxy_call(_proxy, "ReleaseMediaPlayerKeys", g_variant_new("(s)", "PopcornKeys"),
+        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, nullptr, nullptr);
+}
+
+void GnomeInputEvents::onMediaKeyPressed(GDBusProxy *proxy, gchar *sender_name, gchar *signal_name, GVariant *parameters, gpointer instance)
+{
+    Log *log = Log::instance();
+
+    // check if the instance is valid
+    // if not, throw an error as we'll be unable to do anything with the event
+    if (instance == nullptr) {
+        log->error("Invalid callback event, GnomeInputEvents instance is NULL");
     }
 
     auto *inputEvents = static_cast<GnomeInputEvents *>(instance);
-    inputEvents->_log->debug(std::string("Received key ") + value2);
 }

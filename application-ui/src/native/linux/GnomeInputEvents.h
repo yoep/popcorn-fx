@@ -4,35 +4,49 @@
 #include "../../../../shared/Log.h"
 
 #include <IInputEvents.h>
-#include <dbus/dbus-glib.h>
+#include <gio/gio.h>
+#include <thread>
 
 class GnomeInputEvents : public IInputEvents {
 public:
     GnomeInputEvents();
 
-    virtual ~GnomeInputEvents();
+    ~GnomeInputEvents();
 
 private:
-    DBusGConnection *_dbusConnection;
-    DBusGProxy *_proxy;
     GMainLoop *_loop;
+    GDBusProxy *_proxy;
+    std::thread _gThread;
     Log *_log;
 
     void init();
 
     void createDBusConnection();
 
-    void createDBusProxy();
+    void handleDBusError(GError *error);
+
+    void releaseProxy();
 
     /**
-     * Invoked when one of the media keys is pressed within Gnome.
-     *
-     * @param proxy The proxy which invoked the method.
-     * @param value1
-     * @param value2 The media key value.
-     * @param user_data
+     * Grab the media player keys from Gnome.
      */
-    static void onMediaKeyPressed(DBusGProxy *proxy, const char *value1, const char *value2, gpointer user_data);
+    void grabMediaKeys();
+
+    /**
+     * Release the grabbed media keys back to Gnome.
+     */
+    void releaseMediaKeys();
+
+    /**
+     * Invoked when a media key has been pressed.
+     *
+     * @param proxy The proxy which invoked the callback.
+     * @param sender_name The sender of the callback.
+     * @param signal_name The signal name.
+     * @param parameters
+     * @param instance The GnomeInputEvents instance data.
+     */
+    static void onMediaKeyPressed(GDBusProxy *proxy, gchar *sender_name, gchar *signal_name, GVariant *parameters, gpointer instance);
 };
 
 #endif //POPCORNTIME_GNOMEINPUTEVENTS_H

@@ -23,20 +23,12 @@ if (UNIX AND NOT APPLE)
     link_libraries(${X11_LIBRARIES})
     include_directories(${X11_INCLUDE_DIR})
 
-    message(STATUS "Including DBUS libraries")
-    find_package(DBUS REQUIRED)
-
-    include_directories(${DBUS_INCLUDE_DIRS})
-
-    message(STATUS "Including GLib (glib-2.0 & dbus-glib-1)")
-    message(STATUS "    Make sure the development libraries are installed of both packages")
+    message(STATUS "Including GTK-3")
     find_package(PkgConfig REQUIRED)
 
-    pkg_search_module(GLIB REQUIRED glib-2.0)
-    pkg_check_modules(DBUSGLIB REQUIRED dbus-glib-1)
-
-    include_directories(${GLIB_INCLUDE_DIRS})
-    include_directories(${DBUSGLIB_LIBRARIES})
+    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+    include_directories(${GTK3_INCLUDE_DIRS})
+    link_libraries(${GTK3_LIBRARY_DIRS})
 
     message(STATUS "Adding linux sources to the sources list")
     file(GLOB LINUX_SOURCES
@@ -62,11 +54,11 @@ add_executable(PopcornKeysRunner ${SOURCES})
 # link specific OS libs
 if (UNIX AND NOT APPLE)
     target_link_libraries(PopcornKeys
-            ${DBUSGLIB_LIBRARIES}
-            -lpthread )
+            ${GTK3_LIBRARIES}
+            -lpthread)
     target_link_libraries(PopcornKeysRunner
-            ${DBUSGLIB_LIBRARIES}
-            -lpthread )
+            ${GTK3_LIBRARIES}
+            -lpthread)
 elseif (WIN32 OR WIN64)
 
 endif ()

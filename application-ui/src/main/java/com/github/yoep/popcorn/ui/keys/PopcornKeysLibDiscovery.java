@@ -1,9 +1,11 @@
 package com.github.yoep.popcorn.ui.keys;
 
 import com.sun.jna.NativeLibrary;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+@Slf4j
 @Component
 public class PopcornKeysLibDiscovery {
     public static final String LIBRARY_NAME = "PopcornKeys";
@@ -30,9 +32,11 @@ public class PopcornKeysLibDiscovery {
      */
     public boolean libraryFound() {
         try {
+            log.trace("Trying to load the Popcorn Keys library");
             PopcornKeysLib.popcorn_keys_release(null);
             return true;
         } catch (UnsatisfiedLinkError ex) {
+            log.trace("Failed to load the Popcorn Keys library, " + ex.getMessage(), ex);
             return false;
         }
     }

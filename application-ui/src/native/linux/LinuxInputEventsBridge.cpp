@@ -23,6 +23,12 @@ LinuxInputEventsBridge::~LinuxInputEventsBridge()
     delete _inputEvents;
 }
 
+void LinuxInputEventsBridge::addMediaCallback(std::function<void(MediaKeyType)> callback)
+{
+    _log->trace("Registering new media key press callback in the linux input events bridge");
+    _callback = callback;
+}
+
 void LinuxInputEventsBridge::init()
 {
     _log->debug("Using linux inputs event bridge");
@@ -33,6 +39,13 @@ void LinuxInputEventsBridge::init()
     } else {
         useX11InputEvents();
     }
+
+    // listen to the media key pressed within the specific input events
+    _inputEvents->onMediaKeyPressed([&](MediaKeyType type) {
+        if (_callback != nullptr) {
+            _callback(type);
+        }
+    });
 
     _log->debug("Linux inputs event bridge initialized");
 }

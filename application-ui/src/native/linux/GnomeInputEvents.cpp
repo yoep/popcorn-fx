@@ -4,6 +4,8 @@
 #include <iostream>
 #include <thread>
 
+const char *REGISTRATION_NAME = "PopcornKeys";
+
 GnomeInputEvents::GnomeInputEvents()
 {
     this->_log = Log::instance();
@@ -25,6 +27,11 @@ GnomeInputEvents::~GnomeInputEvents()
     }
 }
 
+void GnomeInputEvents::onMediaKeyPressed(std::function<void(MediaKeyType)> mediaKeyPressed)
+{
+    _mediaKeyPressed = mediaKeyPressed;
+}
+
 void GnomeInputEvents::init()
 {
     _log->trace("Initializing GnomeInputEvents");
@@ -34,7 +41,7 @@ void GnomeInputEvents::init()
 void GnomeInputEvents::createDBusConnection()
 {
     GError *error = nullptr;
-    GDBusProxyFlags flags;
+    GDBusProxyFlags flags = G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START_AT_CONSTRUCTION;
 
     _loop = g_main_loop_new(nullptr, FALSE);
 
@@ -50,7 +57,13 @@ void GnomeInputEvents::createDBusConnection()
     if (_proxy) {
         _log->debug("Connection to DBus has been established");
         _log->trace("Registering signal callback");
-        g_signal_connect(_proxy, "g-signal", G_CALLBACK(onMediaKeyPressed), this);
+        auto result = g_signal_connect(_proxy, "g-signal", G_CALLBACK(&onGnomeMediaKeyPressed), this);
+
+        // check if the signal could be connected with success
+        // if not, log an error
+        if (result <= 0) {
+            _log->error("Failed to connect DBus signal");
+        }
 
         grabMediaKeys();
 
@@ -74,6 +87,28 @@ void GnomeInputEvents::handleDBusError(GError *error)
     }
 }
 
+void GnomeInputEvents::handleMediaCommand(char *command)
+{
+    _log->debug(std::string("Received media command ") + command);
+    MediaKeyType type;
+
+    if (command == std::string("Play")) {
+        type = MediaKeyType::PLAY;
+    } else if (command == std::string("Pause")) {
+        type = MediaKeyType::PAUSE;
+    } else if (command == std::string("Stop")) {
+        type = MediaKeyType::STOP;
+    } else if (command == std::string("Previous")) {
+        type = MediaKeyType::PREVIOUS;
+    } else if (command == std::string("Next")) {
+        type = MediaKeyType::NEXT;
+    }
+
+    if (_mediaKeyPressed != nullptr) {
+        _mediaKeyPressed(type);
+    }
+}
+
 void GnomeInputEvents::releaseProxy()
 {
     releaseMediaKeys();
@@ -90,20 +125,34 @@ void GnomeInputEvents::releaseProxy()
 void GnomeInputEvents::grabMediaKeys()
 {
     _log->debug("Grabbing the media player keys");
-    g_dbus_proxy_call(_proxy, "GrabMediaPlayerKeys", g_variant_new("(su)", "PopcornKeys", 0),
-        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, nullptr, nullptr);
+    g_dbus_proxy_call(_proxy, "GrabMediaPlayerKeys", g_variant_new("(su)", REGISTRATION_NAME, 0),
+        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, &onGrabKeysReady, this);
 }
 
 void GnomeInputEvents::releaseMediaKeys()
 {
     _log->debug("Releasing the media player keys");
-    g_dbus_proxy_call(_proxy, "ReleaseMediaPlayerKeys", g_variant_new("(s)", "PopcornKeys"),
+    g_dbus_proxy_call(_proxy, "ReleaseMediaPlayerKeys", g_variant_new("(s)", REGISTRATION_NAME),
         G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, nullptr, nullptr);
 }
 
-void GnomeInputEvents::onMediaKeyPressed(GDBusProxy *proxy, gchar *sender_name, gchar *signal_name, GVariant *parameters, gpointer instance)
+void GnomeInputEvents::onGrabKeysReady(GObject *source_object, GAsyncResult *res, gpointer instance)
 {
     Log *log = Log::instance();
+
+    // check if the instance is valid
+    // if not, throw an error as we'll be unable to do anything with the event
+    if (instance == nullptr) {
+        log->error("Invalid ready callback event, GnomeInputEvents instance is NULL");
+    }
+
+    log->debug("Media keys have been grabbed");
+}
+
+void GnomeInputEvents::onGnomeMediaKeyPressed(GDBusProxy *proxy, gchar *sender_name, gchar *signal_name, GVariant *parameters, gpointer instance)
+{
+    Log *log = Log::instance();
+    log->trace(std::string("Received signal ") + signal_name);
 
     // check if the instance is valid
     // if not, throw an error as we'll be unable to do anything with the event
@@ -112,4 +161,33 @@ void GnomeInputEvents::onMediaKeyPressed(GDBusProxy *proxy, gchar *sender_name, 
     }
 
     auto *inputEvents = static_cast<GnomeInputEvents *>(instance);
+    auto type = g_variant_get_type_string(parameters);
+    auto children = g_variant_n_children(parameters);
+
+    // check if the incoming parameters matches the expected type
+    if (type == std::string("(ss)") && children == 2) {
+        log->trace("Received valid media key press event");
+        auto applicationName = getParameterValue(parameters, 0);
+        auto command = getParameterValue(parameters, 1);
+
+        // verify if the application name is the expected name
+        log->trace("Verifying destination application of signal");
+        if (applicationName == std::string(REGISTRATION_NAME)) {
+            inputEvents->handleMediaCommand(command);
+        }
+
+        g_free(applicationName);
+        g_free(command);
+    } else {
+        log->debug(std::string("Unexpected parameters type ") + type + " received");
+    }
+}
+
+char *GnomeInputEvents::getParameterValue(GVariant *parameters, int index)
+{
+    auto *rawParameter = g_variant_get_child_value(parameters, index);
+    auto parameterSize = g_variant_get_size(rawParameter);
+    auto value = g_variant_dup_string(rawParameter, &parameterSize);
+
+    return value;
 }

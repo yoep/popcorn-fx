@@ -37,6 +37,12 @@ public class PopcornKeysLib implements Library {
      */
     public static native void popcorn_keys_release(popcorn_keys_t pk);
 
+    /**
+     * Register a new callback for when a media key is being pressed.
+     *
+     * @param pk       The Popcorn Keys instance.
+     * @param callback The callback function.
+     */
     public static native void popcorn_keys_media_callback(popcorn_keys_t pk, popcorn_keys_media_key_pressed_t callback);
 
     //endregion

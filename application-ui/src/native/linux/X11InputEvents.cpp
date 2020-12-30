@@ -26,6 +26,11 @@ X11InputEvents::~X11InputEvents()
     unregisterKeys();
 }
 
+void X11InputEvents::onMediaKeyPressed(std::function<void(MediaKeyType)> mediaKeyPressed)
+{
+    _mediaKeyPressed = mediaKeyPressed;
+}
+
 void X11InputEvents::init()
 {
     // register keys
@@ -51,22 +56,34 @@ void X11InputEvents::init()
 void X11InputEvents::processEvent(XEvent *event)
 {
     auto keycode = event->xkey.keycode;
+    MediaKeyType type;
 
     switch (keycode) {
     case XKB_KEY_XF86AudioPlay:
+        type = MediaKeyType::PLAY;
         break;
     case XKB_KEY_XF86AudioStop:
+        type = MediaKeyType::STOP;
         break;
     case XKB_KEY_XF86AudioPrev:
+        type = MediaKeyType::PREVIOUS;
         break;
     case XKB_KEY_XF86AudioNext:
+        type = MediaKeyType::NEXT;
         break;
     case XKB_KEY_XF86AudioLowerVolume:
+        type = MediaKeyType::VOLUME_LOWER;
         break;
     case XKB_KEY_XF86AudioRaiseVolume:
+        type = MediaKeyType::VOLUME_HIGHER;
         break;
     default:
+        // no-op
         break;
+    }
+
+    if (_mediaKeyPressed != nullptr) {
+        _mediaKeyPressed(type);
     }
 }
 

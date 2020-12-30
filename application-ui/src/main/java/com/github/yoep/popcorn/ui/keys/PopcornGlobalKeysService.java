@@ -46,6 +46,9 @@ public class PopcornGlobalKeysService implements GlobalKeysService {
             var args = new String[]{"PopcornKeys", "-l", level};
 
             popcornKeys = new PopcornKeys(args);
+
+            popcornKeys.addListener(this::onMediaKeyPressed);
+            log.info("Popcorn global keys service has been initialized");
         } catch (UnsatisfiedLinkError ex) {
             log.error("Failed to load the popcorn keys library, " + ex.getMessage(), ex);
         }
@@ -66,6 +69,32 @@ public class PopcornGlobalKeysService implements GlobalKeysService {
     //endregion
 
     //region Functions
+
+    private void onMediaKeyPressed(MediaKeyType type) {
+        try {
+            synchronized (listeners) {
+                for (var listener : listeners) {
+                    switch (type) {
+                        case PLAY:
+                            listener.onMediaPlay();
+                            break;
+                        case PREVIOUS:
+                            listener.onPreviousMedia();
+                            break;
+                        case NEXT:
+                            listener.onNextMedia();
+                            break;
+                        case STOP:
+                            listener.onMediaStop();
+                            break;
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            // catch all exceptions as we don't want them to boil back up to the C library
+            log.error("An unexpected error occurred while processing the media key press, " + ex.getMessage(), ex);
+        }
+    }
 
     private String getLogLevel() {
         if (log.isTraceEnabled()) {

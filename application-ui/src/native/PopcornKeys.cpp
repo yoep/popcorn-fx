@@ -12,6 +12,7 @@ PopcornKeys::PopcornKeys(int argc, char **argv)
     this->_argc = argc;
     this->_argv = argv;
     this->_eventsBridge = nullptr;
+    this->_eventManager = new PopcornKeysEventManager();
 
     init();
 }
@@ -20,6 +21,13 @@ PopcornKeys::~PopcornKeys()
 {
     _log->debug("Releasing the Popcorn Keys resources");
     delete _eventsBridge;
+    delete _eventManager;
+}
+
+void PopcornKeys::addOnMediaKeyPressedCallback(popcorn_keys_media_key_pressed_t callback)
+{
+    // pass the registration to the event manager
+    _eventManager->addMediaCallback(callback);
 }
 
 void PopcornKeys::init()
@@ -33,6 +41,11 @@ void PopcornKeys::init()
 #elif defined(_WIN32)
 
 #endif
+
+    // add the media key callback function to the bridge
+    _eventsBridge->addMediaCallback([&](MediaKeyType type) {
+        _eventManager->onMediaKeyPressed(type);
+    });
 
     this->_log->debug("Popcorn keys has been initialized");
 }

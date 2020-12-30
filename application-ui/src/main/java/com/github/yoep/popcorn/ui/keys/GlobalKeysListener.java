@@ -10,6 +10,16 @@ public interface GlobalKeysListener {
     void onMediaPlay();
 
     /**
+     * Invoked when the audio pause key is pressed.
+     */
+    void onMediaPause();
+
+    /**
+     * Invoked when the audio stop key is pressed.
+     */
+    void onMediaStop();
+
+    /**
      * Invoked when the audio previous key is pressed.
      */
     void onPreviousMedia();

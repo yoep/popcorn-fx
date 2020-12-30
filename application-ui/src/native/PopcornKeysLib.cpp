@@ -35,10 +35,17 @@ void popcorn_keys_release(popcorn_keys_t *pk)
     PopcornKeys *keys;
     keys = static_cast<PopcornKeys *>(pk->keys);
 
-    delete static_cast<PopcornKeys *>(pk->keys);
+    delete keys;
     free(pk);
 }
 
 void popcorn_keys_media_callback(popcorn_keys_t *pk, popcorn_keys_media_key_pressed_t callback)
 {
+    if (pk == nullptr)
+        return;
+
+    PopcornKeys *keys;
+    keys = static_cast<PopcornKeys *>(pk->keys);
+
+    keys->addOnMediaKeyPressedCallback(callback);
 }

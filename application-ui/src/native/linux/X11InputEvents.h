@@ -12,13 +12,16 @@ class X11InputEvents : public IInputEvents {
 public:
     X11InputEvents();
 
-    virtual ~X11InputEvents();
+    ~X11InputEvents();
+
+    void onMediaKeyPressed(std::function<void(MediaKeyType)> mediaKeyPressed) override;
 
 private:
     Display *_display;
     Window _window;
     std::thread *_eventThread;
     std::atomic<bool> _keepAlive = true;
+    std::function<void(MediaKeyType)> _mediaKeyPressed;
 
     void init();
 

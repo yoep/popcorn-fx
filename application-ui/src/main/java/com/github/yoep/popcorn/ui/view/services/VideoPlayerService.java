@@ -4,6 +4,8 @@ import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.ui.keys.GlobalKeysListener;
+import com.github.yoep.popcorn.ui.keys.GlobalKeysService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
@@ -42,6 +44,7 @@ public class VideoPlayerService {
     private final SettingsService settingsService;
     private final VideoPlayerManagerService videoPlayerManagerService;
     private final VideoPlayerSubtitleService videoPlayerSubtitleService;
+    private final GlobalKeysService globalKeysService;
 
     private final ChangeListener<PlayerState> playerStateListener = (observable, oldValue, newValue) -> onPlayerStateChanged(newValue);
     private final ChangeListener<Number> timeListener = (observable, oldValue, newValue) -> onTimeChanged(newValue);
@@ -216,6 +219,7 @@ public class VideoPlayerService {
     private void init() {
         log.trace("Initializing video player service");
         initializeVideoListeners();
+        initializeGlobalKeyListener();
     }
 
     private void initializeVideoListeners() {
@@ -229,6 +233,38 @@ public class VideoPlayerService {
             newValue.playerStateProperty().addListener(playerStateListener);
             newValue.timeProperty().addListener(timeListener);
             newValue.durationProperty().addListener(durationListener);
+        });
+    }
+
+    private void initializeGlobalKeyListener() {
+        globalKeysService.addListener(new GlobalKeysListener() {
+            @Override
+            public void onMediaPlay() {
+                // assume that we take the play as a toggle function
+                // some keyboards include the play/pause as a toggle button rather than
+                // separate buttons
+                togglePlayPause();
+            }
+
+            @Override
+            public void onMediaPause() {
+                pause();
+            }
+
+            @Override
+            public void onMediaStop() {
+                stop();
+            }
+
+            @Override
+            public void onPreviousMedia() {
+                videoTimeOffset(-5000);
+            }
+
+            @Override
+            public void onNextMedia() {
+                videoTimeOffset(5000);
+            }
         });
     }
 

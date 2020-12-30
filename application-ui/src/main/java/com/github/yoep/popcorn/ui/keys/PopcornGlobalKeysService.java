@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.ui.keys;
 
-import com.github.yoep.popcorn.ui.keys.conditions.ConditionalOnPopcornKeys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -12,11 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-@Service
-@ConditionalOnPopcornKeys
+@RequiredArgsConstructor
 public class PopcornGlobalKeysService implements GlobalKeysService {
+    private final PopcornKeys popcornKeys;
+
     private final List<GlobalKeysListener> listeners = new ArrayList<>();
-    private PopcornKeys popcornKeys;
 
     //region Methods
 
@@ -40,18 +39,9 @@ public class PopcornGlobalKeysService implements GlobalKeysService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
-        try {
-            var level = getLogLevel();
-            var args = new String[]{"PopcornKeys", "-l", level};
-
-            popcornKeys = new PopcornKeys(args);
-
-            popcornKeys.addListener(this::onMediaKeyPressed);
-            log.info("Popcorn global keys service has been initialized");
-        } catch (UnsatisfiedLinkError ex) {
-            log.error("Failed to load the popcorn keys library, " + ex.getMessage(), ex);
-        }
+    void init() {
+        popcornKeys.addListener(this::onMediaKeyPressed);
+        log.info("Popcorn global keys service has been initialized");
     }
 
     //endregion
@@ -59,11 +49,8 @@ public class PopcornGlobalKeysService implements GlobalKeysService {
     //region PreDestroy
 
     @PreDestroy
-    private void onDestroy() {
-        if (popcornKeys != null) {
-            popcornKeys.release();
-            popcornKeys = null;
-        }
+    void onDestroy() {
+        popcornKeys.release();
     }
 
     //endregion
@@ -77,6 +64,9 @@ public class PopcornGlobalKeysService implements GlobalKeysService {
                     switch (type) {
                         case PLAY:
                             listener.onMediaPlay();
+                            break;
+                        case PAUSE:
+                            listener.onMediaPause();
                             break;
                         case PREVIOUS:
                             listener.onPreviousMedia();
@@ -94,16 +84,6 @@ public class PopcornGlobalKeysService implements GlobalKeysService {
             // catch all exceptions as we don't want them to boil back up to the C library
             log.error("An unexpected error occurred while processing the media key press, " + ex.getMessage(), ex);
         }
-    }
-
-    private String getLogLevel() {
-        if (log.isTraceEnabled()) {
-            return "trace";
-        } else if (log.isDebugEnabled()) {
-            return "debug";
-        }
-
-        return "info";
     }
 
     //endregion

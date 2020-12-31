@@ -6,6 +6,7 @@ import java.util.Arrays;
 
 @Getter
 public enum MediaKeyType {
+    UNKNOWN(-1),
     STOP(0),
     PLAY(1),
     PAUSE(2),

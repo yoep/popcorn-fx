@@ -6,9 +6,10 @@
 
 X11InputEvents::X11InputEvents()
 {
+    this->_log = Log::instance();
+
     this->_display = XOpenDisplay(nullptr);
     this->_window = XDefaultRootWindow(_display);
-    this->_eventThread = nullptr;
 
     init();
 }
@@ -18,9 +19,9 @@ X11InputEvents::~X11InputEvents()
     this->_keepAlive = false;
 
     // check if the event thread is still joinable
-    if (_eventThread != nullptr && _eventThread->joinable()) {
+    if (_eventThread.joinable()) {
         // wait for the event thread to quit
-        _eventThread->join();
+        _eventThread.join();
     }
 
     unregisterKeys();
@@ -33,10 +34,13 @@ void X11InputEvents::onMediaKeyPressed(std::function<void(MediaKeyType)> mediaKe
 
 void X11InputEvents::init()
 {
+    _log->trace("Initializing X11 input events");
+
     // register keys
     registerKeys();
 
-    std::thread eventThread([this] {
+    _log->trace("Creating new event thread");
+    this->_eventThread = std::thread([this] {
         auto event = new XEvent();
 
         while (_keepAlive) {
@@ -49,14 +53,12 @@ void X11InputEvents::init()
             }
         }
     });
-
-    this->_eventThread = &eventThread;
 }
 
 void X11InputEvents::processEvent(XEvent *event)
 {
     auto keycode = event->xkey.keycode;
-    MediaKeyType type;
+    MediaKeyType type = MediaKeyType::UNKNOWN;
 
     switch (keycode) {
     case XKB_KEY_XF86AudioPlay:
@@ -89,23 +91,35 @@ void X11InputEvents::processEvent(XEvent *event)
 
 void X11InputEvents::registerKeys()
 {
+    _log->debug("Registering X11 media input keys");
     auto keys = getKeys();
 
     for (int i = 0; i < sizeof(keys); ++i) {
         auto key = keys[i];
 
-        XGrabKey(_display, key, 0, _window, true, GrabModeAsync, GrabModeAsync);
+        try {
+            _log->trace("Grabbing X11 key: " + std::to_string(key));
+            XGrabKey(_display, key, 0, _window, true, GrabModeAsync, GrabModeAsync);
+        } catch (std::exception &ex) {
+            _log->error(std::string("Failed to grab X11 key, ") + ex.what());
+        }
     }
 }
 
 void X11InputEvents::unregisterKeys()
 {
+    _log->debug("Releasing X11 media input keys");
     auto keys = getKeys();
 
     for (int i = 0; i < sizeof(keys); ++i) {
         auto key = keys[i];
 
-        XUngrabKey(_display, key, 0, _window);
+        try {
+            _log->trace("Releasing X11 key: " + std::to_string(key));
+            XUngrabKey(_display, key, 0, _window);
+        } catch (std::exception &ex) {
+            _log->error(std::string("Failed to release X11 key, ") + ex.what());
+        }
     }
 }
 

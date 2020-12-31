@@ -1,6 +1,8 @@
 #ifndef POPCORNTIME_X11INPUTEVENTS_H
 #define POPCORNTIME_X11INPUTEVENTS_H
 
+#include "../../../../shared/Log.h"
+
 #include <IInputEvents.h>
 #include <X11/Xlib.h>
 #include <atomic>
@@ -19,9 +21,10 @@ public:
 private:
     Display *_display;
     Window _window;
-    std::thread *_eventThread;
+    std::thread _eventThread;
     std::atomic<bool> _keepAlive = true;
     std::function<void(MediaKeyType)> _mediaKeyPressed;
+    Log *_log;
 
     void init();
 

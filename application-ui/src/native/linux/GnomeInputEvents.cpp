@@ -90,7 +90,7 @@ void GnomeInputEvents::handleDBusError(GError *error)
 void GnomeInputEvents::handleMediaCommand(char *command)
 {
     _log->debug(std::string("Received media command ") + command);
-    MediaKeyType type;
+    MediaKeyType type = MediaKeyType::UNKNOWN;
 
     if (command == std::string("Play")) {
         type = MediaKeyType::PLAY;

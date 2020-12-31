@@ -23,7 +23,7 @@ public class OnPopcornKeys implements ConfigurationCondition {
 
             if (!libraryFound) {
                 log.warn("Popcorn Keys library is missing, global media keys will not be enabled.\n" +
-                        "To enabled keyboard media keys, make sure the \"{}\" is present", PopcornKeysLibDiscovery.LIBRARY_NAME);
+                        "To enabled keyboard media keys, make sure the \"{}\" library is present", PopcornKeysLibDiscovery.LIBRARY_NAME);
             }
 
             return libraryFound;

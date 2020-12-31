@@ -2,6 +2,7 @@
 #define POPCORNTIME_MEDIAKEYTYPE_H
 
 enum class MediaKeyType {
+    UNKNOWN = -1,
     STOP = 0,
     PLAY = 1,
     PAUSE = 2,

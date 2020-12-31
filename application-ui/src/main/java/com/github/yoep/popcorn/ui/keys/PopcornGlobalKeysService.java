@@ -77,6 +77,9 @@ public class PopcornGlobalKeysService implements GlobalKeysService {
                         case STOP:
                             listener.onMediaStop();
                             break;
+                        default:
+                            // no-op
+                            break;
                     }
                 }
             }

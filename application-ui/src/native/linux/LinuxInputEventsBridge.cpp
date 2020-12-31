@@ -65,13 +65,18 @@ void LinuxInputEventsBridge::useX11InputEvents()
 bool LinuxInputEventsBridge::isGnomeDesktop()
 {
     char *desktop = getenv("XDG_CURRENT_DESKTOP");
-    auto gnomeRegex = std::regex(".*(:gnome)", std::regex_constants::icase);
 
-    if (strlen(desktop) > 0) {
-        _log->trace(std::string("Detected desktop type: \"") + desktop + "\"");
-        return regex_search(desktop, gnomeRegex);
-    } else {
-        _log->warn("Unable to detect desktop type, falling back to X11");
-        return false;
+    // check if the current desktop environment could be found
+    // if so, check if we can find the gnome indication
+    if (desktop != nullptr) {
+        auto gnomeRegex = std::regex(".*(:gnome)", std::regex_constants::icase);
+
+        if (strlen(desktop) > 0) {
+            _log->trace(std::string("Detected desktop type: \"") + desktop + "\"");
+            return regex_search(desktop, gnomeRegex);
+        }
     }
+
+    _log->warn("Unable to detect desktop type, falling back to X11");
+    return false;
 }

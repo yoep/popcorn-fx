@@ -11,6 +11,8 @@
  */
 class IInputEventsBridge {
 public:
+    ~IInputEventsBridge() = default;
+
     /**
      * Register a media callback function which should be invoked when a media
      * key has been pressed.

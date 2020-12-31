@@ -12,9 +12,12 @@ if (WIN32)
     SET(CMAKE_FIND_LIBRARY_SUFFIXES ".dll" ".a" ".lib")
 endif ()
 
+message(STATUS "Detected CPU architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+
 # check if the ARM flag is defined
 # if this is the case, we're only going to check the linux-arm directory for the VLC libraries
-if (ARM)
+if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm")
+    message(STATUS "Using ARM VLC libraries")
     FIND_LIBRARY(
             LIBVLC_LIBRARY
             NAMES vlc libvlc

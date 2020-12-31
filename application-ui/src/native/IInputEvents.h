@@ -10,6 +10,8 @@
  */
 class IInputEvents {
 public:
+    ~IInputEvents() = default;
+
     /**
      * Invoked when a media key is being pressed.
      *

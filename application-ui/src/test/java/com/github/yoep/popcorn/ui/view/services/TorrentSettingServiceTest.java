@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.ui.view.services;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.text.DecimalFormat;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -27,7 +29,8 @@ class TorrentSettingServiceTest {
     @Test
     void testToDisplayValue_whenValueIs3500Bytes_shouldReturn3Dot5KiloByte() {
         var value = 3500;
-        var expectedResult = "3.5";
+        var decimalFormat = new DecimalFormat();
+        var expectedResult = "3" + decimalFormat.getDecimalFormatSymbols().getDecimalSeparator() + "5";
 
         var result = torrentSettingService.toDisplayValue(value);
 

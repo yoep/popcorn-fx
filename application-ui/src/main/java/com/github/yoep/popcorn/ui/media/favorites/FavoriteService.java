@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.media.favorites;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
 import com.github.yoep.popcorn.ui.media.favorites.models.Favorable;
@@ -7,11 +8,10 @@ import com.github.yoep.popcorn.ui.media.favorites.models.Favorites;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
-import javafx.animation.PauseTransition;
-import javafx.util.Duration;
+import com.github.yoep.popcorn.ui.utils.FileService;
+import com.github.yoep.popcorn.ui.utils.IdleTimer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -20,7 +20,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -30,13 +30,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FavoriteService {
+    static final int UPDATE_CACHE_AFTER_HOURS = 72;
+    static final String NAME = "favorites.json";
+    static final String FAVORITES_PATH = PopcornTimeApplication.APP_DIR + NAME;
     private static final int IDLE_TIME = 10;
-    private static final int UPDATE_CACHE_AFTER_HOURS = 72;
-    private static final String NAME = "favorites.json";
 
-    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
+    private final IdleTimer idleTimer = new IdleTimer(Duration.ofSeconds(IDLE_TIME));
     private final ObjectMapper objectMapper;
     private final TaskExecutor taskExecutor;
+    private final FileService fileService;
     private final ProviderService<Movie> movieProviderService;
     private final ProviderService<Show> showProviderService;
     private final Object cacheLock = new Object();
@@ -127,18 +129,25 @@ public class FavoriteService {
     //region PostConstruct
 
     @PostConstruct
-    public void init() {
+    void init() {
         initializeIdleTimer();
         initializeCacheRefresh();
     }
 
     private void initializeIdleTimer() {
-        idleTimer.setOnFinished(e -> onSave());
+        idleTimer.setOnTimeout(this::onSave);
     }
 
     private void initializeCacheRefresh() {
-        if (isCacheUpdateRequired())
-            taskExecutor.execute(this::updateCache);
+        try {
+            if (isCacheUpdateRequired()) {
+                // update the cache on a separate thread to not block the startup process
+                log.trace("Favorites cache update is required, starting cache update thread");
+                taskExecutor.execute(this::updateCache);
+            }
+        } catch (FavoriteException ex) {
+            log.error("Failed to refresh favorites cache, " + ex.getMessage(), ex);
+        }
     }
 
     //endregion
@@ -155,18 +164,16 @@ public class FavoriteService {
     //region Functions
 
     private void save(Favorites favorites) {
-        File file = getFile();
-
         try {
-            log.debug("Saving favorites to {}", file.getAbsolutePath());
-            FileUtils.writeStringToFile(file, objectMapper.writeValueAsString(favorites), Charset.defaultCharset());
+            log.debug("Saving favorites to {}", fileService.getAbsolutePath(FAVORITES_PATH));
+            fileService.save(FAVORITES_PATH, objectMapper.writeValueAsString(favorites));
         } catch (IOException ex) {
             log.error("Failed to save the favorites with error" + ex.getMessage(), ex);
         }
     }
 
     private void loadFavorites() {
-        idleTimer.playFromStart();
+        idleTimer.runFromStart();
 
         // check if the cache has already been loaded
         // if so, do nothing
@@ -185,11 +192,14 @@ public class FavoriteService {
                     cache = objectMapper.readValue(file, Favorites.class);
                     cacheHash = cache.hashCode();
                 }
+            } catch (JsonMappingException ex) {
+                throw new FavoriteException("Failed to load favorites, file has been corrupted: " + ex.getMessage(), ex);
             } catch (IOException ex) {
-                log.error("Unable to read favorites file at " + file.getAbsolutePath(), ex);
+                throw new FavoriteAccessException(file, ex);
             }
         } else {
             // build a new cache as now favorite database file is found
+            log.debug("Favorites file was not found, creating a new blank cache for favorites");
             synchronized (cacheLock) {
                 cache = Favorites.builder().build();
                 cacheHash = cache.hashCode();
@@ -206,7 +216,7 @@ public class FavoriteService {
             updateMoviesCache();
             updateSeriesCache();
             cache.setLastCacheUpdate(LocalDateTime.now());
-            idleTimer.playFromStart();
+            idleTimer.runFromStart();
             log.info("Favorite cache has been updated");
         }
     }
@@ -242,14 +252,18 @@ public class FavoriteService {
 
         loadFavorites();
 
+        boolean shouldUpdate;
+
         synchronized (cacheLock) {
-            return cache.getLastCacheUpdate() == null ||
+            shouldUpdate = cache.getLastCacheUpdate() == null ||
                     cache.getLastCacheUpdate().isBefore(cacheUpdateDateTime);
         }
+
+        return shouldUpdate;
     }
 
     private File getFile() {
-        return new File(PopcornTimeApplication.APP_DIR + NAME);
+        return fileService.getFile(FAVORITES_PATH);
     }
 
     private void onSave() {

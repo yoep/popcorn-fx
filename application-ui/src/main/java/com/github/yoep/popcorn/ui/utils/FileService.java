@@ -8,7 +8,7 @@ import org.springframework.util.Assert;
 import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 
 /**
@@ -55,7 +55,7 @@ public class FileService {
 
         try {
             log.trace("Saving contents to file \"{}\"", file.getAbsolutePath());
-            FileUtils.writeStringToFile(file, contents, Charset.defaultCharset());
+            FileUtils.writeStringToFile(file, contents, StandardCharsets.UTF_8);
             log.debug("File \"{}\" has been saved", file.getAbsolutePath());
             return true;
         } catch (IOException ex) {

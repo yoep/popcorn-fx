@@ -9,6 +9,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Cursor;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -57,7 +58,11 @@ public class PopcornTimePreloader extends Preloader {
     @Override
     public boolean handleErrorNotification(ErrorNotification info) {
         log.error("Application failed to load, " + info.getDetails(), info.getCause());
-        return super.handleErrorNotification(info);
+        var alert = new Alert(Alert.AlertType.ERROR, "Application failed to start, check logs for more information");
+
+        alert.showAndWait();
+
+        return true;
     }
 
     private void updateBackground(Stage stage, Scene scene) {

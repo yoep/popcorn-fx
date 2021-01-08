@@ -36,11 +36,14 @@ void X11InputEvents::init()
 {
     _log->trace("Initializing X11 input events");
 
-    // register keys
-    registerKeys();
-
     _log->trace("Creating new event thread");
     this->_eventThread = std::thread([this] {
+        _log->trace("Initializing X init threads");
+        XInitThreads();
+
+        // register keys
+        registerKeys();
+
         auto event = new XEvent();
 
         while (_keepAlive) {
@@ -99,7 +102,7 @@ void X11InputEvents::registerKeys()
 
         try {
             _log->trace("Grabbing X11 key: " + std::to_string(key));
-            XGrabKey(_display, key, 0, _window, true, GrabModeAsync, GrabModeAsync);
+            XGrabKey(_display, XKeysymToKeycode(_display, key), 0, _window, true, GrabModeAsync, GrabModeAsync);
         } catch (std::exception &ex) {
             _log->error(std::string("Failed to grab X11 key, ") + ex.what());
         }
@@ -116,7 +119,7 @@ void X11InputEvents::unregisterKeys()
 
         try {
             _log->trace("Releasing X11 key: " + std::to_string(key));
-            XUngrabKey(_display, key, 0, _window);
+            XUngrabKey(_display, XKeysymToKeycode(_display, key), 0, _window);
         } catch (std::exception &ex) {
             _log->error(std::string("Failed to release X11 key, ") + ex.what());
         }

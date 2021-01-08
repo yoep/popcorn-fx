@@ -69,6 +69,10 @@
         <javafx.version>14</javafx.version>
         <commons-io.version>2.6</commons-io.version>
         <jna.version>5.6.0</jna.version>
+
+        <cmake-maven-plugin.version>3.19.2-b1</cmake-maven-plugin.version>
+        <cmake.download>false</cmake.download>
+        <cmake.type>Release</cmake.type>
     </properties>
 
     <dependencyManagement>
@@ -162,6 +166,11 @@
                     <groupId>org.sonarsource.jacoco</groupId>
                     <artifactId>sonar-jacoco-plugin</artifactId>
                     <version>1.1.0.898</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.googlecode.cmake-maven-project</groupId>
+                    <artifactId>cmake-maven-plugin</artifactId>
+                    <version>${cmake-maven-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>

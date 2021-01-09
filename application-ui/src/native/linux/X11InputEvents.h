@@ -6,6 +6,7 @@
 #include <IInputEvents.h>
 #include <X11/Xlib.h>
 #include <atomic>
+#include <list>
 #include <thread>
 
 using namespace std;
@@ -37,7 +38,7 @@ private:
 
     void unregisterKeys();
 
-    static int *getKeys();
+    static std::list<int> getKeys();
 };
 
 #endif //POPCORNTIME_X11INPUTEVENTS_H

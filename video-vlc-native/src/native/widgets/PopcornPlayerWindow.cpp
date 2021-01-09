@@ -47,6 +47,8 @@ void PopcornPlayerWindow::connectMediaPlayerEvents(MediaPlayer *mediaPlayer)
         ui->controls, &PlayerControls::setPlayerState);
     connect(mediaPlayer, &MediaPlayer::stateChanged,
         this, &PopcornPlayerWindow::onStateChanged);
+    connect(mediaPlayer, &MediaPlayer::mediaItemChanged,
+        ui->controls, &PlayerControls::onNewMediaItem);
 
     connect(ui->controls, &PlayerControls::stop,
         mediaPlayer, [mediaPlayer] {

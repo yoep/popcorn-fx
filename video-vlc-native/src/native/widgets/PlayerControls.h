@@ -41,6 +41,11 @@ public slots:
      */
     void setPlayerState(MediaPlayerState newValue);
 
+    /**
+     * Invoked when a new media item is being played.
+     */
+    void onNewMediaItem();
+
 private slots:
     /**
      * Invoked when the stop button is invoked.
@@ -88,6 +93,8 @@ private:
     Log *log;
 
     void initializeUi();
+
+    void focusPlayPauseButton();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

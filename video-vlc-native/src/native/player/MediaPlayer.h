@@ -151,6 +151,11 @@ signals:
      */
     void stateChanged(MediaPlayerState newState);
 
+    /**
+     * Signals that the player's media item has been changed.
+     */
+    void mediaItemChanged();
+
 private:
     libvlc_instance_t *_vlcInstance;
     libvlc_media_player_t *_vlcMediaPlayer;

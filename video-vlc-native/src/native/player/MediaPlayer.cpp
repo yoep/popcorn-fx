@@ -47,6 +47,9 @@ void MediaPlayer::play(Media *media)
     if (media->state() == MediaState::PARSED) {
         onMediaParsed();
     }
+
+     // notify that the media item has changed of the player
+    emit mediaItemChanged();
 }
 
 void MediaPlayer::seek(long time)

@@ -45,6 +45,12 @@ void PlayerControls::setPlayerState(MediaPlayerState newValue)
     }
 }
 
+void PlayerControls::onNewMediaItem()
+{
+    // reset the focus to the play pause button
+    focusPlayPauseButton();
+}
+
 void PlayerControls::initializeUi()
 {
     log->trace("Initializing player controls");
@@ -74,9 +80,16 @@ void PlayerControls::initializeUi()
     ui->forwardButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     ui->moreButton->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     ui->progress->setFocusPolicy(Qt::FocusPolicy::NoFocus);
-    ui->playPauseButton->setFocus();
+
+    // focus the play pause button by default
+    focusPlayPauseButton();
 
     log->debug("Player controls have been initialized");
+}
+
+void PlayerControls::focusPlayPauseButton()
+{
+    ui->playPauseButton->setFocus();
 }
 
 void PlayerControls::keyPressEvent(QKeyEvent *event)

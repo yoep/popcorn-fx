@@ -20,6 +20,16 @@ public:
      * @param callback The function callback to invoked.
      */
     virtual void addMediaCallback(std::function<void(MediaKeyType)> callback) = 0;
+
+    /**
+     * Grab the media keys from the system event bridge.
+     */
+    virtual void grabMediaKeys() = 0;
+
+    /**
+     * Release the media keys.
+     */
+    virtual void releaseMediaKeys() = 0;
 };
 
 #endif //POPCORNTIME_IINPUTEVENTSBRIDGE_H

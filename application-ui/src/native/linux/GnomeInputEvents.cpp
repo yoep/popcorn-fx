@@ -32,6 +32,34 @@ void GnomeInputEvents::onMediaKeyPressed(std::function<void(MediaKeyType)> media
     _mediaKeyPressed = mediaKeyPressed;
 }
 
+bool GnomeInputEvents::grabMediaKeys()
+{
+    try {
+        _log->debug("Grabbing the media player keys");
+        g_dbus_proxy_call(_proxy, "GrabMediaPlayerKeys", g_variant_new("(su)", REGISTRATION_NAME, 0),
+            G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, &onGrabKeysReady, this);
+
+        return true;
+    } catch (std::exception &ex) {
+        _log->error("Failed to grab Gnome keys", ex);
+        return false;
+    }
+}
+
+bool GnomeInputEvents::releaseMediaKeys()
+{
+    try {
+        _log->debug("Releasing the media player keys");
+        g_dbus_proxy_call(_proxy, "ReleaseMediaPlayerKeys", g_variant_new("(s)", REGISTRATION_NAME),
+            G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, nullptr, nullptr);
+
+        return true;
+    } catch (std::exception &ex) {
+        _log->error("Failed to release Gnome keys", ex);
+        return false;
+    }
+}
+
 void GnomeInputEvents::init()
 {
     _log->trace("Initializing GnomeInputEvents");
@@ -120,20 +148,6 @@ void GnomeInputEvents::releaseProxy()
     if (_gThread.joinable()) {
         _gThread.join();
     }
-}
-
-void GnomeInputEvents::grabMediaKeys()
-{
-    _log->debug("Grabbing the media player keys");
-    g_dbus_proxy_call(_proxy, "GrabMediaPlayerKeys", g_variant_new("(su)", REGISTRATION_NAME, 0),
-        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, &onGrabKeysReady, this);
-}
-
-void GnomeInputEvents::releaseMediaKeys()
-{
-    _log->debug("Releasing the media player keys");
-    g_dbus_proxy_call(_proxy, "ReleaseMediaPlayerKeys", g_variant_new("(s)", REGISTRATION_NAME),
-        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, nullptr, nullptr, nullptr);
 }
 
 void GnomeInputEvents::onGrabKeysReady(GObject *source_object, GAsyncResult *res, gpointer instance)

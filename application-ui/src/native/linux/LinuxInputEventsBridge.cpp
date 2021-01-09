@@ -29,6 +29,16 @@ void LinuxInputEventsBridge::addMediaCallback(std::function<void(MediaKeyType)> 
     _callback = callback;
 }
 
+void LinuxInputEventsBridge::grabMediaKeys()
+{
+    _log->debug("Grabbing linux media keys");
+}
+
+void LinuxInputEventsBridge::releaseMediaKeys()
+{
+    _log->debug("Releasing linux media keys");
+}
+
 void LinuxInputEventsBridge::init()
 {
     _log->debug("Using linux inputs event bridge");
@@ -64,19 +74,27 @@ void LinuxInputEventsBridge::useX11InputEvents()
 
 bool LinuxInputEventsBridge::isGnomeDesktop()
 {
-    char *desktop = getenv("XDG_CURRENT_DESKTOP");
+    char *desktop = getenv("DESKTOP_SESSION");
 
     // check if the current desktop environment could be found
-    // if so, check if we can find the gnome indication
+    // if so, check if we can find the ubuntu indication
     if (desktop != nullptr) {
-        auto gnomeRegex = std::regex(".*(:gnome)", std::regex_constants::icase);
+        _log->trace("Desktop session has been detected");
 
-        if (strlen(desktop) > 0) {
-            _log->trace(std::string("Detected desktop type: \"") + desktop + "\"");
-            return regex_search(desktop, gnomeRegex);
+        if (desktop == std::string("ubuntu")) {
+            char *xdgType = getenv("XDG_CURRENT_DESKTOP");
+            auto gnomeRegex = std::regex(".*(:gnome)", std::regex_constants::icase);
+
+            if (strlen(xdgType) > 0) {
+                _log->trace(std::string("Detected XDG type: \"") + xdgType + "\"");
+                return regex_search(xdgType, gnomeRegex);
+            }
+        } else if (desktop == std::string("LXDE-pi")) {
+            _log->trace("Detected LXDE desktop session type");
+            return false;
         }
     }
 
-    _log->warn("Unable to detect desktop type, falling back to X11");
+    _log->warn("Unable to detect desktop session, falling back to X11");
     return false;
 }

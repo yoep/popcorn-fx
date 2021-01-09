@@ -15,6 +15,10 @@ public:
 
     void onMediaKeyPressed(std::function<void(MediaKeyType)> mediaKeyPressed) override;
 
+    bool grabMediaKeys() override;
+
+    bool releaseMediaKeys() override;
+
 private:
     GMainLoop *_loop;
     GDBusProxy *_proxy;
@@ -44,16 +48,6 @@ private:
      * Release the proxy resources.
      */
     void releaseProxy();
-
-    /**
-     * Grab the media player keys from Gnome.
-     */
-    void grabMediaKeys();
-
-    /**
-     * Release the grabbed media keys back to Gnome.
-     */
-    void releaseMediaKeys();
 
     static void onGrabKeysReady(GObject *source_object, GAsyncResult *res, gpointer instance);
 

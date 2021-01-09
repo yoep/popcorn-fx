@@ -19,6 +19,16 @@ public:
      */
     void addOnMediaKeyPressedCallback(popcorn_keys_media_key_pressed_t callback);
 
+    /**
+     * Grab the media keys from the current system.
+     */
+    void grabMediaKeys();
+
+    /**
+     * Release the media keys.
+     */
+    void releaseMediaKeys();
+
 private:
     int _argc;
     char **_argv;

@@ -39,6 +39,28 @@ void popcorn_keys_release(popcorn_keys_t *pk)
     free(pk);
 }
 
+void popcorn_keys_grab_keys(popcorn_keys_t *pk)
+{
+    if (pk == nullptr)
+        return;
+
+    PopcornKeys *keys;
+    keys = static_cast<PopcornKeys *>(pk->keys);
+
+    keys->grabMediaKeys();
+}
+
+void popcorn_keys_release_keys(popcorn_keys_t *pk)
+{
+    if (pk == nullptr)
+        return;
+
+    PopcornKeys *keys;
+    keys = static_cast<PopcornKeys *>(pk->keys);
+
+    keys->releaseMediaKeys();
+}
+
 void popcorn_keys_media_callback(popcorn_keys_t *pk, popcorn_keys_media_key_pressed_t callback)
 {
     if (pk == nullptr)

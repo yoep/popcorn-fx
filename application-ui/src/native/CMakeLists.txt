@@ -23,12 +23,12 @@ if (UNIX AND NOT APPLE)
     link_libraries(${X11_LIBRARIES})
     include_directories(${X11_INCLUDE_DIR})
 
-    message(STATUS "Including GTK-3")
+    message(STATUS "Including GIO")
     find_package(PkgConfig REQUIRED)
 
-    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
-    include_directories(${GTK3_INCLUDE_DIRS})
-    link_libraries(${GTK3_LIBRARY_DIRS})
+    pkg_check_modules(GIO REQUIRED gio-unix-2.0)
+    include_directories(${GIO_INCLUDE_DIRS})
+    link_libraries(${GIO_LIBRARY_DIRS})
 
     message(STATUS "Adding linux sources to the sources list")
     file(GLOB LINUX_SOURCES
@@ -54,10 +54,10 @@ add_executable(PopcornKeysRunner ${SOURCES})
 # link specific OS libs
 if (UNIX AND NOT APPLE)
     target_link_libraries(PopcornKeys
-            ${GTK3_LIBRARIES}
+            ${GIO_LIBRARIES}
             -lpthread)
     target_link_libraries(PopcornKeysRunner
-            ${GTK3_LIBRARIES}
+            ${GIO_LIBRARIES}
             -lpthread)
 elseif (WIN32 OR WIN64)
 

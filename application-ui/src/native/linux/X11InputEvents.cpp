@@ -8,6 +8,7 @@ X11InputEvents::X11InputEvents()
 {
     this->_log = Log::instance();
 
+    _log->debug("Initializing X11 window");
     this->_display = XOpenDisplay(nullptr);
     this->_window = XDefaultRootWindow(_display);
 
@@ -30,6 +31,17 @@ X11InputEvents::~X11InputEvents()
 void X11InputEvents::onMediaKeyPressed(std::function<void(MediaKeyType)> mediaKeyPressed)
 {
     _mediaKeyPressed = mediaKeyPressed;
+}
+
+bool X11InputEvents::grabMediaKeys()
+{
+
+    return false;
+}
+
+bool X11InputEvents::releaseMediaKeys()
+{
+    return false;
 }
 
 void X11InputEvents::init()
@@ -55,6 +67,8 @@ void X11InputEvents::init()
                 }
             }
         }
+
+        this->_log->trace("Event thread stopped");
     });
 }
 

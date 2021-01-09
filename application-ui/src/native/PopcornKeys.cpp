@@ -30,6 +30,14 @@ void PopcornKeys::addOnMediaKeyPressedCallback(popcorn_keys_media_key_pressed_t 
     _eventManager->addMediaCallback(callback);
 }
 
+void PopcornKeys::grabMediaKeys()
+{
+}
+
+void PopcornKeys::releaseMediaKeys()
+{
+}
+
 void PopcornKeys::init()
 {
     // parse the command argument

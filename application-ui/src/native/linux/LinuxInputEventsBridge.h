@@ -13,6 +13,9 @@ public:
     ~LinuxInputEventsBridge();
 
     void addMediaCallback(std::function<void(MediaKeyType)> callback) override;
+    void grabMediaKeys() override;
+    void releaseMediaKeys() override;
+
 private:
     std::function<void(MediaKeyType)> _callback;
     IInputEvents *_inputEvents;

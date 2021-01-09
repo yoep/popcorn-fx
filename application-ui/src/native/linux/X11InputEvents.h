@@ -18,6 +18,9 @@ public:
 
     void onMediaKeyPressed(std::function<void(MediaKeyType)> mediaKeyPressed) override;
 
+    bool grabMediaKeys() override;
+
+    bool releaseMediaKeys() override;
 private:
     Display *_display;
     Window _window;

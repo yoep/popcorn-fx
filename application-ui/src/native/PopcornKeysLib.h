@@ -23,6 +23,22 @@ popcorn_keys_t *popcorn_keys_new(int argc, char **argv);
 void popcorn_keys_release(popcorn_keys_t *pk);
 
 /**
+ * Grab the media keys from the system.
+ * If the media keys where already grabbed, it will add the application back on top of the listeners.
+ *
+ * @param pk The Popcorn Keys instance.
+ */
+void popcorn_keys_grab_keys(popcorn_keys_t *pk);
+
+/**
+ * Release the grabbed media keys.
+ * This will let the system know we're not interested in the key events anymore.
+ *
+ * @param pk The Popcorn Keys instance.
+ */
+void popcorn_keys_release_keys(popcorn_keys_t *pk);
+
+/**
  * Register a new callback for the media keys.
  *
  * @param pk The Popcorn Keys instance.

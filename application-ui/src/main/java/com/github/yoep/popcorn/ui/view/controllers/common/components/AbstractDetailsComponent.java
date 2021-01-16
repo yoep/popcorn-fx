@@ -76,6 +76,10 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      * @param media The media item to load the details of.
      */
     protected void load(T media) {
+        // always reset the details when a new show is being loaded
+        // as the onCloseDetails might have been bypassed through another event
+        reset();
+
         Assert.notNull(media, "media cannot be null");
         this.media = media;
 

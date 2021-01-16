@@ -5,7 +5,7 @@
     <parent>
         <artifactId>popcorn-time</artifactId>
         <groupId>com.github.yoep</groupId>
-        <version>0.0.5</version>
+        <version>0.0.6-SNAPSHOT</version>
     </parent>
 
     <artifactId>video-adapter</artifactId>

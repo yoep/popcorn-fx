@@ -214,8 +214,6 @@
                     <gitFlowConfig>
                         <developmentBranch>master</developmentBranch>
                         <versionTagPrefix>v</versionTagPrefix>
-                        <preReleaseGoals>clean install</preReleaseGoals>
-                        <postReleaseGoals/>
                     </gitFlowConfig>
                 </configuration>
             </plugin>

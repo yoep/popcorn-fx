@@ -31,10 +31,11 @@ jobs:
       run: mvn -B clean -Plinux
     - name: Build
       run: mvn -B verify -DskipITs -Plinux
-    - uses: codecov/codecov-action@v1
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./application/target/jacoco.exec,./application-ui/target/jacoco.exec
+        files: ./application/target/site/jacoco/jacoco.xml,./application-ui/target/site/jacoco/jacoco.xml
         flags: unittests
         name: codecov-umbrella
         verbose: true

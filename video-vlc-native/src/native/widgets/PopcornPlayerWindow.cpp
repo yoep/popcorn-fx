@@ -114,10 +114,6 @@ void PopcornPlayerWindow::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
 
-    int x = width() / 2 - ui->buffer->width() / 2;
-    int y = height() / 2 - ui->buffer->height() / 2;
-
-    ui->buffer->move(x, y);
     ui->player->setGeometry(0, 0, width(), height());
     repaint();
 }

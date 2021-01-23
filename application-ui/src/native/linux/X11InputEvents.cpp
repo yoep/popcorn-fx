@@ -67,6 +67,8 @@ void X11InputEvents::init()
                     processEvent(event);
                 }
             }
+
+            std::this_thread::sleep_for(300ms);
         }
 
         this->_log->trace("Event thread stopped");

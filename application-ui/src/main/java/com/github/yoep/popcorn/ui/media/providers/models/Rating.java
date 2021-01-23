@@ -1,18 +1,18 @@
 package com.github.yoep.popcorn.ui.media.providers.models;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.io.Serializable;
 
-@Data
-@NoArgsConstructor
+@Getter
+@Builder
 @AllArgsConstructor
+@ToString
+@EqualsAndHashCode
 public class Rating implements Serializable {
-    private int percentage;
-    private int watching;
-    private int votes;
-    private int loved;
-    private int hated;
+    private final int percentage;
+    private final int watching;
+    private final int votes;
+    private final int loved;
+    private final int hated;
 }

@@ -152,10 +152,8 @@ class ShowHelperServiceTest {
     }
 
     private Show createShow(List<Episode> episodes) {
-        var show = new Show();
-
-        show.setEpisodes(episodes);
-
-        return show;
+        return Show.builder()
+                .episodes(episodes)
+                .build();
     }
 }

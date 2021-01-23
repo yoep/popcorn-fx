@@ -99,10 +99,13 @@ class PlayNextServiceTest {
         var activity = mock(PlayMediaEvent.class);
         var episode1 = new Episode();
         var episode2 = new Episode();
-        var show = new Show();
+        var show = Show.builder()
+                .episodes(asList(episode1, episode2))
+                .build();
         episode1.setEpisode(1);
+        episode1.setShow(show);
         episode2.setEpisode(2);
-        show.setEpisodes(asList(episode1, episode2));
+        episode2.setShow(show);
         when(activity.getMedia()).thenReturn(episode2);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
@@ -189,15 +192,17 @@ class PlayNextServiceTest {
 
     private Episode createEpisode(Episode nextEpisode) {
         var episode = new Episode();
-        var show = new Show();
+        var show = Show.builder()
+                .episodes(asList(episode, nextEpisode))
+                .build();
         var torrents = new HashMap<String, MediaTorrentInfo>();
 
         episode.setEpisode(1);
         episode.setTorrents(torrents);
+        episode.setShow(show);
         nextEpisode.setTorrents(torrents);
         torrents.put("480p", mock(MediaTorrentInfo.class));
         torrents.put("720p", mock(MediaTorrentInfo.class));
-        show.setEpisodes(asList(episode, nextEpisode));
 
         return episode;
     }

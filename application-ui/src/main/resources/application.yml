@@ -106,6 +106,9 @@ popcorn:
         - tv
       sort-by:
         - watched
+        - year
+        - title
+        - rating
   subtitle:
     url: http://api.opensubtitles.org/xml-rpc
     user-agent: Popcorn Time v1

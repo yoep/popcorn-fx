@@ -2,16 +2,17 @@ package com.github.yoep.popcorn.ui.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 
+@Getter
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
-@Data
 public class Show extends AbstractMedia {
     /**
      * The unique TVDB ID of the show.
@@ -34,6 +35,18 @@ public class Show extends AbstractMedia {
      * The timestamp of the last update for the show.
      */
     private long lastUpdated;
+
+    @Builder
+    public Show(String id, String imdbId, String title, String year, Integer runtime, List<String> genres, Rating rating, Images images, String synopsis,
+                String tvdbId, int numberOfSeasons, String status, List<Episode> episodes, long lastUpdated) {
+        super(id, imdbId, title, year, runtime, genres, rating, images, synopsis);
+        this.tvdbId = tvdbId;
+        this.numberOfSeasons = numberOfSeasons;
+        this.status = status;
+        this.lastUpdated = lastUpdated;
+
+        setEpisodes(episodes);
+    }
 
     /**
      * Set the episodes of the show.

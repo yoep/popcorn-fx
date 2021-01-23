@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.media.providers;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.ui.media.favorites.FavoriteSortStrategy;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.Movie;
 import com.github.yoep.popcorn.ui.media.providers.models.Show;
@@ -32,18 +33,21 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     private final WatchedService watchedService;
     private final List<ProviderService<?>> providers;
     private final LocaleText localeText;
+    private final List<FavoriteSortStrategy> sortStrategies;
 
     public FavoriteProviderService(RestTemplate restTemplate,
                                    ApplicationEventPublisher eventPublisher,
                                    FavoriteService favoriteService,
                                    WatchedService watchedService,
                                    List<ProviderService<?>> providers,
-                                   LocaleText localeText) {
+                                   LocaleText localeText,
+                                   List<FavoriteSortStrategy> sortStrategies) {
         super(restTemplate, eventPublisher);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
         this.providers = providers;
         this.localeText = localeText;
+        this.sortStrategies = sortStrategies;
     }
 
     @Override
@@ -62,8 +66,16 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         var mediaStream = favoriteService.getAll().stream()
                 .filter(e -> e instanceof Media)
                 .map(e -> (Media) e)
-                .map(this::updateWatchedState)
-                .sorted(this::sortByWatchedState);
+                .map(this::updateWatchedState);
+
+        // sort the favorites
+        var sortStrategy = sortStrategies.stream()
+                .filter(e -> e.support(sortBy))
+                .findFirst();
+
+        if (sortStrategy.isPresent()) {
+            mediaStream = sortStrategy.get().sort(mediaStream);
+        }
 
         if (!genre.isAllGenre()) {
             mediaStream = mediaStream.filter(e -> {
@@ -77,7 +89,6 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
 
         var items = mediaStream.collect(Collectors.toList());
 
-        //TODO: implement sort filtering
         return CompletableFuture.completedFuture(new PageImpl<>(items, PageRequest.of(page, MAX_ITEMS), items.size()));
     }
 
@@ -136,23 +147,5 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         media.setWatched(watched);
 
         return media;
-    }
-
-    private int sortByWatchedState(Media o1, Media o2) {
-        // make sure movies are always before the shows
-        if (o1 instanceof Movie && o2 instanceof Show)
-            return -1;
-        if (o1 instanceof Show && o2 instanceof Movie)
-            return 1;
-
-        // sort by the watched state of the media items
-        if (o1.isWatched() && o2.isWatched())
-            return 0;
-        if (o1.isWatched())
-            return 1;
-        if (o2.isWatched())
-            return -1;
-
-        return 0;
     }
 }

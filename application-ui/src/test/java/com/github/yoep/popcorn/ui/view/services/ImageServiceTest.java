@@ -64,10 +64,8 @@ class ImageServiceTest {
     }
 
     private Movie createMovie(Images images) {
-        var movie = new Movie();
-
-        movie.setImages(images);
-
-        return movie;
+        return Movie.builder()
+                .images(images)
+                .build();
     }
 }

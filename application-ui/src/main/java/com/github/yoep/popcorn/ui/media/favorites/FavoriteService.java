@@ -67,19 +67,6 @@ public class FavoriteService {
     }
 
     /**
-     * Get the favorites.
-     *
-     * @return Returns the favorites.
-     */
-    public Favorites getFavorites() {
-        loadFavorites();
-
-        synchronized (cacheLock) {
-            return cache;
-        }
-    }
-
-    /**
      * Get all the {@link Favorable} items that are liked by the user.
      *
      * @return Returns the list of liked items by the user.

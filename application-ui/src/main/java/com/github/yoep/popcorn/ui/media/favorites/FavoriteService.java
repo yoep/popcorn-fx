@@ -198,14 +198,16 @@ public class FavoriteService {
         log.debug("Starting favorites cache update");
         loadFavorites();
 
+        idleTimer.stop();
+        updateMoviesCache();
+        updateSeriesCache();
+
         synchronized (cacheLock) {
-            idleTimer.stop();
-            updateMoviesCache();
-            updateSeriesCache();
             cache.setLastCacheUpdate(LocalDateTime.now());
-            idleTimer.runFromStart();
-            log.info("Favorite cache has been updated");
         }
+
+        idleTimer.runFromStart();
+        log.info("Favorite cache has been updated");
     }
 
     private void updateMoviesCache() {
@@ -215,7 +217,9 @@ public class FavoriteService {
                 .map(CompletableFuture::join)
                 .collect(Collectors.toList());
 
-        cache.setMovies(newMoviesCache);
+        synchronized (cacheLock) {
+            cache.setMovies(newMoviesCache);
+        }
     }
 
     private void updateSeriesCache() {
@@ -231,7 +235,9 @@ public class FavoriteService {
             show.setSynopsis(null);
         });
 
-        cache.setShows(newShowsCache);
+        synchronized (cacheLock) {
+            cache.setShows(newShowsCache);
+        }
     }
 
     private boolean isCacheUpdateRequired() {

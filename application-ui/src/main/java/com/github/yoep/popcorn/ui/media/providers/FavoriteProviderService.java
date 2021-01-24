@@ -104,7 +104,6 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
                 .filter(e -> e.getTitle().toLowerCase().contains(keywords.toLowerCase()))
                 .collect(Collectors.toList());
 
-        //TODO: implement filtering of favorites
         return CompletableFuture.completedFuture(new PageImpl<>(items, PageRequest.of(page, MAX_ITEMS), items.size()));
     }
 

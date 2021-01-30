@@ -159,7 +159,7 @@
             </Icon>
             <Label fx:id="likeText" text="%details_add_to_bookmarks"/>
         </VBox>
-        <VBox styleClass="action" focusTraversable="true"
+        <VBox fx:id="closeButton" styleClass="action" focusTraversable="true"
               onMouseClicked="#onCloseClicked" onKeyPressed="#onCloseKeyPressed"
               GridPane.columnIndex="2" GridPane.rowIndex="0">
             <Icon styleClass="button">

@@ -30,7 +30,7 @@ public class MainTvControllerIT extends TestFxBase {
 
     @Test
     public void testStartup_whenTVModeIsPassed_shouldOpenTVMode() throws TimeoutException {
-        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "--tv");
+        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "--tv", "--disable-popcorn-keys");
         FxToolkit.showStage();
         WaitForAsyncUtils.waitForFxEvents(100);
 

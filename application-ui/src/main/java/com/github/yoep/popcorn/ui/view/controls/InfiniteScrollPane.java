@@ -55,6 +55,8 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     private Pane loader;
     private boolean updating;
     private boolean endOfItems;
+    private double lastKnownScrollPosition;
+    private Node lastFocusedItem;
     private Thread contentUpdater;
 
     //region Constructors
@@ -182,6 +184,8 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         // reset the page
         endOfItems = false;
         updating = true;
+        lastKnownScrollPosition = 0;
+        lastFocusedItem = null;
         synchronized (contentUpdaterLock) {
             items.clear();
             setPage(0);
@@ -211,6 +215,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         initializeScrollBars();
         initializeContent();
         initializeListeners();
+        initializeSceneListener();
     }
 
     private void initializeScrollBars() {
@@ -232,11 +237,48 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         items.addListener(this::onItemsChanged);
     }
 
+    private void initializeSceneListener() {
+        sceneProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && lastKnownScrollPosition > 0) {
+                resumeLastScrollPosition();
+            } else if (newValue == null) {
+                rememberLastFocusedItem();
+            }
+        });
+    }
+
     private void onScroll() {
-        double vPercentage = (this.getVvalue() / this.getVmax()) * 100;
+        var currentScroll = this.getVvalue();
+        var maxScroll = this.getVmax();
+        var vPercentage = (currentScroll / maxScroll) * 100;
+
+        // store the current scroll position
+        if (currentScroll != 0)
+            this.lastKnownScrollPosition = currentScroll;
 
         if (vPercentage > SCROLLBAR_THRESHOLD && !updating)
             loadNewPage();
+    }
+
+    private void resumeLastScrollPosition() {
+        Platform.runLater(() -> {
+            this.setVvalue(lastKnownScrollPosition);
+
+            // check if the focus needs the be traversed to a specific item
+            // based on the last known focus before the infinite scroll pane was remove from the view tree
+            if (lastFocusedItem != null) {
+                lastFocusedItem.requestFocus();
+            }
+        });
+    }
+
+    private void rememberLastFocusedItem() {
+        items.stream()
+                .map(ItemWrapper::getGraphicsNode)
+                .filter(Node::isFocusTraversable)
+                .filter(Node::isFocused)
+                .findFirst()
+                .ifPresent(e -> lastFocusedItem = e);
     }
 
     private void addNodes(Node... nodes) {

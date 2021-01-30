@@ -28,7 +28,7 @@ public abstract class TestFxBase extends ApplicationTest {
     @BeforeEach
     public void setUp() throws TimeoutException {
         FxToolkit.registerStage(Stage::new);
-        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class);
+        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "--disable-popcorn-keys");
         FxToolkit.showStage();
         WaitForAsyncUtils.waitForFxEvents(100);
     }

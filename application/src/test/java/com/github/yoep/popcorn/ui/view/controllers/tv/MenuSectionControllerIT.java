@@ -1,14 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv;
 
 import com.github.yoep.popcorn.Categories;
-import com.github.yoep.popcorn.PopcornTimeApplicationTest;
-import com.github.yoep.popcorn.TestFxBase;
 import javafx.scene.Node;
 import javafx.scene.control.TextField;
-import javafx.stage.Stage;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.testfx.api.FxToolkit;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.util.concurrent.TimeUnit;
@@ -16,23 +12,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class MenuSectionControllerIT extends TestFxBase {
-    @Override
-    public void setUp() throws TimeoutException {
-        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "--tv");
-        FxToolkit.showStage();
-        WaitForAsyncUtils.waitForFxEvents(100);
-    }
-
-    @Override
-    public void init() throws Exception {
-        FxToolkit.registerStage(Stage::new);
-    }
-
-    @Override
-    public void stop() throws Exception {
-        FxToolkit.hideStage();
-    }
+public class MenuSectionControllerIT extends AbstractTvSectionControllerIT {
 
     @Nested
     class SearchField {
@@ -43,16 +23,19 @@ public class MenuSectionControllerIT extends TestFxBase {
             var movieCategory = lookup(Categories.MOVIES).queryAs(Node.class);
             var seriesCategory = lookup(Categories.SERIES).queryAs(Node.class);
             var searchField = lookup("#searchField").queryAs(TextField.class);
-            var searchText = "zombieland";
+            var searchText = "zombie";
 
             clickOn(movieCategory);
 
             // wait for poster items
             WaitForAsyncUtils.waitFor(20, TimeUnit.SECONDS, () -> lookup(".poster-item").queryAll().size() > 1);
 
+            // wait till the first item is focused as it will break the write function
+            WaitForAsyncUtils.waitFor(10, TimeUnit.SECONDS, () -> lookup(".poster-item").queryAs(Node.class).isFocused());
+
             // search
             clickOn(searchField);
-            write(searchText);
+            write(searchText, 10);
 
             sleep(4000);
 

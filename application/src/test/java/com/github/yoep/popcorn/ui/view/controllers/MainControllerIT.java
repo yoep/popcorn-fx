@@ -44,7 +44,7 @@ public class MainControllerIT extends TestFxBase {
 
     @Test
     public void testStartup_whenNonOptionArgumentIsGiven_shouldShowPlayerAsStartScreen() throws TimeoutException {
-        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "https://www.youtube.com/watch?v=BSF5yoD-vC4");
+        application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "--disable-popcorn-keys", "https://www.youtube.com/watch?v=BSF5yoD-vC4");
         FxToolkit.showStage();
         WaitForAsyncUtils.waitForFxEvents(100);
 

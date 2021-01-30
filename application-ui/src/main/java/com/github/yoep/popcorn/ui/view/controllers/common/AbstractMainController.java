@@ -51,6 +51,7 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
     protected Pane playerPane;
     protected Pane loaderPane;
     protected Pane notificationPane;
+    protected SectionType currentSection;
 
     @FXML
     protected AnchorPane rootPane;
@@ -181,7 +182,14 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
     }
 
     protected void switchSection(SectionType sectionType) {
+        // check if the requested section is the current section
+        // if so, ignore the switch action
+        if (currentSection == sectionType)
+            return;
+
         var content = new AtomicReference<Pane>();
+
+        this.currentSection = sectionType;
 
         switch (sectionType) {
             case CONTENT:

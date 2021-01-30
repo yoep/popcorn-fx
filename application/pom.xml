@@ -233,6 +233,27 @@
             </build>
         </profile>
         <profile>
+            <id>mac</id>
+
+            <properties>
+                <platform>macosx</platform>
+            </properties>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.github.fvarrui</groupId>
+                        <artifactId>javapackager</artifactId>
+                        <configuration>
+                            <additionalResources>
+                                <param>${project.basedir}/../assets/${platform}/libjlibtorrent.dylib</param>
+                            </additionalResources>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>linux</id>
 
             <properties>

@@ -102,6 +102,9 @@ public class UISettings extends AbstractSettings {
      * @return Returns the list of support languages.
      */
     public static List<Locale> supportedLanguages() {
-        return asList(Locale.ENGLISH, new Locale("nl"));
+        return asList(
+                Locale.ENGLISH,
+                new Locale("nl"),
+                new Locale("fr"));
     }
 }

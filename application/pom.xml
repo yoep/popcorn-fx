@@ -186,6 +186,9 @@
                         <setupLanguages>
                             <english>compiler:Default.isl</english>
                             <dutch>compiler:Languages\Dutch.isl</dutch>
+                            <french>compiler:Languages\French.isl</french>
+                            <german>compiler:Languages\German.isl</german>
+                            <spanish>compiler:Languages\Spanish.isl</spanish>
                         </setupLanguages>
                         <setupMode>askTheUser</setupMode>
                         <createDesktopIconTask>true</createDesktopIconTask>

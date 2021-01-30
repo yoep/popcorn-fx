@@ -1,6 +1,8 @@
 .idea/
 .cmake/
 target/
+assets/windows/vlc/lua/
+assets/windows/vlc/plugins/
 
 **/*.iml
 **/docker-compose.yml

@@ -20,7 +20,7 @@ import java.util.Map;
 @AllArgsConstructor
 @EqualsAndHashCode(exclude = {"watched", "liked", "show"})
 @ToString(exclude = {"watched", "liked", "show"})
-public class Episode implements Media {
+public class Episode implements Media, Comparable<Episode> {
     @JsonIgnore
     private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
     @JsonIgnore
@@ -146,6 +146,25 @@ public class Episode implements Media {
      */
     public LocalDateTime getAirDate() {
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(firstAired), ZoneOffset.UTC);
+    }
+
+    //endregion
+
+    //region Comparable
+
+    @Override
+    public int compareTo(Episode compareTo) {
+        // order first by season
+        var seasonCompareResult = Integer.compare(season, compareTo.getSeason());
+
+        // if the seasons don't match
+        // return the compare result
+        if (seasonCompareResult != 0) {
+            return seasonCompareResult;
+        }
+
+        // order by episode number
+        return Integer.compare(episode, compareTo.getEpisode());
     }
 
     //endregion

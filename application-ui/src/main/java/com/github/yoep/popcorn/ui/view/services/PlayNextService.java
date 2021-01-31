@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * The {@link PlayNextService} is responsible for determining if the playing next should be activated for the current playback.
@@ -114,7 +115,7 @@ public class PlayNextService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         initializeVideoPlayerListeners();
     }
 
@@ -170,11 +171,13 @@ public class PlayNextService {
 
         var episode = (Episode) media;
         var show = episode.getShow();
-        var nextEpisodeIndex = episode.getEpisode();
+        var sortedEpisodes = show.getEpisodes().stream()
+                .sorted()
+                .collect(Collectors.toList());
+        var nextEpisodeIndex = sortedEpisodes.indexOf(episode) + 1;
 
-        if (nextEpisodeIndex <= show.getEpisodes().size() - 1) {
-            this.nextEpisode.set(show.getEpisodes().get(nextEpisodeIndex));
-            this.quality = event.getQuality();
+        if (nextEpisodeIndex < sortedEpisodes.size()) {
+            setNextEpisode(sortedEpisodes.get(nextEpisodeIndex), event.getQuality());
         } else {
             reset();
         }
@@ -204,6 +207,11 @@ public class PlayNextService {
                 .quality(quality)
                 .subtitle(null)
                 .build());
+    }
+
+    private void setNextEpisode(Episode nextEpisode, String quality) {
+        this.nextEpisode.set(nextEpisode);
+        this.quality = quality;
     }
 
     private void reset() {

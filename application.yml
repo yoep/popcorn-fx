@@ -1,11 +1,11 @@
 logging:
   level:
     org.springframework: INFO
-    com.github.yoep.popcorn: DEBUG
+    com.github.yoep.popcorn: INFO
     com.github.yoep.popcorn.media: DEBUG
     com.github.yoep.popcorn.subtitles: DEBUG
-    com.github.yoep.popcorn.torrent: DEBUG
     com.github.yoep.popcorn.view: DEBUG
-    com.github.yoep.torrent.frostwire: DEBUG
-    com.github.yoep.torrent.stream: DEBUG
-    com.github.yoep.video: DEBUG
+    com.github.yoep.torrent.frostwire: INFO
+    com.github.yoep.torrent.stream: INFO
+    com.github.yoep.video: INFO
+    com.github.yoep.player.chromecast: DEBUG

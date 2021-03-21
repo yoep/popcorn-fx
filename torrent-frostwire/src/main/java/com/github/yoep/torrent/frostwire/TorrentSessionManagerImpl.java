@@ -120,6 +120,7 @@ public class TorrentSessionManagerImpl implements TorrentSessionManager {
 
             state.set(SessionState.RUNNING);
         } catch (InterruptedException ex) {
+            state.set(SessionState.ERROR);
             throw new TorrentException("The DHT monitor has unexpectedly quit", ex);
         }
     }

@@ -8,7 +8,7 @@ import javafx.scene.Node;
 import java.io.File;
 
 /**
- * Adapter definition of a video player.
+ * The video player is a embedded video backend which supports playback in the application itself.
  */
 public interface VideoPlayer {
     String PLAYER_STATE_PROPERTY = "playerState";

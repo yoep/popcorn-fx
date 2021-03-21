@@ -20,12 +20,14 @@
     </properties>
 
     <dependencies>
-        <!-- Popcorn Time -->
+        <!-- Popcorn Time UI -->
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>application-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- Popcorn Time Video -->
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>video-javafx</artifactId>
@@ -46,6 +48,15 @@
             <artifactId>video-youtube</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- Popcorn Time Player -->
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>player-chromecast</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Popcorn Time Torrent -->
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>torrent-frostwire</artifactId>

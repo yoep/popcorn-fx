@@ -25,6 +25,8 @@
         <module>torrent-adapter</module>
         <module>torrent-stream</module>
         <module>torrent-frostwire</module>
+        <module>player-adapter</module>
+        <module>player-chromecast</module>
     </modules>
 
     <repositories>

@@ -1,0 +1,121 @@
+package com.github.yoep.popcorn.ui.player;
+
+import com.github.yoep.player.adapter.Player;
+import com.github.yoep.player.adapter.PlayerAlreadyExistsException;
+import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoTorrentEvent;
+import javafx.beans.property.*;
+import javafx.collections.FXCollections;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
+
+import javax.annotation.PreDestroy;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Optional;
+
+/**
+ * Implementation of the {@link PlayerService} which serves the individual players with a central point of management.
+ * This service manages each available {@link Player} of the application.
+ */
+@Slf4j
+@Service
+public class PlayerServiceImpl implements PlayerService {
+    public static final String PLAYERS_PROPERTY = "players";
+    public static final String ACTIVE_PLAYER_PROPERTY = "activePlayer";
+
+    private final MapProperty<String, Player> players = new SimpleMapProperty<>(this, PLAYERS_PROPERTY,
+            FXCollections.observableMap(new LinkedHashMap<>()));
+    private final ObjectProperty<Player> activePlayer = new SimpleObjectProperty<>(this, ACTIVE_PLAYER_PROPERTY);
+
+    //region Properties
+
+    @Override
+    public Optional<Player> getById(String id) {
+        Assert.notNull(id, "id cannot be null");
+        return Optional.ofNullable(players.get(id));
+    }
+
+    @Override
+    public Collection<Player> getPlayers() {
+        return players.values();
+    }
+
+    @Override
+    public ReadOnlyMapProperty<String, Player> playersProperty() {
+        return players;
+    }
+
+    @Override
+    public Optional<Player> getActivePlayer() {
+        return Optional.ofNullable(activePlayer.get());
+    }
+
+    @Override
+    public ObjectProperty<Player> activePlayerProperty() {
+        return activePlayer;
+    }
+
+    @Override
+    public void setActivePlayer(Player activePlayer) {
+        log.trace("Activating player {} for playbacks", activePlayer);
+        this.activePlayer.set(activePlayer);
+    }
+
+    //endregion
+
+    //region Methods
+
+    @EventListener
+    public void onPlayMediaEvent(PlayMediaEvent event) {
+
+    }
+
+    @EventListener
+    public void onPlayTorrentEvent(PlayVideoTorrentEvent event) {
+
+    }
+
+    @Override
+    public void register(Player player) {
+        Assert.notNull(player, "player cannot be null");
+        log.trace("Registering new player {}", player);
+        var id = player.getId();
+
+        // check if the player already exists with the given name
+        // if so, throw an exception that the player already exists
+        if (players.containsKey(id)) {
+            throw new PlayerAlreadyExistsException(id);
+        }
+
+        players.put(id, player);
+    }
+
+    @Override
+    public void unregister(Player player) {
+        log.trace("Removing player \"{}\"", player);
+        var id = player.getId();
+
+        players.remove(id);
+    }
+
+    //endregion
+
+    //region OnDestroy
+
+    @PreDestroy
+    void onDestroy() {
+        players.values().forEach(Player::dispose);
+    }
+
+    //endregion
+
+    //region Functions
+
+
+
+    //endregion
+}

@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.config;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.player.adapter.PlayerService;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
@@ -167,9 +168,10 @@ public class DesktopConfig {
                                                        ImageService imageService,
                                                        SettingsService settingsService,
                                                        FavoriteService favoriteService,
-                                                       WatchedService watchedService) {
+                                                       WatchedService watchedService,
+                                                       PlayerService playerService) {
         return new MovieDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
-                favoriteService, watchedService);
+                favoriteService, watchedService, playerService);
     }
 
     @Bean

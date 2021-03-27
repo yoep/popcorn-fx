@@ -1,11 +1,14 @@
 package com.github.yoep.torrent.stream.controllers;
 
 import com.github.yoep.torrent.adapter.TorrentStreamService;
+import com.github.yoep.torrent.stream.services.MediaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourceRegion;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -16,8 +19,13 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class VideoController {
     private static final String JAVA_MEDIA_USER_AGENT = "Java";
+    private static final String HEADER_DLNA_TRANSFER_MODE = "TransferMode.dlna.org";
+    private static final String ACCEPT_RANGES_TYPE = "bytes";
+    private static final String CONNECTION_TYPE = "keep-alive";
+    private static final String DLNA_TRANSFER_MODE_TYPE = "Streaming";
 
     private final TorrentStreamService streamService;
+    private final MediaService mediaService;
 
     @RequestMapping(value = "/{filename}", method = RequestMethod.GET)
     public ResponseEntity<ResourceRegion> videoPart(@RequestHeader HttpHeaders headers,
@@ -31,37 +39,41 @@ public class VideoController {
         }
 
         log.trace("Received request headers {} for video {}", headers, filename);
-        ResourceRegion region;
+        long rangeStart;
+        long rangeEnd;
         var video = torrent.get().stream();
         var videoLength = video.contentLength();
         var range = headers.getRange().stream().findFirst().orElse(null);
         var agent = headers.getFirst(HttpHeaders.USER_AGENT);
         var status = HttpStatus.PARTIAL_CONTENT;
 
-        if (range == null) {
-            region = new ResourceRegion(video, 0, videoLength);
-        } else {
-            var start = range.getRangeStart(videoLength);
-
-            // check if the requested start is larger than the file size
-            // if so, return that the request cannot be fulfilled
-            if (start > videoLength) {
-                log.warn("Requested content range is invalid, start offset [{}] is larger than the file size [{}]", start, videoLength);
-                return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
-                        .contentType(MediaType.TEXT_PLAIN)
-                        .build();
-            }
-
-            var chunkSize = range.getRangeEnd(videoLength);
+        // check if the range header is present
+        // if so, use the range header to determine the chunk
+        if (range != null) {
+            rangeStart = range.getRangeStart(videoLength);
+            rangeEnd = range.getRangeEnd(videoLength);
 
             // check that the chunk size is not larger than the video size
             // if so, return only the remaining bytes
-            if (start + chunkSize > videoLength) {
-                chunkSize = videoLength - start;
+            if (rangeStart + rangeEnd > videoLength) {
+                rangeEnd = videoLength - rangeStart;
             }
-
-            region = new ResourceRegion(video, start, chunkSize);
+        } else {
+            rangeStart = 0;
+            rangeEnd = videoLength;
         }
+
+        // check if the requested start is larger than the file size
+        // if so, return that the request cannot be fulfilled
+        if (rangeStart > videoLength) {
+            log.warn("Requested content range is invalid, start offset [{}] is larger than the file size [{}]", rangeStart, videoLength);
+            return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .build();
+        }
+
+        // create the resource region based on the range start and end size
+        var region = new ResourceRegion(video, rangeStart, rangeEnd);
 
         // check if the agent is Java media
         // if so, return OK as status as the media player doesn't accept any other status as success
@@ -71,22 +83,17 @@ public class VideoController {
 
         log.trace("Serving video chunk \"{}-{}/{}\" for torrent stream \"{}\"",
                 region.getPosition(), region.getCount(), videoLength, filename);
-        ResponseEntity<ResourceRegion> response = ResponseEntity.status(status)
-                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .header(HttpHeaders.CONNECTION, "keep-alive")
-                .header("TransferMode.dlna.org", "Streaming")
-                .contentType(getContentType(video))
+        var contentType = mediaService.contentType(video);
+        var response = ResponseEntity.status(status)
+                .header(HttpHeaders.ACCEPT_RANGES, ACCEPT_RANGES_TYPE)
+                .header(HttpHeaders.CONNECTION, CONNECTION_TYPE)
+                .header(HEADER_DLNA_TRANSFER_MODE, DLNA_TRANSFER_MODE_TYPE)
+                .contentType(contentType)
                 .body(region);
         log.trace("Responding to video request \"{}\" with status {} and headers {}", filename, response.getStatusCodeValue(), response.getHeaders());
 
         return response;
     }
 
-    private MediaType getContentType(Resource video) {
-        var mediaType = MediaTypeFactory.getMediaType(video)
-                .orElse(MediaType.APPLICATION_OCTET_STREAM);
 
-        log.trace("Resolved video file \"{}\" as content type \"{}\"", video.getFilename(), mediaType);
-        return mediaType;
-    }
 }

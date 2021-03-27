@@ -67,6 +67,10 @@ public class ChromecastPlayer implements Player {
 
     @Override
     public void dispose() {
+        log.trace("Disposing Chromecast player \"{}\"", getName());
+        if (appLaunched) {
+            stopApp();
+        }
         if (connected) {
             disconnect();
         }
@@ -213,9 +217,19 @@ public class ChromecastPlayer implements Player {
         }
     }
 
+    private void stopApp() {
+        try {
+            log.trace("Trying to stop currently running app on Chromecast \"{}\"", getName());
+            chromeCast.stopApp();
+            log.debug("Stopped app on the Chromecast \"{}\"", getName());
+        } catch (IOException ex) {
+            log.error("Failed to stop app on Chromecast \"{}\", {}", getName(), ex.getMessage(), ex);
+        }
+    }
+
     private void disconnect() {
         try {
-            log.debug("Trying to disconnect from Chromecast \"{}\"", getName());
+            log.trace("Trying to disconnect from Chromecast \"{}\"", getName());
             chromeCast.unregisterListener(listener);
             chromeCast.disconnect();
             log.info("Disconnected from Chromecast \"{}\"", getName());

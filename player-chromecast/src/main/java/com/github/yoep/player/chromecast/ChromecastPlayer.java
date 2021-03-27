@@ -23,8 +23,8 @@ import java.security.GeneralSecurityException;
 import java.util.Optional;
 
 @Slf4j
-@ToString(exclude = {"chromeCast", "listener"})
-@EqualsAndHashCode(exclude = {"chromeCast", "listener"})
+@ToString(exclude = {"playerState", "chromeCast", "listener"})
+@EqualsAndHashCode(exclude = {"playerState", "chromeCast", "listener"})
 @RequiredArgsConstructor
 public class ChromecastPlayer implements Player {
     private static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");

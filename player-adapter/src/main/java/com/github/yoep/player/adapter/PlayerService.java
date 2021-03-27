@@ -1,7 +1,7 @@
 package com.github.yoep.player.adapter;
 
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyMapProperty;
+import javafx.collections.ObservableMap;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -31,7 +31,7 @@ public interface PlayerService {
      *
      * @return Returns the player property.
      */
-    ReadOnlyMapProperty<String, Player> playersProperty();
+    ObservableMap<String, Player> playersProperty();
 
     /**
      * Get the current active player which is being used for playback.

@@ -5,8 +5,10 @@ import com.github.yoep.player.adapter.PlayerAlreadyExistsException;
 import com.github.yoep.player.adapter.PlayerService;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoTorrentEvent;
-import javafx.beans.property.*;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -24,11 +26,9 @@ import java.util.Optional;
 @Slf4j
 @Service
 public class PlayerServiceImpl implements PlayerService {
-    public static final String PLAYERS_PROPERTY = "players";
     public static final String ACTIVE_PLAYER_PROPERTY = "activePlayer";
 
-    private final MapProperty<String, Player> players = new SimpleMapProperty<>(this, PLAYERS_PROPERTY,
-            FXCollections.observableMap(new LinkedHashMap<>()));
+    private final ObservableMap<String, Player> players = FXCollections.observableMap(new LinkedHashMap<>());
     private final ObjectProperty<Player> activePlayer = new SimpleObjectProperty<>(this, ACTIVE_PLAYER_PROPERTY);
 
     //region Properties
@@ -45,7 +45,7 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
-    public ReadOnlyMapProperty<String, Player> playersProperty() {
+    public ObservableMap<String, Player> playersProperty() {
         return players;
     }
 
@@ -71,12 +71,18 @@ public class PlayerServiceImpl implements PlayerService {
 
     @EventListener
     public void onPlayMediaEvent(PlayMediaEvent event) {
-
+        getActivePlayer().ifPresent(player -> player.play(SimplePlayRequest.builder()
+                .url(event.getUrl())
+                .title(event.getTitle())
+                .build()));
     }
 
     @EventListener
     public void onPlayTorrentEvent(PlayVideoTorrentEvent event) {
-
+        getActivePlayer().ifPresent(player -> player.play(SimplePlayRequest.builder()
+                .url(event.getUrl())
+                .title(event.getTitle())
+                .build()));
     }
 
     @Override
@@ -114,7 +120,6 @@ public class PlayerServiceImpl implements PlayerService {
     //endregion
 
     //region Functions
-
 
 
     //endregion

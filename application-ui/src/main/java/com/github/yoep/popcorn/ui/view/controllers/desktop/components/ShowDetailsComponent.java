@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.player.adapter.PlayerService;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
@@ -52,8 +53,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     private static final double POSTER_WIDTH = 198.0;
     private static final double POSTER_HEIGHT = 215.0;
 
-    private final FavoriteService favoriteService;
-    private final WatchedService watchedService;
     private final ShowHelperService showHelperService;
 
     private Episode episode;
@@ -72,9 +71,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     @FXML
     private Label overview;
     @FXML
-    private Icon bookmarkIcon;
-    @FXML
-    private Label bookmark;
+    private Label favoriteText;
     @FXML
     private Seasons seasons;
     @FXML
@@ -101,10 +98,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
                                 SettingsService settingsService,
                                 FavoriteService favoriteService,
                                 WatchedService watchedService,
-                                ShowHelperService showHelperService) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService);
-        this.favoriteService = favoriteService;
-        this.watchedService = watchedService;
+                                ShowHelperService showHelperService,
+                                PlayerService playerService) {
+        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, favoriteService,
+                watchedService, playerService);
         this.showHelperService = showHelperService;
     }
 
@@ -126,6 +123,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         super.load(media);
 
         loadText();
+        loadButtons();
         loadSeasons();
         loadFavorite();
     }
@@ -151,6 +149,17 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         poster.setImage(null);
     }
 
+    @Override
+    protected void switchLiked(boolean isLiked) {
+        super.switchLiked(isLiked);
+
+        if (isLiked) {
+            favoriteText.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
+        } else {
+            favoriteText.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
+        }
+    }
+
     //endregion
 
     //region Initiazable
@@ -160,6 +169,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         initializeSeasons();
         initializeEpisodes();
         initializeLanguageSelection();
+        initializeWatchNow();
     }
 
     //endregion
@@ -248,6 +258,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         status.setText(media.getStatus());
         genres.setText(String.join(" / ", media.getGenres()));
         overview.setText(media.getSynopsis());
+    }
+
+    private void loadButtons() {
+        watchNowButton.select(playerService.getActivePlayer().orElse(null));
     }
 
     private void loadSeasons() {
@@ -389,6 +403,16 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
             copyMagnetLink(torrentInfo);
         } else {
             openMagnetLink(torrentInfo);
+        }
+    }
+
+    @FXML
+    private void onFavoriteClicked(MouseEvent event) {
+        event.consume();
+        if (!media.isLiked()) {
+            favoriteService.addToFavorites(media);
+        } else {
+            favoriteService.removeFromFavorites(media);
         }
     }
 

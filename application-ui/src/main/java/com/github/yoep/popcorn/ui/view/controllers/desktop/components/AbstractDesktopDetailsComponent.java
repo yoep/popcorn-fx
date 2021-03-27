@@ -2,10 +2,13 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.player.adapter.PlayerService;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
+import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
@@ -14,9 +17,12 @@ import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelectionListener;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
+import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -41,24 +47,35 @@ import java.util.stream.Collectors;
 @Slf4j
 public abstract class AbstractDesktopDetailsComponent<T extends Media> extends AbstractDetailsComponent<T> implements Initializable {
     protected static final String LIKED_STYLE_CLASS = "liked";
+    protected static final String WATCHED_STYLE_CLASS = "seen";
     protected static final String QUALITY_ACTIVE_CLASS = "active";
 
     protected final ApplicationEventPublisher eventPublisher;
     protected final SubtitleService subtitleService;
     protected final SubtitlePickerService subtitlePickerService;
+    protected final FavoriteService favoriteService;
+    protected final WatchedService watchedService;
+    protected final PlayerService playerService;
 
     protected SubtitleInfo subtitle;
     protected boolean liked;
     protected String quality;
 
+    private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
+    private final ChangeListener<Boolean> likedListener = (observable, oldValue, newValue) -> switchLiked(newValue);
+
     @FXML
     protected Icon favoriteIcon;
+    @FXML
+    protected Icon watchedIcon;
     @FXML
     protected Icon magnetLink;
     @FXML
     protected Pane qualitySelectionPane;
     @FXML
     protected LanguageFlagSelection languageSelection;
+    @FXML
+    protected WatchNowButton watchNowButton;
 
     //region Constructors
 
@@ -68,11 +85,15 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SubtitleService subtitleService,
                                               SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
-                                              SettingsService settingsService) {
+                                              SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
+                                              PlayerService playerService) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
         this.subtitlePickerService = subtitlePickerService;
+        this.favoriteService = favoriteService;
+        this.watchedService = watchedService;
+        this.playerService = playerService;
     }
 
     //endregion
@@ -92,6 +113,18 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     //region Functions
 
+    protected void initializeWatchNow() {
+        // listen for changes in the players
+        playerService.playersProperty().addListener((InvalidationListener) change -> updateExternalPlayers());
+        playerService.activePlayerProperty().addListener((observable, oldValue, newValue) -> watchNowButton.select(newValue));
+
+        // create initial list for the current known external players
+        updateExternalPlayers();
+
+        // listen on player selection changed
+        watchNowButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> playerService.setActivePlayer(newValue));
+    }
+
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {
         var resolutions = getVideoResolutions(torrents);
         var defaultQuality = getDefaultVideoResolution(resolutions);
@@ -104,6 +137,24 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         qualitySelectionPane.getChildren().addAll(qualities);
 
         switchActiveQuality(defaultQuality);
+    }
+
+    protected void loadFavoriteAndWatched() {
+        switchLiked(favoriteService.isLiked(media));
+        switchWatched(watchedService.isWatched(media));
+
+        media.watchedProperty().addListener(watchedListener);
+        media.likedProperty().addListener(likedListener);
+    }
+
+    protected void switchWatched(boolean isWatched) {
+        if (isWatched) {
+            watchedIcon.setText(Icon.CHECK_UNICODE);
+            watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
+        } else {
+            watchedIcon.setText(Icon.EYE_SLASH_UNICODE);
+            watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
+        }
     }
 
     protected void switchLiked(boolean isLiked) {
@@ -186,6 +237,11 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
      * This will allow the GC to dispose the items when the media details are no longer needed.
      */
     protected void reset() {
+        if (media != null) {
+            media.watchedProperty().removeListener(watchedListener);
+            media.likedProperty().removeListener(likedListener);
+        }
+
         this.media = null;
         this.subtitle = null;
         this.liked = false;
@@ -199,6 +255,14 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         languageSelection.getItems().clear();
         languageSelection.getItems().add(SubtitleInfo.none());
         languageSelection.select(0);
+    }
+
+    private void updateExternalPlayers() {
+        Platform.runLater(() -> {
+            watchNowButton.clear();
+            watchNowButton.addItems(playerService.getPlayers());
+            watchNowButton.select(playerService.getActivePlayer().orElse(null));
+        });
     }
 
     private void onCustomSubtitleSelected() {

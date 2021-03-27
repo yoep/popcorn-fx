@@ -1,9 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerException;
 import com.github.yoep.player.adapter.PlayerService;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
@@ -20,13 +17,13 @@ import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.ui.view.controls.PlayerMenuItem;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
@@ -41,20 +38,10 @@ import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
-    private static final String WATCHED_STYLE_CLASS = "seen";
-    private static final String ACTIVE_PLAYER_STYLE_CLASS = "active";
-
-    private final FavoriteService favoriteService;
-    private final WatchedService watchedService;
-    private final PlayerService playerService;
-
-    private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
-    private final ChangeListener<Boolean> likedListener = (observable, oldValue, newValue) -> switchLiked(newValue);
 
     @FXML
     private Label title;
@@ -67,13 +54,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private Label genres;
     @FXML
-    private Icon watchedIcon;
-    @FXML
     private Tooltip watchedTooltip;
     @FXML
     private Tooltip favoriteTooltip;
-    @FXML
-    private SplitMenuButton watchNowButton;
     @FXML
     private Button watchTrailerButton;
 
@@ -83,10 +66,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                                  SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
                                  SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
                                  PlayerService playerService) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService);
-        this.favoriteService = favoriteService;
-        this.watchedService = watchedService;
-        this.playerService = playerService;
+        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, favoriteService,
+                watchedService, playerService);
+
     }
 
     //endregion
@@ -131,11 +113,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @Override
     protected void reset() {
-        if (media != null) {
-            media.watchedProperty().removeListener(watchedListener);
-            media.likedProperty().removeListener(likedListener);
-        }
-
         super.reset();
         resetLanguageSelection();
 
@@ -201,30 +178,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         resetLanguageSelection();
     }
 
-    private void initializeWatchNow() {
-        // create initial list for the current known external players
-        updateExternalPlayers();
-        onActivePlayerChanged(playerService.getActivePlayer().orElse(null));
-
-        // listen for changes in the players
-        playerService.playersProperty().addListener((observable, oldValue, newValue) -> updateExternalPlayers());
-        playerService.activePlayerProperty().addListener((observable, oldValue, newValue) -> onActivePlayerChanged(newValue));
-    }
-
-    private void updateExternalPlayers() {
-        var items = playerService.getPlayers().stream()
-                .map(this::playerToMenuItem)
-                .collect(Collectors.toList());
-
-        Platform.runLater(() -> watchNowButton.getItems().setAll(items));
-    }
-
-    private MenuItem playerToMenuItem(Player player) {
-        var item = new PlayerMenuItem(player);
-        item.setOnAction(e -> updateSelectedPlayer(item));
-        return item;
-    }
-
     private void loadText() {
         title.setText(media.getTitle());
         overview.setText(media.getSynopsis());
@@ -235,14 +188,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     private void loadButtons() {
         watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
-    }
-
-    private void loadFavoriteAndWatched() {
-        switchLiked(favoriteService.isLiked(media));
-        switchWatched(watchedService.isWatched(media));
-
-        media.watchedProperty().addListener(watchedListener);
-        media.likedProperty().addListener(likedListener);
+        watchNowButton.select(playerService.getActivePlayer().orElse(null));
     }
 
     private void loadSubtitles() {
@@ -258,6 +204,17 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @Override
+    protected void switchWatched(boolean isWatched) {
+        super.switchWatched(isWatched);
+
+        if (isWatched) {
+            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
+        } else {
+            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
+        }
+    }
+
+    @Override
     protected void switchLiked(boolean isLiked) {
         super.switchLiked(isLiked);
 
@@ -266,54 +223,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         } else {
             favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
         }
-    }
-
-    private void switchWatched(boolean isWatched) {
-        if (isWatched) {
-            watchedIcon.setText(Icon.CHECK_UNICODE);
-            watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
-            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
-        } else {
-            watchedIcon.setText(Icon.EYE_SLASH_UNICODE);
-            watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
-            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
-        }
-    }
-
-    private void updateSelectedPlayer(MenuItem item) {
-        var playerMenuItem = (PlayerMenuItem) item;
-        var playerId = playerMenuItem.getId();
-        var player = playerService.getById(playerId)
-                .orElseThrow(() -> new PlayerException("Player not found with ID: " + playerId));
-
-        // activate the player for usage
-        playerService.setActivePlayer(player);
-    }
-
-    private void updateActivePlayerMenuItem(PlayerMenuItem item) {
-        watchNowButton.getItems().forEach(e -> e.getStyleClass().removeIf(style -> style.equals(ACTIVE_PLAYER_STYLE_CLASS)));
-        item.getStyleClass().add(ACTIVE_PLAYER_STYLE_CLASS);
-
-        Optional.ofNullable(item.getImage())
-                .map(ImageView::new)
-                .ifPresent(watchNowButton::setGraphic);
-    }
-
-    private void onActivePlayerChanged(Player player) {
-        if (player == null) {
-            return;
-        }
-
-        var items = watchNowButton.getItems();
-
-        items.stream()
-                .filter(e -> e.getId().equals(player.getId()))
-                .findFirst()
-                .map(e -> (PlayerMenuItem) e)
-                .ifPresentOrElse(
-                        this::updateActivePlayerMenuItem,
-                        () -> log.warn("Could not find menu item for player with ID {}", player.getId())
-                );
     }
 
     @FXML

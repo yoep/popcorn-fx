@@ -184,9 +184,10 @@ public class DesktopConfig {
                                                      SettingsService settingsService,
                                                      FavoriteService favoriteService,
                                                      WatchedService watchedService,
-                                                     ShowHelperService showHelperService) {
+                                                     ShowHelperService showHelperService,
+                                                     PlayerService playerService) {
         return new ShowDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
-                favoriteService, watchedService, showHelperService);
+                favoriteService, watchedService, showHelperService, playerService);
     }
 
     @Bean

@@ -71,7 +71,8 @@
         <!-- Synopsis/overview text -->
         <Label fx:id="overview" styleClass="overview" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
 
-        <HBox alignment="CENTER_LEFT" styleClass="bookmark" GridPane.columnIndex="1" GridPane.rowIndex="3">
+        <HBox alignment="CENTER_LEFT" styleClass="bookmark" GridPane.columnIndex="1" GridPane.rowIndex="3"
+              onMouseClicked="#onFavoriteClicked">
             <Icon fx:id="favoriteIcon" styleClass="like">
                 <Icon fx:constant="HEART_UNICODE"/>
             </Icon>
@@ -151,7 +152,7 @@
                 <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
                     <Icon fx:constant="MAGNET_UNICODE"/>
                 </Icon>
-                <HealthIcon fx:id="health" styleClass="health" />
+                <HealthIcon fx:id="health" styleClass="health"/>
             </HBox>
 
             <!-- Overview -->
@@ -180,8 +181,8 @@
                       GridPane.columnIndex="0" GridPane.rowIndex="1"/>
 
                 <!-- Play actions -->
-                <SplitMenuButton text="%details_watch_now" onMouseClicked="#onWatchNowClicked"
-                                 GridPane.rowSpan="2" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                <WatchNowButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"
+                                GridPane.rowSpan="2" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
             </GridPane>
         </GridPane>
     </GridPane>

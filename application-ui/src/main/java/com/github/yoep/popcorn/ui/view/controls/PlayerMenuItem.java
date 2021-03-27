@@ -5,12 +5,14 @@ import javafx.scene.Node;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.Optional;
 
 @Slf4j
+@EqualsAndHashCode(callSuper = false)
 public class PlayerMenuItem extends MenuItem {
     private final Player player;
     private final Image image;

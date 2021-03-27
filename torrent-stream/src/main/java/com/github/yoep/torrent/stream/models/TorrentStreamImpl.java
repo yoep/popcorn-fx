@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Slf4j
-@ToString
-@EqualsAndHashCode
+@ToString(exclude = {"torrentListener", "listeners", "preparePieces"})
+@EqualsAndHashCode(exclude = {"torrentListener", "listeners", "preparePieces"})
 public class TorrentStreamImpl implements TorrentStream {
     public static final String STATE_PROPERTY = "streamState";
 

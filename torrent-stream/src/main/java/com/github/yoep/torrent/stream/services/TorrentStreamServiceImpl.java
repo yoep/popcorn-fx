@@ -18,7 +18,7 @@ import java.util.*;
 
 @Slf4j
 public class TorrentStreamServiceImpl implements TorrentStreamService {
-    private static final String PORT_PROPERTY = "server.port";
+    static final String PORT_PROPERTY = "server.port";
 
     private final TorrentService torrentService;
     private final ApplicationContext applicationContext;
@@ -102,7 +102,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         var portValue = environment.getProperty(PORT_PROPERTY);
 
         // verify if the port could be found
-        if (StringUtils.isEmpty(portValue)) {
+        if (!StringUtils.hasText(portValue)) {
             throw new StreamException(MessageFormat.format("Unable to determine port, port property \"{0}\" is null or empty", PORT_PROPERTY));
         }
 

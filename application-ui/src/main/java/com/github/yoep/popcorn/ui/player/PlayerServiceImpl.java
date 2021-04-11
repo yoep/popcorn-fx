@@ -3,8 +3,7 @@ package com.github.yoep.popcorn.ui.player;
 import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.PlayerAlreadyExistsException;
 import com.github.yoep.player.adapter.PlayerService;
-import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
-import com.github.yoep.popcorn.ui.events.PlayVideoTorrentEvent;
+import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -70,19 +69,13 @@ public class PlayerServiceImpl implements PlayerService {
     //region Methods
 
     @EventListener
-    public void onPlayMediaEvent(PlayMediaEvent event) {
-        getActivePlayer().ifPresent(player -> player.play(SimplePlayRequest.builder()
-                .url(event.getUrl())
-                .title(event.getTitle())
-                .build()));
-    }
-
-    @EventListener
-    public void onPlayTorrentEvent(PlayVideoTorrentEvent event) {
-        getActivePlayer().ifPresent(player -> player.play(SimplePlayRequest.builder()
-                .url(event.getUrl())
-                .title(event.getTitle())
-                .build()));
+    public void onPlayVideo(PlayVideoEvent event) {
+        // retrieve the current active player
+        // and use it to play the video playback on
+        getActivePlayer().ifPresentOrElse(
+                player -> playVideo(event, player),
+                () -> log.error("Failed to play video, there is no active player") // this should never occur
+        );
     }
 
     @Override
@@ -121,6 +114,12 @@ public class PlayerServiceImpl implements PlayerService {
 
     //region Functions
 
+    private void playVideo(PlayVideoEvent event, Player player) {
+        player.play(SimplePlayRequest.builder()
+                .url(event.getUrl())
+                .title(event.getTitle())
+                .build());
+    }
 
     //endregion
 }

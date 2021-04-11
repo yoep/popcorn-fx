@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.player.internal;
+package com.github.yoep.player.popcorn;
 
 import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.adapter.Player;
@@ -13,11 +13,13 @@ import java.util.Optional;
 
 @ToString
 @EqualsAndHashCode
-public class InternalPlayer implements Player {
+public class PopcornPlayer implements Player {
     public static final String PLAYER_ID = "internalPlayer";
     public static final String PLAYER_NAME = "Popcorn Time";
 
-    private static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/images/icons/internal-icon.png");
+    private static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/internal-popcorn-icon.png");
+
+    //region Player
 
     @Override
     public String getId() {
@@ -42,6 +44,11 @@ public class InternalPlayer implements Player {
     @Override
     public ReadOnlyObjectProperty<PlayerState> stateProperty() {
         return null;
+    }
+
+    @Override
+    public boolean isEmbeddedPlaybackSupported() {
+        return true;
     }
 
     @Override
@@ -78,4 +85,12 @@ public class InternalPlayer implements Player {
     public void volume(int volume) {
 
     }
+
+    //endregion
+
+    //region Functions
+
+
+
+    //endregion
 }

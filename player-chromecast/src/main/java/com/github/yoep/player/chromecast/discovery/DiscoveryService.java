@@ -34,7 +34,7 @@ public class DiscoveryService implements ChromeCastsListener {
         log.debug("Chromecast device \"{}\" has been removed", chromeCast.getName());
         playerService.getPlayers().stream()
                 .filter(e -> e instanceof ChromecastPlayer)
-                .filter(e -> e.getName().equals(chromeCast.getName()))
+                .filter(e -> e.getId().equals(chromeCast.getName()))
                 .findFirst()
                 .ifPresent(playerService::unregister);
     }

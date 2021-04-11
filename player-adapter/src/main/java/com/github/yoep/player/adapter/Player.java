@@ -7,7 +7,7 @@ import org.springframework.core.io.Resource;
 import java.util.Optional;
 
 /**
- * The player is an embedded/non-embedded video player which supports streaming videos.
+ * The player is an embedded/non-embedded video player which supports playback of streaming videos.
  */
 public interface Player {
     String STATE_PROPERTY = "stateProperty";
@@ -46,6 +46,15 @@ public interface Player {
      * @return Returns the player state property.
      */
     ReadOnlyObjectProperty<PlayerState> stateProperty();
+
+    /**
+     * Check if the player supports embedded playback in the application.
+     * If so, the graphical node of the play can be retrieved by using {@link EmbeddablePlayer#getEmbeddedPlayer()}.
+     * Otherwise, the player will always use an external interface/media device for displaying the video player/playback.
+     *
+     * @return Returns true if the embedded playback is supported, else false.
+     */
+    boolean isEmbeddedPlaybackSupported();
 
     /**
      * Dispose the player resources.

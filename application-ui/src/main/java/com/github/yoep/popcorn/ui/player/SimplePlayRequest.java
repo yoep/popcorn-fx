@@ -12,7 +12,7 @@ import java.util.Optional;
 @AllArgsConstructor
 public class SimplePlayRequest implements PlayRequest {
     private final String url;
-    private String title;
+    private final String title;
 
     @Override
     public Optional<String> getTitle() {

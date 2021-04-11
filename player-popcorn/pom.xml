@@ -9,10 +9,9 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>player-chromecast</artifactId>
+    <artifactId>player-popcorn</artifactId>
 
     <properties>
-        <chromecast-api.version>0.11.3</chromecast-api.version>
     </properties>
 
     <dependencies>
@@ -23,17 +22,10 @@
             <version>${parent.version}</version>
         </dependency>
 
-        <!-- Chromecast -->
-        <dependency>
-            <groupId>su.litvak.chromecast</groupId>
-            <artifactId>api-v2</artifactId>
-            <version>${chromecast-api.version}</version>
-        </dependency>
-
         <!-- JavaFX -->
         <dependency>
             <groupId>org.openjfx</groupId>
-            <artifactId>javafx-base</artifactId>
+            <artifactId>javafx-graphics</artifactId>
             <scope>provided</scope>
         </dependency>
 
@@ -46,6 +38,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
             <scope>provided</scope>
         </dependency>
 
@@ -71,11 +70,6 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-inline</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

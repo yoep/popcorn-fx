@@ -66,6 +66,11 @@ public class ChromecastPlayer implements Player {
     }
 
     @Override
+    public boolean isEmbeddedPlaybackSupported() {
+        return false;
+    }
+
+    @Override
     public void dispose() {
         log.trace("Disposing Chromecast player \"{}\"", getName());
         if (appLaunched) {

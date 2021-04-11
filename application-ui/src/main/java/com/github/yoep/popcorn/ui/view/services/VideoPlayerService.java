@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -197,7 +196,7 @@ public class VideoPlayerService {
         onClose();
     }
 
-    @EventListener
+//    @EventListener
     public void onPlayVideo(PlayVideoEvent activity) {
         // check if the activity contains media information
         // if so, play the video as a media instead of a plain url playback

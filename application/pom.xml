@@ -16,7 +16,6 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <start-class>com.github.yoep.popcorn.PopcornTimeStarter</start-class>
-        <testfx.version>4.0.16-alpha</testfx.version>
     </properties>
 
     <dependencies>
@@ -55,6 +54,11 @@
             <artifactId>player-chromecast</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>player-popcorn</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Popcorn Time Torrent -->
         <dependency>
@@ -82,13 +86,11 @@
         <dependency>
             <groupId>org.testfx</groupId>
             <artifactId>testfx-core</artifactId>
-            <version>${testfx.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testfx</groupId>
             <artifactId>testfx-junit5</artifactId>
-            <version>${testfx.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

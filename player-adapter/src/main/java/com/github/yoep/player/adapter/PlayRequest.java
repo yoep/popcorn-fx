@@ -1,5 +1,8 @@
 package com.github.yoep.player.adapter;
 
+import com.github.yoep.player.adapter.subtitles.Subtitle;
+
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -14,9 +17,30 @@ public interface PlayRequest {
     String getUrl();
 
     /**
-     * Get the title of the video playback.
+     * The title of the video playback.
      *
      * @return Returns the title of the playback if known, else {@link Optional#empty()}.
      */
     Optional<String> getTitle();
+
+    /**
+     * The subtitle that needs to be added to the playback of the video.
+     *
+     * @return Returns the subtitle if one was selected, else {@link Optional#empty()}.
+     */
+    Optional<Subtitle> getSubtitle();
+
+    /**
+     * The quality of the video playback.
+     *
+     * @return Returns the video playback quality if known, else {@link Optional#empty()}.
+     */
+    Optional<String> getQuality();
+
+    /**
+     * The list of available subtitles for the video playback.
+     *
+     * @return Returns the list of available subtitles.
+     */
+    Collection<Subtitle> subtitles();
 }

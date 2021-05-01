@@ -1,0 +1,36 @@
+package com.github.yoep.player.popcorn.controllers.sections;
+
+import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.yoep.player.popcorn.services.PlaybackService;
+import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
+import lombok.RequiredArgsConstructor;
+
+@ViewController
+@RequiredArgsConstructor
+public class PopcornPlayerSectionController {
+    private final PlaybackService playbackService;
+
+    @FXML
+    Pane videoView;
+
+    //region Methods
+
+    public void setVideoView(Node view) {
+        videoView.getChildren().setAll(view);
+    }
+
+    //endregion
+
+    //region Functions
+
+    @FXML
+    void onPlayerClick(MouseEvent event) {
+        event.consume();
+        playbackService.togglePlayerPlaybackState();
+    }
+
+    //endregion
+}

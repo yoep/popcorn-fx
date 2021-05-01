@@ -1,9 +1,9 @@
 package com.github.yoep.player.popcorn.services;
 
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.popcorn.PopcornPlayer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -14,11 +14,22 @@ import javax.annotation.PostConstruct;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RegisterService {
-    private final PlayerService playerService;
+    static final String PLAYER_SECTION_VIEW = "common/sections/popcorn-player.section.fxml";
 
-    private final Player player = createPlayer();
+    private final PlayerManagerService playerService;
+    private final ViewLoader viewLoader;
+    private final Player player;
+
+    public RegisterService(PlayerManagerService playerService, VideoService videoService, ViewLoader viewLoader) {
+        this.playerService = playerService;
+        this.viewLoader = viewLoader;
+        this.player = createPopcornPlayer(videoService);
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
 
     @PostConstruct
     void init() {
@@ -27,7 +38,9 @@ public class RegisterService {
         playerService.setActivePlayer(player);
     }
 
-    private PopcornPlayer createPlayer() {
-        return new PopcornPlayer();
+    private PopcornPlayer createPopcornPlayer(VideoService videoService) {
+        var embeddablePlayer = viewLoader.load(PLAYER_SECTION_VIEW);
+
+        return new PopcornPlayer(videoService, embeddablePlayer);
     }
 }

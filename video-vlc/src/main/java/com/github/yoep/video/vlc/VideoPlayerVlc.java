@@ -1,16 +1,18 @@
 package com.github.yoep.video.vlc;
 
+import com.github.yoep.video.adapter.AbstractVideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
-import com.github.yoep.video.adapter.state.PlayerState;
-import javafx.beans.property.*;
+import com.github.yoep.video.adapter.listeners.VideoListener;
+import com.github.yoep.video.adapter.state.VideoState;
 import javafx.scene.Node;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
@@ -26,10 +28,7 @@ import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactor
 @Slf4j
 @ToString
 @EqualsAndHashCode
-public class VideoPlayerVlc implements VideoPlayer {
-    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
-    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
-    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
+public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayer {
     private final ImageView videoSurface = new ImageView();
 
     private final MediaPlayerFactory mediaPlayerFactory;
@@ -51,40 +50,6 @@ public class VideoPlayerVlc implements VideoPlayer {
         this.mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
 
         initialize();
-    }
-
-    //endregion
-
-    //region Properties
-
-    @Override
-    public PlayerState getPlayerState() {
-        return playerState.get();
-    }
-
-    @Override
-    public ReadOnlyObjectProperty<PlayerState> playerStateProperty() {
-        return playerState;
-    }
-
-    @Override
-    public long getTime() {
-        return time.get();
-    }
-
-    @Override
-    public ReadOnlyLongProperty timeProperty() {
-        return time;
-    }
-
-    @Override
-    public long getDuration() {
-        return duration.get();
-    }
-
-    @Override
-    public ReadOnlyLongProperty durationProperty() {
-        return duration;
     }
 
     //endregion
@@ -120,6 +85,17 @@ public class VideoPlayerVlc implements VideoPlayer {
         stop();
         mediaPlayer.release();
         mediaPlayerFactory.release();
+    }
+
+    @Override
+    public void addListener(VideoListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        listeners.add(listener);
+    }
+
+    @Override
+    public void removeListener(VideoListener listener) {
+        listeners.remove(listener);
     }
 
     @Override
@@ -218,31 +194,31 @@ public class VideoPlayerVlc implements VideoPlayer {
         mediaPlayer.events().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
             @Override
             public void playing(MediaPlayer mediaPlayer) {
-                playerState.set(PlayerState.PLAYING);
+                setVideoState(VideoState.PLAYING);
             }
 
             @Override
             public void paused(MediaPlayer mediaPlayer) {
-                playerState.set(PlayerState.PAUSED);
+                setVideoState(VideoState.PAUSED);
             }
 
             @Override
             public void stopped(MediaPlayer mediaPlayer) {
-                playerState.set(PlayerState.STOPPED);
+                setVideoState(VideoState.STOPPED);
             }
 
             @Override
             public void finished(MediaPlayer mediaPlayer) {
-                playerState.set(PlayerState.FINISHED);
+                setVideoState(VideoState.FINISHED);
             }
 
             @Override
             public void buffering(MediaPlayer mediaPlayer, float newCache) {
                 log.trace("VLC buffer is now {}%", newCache);
                 if (newCache < 100) {
-                    playerState.set(PlayerState.BUFFERING);
+                    setVideoState(VideoState.BUFFERING);
                 } else {
-                    playerState.set(PlayerState.PLAYING);
+                    setVideoState(VideoState.PLAYING);
                 }
             }
 
@@ -256,12 +232,12 @@ public class VideoPlayerVlc implements VideoPlayer {
 
             @Override
             public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
-                time.set(newTime);
+                setTime(newTime);
             }
 
             @Override
             public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
-                duration.set(newLength);
+                setDuration(newLength);
             }
         });
     }
@@ -280,13 +256,13 @@ public class VideoPlayerVlc implements VideoPlayer {
     private void reset() {
         error = null;
 
-        time.set(0);
-        duration.set(0);
+        setTime(0L);
+        setDuration(0L);
     }
 
     private void setError(Throwable throwable) {
         this.error = throwable;
-        playerState.set(PlayerState.ERROR);
+        setVideoState(VideoState.ERROR);
     }
 
     private void checkInitialized() {

@@ -1,11 +1,12 @@
 package com.github.yoep.video.javafx;
 
+import com.github.yoep.video.adapter.AbstractVideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
-import com.github.yoep.video.adapter.state.PlayerState;
+import com.github.yoep.video.adapter.listeners.VideoListener;
+import com.github.yoep.video.adapter.state.VideoState;
 import javafx.application.Platform;
-import javafx.beans.property.*;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
 import javafx.scene.media.Media;
@@ -16,6 +17,7 @@ import javafx.util.Duration;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
@@ -23,64 +25,15 @@ import java.io.File;
 
 @Slf4j
 @ToString
-@EqualsAndHashCode
-public class VideoPlayerFX implements VideoPlayer {
+@EqualsAndHashCode(callSuper = true)
+public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayer {
     private MediaView mediaView;
     private MediaPlayer mediaPlayer;
 
     private final StackPane stackPane = new StackPane();
-    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
-    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
-    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
 
     private Throwable error;
     private boolean initialized;
-
-    //region Properties
-
-    @Override
-    public PlayerState getPlayerState() {
-        return playerState.get();
-    }
-
-    @Override
-    public ReadOnlyObjectProperty<PlayerState> playerStateProperty() {
-        return playerState;
-    }
-
-    protected void setPlayerState(PlayerState playerState) {
-        this.playerState.set(playerState);
-    }
-
-    @Override
-    public long getTime() {
-        return time.get();
-    }
-
-    @Override
-    public ReadOnlyLongProperty timeProperty() {
-        return time;
-    }
-
-    protected void setTime(long time) {
-        this.time.set(time);
-    }
-
-    @Override
-    public long getDuration() {
-        return duration.get();
-    }
-
-    @Override
-    public ReadOnlyLongProperty durationProperty() {
-        return duration;
-    }
-
-    protected void setDuration(long duration) {
-        this.duration.set(duration);
-    }
-
-    //endregion
 
     //region Getters
 
@@ -115,6 +68,17 @@ public class VideoPlayerFX implements VideoPlayer {
 
         mediaView = null;
         mediaPlayer = null;
+    }
+
+    @Override
+    public void addListener(VideoListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        listeners.add(listener);
+    }
+
+    @Override
+    public void removeListener(VideoListener listener) {
+        listeners.remove(listener);
     }
 
     @Override
@@ -208,8 +172,8 @@ public class VideoPlayerFX implements VideoPlayer {
     private void reset() {
         error = null;
 
-        setTime(0);
-        setDuration(0);
+        setTime(0L);
+        setDuration(0L);
     }
 
     private void initializeMediaPlayerEvents() {
@@ -218,26 +182,26 @@ public class VideoPlayerFX implements VideoPlayer {
 
         setTime((long) mediaPlayer.getCurrentTime().toMillis());
         setDuration((long) mediaPlayer.getTotalDuration().toMillis());
-        setPlayerState(convertStatus(mediaPlayer.getStatus()));
+        setVideoState(convertStatus(mediaPlayer.getStatus()));
 
         mediaPlayer.currentTimeProperty().addListener((observable, oldValue, newValue) -> setTime((long) newValue.toMillis()));
         mediaPlayer.totalDurationProperty().addListener((observable, oldValue, newValue) -> setDuration((long) newValue.toMillis()));
-        mediaPlayer.statusProperty().addListener((observable, oldValue, newValue) -> setPlayerState(convertStatus(newValue)));
-        mediaPlayer.setOnEndOfMedia(() -> setPlayerState(PlayerState.FINISHED));
+        mediaPlayer.statusProperty().addListener((observable, oldValue, newValue) -> setVideoState(convertStatus(newValue)));
+        mediaPlayer.setOnEndOfMedia(() -> setVideoState(VideoState.FINISHED));
         mediaPlayer.setOnError(this::onError);
     }
 
-    private PlayerState convertStatus(MediaPlayer.Status status) {
+    private VideoState convertStatus(MediaPlayer.Status status) {
         switch (status) {
             case PLAYING:
-                return PlayerState.PLAYING;
+                return VideoState.PLAYING;
             case PAUSED:
-                return PlayerState.PAUSED;
+                return VideoState.PAUSED;
             case STOPPED:
-                return PlayerState.STOPPED;
+                return VideoState.STOPPED;
             case UNKNOWN:
             default:
-                return PlayerState.UNKNOWN;
+                return VideoState.UNKNOWN;
         }
     }
 
@@ -250,7 +214,7 @@ public class VideoPlayerFX implements VideoPlayer {
 
     private void setError(Throwable throwable) {
         this.error = throwable;
-        setPlayerState(PlayerState.ERROR);
+        setVideoState(VideoState.ERROR);
     }
 
     private void checkInitialized() {

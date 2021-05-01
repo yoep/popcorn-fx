@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
@@ -55,7 +55,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected final SubtitlePickerService subtitlePickerService;
     protected final FavoriteService favoriteService;
     protected final WatchedService watchedService;
-    protected final PlayerService playerService;
+    protected final PlayerManagerService playerService;
 
     protected SubtitleInfo subtitle;
     protected boolean liked;
@@ -86,7 +86,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
                                               SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
-                                              PlayerService playerService) {
+                                              PlayerManagerService playerService) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
@@ -122,7 +122,12 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         updateExternalPlayers();
 
         // listen on player selection changed
-        watchNowButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> playerService.setActivePlayer(newValue));
+        watchNowButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            // verify if the new value is not null
+            // if so, update the active player
+            if (newValue != null)
+                playerService.setActivePlayer(newValue);
+        });
     }
 
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {

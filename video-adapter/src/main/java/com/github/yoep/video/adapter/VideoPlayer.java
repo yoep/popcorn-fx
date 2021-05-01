@@ -1,8 +1,7 @@
 package com.github.yoep.video.adapter;
 
-import com.github.yoep.video.adapter.state.PlayerState;
-import javafx.beans.property.ReadOnlyLongProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
+import com.github.yoep.video.adapter.listeners.VideoListener;
+import com.github.yoep.video.adapter.state.VideoState;
 import javafx.scene.Node;
 
 import java.io.File;
@@ -11,53 +10,28 @@ import java.io.File;
  * The video player is a embedded video backend which supports playback in the application itself.
  */
 public interface VideoPlayer {
-    String PLAYER_STATE_PROPERTY = "playerState";
-    String TIME_PROPERTY = "time";
-    String DURATION_PROPERTY = "duration";
-
     //region Properties
 
     /**
-     * Get the current state of the video player.
+     * Get the current state of the video playback.
      *
-     * @return Returns the current state of the video player.
+     * @return Returns the current state of the video playback.
      */
-    PlayerState getPlayerState();
+    VideoState getVideoState();
 
     /**
-     * Get the video player state property.
-     *
-     * @return Returns the read-only player state property.
-     */
-    ReadOnlyObjectProperty<PlayerState> playerStateProperty();
-
-    /**
-     * Get the current playback time of the video player.
+     * Get the current playback time of the video playback.
      *
      * @return Returns the milliseconds of the media playback.
      */
     long getTime();
 
     /**
-     * Get the time property of the video player.
+     * Get the length of the current video playback.
      *
-     * @return Returns the read-only time property.
-     */
-    ReadOnlyLongProperty timeProperty();
-
-    /**
-     * Get the length of the current media playback.
-     *
-     * @return Returns the length in milliseonds of the media playback.
+     * @return Returns the length in milliseonds of the video playback.
      */
     long getDuration();
-
-    /**
-     * Get the length property of the video player.
-     *
-     * @return Returns the read-only length property.
-     */
-    ReadOnlyLongProperty durationProperty();
 
     //endregion
 
@@ -100,6 +74,20 @@ public interface VideoPlayer {
      * Dispose the video player instance.
      */
     void dispose();
+
+    /**
+     * Add the given listener to the video player.
+     *
+     * @param listener The listener to register.
+     */
+    void addListener(VideoListener listener);
+
+    /**
+     * Remove the given listener from the video player.
+     *
+     * @param listener The listener to unregister.
+     */
+    void removeListener(VideoListener listener);
 
     /**
      * Play the given media url in the video player.

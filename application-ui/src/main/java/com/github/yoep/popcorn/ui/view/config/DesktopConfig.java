@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.config;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.ui.media.providers.ProviderService;
@@ -88,15 +88,6 @@ public class DesktopConfig {
     }
 
     @Bean
-    public PlayerSectionController playerSectionController(SettingsService settingsService,
-                                                           VideoPlayerService videoPlayerService,
-                                                           VideoPlayerManagerService videoPlayerManagerService,
-                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
-                                                           LocaleText localeText) {
-        return new PlayerSectionController(settingsService, videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, localeText);
-    }
-
-    @Bean
     public SettingsSectionController settingsSectionController(ApplicationEventPublisher eventPublisher) {
         return new SettingsSectionController(eventPublisher);
     }
@@ -169,7 +160,7 @@ public class DesktopConfig {
                                                        SettingsService settingsService,
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
-                                                       PlayerService playerService) {
+                                                       PlayerManagerService playerService) {
         return new MovieDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
                 favoriteService, watchedService, playerService);
     }
@@ -185,24 +176,9 @@ public class DesktopConfig {
                                                      FavoriteService favoriteService,
                                                      WatchedService watchedService,
                                                      ShowHelperService showHelperService,
-                                                     PlayerService playerService) {
+                                                     PlayerManagerService playerService) {
         return new ShowDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
                 favoriteService, watchedService, showHelperService, playerService);
-    }
-
-    @Bean
-    public PlayerHeaderComponent playerHeaderComponent(VideoPlayerService videoPlayerService,
-                                                       LocaleText localeText) {
-        return new PlayerHeaderComponent(videoPlayerService, localeText);
-    }
-
-    @Bean
-    public PlayerControlsComponent playerControlsComponent(VideoPlayerService videoPlayerService,
-                                                           VideoPlayerManagerService videoPlayerManagerService,
-                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
-                                                           SubtitleService subtitleService,
-                                                           LocaleText localeText) {
-        return new PlayerControlsComponent(videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, subtitleService, localeText);
     }
 
     @Bean

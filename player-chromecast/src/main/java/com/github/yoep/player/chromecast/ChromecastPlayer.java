@@ -2,10 +2,8 @@ package com.github.yoep.player.chromecast;
 
 import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.adapter.Player;
+import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
@@ -20,7 +18,9 @@ import su.litvak.chromecast.api.v2.MediaStatus;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
 @ToString(exclude = {"playerState", "chromeCast", "listener"})
@@ -30,10 +30,11 @@ public class ChromecastPlayer implements Player {
     private static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
     private static final String APP_ID = "CC1AD845";
 
-    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, STATE_PROPERTY, PlayerState.UNKNOWN);
     private final ChromeCastSpontaneousEventListener listener = createEventListener();
+    private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
     private final ChromeCast chromeCast;
 
+    private PlayerState playerState = PlayerState.UNKNOWN;
     private Thread playbackThread;
     private boolean connected;
     private boolean appLaunched;
@@ -57,11 +58,6 @@ public class ChromecastPlayer implements Player {
 
     @Override
     public PlayerState getState() {
-        return playerState.get();
-    }
-
-    @Override
-    public ReadOnlyObjectProperty<PlayerState> stateProperty() {
         return playerState;
     }
 
@@ -82,6 +78,17 @@ public class ChromecastPlayer implements Player {
     }
 
     @Override
+    public void addListener(PlayerListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        listeners.add(listener);
+    }
+
+    @Override
+    public void removeListener(PlayerListener listener) {
+        listeners.remove(listener);
+    }
+
+    @Override
     public void play(PlayRequest request) {
         Assert.notNull(request, "request cannot be null");
         var url = request.getUrl();
@@ -96,12 +103,12 @@ public class ChromecastPlayer implements Player {
 
             try {
                 log.debug("Loading url \"{}\" on Chromecast \"{}\"", url, getName());
-                playerState.set(PlayerState.LOADING);
+                updateState(PlayerState.LOADING);
                 var status = chromeCast.load(url);
                 log.debug("Received status {}", status);
             } catch (IOException ex) {
                 log.error("Failed to play url on Chromecast \"{}\", {}", getName(), ex.getMessage(), ex);
-                playerState.set(PlayerState.ERROR);
+                updateState(PlayerState.ERROR);
             }
         }, "ChromecastPlayback");
         playbackThread.start();
@@ -251,16 +258,16 @@ public class ChromecastPlayer implements Player {
 
         switch (status.playerState) {
             case LOADING:
-                playerState.set(PlayerState.LOADING);
+                updateState(PlayerState.LOADING);
                 break;
             case PLAYING:
-                playerState.set(PlayerState.PLAYING);
+                updateState(PlayerState.PLAYING);
                 break;
             case PAUSED:
-                playerState.set(PlayerState.PAUSED);
+                updateState(PlayerState.PAUSED);
                 break;
             case BUFFERING:
-                playerState.set(PlayerState.BUFFERING);
+                updateState(PlayerState.BUFFERING);
                 break;
         }
     }
@@ -272,6 +279,11 @@ public class ChromecastPlayer implements Player {
                 onMediaStatusChanged(status);
             }
         };
+    }
+
+    private void updateState(PlayerState state) {
+        playerState = state;
+        listeners.forEach(e -> e.onStateChanged(state));
     }
 
     //endregion

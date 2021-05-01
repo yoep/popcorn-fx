@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
@@ -65,7 +65,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     public MovieDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, HealthService healthService,
                                  SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
                                  SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
-                                 PlayerService playerService) {
+                                 PlayerManagerService playerService) {
         super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, favoriteService,
                 watchedService, playerService);
 

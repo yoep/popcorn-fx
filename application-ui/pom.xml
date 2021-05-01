@@ -23,11 +23,6 @@
         <!-- Popcorn Time -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>video-adapter</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.yoep</groupId>
             <artifactId>player-adapter</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -45,10 +40,6 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-swing</artifactId>
         </dependency>
 
         <!-- Apache -->
@@ -158,6 +149,11 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -33,8 +33,6 @@ class VideoPlayerSubtitleServiceTest {
     @Mock
     private SubtitlePickerService subtitlePickerService;
     @Mock
-    private VideoPlayerManagerService videoPlayerManagerService;
-    @Mock
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private LocaleText localeText;

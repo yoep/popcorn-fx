@@ -139,7 +139,7 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
 
         // load the other panes on a different thread
         taskExecutor.execute(() -> {
-            playerPane = viewLoader.load("sections/player.section.fxml");
+            playerPane = viewLoader.load("common/sections/player.section.fxml");
             loaderPane = viewLoader.load("sections/loader.section.fxml");
 
             anchor(playerPane);

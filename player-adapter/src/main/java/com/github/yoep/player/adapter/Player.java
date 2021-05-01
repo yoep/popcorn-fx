@@ -1,7 +1,7 @@
 package com.github.yoep.player.adapter;
 
+import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import org.springframework.core.io.Resource;
 
 import java.util.Optional;
@@ -41,13 +41,6 @@ public interface Player {
     PlayerState getState();
 
     /**
-     * Get the player state property.
-     *
-     * @return Returns the player state property.
-     */
-    ReadOnlyObjectProperty<PlayerState> stateProperty();
-
-    /**
      * Check if the player supports embedded playback in the application.
      * If so, the graphical node of the play can be retrieved by using {@link EmbeddablePlayer#getEmbeddedPlayer()}.
      * Otherwise, the player will always use an external interface/media device for displaying the video player/playback.
@@ -61,6 +54,20 @@ public interface Player {
      * This method is most of the time invoked when the application is being closed.
      */
     void dispose();
+
+    /**
+     * Register a new listener for the player.
+     *
+     * @param listener The listener to register.
+     */
+    void addListener(PlayerListener listener);
+
+    /**
+     * Remove a listener from the player.
+     *
+     * @param listener The listener to remove.
+     */
+    void removeListener(PlayerListener listener);
 
     /**
      * Start a new media playback within the player.

@@ -30,13 +30,6 @@
             <version>${chromecast-api.version}</version>
         </dependency>
 
-        <!-- JavaFX -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-base</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -53,6 +46,7 @@
         <dependency>
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Lombok -->

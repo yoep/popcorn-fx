@@ -1,8 +1,7 @@
 package com.github.yoep.player.adapter;
 
 import javafx.scene.Node;
-
-import java.util.Optional;
+import org.springframework.lang.NonNull;
 
 /**
  * The embeddable player extends upon the normal {@link Player} for retrieving the graphical node which
@@ -13,7 +12,17 @@ public interface EmbeddablePlayer extends Player {
      * Get the graphical {@link Node} of the player which should be included in the application UI.
      * This allows the player to be directly displayed within the application.
      *
-     * @return Returns the embeddable node if {@link Player#isEmbeddedPlaybackSupported()} returns true, else {@link Optional#empty()}.
+     * @return Returns the embeddable node for the player playback.
      */
-    Optional<Node> getEmbeddedPlayer();
+    @NonNull
+    Node getEmbeddedPlayer();
+
+    /**
+     * Set the display/layout mode of the {@link EmbeddablePlayer}.
+     * This can be optionally (if supported) be used by the player to change the layout based
+     * on the current user preferences.
+     *
+     * @param mode The display/layout mode to use.
+     */
+    void setLayoutMode(LayoutMode mode);
 }

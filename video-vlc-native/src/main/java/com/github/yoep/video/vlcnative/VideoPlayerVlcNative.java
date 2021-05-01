@@ -1,13 +1,14 @@
 package com.github.yoep.video.vlcnative;
 
+import com.github.yoep.video.adapter.AbstractVideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
-import com.github.yoep.video.adapter.state.PlayerState;
+import com.github.yoep.video.adapter.listeners.VideoListener;
+import com.github.yoep.video.adapter.state.VideoState;
 import com.github.yoep.video.vlcnative.player.PopcornPlayer;
 import com.github.yoep.video.vlcnative.player.PopcornPlayerEventListener;
 import com.github.yoep.video.vlcnative.player.PopcornPlayerState;
-import javafx.beans.property.*;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -18,47 +19,13 @@ import javax.annotation.PostConstruct;
 import java.io.File;
 
 @Slf4j
-public class VideoPlayerVlcNative implements VideoPlayer {
+public class VideoPlayerVlcNative extends AbstractVideoPlayer implements VideoPlayer {
     private static final Pane videoSurfaceTracker = new StackPane();
-
-    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, PLAYER_STATE_PROPERTY, PlayerState.UNKNOWN);
-    private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY);
-    private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY);
 
     private PopcornPlayer popcornPlayer;
     private boolean initialized;
 
     //region VideoPlayer
-
-    @Override
-    public PlayerState getPlayerState() {
-        return playerState.get();
-    }
-
-    @Override
-    public ReadOnlyObjectProperty<PlayerState> playerStateProperty() {
-        return playerState;
-    }
-
-    @Override
-    public long getTime() {
-        return time.get();
-    }
-
-    @Override
-    public ReadOnlyLongProperty timeProperty() {
-        return time;
-    }
-
-    @Override
-    public long getDuration() {
-        return duration.get();
-    }
-
-    @Override
-    public ReadOnlyLongProperty durationProperty() {
-        return duration;
-    }
 
     @Override
     public boolean supports(String url) {
@@ -91,6 +58,17 @@ public class VideoPlayerVlcNative implements VideoPlayer {
         } else {
             log.trace("Popcorn Player has already been disposed");
         }
+    }
+
+    @Override
+    public void addListener(VideoListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        listeners.add(listener);
+    }
+
+    @Override
+    public void removeListener(VideoListener listener) {
+        listeners.remove(listener);
     }
 
     @Override
@@ -172,19 +150,19 @@ public class VideoPlayerVlcNative implements VideoPlayer {
             public void onStateChanged(PopcornPlayerState newState) {
                 switch (newState) {
                     case PLAYING:
-                        updateState(PlayerState.PLAYING);
+                        updateState(VideoState.PLAYING);
                         break;
                     case PAUSED:
-                        updateState(PlayerState.PAUSED);
+                        updateState(VideoState.PAUSED);
                         break;
                     case BUFFERING:
-                        updateState(PlayerState.BUFFERING);
+                        updateState(VideoState.BUFFERING);
                         break;
                     case STOPPED:
-                        updateState(PlayerState.STOPPED);
+                        updateState(VideoState.STOPPED);
                         break;
                     case UNKNOWN:
-                        updateState(PlayerState.UNKNOWN);
+                        updateState(VideoState.UNKNOWN);
                         break;
                     default:
                         log.error("Received unknown popcorn player state " + newState);
@@ -195,7 +173,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
             @Override
             public void onTimeChanged(long newValue) {
                 if (newValue >= 0) {
-                    time.set(newValue);
+                    setTime(newValue);
                 } else {
                     log.warn("Received invalid time value {}", newValue);
                 }
@@ -205,7 +183,7 @@ public class VideoPlayerVlcNative implements VideoPlayer {
             public void onDurationChanged(long newValue) {
                 if (newValue >= 0) {
                     log.trace("Popcorn player duration changed to {}", newValue);
-                    duration.setValue(newValue);
+                    setDuration(newValue);
                 } else {
                     log.warn("Received invalid duration value {}", newValue);
                 }
@@ -224,13 +202,13 @@ public class VideoPlayerVlcNative implements VideoPlayer {
     }
 
     private void reset() {
-        time.set(0);
-        duration.set(0);
+        setTime(0L);
+        setDuration(0L);
     }
 
-    private void updateState(PlayerState newState) {
+    private void updateState(VideoState newState) {
         log.debug("Popcorn player state changed to " + newState);
-        playerState.set(newState);
+        setVideoState(newState);
     }
 
     private String getPlayerLogLevel() {

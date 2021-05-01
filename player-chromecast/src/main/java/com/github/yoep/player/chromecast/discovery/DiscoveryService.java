@@ -1,6 +1,6 @@
 package com.github.yoep.player.chromecast.discovery;
 
-import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.chromecast.ChromecastPlayer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +15,7 @@ import java.io.IOException;
 @Slf4j
 @RequiredArgsConstructor
 public class DiscoveryService implements ChromeCastsListener {
-    private final PlayerService playerService;
+    private final PlayerManagerService playerService;
 
     private Thread discoveryThread;
 

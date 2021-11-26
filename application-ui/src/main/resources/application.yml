@@ -18,10 +18,12 @@ logging:
     org.springframework: WARN
     com.github.yoep.popcorn: INFO
   file:
-    clean-history-on-start: true
     name: '${app.dir}/logs/popcorn-time.log'
-    max-size: 25MB
-    total-size-cap: 100MB
+  logback:
+    rollingpolicy:
+      clean-history-on-start: true
+      max-file-size: 25MB
+      total-size-cap: 100MB
 
 popcorn:
   providers:
@@ -30,6 +32,7 @@ popcorn:
         - https://movies-v2.api-fetch.sh
         - https://movies-v2.api-fetch.am
         - https://movies-v2.api-fetch.website
+        - http://popcorn-ru.tk
       genres:
         - all
         - action
@@ -66,6 +69,7 @@ popcorn:
         - https://tv-v2.api-fetch.sh
         - https://tv-v2.api-fetch.am
         - https://tv-v2.api-fetch.website
+        - http://popcorn-ru.tk
       genres:
         - all
         - action

@@ -4,6 +4,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
+<?import com.github.yoep.player.popcorn.controls.StreamInfo?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.player.popcorn.controllers.components.PlayerHeaderComponent" styleClass="player-header">
     <columnConstraints>
@@ -24,9 +25,9 @@
 
     <HBox styleClass="stats" GridPane.columnIndex="2" GridPane.rowIndex="0" GridPane.valignment="TOP" GridPane.halignment="RIGHT" alignment="CENTER_RIGHT">
         <Label fx:id="quality" styleClass="player-quality" cache="true"/>
-<!--        <StreamInfo fx:id="streamInfo" cache="true">-->
-<!--            <Icon fx:constant="EYE_UNICODE" />-->
-<!--        </StreamInfo>-->
+        <StreamInfo fx:id="streamInfo" cache="true">
+            <Icon fx:constant="EYE_UNICODE" />
+        </StreamInfo>
         <Icon id="closePlayer" styleClass="close-button" onMouseClicked="#close" cache="true">
             <padding>
                 <Insets right="15"/>

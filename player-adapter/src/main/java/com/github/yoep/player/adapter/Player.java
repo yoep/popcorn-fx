@@ -1,5 +1,6 @@
 package com.github.yoep.player.adapter;
 
+import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
 import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
 import org.springframework.core.io.Resource;
@@ -10,8 +11,6 @@ import java.util.Optional;
  * The player is an embedded/non-embedded video player which supports playback of streaming videos.
  */
 public interface Player {
-    String STATE_PROPERTY = "stateProperty";
-
     /**
      * Get the unique ID of the player.
      *

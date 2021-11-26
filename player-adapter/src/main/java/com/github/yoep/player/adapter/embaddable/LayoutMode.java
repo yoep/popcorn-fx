@@ -1,4 +1,4 @@
-package com.github.yoep.player.adapter;
+package com.github.yoep.player.adapter.embaddable;
 
 /**
  * The embedded display mode of the {@link EmbeddablePlayer}.

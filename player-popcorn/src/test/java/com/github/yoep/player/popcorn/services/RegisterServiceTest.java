@@ -4,8 +4,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.popcorn.PopcornPlayer;
-import com.github.yoep.video.adapter.VideoPlayer;
-import javafx.beans.property.ObjectProperty;
+import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,10 +27,6 @@ class RegisterServiceTest {
     @Mock
     private ViewLoader viewLoader;
     @Mock
-    private VideoService videoService;
-    @Mock
-    private ObjectProperty<VideoPlayer> videoPlayerProperty;
-    @Mock
     private Pane embeddablePlayer;
 
     private RegisterService service;
@@ -38,8 +34,6 @@ class RegisterServiceTest {
     @BeforeEach
     void setUp() {
         when(viewLoader.load(RegisterService.PLAYER_SECTION_VIEW)).thenReturn(embeddablePlayer);
-        when(videoService.videoPlayerProperty()).thenReturn(videoPlayerProperty);
-        service = new RegisterService(playerService, videoService, viewLoader);
     }
 
     @Test
@@ -49,9 +43,10 @@ class RegisterServiceTest {
 
     @Test
     void testGetPlayer_whenInvoked_shouldReturnTheCreatedPlayer() {
-        var expectedPlayer = new PopcornPlayer(videoService, embeddablePlayer);
+        var listeners = Collections.<PlaybackListener>emptyList();
+        var expectedPlayer = new PopcornPlayer(listeners, embeddablePlayer);
         when(viewLoader.load(RegisterService.PLAYER_SECTION_VIEW)).thenReturn(embeddablePlayer);
-        service = new RegisterService(playerService, videoService, viewLoader);
+        service = new RegisterService(playerService, listeners, viewLoader);
 
         var result = service.getPlayer();
 
@@ -61,6 +56,9 @@ class RegisterServiceTest {
 
     @Test
     void testInit_whenInvoked_shouldRegisterTheCreatedPopcornPlayer() {
+        var listeners = Collections.<PlaybackListener>emptyList();
+        service = new RegisterService(playerService, listeners, viewLoader);
+
         service.init();
 
         verify(playerService).register(isA(PopcornPlayer.class));
@@ -69,6 +67,8 @@ class RegisterServiceTest {
     @Test
     void testInit_whenInvoked_shouldActiveThePlayerByDefault() {
         var playerHolder = new AtomicReference<Player>();
+        var listeners = Collections.<PlaybackListener>emptyList();
+        service = new RegisterService(playerService, listeners, viewLoader);
         doAnswer(invocation -> {
             playerHolder.set(invocation.getArgument(0, Player.class));
             return null;

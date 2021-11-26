@@ -1,6 +1,8 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionController;
+import com.github.yoep.player.adapter.PlayRequest;
+import com.github.yoep.player.popcorn.PopcornPlayer;
+import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import javafx.beans.property.ObjectProperty;
@@ -11,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import javax.annotation.PreDestroy;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,10 +23,10 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class VideoService {
+public class VideoService implements PlaybackListener {
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
     private final List<VideoPlayer> videoPlayers;
-    private final PopcornPlayerSectionController playerSectionController;
+    private final RegisterService registerService;
 
     private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
 
@@ -49,7 +52,55 @@ public class VideoService {
 
     //endregion
 
-    //region Methods
+    //region PlaybackListener
+
+    @Override
+    public void onPlay(PlayRequest request) {
+        Assert.notNull(request, "request cannot be null");
+        var url = request.getUrl();
+        var videoPlayer = switchSupportedVideoPlayer(url);
+
+        videoPlayer.play(url);
+    }
+
+    @Override
+    public void onResume() {
+        videoPlayer.get().resume();
+    }
+
+    @Override
+    public void onPause() {
+        videoPlayer.get().pause();
+    }
+
+    @Override
+    public void onSeek(long time) {
+        videoPlayer.get().seek(time);
+    }
+
+    @Override
+    public void onVolume(int volume) {
+        //TODO: implement
+    }
+
+    @Override
+    public void onStop() {
+        videoPlayer.get().stop();
+    }
+
+    //endregion
+
+    //region PreDestroy
+
+    @PreDestroy
+    public void dispose() {
+        log.trace("Disposing the video players");
+        videoPlayers.forEach(VideoPlayer::dispose);
+    }
+
+    //endregion
+
+    //region Functions
 
     /**
      * Switch the current active video player to one that supports the playback url.
@@ -58,7 +109,7 @@ public class VideoService {
      * @return Returns the new active video player that supports the url.
      * @throws VideoPlayerException Is thrown when no video player could be found that supports the given url.
      */
-    public VideoPlayer switchSupportedVideoPlayer(String url) {
+    VideoPlayer switchSupportedVideoPlayer(String url) {
         Assert.notNull(url, "url cannot be null");
         var videoPlayer = videoPlayers.stream()
                 .filter(e -> e.supports(url))
@@ -69,21 +120,12 @@ public class VideoService {
         return videoPlayer;
     }
 
-    /**
-     * Dispose all the {@link VideoPlayer}'s managed by the video service.
-     */
-    public void dispose() {
-        log.trace("Disposing the video players");
-        videoPlayers.forEach(VideoPlayer::dispose);
-    }
-
-    //endregion
-
-    //region Functions
-
     private void updateActiveVideoPlayer(VideoPlayer videoPlayer) {
+        var oldVideoPlayer = this.videoPlayer.get();
+        var popcornPlayer = (PopcornPlayer) registerService.getPlayer();
+
         this.videoPlayer.set(videoPlayer);
-        playerSectionController.setVideoView(videoPlayer.getVideoSurface());
+        popcornPlayer.updateActiveVideoPlayer(oldVideoPlayer, videoPlayer);
     }
 
     //endregion

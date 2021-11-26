@@ -1,9 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.adapter.state.PlayerState;
-import com.github.yoep.player.popcorn.PopcornPlayer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,15 +9,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PlaybackServiceTest {
     @Mock
-    private PlayerManagerService playerService;
+    private RegisterService registerService;
     @Mock
     private Player player;
     @InjectMocks
@@ -27,7 +23,7 @@ class PlaybackServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(playerService.getById(PopcornPlayer.PLAYER_ID)).thenReturn(Optional.of(player));
+        when(registerService.getPlayer()).thenReturn(player);
     }
 
     @Test
@@ -53,5 +49,28 @@ class PlaybackServiceTest {
         playbackService.stop();
 
         verify(player).stop();
+    }
+
+    @Test
+    void testResume_whenInvoked_shouldResumeThePlayer() {
+        playbackService.resume();
+
+        verify(player).resume();
+    }
+
+    @Test
+    void testPause_whenInvoked_shouldPauseThePlayer() {
+        playbackService.pause();
+
+        verify(player).pause();
+    }
+
+    @Test
+    void testSeek_whenInvoked_shouldSeekWithinThePlayer() {
+        var time = 84445000L;
+
+        playbackService.seek(time);
+
+        verify(player).seek(time);
     }
 }

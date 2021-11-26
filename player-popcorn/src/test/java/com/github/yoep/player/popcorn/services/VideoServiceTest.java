@@ -1,6 +1,5 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionController;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import javafx.scene.layout.Pane;
@@ -18,11 +17,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class VideoServiceTest {
     @Mock
-    private PopcornPlayerSectionController playerSectionController;
+    private RegisterService registerService;
 
     @Test
     void testGetVideoPlayer_whenNoVideoPlayerIsActive_shouldReturnEmpty() {
-        var service = new VideoService(Collections.emptyList(), playerSectionController);
+        var service = new VideoService(Collections.emptyList(), registerService);
 
         var result = service.getVideoPlayer();
 
@@ -34,7 +33,7 @@ class VideoServiceTest {
         var url = "lorem_ipsum_dolor.mp4";
         var player = mock(VideoPlayer.class);
         var videoSurface = mock(Pane.class);
-        var service = new VideoService(Collections.singletonList(player), playerSectionController);
+        var service = new VideoService(Collections.singletonList(player), registerService);
         when(player.supports(url)).thenReturn(true);
         when(player.getVideoSurface()).thenReturn(videoSurface);
 
@@ -49,24 +48,10 @@ class VideoServiceTest {
     void testSwitchSupportedVideoPlayer_whenThereIsNoSupportedVideoPlayer_shouldThrowVideoPlayerException() {
         var url = "my-invalid-url.jpg";
         var player = mock(VideoPlayer.class);
-        var service = new VideoService(Collections.singletonList(player), playerSectionController);
+        var service = new VideoService(Collections.singletonList(player), registerService);
         when(player.supports(url)).thenReturn(false);
 
         assertThrows(VideoPlayerException.class, () -> service.switchSupportedVideoPlayer(url));
-    }
-
-    @Test
-    void testSwitchSupportedVideoPlayer_whenUrlIsSupported_shouldSwitchTheVideoViewNode() {
-        var url = "my-video.mp4";
-        var player = mock(VideoPlayer.class);
-        var videoSurface = mock(Pane.class);
-        var service = new VideoService(Collections.singletonList(player), playerSectionController);
-        when(player.supports(url)).thenReturn(true);
-        when(player.getVideoSurface()).thenReturn(videoSurface);
-
-        service.switchSupportedVideoPlayer(url);
-
-        verify(playerSectionController).setVideoView(videoSurface);
     }
 
     @Test
@@ -74,7 +59,7 @@ class VideoServiceTest {
         var player1 = mock(VideoPlayer.class);
         var player2 = mock(VideoPlayer.class);
         var videoPlayers = asList(player1, player2);
-        var service = new VideoService(videoPlayers, playerSectionController);
+        var service = new VideoService(videoPlayers, registerService);
 
         service.dispose();
 

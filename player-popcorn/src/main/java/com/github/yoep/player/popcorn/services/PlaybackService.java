@@ -1,10 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.adapter.state.PlayerState;
-import com.github.yoep.player.popcorn.PopcornPlayer;
-import com.github.yoep.player.popcorn.PopcornPlayerNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class PlaybackService {
-    private final PlayerManagerService playerService;
+    private final RegisterService registerService;
 
     //region Methods
 
@@ -70,8 +67,7 @@ public class PlaybackService {
     //region Functions
 
     private Player getPlayer() {
-        return playerService.getById(PopcornPlayer.PLAYER_ID)
-                .orElseThrow(PopcornPlayerNotFoundException::new);
+        return registerService.getPlayer();
     }
 
     //endregion

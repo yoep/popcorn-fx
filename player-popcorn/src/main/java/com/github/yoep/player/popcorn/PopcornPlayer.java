@@ -1,27 +1,33 @@
 package com.github.yoep.player.popcorn;
 
-import com.github.yoep.player.adapter.EmbeddablePlayer;
-import com.github.yoep.player.adapter.LayoutMode;
 import com.github.yoep.player.adapter.PlayRequest;
+import com.github.yoep.player.adapter.embaddable.DownloadProgress;
+import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
+import com.github.yoep.player.adapter.embaddable.LayoutMode;
 import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
-import com.github.yoep.player.popcorn.services.VideoService;
+import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.listeners.VideoListener;
 import com.github.yoep.video.adapter.state.VideoState;
 import javafx.scene.Node;
 import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Consumer;
 
 @Slf4j
+@RequiredArgsConstructor
 @ToString(exclude = {"videoListener", "listeners", "embeddablePlayer"})
 @EqualsAndHashCode(exclude = {"videoListener", "listeners", "embeddablePlayer"})
 public class PopcornPlayer implements EmbeddablePlayer {
@@ -32,21 +38,12 @@ public class PopcornPlayer implements EmbeddablePlayer {
 
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
     private final VideoListener videoListener = createVideoListener();
-    private final VideoService videoService;
+    private final List<PlaybackListener> playbackListeners;
     private final Node embeddablePlayer;
 
     private PlayerState playerState;
     private Long time;
     private Long duration;
-
-    public PopcornPlayer(VideoService videoService, Node embeddablePlayer) {
-        Assert.notNull(videoService, "videoService cannot be null");
-        Assert.notNull(embeddablePlayer, "embeddablePlayer cannot be null");
-        this.videoService = videoService;
-        this.embeddablePlayer = embeddablePlayer;
-
-        init();
-    }
 
     //region EmbeddablePlayer
 
@@ -78,7 +75,6 @@ public class PopcornPlayer implements EmbeddablePlayer {
     @Override
     public void dispose() {
         log.debug("Disposing the popcorn player");
-        videoService.dispose();
     }
 
     @Override
@@ -95,54 +91,35 @@ public class PopcornPlayer implements EmbeddablePlayer {
     @Override
     public void play(PlayRequest request) {
         Assert.notNull(request, "request cannot be null");
-        var url = request.getUrl();
-        var videoPlayer = videoService.switchSupportedVideoPlayer(url);
-
-        videoPlayer.play(url);
+        invokeListeners(e -> e.onPlay(request));
     }
 
     @Override
     public void resume() {
-        videoService.getVideoPlayer().ifPresentOrElse(
-                VideoPlayer::resume,
-                () -> log.warn("Unable to resume video playback, no active video player")
-        );
+        invokeListeners(PlaybackListener::onResume);
     }
 
     @Override
     public void pause() {
-        videoService.getVideoPlayer().ifPresentOrElse(
-                VideoPlayer::pause,
-                () -> log.warn("Unable to pause video playback, no active video player")
-        );
+        invokeListeners(PlaybackListener::onPause);
     }
 
     @Override
     public void stop() {
         log.trace("Stopping video playback");
-        videoService.getVideoPlayer().ifPresentOrElse(
-                VideoPlayer::stop,
-                () -> log.warn("Unable to stop video playback, no active video player")
-        );
+        invokeListeners(PlaybackListener::onStop);
     }
 
     @Override
     public void seek(long time) {
         log.trace("Updating video playback time to {}", time);
-        videoService.getVideoPlayer().ifPresentOrElse(
-                videoPlayer -> videoPlayer.seek(time),
-                () -> log.warn("Unable to seek video playback, no active video player")
-        );
+        invokeListeners(e -> e.onSeek(time));
     }
 
     @Override
     public void volume(int volume) {
         log.trace("Updating video playback volume to {}", volume);
-        videoService.getVideoPlayer().ifPresentOrElse(
-                e -> {
-                },
-                () -> log.warn("Unable to volume video playback, no active video player")
-        );
+        invokeListeners(e -> e.onVolume(volume));
     }
 
     @Override
@@ -155,12 +132,40 @@ public class PopcornPlayer implements EmbeddablePlayer {
         //TODO: implement
     }
 
+    @Override
+    public void updateDownloadProgress(DownloadProgress downloadStatus) {
+
+    }
+
+    //endregion
+
+    //region Methods
+
+    /**
+     * Update the active video player of the player.
+     *
+     * @param oldPlayer The old video playback player.
+     * @param newPlayer The new video playback player.
+     */
+    public void updateActiveVideoPlayer(@Nullable VideoPlayer oldPlayer, @Nullable VideoPlayer newPlayer) {
+        Optional.ofNullable(oldPlayer)
+                .ifPresent(e -> e.removeListener(videoListener));
+        Optional.ofNullable(newPlayer)
+                .ifPresent(e -> e.addListener(videoListener));
+    }
+
     //endregion
 
     //region Functions
 
-    private void init() {
-        videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> switchActiveVideoPlayer(oldValue, newValue));
+    private void invokeListeners(Consumer<PlaybackListener> action) {
+        playbackListeners.forEach(listener -> {
+            try {
+                action.accept(listener);
+            } catch (Exception ex) {
+                log.error("Failed to invoke {}, {}", listener, ex.getMessage(), ex);
+            }
+        });
     }
 
     private void setPlayerState(PlayerState playerState) {
@@ -201,13 +206,6 @@ public class PopcornPlayer implements EmbeddablePlayer {
                 setPlayerState(PlayerState.UNKNOWN);
                 break;
         }
-    }
-
-    private void switchActiveVideoPlayer(VideoPlayer oldPlayer, VideoPlayer newPlayer) {
-        Optional.ofNullable(oldPlayer)
-                .ifPresent(e -> e.removeListener(videoListener));
-        Optional.ofNullable(newPlayer)
-                .ifPresent(e -> e.addListener(videoListener));
     }
 
     private VideoListener createVideoListener() {

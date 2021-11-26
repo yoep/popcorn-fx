@@ -1,8 +1,8 @@
-package com.github.yoep.popcorn.ui.torrent.controls;
+package com.github.yoep.player.popcorn.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.ui.torrent.utils.SizeUtils;
-import com.github.yoep.torrent.adapter.model.DownloadStatus;
+import com.github.yoep.player.adapter.embaddable.DownloadProgress;
+import com.github.yoep.player.popcorn.utils.SizeUtils;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -86,12 +86,12 @@ public class StreamInfo extends Icon {
     }
 
     /**
-     * Update the stream info with the given stream status information.
+     * Update the stream info with the given stream progress information.
      *
-     * @param status The update information to display.
+     * @param progress The update information to display.
      */
-    public void update(DownloadStatus status) {
-        popup.updateInfo(status);
+    public void update(DownloadProgress progress) {
+        popup.updateInfo(progress);
     }
 
     /**
@@ -159,10 +159,10 @@ public class StreamInfo extends Icon {
         /**
          * Update the stream info in the popup.
          *
-         * @param status The update information to display.
+         * @param progress The update information to display.
          */
-        void updateInfo(DownloadStatus status) {
-            Platform.runLater(() -> skin.updateInfo(status));
+        void updateInfo(DownloadProgress progress) {
+            Platform.runLater(() -> skin.updateInfo(progress));
         }
     }
 
@@ -208,13 +208,13 @@ public class StreamInfo extends Icon {
             this.downloadedValue = null;
         }
 
-        void updateInfo(DownloadStatus status) {
-            int progress = (int) (status.getProgress() * 100);
-            String downloaded = MessageFormat.format("{0} ({1}%)", SizeUtils.toDisplaySize(status.getDownloaded()), progress);
+        void updateInfo(DownloadProgress downloadProgress) {
+            int progress = (int) (downloadProgress.getProgress() * 100);
+            String downloaded = MessageFormat.format("{0} ({1}%)", SizeUtils.toDisplaySize(downloadProgress.getDownloaded()), progress);
 
-            downloadValue.setText(SizeUtils.toDisplaySize(status.getDownloadSpeed()) + "/s");
-            uploadValue.setText(SizeUtils.toDisplaySize(status.getUploadSpeed()) + "/s");
-            activePeersValue.setText(String.valueOf(status.getSeeds()));
+            downloadValue.setText(SizeUtils.toDisplaySize(downloadProgress.getDownloadSpeed()) + "/s");
+            uploadValue.setText(SizeUtils.toDisplaySize(downloadProgress.getUploadSpeed()) + "/s");
+            activePeersValue.setText(String.valueOf(downloadProgress.getSeeds()));
             downloadedValue.setText(downloaded);
         }
 

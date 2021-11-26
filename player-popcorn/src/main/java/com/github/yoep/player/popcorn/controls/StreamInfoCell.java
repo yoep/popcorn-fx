@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.torrent.controls;
+package com.github.yoep.player.popcorn.controls;
 
 import javafx.application.Platform;
 import javafx.scene.control.Label;

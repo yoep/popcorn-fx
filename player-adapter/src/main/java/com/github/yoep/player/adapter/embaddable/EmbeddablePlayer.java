@@ -1,5 +1,6 @@
-package com.github.yoep.player.adapter;
+package com.github.yoep.player.adapter.embaddable;
 
+import com.github.yoep.player.adapter.Player;
 import javafx.scene.Node;
 import org.springframework.lang.NonNull;
 
@@ -25,4 +26,11 @@ public interface EmbeddablePlayer extends Player {
      * @param mode The display/layout mode to use.
      */
     void setLayoutMode(LayoutMode mode);
+
+    /**
+     * Invoked when the download progress is changed.
+     *
+     * @param downloadStatus The new download progress info.
+     */
+    void updateDownloadProgress(DownloadProgress downloadStatus);
 }

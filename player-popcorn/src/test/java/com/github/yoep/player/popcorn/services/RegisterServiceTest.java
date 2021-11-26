@@ -4,7 +4,6 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.popcorn.PopcornPlayer;
-import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,10 +41,9 @@ class RegisterServiceTest {
 
     @Test
     void testGetPlayer_whenInvoked_shouldReturnTheCreatedPlayer() {
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var expectedPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var expectedPlayer = new PopcornPlayer(embeddablePlayer);
         when(viewLoader.load(RegisterService.PLAYER_SECTION_VIEW)).thenReturn(embeddablePlayer);
-        service = new RegisterService(playerService, listeners, viewLoader);
+        service = new RegisterService(playerService, viewLoader);
 
         var result = service.getPlayer();
 
@@ -56,8 +53,7 @@ class RegisterServiceTest {
 
     @Test
     void testInit_whenInvoked_shouldRegisterTheCreatedPopcornPlayer() {
-        var listeners = Collections.<PlaybackListener>emptyList();
-        service = new RegisterService(playerService, listeners, viewLoader);
+        service = new RegisterService(playerService, viewLoader);
 
         service.init();
 
@@ -67,8 +63,7 @@ class RegisterServiceTest {
     @Test
     void testInit_whenInvoked_shouldActiveThePlayerByDefault() {
         var playerHolder = new AtomicReference<Player>();
-        var listeners = Collections.<PlaybackListener>emptyList();
-        service = new RegisterService(playerService, listeners, viewLoader);
+        service = new RegisterService(playerService, viewLoader);
         doAnswer(invocation -> {
             playerHolder.set(invocation.getArgument(0, Player.class));
             return null;

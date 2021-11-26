@@ -3,7 +3,6 @@ package com.github.yoep.player.popcorn;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.listeners.VideoListener;
-import javafx.beans.property.ObjectProperty;
 import javafx.scene.Node;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,8 +22,7 @@ class PopcornPlayerTest {
 
     @Test
     void testGetId_whenInvoked_shouldReturnTheExpectedId() {
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
         var result = popcornPlayer.getId();
 
         assertEquals(PopcornPlayer.PLAYER_ID, result);
@@ -32,8 +30,7 @@ class PopcornPlayerTest {
 
     @Test
     void testGetName_whenInvoked_shouldReturnTheExpectedName() {
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         var result = popcornPlayer.getName();
 
@@ -42,8 +39,7 @@ class PopcornPlayerTest {
 
     @Test
     void testIsEmbeddedPlaybackSupported_whenInvoked_shouldReturnTrue() {
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         var result = popcornPlayer.isEmbeddedPlaybackSupported();
 
@@ -52,8 +48,7 @@ class PopcornPlayerTest {
 
     @Test
     void testGetEmbeddablePlayer_whenInvoked_shouldReturnTheEmbeddablePlayer() {
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         var result = popcornPlayer.getEmbeddedPlayer();
 
@@ -63,7 +58,7 @@ class PopcornPlayerTest {
     @Test
     void testDispose_whenInvoked_shouldDisposeTheVideoPlayers() {
         var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         popcornPlayer.dispose();
     }
@@ -72,8 +67,7 @@ class PopcornPlayerTest {
     void testInit_whenVideoPlayerIsSwitched_shouldRegisterListenerToNewVideoPlayer() {
         var oldPlayer = mock(VideoPlayer.class);
         var newPlayer = mock(VideoPlayer.class);
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         popcornPlayer.updateActiveVideoPlayer(oldPlayer, newPlayer);
 
@@ -84,8 +78,7 @@ class PopcornPlayerTest {
     void testInit_whenVideoPlayerIsSwitched_shouldUnregisterTheListenerFromTheOldPlayer() {
         var oldPlayer = mock(VideoPlayer.class);
         var newPlayer = mock(VideoPlayer.class);
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(listeners, embeddablePlayer);
+        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         popcornPlayer.updateActiveVideoPlayer(oldPlayer, newPlayer);
 

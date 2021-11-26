@@ -21,7 +21,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
@@ -38,10 +37,10 @@ public class PopcornPlayer implements EmbeddablePlayer {
 
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
     private final VideoListener videoListener = createVideoListener();
-    private final List<PlaybackListener> playbackListeners;
     private final Node embeddablePlayer;
 
     private PlayerState playerState;
+    private PlaybackListener playbackListener;
     private Long time;
     private Long duration;
 
@@ -139,6 +138,14 @@ public class PopcornPlayer implements EmbeddablePlayer {
 
     //endregion
 
+    //region Properties
+
+    public void setPlaybackListener(PlaybackListener playbackListener) {
+        this.playbackListener = playbackListener;
+    }
+
+    //endregion
+
     //region Methods
 
     /**
@@ -159,13 +166,15 @@ public class PopcornPlayer implements EmbeddablePlayer {
     //region Functions
 
     private void invokeListeners(Consumer<PlaybackListener> action) {
-        playbackListeners.forEach(listener -> {
-            try {
-                action.accept(listener);
-            } catch (Exception ex) {
-                log.error("Failed to invoke {}, {}", listener, ex.getMessage(), ex);
-            }
-        });
+        if (playbackListener == null) {
+            return;
+        }
+
+        try {
+            action.accept(playbackListener);
+        } catch (Exception ex) {
+            log.error("Failed to invoke playback listener, {}", ex.getMessage(), ex);
+        }
     }
 
     private void setPlayerState(PlayerState playerState) {

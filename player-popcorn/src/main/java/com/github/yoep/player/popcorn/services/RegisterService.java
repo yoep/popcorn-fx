@@ -4,12 +4,10 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.popcorn.PopcornPlayer;
-import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.List;
 
 /**
  * The register service is responsible for registering the popcorn player in the application.
@@ -23,10 +21,10 @@ public class RegisterService {
     private final ViewLoader viewLoader;
     private final Player player;
 
-    public RegisterService(PlayerManagerService playerService, List<PlaybackListener> playbackListeners, ViewLoader viewLoader) {
+    public RegisterService(PlayerManagerService playerService, ViewLoader viewLoader) {
         this.playerService = playerService;
         this.viewLoader = viewLoader;
-        this.player = createPopcornPlayer(playbackListeners);
+        this.player = createPopcornPlayer();
     }
 
     public Player getPlayer() {
@@ -40,9 +38,9 @@ public class RegisterService {
         playerService.setActivePlayer(player);
     }
 
-    private PopcornPlayer createPopcornPlayer(List<PlaybackListener> playbackListeners) {
+    private PopcornPlayer createPopcornPlayer() {
         var embeddablePlayer = viewLoader.load(PLAYER_SECTION_VIEW);
 
-        return new PopcornPlayer(playbackListeners, embeddablePlayer);
+        return new PopcornPlayer(embeddablePlayer);
     }
 }

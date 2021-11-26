@@ -20,7 +20,7 @@
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>player-adapter</artifactId>
-            <version>${parent.version}</version>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Chromecast -->

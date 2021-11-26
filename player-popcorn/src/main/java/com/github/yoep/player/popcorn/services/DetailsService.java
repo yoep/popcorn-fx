@@ -19,7 +19,7 @@ import javax.annotation.PostConstruct;
 @Service
 @RequiredArgsConstructor
 public class DetailsService implements PlaybackListener {
-    private final VideoService videoService;
+//    private final VideoService videoService;
     private final PopcornPlayerSectionController playerSectionController;
     private final PlayerHeaderComponent playerHeaderComponent;
 
@@ -71,9 +71,9 @@ public class DetailsService implements PlaybackListener {
     //region Functions
 
     private void initializeVideoListener() {
-        videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
-            onVideoPlayerChanged(newValue);
-        });
+//        videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
+//            onVideoPlayerChanged(newValue);
+//        });
     }
 
     private void onVideoPlayerChanged(VideoPlayer player) {

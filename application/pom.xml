@@ -59,11 +59,6 @@
             <artifactId>player-chromecast</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>player-popcorn</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <!-- Popcorn Time Torrent -->
         <dependency>

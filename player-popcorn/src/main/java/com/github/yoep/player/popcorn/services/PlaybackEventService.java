@@ -1,13 +1,17 @@
 package com.github.yoep.player.popcorn.services;
 
+import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
+import com.github.yoep.player.popcorn.PopcornPlayer;
 import com.github.yoep.player.popcorn.controllers.components.PlayerControlsComponent;
+import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.util.List;
 
 /**
  * The playback event service is for handling the events triggered by the playback.
@@ -18,14 +22,17 @@ import javax.annotation.PostConstruct;
 public class PlaybackEventService {
     private final RegisterService registerService;
     private final PlayerControlsComponent playerControls;
+    private final List<PlaybackListener> listeners;
 
-    private final PlayerListener listener = createListener();
+    private final PlayerListener playerListener = createPlayerListener();
+    private final PlaybackListener playbackListener = createPlaybackListener();
 
     //region PostConstruct
 
     @PostConstruct
     void init() {
         initializePlayerListener();
+        initializePlaybackListener();
     }
 
     //endregion
@@ -33,7 +40,12 @@ public class PlaybackEventService {
     //region Functions
 
     private void initializePlayerListener() {
-        registerService.getPlayer().addListener(listener);
+        registerService.getPlayer().addListener(playerListener);
+    }
+
+    private void initializePlaybackListener() {
+        var player = (PopcornPlayer) registerService.getPlayer();
+        player.setPlaybackListener(playbackListener);
     }
 
     private void onPlayerDurationChanged(Long duration) {
@@ -48,7 +60,7 @@ public class PlaybackEventService {
         playerControls.updatePlaybackState(newState != PlayerState.PAUSED);
     }
 
-    private PlayerListener createListener() {
+    private PlayerListener createPlayerListener() {
         return new PlayerListener() {
             @Override
             public void onDurationChanged(long newDuration) {
@@ -63,6 +75,76 @@ public class PlaybackEventService {
             @Override
             public void onStateChanged(PlayerState newState) {
                 onPlayerStateChanged(newState);
+            }
+        };
+    }
+
+    private PlaybackListener createPlaybackListener() {
+        return new PlaybackListener() {
+            @Override
+            public void onPlay(PlayRequest request) {
+                listeners.forEach(e -> {
+                    try {
+                        e.onPlay(request);
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke onPlay, {}", ex.getMessage(), ex);
+                    }
+                });
+            }
+
+            @Override
+            public void onResume() {
+                listeners.forEach(e -> {
+                    try {
+                        e.onResume();
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke onResume, {}", ex.getMessage(), ex);
+                    }
+                });
+            }
+
+            @Override
+            public void onPause() {
+                listeners.forEach(e -> {
+                    try {
+                        e.onPause();
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke onPause, {}", ex.getMessage(), ex);
+                    }
+                });
+            }
+
+            @Override
+            public void onSeek(long time) {
+                listeners.forEach(e -> {
+                    try {
+                        e.onSeek(time);
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke onPause, {}", ex.getMessage(), ex);
+                    }
+                });
+            }
+
+            @Override
+            public void onVolume(int volume) {
+                listeners.forEach(e -> {
+                    try {
+                        e.onVolume(volume);
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke onVolume, {}", ex.getMessage(), ex);
+                    }
+                });
+            }
+
+            @Override
+            public void onStop() {
+                listeners.forEach(e -> {
+                    try {
+                        e.onStop();
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke onStop, {}", ex.getMessage(), ex);
+                    }
+                });
             }
         };
     }

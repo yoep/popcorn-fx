@@ -1,15 +1,12 @@
 package com.github.yoep.player.popcorn;
 
-import com.github.yoep.player.popcorn.listeners.PlaybackListener;
+import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.listeners.VideoListener;
-import javafx.scene.Node;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
+import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,12 +14,11 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PopcornPlayerTest {
-    @Mock
-    private Node embeddablePlayer;
+    @InjectMocks
+    private PopcornPlayer popcornPlayer;
 
     @Test
     void testGetId_whenInvoked_shouldReturnTheExpectedId() {
-        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
         var result = popcornPlayer.getId();
 
         assertEquals(PopcornPlayer.PLAYER_ID, result);
@@ -30,8 +26,6 @@ class PopcornPlayerTest {
 
     @Test
     void testGetName_whenInvoked_shouldReturnTheExpectedName() {
-        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
-
         var result = popcornPlayer.getName();
 
         assertEquals(PopcornPlayer.PLAYER_NAME, result);
@@ -39,27 +33,13 @@ class PopcornPlayerTest {
 
     @Test
     void testIsEmbeddedPlaybackSupported_whenInvoked_shouldReturnTrue() {
-        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
-
         var result = popcornPlayer.isEmbeddedPlaybackSupported();
 
         assertTrue(result, "Expected the popcorn player to support embedded playback");
     }
 
     @Test
-    void testGetEmbeddablePlayer_whenInvoked_shouldReturnTheEmbeddablePlayer() {
-        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
-
-        var result = popcornPlayer.getEmbeddedPlayer();
-
-        assertEquals(embeddablePlayer, result);
-    }
-
-    @Test
     void testDispose_whenInvoked_shouldDisposeTheVideoPlayers() {
-        var listeners = Collections.<PlaybackListener>emptyList();
-        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
-
         popcornPlayer.dispose();
     }
 
@@ -67,7 +47,6 @@ class PopcornPlayerTest {
     void testInit_whenVideoPlayerIsSwitched_shouldRegisterListenerToNewVideoPlayer() {
         var oldPlayer = mock(VideoPlayer.class);
         var newPlayer = mock(VideoPlayer.class);
-        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         popcornPlayer.updateActiveVideoPlayer(oldPlayer, newPlayer);
 
@@ -78,7 +57,6 @@ class PopcornPlayerTest {
     void testInit_whenVideoPlayerIsSwitched_shouldUnregisterTheListenerFromTheOldPlayer() {
         var oldPlayer = mock(VideoPlayer.class);
         var newPlayer = mock(VideoPlayer.class);
-        var popcornPlayer = new PopcornPlayer(embeddablePlayer);
 
         popcornPlayer.updateActiveVideoPlayer(oldPlayer, newPlayer);
 

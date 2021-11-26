@@ -3,9 +3,9 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
-import com.github.yoep.player.popcorn.PopcornPlayer;
 import com.github.yoep.player.popcorn.controllers.components.PlayerControlsComponent;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
+import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class PlaybackEventService {
-    private final RegisterService registerService;
+    private final PopcornPlayer popcornPlayer;
     private final PlayerControlsComponent playerControls;
     private final List<PlaybackListener> listeners;
 
@@ -40,12 +40,11 @@ public class PlaybackEventService {
     //region Functions
 
     private void initializePlayerListener() {
-        registerService.getPlayer().addListener(playerListener);
+        popcornPlayer.addListener(playerListener);
     }
 
     private void initializePlaybackListener() {
-        var player = (PopcornPlayer) registerService.getPlayer();
-        player.setPlaybackListener(playbackListener);
+        popcornPlayer.setPlaybackListener(playbackListener);
     }
 
     private void onPlayerDurationChanged(Long duration) {

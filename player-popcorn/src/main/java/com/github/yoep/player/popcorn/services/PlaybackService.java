@@ -2,6 +2,7 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.state.PlayerState;
+import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class PlaybackService {
-    private final RegisterService registerService;
+    private final PopcornPlayer player;
 
     //region Methods
 
@@ -23,8 +24,6 @@ public class PlaybackService {
      * Otherwise, the player will be paused.
      */
     public void togglePlayerPlaybackState() {
-        var player = getPlayer();
-
         if (player.getState() == PlayerState.PAUSED) {
             player.resume();
         } else {
@@ -36,21 +35,21 @@ public class PlaybackService {
      * Resume the player playback.
      */
     public void resume() {
-        getPlayer().resume();
+        player.resume();
     }
 
     /**
      * Pause the player playback.
      */
     public void pause() {
-        getPlayer().pause();
+        player.pause();
     }
 
     /**
      * Stop the current video playback in the {@link Player}.
      */
     public void stop() {
-        getPlayer().stop();
+        player.stop();
     }
 
     /**
@@ -59,15 +58,7 @@ public class PlaybackService {
      * @param time The time to seek for.
      */
     public void seek(long time) {
-        getPlayer().seek(time);
-    }
-
-    //endregion
-
-    //region Functions
-
-    private Player getPlayer() {
-        return registerService.getPlayer();
+        player.seek(time);
     }
 
     //endregion

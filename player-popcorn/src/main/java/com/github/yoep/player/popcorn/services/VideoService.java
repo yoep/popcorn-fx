@@ -1,8 +1,8 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.popcorn.PopcornPlayer;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
+import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import javafx.beans.property.ObjectProperty;
@@ -26,7 +26,7 @@ import java.util.Optional;
 public class VideoService implements PlaybackListener {
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
     private final List<VideoPlayer> videoPlayers;
-    private final RegisterService registerService;
+    private final PopcornPlayer player;
 
     private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
 
@@ -122,10 +122,9 @@ public class VideoService implements PlaybackListener {
 
     private void updateActiveVideoPlayer(VideoPlayer videoPlayer) {
         var oldVideoPlayer = this.videoPlayer.get();
-        var popcornPlayer = (PopcornPlayer) registerService.getPlayer();
 
         this.videoPlayer.set(videoPlayer);
-        popcornPlayer.updateActiveVideoPlayer(oldVideoPlayer, videoPlayer);
+        player.updateActiveVideoPlayer(oldVideoPlayer, videoPlayer);
     }
 
     //endregion

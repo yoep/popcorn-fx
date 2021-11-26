@@ -1,5 +1,6 @@
 package com.github.yoep.player.popcorn.services;
 
+import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import javafx.scene.layout.Pane;
@@ -17,11 +18,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class VideoServiceTest {
     @Mock
-    private RegisterService registerService;
+    private PopcornPlayer popcornPlayer;
 
     @Test
     void testGetVideoPlayer_whenNoVideoPlayerIsActive_shouldReturnEmpty() {
-        var service = new VideoService(Collections.emptyList(), registerService);
+        var service = new VideoService(Collections.emptyList(), popcornPlayer);
 
         var result = service.getVideoPlayer();
 
@@ -33,7 +34,7 @@ class VideoServiceTest {
         var url = "lorem_ipsum_dolor.mp4";
         var player = mock(VideoPlayer.class);
         var videoSurface = mock(Pane.class);
-        var service = new VideoService(Collections.singletonList(player), registerService);
+        var service = new VideoService(Collections.singletonList(player), popcornPlayer);
         when(player.supports(url)).thenReturn(true);
         when(player.getVideoSurface()).thenReturn(videoSurface);
 
@@ -48,7 +49,7 @@ class VideoServiceTest {
     void testSwitchSupportedVideoPlayer_whenThereIsNoSupportedVideoPlayer_shouldThrowVideoPlayerException() {
         var url = "my-invalid-url.jpg";
         var player = mock(VideoPlayer.class);
-        var service = new VideoService(Collections.singletonList(player), registerService);
+        var service = new VideoService(Collections.singletonList(player), popcornPlayer);
         when(player.supports(url)).thenReturn(false);
 
         assertThrows(VideoPlayerException.class, () -> service.switchSupportedVideoPlayer(url));
@@ -59,7 +60,7 @@ class VideoServiceTest {
         var player1 = mock(VideoPlayer.class);
         var player2 = mock(VideoPlayer.class);
         var videoPlayers = asList(player1, player2);
-        var service = new VideoService(videoPlayers, registerService);
+        var service = new VideoService(videoPlayers, popcornPlayer);
 
         service.dispose();
 

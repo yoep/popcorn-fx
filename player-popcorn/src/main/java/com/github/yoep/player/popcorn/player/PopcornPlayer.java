@@ -1,23 +1,19 @@
-package com.github.yoep.player.popcorn;
+package com.github.yoep.player.popcorn.player;
 
 import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.adapter.embaddable.DownloadProgress;
-import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
-import com.github.yoep.player.adapter.embaddable.LayoutMode;
+import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.listeners.VideoListener;
 import com.github.yoep.video.adapter.state.VideoState;
-import javafx.scene.Node;
-import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import java.util.Collection;
@@ -26,10 +22,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
-@ToString(exclude = {"videoListener", "listeners", "embeddablePlayer"})
-@EqualsAndHashCode(exclude = {"videoListener", "listeners", "embeddablePlayer"})
-public class PopcornPlayer implements EmbeddablePlayer {
+public class PopcornPlayer implements Player {
     public static final String PLAYER_ID = "internalPlayer";
     public static final String PLAYER_NAME = "Popcorn Time";
 
@@ -37,7 +32,6 @@ public class PopcornPlayer implements EmbeddablePlayer {
 
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
     private final VideoListener videoListener = createVideoListener();
-    private final Node embeddablePlayer;
 
     private PlayerState playerState;
     private PlaybackListener playbackListener;
@@ -119,21 +113,6 @@ public class PopcornPlayer implements EmbeddablePlayer {
     public void volume(int volume) {
         log.trace("Updating video playback volume to {}", volume);
         invokeListeners(e -> e.onVolume(volume));
-    }
-
-    @Override
-    public Node getEmbeddedPlayer() {
-        return embeddablePlayer;
-    }
-
-    @Override
-    public void setLayoutMode(LayoutMode mode) {
-        //TODO: implement
-    }
-
-    @Override
-    public void updateDownloadProgress(DownloadProgress downloadStatus) {
-
     }
 
     //endregion

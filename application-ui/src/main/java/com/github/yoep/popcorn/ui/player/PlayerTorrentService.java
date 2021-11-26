@@ -60,6 +60,9 @@ public class PlayerTorrentService {
     //region Functions
 
     private void subscribeListener() {
+        if (torrent == null)
+            return;
+
         this.torrent.addListener(listener);
     }
 

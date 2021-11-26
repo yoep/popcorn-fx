@@ -2,7 +2,7 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.state.PlayerState;
-import org.junit.jupiter.api.BeforeEach;
+import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,16 +15,11 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PlaybackServiceTest {
     @Mock
-    private RegisterService registerService;
+    private PopcornPlayer popcornPlayer;
     @Mock
     private Player player;
     @InjectMocks
     private PlaybackService playbackService;
-
-    @BeforeEach
-    void setUp() {
-        when(registerService.getPlayer()).thenReturn(player);
-    }
 
     @Test
     void testTogglePlayerPause_whenPlayerIsPaused_shouldResumeThePlayer() {

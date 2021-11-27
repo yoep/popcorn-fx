@@ -26,8 +26,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
-import java.util.Collection;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,7 +37,6 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     private static final String YOUTUBE_URL_INDICATOR = "youtu";
 
     private final YoutubePlayerBridge playerBridge = new YoutubePlayerBridge();
-    private final Collection<VideoListener> listeners = new ConcurrentLinkedQueue<>();
 
     private WebView webView;
     private boolean initialized;
@@ -136,6 +133,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
         Platform.runLater(() -> {
             getEngine().executeScript("stop()");
             reset();
+            setVideoState(VideoState.STOPPED);
         });
     }
 

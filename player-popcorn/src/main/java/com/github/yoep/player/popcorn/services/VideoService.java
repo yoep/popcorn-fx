@@ -2,7 +2,6 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
-import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
 import javafx.beans.property.ObjectProperty;
@@ -15,7 +14,11 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PreDestroy;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Consumer;
 
 /**
  * The video service is responsible for handling the active video player and surface.
@@ -23,11 +26,11 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class VideoService implements PlaybackListener {
+public class VideoService {
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
     private final List<VideoPlayer> videoPlayers;
-    private final PopcornPlayer player;
 
+    private final Queue<PlaybackListener> playbackListeners = new ConcurrentLinkedQueue<>();
     private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
 
     //region Properties
@@ -52,40 +55,45 @@ public class VideoService implements PlaybackListener {
 
     //endregion
 
-    //region PlaybackListener
+    //region Methods
 
-    @Override
     public void onPlay(PlayRequest request) {
         Assert.notNull(request, "request cannot be null");
         var url = request.getUrl();
-        var videoPlayer = switchSupportedVideoPlayer(url);
 
-        videoPlayer.play(url);
+        videoPlayer.set(switchSupportedVideoPlayer(url));
+        videoPlayer.get().play(url);
+        invokeListeners(e -> e.onPlay(request));
     }
 
-    @Override
     public void onResume() {
         videoPlayer.get().resume();
+        invokeListeners(PlaybackListener::onResume);
     }
 
-    @Override
     public void onPause() {
         videoPlayer.get().pause();
+        invokeListeners(PlaybackListener::onPause);
     }
 
-    @Override
     public void onSeek(long time) {
         videoPlayer.get().seek(time);
+        invokeListeners(e -> e.onSeek(time));
     }
 
-    @Override
     public void onVolume(int volume) {
         //TODO: implement
+        invokeListeners(e -> e.onVolume(volume));
     }
 
-    @Override
     public void onStop() {
         videoPlayer.get().stop();
+        invokeListeners(PlaybackListener::onStop);
+    }
+
+    public void addListener(PlaybackListener listener) {
+        Objects.requireNonNull(listener, "listener cannot be null");
+        playbackListeners.add(listener);
     }
 
     //endregion
@@ -115,16 +123,20 @@ public class VideoService implements PlaybackListener {
                 .filter(e -> e.supports(url))
                 .findFirst()
                 .orElseThrow(() -> new VideoPlayerException("No compatible video player found for " + url));
-
-        updateActiveVideoPlayer(videoPlayer);
-        return videoPlayer;
-    }
-
-    private void updateActiveVideoPlayer(VideoPlayer videoPlayer) {
         var oldVideoPlayer = this.videoPlayer.get();
 
         this.videoPlayer.set(videoPlayer);
-        player.updateActiveVideoPlayer(oldVideoPlayer, videoPlayer);
+        return videoPlayer;
+    }
+
+    private void invokeListeners(Consumer<PlaybackListener> action) {
+        playbackListeners.forEach(listener -> {
+            try {
+                action.accept(listener);
+            } catch (Exception ex) {
+                log.error("Failed to invoke playback listener, {}", ex.getMessage(), ex);
+            }
+        });
     }
 
     //endregion

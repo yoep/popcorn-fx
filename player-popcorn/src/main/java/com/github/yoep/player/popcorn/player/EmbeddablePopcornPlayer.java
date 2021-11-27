@@ -1,6 +1,8 @@
 package com.github.yoep.player.popcorn.player;
 
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.adapter.PlayRequest;
+import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.adapter.embaddable.DownloadProgress;
 import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
 import com.github.yoep.player.adapter.embaddable.LayoutMode;
@@ -10,14 +12,22 @@ import javafx.scene.Node;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.util.Optional;
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
+    static final String PLAYER_SECTION_VIEW = "common/sections/popcorn-player.section.fxml";
+
     private final PopcornPlayer popcornPlayer;
-    private final Node embeddablePlayer;
+    private final PlayerManagerService playerService;
+    private final ViewLoader viewLoader;
+
+    private Node embeddablePlayer;
 
     //region EmbeddablePlayer
 
@@ -104,6 +114,27 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     @Override
     public void updateDownloadProgress(DownloadProgress downloadStatus) {
 
+    }
+
+    //endregion
+
+    //region Init
+
+    @PostConstruct
+    void init() {
+        initializeEmbeddablePlayer();
+        registerPlayer();
+    }
+
+    private void initializeEmbeddablePlayer() {
+        log.trace("Loading embeddable Popcorn Time player view");
+        this.embeddablePlayer = viewLoader.load(PLAYER_SECTION_VIEW);
+    }
+
+    private void registerPlayer() {
+        log.trace("Registering the embedded Popcorn Time player");
+        playerService.register(this);
+        playerService.setActivePlayer(this);
     }
 
     //endregion

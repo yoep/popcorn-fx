@@ -1,5 +1,6 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.services.PlaybackService;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseButton;
@@ -16,15 +17,17 @@ import static org.testfx.assertions.api.Assertions.assertThat;
 
 class PlayerHeaderComponentTest extends ApplicationTest {
     private PlaybackService playbackService;
+    private LocaleText localeText;
     private Label title;
     private PlayerHeaderComponent controller;
 
     @Override
     public void start(Stage stage) {
         playbackService = mock(PlaybackService.class);
+        localeText = mock(LocaleText.class);
         title = new Label();
 
-        controller = new PlayerHeaderComponent(playbackService);
+        controller = new PlayerHeaderComponent(playbackService, localeText);
         controller.title = title;
 
         WaitForAsyncUtils.waitForFxEvents(100);

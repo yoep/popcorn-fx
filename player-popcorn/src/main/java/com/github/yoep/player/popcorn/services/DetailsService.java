@@ -18,46 +18,12 @@ import javax.annotation.PostConstruct;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DetailsService implements PlaybackListener {
-//    private final VideoService videoService;
+public class DetailsService {
+    private final VideoService videoService;
     private final PopcornPlayerSectionController playerSectionController;
     private final PlayerHeaderComponent playerHeaderComponent;
 
-    //region PlaybackListener
-
-    @Override
-    public void onPlay(PlayRequest request) {
-        Assert.notNull(request, "request cannot be null");
-        playerHeaderComponent.updateTitle(request.getTitle().orElse(""));
-        playerHeaderComponent.updateQuality(request.getQuality().orElse(""));
-    }
-
-    @Override
-    public void onResume() {
-        // no-op
-    }
-
-    @Override
-    public void onPause() {
-        // no-op
-    }
-
-    @Override
-    public void onSeek(long time) {
-        // no-op
-    }
-
-    @Override
-    public void onVolume(int volume) {
-
-    }
-
-    @Override
-    public void onStop() {
-        // no-op
-    }
-
-    //endregion
+    private final PlaybackListener listener = createListener();
 
     //region PostConstruct
 
@@ -71,15 +37,52 @@ public class DetailsService implements PlaybackListener {
     //region Functions
 
     private void initializeVideoListener() {
-//        videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
-//            onVideoPlayerChanged(newValue);
-//        });
+        videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
+            onVideoPlayerChanged(newValue);
+        });
+        videoService.addListener(listener);
     }
 
     private void onVideoPlayerChanged(VideoPlayer player) {
         if (player != null) {
             playerSectionController.setVideoView(player.getVideoSurface());
         }
+    }
+
+    private PlaybackListener createListener() {
+        return new PlaybackListener() {
+            @Override
+            public void onPlay(PlayRequest request) {
+                Assert.notNull(request, "request cannot be null");
+                playerHeaderComponent.updateTitle(request.getTitle().orElse(""));
+                playerHeaderComponent.updateQuality(request.getQuality().orElse(""));
+            }
+
+            @Override
+            public void onResume() {
+                // no-op
+            }
+
+            @Override
+            public void onPause() {
+                // no-op
+            }
+
+            @Override
+            public void onSeek(long time) {
+                // no-op
+            }
+
+            @Override
+            public void onVolume(int volume) {
+
+            }
+
+            @Override
+            public void onStop() {
+                // no-op
+            }
+        };
     }
 
     //endregion

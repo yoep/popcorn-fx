@@ -103,5 +103,20 @@ public class PlayerControlsComponent implements Initializable {
         playbackService.togglePlayerPlaybackState();
     }
 
+    @FXML
+    void onFullscreenClicked() {
+//        toggleFullscreen();
+    }
+
+    @FXML
+    void onSubtitleSmaller() {
+//        onSubtitleSizeChanged(-4);
+    }
+
+    @FXML
+    void onSubtitleLarger() {
+//        onSubtitleSizeChanged(4);
+    }
+
     //endregion
 }

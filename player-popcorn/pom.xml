@@ -15,7 +15,7 @@
     </properties>
 
     <dependencies>
-        <!-- Player adapter -->
+        <!-- Popcorn FX -->
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>player-adapter</artifactId>
@@ -24,6 +24,11 @@
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>video-adapter</artifactId>
+            <version>${parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>application-ui</artifactId>
             <version>${parent.version}</version>
         </dependency>
 

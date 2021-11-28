@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.player.popcorn.controls.ProgressSliderControl?>
+<?import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelection?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -38,20 +39,20 @@
 
     <!-- Subtitle -->
     <HBox fx:id="subtitleSection" GridPane.columnIndex="4" GridPane.rowIndex="0">
-        <!--        <Icon styleClass="player-button, subtitle, subtitle-smaller" onMouseClicked="#onSubtitleSmaller" cache="true">-->
-        <!--            <Icon fx:constant="FONT_UNICODE"/>-->
-        <!--        </Icon>-->
-        <!--        <Icon styleClass="player-button, subtitle" onMouseClicked="#onSubtitleLarger" cache="true">-->
-        <!--            <Icon fx:constant="FONT_UNICODE"/>-->
-        <!--        </Icon>-->
-        <!--        <LanguageSelection fx:id="languageSelection" styleClass="player-button, subtitle" cache="true">-->
-        <!--            <Icon fx:constant="COMMENT_UNICODE"/>-->
-        <!--        </LanguageSelection>-->
+        <Icon styleClass="player-button, subtitle, subtitle-smaller" onMouseClicked="#onSubtitleSmaller" cache="true">
+            <Icon fx:constant="FONT_UNICODE"/>
+        </Icon>
+        <Icon styleClass="player-button, subtitle" onMouseClicked="#onSubtitleLarger" cache="true">
+            <Icon fx:constant="FONT_UNICODE"/>
+        </Icon>
+        <LanguageSelection fx:id="languageSelection" styleClass="player-button, subtitle" cache="true">
+            <Icon fx:constant="COMMENT_UNICODE"/>
+        </LanguageSelection>
     </HBox>
 
     <!-- Fullscreen -->
-    <!--    <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked" cache="true"-->
-    <!--          GridPane.columnIndex="5" GridPane.rowIndex="0">-->
-    <!--        <Icon fx:constant="EXPAND_UNICODE"/>-->
-    <!--    </Icon>-->
+    <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked" cache="true"
+          GridPane.columnIndex="5" GridPane.rowIndex="0">
+        <Icon fx:constant="EXPAND_UNICODE"/>
+    </Icon>
 </GridPane>

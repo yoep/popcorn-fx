@@ -246,7 +246,7 @@
             </build>
         </profile>
         <profile>
-            <id>mac</id>
+            <id>macosx</id>
 
             <properties>
                 <platform>macosx</platform>

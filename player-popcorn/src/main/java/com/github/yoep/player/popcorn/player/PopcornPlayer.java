@@ -116,6 +116,18 @@ public class PopcornPlayer implements Player {
 
     //endregion
 
+    //region Properties
+
+    public Long getTime() {
+        return time;
+    }
+
+    public Long getDuration() {
+        return duration;
+    }
+
+    //endregion
+
     //region Init
 
     @PostConstruct

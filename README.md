@@ -86,6 +86,15 @@ To run the application from source code locally, add the following VM options.
     -Djava.library.path=assets/<<OS>>:${PATH}
     --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.web,javafx.swing
 
+### Runtime
+
+It's advised to use `PopcornTimeApplication` as main entry during development.
+The reason behind this is that the PopcornTimeStarter is only used for the fat jar packaging.
+
+Within the runtime configuration, make sure that the classpath is set to the `application` module.
+
+![Application module setup](https://i.imgur.com/EVDQLmS.png)
+
 ### Dependencies
 
 The following dependencies are required for development.

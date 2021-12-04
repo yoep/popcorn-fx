@@ -130,11 +130,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     public void stop() {
         checkInitialized();
 
-        Platform.runLater(() -> {
-            getEngine().executeScript("stop()");
-            reset();
-            setVideoState(VideoState.STOPPED);
-        });
+        Platform.runLater(this::stopPlayer);
     }
 
     @Override
@@ -223,15 +219,45 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
         new Thread(() -> {
             try {
-                while (!playerReady) {
-                    Thread.sleep(100);
+                if (waitForPlayerToBeReady()) {
+                    Platform.runLater(() -> getEngine().executeScript("window.play('" + videoId + "');"));
+                } else {
+                    setError(new PlayerStateException("Youtube player state failed, player not ready"));
+                    setVideoState(VideoState.ERROR);
                 }
-
-                Platform.runLater(() -> getEngine().executeScript("window.play('" + videoId + "');"));
             } catch (InterruptedException ex) {
                 log.error("Unexpectedly quit of wait for webview worker monitor", ex);
             }
         }, "YoutubePlayer-monitor").start();
+    }
+
+    private boolean waitForPlayerToBeReady() throws InterruptedException {
+        var waitAttempt = 0;
+
+        while (!playerReady && waitAttempt <= 10) {
+            setVideoState(VideoState.BUFFERING);
+            Thread.sleep(200);
+            waitAttempt++;
+        }
+
+        return playerReady;
+    }
+
+    private void stopPlayer() {
+        if (playerReady) {
+            stopEnginePlayer();
+        }
+
+        reset();
+        setVideoState(VideoState.STOPPED);
+    }
+
+    private void stopEnginePlayer() {
+        try {
+            getEngine().executeScript("stop()");
+        } catch (JSException ex) {
+            log.error("Failed to stop youtube player, {}", ex.getMessage(), ex);
+        }
     }
 
     private String getVideoId(String url) {

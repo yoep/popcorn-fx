@@ -34,6 +34,7 @@ public class PlayerStopService {
     private String url;
     private Long time;
     private Long duration;
+    private PlayerState lastKnownState;
 
     //region Methods
 
@@ -70,6 +71,8 @@ public class PlayerStopService {
             public void onStateChanged(PlayerState newState) {
                 if (newState == PlayerState.STOPPED) {
                     onPlayerStopped();
+                } else {
+                    lastKnownState = newState;
                 }
             }
         });
@@ -84,6 +87,7 @@ public class PlayerStopService {
         this.quality = null;
         this.time = null;
         this.duration = null;
+        this.lastKnownState = null;
     }
 
     private void onPlayerDurationChanged(long duration) {
@@ -99,15 +103,7 @@ public class PlayerStopService {
     }
 
     private void onPlayerStopped() {
-        var isDurationUnknown = Optional.ofNullable(duration)
-                .map(e -> e == 0)
-                .orElse(false);
-
-        // check if the duration is not 0 for the active player
-        // if so, don't close the player and wait
-        // the playback of youtube videos in VLC will report a STOPPED event before actually starting the video playback
-        // this causes the player to instantly close before the actual video playback has started
-        if (isDurationUnknown)
+        if (!isAllowedToClose())
             return;
 
         // close the player
@@ -128,6 +124,22 @@ public class PlayerStopService {
 
         // reset the current known media information
         reset();
+    }
+
+    private boolean isAllowedToClose() {
+        // check the last known state of the player
+        // if the state is error, we always allow it to close
+        if (lastKnownState == PlayerState.ERROR) {
+            return true;
+        }
+
+        // check if the duration is not 0 for the active player
+        // if so, don't close the player and wait
+        // the playback of youtube videos in VLC will report a STOPPED event before actually starting the video playback
+        // this causes the player to instantly close before the actual video playback has started
+        return Optional.ofNullable(duration)
+                .map(e -> e == 0)
+                .orElse(false);
     }
 
     //endregion

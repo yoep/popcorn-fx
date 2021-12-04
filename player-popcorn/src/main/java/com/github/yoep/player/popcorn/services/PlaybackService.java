@@ -1,6 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.adapter.Player;
+import com.github.yoep.player.adapter.listeners.PlayerListener;
 import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,15 @@ public class PlaybackService {
     }
 
     /**
+     * Update the current video playback time with the given offset.
+     *
+     * @param offset The offset to apply to the video playback time.
+     */
+    public void videoTimeOffset(int offset) {
+        player.seek(player.getTime() + offset);
+    }
+
+    /**
      * Resume the player playback.
      */
     public void resume() {
@@ -59,6 +69,15 @@ public class PlaybackService {
      */
     public void seek(long time) {
         player.seek(time);
+    }
+
+    /**
+     * Register a new player listener.
+     *
+     * @param playerListener The listener to add.
+     */
+    public void addPlayerListener(PlayerListener playerListener) {
+        player.addListener(playerListener);
     }
 
     //endregion

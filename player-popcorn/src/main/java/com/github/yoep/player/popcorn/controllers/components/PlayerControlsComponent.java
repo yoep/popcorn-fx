@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.services.PlaybackService;
+import com.github.yoep.popcorn.ui.view.services.FullscreenService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -19,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PlayerControlsComponent implements Initializable {
     private final PlaybackService playbackService;
+    private final FullscreenService fullscreenService;
 
     @FXML
     Icon playPauseIcon;
@@ -28,6 +30,8 @@ public class PlayerControlsComponent implements Initializable {
     ProgressSliderControl playProgress;
     @FXML
     Label durationLabel;
+    @FXML
+    Icon fullscreenIcon;
 
     //region Methods
 
@@ -53,6 +57,14 @@ public class PlayerControlsComponent implements Initializable {
             if (!playProgress.isValueChanging())
                 playProgress.setTime(time);
         });
+    }
+
+    public void updateFullscreenState(Boolean isFullscreen) {
+        if (isFullscreen) {
+            Platform.runLater(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
+        } else {
+            Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
+        }
     }
 
     //endregion
@@ -104,8 +116,9 @@ public class PlayerControlsComponent implements Initializable {
     }
 
     @FXML
-    void onFullscreenClicked() {
-//        toggleFullscreen();
+    void onFullscreenClicked(MouseEvent event) {
+        event.consume();
+        fullscreenService.toggle();
     }
 
     @FXML

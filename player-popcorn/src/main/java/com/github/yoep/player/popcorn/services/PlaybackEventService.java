@@ -108,6 +108,5 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
         playerControls.updatePlaybackState(newState != PlayerState.PAUSED);
     }
 
-
     //endregion
 }

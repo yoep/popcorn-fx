@@ -4,6 +4,8 @@ import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.video.adapter.VideoPlayer;
 import com.github.yoep.video.adapter.VideoPlayerException;
+import com.github.yoep.video.adapter.listeners.VideoListener;
+import com.github.yoep.video.adapter.state.VideoState;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -32,6 +34,7 @@ public class VideoService {
 
     private final Queue<PlaybackListener> playbackListeners = new ConcurrentLinkedQueue<>();
     private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
+    private final VideoListener videoListener = createVideoListener();
 
     //region Properties
 
@@ -125,8 +128,19 @@ public class VideoService {
                 .orElseThrow(() -> new VideoPlayerException("No compatible video player found for " + url));
         var oldVideoPlayer = this.videoPlayer.get();
 
+        registerListener(videoPlayer, oldVideoPlayer);
         this.videoPlayer.set(videoPlayer);
         return videoPlayer;
+    }
+
+    private void registerListener(VideoPlayer videoPlayer, VideoPlayer oldVideoPlayer) {
+        // if an old video player is known
+        // unregister the listener from the old video player first
+        if (oldVideoPlayer != null) {
+            oldVideoPlayer.removeListener(videoListener);
+        }
+
+        videoPlayer.addListener(videoListener);
     }
 
     private void invokeListeners(Consumer<PlaybackListener> action) {
@@ -137,6 +151,50 @@ public class VideoService {
                 log.error("Failed to invoke playback listener, {}", ex.getMessage(), ex);
             }
         });
+    }
+
+    private void onVideoError() {
+        var videoPlayerError = getVideoPlayerError();
+        log.error("Video player {} changed to state {}, {}", getVideoPlayerType(), getVideoPlayerState(), videoPlayerError.getMessage(), videoPlayerError);
+    }
+
+    private Throwable getVideoPlayerError() {
+        return getVideoPlayer()
+                .map(VideoPlayer::getError)
+                .orElseGet(UnknownError::new);
+    }
+
+    private VideoState getVideoPlayerState() {
+        return getVideoPlayer()
+                .map(VideoPlayer::getVideoState)
+                .orElse(VideoState.UNKNOWN);
+    }
+
+    private String getVideoPlayerType() {
+        return getVideoPlayer()
+                .map(e -> e.getClass().getSimpleName())
+                .orElse("UNKNOWN");
+    }
+
+    private VideoListener createVideoListener() {
+        return new VideoListener() {
+            @Override
+            public void onDurationChanged(long newDuration) {
+
+            }
+
+            @Override
+            public void onTimeChanged(long newTime) {
+
+            }
+
+            @Override
+            public void onStateChanged(VideoState newState) {
+                if (newState == VideoState.ERROR) {
+                    onVideoError();
+                }
+            }
+        };
     }
 
     //endregion

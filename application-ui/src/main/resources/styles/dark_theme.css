@@ -24,6 +24,7 @@
 .root .header .bar,
 .root .header .title-bar,
 .root .loader,
+.root .player-external,
 .root .overlay,
 .root .content-section {
     -fx-background-color: #17181b;
@@ -1044,22 +1045,41 @@
     -fx-alignment: center;
 }
 
-.root .loader .status-text {
+.root .loader .status-text,
+.root .player-external .title-text {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #f9fafc;
     -fx-font-size: 1.5em;
 }
 
-.root .loader .progress-status {
+.root .player-external .title-text {
+    -fx-font-size: 2em;
+}
+
+.root .loader .progress-status,
+.root .player-external .progress-status{
     -fx-max-width: 400;
     -fx-background-color: rgba(0, 0, 0, 0.5);
     -fx-background-radius: 5;
 }
 
-.root .loader .progress-status Label {
+.root .loader .progress-status Label,
+.root .player-external .progress-status Label{
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #f9fafc;
     -fx-font-size: 1.2em;
+}
+
+.root .player-external .time {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-font-size: 1.25em;
+}
+
+.root .player-external .player-control-item {
+    -fx-cursor: hand;
+    -fx-text-fill: #fff;
+    -fx-font-size: 2.5em;
 }
 
 .root .settings-section GridPane Separator {

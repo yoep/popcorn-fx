@@ -140,6 +140,8 @@ public class ChromecastPlayer implements Player {
         } catch (IOException ex) {
             log.error("Failed to stop the Chromecast playback, {}", ex.getMessage(), ex);
         }
+
+        updateState(PlayerState.STOPPED);
     }
 
     @Override

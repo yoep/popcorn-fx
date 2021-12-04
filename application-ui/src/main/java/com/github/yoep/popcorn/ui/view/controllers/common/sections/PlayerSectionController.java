@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
 import com.github.yoep.player.adapter.Player;
 import com.github.yoep.player.adapter.PlayerManagerService;
+import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -23,6 +23,8 @@ import java.util.ResourceBundle;
 @ViewController
 @RequiredArgsConstructor
 public class PlayerSectionController implements Initializable {
+    private static final String EXTERNAL_PLAYER_VIEW = "components/player-external.component.fxml";
+
     private final PlayerManagerService playerManagerService;
     private final ViewLoader viewLoader;
 
@@ -64,7 +66,7 @@ public class PlayerSectionController implements Initializable {
 
     private void loadExternalPlayerPane() {
         log.trace("Loading the external player pane");
-
+        externalPlayerPane = viewLoader.load(EXTERNAL_PLAYER_VIEW);
     }
 
     private void onPlayVideo(Player player) {
@@ -86,7 +88,7 @@ public class PlayerSectionController implements Initializable {
     }
 
     private void useExternalPlayerPane() {
-
+        switchPlayerPane(externalPlayerPane);
     }
 
     private void switchPlayerPane(Node pane) {

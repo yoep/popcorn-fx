@@ -40,7 +40,7 @@ public class PlayMediaEvent extends PlayTorrentEvent {
                           Media media,
                           String quality,
                           @Nullable Subtitle subtitle) {
-        super(source, url, title, subtitlesEnabled, torrent, torrentStream);
+        super(source, url, title, subtitlesEnabled, media.getImages().getFanart(), torrent, torrentStream);
         this.media = media;
         this.quality = quality;
         this.subtitle = subtitle;

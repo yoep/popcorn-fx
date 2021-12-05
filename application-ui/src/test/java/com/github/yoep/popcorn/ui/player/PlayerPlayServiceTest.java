@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
+import com.github.yoep.popcorn.ui.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.ui.settings.models.PlaybackSettings;

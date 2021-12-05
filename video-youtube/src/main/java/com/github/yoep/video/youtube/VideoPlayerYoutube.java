@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlayer {
     private static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
     private static final String YOUTUBE_URL_INDICATOR = "youtu";
+    private static final int BRIDGE_TIMEOUT = 2000;
 
     private final YoutubePlayerBridge playerBridge = new YoutubePlayerBridge();
 
@@ -232,15 +233,21 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     }
 
     private boolean waitForPlayerToBeReady() throws InterruptedException {
-        var waitAttempt = 0;
+        var startTime = System.currentTimeMillis();
 
-        while (!playerReady && waitAttempt <= 10) {
+        while (shouldWaitForBridgePlayerToBeReady(startTime)) {
             setVideoState(VideoState.BUFFERING);
-            Thread.sleep(200);
-            waitAttempt++;
+            Thread.onSpinWait();
         }
 
         return playerReady;
+    }
+
+    private boolean shouldWaitForBridgePlayerToBeReady(long startTime) {
+        // if the player is not ready
+        // wait for the bridge to communicate that it's ready to receive playback requests
+        // unless it exceeds the timeout for which we allow the bridge to wait
+        return !playerReady && System.currentTimeMillis() - startTime < BRIDGE_TIMEOUT;
     }
 
     private void stopPlayer() {

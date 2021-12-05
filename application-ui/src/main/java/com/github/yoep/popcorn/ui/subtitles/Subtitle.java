@@ -21,7 +21,7 @@ import java.util.Optional;
  */
 @ToString
 @EqualsAndHashCode
-public class Subtitle implements Serializable {
+public class Subtitle implements com.github.yoep.player.adapter.subtitles.Subtitle, Serializable {
     public static final String INDEXES_PROPERTY = "indexes";
     private static final Subtitle NONE = new Subtitle(SubtitleInfo.none());
 

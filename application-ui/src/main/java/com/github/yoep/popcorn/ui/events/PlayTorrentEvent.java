@@ -20,8 +20,8 @@ public class PlayTorrentEvent extends PlayVideoEvent {
     private final TorrentStream torrentStream;
 
     @Builder
-    public PlayTorrentEvent(Object source, String url, String title, boolean subtitlesEnabled, Torrent torrent, TorrentStream torrentStream) {
-        super(source, url, title, subtitlesEnabled);
+    public PlayTorrentEvent(Object source, String url, String title, boolean subtitlesEnabled, String thumbnail, Torrent torrent, TorrentStream torrentStream) {
+        super(source, url, title, subtitlesEnabled, thumbnail);
         Assert.notNull(torrent, "torrent cannot be null");
         Assert.notNull(torrentStream, "torrentStream cannot be null");
         this.torrent = torrent;

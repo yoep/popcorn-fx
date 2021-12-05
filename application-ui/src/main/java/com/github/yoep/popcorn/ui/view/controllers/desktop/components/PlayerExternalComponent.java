@@ -23,6 +23,7 @@ import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @ViewController
@@ -98,10 +99,15 @@ public class PlayerExternalComponent {
     }
 
     private void onPlayerTimeChanged(long time) {
-        var progress = time / duration;
+        var progress = new AtomicReference<>(0d);
+
+        if (duration != null && duration != 0) {
+            progress.set((double) time / duration);
+        }
+
         Platform.runLater(() -> {
             timeText.setText(formatTime(time));
-            playbackProgress.setProgress(progress);
+            playbackProgress.setProgress(progress.get());
         });
     }
 
@@ -112,6 +118,9 @@ public class PlayerExternalComponent {
                 break;
             case PAUSED:
                 updatePlayState(false);
+                break;
+            case LOADING:
+                Platform.runLater(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
                 break;
         }
     }

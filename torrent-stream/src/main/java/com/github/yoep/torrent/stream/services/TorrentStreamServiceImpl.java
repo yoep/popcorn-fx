@@ -1,39 +1,26 @@
 package com.github.yoep.torrent.stream.services;
 
-import com.github.yoep.torrent.adapter.StreamException;
+import com.github.yoep.torrent.adapter.TorrentException;
 import com.github.yoep.torrent.adapter.TorrentService;
 import com.github.yoep.torrent.adapter.TorrentStreamService;
 import com.github.yoep.torrent.adapter.model.Torrent;
 import com.github.yoep.torrent.adapter.model.TorrentStream;
 import com.github.yoep.torrent.stream.models.TorrentStreamImpl;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.context.ApplicationContext;
+import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.text.MessageFormat;
 import java.util.*;
 
 @Slf4j
+@RequiredArgsConstructor
 public class TorrentStreamServiceImpl implements TorrentStreamService {
-    static final String PORT_PROPERTY = "server.port";
-
     private final TorrentService torrentService;
-    private final ApplicationContext applicationContext;
+    private final ServerProperties serverProperties;
     private final Map<String, TorrentStream> streamCache = new HashMap<>();
-    private final int port;
-
-    //region Constructors
-
-    public TorrentStreamServiceImpl(TorrentService torrentService, ApplicationContext applicationContext) {
-        this.torrentService = torrentService;
-        this.applicationContext = applicationContext;
-        this.port = getPort();
-    }
-
-    //endregion
 
     //region TorrentStreamService
 
@@ -44,7 +31,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         var url = UriComponentsBuilder.newInstance()
                 .scheme("http")
                 .host("127.0.0.1")
-                .port(port)
+                .port(serverProperties.getPort())
                 .path("/video/{filename}")
                 .build(Collections.singletonMap("filename", filename))
                 .toString();
@@ -59,17 +46,21 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
     @Override
     public void stopStream(TorrentStream torrentStream) {
         Assert.notNull(torrentStream, "torrentStream cannot be null");
-        var key = getFilename(torrentStream);
+        try {
+            var key = getFilename(torrentStream);
 
-        if (streamCache.containsKey(key)) {
-            log.debug("Stopping torrentStream stream for {}", key);
-            var stream = streamCache.get(key);
+            if (streamCache.containsKey(key)) {
+                log.debug("Stopping torrentStream stream for {}", key);
+                var stream = streamCache.get(key);
 
-            stream.stopStream();
-            streamCache.remove(key);
-            torrentService.remove(torrentStream.getTorrent());
-        } else {
-            log.warn("Unable to stop torrentStream stream, torrentStream is unknown ({})", torrentStream);
+                stream.stopStream();
+                streamCache.remove(key);
+                torrentService.remove(torrentStream.getTorrent());
+            } else {
+                log.warn("Unable to stop torrentStream stream, torrentStream is unknown ({})", torrentStream);
+            }
+        } catch (TorrentException ex) {
+            log.error("Failed to stop torrent stream, {}", ex.getMessage(), ex);
         }
     }
 
@@ -96,18 +87,6 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
     //endregion
 
     //region Functions
-
-    private int getPort() {
-        var environment = applicationContext.getEnvironment();
-        var portValue = environment.getProperty(PORT_PROPERTY);
-
-        // verify if the port could be found
-        if (!StringUtils.hasText(portValue)) {
-            throw new StreamException(MessageFormat.format("Unable to determine port, port property \"{0}\" is null or empty", PORT_PROPERTY));
-        }
-
-        return Integer.parseInt(portValue);
-    }
 
     private String getFilename(Torrent torrent) {
         var filePath = torrent.getFile().getAbsolutePath();

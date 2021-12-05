@@ -239,9 +239,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @FXML
     private void onWatchNowClicked(MouseEvent event) {
-        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-
         event.consume();
+
+        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
         eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, quality, subtitle));
     }
 
@@ -249,7 +249,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     private void onTrailerClicked(MouseEvent event) {
         event.consume();
 
-        eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false));
+        eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
     }
 
     @FXML

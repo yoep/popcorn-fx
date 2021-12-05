@@ -5,7 +5,10 @@ import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
+import com.github.yoep.popcorn.ui.player.model.MediaPlayRequest;
+import com.github.yoep.popcorn.ui.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.services.FullscreenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,7 @@ public class PlayerPlayService {
     private final AutoResumeService autoResumeService;
     private final FullscreenService fullscreenService;
     private final SettingsService settingsService;
+    private final SubtitleService subtitleService;
 
     //region Methods
 
@@ -40,10 +44,11 @@ public class PlayerPlayService {
 
     private void playVideo(PlayVideoEvent event, Player player) {
         log.debug("Starting playback of {} in player {}", event.getUrl(), player.getName());
-        player.play(SimplePlayRequest.builder()
-                .url(event.getUrl())
-                .title(event.getTitle())
-                .build());
+        if (event instanceof PlayMediaEvent) {
+            playMediaVideo((PlayMediaEvent) event, player);
+        } else {
+            playSimpleVideo(event, player);
+        }
 
         // check if the user prefers to start the video playback in fullscreen mode
         fullscreenVideo();
@@ -51,6 +56,24 @@ public class PlayerPlayService {
         // check if a known resume timestamp is known for the current play event
         // if so, we'll try to auto resume the last known timestamp back in the player
         autoResumeVideo(event, player);
+    }
+
+    private void playMediaVideo(PlayMediaEvent event, Player player) {
+        player.play(MediaPlayRequest.mediaBuilder()
+                .url(event.getUrl())
+                .title(event.getTitle())
+                .thumb(event.getThumbnail())
+                .quality(event.getQuality())
+                .subtitle(event.getSubtitle().orElse(null))
+                .build());
+    }
+
+    private void playSimpleVideo(PlayVideoEvent event, Player player) {
+        player.play(SimplePlayRequest.builder()
+                .url(event.getUrl())
+                .title(event.getTitle())
+                .thumb(event.getThumbnail())
+                .build());
     }
 
     private void fullscreenVideo() {

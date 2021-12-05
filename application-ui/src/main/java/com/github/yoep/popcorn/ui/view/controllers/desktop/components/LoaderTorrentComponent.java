@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
-
 public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
 
     //region Constructors

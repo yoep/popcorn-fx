@@ -1,11 +1,11 @@
-package com.github.yoep.popcorn.ui.player;
+package com.github.yoep.popcorn.ui.player.model;
 
 import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.adapter.subtitles.Subtitle;
 import lombok.*;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
 import java.util.Optional;
 
 @Getter
@@ -16,9 +16,7 @@ import java.util.Optional;
 public class SimplePlayRequest implements PlayRequest {
     private final String url;
     private final String title;
-    private final Subtitle subtitle;
-    private final String quality;
-    private final List<Subtitle> subtitles;
+    private final String thumb;
 
     @Override
     public Optional<String> getTitle() {
@@ -27,16 +25,21 @@ public class SimplePlayRequest implements PlayRequest {
 
     @Override
     public Optional<Subtitle> getSubtitle() {
-        return Optional.ofNullable(subtitle);
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<String> getThumbnail() {
+        return Optional.ofNullable(thumb);
     }
 
     @Override
     public Optional<String> getQuality() {
-        return Optional.ofNullable(quality);
+        return Optional.empty();
     }
 
     @Override
     public Collection<Subtitle> subtitles() {
-        return subtitles;
+        return Collections.emptyList();
     }
 }

@@ -138,7 +138,7 @@ public class PlayerStopService {
         // the playback of youtube videos in VLC will report a STOPPED event before actually starting the video playback
         // this causes the player to instantly close before the actual video playback has started
         return Optional.ofNullable(duration)
-                .map(e -> e == 0)
+                .map(e -> e != 0)
                 .orElse(false);
     }
 

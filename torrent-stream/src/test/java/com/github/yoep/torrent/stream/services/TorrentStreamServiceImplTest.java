@@ -9,8 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationContext;
-import org.springframework.core.env.Environment;
+import org.springframework.boot.autoconfigure.web.ServerProperties;
 
 import java.io.File;
 
@@ -25,18 +24,13 @@ class TorrentStreamServiceImplTest {
     @Mock
     private TorrentService torrentService;
     @Mock
-    private ApplicationContext applicationContext;
-    @Mock
-    private Environment environment;
+    private ServerProperties serverProperties;
 
     private TorrentStreamServiceImpl torrentStreamService;
 
     @BeforeEach
     void setUp() {
-        when(applicationContext.getEnvironment()).thenReturn(environment);
-        when(environment.getProperty(TorrentStreamServiceImpl.PORT_PROPERTY)).thenReturn(PORT);
-
-        torrentStreamService = new TorrentStreamServiceImpl(torrentService, applicationContext);
+        torrentStreamService = new TorrentStreamServiceImpl(torrentService, serverProperties);
     }
 
     @Test

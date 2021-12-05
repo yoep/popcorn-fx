@@ -31,6 +31,13 @@ public interface PlayRequest {
     Optional<Subtitle> getSubtitle();
 
     /**
+     * Get the thumbnail url if one is present for the video.
+     *
+     * @return Returns the thumb of the video if available, else {@link Optional#empty()}.
+     */
+    Optional<String> getThumbnail();
+
+    /**
      * The quality of the video playback.
      *
      * @return Returns the video playback quality if known, else {@link Optional#empty()}.

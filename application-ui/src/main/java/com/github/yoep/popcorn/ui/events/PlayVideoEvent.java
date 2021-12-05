@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.events;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 @Getter
@@ -21,13 +22,22 @@ public class PlayVideoEvent extends ApplicationEvent {
      * If true, the player will show the subtitle UI section, otherwise it will be hidden.
      */
     private final boolean subtitlesEnabled;
+    /**
+     * The thumbnail of the video.
+     */
+    private final String thumbnail;
 
     public PlayVideoEvent(Object source, String url, String title, boolean subtitlesEnabled) {
+        this(source, url, title, subtitlesEnabled, null);
+    }
+
+    public PlayVideoEvent(Object source, String url, String title, boolean subtitlesEnabled, @Nullable String thumbnail) {
         super(source);
         Assert.notNull(url, "url cannot be null");
         Assert.notNull(title, "title cannot be null");
         this.url = url;
         this.title = title;
         this.subtitlesEnabled = subtitlesEnabled;
+        this.thumbnail = thumbnail;
     }
 }

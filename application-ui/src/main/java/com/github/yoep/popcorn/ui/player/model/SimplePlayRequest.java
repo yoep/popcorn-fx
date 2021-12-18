@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.player.model;
 
-import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.adapter.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.subtitles.Subtitle;
 import lombok.*;
 
 import java.util.Collection;

@@ -1,6 +1,6 @@
 package com.github.yoep.torrent.frostwire;
 
-import com.github.yoep.torrent.adapter.state.TorrentHealthState;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
 import com.github.yoep.torrent.frostwire.model.TorrentHealthImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

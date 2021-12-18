@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.player;
 
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerManagerService;
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

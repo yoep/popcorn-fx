@@ -1,7 +1,8 @@
 package com.github.yoep.popcorn.ui.player;
 
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
@@ -10,7 +11,6 @@ import com.github.yoep.popcorn.ui.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.ui.settings.models.PlaybackSettings;
-import com.github.yoep.popcorn.ui.view.services.FullscreenService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,7 +29,7 @@ class PlayerPlayServiceTest {
     @Mock
     private AutoResumeService autoResumeService;
     @Mock
-    private FullscreenService fullscreenService;
+    private ScreenService screenService;
     @Mock
     private SettingsService settingsService;
     @Mock
@@ -80,7 +80,7 @@ class PlayerPlayServiceTest {
 
         service.onPlayVideo(event);
 
-        verify(fullscreenService).fullscreen(true);
+        verify(screenService).fullscreen(true);
     }
 
     @Test

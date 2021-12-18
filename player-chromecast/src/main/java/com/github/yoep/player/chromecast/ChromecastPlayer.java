@@ -1,10 +1,10 @@
 package com.github.yoep.player.chromecast;
 
-import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;

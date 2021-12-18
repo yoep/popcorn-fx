@@ -19,10 +19,15 @@
     </properties>
 
     <dependencies>
-        <!-- Popcorn Time UI -->
+        <!-- Popcorn Time app -->
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>application-ui</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
 

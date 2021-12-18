@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.media.providers.models;
 
-import com.github.yoep.torrent.adapter.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import lombok.Data;
 
 import java.io.Serializable;

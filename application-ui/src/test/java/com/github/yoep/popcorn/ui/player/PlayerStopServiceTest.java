@@ -1,12 +1,12 @@
 package com.github.yoep.popcorn.ui.player;
 
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.torrent.adapter.TorrentStreamService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

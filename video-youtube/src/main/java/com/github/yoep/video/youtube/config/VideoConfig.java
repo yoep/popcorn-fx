@@ -1,6 +1,6 @@
 package com.github.yoep.video.youtube.config;
 
-import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.video.youtube.VideoPlayerYoutube;
 import com.github.yoep.video.youtube.conditions.ConditionalOnWebkitSupported;
 import com.github.yoep.video.youtube.conditions.ConditionalOnYoutubeVideoEnabled;

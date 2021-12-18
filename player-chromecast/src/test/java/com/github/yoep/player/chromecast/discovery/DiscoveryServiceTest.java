@@ -1,7 +1,7 @@
 package com.github.yoep.player.chromecast.discovery;
 
-import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.chromecast.ChromecastPlayer;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

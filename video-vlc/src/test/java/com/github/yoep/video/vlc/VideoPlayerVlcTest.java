@@ -1,6 +1,6 @@
 package com.github.yoep.video.vlc;
 
-import com.github.yoep.video.adapter.state.VideoState;
+import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

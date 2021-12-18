@@ -44,7 +44,7 @@ public class TraktAccessTokenProvider extends AuthorizationCodeAccessTokenProvid
                     .map(accessTokenWrapper -> resolveAccessToken(details, accessTokenWrapper))
                     .orElseGet(() -> super.obtainAccessToken(details, parameters));
         } catch (RefreshTokenMissingException ex) {
-            logger.error(ex);
+            log.error(ex.getMessage(), ex);
             return handleRefreshTokenMissing(details, parameters);
         } catch (UserRedirectRequiredException ex) {
             return startUserRedirect(details, ex);

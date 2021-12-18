@@ -1,14 +1,14 @@
 package com.github.yoep.popcorn.ui.player;
 
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerManagerService;
-import com.github.yoep.player.adapter.embaddable.DownloadProgress;
-import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.embaddable.DownloadProgress;
+import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
-import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
-import com.github.yoep.torrent.adapter.listeners.TorrentListener;
-import com.github.yoep.torrent.adapter.model.DownloadStatus;
-import com.github.yoep.torrent.adapter.model.Torrent;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;

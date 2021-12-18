@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.ui.view.models.Category;
 import com.github.yoep.popcorn.ui.view.models.Genre;
 import com.github.yoep.popcorn.ui.view.models.SortBy;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.util.Strings;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -44,7 +43,7 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
 
     @Override
     public CompletableFuture<Page<Movie>> getPage(Genre genre, SortBy sortBy, int page) {
-        return CompletableFuture.completedFuture(getPage(genre, sortBy, Strings.EMPTY, page));
+        return CompletableFuture.completedFuture(getPage(genre, sortBy, "", page));
     }
 
     @Override

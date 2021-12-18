@@ -1,11 +1,11 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
-import com.github.yoep.video.adapter.VideoPlayer;
-import com.github.yoep.video.adapter.VideoPlayerException;
-import com.github.yoep.video.adapter.listeners.VideoListener;
-import com.github.yoep.video.adapter.state.VideoState;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
+import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
+import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;

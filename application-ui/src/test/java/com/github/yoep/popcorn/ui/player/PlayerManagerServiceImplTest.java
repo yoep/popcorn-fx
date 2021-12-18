@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.player;
 
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerAlreadyExistsException;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerAlreadyExistsException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

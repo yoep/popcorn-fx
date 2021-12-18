@@ -1,11 +1,11 @@
 package com.github.yoep.video.vlcnative;
 
-import com.github.yoep.video.adapter.AbstractVideoPlayer;
-import com.github.yoep.video.adapter.VideoPlayer;
-import com.github.yoep.video.adapter.VideoPlayerException;
-import com.github.yoep.video.adapter.VideoPlayerNotInitializedException;
-import com.github.yoep.video.adapter.listeners.VideoListener;
-import com.github.yoep.video.adapter.state.VideoState;
+import com.github.yoep.popcorn.backend.adapters.video.AbstractVideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerNotInitializedException;
+import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
+import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import com.github.yoep.video.vlcnative.player.PopcornPlayer;
 import com.github.yoep.video.vlcnative.player.PopcornPlayerEventListener;
 import com.github.yoep.video.vlcnative.player.PopcornPlayerState;

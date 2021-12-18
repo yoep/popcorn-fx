@@ -16,16 +16,14 @@
 
     <modules>
         <module>application</module>
+        <module>application-backend</module>
         <module>application-ui</module>
-        <module>video-adapter</module>
         <module>video-javafx</module>
         <module>video-vlc</module>
         <module>video-vlc-native</module>
         <module>video-youtube</module>
-        <module>torrent-adapter</module>
         <module>torrent-stream</module>
         <module>torrent-frostwire</module>
-        <module>player-adapter</module>
         <module>player-chromecast</module>
         <module>player-popcorn</module>
     </modules>
@@ -69,9 +67,11 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <spring-boot-starter-javafx.version>1.0.9</spring-boot-starter-javafx.version>
-        <javafx.version>14</javafx.version>
-        <commons-io.version>2.6</commons-io.version>
-        <jna.version>5.6.0</jna.version>
+        <javafx.version>16</javafx.version>
+        <commons-io.version>2.11.0</commons-io.version>
+        <commons-text.version>1.8</commons-text.version>
+        <commons-collections.version>4.4</commons-collections.version>
+        <jna.version>5.10.0</jna.version>
         <testfx.version>4.0.16-alpha</testfx.version>
 
         <cmake-maven-plugin.version>3.19.2-b1</cmake-maven-plugin.version>
@@ -123,6 +123,16 @@
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
                 <version>${commons-io.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${commons-collections.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-text</artifactId>
+                <version>${commons-text.version}</version>
             </dependency>
 
             <dependency>

@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.torrent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
 import com.github.yoep.popcorn.ui.torrent.models.StoredTorrent;
 import com.github.yoep.popcorn.ui.torrent.models.TorrentCollection;
-import com.github.yoep.torrent.adapter.model.TorrentInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;

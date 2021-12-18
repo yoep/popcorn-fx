@@ -14,21 +14,13 @@
         <java.version>11</java.version>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-
-        <commons-text.version>1.8</commons-text.version>
-        <commons-collections.version>4.4</commons-collections.version>
     </properties>
 
     <dependencies>
         <!-- Popcorn Time -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>player-adapter</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>torrent-adapter</artifactId>
+            <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -50,12 +42,10 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-collections4</artifactId>
-            <version>${commons-collections.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>${commons-text.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>

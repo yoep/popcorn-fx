@@ -1,12 +1,13 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.popcorn.controllers.components.PlayerControlsComponent;
 import com.github.yoep.player.popcorn.controllers.components.PlayerHeaderComponent;
+import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionController;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import javax.annotation.PostConstruct;
 public class PlaybackEventService implements PlaybackListener, PlayerListener {
     private final PopcornPlayer player;
     private final VideoService videoService;
+    private final PopcornPlayerSectionController playerSection;
     private final PlayerHeaderComponent playerHeader;
     private final PlayerControlsComponent playerControls;
 
@@ -106,6 +108,7 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
 
     private void onPlayerStateChanged(PlayerState newState) {
         playerControls.updatePlaybackState(newState != PlayerState.PAUSED);
+        playerSection.updatePlaybackState(newState != PlayerState.PAUSED);
     }
 
     //endregion

@@ -1,10 +1,10 @@
 package com.github.yoep.torrent.stream.services;
 
-import com.github.yoep.torrent.adapter.TorrentException;
-import com.github.yoep.torrent.adapter.TorrentService;
-import com.github.yoep.torrent.adapter.TorrentStreamService;
-import com.github.yoep.torrent.adapter.model.Torrent;
-import com.github.yoep.torrent.adapter.model.TorrentStream;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.torrent.stream.models.TorrentStreamImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

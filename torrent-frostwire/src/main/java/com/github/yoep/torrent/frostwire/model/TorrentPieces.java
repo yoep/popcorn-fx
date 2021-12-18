@@ -1,7 +1,7 @@
 package com.github.yoep.torrent.frostwire.model;
 
 import com.frostwire.jlibtorrent.Priority;
-import com.github.yoep.torrent.adapter.TorrentException;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;

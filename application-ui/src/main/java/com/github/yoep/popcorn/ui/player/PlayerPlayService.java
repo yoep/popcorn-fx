@@ -1,7 +1,8 @@
 package com.github.yoep.popcorn.ui.player;
 
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
 import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
@@ -9,7 +10,6 @@ import com.github.yoep.popcorn.ui.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.ui.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
-import com.github.yoep.popcorn.ui.view.services.FullscreenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 public class PlayerPlayService {
     private final PlayerManagerService playerManagerService;
     private final AutoResumeService autoResumeService;
-    private final FullscreenService fullscreenService;
+    private final ScreenService screenService;
     private final SettingsService settingsService;
     private final SubtitleService subtitleService;
 
@@ -80,7 +80,7 @@ public class PlayerPlayService {
         var playbackSettings = settingsService.getSettings().getPlaybackSettings();
 
         if (playbackSettings.isFullscreen()) {
-            fullscreenService.fullscreen(true);
+            screenService.fullscreen(true);
         }
     }
 

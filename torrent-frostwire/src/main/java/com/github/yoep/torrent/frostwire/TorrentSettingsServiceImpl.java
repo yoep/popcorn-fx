@@ -1,8 +1,8 @@
 package com.github.yoep.torrent.frostwire;
 
 import com.frostwire.jlibtorrent.SettingsPack;
-import com.github.yoep.torrent.adapter.TorrentSettingsService;
-import com.github.yoep.torrent.adapter.state.SessionState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentSettingsService;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.beans.value.ChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -4,8 +4,8 @@ import com.frostwire.jlibtorrent.AlertListener;
 import com.frostwire.jlibtorrent.SessionManager;
 import com.frostwire.jlibtorrent.Sha1Hash;
 import com.frostwire.jlibtorrent.TorrentHandle;
-import com.github.yoep.torrent.adapter.TorrentException;
-import com.github.yoep.torrent.adapter.state.SessionState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.beans.property.ReadOnlyObjectProperty;
 
 public interface TorrentSessionManager {

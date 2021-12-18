@@ -2,12 +2,11 @@ package com.github.yoep.player.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.popcorn.services.PlaybackService;
-import com.github.yoep.popcorn.ui.keepalive.KeepAliveService;
-import com.github.yoep.popcorn.ui.messages.VideoMessage;
-import com.github.yoep.popcorn.ui.view.services.FullscreenService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
+import com.github.yoep.popcorn.backend.messages.VideoMessage;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -38,14 +37,17 @@ public class PopcornPlayerSectionController implements Initializable {
     private static final String BUFFER_STYLE_CLASS = "buffer";
 
     private final PlaybackService playbackService;
-    private final FullscreenService fullscreenService;
+    private final ScreenService screenService;
     private final LocaleText localeText;
     protected final PauseTransition idleTimer = getIdleTimer();
     protected final PauseTransition offsetTimer = getOffsetTimer();
 
     private FadeTransition fadeTransition;
+    private FadeTransition transitionHeader;
+    private FadeTransition transitionControls;
     private Pane bufferIndicator;
     private boolean uiBlocked;
+    private boolean isPlaying;
 
     @FXML
     Pane playerPane;
@@ -75,6 +77,14 @@ public class PopcornPlayerSectionController implements Initializable {
         videoView.getChildren().setAll(view);
     }
 
+    public void updatePlaybackState(boolean isPlaying) {
+        this.isPlaying = isPlaying;
+
+        if (!isPlaying) {
+            onShowOverlay(null);
+        }
+    }
+
     //endregion
 
     //region Initializable
@@ -83,6 +93,7 @@ public class PopcornPlayerSectionController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeSceneEvents();
         initializeListeners();
+        initializePaneListeners();
     }
 
     private void initializeSceneEvents() {
@@ -93,6 +104,14 @@ public class PopcornPlayerSectionController implements Initializable {
 
     private void initializeListeners() {
         playbackService.addPlayerListener(createPlayerListener());
+    }
+
+    private void initializePaneListeners() {
+        playerHeaderPane.setOnMouseEntered(event -> uiBlocked = true);
+        playerHeaderPane.setOnMouseExited(event -> uiBlocked = false);
+
+        playerControlsPane.setOnMouseEntered(event -> uiBlocked = true);
+        playerControlsPane.setOnMouseExited(event -> uiBlocked = false);
     }
 
     //endregion
@@ -139,15 +158,15 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onHideOverlay() {
-        if (uiBlocked)
+        if (uiBlocked || !isPlaying)
             return;
 
         log.trace("Hiding video player overlay");
         playerPane.setCursor(Cursor.NONE);
         playerVideoOverlay.setCursor(Cursor.NONE);
 
-        FadeTransition transitionHeader = new FadeTransition(Duration.millis(OVERLAY_FADE_DURATION), playerHeaderPane);
-        FadeTransition transitionControls = new FadeTransition(Duration.millis(OVERLAY_FADE_DURATION), playerControlsPane);
+        transitionHeader = new FadeTransition(Duration.millis(OVERLAY_FADE_DURATION), playerHeaderPane);
+        transitionControls = new FadeTransition(Duration.millis(OVERLAY_FADE_DURATION), playerControlsPane);
 
         transitionHeader.setToValue(0.0);
         transitionControls.setToValue(0.0);
@@ -157,15 +176,12 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onShowOverlay(Event event) {
-        // verify if the event is a key event
-        // if so, do some additional check before showing the overlay
-        if (event instanceof KeyEvent) {
-            var keyEvent = (KeyEvent) event;
-
-            // verify that the key event is not the key used by the keep alive service
-            // if so, don't show the overlay and ignore the event
-            if (keyEvent.getCode() == KeepAliveService.SIGNAL)
-                return;
+        // cancel the transition faders
+        if (transitionHeader != null) {
+            transitionHeader.stop();
+        }
+        if (transitionControls != null) {
+            transitionControls.stop();
         }
 
         playerPane.setCursor(Cursor.DEFAULT);
@@ -190,7 +206,7 @@ public class PopcornPlayerSectionController implements Initializable {
                 event.consume();
                 break;
             case F11:
-                fullscreenService.toggle();
+                screenService.toggleFullscreen();
                 event.consume();
                 break;
             case G:

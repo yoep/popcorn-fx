@@ -1,8 +1,8 @@
 package com.github.yoep.torrent.stream.services;
 
-import com.github.yoep.torrent.adapter.TorrentService;
-import com.github.yoep.torrent.adapter.model.Torrent;
-import com.github.yoep.torrent.adapter.model.TorrentStream;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.torrent.stream.models.TorrentStreamImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -19,7 +19,7 @@
         <!-- Player adapter -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>player-adapter</artifactId>
+            <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
 

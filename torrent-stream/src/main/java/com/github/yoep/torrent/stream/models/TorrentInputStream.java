@@ -1,9 +1,9 @@
 package com.github.yoep.torrent.stream.models;
 
 
-import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
-import com.github.yoep.torrent.adapter.listeners.TorrentListener;
-import com.github.yoep.torrent.adapter.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;

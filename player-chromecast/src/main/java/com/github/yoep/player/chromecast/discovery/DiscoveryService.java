@@ -1,8 +1,8 @@
 package com.github.yoep.player.chromecast.discovery;
 
-import com.github.yoep.player.adapter.PlayerManagerService;
 import com.github.yoep.player.chromecast.ChromecastPlayer;
 import com.github.yoep.player.chromecast.services.MetaDataService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import su.litvak.chromecast.api.v2.ChromeCast;

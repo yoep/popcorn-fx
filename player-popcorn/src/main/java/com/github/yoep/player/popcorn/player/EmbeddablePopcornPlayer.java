@@ -1,13 +1,13 @@
 package com.github.yoep.player.popcorn.player;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.adapter.PlayerManagerService;
-import com.github.yoep.player.adapter.embaddable.DownloadProgress;
-import com.github.yoep.player.adapter.embaddable.EmbeddablePlayer;
-import com.github.yoep.player.adapter.embaddable.LayoutMode;
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.embaddable.DownloadProgress;
+import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
+import com.github.yoep.popcorn.backend.adapters.player.embaddable.LayoutMode;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import javafx.scene.Node;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

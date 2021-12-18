@@ -1,10 +1,10 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.yoep.player.adapter.PlayRequest;
 import com.github.yoep.player.popcorn.controllers.components.PlayerHeaderComponent;
 import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionController;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
-import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

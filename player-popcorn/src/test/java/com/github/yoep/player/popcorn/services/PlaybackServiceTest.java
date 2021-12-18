@@ -1,8 +1,8 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

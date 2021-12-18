@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.controllers.components.PlayerControlsComponent;
-import com.github.yoep.popcorn.ui.view.services.FullscreenService;
+import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -10,7 +10,7 @@ import javax.annotation.PostConstruct;
 @Service
 @RequiredArgsConstructor
 public class FullScreenEventService {
-    private final FullscreenService fullscreenService;
+    private final ScreenService screenService;
     private final PlayerControlsComponent playerControlsComponent;
 
     @PostConstruct
@@ -19,7 +19,7 @@ public class FullScreenEventService {
     }
 
     private void initializeListeners() {
-        fullscreenService.fullscreenProperty().addListener((observableValue, oldValue, newValue) -> {
+        screenService.fullscreenProperty().addListener((observableValue, oldValue, newValue) -> {
             playerControlsComponent.updateFullscreenState(newValue);
         });
     }

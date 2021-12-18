@@ -1,13 +1,13 @@
 package com.github.yoep.player.popcorn.player;
 
-import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.popcorn.services.VideoService;
-import com.github.yoep.video.adapter.VideoPlayer;
-import com.github.yoep.video.adapter.listeners.VideoListener;
-import com.github.yoep.video.adapter.state.VideoState;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
+import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;

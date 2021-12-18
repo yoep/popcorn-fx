@@ -1,6 +1,6 @@
 package com.github.yoep.player.popcorn.listeners;
 
-import com.github.yoep.player.adapter.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 
 /**
  * The playback listener listens to playback events from the player.

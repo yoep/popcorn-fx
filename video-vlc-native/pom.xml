@@ -21,7 +21,7 @@
         <!-- Popcorn Time -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>video-adapter</artifactId>
+            <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
 

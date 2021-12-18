@@ -12,7 +12,7 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * The {@link TorrentCacheService} manages the cache which is used by the {@link com.github.yoep.torrent.adapter.TorrentService}.
+ * The {@link TorrentCacheService} manages the cache which is used by the {@link com.github.yoep.popcorn.backend.adapters.torrent.TorrentService}.
  */
 @Slf4j
 @Service

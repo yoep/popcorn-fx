@@ -1,9 +1,9 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.listeners.PlayerListener;
-import com.github.yoep.player.adapter.state.PlayerState;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ public class PlaybackService {
     //region Methods
 
     /**
-     * Toggle the play/pause state of the {@link com.github.yoep.player.adapter.Player}.
+     * Toggle the play/pause state of the {@link com.github.yoep.popcorn.backend.adapters.player.Player}.
      * When the player is {@link PlayerState#PAUSED}, it will resume the playback.
      * Otherwise, the player will be paused.
      */

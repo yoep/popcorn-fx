@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.screen;
 
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.ui.settings.OptionsService;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;

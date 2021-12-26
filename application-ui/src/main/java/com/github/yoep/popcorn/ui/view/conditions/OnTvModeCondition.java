@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.conditions;
 
-import com.github.yoep.popcorn.ui.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.annotation.ConditionContext;

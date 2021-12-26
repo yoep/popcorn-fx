@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.media.watched.controls;
 
-import com.github.yoep.popcorn.ui.media.watched.models.Watchable;
+import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 
 import java.util.function.Supplier;
 

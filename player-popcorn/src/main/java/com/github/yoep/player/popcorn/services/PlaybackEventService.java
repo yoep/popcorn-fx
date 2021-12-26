@@ -31,6 +31,7 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
 
     @Override
     public void onPlay(PlayRequest request) {
+        playerSection.reset();
         playerHeader.updateTitle(request.getTitle().orElse(null));
         playerHeader.updateQuality(request.getQuality().orElse(null));
     }
@@ -57,7 +58,7 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
 
     @Override
     public void onStop() {
-        // no-op
+        playerSection.reset();
     }
 
 

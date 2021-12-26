@@ -2,7 +2,7 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.player.popcorn.controls.ProgressSliderControl?>
-<?import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelection?>
+<?import com.github.yoep.player.popcorn.subtitles.controls.LanguageSelection?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"

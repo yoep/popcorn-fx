@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.media.watched.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.ui.media.watched.models.Watchable;
+import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.control.TableCell;

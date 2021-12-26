@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.ui.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.media.watched.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.media.watched.controls.WatchedCellFactory;
 import javafx.beans.property.ObjectProperty;

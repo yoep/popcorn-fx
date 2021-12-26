@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--<?import com.github.yoep.popcorn.ui.subtitles.controls.SubtitleTrack?>-->
+<?import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -10,8 +11,8 @@
                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
     <!-- Video VideoWidget subtitle -->
-<!--    <SubtitleTrack fx:id="subtitleTrack"-->
-<!--                   AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="50" AnchorPane.leftAnchor="0"/>-->
+    <SubtitleTrack fx:id="subtitleTrack"
+                   AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="50" AnchorPane.leftAnchor="0"/>
 
     <!-- Buffer indicator -->
     <StackPane fx:id="bufferPane" AnchorPane.topAnchor="100" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="100"/>

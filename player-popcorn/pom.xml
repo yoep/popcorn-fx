@@ -19,7 +19,7 @@
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>application-backend</artifactId>
-            <version>${parent.version}</version>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- JavaFX -->

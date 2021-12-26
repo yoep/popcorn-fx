@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common;
 
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 
 /**
  * Media card listener for the simple media card.

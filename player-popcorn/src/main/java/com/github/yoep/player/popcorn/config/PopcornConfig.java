@@ -7,7 +7,8 @@ import org.springframework.context.annotation.Configuration;
 @ComponentScan({
         "com.github.yoep.player.popcorn.controllers",
         "com.github.yoep.player.popcorn.services",
-        "com.github.yoep.player.popcorn.player"
+        "com.github.yoep.player.popcorn.player",
+        "com.github.yoep.player.popcorn.subtitles"
 })
 public class PopcornConfig {
 }

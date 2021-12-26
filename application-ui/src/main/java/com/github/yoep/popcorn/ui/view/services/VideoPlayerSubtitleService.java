@@ -1,14 +1,14 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
-import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
-import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.subtitles.Subtitle;
-import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;

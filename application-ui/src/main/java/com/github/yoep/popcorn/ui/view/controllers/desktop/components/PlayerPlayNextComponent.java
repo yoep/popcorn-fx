@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.yoep.popcorn.ui.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.PlayNextService;
 import javafx.application.Platform;

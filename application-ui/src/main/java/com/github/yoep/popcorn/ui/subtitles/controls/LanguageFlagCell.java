@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.subtitles.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Node;

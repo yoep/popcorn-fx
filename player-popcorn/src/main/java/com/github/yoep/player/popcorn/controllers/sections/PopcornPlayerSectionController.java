@@ -3,10 +3,18 @@ package com.github.yoep.player.popcorn.controllers.sections;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.services.PlaybackService;
+import com.github.yoep.player.popcorn.services.VideoService;
+import com.github.yoep.player.popcorn.subtitles.PopcornSubtitleService;
+import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.popcorn.backend.messages.VideoMessage;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
+import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -21,6 +29,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +47,9 @@ public class PopcornPlayerSectionController implements Initializable {
 
     private final PlaybackService playbackService;
     private final ScreenService screenService;
+    private final SettingsService settingsService;
+    private final VideoService videoService;
+    private final PopcornSubtitleService popcornSubtitleService;
     private final LocaleText localeText;
     protected final PauseTransition idleTimer = getIdleTimer();
     protected final PauseTransition offsetTimer = getOffsetTimer();
@@ -65,6 +77,8 @@ public class PopcornPlayerSectionController implements Initializable {
     Pane playerHeaderPane;
     @FXML
     Pane playerControlsPane;
+    @FXML
+    SubtitleTrack subtitleTrack;
 
     //region Methods
 
@@ -85,15 +99,23 @@ public class PopcornPlayerSectionController implements Initializable {
         }
     }
 
+    public void reset() {
+        Platform.runLater(() -> {
+            errorText.setText(null);
+        });
+    }
+
     //endregion
 
     //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeFaders();
         initializeSceneEvents();
         initializeListeners();
         initializePaneListeners();
+        initializeSubtitleTrack();
     }
 
     private void initializeSceneEvents() {
@@ -112,6 +134,54 @@ public class PopcornPlayerSectionController implements Initializable {
 
         playerControlsPane.setOnMouseEntered(event -> uiBlocked = true);
         playerControlsPane.setOnMouseExited(event -> uiBlocked = false);
+    }
+
+    private void initializeSubtitleTrack() {
+        var subtitleSettings = settingsService.getSettings().getSubtitleSettings();
+
+        log.trace("Setting subtitle track defaults to \"{}\"", subtitleSettings);
+        subtitleTrack.setFontFamily(subtitleSettings.getFontFamily().getFamily());
+        subtitleTrack.setFontWeight(getFontWeight(subtitleSettings.isBold()));
+        subtitleTrack.setDecoration(subtitleSettings.getDecoration());
+
+        // bind the subtitle size to the video player service
+        subtitleTrack.fontSizeProperty().bind(popcornSubtitleService.subtitleSizeProperty());
+
+        subtitleSettings.addListener(evt -> {
+            log.trace("Subtitle setting \"{}\" is being changed, updating subtitle track", evt.getPropertyName());
+            switch (evt.getPropertyName()) {
+                case SubtitleSettings.FONT_FAMILY_PROPERTY:
+                    subtitleTrack.setFontFamily((String) evt.getNewValue());
+                    break;
+                case SubtitleSettings.FONT_SIZE_PROPERTY:
+                    popcornSubtitleService.setSubtitleSize((Integer) evt.getNewValue());
+                    break;
+                case SubtitleSettings.BOLD_PROPERTY:
+                    var bold = (Boolean) evt.getNewValue();
+                    subtitleTrack.setFontWeight(getFontWeight(bold));
+                    break;
+                case SubtitleSettings.DECORATION_PROPERTY:
+                    subtitleTrack.setDecoration((DecorationType) evt.getNewValue());
+                    break;
+            }
+        });
+
+        offsetTimer.setOnFinished(event -> {
+            fadeTransition.setToValue(0);
+            fadeTransition.playFromStart();
+        });
+
+        subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
+            subtitleOffset.setText(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
+            popcornSubtitleService.setSubtitleOffset(newValue.longValue() * 1000);
+            fadeTransition.stop();
+            subtitleOffset.setOpacity(1);
+            offsetTimer.playFromStart();
+        }));
+    }
+
+    private void initializeFaders() {
+        fadeTransition = new FadeTransition(Duration.millis(INFO_FADE_DURATION), subtitleOffset);
     }
 
     //endregion
@@ -210,11 +280,11 @@ public class PopcornPlayerSectionController implements Initializable {
                 event.consume();
                 break;
             case G:
-//                updateSubtitleOffset(event, false);
+                updateSubtitleOffset(event, false);
                 event.consume();
                 break;
             case H:
-//                updateSubtitleOffset(event, true);
+                updateSubtitleOffset(event, true);
                 event.consume();
                 break;
             case LEFT:
@@ -227,6 +297,42 @@ public class PopcornPlayerSectionController implements Initializable {
                 playbackService.videoTimeOffset(5000);
                 event.consume();
                 break;
+        }
+    }
+
+    private void onSubtitleChanged(Subtitle subtitle) {
+        var supportNativeSubtitlePlayback = videoService.getVideoPlayer()
+                .map(VideoPlayer::supportsNativeSubtitleFile)
+                .orElse(false);
+
+        if (subtitle.isNone() || supportNativeSubtitlePlayback) {
+            subtitleTrack.clear();
+        } else {
+            subtitleTrack.setSubtitle(subtitle);
+        }
+    }
+
+    private FontWeight getFontWeight(boolean isBold) {
+        return isBold ? FontWeight.BOLD : FontWeight.NORMAL;
+    }
+
+    private void updateSubtitleOffset(KeyEvent event, boolean increaseOffset) {
+        double offset = 0.1;
+
+        if (event.isControlDown() && event.isShiftDown()) {
+            offset = 10.0;
+        } else if (event.isControlDown()) {
+            offset = 5.0;
+        } else if (event.isShiftDown()) {
+            offset = 1.0;
+        }
+
+        double currentOffset = subtitleTrack.getOffset();
+
+        if (increaseOffset) {
+            subtitleTrack.setOffset(currentOffset + offset);
+        } else {
+            subtitleTrack.setOffset(currentOffset - offset);
         }
     }
 

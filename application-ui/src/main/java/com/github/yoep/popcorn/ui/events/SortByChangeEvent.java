@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.events;
 
-import com.github.yoep.popcorn.ui.view.models.SortBy;
+import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;

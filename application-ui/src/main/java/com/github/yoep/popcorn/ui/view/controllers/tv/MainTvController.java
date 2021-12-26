@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.settings.OptionsService;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.common.AbstractMainController;
 import com.github.yoep.popcorn.ui.view.services.UrlService;

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.media.resume;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.yoep.popcorn.ui.PopcornTimeApplication;
-import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
 import com.github.yoep.popcorn.ui.media.resume.models.AutoResume;
 import com.github.yoep.popcorn.ui.media.resume.models.VideoTimestamp;
 import javafx.animation.PauseTransition;
@@ -219,7 +219,7 @@ public class AutoResumeService {
     }
 
     private File getFile() {
-        return new File(PopcornTimeApplication.APP_DIR + NAME);
+        return new File(SettingsDefaults.APP_DIR + NAME);
     }
 
     private void onSave() {

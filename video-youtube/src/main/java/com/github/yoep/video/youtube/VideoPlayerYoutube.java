@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -103,14 +104,14 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     public void pause() throws VideoPlayerNotInitializedException {
         checkInitialized();
 
-        Platform.runLater(() -> getEngine().executeScript("pause()"));
+        Platform.runLater(() -> invokeOnEngine(e -> e.executeScript("pause()")));
     }
 
     @Override
     public void resume() throws VideoPlayerNotInitializedException {
         checkInitialized();
 
-        Platform.runLater(() -> getEngine().executeScript("resume()"));
+        Platform.runLater(() -> invokeOnEngine(e -> e.executeScript("resume()")));
     }
 
     @Override
@@ -284,6 +285,15 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
     private WebEngine getEngine() {
         return webView.getEngine();
+    }
+
+    private void invokeOnEngine(Consumer<WebEngine> action) {
+        try {
+            action.accept(getEngine());
+        } catch (JSException ex) {
+            log.error("Failed to invoke youtube engine command", ex);
+            setVideoState(VideoState.ERROR);
+        }
     }
 
     //endregion

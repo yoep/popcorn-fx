@@ -1,12 +1,12 @@
 package com.github.yoep.popcorn.ui.trakt;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.ui.media.watched.WatchedService;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.ui.settings.models.OAuth2AccessTokenWrapper;
-import com.github.yoep.popcorn.ui.settings.models.TraktSettings;
+import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
+import com.github.yoep.popcorn.backend.settings.models.OAuth2AccessTokenWrapper;
+import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

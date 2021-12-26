@@ -1,11 +1,11 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.ui.subtitles.models.DecorationType;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleFamily;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleLanguage;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;

@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorren
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
-import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
+import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;

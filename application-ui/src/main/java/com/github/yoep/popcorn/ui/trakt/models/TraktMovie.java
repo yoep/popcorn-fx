@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.trakt.models;
 
-import com.github.yoep.popcorn.ui.media.providers.models.MediaType;
-import com.github.yoep.popcorn.ui.media.watched.models.AbstractWatchable;
-import com.github.yoep.popcorn.ui.media.watched.models.Watchable;
+import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
+import com.github.yoep.popcorn.backend.media.watched.models.AbstractWatchable;
+import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 import lombok.*;
 
 @EqualsAndHashCode(callSuper = false)

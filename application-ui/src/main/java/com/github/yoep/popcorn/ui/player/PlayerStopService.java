@@ -3,11 +3,11 @@ package com.github.yoep.popcorn.ui.player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
+import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
+import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
-import com.github.yoep.popcorn.ui.events.PlayTorrentEvent;
-import com.github.yoep.popcorn.ui.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,7 +19,7 @@ import java.util.Optional;
 
 /**
  * The player stop service is responsible for handling the stopped event sent by the player.
- * It will translate the {@link com.github.yoep.popcorn.backend.adapters.player.state.PlayerState#STOPPED} to a {@link com.github.yoep.popcorn.ui.events.PlayerStoppedEvent}.
+ * It will translate the {@link com.github.yoep.popcorn.backend.adapters.player.state.PlayerState#STOPPED} to a {@link PlayerStoppedEvent}.
  */
 @Slf4j
 @Service

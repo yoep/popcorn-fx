@@ -6,8 +6,9 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
-import com.github.yoep.popcorn.ui.settings.OptionsService;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.ConditionalFeature;
@@ -18,17 +19,14 @@ import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import java.io.File;
-
 @Slf4j
 @SpringBootApplication
 public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String ICON_NAME = "icon_64.png";
     public static final String APPLICATION_TITLE = "Popcorn Time";
-    public static final String APP_DIR = getDefaultAppDirLocation();
 
     public static void main(String[] args) {
-        System.setProperty("app.dir", APP_DIR);
+        System.setProperty("app.dir", SettingsDefaults.APP_DIR);
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
 
@@ -89,7 +87,5 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW) ? Color.TRANSPARENT : Color.BLACK;
     }
 
-    private static String getDefaultAppDirLocation() {
-        return System.getProperty("user.home") + File.separator + ".popcorn-time" + File.separator;
-    }
+
 }

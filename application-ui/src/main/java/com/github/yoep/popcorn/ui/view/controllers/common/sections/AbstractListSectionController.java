@@ -2,18 +2,18 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.media.filters.models.Category;
+import com.github.yoep.popcorn.backend.media.filters.models.Genre;
+import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.providers.ProviderService;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
-import com.github.yoep.popcorn.ui.media.providers.ProviderService;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.messages.ListMessage;
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollItemFactory;
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollPane;
-import com.github.yoep.popcorn.ui.view.models.Category;
-import com.github.yoep.popcorn.ui.view.models.Genre;
-import com.github.yoep.popcorn.ui.view.models.SortBy;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -35,7 +35,6 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -252,7 +251,7 @@ public abstract class AbstractListSectionController implements Initializable {
 
         // check if the media request was cancelled
         // if so, ignore this failure
-        if (throwable instanceof CancellationException || throwable instanceof CompletionException) {
+        if (throwable instanceof CancellationException) {
             log.trace("Media request has been cancelled by the user");
             return new Media[0];
         }

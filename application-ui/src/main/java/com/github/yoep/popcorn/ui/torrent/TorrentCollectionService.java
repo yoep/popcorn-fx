@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.torrent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
-import com.github.yoep.popcorn.ui.PopcornTimeApplication;
+import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
 import com.github.yoep.popcorn.ui.torrent.models.StoredTorrent;
 import com.github.yoep.popcorn.ui.torrent.models.TorrentCollection;
 import lombok.RequiredArgsConstructor;
@@ -110,6 +110,6 @@ public class TorrentCollectionService {
     }
 
     private File getFile() {
-        return new File(PopcornTimeApplication.APP_DIR + NAME);
+        return new File(SettingsDefaults.APP_DIR + NAME);
     }
 }

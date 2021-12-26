@@ -2,13 +2,20 @@ package com.github.yoep.player.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.services.PlaybackService;
+import com.github.yoep.player.popcorn.subtitles.PopcornSubtitleService;
+import com.github.yoep.player.popcorn.subtitles.controls.LanguageSelection;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
+import com.github.yoep.popcorn.backend.messages.MediaMessage;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 
@@ -21,6 +28,9 @@ import java.util.concurrent.TimeUnit;
 public class PlayerControlsComponent implements Initializable {
     private final PlaybackService playbackService;
     private final ScreenService screenService;
+    private final LocaleText localeText;
+    private final SubtitleService subtitleService;
+    private final PopcornSubtitleService popcornSubtitleService;
 
     @FXML
     Icon playPauseIcon;
@@ -30,6 +40,8 @@ public class PlayerControlsComponent implements Initializable {
     ProgressSliderControl playProgress;
     @FXML
     Label durationLabel;
+    @FXML
+    LanguageSelection languageSelection;
     @FXML
     Icon fullscreenIcon;
 
@@ -74,11 +86,8 @@ public class PlayerControlsComponent implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeSlider();
+        initializeLanguageSelection();
     }
-
-    //endregion
-
-    //region Functions
 
     private void initializeSlider() {
         playProgress.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
@@ -97,6 +106,30 @@ public class PlayerControlsComponent implements Initializable {
         playProgress.setOnMouseReleased(event -> setVideoTime(playProgress.getTime() + 1.0));
     }
 
+    private void initializeLanguageSelection() {
+        languageSelection.getListView().setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(SubtitleInfo item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty) {
+                    if (item.isNone()) {
+                        setText(localeText.get(MediaMessage.SUBTITLE_NONE));
+                    } else {
+                        setText(item.getLanguage().getNativeName());
+                    }
+                }
+            }
+        });
+        languageSelection.addListener(this::onSubtitleChanged);
+        subtitleService.activeSubtitleProperty().addListener((observable, oldValue, newValue) ->
+                languageSelection.select(newValue.getSubtitleInfo().orElse(SubtitleInfo.none())));
+    }
+
+    //endregion
+
+    //region Functions
+
     private String formatTime(long time) {
         return String.format("%02d:%02d",
                 TimeUnit.MILLISECONDS.toMinutes(time),
@@ -107,6 +140,10 @@ public class PlayerControlsComponent implements Initializable {
         playProgress.setValueChanging(true);
         playProgress.setTime((long) time);
         playProgress.setValueChanging(false);
+    }
+
+    private void onSubtitleChanged(SubtitleInfo newValue) {
+        popcornSubtitleService.setSubtitle(newValue);
     }
 
     @FXML

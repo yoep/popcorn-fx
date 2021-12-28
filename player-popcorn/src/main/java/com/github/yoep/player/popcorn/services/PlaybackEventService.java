@@ -104,6 +104,7 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
     private void initializeListeners() {
         player.addListener(this);
         videoService.addListener(this);
+
     }
 
     //endregion
@@ -122,6 +123,13 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
     private void handleControlsOnPlay(PlayRequest request) {
         playerControls.updateSubtitleVisibility(request.isSubtitlesEnabled());
 
+        // check if the activity contains media information
+        if (request instanceof MediaPlayRequest) {
+            var mediaActivity = (MediaPlayRequest) request;
+            onPlayMedia(mediaActivity);
+            return;
+        }
+
         if (request.isSubtitlesEnabled()) {
             // set the default subtitle to "none" when loading
             var defaultSubtitle = SubtitleInfo.none();
@@ -131,12 +139,6 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
 
             log.debug("Retrieving subtitles for \"{}\"", filename);
             subtitleService.retrieveSubtitles(filename).whenComplete(this::handleSubtitlesResponse);
-        }
-
-        // check if the activity contains media information
-        if (request instanceof MediaPlayRequest) {
-            var mediaActivity = (MediaPlayRequest) request;
-            onPlayMedia(mediaActivity);
         }
     }
 

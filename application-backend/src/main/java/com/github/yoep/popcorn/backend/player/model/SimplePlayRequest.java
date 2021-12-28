@@ -1,11 +1,9 @@
-package com.github.yoep.popcorn.ui.player.model;
+package com.github.yoep.popcorn.backend.player.model;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import lombok.*;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
 
 @Getter
@@ -24,7 +22,7 @@ public class SimplePlayRequest implements PlayRequest {
     }
 
     @Override
-    public Optional<Subtitle> getSubtitle() {
+    public Optional<SubtitleInfo> getSubtitle() {
         return Optional.empty();
     }
 
@@ -39,7 +37,7 @@ public class SimplePlayRequest implements PlayRequest {
     }
 
     @Override
-    public Collection<Subtitle> subtitles() {
-        return Collections.emptyList();
+    public boolean isSubtitlesEnabled() {
+        return false;
     }
 }

@@ -3,8 +3,8 @@ package com.github.yoep.player.popcorn.controllers.sections;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.services.PlaybackService;
+import com.github.yoep.player.popcorn.services.SubtitleEventService;
 import com.github.yoep.player.popcorn.services.VideoService;
-import com.github.yoep.player.popcorn.subtitles.PopcornSubtitleService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
@@ -49,7 +49,7 @@ public class PopcornPlayerSectionController implements Initializable {
     private final ScreenService screenService;
     private final SettingsService settingsService;
     private final VideoService videoService;
-    private final PopcornSubtitleService popcornSubtitleService;
+    private final SubtitleEventService popcornSubtitleService;
     private final LocaleText localeText;
     protected final PauseTransition idleTimer = getIdleTimer();
     protected final PauseTransition offsetTimer = getOffsetTimer();
@@ -99,8 +99,13 @@ public class PopcornPlayerSectionController implements Initializable {
         }
     }
 
+    public void updateTime(Long time) {
+        subtitleTrack.onTimeChanged(time);
+    }
+
     public void reset() {
         Platform.runLater(() -> {
+            subtitleTrack.clear();
             errorText.setText(null);
         });
     }
@@ -126,6 +131,7 @@ public class PopcornPlayerSectionController implements Initializable {
 
     private void initializeListeners() {
         playbackService.addPlayerListener(createPlayerListener());
+        popcornSubtitleService.activeSubtitleProperty().addListener((observableValue, subtitle, newSubtitle) -> onSubtitleChanged(newSubtitle));
     }
 
     private void initializePaneListeners() {

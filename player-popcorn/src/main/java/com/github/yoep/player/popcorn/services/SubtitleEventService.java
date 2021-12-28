@@ -1,7 +1,6 @@
-package com.github.yoep.player.popcorn.subtitles;
+package com.github.yoep.player.popcorn.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.popcorn.services.VideoService;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
@@ -15,6 +14,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,11 +24,12 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PopcornSubtitleService {
+public class SubtitleEventService {
     public static final String SUBTITLE_SIZE_PROPERTY = "subtitleSize";
 
     private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
@@ -43,6 +44,18 @@ public class PopcornSubtitleService {
     private String url;
 
     //region Properties
+
+    public Subtitle getActiveSubtitle() {
+        return subtitleService.getActiveSubtitle();
+    }
+
+    public ObjectProperty<Subtitle> activeSubtitleProperty() {
+        return subtitleService.activeSubtitleProperty();
+    }
+
+    public void setActiveSubtitle(Subtitle activeSubtitle) {
+        subtitleService.setActiveSubtitle(activeSubtitle);
+    }
 
     /**
      * Get the subtitle font size.
@@ -93,6 +106,10 @@ public class PopcornSubtitleService {
     //endregion
 
     //region Methods
+
+    public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
+        return subtitleService.downloadAndParse(subtitleInfo, matcher);
+    }
 
     public void setSubtitle(SubtitleInfo subtitleInfo) {
         onSubtitleChanged(subtitleInfo);
@@ -190,12 +207,12 @@ public class PopcornSubtitleService {
         log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
         var matcher = SubtitleMatcher.from(FilenameUtils.getBaseName(url), quality);
 
-        subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitles, throwable) -> {
+        subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitle, throwable) -> {
             if (throwable == null) {
                 log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
-                subtitleService.setActiveSubtitle(subtitles);
+                subtitleService.setActiveSubtitle(subtitle);
 
-                onSubtitleDownloaded(subtitles);
+                onSubtitleDownloaded(subtitle);
             } else {
                 log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                 eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));

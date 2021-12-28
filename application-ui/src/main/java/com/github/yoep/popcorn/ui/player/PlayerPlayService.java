@@ -5,11 +5,11 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
+import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
-import com.github.yoep.popcorn.ui.player.model.MediaPlayRequest;
-import com.github.yoep.popcorn.ui.player.model.SimplePlayRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -24,7 +24,6 @@ public class PlayerPlayService {
     private final AutoResumeService autoResumeService;
     private final ScreenService screenService;
     private final SettingsService settingsService;
-    private final SubtitleService subtitleService;
 
     //region Methods
 
@@ -64,7 +63,10 @@ public class PlayerPlayService {
                 .title(event.getTitle())
                 .thumb(event.getThumbnail())
                 .quality(event.getQuality())
-                .subtitle(event.getSubtitle().orElse(null))
+                        .media(event.getMedia())
+                .subtitle(event.getSubtitle()
+                        .flatMap(Subtitle::getSubtitleInfo)
+                        .orElse(null))
                 .build());
     }
 

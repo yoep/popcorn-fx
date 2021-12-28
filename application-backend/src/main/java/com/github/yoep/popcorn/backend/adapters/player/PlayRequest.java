@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.backend.adapters.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 
-import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -28,7 +27,7 @@ public interface PlayRequest {
      *
      * @return Returns the subtitle if one was selected, else {@link Optional#empty()}.
      */
-    Optional<Subtitle> getSubtitle();
+    Optional<SubtitleInfo> getSubtitle();
 
     /**
      * Get the thumbnail url if one is present for the video.
@@ -45,9 +44,9 @@ public interface PlayRequest {
     Optional<String> getQuality();
 
     /**
-     * The list of available subtitles for the video playback.
+     * Check if the subtitles are enabled for this {@link PlayRequest}.
      *
-     * @return Returns the list of available subtitles.
+     * @return Returns true if subtitles should be enabled for the request, else false.
      */
-    Collection<Subtitle> subtitles();
+    boolean isSubtitlesEnabled();
 }

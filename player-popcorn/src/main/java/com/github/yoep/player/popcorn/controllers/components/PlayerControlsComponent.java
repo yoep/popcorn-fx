@@ -5,7 +5,7 @@ import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.services.PlaybackService;
-import com.github.yoep.player.popcorn.subtitles.PopcornSubtitleService;
+import com.github.yoep.player.popcorn.services.SubtitleEventService;
 import com.github.yoep.player.popcorn.subtitles.controls.LanguageSelection;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.messages.MediaMessage;
@@ -17,12 +17,17 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.List;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @ViewController
 @RequiredArgsConstructor
 public class PlayerControlsComponent implements Initializable {
@@ -30,7 +35,7 @@ public class PlayerControlsComponent implements Initializable {
     private final ScreenService screenService;
     private final LocaleText localeText;
     private final SubtitleService subtitleService;
-    private final PopcornSubtitleService popcornSubtitleService;
+    private final SubtitleEventService popcornSubtitleService;
 
     @FXML
     Icon playPauseIcon;
@@ -44,6 +49,8 @@ public class PlayerControlsComponent implements Initializable {
     LanguageSelection languageSelection;
     @FXML
     Icon fullscreenIcon;
+    @FXML
+    Pane subtitleSection;
 
     //region Methods
 
@@ -77,6 +84,21 @@ public class PlayerControlsComponent implements Initializable {
         } else {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
         }
+    }
+
+    public void updateSubtitleVisibility(boolean isSubtitlesEnabled) {
+        // update the visibility of the subtitles section
+        Platform.runLater(() -> subtitleSection.setVisible(isSubtitlesEnabled));
+    }
+
+    public void updateAvailableSubtitles(List<SubtitleInfo> subtitles, SubtitleInfo subtitle) {
+        Objects.requireNonNull(subtitles, "subtitles cannot be null");
+        log.trace("Updating available subtitles to {}", subtitles.size());
+        Platform.runLater(() -> {
+            languageSelection.getItems().clear();
+            languageSelection.getItems().addAll(subtitles);
+            languageSelection.select(subtitle);
+        });
     }
 
     //endregion
@@ -126,6 +148,13 @@ public class PlayerControlsComponent implements Initializable {
                 languageSelection.select(newValue.getSubtitleInfo().orElse(SubtitleInfo.none())));
     }
 
+    public void reset() {
+        Platform.runLater(() -> {
+            playProgress.setTime(0);
+            languageSelection.getItems().clear();
+        });
+    }
+
     //endregion
 
     //region Functions
@@ -146,6 +175,10 @@ public class PlayerControlsComponent implements Initializable {
         popcornSubtitleService.setSubtitle(newValue);
     }
 
+    private void onSubtitleSizeChanged(int pixelChange) {
+        popcornSubtitleService.setSubtitleSize(popcornSubtitleService.getSubtitleSize() + pixelChange);
+    }
+
     @FXML
     void onPlayPauseClicked(MouseEvent event) {
         event.consume();
@@ -160,12 +193,12 @@ public class PlayerControlsComponent implements Initializable {
 
     @FXML
     void onSubtitleSmaller() {
-//        onSubtitleSizeChanged(-4);
+        onSubtitleSizeChanged(-4);
     }
 
     @FXML
     void onSubtitleLarger() {
-//        onSubtitleSizeChanged(4);
+        onSubtitleSizeChanged(4);
     }
 
     //endregion

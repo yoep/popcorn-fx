@@ -204,6 +204,8 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
 
     protected void onTorrentCreated(Torrent torrent, Throwable throwable) {
         if (throwable == null) {
+            log.debug("Torrent {} has been created for media {}", torrent.getFilename(), media);
+
             // register the torrent listener to this torrent
             this.torrent = torrent;
             this.torrent.addListener(torrentListener);

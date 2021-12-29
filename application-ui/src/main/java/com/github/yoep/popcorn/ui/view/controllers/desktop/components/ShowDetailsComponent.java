@@ -296,6 +296,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         if (episode == null)
             return;
 
+        log.trace("Show episode has been switched to {}", episode);
         LocalDateTime airDateTime = episode.getAirDate();
 
         episodeTitle.setText(episode.getTitle());

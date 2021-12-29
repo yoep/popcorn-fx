@@ -10,10 +10,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Arrays.asList;
+
 @ToString
 @EqualsAndHashCode
 public class TorrentInfoWrapper implements TorrentInfo {
     private transient final com.frostwire.jlibtorrent.TorrentInfo nativeInfo;
+    private final String torrentDirectoryName;
 
     /**
      * The cached files of this {@link TorrentInfo}.
@@ -25,6 +28,13 @@ public class TorrentInfoWrapper implements TorrentInfo {
     public TorrentInfoWrapper(com.frostwire.jlibtorrent.TorrentInfo nativeInfo) {
         Assert.notNull(nativeInfo, "nativeInfo cannot be null");
         this.nativeInfo = nativeInfo;
+        this.torrentDirectoryName = nativeInfo.files().name();
+    }
+
+    TorrentInfoWrapper(com.frostwire.jlibtorrent.TorrentInfo nativeInfo, String torrentDirectoryName, TorrentFileInfo... files) {
+        this.nativeInfo = nativeInfo;
+        this.torrentDirectoryName = torrentDirectoryName;
+        this.files = asList(files);
     }
 
     //endregion
@@ -79,10 +89,24 @@ public class TorrentInfoWrapper implements TorrentInfo {
     @Override
     public Optional<TorrentFileInfo> getByFilename(String filename) {
         var torrentDirectory = getTorrentDirectoryName();
-        var expectedFilePath = getSimplifiedFilePath(torrentDirectory + filename);
+        var filepathWithoutTorrentDirectory = getSimplifiedFilePath(filename);
 
+        // on the first attempt,
+        // we'll try to match the torrent file based on the given filename without the torrent directory
+        var torrentFileInfo = getFiles().stream()
+                .filter(e -> getSimplifiedFilePath(e.getFilePath()).equalsIgnoreCase(filepathWithoutTorrentDirectory))
+                .findFirst();
+
+        if (torrentFileInfo.isPresent()) {
+            return torrentFileInfo;
+        }
+
+        var filepathWithTorrentDirectory = getSimplifiedFilePath(torrentDirectory + filename);
+
+        // on the second attempt,
+        // we'll try to match the torrent file based on the given filename with the torrent directory included
         return getFiles().stream()
-                .filter(e -> getSimplifiedFilePath(e.getFilePath()).equalsIgnoreCase(expectedFilePath))
+                .filter(e -> getSimplifiedFilePath(e.getFilePath()).equalsIgnoreCase(filepathWithTorrentDirectory))
                 .findFirst();
     }
 
@@ -106,7 +130,7 @@ public class TorrentInfoWrapper implements TorrentInfo {
     }
 
     private String getTorrentDirectoryName() {
-        return nativeInfo.files().name();
+        return this.torrentDirectoryName;
     }
 
     private TorrentFileInfo createFileInfo(int index) {

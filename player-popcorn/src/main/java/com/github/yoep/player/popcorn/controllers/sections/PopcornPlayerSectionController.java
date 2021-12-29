@@ -2,6 +2,7 @@ package com.github.yoep.player.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PlaybackService;
 import com.github.yoep.player.popcorn.services.SubtitleEventService;
 import com.github.yoep.player.popcorn.services.VideoService;
@@ -10,7 +11,6 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
-import com.github.yoep.popcorn.backend.messages.VideoMessage;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;

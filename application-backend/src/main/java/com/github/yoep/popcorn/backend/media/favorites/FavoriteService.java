@@ -1,14 +1,12 @@
 package com.github.yoep.popcorn.backend.media.favorites;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
-import com.github.yoep.popcorn.backend.utils.FileService;
+import com.github.yoep.popcorn.backend.storage.StorageException;
+import com.github.yoep.popcorn.backend.storage.StorageService;
 import com.github.yoep.popcorn.backend.utils.IdleTimer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +16,6 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.io.File;
-import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,14 +27,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FavoriteService {
     static final int UPDATE_CACHE_AFTER_HOURS = 72;
-    static final String NAME = "favorites.json";
-    static final String FAVORITES_PATH = SettingsDefaults.APP_DIR + NAME;
+    static final String STORAGE_NAME = "favorites.json";
     private static final int IDLE_TIME = 10;
 
     private final IdleTimer idleTimer = new IdleTimer(Duration.ofSeconds(IDLE_TIME));
-    private final ObjectMapper objectMapper;
     private final TaskExecutor taskExecutor;
-    private final FileService fileService;
+    private final StorageService storageService;
     private final ProviderService<Movie> movieProviderService;
     private final ProviderService<Show> showProviderService;
     private final Object cacheLock = new Object();
@@ -152,10 +146,9 @@ public class FavoriteService {
 
     private void save(Favorites favorites) {
         try {
-            log.debug("Saving favorites to {}", fileService.getAbsolutePath(FAVORITES_PATH));
-            fileService.save(FAVORITES_PATH, objectMapper.writeValueAsString(favorites));
-        } catch (IOException ex) {
-            log.error("Failed to save the favorites with error" + ex.getMessage(), ex);
+            storageService.store(STORAGE_NAME, favorites);
+        } catch (StorageException ex) {
+            log.error("Failed to save favorites, {}", ex.getMessage(), ex);
         }
     }
 
@@ -169,28 +162,28 @@ public class FavoriteService {
                 return;
         }
 
-        var file = getFile();
+        log.debug("Loading favorites from storage");
+        try {
+            storageService.read(STORAGE_NAME, Favorites.class)
+                    .ifPresentOrElse(this::handleStoredFavorites, this::createNewFavorites);
+        } catch (StorageException ex) {
+            throw new FavoriteException(ex.getMessage(), ex);
+        }
+    }
 
-        if (file.exists()) {
-            try {
-                log.debug("Loading favorites from {}", file.getAbsolutePath());
+    private void handleStoredFavorites(Favorites e) {
+        synchronized (cacheLock) {
+            cache = e;
+            cacheHash = cache.hashCode();
+        }
+    }
 
-                synchronized (cacheLock) {
-                    cache = objectMapper.readValue(file, Favorites.class);
-                    cacheHash = cache.hashCode();
-                }
-            } catch (JsonMappingException ex) {
-                throw new FavoriteException("Failed to load favorites, file has been corrupted: " + ex.getMessage(), ex);
-            } catch (IOException ex) {
-                throw new FavoriteAccessException(file, ex);
-            }
-        } else {
-            // build a new cache as now favorite database file is found
-            log.debug("Favorites file was not found, creating a new blank cache for favorites");
-            synchronized (cacheLock) {
-                cache = Favorites.builder().build();
-                cacheHash = cache.hashCode();
-            }
+    private void createNewFavorites() {
+        // build a new cache as now favorite database file is found
+        log.debug("Favorites file was not found, creating a new blank cache for favorites");
+        synchronized (cacheLock) {
+            cache = Favorites.builder().build();
+            cacheHash = cache.hashCode();
         }
     }
 
@@ -253,10 +246,6 @@ public class FavoriteService {
         }
 
         return shouldUpdate;
-    }
-
-    private File getFile() {
-        return fileService.getFile(FAVORITES_PATH);
     }
 
     private void onSave() {

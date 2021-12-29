@@ -6,8 +6,8 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
+import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -19,6 +19,8 @@ import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import java.io.File;
+
 @Slf4j
 @SpringBootApplication
 public class PopcornTimeApplication extends SpringJavaFXApplication {
@@ -26,7 +28,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String APPLICATION_TITLE = "Popcorn Time";
 
     public static void main(String[] args) {
-        System.setProperty("app.dir", SettingsDefaults.APP_DIR);
+        System.setProperty("log.dir", getLogDirectory());
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
 
@@ -87,5 +89,10 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW) ? Color.TRANSPARENT : Color.BLACK;
     }
 
+    public static String getLogDirectory() {
+        var loggingDirectoryPath = System.getProperty("user.home") + File.separator + BackendConstants.POPCORN_HOME_DIRECTORY + File.separator;
+        var loggingDirectory = new File(loggingDirectoryPath);
 
+        return loggingDirectory.getAbsolutePath();
+    }
 }

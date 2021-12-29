@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
@@ -35,8 +34,7 @@ public class SubtitleSettings extends AbstractSettings {
     /**
      * The directory to save the subtitles to.
      */
-    @Builder.Default
-    private File directory = new File(SettingsDefaults.APP_DIR + DEFAULT_SUBTITLE_DIRECTORY);
+    private File directory;
     /**
      * The indication if the subtitle directory should be cleaned if the application is closed.
      */

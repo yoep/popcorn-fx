@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
 import lombok.*;
 
 import java.io.File;
@@ -23,8 +22,7 @@ public class TorrentSettings extends AbstractSettings {
     /**
      * The directory to save the torrents to.
      */
-    @Builder.Default
-    private File directory = new File(SettingsDefaults.APP_DIR + DEFAULT_TORRENT_DIRECTORY);
+    private File directory;
     /**
      * The indication if the torrent directory should be cleaned if the application is closed.
      */

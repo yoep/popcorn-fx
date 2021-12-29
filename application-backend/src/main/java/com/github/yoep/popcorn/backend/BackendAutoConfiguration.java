@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Import;
         MediaConfig.class,
         RestConfig.class,
         SettingsConfig.class,
+        StorageConfig.class,
         SubtitlesConfig.class,
         ThreadConfig.class,
         UtilsConfig.class,

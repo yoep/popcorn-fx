@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn;
 
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
+import com.github.yoep.popcorn.ui.PopcornTimeApplication;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,7 +20,7 @@ public abstract class TestFxBase extends ApplicationTest {
         System.setProperty("testfx.robot", "glass");
         // the ApplicationTest bypasses the main method in PopcornTimeApplication
         // so we need to manually provide the system property "app.dir" for testing purposes
-        System.setProperty("app.dir", SettingsDefaults.APP_DIR);
+        System.setProperty("log.dir", PopcornTimeApplication.getLogDirectory());
 
         initializeLibTorrentPath();
     }

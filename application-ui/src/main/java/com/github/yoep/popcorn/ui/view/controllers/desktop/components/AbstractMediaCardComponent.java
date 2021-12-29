@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.providers.models.Show;
-import com.github.yoep.popcorn.ui.messages.MediaMessage;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.messages.MediaMessage;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractCardComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;

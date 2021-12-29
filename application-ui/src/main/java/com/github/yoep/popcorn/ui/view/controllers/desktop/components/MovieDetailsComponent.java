@@ -1,22 +1,22 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.messages.DetailsMessage;
+import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
-import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
-import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.providers.models.Movie;
-import com.github.yoep.popcorn.ui.media.watched.WatchedService;
-import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.messages.SubtitleMessage;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagCell;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -65,7 +65,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     public MovieDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, HealthService healthService,
                                  SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
                                  SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
-                                 PlayerService playerService) {
+                                 PlayerManagerService playerService) {
         super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, favoriteService,
                 watchedService, playerService);
 
@@ -239,9 +239,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @FXML
     private void onWatchNowClicked(MouseEvent event) {
-        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-
         event.consume();
+
+        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
         eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, quality, subtitle));
     }
 
@@ -249,7 +249,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     private void onTrailerClicked(MouseEvent event) {
         event.consume();
 
-        eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false));
+        eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
     }
 
     @FXML

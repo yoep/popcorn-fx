@@ -2,10 +2,10 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.ui.media.providers.ProviderService;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.providers.ProviderService;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractListSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayMediaCardComponent;

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.conditions;
 
-import com.github.yoep.popcorn.ui.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

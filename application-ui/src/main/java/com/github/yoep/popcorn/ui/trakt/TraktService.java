@@ -1,13 +1,13 @@
 package com.github.yoep.popcorn.ui.trakt;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
-import com.github.yoep.popcorn.ui.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.messages.TraktMessage;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.trakt.models.*;
 import javafx.application.Platform;
 import lombok.RequiredArgsConstructor;

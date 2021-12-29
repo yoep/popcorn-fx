@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.NotificationEvent;
+import com.github.yoep.popcorn.backend.events.NotificationEvent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.NotificationComponent;
 import javafx.animation.Animation;
 import javafx.animation.TranslateTransition;

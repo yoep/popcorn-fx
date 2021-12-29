@@ -1,7 +1,7 @@
 package com.github.yoep.torrent.frostwire;
 
-import com.github.yoep.torrent.adapter.InvalidTorrentUrlException;
-import com.github.yoep.torrent.adapter.TorrentException;
+import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentUrlException;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.torrent.frostwire.wrappers.TorrentInfoWrapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;

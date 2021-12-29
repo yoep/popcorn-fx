@@ -2,22 +2,25 @@ package com.github.yoep.popcorn.ui.view.config;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.ui.media.providers.ProviderService;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.watched.WatchedService;
-import com.github.yoep.popcorn.ui.settings.OptionsService;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
+import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.providers.ProviderService;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.tv.MainTvController;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.tv.sections.*;
-import com.github.yoep.popcorn.ui.view.services.*;
-import com.github.yoep.torrent.adapter.TorrentService;
-import com.github.yoep.torrent.adapter.TorrentStreamService;
+import com.github.yoep.popcorn.ui.view.services.HealthService;
+import com.github.yoep.popcorn.ui.view.services.ImageService;
+import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
+import com.github.yoep.popcorn.ui.view.services.UrlService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -71,15 +74,6 @@ public class TvConfig {
                                                        ApplicationEventPublisher eventPublisher,
                                                        PopcornProperties properties) {
         return new MenuSectionController(settingsService, eventPublisher, properties);
-    }
-
-    @Bean
-    public PlayerSectionController playerSectionController(SettingsService settingsService,
-                                                           VideoPlayerService videoPlayerService,
-                                                           VideoPlayerManagerService videoPlayerManagerService,
-                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
-                                                           LocaleText localeText) {
-        return new PlayerSectionController(settingsService, videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, localeText);
     }
 
     @Bean
@@ -142,18 +136,6 @@ public class TvConfig {
                                                              TorrentSettingService torrentSettingService,
                                                              SettingsSectionController settingsSection) {
         return new SettingsTorrentComponent(eventPublisher, localeText, settingsService, torrentSettingService, settingsSection);
-    }
-
-    @Bean
-    public PlayerHeaderComponent playerHeaderComponent() {
-        return new PlayerHeaderComponent();
-    }
-
-    @Bean
-    public PlayerControlsComponent playerControlsComponent(VideoPlayerService videoPlayerService,
-                                                           VideoPlayerManagerService videoPlayerManagerService,
-                                                           VideoPlayerSubtitleService videoPlayerSubtitleService) {
-        return new PlayerControlsComponent(videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService);
     }
 
     @Bean

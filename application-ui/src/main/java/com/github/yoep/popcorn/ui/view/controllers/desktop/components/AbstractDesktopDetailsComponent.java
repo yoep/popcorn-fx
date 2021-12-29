@@ -2,20 +2,20 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.adapter.PlayerService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.messages.DetailsMessage;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
-import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
-import com.github.yoep.popcorn.ui.media.watched.WatchedService;
-import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagSelection;
-import com.github.yoep.popcorn.ui.subtitles.controls.LanguageSelectionListener;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
 import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
@@ -55,7 +55,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected final SubtitlePickerService subtitlePickerService;
     protected final FavoriteService favoriteService;
     protected final WatchedService watchedService;
-    protected final PlayerService playerService;
+    protected final PlayerManagerService playerService;
 
     protected SubtitleInfo subtitle;
     protected boolean liked;
@@ -86,7 +86,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
                                               SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
-                                              PlayerService playerService) {
+                                              PlayerManagerService playerService) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
@@ -122,7 +122,12 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         updateExternalPlayers();
 
         // listen on player selection changed
-        watchNowButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> playerService.setActivePlayer(newValue));
+        watchNowButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            // verify if the new value is not null
+            // if so, update the active player
+            if (newValue != null)
+                playerService.setActivePlayer(newValue);
+        });
     }
 
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {

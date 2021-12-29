@@ -19,8 +19,8 @@
         <!-- Player adapter -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>player-adapter</artifactId>
-            <version>${parent.version}</version>
+            <artifactId>application-backend</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Chromecast -->
@@ -28,13 +28,6 @@
             <groupId>su.litvak.chromecast</groupId>
             <artifactId>api-v2</artifactId>
             <version>${chromecast-api.version}</version>
-        </dependency>
-
-        <!-- JavaFX -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-base</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <!-- Spring -->
@@ -48,11 +41,17 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- Javax -->
         <dependency>
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Lombok -->

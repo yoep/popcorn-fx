@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;

@@ -1,9 +1,13 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.events.*;
-import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.messages.MediaMessage;
+import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.messages.DetailsMessage;
+import com.github.yoep.popcorn.backend.messages.MediaMessage;
+import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
+import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import javafx.application.Application;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,14 +1,14 @@
 package com.github.yoep.torrent.stream.models;
 
-import com.github.yoep.torrent.adapter.InvalidStreamStateException;
-import com.github.yoep.torrent.adapter.TorrentException;
-import com.github.yoep.torrent.adapter.listeners.AbstractTorrentListener;
-import com.github.yoep.torrent.adapter.listeners.TorrentListener;
-import com.github.yoep.torrent.adapter.listeners.TorrentStreamListener;
-import com.github.yoep.torrent.adapter.model.Torrent;
-import com.github.yoep.torrent.adapter.model.TorrentStream;
-import com.github.yoep.torrent.adapter.state.TorrentState;
-import com.github.yoep.torrent.adapter.state.TorrentStreamState;
+import com.github.yoep.popcorn.backend.adapters.torrent.InvalidStreamStateException;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentStreamListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import lombok.EqualsAndHashCode;

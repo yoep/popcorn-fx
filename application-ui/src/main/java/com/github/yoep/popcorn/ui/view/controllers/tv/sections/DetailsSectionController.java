@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 
-import com.github.yoep.popcorn.ui.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.ui.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import javafx.fxml.FXML;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;

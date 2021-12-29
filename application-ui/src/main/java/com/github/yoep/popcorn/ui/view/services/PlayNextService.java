@@ -1,12 +1,16 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
-import com.github.yoep.popcorn.ui.events.PlayMediaEvent;
-import com.github.yoep.popcorn.ui.events.PlayVideoEvent;
-import com.github.yoep.popcorn.ui.media.providers.models.Episode;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.view.listeners.AbstractVideoPlayerListener;
+import com.github.yoep.popcorn.ui.player.PlayerEventService;
 import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.ReadOnlyLongWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -34,7 +38,8 @@ public class PlayNextService {
     public static final int COUNTDOWN_FROM = 60;
 
     private final ApplicationEventPublisher eventPublisher;
-    private final VideoPlayerService videoPlayerService;
+    private final PlayerEventService playerEventService;
+    private final PlayerManagerService playerManagerService;
     private final SettingsService settingsService;
 
     private final ReadOnlyObjectWrapper<Episode> nextEpisode = new ReadOnlyObjectWrapper<>(this, NEXT_EPISODE_PROPERTY);
@@ -120,15 +125,20 @@ public class PlayNextService {
     }
 
     private void initializeVideoPlayerListeners() {
-        videoPlayerService.addListener(new AbstractVideoPlayerListener() {
+        playerEventService.addListener(new PlayerListener() {
             @Override
-            public void onTimeChanged(Number newValue) {
-                PlayNextService.this.onTimeChanged(newValue.longValue());
+            public void onDurationChanged(long newDuration) {
+                PlayNextService.this.onDurationChanged(newDuration);
             }
 
             @Override
-            public void onDurationChanged(Number newValue) {
-                PlayNextService.this.onDurationChanged(newValue.longValue());
+            public void onTimeChanged(long newTime) {
+                PlayNextService.this.onTimeChanged(newTime);
+            }
+
+            @Override
+            public void onStateChanged(PlayerState newState) {
+                // no-op
             }
         });
     }
@@ -197,7 +207,8 @@ public class PlayNextService {
         var mediaTorrentInfo = episode.getTorrents().get(quality);
 
         // stop the video playback
-        videoPlayerService.stop();
+        playerManagerService.getActivePlayer()
+                .ifPresent(Player::pause);
 
         // start loading the next episode
         eventPublisher.publishEvent(LoadMediaTorrentEvent.builder()

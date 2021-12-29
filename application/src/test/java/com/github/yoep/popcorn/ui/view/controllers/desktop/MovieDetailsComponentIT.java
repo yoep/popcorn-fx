@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop;
 
 import com.github.yoep.popcorn.Categories;
 import com.github.yoep.popcorn.TestFxBase;
-import com.github.yoep.torrent.adapter.TorrentService;
-import com.github.yoep.torrent.adapter.state.SessionState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.scene.Node;
 import javafx.scene.layout.GridPane;
 import org.apache.commons.lang3.StringUtils;

@@ -1,8 +1,8 @@
 package com.github.yoep.torrent.frostwire.wrappers;
 
 import com.frostwire.jlibtorrent.FileStorage;
-import com.github.yoep.torrent.adapter.model.TorrentFileInfo;
-import com.github.yoep.torrent.adapter.model.TorrentInfo;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.springframework.util.Assert;

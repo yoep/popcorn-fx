@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--<?import com.github.yoep.popcorn.ui.subtitles.controls.SubtitleTrack?>-->
+<?import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionController" fx:id="playerPane" styleClass="player">
+    <!-- Video VideoWidget -->
+    <StackPane fx:id="videoView"
+               AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <!-- Video VideoWidget subtitle -->
+    <SubtitleTrack fx:id="subtitleTrack"
+                   AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="50" AnchorPane.leftAnchor="0"/>
+
+    <!-- Buffer indicator -->
+    <StackPane fx:id="bufferPane" AnchorPane.topAnchor="100" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="100"/>
+
+    <!-- Subtitle offset info -->
+    <Label fx:id="subtitleOffset" styleClass="video-info" cache="true" cacheHint="SPEED"
+           AnchorPane.topAnchor="50" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="15"/>
+
+    <!-- Error info -->
+    <Label fx:id="errorText" styleClass="video-info" textAlignment="CENTER" alignment="CENTER" cache="true"
+           AnchorPane.topAnchor="100" AnchorPane.rightAnchor="15" AnchorPane.leftAnchor="15" AnchorPane.bottomAnchor="100"/>
+
+    <!-- Video VideoWidget Cover -->
+    <BorderPane fx:id="playerVideoOverlay" styleClass="player-overlay" onMouseClicked="#onPlayerClick" cache="true" cacheHint="SCALE"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <!-- VideoWidget Header -->
+    <fx:include fx:id="playerHeaderPane" source="../components/player-header.component.fxml"
+                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <!-- VideoWidget Controls -->
+    <fx:include fx:id="playerControlsPane" source="../components/player-controls.component.fxml"
+                AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
+</AnchorPane>

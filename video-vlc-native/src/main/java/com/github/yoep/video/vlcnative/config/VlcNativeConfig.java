@@ -1,6 +1,6 @@
 package com.github.yoep.video.vlcnative.config;
 
-import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.video.vlcnative.PopcornPlayerLibDiscovery;
 import com.github.yoep.video.vlcnative.VideoPlayerVlcNative;
 import com.github.yoep.video.vlcnative.conditions.ConditionalOnArmDevice;

@@ -1,26 +1,27 @@
 package com.github.yoep.player.chromecast;
 
-import com.github.yoep.player.adapter.PlayRequest;
-import com.github.yoep.player.adapter.Player;
-import com.github.yoep.player.adapter.state.PlayerState;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import com.github.yoep.player.chromecast.model.VideoMetadata;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import su.litvak.chromecast.api.v2.ChromeCast;
-import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEvent;
-import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEventListener;
-import su.litvak.chromecast.api.v2.MediaStatus;
+import su.litvak.chromecast.api.v2.*;
 
 import java.io.IOException;
+import java.net.URI;
 import java.security.GeneralSecurityException;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Consumer;
 
 @Slf4j
 @ToString(exclude = {"playerState", "chromeCast", "listener"})
@@ -29,12 +30,19 @@ import java.util.Optional;
 public class ChromecastPlayer implements Player {
     private static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
     private static final String APP_ID = "CC1AD845";
+    private static final String METADATA_THUMBNAIL = "thumb";
+    private static final String METADATA_THUMBNAIL_URL = "thumbnailUrl";
+    private static final String METADATA_POSTER_URL = "posterUrl";
 
-    private final ObjectProperty<PlayerState> playerState = new SimpleObjectProperty<>(this, STATE_PROPERTY, PlayerState.UNKNOWN);
     private final ChromeCastSpontaneousEventListener listener = createEventListener();
+    private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
+    private final Timer statusTimer = new Timer("ChromecastPlaybackStatus");
     private final ChromeCast chromeCast;
+    @Nullable
+    private final ChromecastContentTypeResolver contentTypeResolver;
 
-    private Thread playbackThread;
+    private PlayerState playerState = PlayerState.UNKNOWN;
+    private PlaybackThread playbackThread;
     private boolean connected;
     private boolean appLaunched;
 
@@ -57,11 +65,6 @@ public class ChromecastPlayer implements Player {
 
     @Override
     public PlayerState getState() {
-        return playerState.get();
-    }
-
-    @Override
-    public ReadOnlyObjectProperty<PlayerState> stateProperty() {
         return playerState;
     }
 
@@ -82,28 +85,25 @@ public class ChromecastPlayer implements Player {
     }
 
     @Override
+    public void addListener(PlayerListener listener) {
+        Assert.notNull(listener, "listener cannot be null");
+        listeners.add(listener);
+    }
+
+    @Override
+    public void removeListener(PlayerListener listener) {
+        listeners.remove(listener);
+    }
+
+    @Override
     public void play(PlayRequest request) {
         Assert.notNull(request, "request cannot be null");
-        var url = request.getUrl();
 
         // check if we need to stop the previous playback thread
         stopPreviousPlaybackThreadIfNeeded();
 
         // run the request on a separate thread to unblock the UI
-        playbackThread = new Thread(() -> {
-            // prepare the chromecast device if needed
-            prepareDeviceIfNeeded();
-
-            try {
-                log.debug("Loading url \"{}\" on Chromecast \"{}\"", url, getName());
-                playerState.set(PlayerState.LOADING);
-                var status = chromeCast.load(url);
-                log.debug("Received status {}", status);
-            } catch (IOException ex) {
-                log.error("Failed to play url on Chromecast \"{}\", {}", getName(), ex.getMessage(), ex);
-                playerState.set(PlayerState.ERROR);
-            }
-        }, "ChromecastPlayback");
+        playbackThread = new PlaybackThread(request);
         playbackThread.start();
     }
 
@@ -133,6 +133,10 @@ public class ChromecastPlayer implements Player {
         } catch (IOException ex) {
             log.error("Failed to stop the Chromecast playback, {}", ex.getMessage(), ex);
         }
+
+        statusTimer.cancel();
+        statusTimer.purge();
+        updateState(PlayerState.STOPPED);
     }
 
     @Override
@@ -160,6 +164,38 @@ public class ChromecastPlayer implements Player {
 
     //region Functions
 
+    private Map<String, Object> getMediaMetaData(PlayRequest request) {
+        var metadata = new HashMap<String, Object>();
+        metadata.put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
+        metadata.put(Media.METADATA_TITLE, request.getTitle().orElse(null));
+        metadata.put(METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
+        metadata.put(METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
+        metadata.put(METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+        return metadata;
+    }
+
+    private List<Track> getMediaTracks(PlayRequest request) {
+        // check if a subtitle track is provided
+        // if so, add it to the media
+        return request.getSubtitle()
+                .map(e -> new Track(1, Track.TrackType.TEXT))
+                .map(Collections::singletonList)
+                .orElse(Collections.emptyList());
+    }
+
+    private VideoMetadata resolveVideoMetaData(String url) {
+        // check if a content type resolver has been provided
+        // if not, use the octet stream as fallback value
+        if (contentTypeResolver == null) {
+            return VideoMetadata.builder()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                    .duration(VideoMetadata.UNKNOWN_DURATION)
+                    .build();
+        }
+
+        return contentTypeResolver.resolve(URI.create(url));
+    }
+
     private void prepareDeviceIfNeeded() {
         // check if a connection to the Chromecast device has been made
         // if not, try to create a new connection
@@ -175,9 +211,8 @@ public class ChromecastPlayer implements Player {
     }
 
     private void stopPreviousPlaybackThreadIfNeeded() {
-        if (playbackThread != null && playbackThread.isAlive()) {
-            log.debug("Interrupting the current Chromecast playback thread");
-            playbackThread.interrupt();
+        if (playbackThread != null) {
+            playbackThread.stopPlayback();
         }
     }
 
@@ -249,20 +284,35 @@ public class ChromecastPlayer implements Player {
             return;
         }
 
-        switch (status.playerState) {
+        log.trace("Received chromecast media status update {}", status);
+        onPlayerStateChanged(status.playerState);
+        onPlayerTimeChanged(status.currentTime);
+        onPlayerDurationChanged(status.media.duration);
+    }
+
+    private void onPlayerStateChanged(MediaStatus.PlayerState status) {
+        switch (status) {
             case LOADING:
-                playerState.set(PlayerState.LOADING);
+                updateState(PlayerState.LOADING);
                 break;
             case PLAYING:
-                playerState.set(PlayerState.PLAYING);
+                updateState(PlayerState.PLAYING);
                 break;
             case PAUSED:
-                playerState.set(PlayerState.PAUSED);
+                updateState(PlayerState.PAUSED);
                 break;
             case BUFFERING:
-                playerState.set(PlayerState.BUFFERING);
+                updateState(PlayerState.BUFFERING);
                 break;
         }
+    }
+
+    private void onPlayerTimeChanged(double currentTime) {
+        invokeSafeListeners(e -> e.onTimeChanged((long) currentTime * 1000));
+    }
+
+    private void onPlayerDurationChanged(Double duration) {
+        invokeSafeListeners(e -> e.onDurationChanged(duration.longValue() * 1000));
     }
 
     private ChromeCastSpontaneousEventListener createEventListener() {
@@ -274,5 +324,86 @@ public class ChromecastPlayer implements Player {
         };
     }
 
+    private void updateState(PlayerState state) {
+        playerState = state;
+        invokeSafeListeners(e -> e.onStateChanged(state));
+    }
+
+    private void invokeSafeListeners(Consumer<PlayerListener> action) {
+        listeners.forEach(e -> {
+            try {
+                action.accept(e);
+            } catch (Exception ex) {
+                log.warn("Failed to invoked player listener, {}", ex.getMessage(), ex);
+            }
+        });
+    }
+
     //endregion
+
+    /**
+     * Internal playback thread which unloads the {@link ChromeCast} workload to a new separate thread
+     * to allow the current calling thread to be unblocked.
+     */
+    private class PlaybackThread extends Thread {
+        private final PlayRequest request;
+        private volatile boolean keepAlive = true;
+
+        private PlaybackThread(PlayRequest request) {
+            super("ChromecastPlayback");
+            Objects.requireNonNull(request, "request cannot be null");
+            this.request = request;
+        }
+
+        @Override
+        public void run() {
+            // prepare the chromecast device if needed
+            prepareDeviceIfNeeded();
+            var url = request.getUrl();
+            var videoMetadata = resolveVideoMetaData(url);
+
+            try {
+                log.debug("Loading url \"{}\" on Chromecast \"{}\"", url, getName());
+                updateState(PlayerState.LOADING);
+
+                var tracks = getMediaTracks(request);
+                var metadata = getMediaMetaData(request);
+                var media = new Media(url, videoMetadata.getContentType(), videoMetadata.getDuration().doubleValue(), Media.StreamType.BUFFERED,
+                        null, metadata, null, tracks);
+
+                var status = chromeCast.load(media);
+                log.debug("Received status {}", status);
+
+                var statusThread = new PlaybackStatusThread();
+                statusTimer.schedule(statusThread, 0, 1000);
+
+                while (keepAlive) {
+                    Thread.onSpinWait();
+                }
+            } catch (IOException ex) {
+                log.error("Failed to play url on Chromecast \"{}\", {}", getName(), ex.getMessage(), ex);
+                updateState(PlayerState.ERROR);
+            }
+        }
+
+        public void stopPlayback() {
+            keepAlive = false;
+        }
+    }
+
+    /**
+     * Internal task which retrieves the latest media status of the current playback from
+     * the {@link ChromeCast} device.
+     */
+    private class PlaybackStatusThread extends TimerTask {
+        @Override
+        public void run() {
+            try {
+                var mediaStatus = chromeCast.getMediaStatus();
+                onMediaStatusChanged(mediaStatus);
+            } catch (IOException e) {
+                log.warn("Failed to retrieve chromecast media status, {}", e.getMessage(), e);
+            }
+        }
+    }
 }

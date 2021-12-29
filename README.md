@@ -1,14 +1,14 @@
-# Popcorn Time Desktop JavaFX
+# Popcorn FX
 ![Build](https://github.com/yoep/popcorn-desktop-javafx/workflows/Build/badge.svg)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![codecov](https://codecov.io/gh/yoep/popcorn-desktop-javafx/branch/master/graph/badge.svg?token=A801IOOZAH)](https://codecov.io/gh/yoep/popcorn-desktop-javafx)
 
-Popcorn Time Desktop JavaFX is based on the original Popcorn Time Desktop and Popcorn Time Android versions.
-Popcorn Time Desktop JavaFX uses **Java 11+** and **OpenJFX 13+**.
+Popcorn FX is based on the original Popcorn Time Desktop and Popcorn Time Android versions.
+Popcorn FX uses **Java 11+** and **OpenJFX 13+**.
 This version was created to work with embedded devices such as the Raspberry PI, 
 but it also works on desktop environments such as **Linux & Windows** (not tested on Mac).
 
-Popcorn Time Desktop Java has been tested with **Raspberry Pi 3B+ and 4**.
+Popcorn FX has been tested with **Raspberry Pi 3B+ and 4**.
 
 ![Desktop preview](https://i.imgur.com/hkmMGDb.png)
 
@@ -85,6 +85,15 @@ To run the application from source code locally, add the following VM options.
 
     -Djava.library.path=assets/<<OS>>:${PATH}
     --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.web,javafx.swing
+
+### Runtime
+
+It's advised to use `PopcornTimeApplication` as main entry during development.
+The reason behind this is that the PopcornTimeStarter is only used for the fat jar packaging.
+
+Within the runtime configuration, make sure that the classpath is set to the `application` module.
+
+![Application module setup](https://i.imgur.com/EVDQLmS.png)
 
 ### Dependencies
 

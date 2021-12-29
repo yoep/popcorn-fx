@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
+import com.github.yoep.popcorn.backend.media.filters.models.Category;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.StartScreen;
+import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.settings.models.StartScreen;
-import com.github.yoep.popcorn.ui.settings.models.UISettings;
-import com.github.yoep.popcorn.ui.view.models.Category;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;

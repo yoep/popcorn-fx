@@ -1,9 +1,9 @@
 package com.github.yoep.torrent.frostwire;
 
 import com.frostwire.jlibtorrent.*;
-import com.github.yoep.torrent.adapter.InvalidTorrentSessionStateException;
-import com.github.yoep.torrent.adapter.TorrentException;
-import com.github.yoep.torrent.adapter.state.SessionState;
+import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentSessionStateException;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import lombok.RequiredArgsConstructor;

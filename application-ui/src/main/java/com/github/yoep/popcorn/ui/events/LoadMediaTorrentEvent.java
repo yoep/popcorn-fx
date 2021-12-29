@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.events;
 
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.providers.models.MediaTorrentInfo;
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

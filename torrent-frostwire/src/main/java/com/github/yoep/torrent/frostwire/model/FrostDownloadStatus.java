@@ -1,6 +1,6 @@
 package com.github.yoep.torrent.frostwire.model;
 
-import com.github.yoep.torrent.adapter.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import lombok.*;
 
 @Getter

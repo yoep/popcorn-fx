@@ -44,7 +44,7 @@ public class PopcornKeysLibDiscovery {
     private void initializePropertyPath() {
         var popcornKeysPath = System.getProperty(POPCORN_KEYS_LIB_PATH_PROPERTY);
 
-        if (!StringUtils.isEmpty(popcornKeysPath)) {
+        if (StringUtils.hasText(popcornKeysPath)) {
             NativeLibrary.addSearchPath(LIBRARY_NAME, popcornKeysPath);
         }
     }

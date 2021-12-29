@@ -1,16 +1,16 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.sections;
 
-import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.media.filters.models.Category;
+import com.github.yoep.popcorn.backend.media.filters.models.Genre;
+import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
 import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
-import com.github.yoep.popcorn.ui.view.models.Category;
-import com.github.yoep.popcorn.ui.view.models.Genre;
-import com.github.yoep.popcorn.ui.view.models.SortBy;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;

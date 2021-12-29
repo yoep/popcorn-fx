@@ -1,6 +1,6 @@
 package com.github.yoep.video.vlc;
 
-import com.github.yoep.video.adapter.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,7 +74,7 @@ class VideoPlayerVlcTest {
         var eventListener = eventListenerHolder.get();
         eventListener.playing(mediaPlayer);
 
-        assertEquals(PlayerState.PLAYING, videoPlayerVlc.getPlayerState());
+        assertEquals(VideoState.PLAYING, videoPlayerVlc.getVideoState());
     }
 
     @Test
@@ -85,7 +85,7 @@ class VideoPlayerVlcTest {
         var eventListener = eventListenerHolder.get();
         eventListener.buffering(mediaPlayer, 10);
 
-        assertEquals(PlayerState.BUFFERING, videoPlayerVlc.getPlayerState());
+        assertEquals(VideoState.BUFFERING, videoPlayerVlc.getVideoState());
     }
 
     @Test
@@ -96,7 +96,7 @@ class VideoPlayerVlcTest {
         var eventListener = eventListenerHolder.get();
         eventListener.buffering(mediaPlayer, 100);
 
-        assertEquals(PlayerState.PLAYING, videoPlayerVlc.getPlayerState());
+        assertEquals(VideoState.PLAYING, videoPlayerVlc.getVideoState());
     }
 
     @Test
@@ -107,7 +107,7 @@ class VideoPlayerVlcTest {
         var eventListener = eventListenerHolder.get();
         eventListener.paused(mediaPlayer);
 
-        assertEquals(PlayerState.PAUSED, videoPlayerVlc.getPlayerState());
+        assertEquals(VideoState.PAUSED, videoPlayerVlc.getVideoState());
     }
 
     @Test
@@ -118,7 +118,7 @@ class VideoPlayerVlcTest {
         var eventListener = eventListenerHolder.get();
         eventListener.stopped(mediaPlayer);
 
-        assertEquals(PlayerState.STOPPED, videoPlayerVlc.getPlayerState());
+        assertEquals(VideoState.STOPPED, videoPlayerVlc.getVideoState());
     }
 
     @Test
@@ -129,7 +129,7 @@ class VideoPlayerVlcTest {
         var eventListener = eventListenerHolder.get();
         eventListener.finished(mediaPlayer);
 
-        assertEquals(PlayerState.FINISHED, videoPlayerVlc.getPlayerState());
+        assertEquals(VideoState.FINISHED, videoPlayerVlc.getVideoState());
     }
 
     @Test

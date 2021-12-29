@@ -1,7 +1,8 @@
 package com.github.yoep.player.chromecast.discovery;
 
-import com.github.yoep.player.adapter.PlayerService;
 import com.github.yoep.player.chromecast.ChromecastPlayer;
+import com.github.yoep.player.chromecast.services.MetaDataService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,9 +20,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class DiscoveryServiceTest {
     @Mock
-    private PlayerService playerService;
+    private PlayerManagerService playerService;
     @Mock
     private ChromeCast chromeCast;
+    @Mock
+    private MetaDataService contentTypeService;
     @InjectMocks
     private DiscoveryService service;
 
@@ -31,8 +34,7 @@ class DiscoveryServiceTest {
         var playerHolder = new AtomicReference<ChromecastPlayer>();
         when(chromeCast.getName()).thenReturn(name);
         doAnswer(invocation -> {
-            var player = (ChromecastPlayer) invocation.getArgument(0);
-            playerHolder.set(player);
+            playerHolder.set(invocation.getArgument(0, ChromecastPlayer.class));
             return null;
         }).when(playerService).register(isA(ChromecastPlayer.class));
 
@@ -63,5 +65,18 @@ class DiscoveryServiceTest {
         service.chromeCastRemoved(chromeCast);
 
         verify(playerService, times(0)).unregister(isA(ChromecastPlayer.class));
+    }
+
+    @Test
+    void testChromeCastRemoved_whenChromeCastNameMatchesTheId_shouldUnregisterTheChromecastPlayer() {
+        var name = "my-chromecast-name";
+        var registeredPlayer = mock(ChromecastPlayer.class);
+        when(playerService.getPlayers()).thenReturn(Collections.singletonList(registeredPlayer));
+        when(registeredPlayer.getId()).thenReturn(name);
+        when(chromeCast.getName()).thenReturn(name);
+
+        service.chromeCastRemoved(chromeCast);
+
+        verify(playerService).unregister(registeredPlayer);
     }
 }

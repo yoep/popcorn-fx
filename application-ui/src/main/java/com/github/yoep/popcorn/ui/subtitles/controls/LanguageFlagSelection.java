@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.subtitles.controls;
 
-import com.github.yoep.popcorn.ui.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;

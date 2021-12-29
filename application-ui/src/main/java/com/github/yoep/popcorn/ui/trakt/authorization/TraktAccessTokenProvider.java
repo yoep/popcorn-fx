@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.trakt.authorization;
 
-import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.settings.models.OAuth2AccessTokenWrapper;
-import com.github.yoep.popcorn.ui.settings.models.TraktSettings;
+import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.OAuth2AccessTokenWrapper;
+import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -44,7 +44,7 @@ public class TraktAccessTokenProvider extends AuthorizationCodeAccessTokenProvid
                     .map(accessTokenWrapper -> resolveAccessToken(details, accessTokenWrapper))
                     .orElseGet(() -> super.obtainAccessToken(details, parameters));
         } catch (RefreshTokenMissingException ex) {
-            logger.error(ex);
+            log.error(ex.getMessage(), ex);
             return handleRefreshTokenMissing(details, parameters);
         } catch (UserRedirectRequiredException ex) {
             return startUserRedirect(details, ex);

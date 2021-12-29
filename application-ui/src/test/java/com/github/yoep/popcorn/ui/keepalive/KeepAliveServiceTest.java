@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.keepalive;
 
-import com.github.yoep.popcorn.ui.settings.OptionsService;
-import com.github.yoep.popcorn.ui.settings.models.ApplicationOptions;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
 import com.github.yoep.popcorn.ui.view.services.RobotService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

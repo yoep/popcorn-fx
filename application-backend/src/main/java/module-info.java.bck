@@ -1,0 +1,31 @@
+module popcorn.time.application.backend {
+    requires com.fasterxml.jackson.databind;
+    requires java.annotation;
+    requires java.desktop;
+    requires java.validation;
+    requires javafx.graphics;
+    requires lombok;
+    requires org.apache.commons.io;
+    requires org.slf4j;
+    requires spring.boot.starter.javafx;
+    requires spring.boot;
+    requires spring.context;
+    requires spring.core;
+    requires spring.security.oauth2;
+
+    exports com.github.yoep.popcorn.backend.adapters.player.embaddable;
+    exports com.github.yoep.popcorn.backend.adapters.player.listeners;
+    exports com.github.yoep.popcorn.backend.adapters.player.state;
+    exports com.github.yoep.popcorn.backend.adapters.player.subtitles;
+    exports com.github.yoep.popcorn.backend.adapters.player;
+    exports com.github.yoep.popcorn.backend.adapters.screen;
+    exports com.github.yoep.popcorn.backend.adapters.torrent.listeners;
+    exports com.github.yoep.popcorn.backend.adapters.torrent.model;
+    exports com.github.yoep.popcorn.backend.adapters.torrent.state;
+    exports com.github.yoep.popcorn.backend.adapters.torrent;
+    exports com.github.yoep.popcorn.backend.adapters.video;
+    exports com.github.yoep.popcorn.backend.messages;
+    exports com.github.yoep.popcorn.backend.settings.models.subtitles;
+    exports com.github.yoep.popcorn.backend.settings.models;
+    exports com.github.yoep.popcorn.backend.settings;
+}

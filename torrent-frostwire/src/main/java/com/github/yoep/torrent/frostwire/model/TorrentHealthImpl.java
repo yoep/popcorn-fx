@@ -1,7 +1,7 @@
 package com.github.yoep.torrent.frostwire.model;
 
-import com.github.yoep.torrent.adapter.model.TorrentHealth;
-import com.github.yoep.torrent.adapter.state.TorrentHealthState;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;

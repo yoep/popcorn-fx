@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.ui.media.providers.models.Images;
-import com.github.yoep.popcorn.ui.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

@@ -1,6 +1,6 @@
 package com.github.yoep.torrent.stream.controllers;
 
-import com.github.yoep.torrent.adapter.TorrentStreamService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.torrent.stream.services.MediaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

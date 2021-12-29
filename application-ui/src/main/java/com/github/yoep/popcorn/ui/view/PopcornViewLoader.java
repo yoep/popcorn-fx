@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoaderImpl;
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.ui.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import javafx.fxml.FXMLLoader;
 import lombok.Builder;
 import org.springframework.context.ApplicationContext;

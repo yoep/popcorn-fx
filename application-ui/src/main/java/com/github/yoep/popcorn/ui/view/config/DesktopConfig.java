@@ -2,18 +2,20 @@ package com.github.yoep.popcorn.ui.view.config;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.player.adapter.PlayerService;
-import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.ui.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.ui.media.providers.ProviderService;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.media.providers.models.Movie;
-import com.github.yoep.popcorn.ui.media.providers.models.Show;
-import com.github.yoep.popcorn.ui.media.watched.WatchedService;
-import com.github.yoep.popcorn.ui.settings.OptionsService;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitlePickerService;
-import com.github.yoep.popcorn.ui.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
+import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.providers.ProviderService;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
@@ -22,8 +24,6 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.MainDesktopController
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.*;
 import com.github.yoep.popcorn.ui.view.services.*;
-import com.github.yoep.torrent.adapter.TorrentService;
-import com.github.yoep.torrent.adapter.TorrentStreamService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -85,15 +85,6 @@ public class DesktopConfig {
     @Bean
     public LoaderSectionController loaderSectionController(ViewLoader viewLoader, TaskExecutor taskExecutor) {
         return new LoaderSectionController(viewLoader, taskExecutor);
-    }
-
-    @Bean
-    public PlayerSectionController playerSectionController(SettingsService settingsService,
-                                                           VideoPlayerService videoPlayerService,
-                                                           VideoPlayerManagerService videoPlayerManagerService,
-                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
-                                                           LocaleText localeText) {
-        return new PlayerSectionController(settingsService, videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, localeText);
     }
 
     @Bean
@@ -169,7 +160,7 @@ public class DesktopConfig {
                                                        SettingsService settingsService,
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
-                                                       PlayerService playerService) {
+                                                       PlayerManagerService playerService) {
         return new MovieDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
                 favoriteService, watchedService, playerService);
     }
@@ -185,24 +176,9 @@ public class DesktopConfig {
                                                      FavoriteService favoriteService,
                                                      WatchedService watchedService,
                                                      ShowHelperService showHelperService,
-                                                     PlayerService playerService) {
+                                                     PlayerManagerService playerService) {
         return new ShowDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
                 favoriteService, watchedService, showHelperService, playerService);
-    }
-
-    @Bean
-    public PlayerHeaderComponent playerHeaderComponent(VideoPlayerService videoPlayerService,
-                                                       LocaleText localeText) {
-        return new PlayerHeaderComponent(videoPlayerService, localeText);
-    }
-
-    @Bean
-    public PlayerControlsComponent playerControlsComponent(VideoPlayerService videoPlayerService,
-                                                           VideoPlayerManagerService videoPlayerManagerService,
-                                                           VideoPlayerSubtitleService videoPlayerSubtitleService,
-                                                           SubtitleService subtitleService,
-                                                           LocaleText localeText) {
-        return new PlayerControlsComponent(videoPlayerService, videoPlayerManagerService, videoPlayerSubtitleService, subtitleService, localeText);
     }
 
     @Bean

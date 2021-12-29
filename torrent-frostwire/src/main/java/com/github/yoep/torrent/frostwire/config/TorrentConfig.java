@@ -1,7 +1,7 @@
 package com.github.yoep.torrent.frostwire.config;
 
-import com.github.yoep.torrent.adapter.TorrentService;
-import com.github.yoep.torrent.adapter.TorrentSettingsService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentSettingsService;
 import com.github.yoep.torrent.frostwire.*;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;

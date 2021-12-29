@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.torrent;
 
-import com.github.yoep.popcorn.ui.settings.SettingsService;
-import com.github.yoep.popcorn.ui.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -12,7 +12,7 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * The {@link TorrentCacheService} manages the cache which is used by the {@link com.github.yoep.torrent.adapter.TorrentService}.
+ * The {@link TorrentCacheService} manages the cache which is used by the {@link com.github.yoep.popcorn.backend.adapters.torrent.TorrentService}.
  */
 @Slf4j
 @Service

@@ -1,6 +1,6 @@
 package com.github.yoep.video.javafx.config;
 
-import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.video.javafx.VideoPlayerFX;
 import com.github.yoep.video.javafx.conditions.ConditionalOnFXVideoEnabled;
 import com.github.yoep.video.javafx.conditions.ConditionalOnMediaSupported;

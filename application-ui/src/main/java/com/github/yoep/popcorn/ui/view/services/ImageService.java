@@ -1,10 +1,11 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.ui.media.providers.models.Images;
-import com.github.yoep.popcorn.ui.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -55,7 +56,8 @@ public class ImageService {
         Assert.notNull(media, "media cannot be null");
         var image = Optional.ofNullable(media.getImages())
                 .map(Images::getFanart)
-                .filter(e -> !e.equalsIgnoreCase("n/a"))
+                .filter(StringUtils::isNotEmpty)
+                .filter(this::isImageUrlKnown)
                 .map(this::internalLoad)
                 .map(this::convertToImage)
                 .filter(this::isSuccessfullyLoaded);
@@ -90,7 +92,8 @@ public class ImageService {
         Assert.notNull(media, "media cannot be null");
         Optional<Image> image = Optional.ofNullable(media.getImages())
                 .map(Images::getPoster)
-                .filter(e -> !e.equalsIgnoreCase("n/a"))
+                .filter(StringUtils::isNotEmpty)
+                .filter(this::isImageUrlKnown)
                 .map(this::internalLoad)
                 .map(e -> this.convertToImage(e, width, height))
                 .filter(this::isSuccessfullyLoaded);
@@ -135,6 +138,10 @@ public class ImageService {
     //endregion
 
     //region Functions
+
+    private boolean isImageUrlKnown(String url) {
+        return !url.equalsIgnoreCase("n/a");
+    }
 
     private boolean isSuccessfullyLoaded(Image image) {
         return !image.isError();

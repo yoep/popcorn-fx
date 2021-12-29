@@ -1,7 +1,7 @@
 package com.github.yoep.torrent.frostwire.model;
 
 import com.frostwire.jlibtorrent.Priority;
-import com.github.yoep.torrent.adapter.TorrentException;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

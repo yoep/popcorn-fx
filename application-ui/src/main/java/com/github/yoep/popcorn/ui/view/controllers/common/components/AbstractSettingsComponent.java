@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
 import javafx.beans.InvalidationListener;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextFormatter;

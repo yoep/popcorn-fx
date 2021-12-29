@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.trakt.config;
 
-import com.github.yoep.popcorn.ui.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.ui.trakt.authorization.TraktAccessTokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.keepalive;
 
-import com.github.yoep.popcorn.ui.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.view.services.RobotService;
 import javafx.scene.input.KeyCode;
 import lombok.RequiredArgsConstructor;

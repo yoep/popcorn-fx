@@ -15,24 +15,35 @@
     </properties>
 
     <dependencies>
-        <!-- Player adapter -->
+        <!-- Popcorn FX -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>player-adapter</artifactId>
-            <version>${parent.version}</version>
+            <artifactId>application-backend</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- JavaFX -->
         <dependency>
             <groupId>org.openjfx</groupId>
-            <artifactId>javafx-graphics</artifactId>
+            <artifactId>javafx-fxml</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Apache -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
         </dependency>
 
         <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>spring-boot-starter-javafx</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -70,6 +81,16 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-junit5</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

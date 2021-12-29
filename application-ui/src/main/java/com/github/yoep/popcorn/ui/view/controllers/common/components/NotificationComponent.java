@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.ui.events.ErrorNotificationEvent;
-import com.github.yoep.popcorn.ui.events.NotificationEvent;
+import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.NotificationEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.events.WarningNotificationEvent;
 import javafx.animation.PauseTransition;

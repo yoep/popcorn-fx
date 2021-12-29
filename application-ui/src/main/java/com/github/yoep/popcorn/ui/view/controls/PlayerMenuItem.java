@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.player.adapter.Player;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
 import javafx.scene.Node;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;

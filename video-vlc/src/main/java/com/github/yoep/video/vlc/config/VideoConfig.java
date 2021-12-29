@@ -1,6 +1,6 @@
 package com.github.yoep.video.vlc.config;
 
-import com.github.yoep.video.adapter.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
 import com.github.yoep.video.vlc.conditions.ConditionalOnNonArmDevice;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcInstall;

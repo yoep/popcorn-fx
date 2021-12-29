@@ -2,9 +2,13 @@ package com.github.yoep.popcorn.ui.view.controllers.common;
 
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.*;
-import com.github.yoep.popcorn.ui.settings.OptionsService;
-import com.github.yoep.popcorn.ui.settings.SettingsService;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
+import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.ui.events.LoadEvent;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.application.Platform;
@@ -139,7 +143,7 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
 
         // load the other panes on a different thread
         taskExecutor.execute(() -> {
-            playerPane = viewLoader.load("sections/player.section.fxml");
+            playerPane = viewLoader.load("common/sections/player.section.fxml");
             loaderPane = viewLoader.load("sections/loader.section.fxml");
 
             anchor(playerPane);

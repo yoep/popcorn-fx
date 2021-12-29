@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn;
 
-import com.github.yoep.popcorn.ui.PopcornTimeApplication;
+import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,7 +20,7 @@ public abstract class TestFxBase extends ApplicationTest {
         System.setProperty("testfx.robot", "glass");
         // the ApplicationTest bypasses the main method in PopcornTimeApplication
         // so we need to manually provide the system property "app.dir" for testing purposes
-        System.setProperty("app.dir", PopcornTimeApplication.APP_DIR);
+        System.setProperty("app.dir", SettingsDefaults.APP_DIR);
 
         initializeLibTorrentPath();
     }
@@ -52,6 +52,9 @@ public abstract class TestFxBase extends ApplicationTest {
         if (System.getProperty("os.name").contains("Windows")) {
             applicationPath = new File("../assets/windows/jlibtorrent.dll");
             rootPath = new File("assets/windows/jlibtorrent.dll");
+        } else if (System.getProperty("os.name").startsWith("Mac OS")) {
+            applicationPath = new File("../assets/macosx/libjlibtorrent.dylib");
+            rootPath = new File("assets/macosx/libjlibtorrent.dylib");
         } else {
             applicationPath = new File("../assets/linux/libjlibtorrent.so");
             rootPath = new File("assets/linux/libjlibtorrent.so");

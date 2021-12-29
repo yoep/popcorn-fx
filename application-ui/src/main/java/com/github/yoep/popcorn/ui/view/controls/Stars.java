@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.ui.media.providers.models.Rating;
+import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import javafx.geometry.Pos;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.layout.HBox;

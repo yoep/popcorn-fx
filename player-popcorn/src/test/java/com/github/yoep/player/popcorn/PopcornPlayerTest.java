@@ -7,7 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @ExtendWith(MockitoExtension.class)
 class PopcornPlayerTest {
@@ -32,7 +32,7 @@ class PopcornPlayerTest {
     void testIsEmbeddedPlaybackSupported_whenInvoked_shouldReturnTrue() {
         var result = popcornPlayer.isEmbeddedPlaybackSupported();
 
-        assertTrue(result, "Expected the popcorn player to support embedded playback");
+        assertFalse(result, "Expected the popcorn player to NOT support embedded playback");
     }
 
     @Test

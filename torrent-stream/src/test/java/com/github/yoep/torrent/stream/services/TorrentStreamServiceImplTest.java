@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 
 import java.io.File;
+import java.text.MessageFormat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -42,11 +43,13 @@ class TorrentStreamServiceImplTest {
     void testStartStream_whenInvoked_shouldRetrnTheTorrentStreamForTheGivenTorrent() {
         var torrent = mock(Torrent.class);
         var filename = "my-video.mp4";
-        var url = "http://127.0.0.1:9999/video/" + filename;
+        var port = 9999;
+        var url = MessageFormat.format("http://127.0.0.1:{0}/video/{1}", String.valueOf(port), filename);
         var expectedResult = new TorrentStreamImpl(torrent, url);
         var file = mock(File.class);
         when(torrent.getFile()).thenReturn(file);
         when(file.getAbsolutePath()).thenReturn("/" + filename);
+        when(serverProperties.getPort()).thenReturn(port);
 
         var result = torrentStreamService.startStream(torrent);
 

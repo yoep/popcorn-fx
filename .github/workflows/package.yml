@@ -28,7 +28,7 @@ jobs:
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: dist-without-markdown
+          name: linux-package
           path: |
             application/target/popcorn-time*.deb
   package-windows:
@@ -54,7 +54,7 @@ jobs:
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: dist-without-markdown
+          name: windows-package
           path: |
             application/target/popcorn-time*.exe
   package-macos:
@@ -80,7 +80,7 @@ jobs:
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: dist-without-markdown
+          name: macos-package
           path: |
             application/target/popcorn-time*.dmg
             application/target/popcorn-time*.pkg

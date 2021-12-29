@@ -25,6 +25,12 @@ jobs:
         run: mvn -B clean -Plinux
       - name: Package
         run: mvn -B install -DskipITs -Plinux
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: dist-without-markdown
+          path: |
+            application/target/popcorn-time*.deb
   package-windows:
     runs-on: windows-latest
 
@@ -45,6 +51,12 @@ jobs:
         run: mvn -B clean -Pwindows
       - name: Package
         run: mvn -B install -DskipITs -Pwindows
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: dist-without-markdown
+          path: |
+            application/target/popcorn-time*.exe
   package-macos:
     runs-on: macos-latest
 
@@ -65,3 +77,10 @@ jobs:
         run: mvn -B clean -Pmacosx
       - name: Package
         run: mvn -B install -DskipITs -Pmacosx
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: dist-without-markdown
+          path: |
+            application/target/popcorn-time*.dmg
+            application/target/popcorn-time*.pkg

@@ -106,7 +106,7 @@
                 <plugin>
                     <groupId>io.github.fvarrui</groupId>
                     <artifactId>javapackager</artifactId>
-                    <version>1.5.1</version>
+                    <version>1.6.2</version>
                 </plugin>
                 <plugin>
                     <groupId>com.gluonhq</groupId>

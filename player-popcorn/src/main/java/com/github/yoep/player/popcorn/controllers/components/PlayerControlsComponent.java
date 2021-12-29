@@ -4,11 +4,12 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
+import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.messages.MediaMessage;
 import com.github.yoep.player.popcorn.services.PlaybackService;
+import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.player.popcorn.services.SubtitleEventService;
 import com.github.yoep.player.popcorn.subtitles.controls.LanguageSelection;
-import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import javafx.application.Platform;
@@ -32,10 +33,10 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PlayerControlsComponent implements Initializable {
     private final PlaybackService playbackService;
-    private final ScreenService screenService;
     private final LocaleText localeText;
     private final SubtitleService subtitleService;
     private final SubtitleEventService popcornSubtitleService;
+    private final PlayerControlsService playerControlsService;
 
     @FXML
     Icon playPauseIcon;
@@ -78,7 +79,7 @@ public class PlayerControlsComponent implements Initializable {
         });
     }
 
-    public void updateFullscreenState(Boolean isFullscreen) {
+    private void onFullscreenStateChanged(Boolean isFullscreen) {
         if (isFullscreen) {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
         } else {
@@ -101,6 +102,13 @@ public class PlayerControlsComponent implements Initializable {
         });
     }
 
+    public void reset() {
+        Platform.runLater(() -> {
+            playProgress.setTime(0);
+            languageSelection.getItems().clear();
+        });
+    }
+
     //endregion
 
     //region Initializable
@@ -109,6 +117,7 @@ public class PlayerControlsComponent implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeSlider();
         initializeLanguageSelection();
+        initializeListeners();
     }
 
     private void initializeSlider() {
@@ -148,10 +157,12 @@ public class PlayerControlsComponent implements Initializable {
                 languageSelection.select(newValue.getSubtitleInfo().orElse(SubtitleInfo.none())));
     }
 
-    public void reset() {
-        Platform.runLater(() -> {
-            playProgress.setTime(0);
-            languageSelection.getItems().clear();
+    private void initializeListeners() {
+        playerControlsService.addListener(new PlayerControlsListener() {
+            @Override
+            public void onFullscreenStateChanged(Boolean isFullscreenEnabled) {
+                PlayerControlsComponent.this.onFullscreenStateChanged(isFullscreenEnabled);
+            }
         });
     }
 
@@ -188,7 +199,7 @@ public class PlayerControlsComponent implements Initializable {
     @FXML
     void onFullscreenClicked(MouseEvent event) {
         event.consume();
-        screenService.toggleFullscreen();
+        playerControlsService.toggleFullscreen();
     }
 
     @FXML

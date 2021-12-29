@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.keepalive;
 
+import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.view.services.RobotService;
-import javafx.scene.input.KeyCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,8 +18,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class KeepAliveService {
-    public static final KeyCode SIGNAL = KeyCode.CONTROL;
-
     private final OptionsService optionsService;
     private final RobotService robotService;
 
@@ -30,7 +28,7 @@ public class KeepAliveService {
         if (isDisabled())
             return;
 
-        robotService.pressKey(SIGNAL);
+        robotService.pressKey(BackendConstants.KEEP_ALIVE_SIGNAL);
     }
 
     private boolean isDisabled() {

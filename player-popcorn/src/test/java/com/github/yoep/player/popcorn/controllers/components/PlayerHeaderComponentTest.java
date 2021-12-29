@@ -30,7 +30,7 @@ class PlayerHeaderComponentTest extends ApplicationTest {
         controller = new PlayerHeaderComponent(playbackService, localeText);
         controller.title = title;
 
-        WaitForAsyncUtils.waitForFxEvents(100);
+        WaitForAsyncUtils.waitForFxEvents(10);
     }
 
     @Test

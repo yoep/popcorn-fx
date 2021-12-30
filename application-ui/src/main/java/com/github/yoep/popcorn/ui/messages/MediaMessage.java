@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.messages;
+package com.github.yoep.popcorn.ui.messages;
 
 import com.github.spring.boot.javafx.text.Message;
 import lombok.Getter;

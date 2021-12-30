@@ -1,21 +1,15 @@
 package com.github.yoep.popcorn.backend.settings;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.UIScale;
-import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.backend.settings.models.*;
+import com.github.yoep.popcorn.backend.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -26,8 +20,9 @@ import static java.util.Arrays.asList;
 @Service
 @RequiredArgsConstructor
 public class SettingsService {
-    private static final String NAME = "settings.json";
-    private final ObjectMapper objectMapper;
+    static final String STORAGE_NAME = "settings.json";
+
+    private final StorageService storageService;
     private final ViewLoader viewLoader;
     private final OptionsService optionsService;
     private final LocaleText localeText;
@@ -80,7 +75,7 @@ public class SettingsService {
     }
 
     /**
-     * Save the current application settings to the {@link #NAME} file.
+     * Save the current application settings to the {@link #STORAGE_NAME} file.
      */
     public void save() {
         save(currentSettings);
@@ -93,20 +88,12 @@ public class SettingsService {
      * @param settings The application settings to save.
      */
     public void save(ApplicationSettings settings) {
-        File settingsFile = getSettingsFile();
-
         if (settings != currentSettings)
             currentSettings = settings;
 
-        try {
-            log.info("Saving application settings to {}", settingsFile.getAbsolutePath());
-            FileUtils.writeStringToFile(settingsFile, objectMapper.writeValueAsString(settings), Charset.defaultCharset());
-        } catch (IOException ex) {
-            var exception = new SettingsException("Unable to write settings to " + settingsFile.getAbsolutePath(), ex);
-
-            log.error(exception.getMessage(), exception);
-            throw exception;
-        }
+        log.debug("Saving application settings to storage");
+        storageService.store(STORAGE_NAME, settings);
+        log.info("Application settings have been saved");
     }
 
     /**
@@ -134,14 +121,13 @@ public class SettingsService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
-        createApplicationSettingsDirectory();
+    void init() {
         initializeSettings();
         initializeDefaultLanguage();
     }
 
     private void initializeSettings() {
-        this.currentSettings = loadSettingsFromFile().orElse(ApplicationSettings.builder().build());
+        this.currentSettings = loadSettingsFromFile().orElseGet(this::createDefaultApplicationSettings);
         var uiSettings = this.currentSettings.getUiSettings();
 
         uiSettings.addListener(event -> {
@@ -196,20 +182,19 @@ public class SettingsService {
     }
 
     private Optional<ApplicationSettings> loadSettingsFromFile() {
-        File settingsFile = getSettingsFile();
+        log.debug("Loading application settings from storage");
+        return storageService.read(STORAGE_NAME, ApplicationSettings.class);
+    }
 
-        if (settingsFile.exists()) {
-            try {
-                log.info("Loading application settings from {}", settingsFile.getAbsolutePath());
-
-                return Optional.of(objectMapper.readValue(settingsFile, ApplicationSettings.class));
-            } catch (IOException ex) {
-                throw new SettingsException("Unable to read settings file at " + settingsFile.getAbsolutePath(), ex);
-            }
-        }
-
-        log.debug("Using default application settings");
-        return Optional.empty();
+    private ApplicationSettings createDefaultApplicationSettings() {
+        return ApplicationSettings.builder()
+                .subtitleSettings(SubtitleSettings.builder()
+                        .directory(storageService.determineDirectoryWithinStorage(SubtitleSettings.DEFAULT_SUBTITLE_DIRECTORY))
+                        .build())
+                .torrentSettings(TorrentSettings.builder()
+                        .directory(storageService.determineDirectoryWithinStorage(TorrentSettings.DEFAULT_TORRENT_DIRECTORY))
+                        .build())
+                .build();
     }
 
     private int getCurrentUIScaleIndex() {
@@ -226,18 +211,6 @@ public class SettingsService {
 
         log.trace("Current UI scale index: {}", index);
         return index;
-    }
-
-    private void createApplicationSettingsDirectory() {
-        File appDir = new File(SettingsDefaults.APP_DIR);
-
-        if (!appDir.exists() && !appDir.mkdirs()) {
-            log.error("Unable to create application directory in " + appDir.getAbsolutePath());
-        }
-    }
-
-    private File getSettingsFile() {
-        return new File(SettingsDefaults.APP_DIR + NAME);
     }
 
     //endregion

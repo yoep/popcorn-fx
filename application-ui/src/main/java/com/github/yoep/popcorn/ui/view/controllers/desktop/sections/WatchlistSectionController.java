@@ -3,12 +3,15 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.ui.events.ShowWatchlistEvent;
+import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.WatchlistMessage;
 import com.github.yoep.popcorn.ui.trakt.TraktException;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
@@ -115,11 +118,31 @@ public class WatchlistSectionController implements Initializable {
     private SimpleItemListener createListener() {
         return media -> {
             if (media instanceof Movie) {
-                movieProviderService.showDetails(media);
+                movieProviderService.retrieveDetails(media)
+                        .whenComplete((movie, throwable) -> handleMovieDetailsResponse((Movie) movie, throwable));
             } else {
-                showProviderService.showDetails(media);
+                showProviderService.retrieveDetails(media)
+                        .whenComplete((show, throwable) -> handleShowDetailsResponse((Show) show, throwable));
             }
         };
+    }
+
+    private void handleMovieDetailsResponse(Movie movie, Throwable throwable) {
+        if (throwable == null) {
+            eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, movie));
+        } else {
+            log.error(throwable.getMessage(), throwable);
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
+        }
+    }
+
+    private void handleShowDetailsResponse(Show show, Throwable throwable) {
+        if (throwable == null) {
+            eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, show));
+        } else {
+            log.error(throwable.getMessage(), throwable);
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
+        }
     }
 
     private Media parseTraktMovie(WatchListItem item) {

@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.keepalive;
 
+import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
 import com.github.yoep.popcorn.ui.view.services.RobotService;
@@ -29,7 +30,7 @@ class KeepAliveServiceTest {
 
         keepAliveService.keepAlive();
 
-        verify(robotService, times(0)).pressKey(KeepAliveService.SIGNAL);
+        verify(robotService, times(0)).pressKey(BackendConstants.KEEP_ALIVE_SIGNAL);
     }
 
     @Test
@@ -41,6 +42,6 @@ class KeepAliveServiceTest {
 
         keepAliveService.keepAlive();
 
-        verify(robotService).pressKey(KeepAliveService.SIGNAL);
+        verify(robotService).pressKey(BackendConstants.KEEP_ALIVE_SIGNAL);
     }
 }

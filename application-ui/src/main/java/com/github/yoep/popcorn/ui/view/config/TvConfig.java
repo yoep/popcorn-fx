@@ -59,9 +59,10 @@ public class TvConfig {
     public ListSectionController listSectionController(List<ProviderService<? extends Media>> providerServices,
                                                        ViewLoader viewLoader,
                                                        LocaleText localeText,
+                                                       ApplicationEventPublisher eventPublisher,
                                                        WatchedService watchedService,
                                                        ImageService imageService) {
-        return new ListSectionController(providerServices, viewLoader, localeText, watchedService, imageService);
+        return new ListSectionController(providerServices, viewLoader, localeText, eventPublisher, watchedService, imageService);
     }
 
     @Bean

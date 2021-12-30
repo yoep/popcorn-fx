@@ -7,7 +7,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.settings.models.ServerSettings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -39,7 +38,6 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
     public static final int MAX_ITEMS = 50;
 
     protected final RestTemplate restTemplate;
-    protected final ApplicationEventPublisher eventPublisher;
 
     private final List<UriProvider> uriProviders = new ArrayList<>();
 

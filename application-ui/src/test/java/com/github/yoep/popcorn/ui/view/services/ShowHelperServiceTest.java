@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.media.filters.models.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
-import com.github.yoep.popcorn.backend.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

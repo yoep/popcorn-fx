@@ -12,4 +12,6 @@ public class MediaRetrievalException extends MediaException{
         super(message, cause);
         this.uri = uri;
     }
+
+
 }

@@ -1,16 +1,15 @@
 package com.github.yoep.popcorn.ui.media.resume;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
+import com.github.yoep.popcorn.backend.storage.StorageException;
+import com.github.yoep.popcorn.backend.storage.StorageService;
 import com.github.yoep.popcorn.ui.media.resume.models.AutoResume;
 import com.github.yoep.popcorn.ui.media.resume.models.VideoTimestamp;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -18,20 +17,17 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AutoResumeService {
-    private static final String NAME = "auto-resume.json";
+    private static final String STORAGE_NAME = "auto-resume.json";
     private static final int AUTO_RESUME_PERCENTAGE_THRESHOLD = 85;
     private static final int IDLE_TIME = 10;
 
-    private final ObjectMapper objectMapper;
+    private final StorageService storageService;
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
     private final Object cacheLock = new Object();
 
@@ -187,39 +183,33 @@ public class AutoResumeService {
             }
         }
 
-        File file = getFile();
 
-        if (file.exists()) {
-            try {
-                log.debug("Loading auto resume timestamps from {}", file.getAbsolutePath());
-                synchronized (cacheLock) {
-                    cache = objectMapper.readValue(file, AutoResume.class);
-                    cacheHash = cache.hashCode();
-                }
-            } catch (IOException ex) {
-                log.error("Failed to load the auto resume timestamps with error " + ex.getMessage(), ex);
-            }
-        } else {
-            synchronized (cacheLock) {
-                cache = AutoResume.builder().build();
-            }
+        log.debug("Loading auto resume timestamps from storage");
+        storageService.read(STORAGE_NAME, AutoResume.class)
+                .ifPresentOrElse(this::handleStoredAutoResume, this::createNewAutoResume);
+    }
+
+    private void handleStoredAutoResume(AutoResume e) {
+        synchronized (cacheLock) {
+            cache = e;
+            cacheHash = cache.hashCode();
+        }
+    }
+
+    private void createNewAutoResume() {
+        synchronized (cacheLock) {
+            cache = AutoResume.builder().build();
         }
     }
 
     private void save(AutoResume autoResume) {
-        var file = getFile();
-
         try {
-            log.debug("Saving auto resume timestamps to {}", file.getAbsolutePath());
-            FileUtils.writeStringToFile(file, objectMapper.writeValueAsString(autoResume), Charset.defaultCharset());
+            log.debug("Saving auto resume timestamps to storage");
+            storageService.store(STORAGE_NAME, autoResume);
             log.info("Auto resume file has been saved");
-        } catch (IOException ex) {
+        } catch (StorageException ex) {
             log.error("Failed to save the auto resume timestamps with error " + ex.getMessage(), ex);
         }
-    }
-
-    private File getFile() {
-        return new File(SettingsDefaults.APP_DIR + NAME);
     }
 
     private void onSave() {

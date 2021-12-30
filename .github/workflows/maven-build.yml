@@ -34,7 +34,7 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./application/target/site/jacoco/jacoco.xml,./application-ui/target/site/jacoco/jacoco.xml,./player-chromecast/target/site/jacoco/jacoco.xml,./player-popcorn/target/site/jacoco/jacoco.xml,./torrent-frostwire/target/site/jacoco/jacoco.xml,./torrent-stream/target/site/jacoco/jacoco.xml,./video-vlc/target/site/jacoco/jacoco.xml
+        files: ./application/target/site/jacoco/jacoco.xml,./application-backend/target/site/jacoco/jacoco.xml,./application-ui/target/site/jacoco/jacoco.xml,./player-chromecast/target/site/jacoco/jacoco.xml,./player-popcorn/target/site/jacoco/jacoco.xml,./torrent-frostwire/target/site/jacoco/jacoco.xml,./torrent-stream/target/site/jacoco/jacoco.xml,./video-vlc/target/site/jacoco/jacoco.xml
         flags: unittests
         name: codecov-umbrella
         verbose: true

@@ -1,43 +1,39 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 import com.github.yoep.popcorn.backend.media.watched.models.Watched;
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
+import com.github.yoep.popcorn.backend.storage.StorageException;
+import com.github.yoep.popcorn.backend.storage.StorageService;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The watched service maintains all the watched {@link Media} items of the application.
- * This is done through the {@link Watchable} items that are received from events and marking them as watched in the {@link #NAME} file.
+ * This is done through the {@link Watchable} items that are received from events and marking them as watched in the {@link #STORAGE_NAME} file.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class WatchedService {
-    private static final String NAME = "watched.json";
+    private static final String STORAGE_NAME = "watched.json";
     private static final int WATCHED_PERCENTAGE_THRESHOLD = 85;
     private static final int IDLE_TIME = 10;
 
     private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
-    private final ObjectMapper objectMapper;
+    private final StorageService storageService;
     private final Object cacheLock = new Object();
 
     /**
@@ -201,12 +197,10 @@ public class WatchedService {
     }
 
     private void save(Watched watched) {
-        File file = getFile();
-
         try {
-            log.debug("Saving watched items to {}", file.getAbsolutePath());
-            FileUtils.writeStringToFile(file, objectMapper.writeValueAsString(watched), Charset.defaultCharset());
-        } catch (IOException ex) {
+            log.debug("Saving watched items to storage");
+            storageService.store(STORAGE_NAME, watched);
+        } catch (StorageException ex) {
             log.error("Failed to save the watched items with error " + ex.getMessage(), ex);
         }
     }
@@ -221,28 +215,26 @@ public class WatchedService {
             return;
         }
 
-        File file = getFile();
-
-        if (file.exists()) {
-            try {
-                log.debug("Loading watched items from {}", file.getAbsolutePath());
-
-                synchronized (cacheLock) {
-                    cache = objectMapper.readValue(file, Watched.class);
-                    cacheHash = cache.hashCode();
-                }
-            } catch (IOException ex) {
-                log.error("Unable to read watched items file at " + file.getAbsolutePath(), ex);
-            }
-        } else {
-            synchronized (cacheLock) {
-                cache = Watched.builder().build();
-            }
+        log.debug("Loading watched items from storage");
+        try {
+            storageService.read(STORAGE_NAME, Watched.class)
+                    .ifPresentOrElse(this::handleStoredWatchedItems, this::createNewWatchedItems);
+        } catch (StorageException ex) {
+            log.error("Failed to read watched items, {}", ex.getMessage(), ex);
         }
     }
 
-    private File getFile() {
-        return new File(SettingsDefaults.APP_DIR + NAME);
+    private void handleStoredWatchedItems(Watched e) {
+        synchronized (cacheLock) {
+            cache = e;
+            cacheHash = cache.hashCode();
+        }
+    }
+
+    private void createNewWatchedItems() {
+        synchronized (cacheLock) {
+            cache = Watched.builder().build();
+        }
     }
 
     private void onSave() {

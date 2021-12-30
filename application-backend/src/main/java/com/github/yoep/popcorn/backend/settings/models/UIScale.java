@@ -1,16 +1,19 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@EqualsAndHashCode
 public class UIScale {
-    private static final String APPENDIX = "%";
+    static final String APPENDIX = "%";
 
-    private float value;
+    private final float value;
+
+    public UIScale(@JsonProperty("value") float value) {
+        this.value = value;
+    }
 
     @Override
     public String toString() {

@@ -10,13 +10,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
+import java.util.Objects;
 
 /**
  * The {@link FileService} is a simple wrapper around {@link File} and {@link org.apache.commons.io.FileUtils}.
  * This wrapper is mainly used for unit testing services which read/write to files.
+ * @deprecated Use {@link com.github.yoep.popcorn.backend.storage.StorageService} instead.
  */
 @Slf4j
 @Service
+@Deprecated
 public class FileService {
     /**
      * Get the file for the given path.
@@ -50,7 +53,7 @@ public class FileService {
      * @return Returns true if the contents where saved with success, else false.
      */
     public boolean save(String path, String contents) {
-        Assert.notNull(path, "path cannot be null");
+        Objects.requireNonNull(path, "path cannot be null");
         var file = getFile(path);
 
         try {

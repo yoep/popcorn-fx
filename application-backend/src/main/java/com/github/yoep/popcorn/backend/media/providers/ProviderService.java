@@ -51,11 +51,12 @@ public interface ProviderService<T extends Media> {
     CompletableFuture<T> getDetails(String imdbId);
 
     /**
-     * Show the details of the given media item.
+     * Retrieve the full details of the {@link Media} item.
+     * This will load the details for the media item through the provider.
      *
-     * @param media The media item to show the details of.
-     * @return Returns true if the details could be loaded with success, else false.
+     * @param media The media item to retrieve the details of.
+     * @return Returns the retrieved media details.
      */
     @Async
-    CompletableFuture<Boolean> showDetails(Media media);
+    CompletableFuture<Media> retrieveDetails(Media media);
 }

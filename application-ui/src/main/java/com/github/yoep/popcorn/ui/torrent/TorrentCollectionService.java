@@ -1,19 +1,14 @@
 package com.github.yoep.popcorn.ui.torrent;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
+import com.github.yoep.popcorn.backend.storage.StorageService;
 import com.github.yoep.popcorn.ui.torrent.models.StoredTorrent;
 import com.github.yoep.popcorn.ui.torrent.models.TorrentCollection;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Objects;
 
@@ -21,9 +16,9 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class TorrentCollectionService {
-    private static final String NAME = "torrent-collection.json";
+    private static final String STORAGE_NAME = "torrent-collection.json";
 
-    private final ObjectMapper objectMapper;
+    private final StorageService storageService;
 
     /**
      * Check if the given magnet uri has already been added to the torrent collection.
@@ -84,32 +79,13 @@ public class TorrentCollectionService {
     }
 
     private TorrentCollection loadCollection() {
-        File file = getFile();
-
-        if (file.exists()) {
-            try {
-                log.debug("Loading torrent collection from {}", file.getAbsolutePath());
-                return objectMapper.readValue(file, TorrentCollection.class);
-            } catch (IOException ex) {
-                log.error("Failed to load torrent collection with error " + ex.getMessage(), ex);
-            }
-        }
-
-        return new TorrentCollection();
+        log.debug("Loading torrent collection from storage");
+        return storageService.read(STORAGE_NAME, TorrentCollection.class)
+                .orElse(new TorrentCollection());
     }
 
     private void save(TorrentCollection collection) {
-        File file = getFile();
-
-        try {
-            log.debug("Saving torrent collection to {}", file.getAbsolutePath());
-            FileUtils.writeStringToFile(file, objectMapper.writeValueAsString(collection), Charset.defaultCharset());
-        } catch (IOException ex) {
-            log.error("Failed to save torrent collection with error " + ex.getMessage(), ex);
-        }
-    }
-
-    private File getFile() {
-        return new File(SettingsDefaults.APP_DIR + NAME);
+        log.debug("Saving torrent collection to storage");
+        storageService.store(STORAGE_NAME, collection);
     }
 }

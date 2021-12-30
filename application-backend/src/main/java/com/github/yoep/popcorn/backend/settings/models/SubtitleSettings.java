@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
-import com.github.yoep.popcorn.backend.settings.SettingsDefaults;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
@@ -9,7 +8,6 @@ import lombok.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @EqualsAndHashCode(callSuper = false)
 @Data
@@ -24,8 +22,8 @@ public class SubtitleSettings extends AbstractSettings {
     public static final String FONT_SIZE_PROPERTY = "fontSize";
     public static final String DECORATION_PROPERTY = "decoration";
     public static final String BOLD_PROPERTY = "bold";
+    public static final String DEFAULT_SUBTITLE_DIRECTORY = "subtitles";
 
-    private static final String DEFAULT_SUBTITLE_DIRECTORY = "subtitles";
     private static final String DEFAULT_FONT_FAMILY = "Arial";
     private static final DecorationType DEFAULT_DECORATION = DecorationType.OUTLINE;
     private static final int DEFAULT_SIZE = 28;
@@ -35,8 +33,7 @@ public class SubtitleSettings extends AbstractSettings {
     /**
      * The directory to save the subtitles to.
      */
-    @Builder.Default
-    private File directory = new File(SettingsDefaults.APP_DIR + DEFAULT_SUBTITLE_DIRECTORY);
+    private File directory;
     /**
      * The indication if the subtitle directory should be cleaned if the application is closed.
      */
@@ -72,66 +69,31 @@ public class SubtitleSettings extends AbstractSettings {
     //region Setters
 
     public void setDefaultSubtitle(SubtitleLanguage defaultSubtitle) {
-        if (Objects.equals(this.defaultSubtitle, defaultSubtitle))
-            return;
-
-        var oldValue = this.defaultSubtitle;
-        this.defaultSubtitle = defaultSubtitle;
-        changes.firePropertyChange(DEFAULT_SUBTITLE_PROPERTY, oldValue, defaultSubtitle);
+        this.defaultSubtitle = updateProperty(this.defaultSubtitle, defaultSubtitle, DEFAULT_SUBTITLE_PROPERTY);
     }
 
     public void setDirectory(File directory) {
-        if (Objects.equals(this.directory, directory))
-            return;
-
-        var oldValue = this.directory;
-        this.directory = directory;
-        changes.firePropertyChange(DIRECTORY_PROPERTY, oldValue, directory);
+        this.directory = updateProperty(this.directory, directory, DIRECTORY_PROPERTY);
     }
 
     public void setAutoCleaningEnabled(boolean autoCleaningEnabled) {
-        if (Objects.equals(this.autoCleaningEnabled, autoCleaningEnabled))
-            return;
-
-        var oldValue = this.autoCleaningEnabled;
-        this.autoCleaningEnabled = autoCleaningEnabled;
-        changes.firePropertyChange(AUTO_CLEANING_PROPERTY, oldValue, autoCleaningEnabled);
+        this.autoCleaningEnabled = updateProperty(this.autoCleaningEnabled, autoCleaningEnabled, AUTO_CLEANING_PROPERTY);
     }
 
     public void setFontFamily(SubtitleFamily fontFamily) {
-        if (Objects.equals(this.fontFamily, fontFamily))
-            return;
-
-        var oldValue = this.fontFamily;
-        this.fontFamily = fontFamily;
-        changes.firePropertyChange(FONT_FAMILY_PROPERTY, oldValue, fontFamily);
+        this.fontFamily = updateProperty(this.fontFamily, fontFamily, FONT_FAMILY_PROPERTY);
     }
 
     public void setFontSize(int fontSize) {
-        if (Objects.equals(this.fontSize, fontSize))
-            return;
-
-        var oldValue = this.fontSize;
-        this.fontSize = fontSize;
-        changes.firePropertyChange(FONT_SIZE_PROPERTY, oldValue, fontSize);
+        this.fontSize = updateProperty(this.fontSize, fontSize, FONT_SIZE_PROPERTY);
     }
 
     public void setDecoration(DecorationType decoration) {
-        if (Objects.equals(this.decoration, decoration))
-            return;
-
-        var oldValue = this.decoration;
-        this.decoration = decoration;
-        changes.firePropertyChange(DECORATION_PROPERTY, oldValue, decoration);
+        this.decoration = updateProperty(this.decoration, decoration, DECORATION_PROPERTY);
     }
 
     public void setBold(boolean bold) {
-        if (Objects.equals(this.bold, bold))
-            return;
-
-        var oldValue = this.bold;
-        this.bold = bold;
-        changes.firePropertyChange(BOLD_PROPERTY, oldValue, bold);
+        this.bold = updateProperty(this.bold, bold, BOLD_PROPERTY);
     }
 
     //endregion

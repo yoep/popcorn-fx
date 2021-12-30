@@ -2,17 +2,14 @@ package com.github.yoep.player.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.player.popcorn.services.PlaybackService;
-import com.github.yoep.player.popcorn.services.SubtitleEventService;
-import com.github.yoep.player.popcorn.services.VideoService;
+import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
+import com.github.yoep.player.popcorn.messages.VideoMessage;
+import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
+import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
-import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
-import com.github.yoep.popcorn.backend.messages.VideoMessage;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.animation.FadeTransition;
@@ -33,6 +30,7 @@ import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -45,11 +43,8 @@ public class PopcornPlayerSectionController implements Initializable {
     private static final int INFO_FADE_DURATION = 2000;
     private static final String BUFFER_STYLE_CLASS = "buffer";
 
-    private final PlaybackService playbackService;
-    private final ScreenService screenService;
-    private final SettingsService settingsService;
-    private final VideoService videoService;
-    private final SubtitleEventService popcornSubtitleService;
+    private final PopcornPlayerSectionService sectionService;
+    private final SubtitleManagerService subtitleManagerService;
     private final LocaleText localeText;
     protected final PauseTransition idleTimer = getIdleTimer();
     protected final PauseTransition offsetTimer = getOffsetTimer();
@@ -58,8 +53,8 @@ public class PopcornPlayerSectionController implements Initializable {
     private FadeTransition transitionHeader;
     private FadeTransition transitionControls;
     private Pane bufferIndicator;
+    private PlayerState lastKnownPlayerState;
     private boolean uiBlocked;
-    private boolean isPlaying;
 
     @FXML
     Pane playerPane;
@@ -82,27 +77,7 @@ public class PopcornPlayerSectionController implements Initializable {
 
     //region Methods
 
-    /**
-     * Update the video view with the given node.
-     *
-     * @param view The view node to use.
-     */
-    public void setVideoView(Node view) {
-        videoView.getChildren().setAll(view);
-    }
-
-    public void updatePlaybackState(boolean isPlaying) {
-        this.isPlaying = isPlaying;
-
-        if (!isPlaying) {
-            onShowOverlay(null);
-        }
-    }
-
-    public void updateTime(Long time) {
-        subtitleTrack.onTimeChanged(time);
-    }
-
+    @EventListener(PlayerStoppedEvent.class)
     public void reset() {
         Platform.runLater(() -> {
             subtitleTrack.clear();
@@ -130,8 +105,47 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void initializeListeners() {
-        playbackService.addPlayerListener(createPlayerListener());
-        popcornSubtitleService.activeSubtitleProperty().addListener((observableValue, subtitle, newSubtitle) -> onSubtitleChanged(newSubtitle));
+        sectionService.addListener(new PopcornPlayerSectionListener() {
+            @Override
+            public void onSubtitleChanged(Subtitle subtitle) {
+                PopcornPlayerSectionController.this.onSubtitleChanged(subtitle);
+            }
+
+            @Override
+            public void onPlayerStateChanged(PlayerState state) {
+                PopcornPlayerSectionController.this.onPlayerStateChanged(state);
+            }
+
+            @Override
+            public void onPlayerTimeChanged(long time) {
+                PopcornPlayerSectionController.this.onPlayerTimeChanged(time);
+            }
+
+            @Override
+            public void onSubtitleSizeChanged(int fontSize) {
+                PopcornPlayerSectionController.this.onSubtitleFontSizeChanged(fontSize);
+            }
+
+            @Override
+            public void onSubtitleFamilyChanged(String newFontFamily) {
+                PopcornPlayerSectionController.this.onSubtitleFamilyChanged(newFontFamily);
+            }
+
+            @Override
+            public void onSubtitleFontWeightChanged(Boolean bold) {
+                PopcornPlayerSectionController.this.onSubtitleFontWeightChanged(bold);
+            }
+
+            @Override
+            public void onSubtitleDecorationChanged(DecorationType newDecorationType) {
+                PopcornPlayerSectionController.this.onSubtitleDecorationChanged(newDecorationType);
+            }
+
+            @Override
+            public void onVideoViewChanged(Node videoView) {
+                PopcornPlayerSectionController.this.onVideoViewChanged(videoView);
+            }
+        });
     }
 
     private void initializePaneListeners() {
@@ -143,35 +157,6 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void initializeSubtitleTrack() {
-        var subtitleSettings = settingsService.getSettings().getSubtitleSettings();
-
-        log.trace("Setting subtitle track defaults to \"{}\"", subtitleSettings);
-        subtitleTrack.setFontFamily(subtitleSettings.getFontFamily().getFamily());
-        subtitleTrack.setFontWeight(getFontWeight(subtitleSettings.isBold()));
-        subtitleTrack.setDecoration(subtitleSettings.getDecoration());
-
-        // bind the subtitle size to the video player service
-        subtitleTrack.fontSizeProperty().bind(popcornSubtitleService.subtitleSizeProperty());
-
-        subtitleSettings.addListener(evt -> {
-            log.trace("Subtitle setting \"{}\" is being changed, updating subtitle track", evt.getPropertyName());
-            switch (evt.getPropertyName()) {
-                case SubtitleSettings.FONT_FAMILY_PROPERTY:
-                    subtitleTrack.setFontFamily((String) evt.getNewValue());
-                    break;
-                case SubtitleSettings.FONT_SIZE_PROPERTY:
-                    popcornSubtitleService.setSubtitleSize((Integer) evt.getNewValue());
-                    break;
-                case SubtitleSettings.BOLD_PROPERTY:
-                    var bold = (Boolean) evt.getNewValue();
-                    subtitleTrack.setFontWeight(getFontWeight(bold));
-                    break;
-                case SubtitleSettings.DECORATION_PROPERTY:
-                    subtitleTrack.setDecoration((DecorationType) evt.getNewValue());
-                    break;
-            }
-        });
-
         offsetTimer.setOnFinished(event -> {
             fadeTransition.setToValue(0);
             fadeTransition.playFromStart();
@@ -179,7 +164,7 @@ public class PopcornPlayerSectionController implements Initializable {
 
         subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
             subtitleOffset.setText(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
-            popcornSubtitleService.setSubtitleOffset(newValue.longValue() * 1000);
+            subtitleManagerService.setSubtitleOffset(newValue.intValue() * 1000);
             fadeTransition.stop();
             subtitleOffset.setOpacity(1);
             offsetTimer.playFromStart();
@@ -203,8 +188,53 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onError() {
+        log.warn("Video player entered ERROR state");
         Platform.runLater(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
         updateBufferIndicator(false);
+    }
+
+    private void onPlayerStateChanged(PlayerState newState) {
+        this.lastKnownPlayerState = newState;
+
+        switch (newState) {
+            case BUFFERING:
+                onBuffering();
+                break;
+            case PLAYING:
+                onPlaying();
+                break;
+            case PAUSED:
+                onShowOverlay(null);
+                break;
+            case ERROR:
+                onError();
+                onShowOverlay(null);
+                break;
+        }
+    }
+
+    private void onPlayerTimeChanged(long time) {
+        subtitleTrack.onTimeChanged(time);
+    }
+
+    private void onSubtitleFontSizeChanged(int newFontSize) {
+        subtitleTrack.setFontSize(newFontSize);
+    }
+
+    private void onSubtitleDecorationChanged(DecorationType newDecoration) {
+        subtitleTrack.setDecoration(newDecoration);
+    }
+
+    private void onSubtitleFamilyChanged(String newFontFamily) {
+        subtitleTrack.setFontFamily(newFontFamily);
+    }
+
+    private void onSubtitleFontWeightChanged(boolean isBold) {
+        subtitleTrack.setFontWeight(getFontWeight(isBold));
+    }
+
+    private void onVideoViewChanged(Node view) {
+        videoView.getChildren().setAll(view);
     }
 
     private PauseTransition getIdleTimer() {
@@ -234,7 +264,7 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onHideOverlay() {
-        if (uiBlocked || !isPlaying)
+        if (uiBlocked || lastKnownPlayerState != PlayerState.PLAYING)
             return;
 
         log.trace("Hiding video player overlay");
@@ -252,6 +282,17 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onShowOverlay(Event event) {
+        // verify if the event is a key event
+        // if so, do some additional check before showing the overlay
+        if (event instanceof KeyEvent) {
+            var keyEvent = (KeyEvent) event;
+
+            // verify that the key event is not the key used by the keep alive service
+            // if so, don't show the overlay and ignore the event
+            if (keyEvent.getCode() == BackendConstants.KEEP_ALIVE_SIGNAL)
+                return;
+        }
+
         // cancel the transition faders
         if (transitionHeader != null) {
             transitionHeader.stop();
@@ -278,11 +319,11 @@ public class PopcornPlayerSectionController implements Initializable {
         switch (event.getCode()) {
             case SPACE:
             case P:
-                playbackService.togglePlayerPlaybackState();
+                sectionService.togglePlayerPlaybackState();
                 event.consume();
                 break;
             case F11:
-                screenService.toggleFullscreen();
+                sectionService.toggleFullscreen();
                 event.consume();
                 break;
             case G:
@@ -295,21 +336,19 @@ public class PopcornPlayerSectionController implements Initializable {
                 break;
             case LEFT:
             case KP_LEFT:
-                playbackService.videoTimeOffset(-5000);
+                sectionService.videoTimeOffset(-5000);
                 event.consume();
                 break;
             case RIGHT:
             case KP_RIGHT:
-                playbackService.videoTimeOffset(5000);
+                sectionService.videoTimeOffset(5000);
                 event.consume();
                 break;
         }
     }
 
     private void onSubtitleChanged(Subtitle subtitle) {
-        var supportNativeSubtitlePlayback = videoService.getVideoPlayer()
-                .map(VideoPlayer::supportsNativeSubtitleFile)
-                .orElse(false);
+        var supportNativeSubtitlePlayback = sectionService.isNativeSubtitlePlaybackSupported();
 
         if (subtitle.isNone() || supportNativeSubtitlePlayback) {
             subtitleTrack.clear();
@@ -342,39 +381,10 @@ public class PopcornPlayerSectionController implements Initializable {
         }
     }
 
-    private PlayerListener createPlayerListener() {
-        return new PlayerListener() {
-            @Override
-            public void onDurationChanged(long newDuration) {
-
-            }
-
-            @Override
-            public void onTimeChanged(long newTime) {
-
-            }
-
-            @Override
-            public void onStateChanged(PlayerState newState) {
-                switch (newState) {
-                    case BUFFERING:
-                        onBuffering();
-                        break;
-                    case PLAYING:
-                        onPlaying();
-                        break;
-                    case ERROR:
-                        onError();
-                        break;
-                }
-            }
-        };
-    }
-
     @FXML
     void onPlayerClick(MouseEvent event) {
         event.consume();
-        playbackService.togglePlayerPlaybackState();
+        sectionService.togglePlayerPlaybackState();
     }
 
     //endregion

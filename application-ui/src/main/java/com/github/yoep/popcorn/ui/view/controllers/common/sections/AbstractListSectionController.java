@@ -2,11 +2,17 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
 import com.github.yoep.popcorn.backend.media.filters.models.Genre;
 import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
@@ -23,6 +29,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.util.Assert;
@@ -42,6 +49,7 @@ public abstract class AbstractListSectionController implements Initializable {
     protected final List<ProviderService<? extends Media>> providerServices;
     protected final ViewLoader viewLoader;
     protected final LocaleText localeText;
+    protected final ApplicationEventPublisher eventPublisher;
 
     protected Category category;
     protected Genre genre;
@@ -65,7 +73,8 @@ public abstract class AbstractListSectionController implements Initializable {
 
     protected AbstractListSectionController(List<ProviderService<? extends Media>> providerServices,
                                             ViewLoader viewLoader,
-                                            LocaleText localeText) {
+                                            LocaleText localeText, ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
         Assert.notNull(providerServices, "providerServices cannot be null");
         Assert.notNull(viewLoader, "viewLoader cannot be null");
         Assert.notNull(localeText, "localeText cannot be null");
@@ -283,8 +292,23 @@ public abstract class AbstractListSectionController implements Initializable {
     }
 
     private void showMediaDetails(Media media, ProviderService<? extends Media> provider) {
-        provider.showDetails(media)
-                .whenComplete((loaded, throwable) -> Platform.runLater(this::hideOverlay));
+        provider.retrieveDetails(media)
+                .whenComplete(this::handleDetailsResponse);
+    }
+
+    private void handleDetailsResponse(Media media, Throwable throwable) {
+        if (throwable == null) {
+            Platform.runLater(this::hideOverlay);
+
+            if (media instanceof Movie) {
+                eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, (Movie) media));
+            } else {
+                eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, (Show) media));
+            }
+        } else {
+            log.error(throwable.getMessage(), throwable);
+            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
+        }
     }
 
     private void releaseCurrentLoadRequest() {

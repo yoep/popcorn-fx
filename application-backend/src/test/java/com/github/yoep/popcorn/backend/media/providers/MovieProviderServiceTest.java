@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -25,10 +24,10 @@ import java.net.URISyntaxException;
 import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
@@ -37,8 +36,6 @@ import static org.mockito.Mockito.*;
 class MovieProviderServiceTest {
     @Mock
     private RestTemplate restTemplate;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
     @Mock
     private PopcornProperties popcornConfig;
     @Mock
@@ -63,7 +60,7 @@ class MovieProviderServiceTest {
     class SupportsTest {
         @BeforeEach
         void setUp() {
-            movieProviderService = new MovieProviderService(restTemplate, eventPublisher, popcornConfig, settingsService);
+            movieProviderService = new MovieProviderService(restTemplate, popcornConfig, settingsService);
         }
 
         @Test
@@ -103,7 +100,7 @@ class MovieProviderServiceTest {
             when(serverSettings.getApiServer()).thenReturn(Optional.of(myApiServer));
             when(providerProperties.getUris()).thenReturn(Collections.singletonList(new URI("https://www.default-api.com")));
             when(restTemplate.getForEntity(isA(URI.class), eq(Movie[].class))).thenReturn(mock(ResponseEntity.class));
-            movieProviderService = new MovieProviderService(restTemplate, eventPublisher, popcornConfig, settingsService);
+            movieProviderService = new MovieProviderService(restTemplate, popcornConfig, settingsService);
 
             movieProviderService.getPage(genre, sort, page);
 
@@ -122,7 +119,7 @@ class MovieProviderServiceTest {
             when(serverSettings.getApiServer()).thenReturn(Optional.empty());
             when(providerProperties.getUris()).thenReturn(Collections.singletonList(new URI(defaultApi)));
             when(restTemplate.getForEntity(isA(URI.class), eq(Movie[].class))).thenReturn(mock(ResponseEntity.class));
-            movieProviderService = new MovieProviderService(restTemplate, eventPublisher, popcornConfig, settingsService);
+            movieProviderService = new MovieProviderService(restTemplate, popcornConfig, settingsService);
 
             movieProviderService.getPage(genre, sort, page);
 
@@ -145,12 +142,42 @@ class MovieProviderServiceTest {
             when(providerProperties.getUris()).thenReturn(asList(new URI(apiServer1), new URI(apiServer2)));
             when(restTemplate.getForEntity(apiUri1, Movie[].class)).thenThrow(new RestClientException("my rest client failure"));
             when(restTemplate.getForEntity(apiUri2, Movie[].class)).thenReturn(apiResponse);
-            movieProviderService = new MovieProviderService(restTemplate, eventPublisher, popcornConfig, settingsService);
+            movieProviderService = new MovieProviderService(restTemplate, popcornConfig, settingsService);
 
             movieProviderService.getPage(genre, sort, page);
 
             verify(restTemplate).getForEntity(apiUri2, Movie[].class);
         }
+    }
+
+    @Test
+    void testGetDetails_whenImdbIdIsGiven_shouldRequestMovieDetails() throws ExecutionException, InterruptedException {
+        var id = "myImdbId";
+        var movie = Movie.builder()
+                .id(id)
+                .build();
+        var uri = URI.create("http://localhost");
+        var providerProperties = new ProviderProperties();
+        providerProperties.setUris(Collections.singletonList(uri));
+        movieProviderService = new MovieProviderService(restTemplate, popcornConfig, settingsService);
+        when(restTemplate.getForEntity(isA(URI.class), eq(Movie.class))).thenReturn(ResponseEntity.ok(movie));
+
+        movieProviderService.initializeUriProviders(serverSettings, providerProperties);
+        var completableFuture = movieProviderService.getDetails(id);
+        var result = completableFuture.get();
+
+        assertEquals(movie, result);
+    }
+
+    @Test
+    void testRetrieveDetails_whenInvoked_shouldReturnMediaWithoutAnyEnhancements() throws ExecutionException, InterruptedException {
+        var movie = Movie.builder().build();
+        movieProviderService = new MovieProviderService(restTemplate, popcornConfig, settingsService);
+
+        var completableFuture = movieProviderService.retrieveDetails(movie);
+        var result = completableFuture.get();
+
+        assertEquals(movie, result);
     }
 
     private URI createApiUri(String apiUri, String genre, String sort, int page, String keywords) throws URISyntaxException {

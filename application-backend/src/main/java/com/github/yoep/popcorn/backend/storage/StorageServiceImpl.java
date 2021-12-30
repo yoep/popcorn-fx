@@ -53,8 +53,7 @@ public class StorageServiceImpl implements StorageService {
             try {
                 return Optional.ofNullable(objectMapper.readValue(file, valueType));
             } catch (JsonMappingException ex) {
-                var message = MessageFormat.format("File {0} is corrupt for type {1}, {2}", file.getAbsolutePath(), valueType.getSimpleName(), ex.getMessage());
-                throw new StorageException(file, message, ex);
+                throw new StorageDeserializationException(file, valueType, ex);
             } catch (IOException ex) {
                 var message = MessageFormat.format("Failed to read from {0}, {1}", file.getAbsolutePath(), ex.getMessage());
                 throw new StorageException(file, message, ex);

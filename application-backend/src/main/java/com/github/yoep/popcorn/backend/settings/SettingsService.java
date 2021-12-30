@@ -20,7 +20,8 @@ import static java.util.Arrays.asList;
 @Service
 @RequiredArgsConstructor
 public class SettingsService {
-    private static final String STORAGE_NAME = "settings.json";
+    static final String STORAGE_NAME = "settings.json";
+
     private final StorageService storageService;
     private final ViewLoader viewLoader;
     private final OptionsService optionsService;

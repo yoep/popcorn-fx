@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
 import com.github.yoep.popcorn.backend.media.filters.models.Genre;
 import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
@@ -9,7 +8,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.ResponseEntity;
@@ -28,10 +26,9 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     private static final Category CATEGORY = Category.MOVIES;
 
     public MovieProviderService(RestTemplate restTemplate,
-                                ApplicationEventPublisher eventPublisher,
                                 PopcornProperties popcornConfig,
                                 SettingsService settingsService) {
-        super(restTemplate, eventPublisher);
+        super(restTemplate);
 
         initializeUriProviders(settingsService.getSettings().getServerSettings(), popcornConfig.getProvider(CATEGORY.getProviderName()));
     }
@@ -70,11 +67,10 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
     }
 
     @Override
-    public CompletableFuture<Boolean> showDetails(Media media) {
-        final Movie movie = (Movie) media;
-
-        eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, movie));
-        return CompletableFuture.completedFuture(true);
+    public CompletableFuture<Media> retrieveDetails(Media media) {
+        // no additional details need to be loaded
+        // so we'll return the media item directly
+        return CompletableFuture.completedFuture(media);
     }
 
     public Page<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

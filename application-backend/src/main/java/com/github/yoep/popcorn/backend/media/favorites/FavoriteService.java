@@ -136,7 +136,7 @@ public class FavoriteService {
     //region PreDestroy
 
     @PreDestroy
-    private void destroy() {
+    void destroy() {
         onSave();
     }
 

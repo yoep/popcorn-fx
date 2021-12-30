@@ -14,6 +14,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 
@@ -30,8 +31,10 @@ public class ListSectionController extends AbstractListSectionController impleme
                                  FavoriteService favoriteService,
                                  WatchedService watchedService,
                                  ViewLoader viewLoader,
-                                 LocaleText localeText, ImageService imageService) {
-        super(providerServices, viewLoader, localeText);
+                                 LocaleText localeText,
+                                 ApplicationEventPublisher eventPublisher,
+                                 ImageService imageService) {
+        super(providerServices, viewLoader, localeText, eventPublisher);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
         this.imageService = imageService;

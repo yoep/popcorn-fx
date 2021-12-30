@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
-import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteSortStrategy;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
@@ -11,9 +9,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
-import com.github.yoep.popcorn.backend.messages.DetailsMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -32,21 +28,17 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
     private final List<ProviderService<?>> providers;
-    private final LocaleText localeText;
     private final List<FavoriteSortStrategy> sortStrategies;
 
     public FavoriteProviderService(RestTemplate restTemplate,
-                                   ApplicationEventPublisher eventPublisher,
                                    FavoriteService favoriteService,
                                    WatchedService watchedService,
                                    List<ProviderService<?>> providers,
-                                   LocaleText localeText,
                                    List<FavoriteSortStrategy> sortStrategies) {
-        super(restTemplate, eventPublisher);
+        super(restTemplate);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
         this.providers = providers;
-        this.localeText = localeText;
         this.sortStrategies = sortStrategies;
     }
 
@@ -79,7 +71,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
 
         if (!genre.isAllGenre()) {
             mediaStream = mediaStream.filter(e -> {
-                if (genre.getKey().equals("movies")) {
+                if (genre.getKey().equals(Genre.MOVIES_KEYWORD)) {
                     return e instanceof Movie;
                 } else {
                     return e instanceof Show;
@@ -113,7 +105,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
     }
 
     @Override
-    public CompletableFuture<Boolean> showDetails(Media media) {
+    public CompletableFuture<Media> retrieveDetails(Media media) {
         Category category;
 
         if (media instanceof Movie) {
@@ -125,19 +117,17 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         return providers.stream()
                 .filter(e -> e.supports(category))
                 .findFirst()
-                .map(e -> showDetails(e, media))
+                .map(e -> retrieveDetails(e, media))
                 .orElseThrow(() -> new MediaException("Could not find ProviderService for category " + category));
     }
 
-    private CompletableFuture<Boolean> showDetails(ProviderService<?> provider, Media media) {
+    private CompletableFuture<Media> retrieveDetails(ProviderService<?> provider, Media media) {
         try {
-            return provider.showDetails(media);
+            return provider.retrieveDetails(media);
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
-            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
+            throw new MediaDetailsException(media, "Failed to retrieve show details", ex);
         }
-
-        return CompletableFuture.completedFuture(false);
     }
 
     private Media updateWatchedState(Media media) {

@@ -1,19 +1,14 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
-import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
 import com.github.yoep.popcorn.backend.media.filters.models.Genre;
 import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
-import com.github.yoep.popcorn.backend.messages.DetailsMessage;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.ResponseEntity;
@@ -31,15 +26,10 @@ import java.util.concurrent.CompletableFuture;
 public class ShowProviderService extends AbstractProviderService<Show> {
     private static final Category CATEGORY = Category.SERIES;
 
-    private final LocaleText localeText;
-
     public ShowProviderService(RestTemplate restTemplate,
-                               ApplicationEventPublisher eventPublisher,
                                PopcornProperties popcornConfig,
-                               LocaleText localeText,
                                SettingsService settingsService) {
-        super(restTemplate, eventPublisher);
-        this.localeText = localeText;
+        super(restTemplate);
 
         initializeUriProviders(settingsService.getSettings().getServerSettings(), popcornConfig.getProvider(CATEGORY.getProviderName()));
     }
@@ -65,18 +55,12 @@ public class ShowProviderService extends AbstractProviderService<Show> {
     }
 
     @Override
-    public CompletableFuture<Boolean> showDetails(Media media) {
+    public CompletableFuture<Media> retrieveDetails(Media media) {
         try {
-            var show = getDetailsInternal(media.getId());
-            eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, show));
-
-            return CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(getDetailsInternal(media.getId()));
         } catch (Exception ex) {
-            log.error("Failed to load show details, " + ex.getMessage(), ex);
-            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
+            throw new MediaDetailsException(media, "Failed to load show details", ex);
         }
-
-        return CompletableFuture.completedFuture(false);
     }
 
     public Page<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

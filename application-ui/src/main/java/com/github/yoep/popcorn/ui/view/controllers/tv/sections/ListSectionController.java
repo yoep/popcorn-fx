@@ -13,6 +13,7 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 
 import java.util.List;
@@ -29,9 +30,10 @@ public class ListSectionController extends AbstractListSectionController impleme
     public ListSectionController(List<ProviderService<? extends Media>> providerServices,
                                  ViewLoader viewLoader,
                                  LocaleText localeText,
+                                 ApplicationEventPublisher eventPublisher,
                                  WatchedService watchedService,
                                  ImageService imageService) {
-        super(providerServices, viewLoader, localeText);
+        super(providerServices, viewLoader, localeText, eventPublisher);
         this.watchedService = watchedService;
         this.imageService = imageService;
     }

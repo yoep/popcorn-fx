@@ -6,7 +6,8 @@ import java.io.Serializable;
 
 @Getter
 public class Genre implements Comparable<Genre>, Serializable {
-    private static final String ALL_KEYWORD = "all";
+    public static final String ALL_KEYWORD = "all";
+    public static final String MOVIES_KEYWORD = "movies";
 
     private final String key;
     private final String text;

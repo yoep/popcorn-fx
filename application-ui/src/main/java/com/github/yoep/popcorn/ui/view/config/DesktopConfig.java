@@ -78,8 +78,9 @@ public class DesktopConfig {
                                                        WatchedService watchedService,
                                                        ViewLoader viewLoader,
                                                        LocaleText localeText,
+                                                       ApplicationEventPublisher eventPublisher,
                                                        ImageService imageService) {
-        return new ListSectionController(providerServices, favoriteService, watchedService, viewLoader, localeText, imageService);
+        return new ListSectionController(providerServices, favoriteService, watchedService, viewLoader, localeText, eventPublisher, imageService);
     }
 
     @Bean

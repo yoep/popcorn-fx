@@ -4,7 +4,6 @@ import lombok.*;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 import static java.util.Arrays.asList;
 
@@ -18,6 +17,7 @@ public class UISettings extends AbstractSettings {
     public static final String UI_SCALE_PROPERTY = "uiScale";
     public static final String START_SCREEN_PROPERTY = "startScreen";
     public static final String MAXIMIZED_PROPERTY = "maximized";
+    public static final String NATIVE_WINDOW_PROPERTY = "useNativeWindow";
 
     public static final Locale DEFAULT_LANGUAGE = defaultLanguage();
     public static final UIScale DEFAULT_UI_SCALE = new UIScale(1f);
@@ -41,43 +41,31 @@ public class UISettings extends AbstractSettings {
      * The indication if the UI was maximized the last time the application was closed.
      */
     private boolean maximized;
+    /**
+     * The indication if the UI should use a native window rather than the borderless stage.
+     */
+    private boolean nativeWindowEnabled;
 
     //region Setters
 
     public void setDefaultLanguage(Locale defaultLanguage) {
-        if (Objects.equals(this.defaultLanguage, defaultLanguage))
-            return;
-
-        var oldValue = this.defaultLanguage;
-        this.defaultLanguage = defaultLanguage;
-        changes.firePropertyChange(LANGUAGE_PROPERTY, oldValue, defaultLanguage);
+        this.defaultLanguage = updateProperty(this.defaultLanguage, defaultLanguage, LANGUAGE_PROPERTY);
     }
 
     public void setUiScale(UIScale uiScale) {
-        if (Objects.equals(this.uiScale, uiScale))
-            return;
-
-        var oldValue = this.uiScale;
-        this.uiScale = uiScale;
-        changes.firePropertyChange(UI_SCALE_PROPERTY, oldValue, uiScale);
+        this.uiScale = updateProperty(this.uiScale, uiScale, UI_SCALE_PROPERTY);
     }
 
     public void setMaximized(boolean maximized) {
-        if (Objects.equals(this.maximized, maximized))
-            return;
+        this.maximized = updateProperty(this.maximized, maximized, MAXIMIZED_PROPERTY);
+    }
 
-        var oldValue = this.maximized;
-        this.maximized = maximized;
-        changes.firePropertyChange(MAXIMIZED_PROPERTY, oldValue, maximized);
+    public void setNativeWindowEnabled(boolean nativeWindowEnabled) {
+        this.nativeWindowEnabled = updateProperty(this.nativeWindowEnabled, nativeWindowEnabled, NATIVE_WINDOW_PROPERTY);
     }
 
     public void setStartScreen(StartScreen startScreen) {
-        if (Objects.equals(this.startScreen, startScreen))
-            return;
-
-        var oldValue = this.startScreen;
-        this.startScreen = startScreen;
-        changes.firePropertyChange(START_SCREEN_PROPERTY, oldValue, startScreen);
+        this.startScreen = updateProperty(this.startScreen, startScreen, START_SCREEN_PROPERTY);
     }
 
     //endregion

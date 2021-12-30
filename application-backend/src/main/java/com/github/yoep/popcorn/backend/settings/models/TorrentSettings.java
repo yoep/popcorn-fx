@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.backend.settings.models;
 import lombok.*;
 
 import java.io.File;
-import java.util.Objects;
 
 @EqualsAndHashCode(callSuper = false)
 @Data
@@ -46,48 +45,23 @@ public class TorrentSettings extends AbstractSettings {
     //region Setters
 
     public void setDirectory(File directory) {
-        if (Objects.equals(this.directory, directory))
-            return;
-
-        var oldValue = this.directory;
-        this.directory = directory;
-        changes.firePropertyChange(DIRECTORY_PROPERTY, oldValue, directory);
+        this.directory = updateProperty(this.directory, directory, DIRECTORY_PROPERTY);
     }
 
     public void setAutoCleaningEnabled(boolean autoCleaningEnabled) {
-        if (Objects.equals(this.autoCleaningEnabled, autoCleaningEnabled))
-            return;
-
-        var oldValue = this.autoCleaningEnabled;
-        this.autoCleaningEnabled = autoCleaningEnabled;
-        changes.firePropertyChange(AUTO_CLEANING_PROPERTY, oldValue, autoCleaningEnabled);
+        this.autoCleaningEnabled = updateProperty(this.autoCleaningEnabled, autoCleaningEnabled, AUTO_CLEANING_PROPERTY);
     }
 
     public void setConnectionsLimit(int connectionsLimit) {
-        if (Objects.equals(this.connectionsLimit, connectionsLimit))
-            return;
-
-        var oldValue = this.connectionsLimit;
-        this.connectionsLimit = connectionsLimit;
-        changes.firePropertyChange(CONNECTIONS_LIMIT_PROPERTY, oldValue, connectionsLimit);
+        this.connectionsLimit = updateProperty(this.connectionsLimit, connectionsLimit, CONNECTIONS_LIMIT_PROPERTY);
     }
 
     public void setDownloadRateLimit(int downloadRateLimit) {
-        if (Objects.equals(this.downloadRateLimit, downloadRateLimit))
-            return;
-
-        var oldValue = this.downloadRateLimit;
-        this.downloadRateLimit = downloadRateLimit;
-        changes.firePropertyChange(DOWNLOAD_RATE_PROPERTY, oldValue, downloadRateLimit);
+        this.downloadRateLimit = updateProperty(this.downloadRateLimit, downloadRateLimit, DOWNLOAD_RATE_PROPERTY);
     }
 
     public void setUploadRateLimit(int uploadRateLimit) {
-        if (Objects.equals(this.uploadRateLimit, uploadRateLimit))
-            return;
-
-        var oldValue = this.uploadRateLimit;
-        this.uploadRateLimit = uploadRateLimit;
-        changes.firePropertyChange(UPLOAD_RATE_PROPERTY, oldValue, uploadRateLimit);
+        this.uploadRateLimit = updateProperty(this.uploadRateLimit, uploadRateLimit, UPLOAD_RATE_PROPERTY);
     }
 
     //endregion

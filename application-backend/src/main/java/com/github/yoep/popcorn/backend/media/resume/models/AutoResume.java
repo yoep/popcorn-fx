@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.media.resume.models;
+package com.github.yoep.popcorn.backend.media.resume.models;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

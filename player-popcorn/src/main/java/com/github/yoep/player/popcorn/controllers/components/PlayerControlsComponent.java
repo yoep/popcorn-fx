@@ -72,11 +72,8 @@ public class PlayerControlsComponent implements Initializable {
     private void initializeSlider() {
         playProgress.valueChangingProperty().addListener((observable, oldValue, newValue) ->
                 playerControlsService.onSeekChanging(newValue));
-        playProgress.timeProperty().addListener((observableValue, oldValue, newValue) -> {
-            if (playProgress.isValueChanging()) {
-                playerControlsService.seek(newValue.longValue());
-            }
-        });
+        playProgress.timeProperty().addListener((observableValue, oldValue, newValue) ->
+                onSeeking(newValue));
 
         playProgress.setOnMouseReleased(event -> setVideoTime(playProgress.getTime() + 1.0));
     }
@@ -141,6 +138,17 @@ public class PlayerControlsComponent implements Initializable {
     private void onSubtitleVisibilityChanged(boolean isVisible) {
         // update the visibility of the subtitles section
         Platform.runLater(() -> subtitleSection.setVisible(isVisible));
+    }
+
+    private void onSeeking(Number newValue) {
+        // check if the play progress is seeking a timestamp
+        // if not, ignore this invocation
+        if (!playProgress.isValueChanging()) {
+            return;
+        }
+
+        playerControlsService.seek(newValue.longValue());
+        timeLabel.setText(formatTime(newValue.longValue()));
     }
 
     private String formatTime(long time) {

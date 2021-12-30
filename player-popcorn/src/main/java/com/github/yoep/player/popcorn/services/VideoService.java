@@ -66,6 +66,12 @@ public class VideoService {
 
         videoPlayer.set(switchSupportedVideoPlayer(url));
         videoPlayer.get().play(url);
+        // verify if a resume timestamp is known
+        // if so, seek the given timestamp
+        request.getAutoResumeTimestamp()
+                .ifPresent(e -> videoPlayer.get().seek(e));
+
+        // let the listeners known that a play request was received
         invokeListeners(e -> e.onPlay(request));
     }
 

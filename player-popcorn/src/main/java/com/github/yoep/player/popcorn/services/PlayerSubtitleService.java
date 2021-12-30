@@ -33,11 +33,11 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     //region Methods
 
     public void updateSubtitleSizeWithSizeOffset(int pixelChange) {
-        subtitleManagerService.setSubtitleOffset(pixelChange);
+        subtitleManagerService.updateSubtitleOffset(pixelChange);
     }
 
     public void updateActiveSubtitle(SubtitleInfo subtitleInfo) {
-        subtitleManagerService.setSubtitle(subtitleInfo);
+        subtitleManagerService.updateSubtitle(subtitleInfo);
     }
 
     //endregion

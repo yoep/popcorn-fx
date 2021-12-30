@@ -32,6 +32,12 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
 
     //region Methods
 
+    public boolean isNativeSubtitlePlaybackSupported() {
+        return videoService.getVideoPlayer()
+                .map(VideoPlayer::supportsNativeSubtitleFile)
+                .orElse(false);
+    }
+
     public void togglePlayerPlaybackState() {
         if (player.getState() == PlayerState.PAUSED) {
             player.resume();
@@ -48,10 +54,13 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         player.seek(player.getTime() + offset);
     }
 
-    public boolean isNativeSubtitlePlaybackSupported() {
-        return videoService.getVideoPlayer()
-                .map(VideoPlayer::supportsNativeSubtitleFile)
-                .orElse(false);
+    public void provideSubtitleValues() {
+        var subtitleSettings = settingsService.getSettings().getSubtitleSettings();
+
+        invokeListeners(e -> e.onSubtitleFamilyChanged(subtitleSettings.getFontFamily().getFamily()));
+        invokeListeners(e -> e.onSubtitleFontWeightChanged(subtitleSettings.isBold()));
+        invokeListeners(e -> e.onSubtitleSizeChanged(subtitleSettings.getFontSize()));
+        invokeListeners(e -> e.onSubtitleDecorationChanged(subtitleSettings.getDecoration()));
     }
 
     //endregion
@@ -61,7 +70,6 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     @PostConstruct
     void init() {
         initializeListeners();
-        initializeSubtitlesValues();
     }
 
     private void initializeListeners() {
@@ -70,15 +78,6 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         videoService.videoPlayerProperty().addListener((observableValue, videoPlayer, newVideoPlayer) -> onVideoViewChanged(newVideoPlayer));
         subtitleManagerService.subtitleSizeProperty().addListener((observableValue, number, newSize) -> onSubtitleSizeChanged(newSize));
         subtitleManagerService.activeSubtitleProperty().addListener((observableValue, subtitle, newSubtitle) -> onActiveSubtitleChanged(newSubtitle));
-    }
-
-    private void initializeSubtitlesValues() {
-        var subtitleSettings = settingsService.getSettings().getSubtitleSettings();
-
-        invokeListeners(e -> e.onSubtitleFamilyChanged(subtitleSettings.getFontFamily().getFamily()));
-        invokeListeners(e -> e.onSubtitleFontWeightChanged(subtitleSettings.isBold()));
-        invokeListeners(e -> e.onSubtitleSizeChanged(subtitleSettings.getFontSize()));
-        invokeListeners(e -> e.onSubtitleDecorationChanged(subtitleSettings.getDecoration()));
     }
 
     //endregion
@@ -95,6 +94,9 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         switch (evt.getPropertyName()) {
             case SubtitleSettings.FONT_FAMILY_PROPERTY:
                 invokeListeners(e -> e.onSubtitleFamilyChanged((String) evt.getNewValue()));
+                break;
+            case SubtitleSettings.FONT_SIZE_PROPERTY:
+                invokeListeners(e -> e.onSubtitleSizeChanged((Integer) evt.getNewValue()));
                 break;
             case SubtitleSettings.BOLD_PROPERTY:
                 var bold = (Boolean) evt.getNewValue();

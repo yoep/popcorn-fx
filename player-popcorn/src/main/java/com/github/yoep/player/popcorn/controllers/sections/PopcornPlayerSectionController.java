@@ -164,11 +164,13 @@ public class PopcornPlayerSectionController implements Initializable {
 
         subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
             subtitleOffset.setText(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
-            subtitleManagerService.setSubtitleOffset(newValue.intValue() * 1000);
+            subtitleManagerService.updateSubtitleOffset(newValue.intValue() * 1000);
             fadeTransition.stop();
             subtitleOffset.setOpacity(1);
             offsetTimer.playFromStart();
         }));
+
+        sectionService.provideSubtitleValues();
     }
 
     private void initializeFaders() {

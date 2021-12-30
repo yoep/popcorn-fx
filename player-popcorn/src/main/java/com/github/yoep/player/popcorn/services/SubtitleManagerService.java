@@ -20,11 +20,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -60,16 +60,24 @@ public class SubtitleManagerService {
         return subtitleSize;
     }
 
+    public int getSubtitleSize() {
+        return subtitleSize.get();
+    }
+
+    public long getSubtitleOffset() {
+        return subtitleOffset.get();
+    }
+
     //endregion
 
     //region Methods
 
     /**
-     * Set the subtitle offset for the video player.
+     * Update the subtitle offset for the current playback.
      *
-     * @param offset The subtitle offset.
+     * @param offset The offset to apply to the subtitle.
      */
-    public void setSubtitleOffset(int offset) {
+    public void updateSubtitleOffset(int offset) {
         subtitleOffset.set(offset);
         var videoPlayer = videoService.getVideoPlayer();
 
@@ -82,11 +90,13 @@ public class SubtitleManagerService {
         }
     }
 
-    public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
-        return subtitleService.downloadAndParse(subtitleInfo, matcher);
-    }
-
-    public void setSubtitle(SubtitleInfo subtitleInfo) {
+    /**
+     * Update the active subtitle.
+     * When the given subtitle is {@code null}, then the subtitle track will be disabled.
+     *
+     * @param subtitleInfo The subtitle to use.
+     */
+    public void updateSubtitle(@Nullable SubtitleInfo subtitleInfo) {
         onSubtitleChanged(subtitleInfo);
     }
 
@@ -111,7 +121,7 @@ public class SubtitleManagerService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         log.trace("Initializing video player subtitle service");
         initializeSubtitleSize();
         initializeSubtitleListener();

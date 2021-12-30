@@ -35,7 +35,6 @@ public class PopcornPlayer implements Player {
 
     private PlayerState playerState;
     private Long time;
-    private Long duration;
 
     //region EmbeddablePlayer
 
@@ -122,10 +121,6 @@ public class PopcornPlayer implements Player {
         return time;
     }
 
-    public Long getDuration() {
-        return duration;
-    }
-
     //endregion
 
     //region Init
@@ -152,7 +147,6 @@ public class PopcornPlayer implements Player {
     }
 
     private void setDuration(Long duration) {
-        this.duration = duration;
         listeners.forEach(e -> e.onDurationChanged(duration));
     }
 

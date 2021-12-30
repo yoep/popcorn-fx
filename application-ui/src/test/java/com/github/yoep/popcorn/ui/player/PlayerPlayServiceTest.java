@@ -3,14 +3,12 @@ package com.github.yoep.popcorn.ui.player;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
-import com.github.yoep.popcorn.ui.media.resume.AutoResumeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -81,27 +79,5 @@ class PlayerPlayServiceTest {
         service.onPlayVideo(event);
 
         verify(screenService).fullscreen(true);
-    }
-
-    @Test
-    void testOnPlayerVideo_whenEventIsPlayerMediaEvent_shouldAutoResumeTheLastKnownMediaTimestamp() {
-        var mediaId = "t12356";
-        var filename = "my-filename.mp4";
-        var expectedTimestamp = 845669L;
-        var media = mock(Media.class);
-        var event = mock(PlayMediaEvent.class);
-        var player = mock(Player.class);
-        when(event.getMedia()).thenReturn(media);
-        when(event.getUrl()).thenReturn(filename);
-        when(media.getId()).thenReturn(mediaId);
-        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
-        when(autoResumeService.getResumeTimestamp(isA(String.class), isA(String.class))).thenReturn(Optional.of(expectedTimestamp));
-        when(settingsService.getSettings()).thenReturn(settings);
-        when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
-
-        service.onPlayVideo(event);
-
-        verify(autoResumeService).getResumeTimestamp(mediaId, filename);
-        verify(player).seek(expectedTimestamp);
     }
 }

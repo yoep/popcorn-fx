@@ -81,7 +81,10 @@ public class PlayerHeaderComponent implements Initializable {
     }
 
     private void onQualityChanged(String quality) {
-        Platform.runLater(() -> this.quality.setText(quality));
+        Platform.runLater(() -> {
+            this.quality.setText(quality);
+            this.quality.setVisible(true);
+        });
     }
 
     @FXML

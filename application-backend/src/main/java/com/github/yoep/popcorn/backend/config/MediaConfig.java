@@ -7,7 +7,8 @@ import org.springframework.context.annotation.Configuration;
 @ComponentScan({
         "com.github.yoep.popcorn.backend.media.favorites",
         "com.github.yoep.popcorn.backend.media.providers",
-        "com.github.yoep.popcorn.backend.media.watched"
+        "com.github.yoep.popcorn.backend.media.resume",
+        "com.github.yoep.popcorn.backend.media.watched",
 })
 public class MediaConfig {
 }

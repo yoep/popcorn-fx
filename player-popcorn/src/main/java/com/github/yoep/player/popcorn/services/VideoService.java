@@ -66,6 +66,12 @@ public class VideoService {
 
         videoPlayer.set(switchSupportedVideoPlayer(url));
         videoPlayer.get().play(url);
+        // verify if a resume timestamp is known
+        // if so, seek the given timestamp
+        request.getAutoResumeTimestamp()
+                .ifPresent(e -> videoPlayer.get().seek(e));
+
+        // let the listeners known that a play request was received
         invokeListeners(e -> e.onPlay(request));
     }
 
@@ -104,7 +110,7 @@ public class VideoService {
     //region PreDestroy
 
     @PreDestroy
-    public void dispose() {
+    void dispose() {
         log.trace("Disposing the video players");
         videoPlayers.forEach(VideoPlayer::dispose);
     }
@@ -120,7 +126,7 @@ public class VideoService {
      * @return Returns the new active video player that supports the url.
      * @throws VideoPlayerException Is thrown when no video player could be found that supports the given url.
      */
-    VideoPlayer switchSupportedVideoPlayer(String url) {
+    private VideoPlayer switchSupportedVideoPlayer(String url) {
         Assert.notNull(url, "url cannot be null");
         var videoPlayer = videoPlayers.stream()
                 .filter(e -> e.supports(url))

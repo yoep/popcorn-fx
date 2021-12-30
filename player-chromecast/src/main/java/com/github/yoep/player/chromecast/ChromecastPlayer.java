@@ -377,6 +377,11 @@ public class ChromecastPlayer implements Player {
                 var statusThread = new PlaybackStatusThread();
                 statusTimer.schedule(statusThread, 0, 1000);
 
+                // check if a resume timestamp is known
+                // if so, seek the timestamp in chromecast
+                request.getAutoResumeTimestamp()
+                        .ifPresent(ChromecastPlayer.this::seek);
+
                 while (keepAlive) {
                     Thread.onSpinWait();
                 }

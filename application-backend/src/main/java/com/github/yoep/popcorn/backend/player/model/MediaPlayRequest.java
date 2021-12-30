@@ -18,9 +18,9 @@ public class MediaPlayRequest extends SimplePlayRequest {
     private final Media media;
 
     @Builder(builderMethodName = "mediaBuilder")
-    public MediaPlayRequest(String url, String title, String thumb,
+    public MediaPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp,
                             SubtitleInfo subtitle, String quality, Media media) {
-        super(url, title, thumb);
+        super(url, title, thumb, autoResumeTimestamp);
         this.subtitle = subtitle;
         this.quality = quality;
         this.media = media;

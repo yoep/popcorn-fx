@@ -99,6 +99,10 @@ public class PlayerStopService {
     }
 
     private void onPlayerTimeChanged(long time) {
+        if (time == 0) {
+            return;
+        }
+
         this.time = time;
     }
 

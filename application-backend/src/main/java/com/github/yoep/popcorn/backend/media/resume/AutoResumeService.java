@@ -1,13 +1,12 @@
-package com.github.yoep.popcorn.ui.media.resume;
+package com.github.yoep.popcorn.backend.media.resume;
 
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.resume.models.AutoResume;
+import com.github.yoep.popcorn.backend.media.resume.models.VideoTimestamp;
 import com.github.yoep.popcorn.backend.storage.StorageException;
 import com.github.yoep.popcorn.backend.storage.StorageService;
-import com.github.yoep.popcorn.ui.media.resume.models.AutoResume;
-import com.github.yoep.popcorn.ui.media.resume.models.VideoTimestamp;
-import javafx.animation.PauseTransition;
-import javafx.util.Duration;
+import com.github.yoep.popcorn.backend.utils.IdleTimer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -17,18 +16,19 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.time.Duration;
 import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AutoResumeService {
-    private static final String STORAGE_NAME = "auto-resume.json";
+    static final String STORAGE_NAME = "auto-resume.json";
+    static final int IDLE_TIME = 10;
     private static final int AUTO_RESUME_PERCENTAGE_THRESHOLD = 85;
-    private static final int IDLE_TIME = 10;
 
     private final StorageService storageService;
-    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
+    private final IdleTimer idleTimer = new IdleTimer(Duration.ofSeconds(IDLE_TIME));
     private final Object cacheLock = new Object();
 
     private AutoResume cache;
@@ -111,21 +111,20 @@ public class AutoResumeService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         initializeIdleTimer();
     }
 
     private void initializeIdleTimer() {
-        idleTimer.setOnFinished(e -> onSave());
+        idleTimer.setOnTimeout(this::onSave);
     }
-
 
     //endregion
 
     //region PreDestroy
 
     @PreDestroy
-    private void destroy() {
+    void destroy() {
         onSave();
     }
 
@@ -172,7 +171,7 @@ public class AutoResumeService {
     }
 
     private void loadVideoTimestampsToCache() {
-        idleTimer.playFromStart();
+        idleTimer.runFromStart();
 
         // check if the cache is already loaded
         // if so, ignore the load

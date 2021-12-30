@@ -44,6 +44,14 @@ public interface PlayRequest {
     Optional<String> getQuality();
 
     /**
+     * The auto resume timestamp of known for the video playback.
+     * This timestamp is based on the last time the playback occurred.
+     *
+     * @return Returns the video playback last timestamp if known, else {@link Optional#empty()}.
+     */
+    Optional<Long> getAutoResumeTimestamp();
+
+    /**
      * Check if the subtitles are enabled for this {@link PlayRequest}.
      *
      * @return Returns true if subtitles should be enabled for the request, else false.

@@ -9,6 +9,7 @@
     </parent>
 
     <artifactId>application-ui</artifactId>
+    <name>Popcorn FX UI</name>
 
     <properties>
         <java.version>11</java.version>

@@ -8,14 +8,13 @@ import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -24,15 +23,18 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SubtitleEventService {
+public class SubtitleManagerService {
     public static final String SUBTITLE_SIZE_PROPERTY = "subtitleSize";
+    public static final String SUBTITLE_OFFSET_PROPERTY = "subtitleOffset";
 
     private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
+    private final LongProperty subtitleOffset = new SimpleLongProperty(this, SUBTITLE_OFFSET_PROPERTY);
     private final SettingsService settingsService;
     private final VideoService videoService;
     private final SubtitleService subtitleService;
@@ -44,18 +46,6 @@ public class SubtitleEventService {
     private String url;
 
     //region Properties
-
-    public Subtitle getActiveSubtitle() {
-        return subtitleService.getActiveSubtitle();
-    }
-
-    public ObjectProperty<Subtitle> activeSubtitleProperty() {
-        return subtitleService.activeSubtitleProperty();
-    }
-
-    public void setActiveSubtitle(Subtitle activeSubtitle) {
-        subtitleService.setActiveSubtitle(activeSubtitle);
-    }
 
     /**
      * Get the subtitle font size.
@@ -71,25 +61,21 @@ public class SubtitleEventService {
      *
      * @return Returns the subtitle size property.
      */
-    public IntegerProperty subtitleSizeProperty() {
+    public ReadOnlyIntegerProperty subtitleSizeProperty() {
         return subtitleSize;
     }
 
-    /**
-     * Set the new subtitle size.
-     *
-     * @param subtitleSize The new subtitle size.
-     */
-    public void setSubtitleSize(int subtitleSize) {
-        this.subtitleSize.set(subtitleSize);
-    }
+    //endregion
+
+    //region Methods
 
     /**
      * Set the subtitle offset for the video player.
      *
      * @param offset The subtitle offset.
      */
-    public void setSubtitleOffset(long offset) {
+    public void setSubtitleOffset(int offset) {
+        subtitleOffset.set(offset);
         var videoPlayer = videoService.getVideoPlayer();
 
         if (videoPlayer.isEmpty()) {
@@ -98,14 +84,8 @@ public class SubtitleEventService {
 
         if (videoPlayer.get().supportsNativeSubtitleFile()) {
             videoPlayer.get().subtitleDelay(offset);
-        } else {
-            log.trace("Video player does not support native subtitle files, ignoring subtitle offset update");
         }
     }
-
-    //endregion
-
-    //region Methods
 
     public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
         return subtitleService.downloadAndParse(subtitleInfo, matcher);
@@ -143,7 +123,14 @@ public class SubtitleEventService {
     }
 
     private void initializeSubtitleSize() {
-        subtitleSize.set(settingsService.getSettings().getSubtitleSettings().getFontSize());
+        var subtitleSettings = settingsService.getSettings().getSubtitleSettings();
+
+        subtitleSize.set(subtitleSettings.getFontSize());
+        subtitleSettings.addListener(evt -> {
+            if (Objects.equals(evt.getPropertyName(), SubtitleSettings.FONT_SIZE_PROPERTY)) {
+                subtitleSize.set((Integer) evt.getNewValue());
+            }
+        });
     }
 
     private void initializeSubtitleListener() {

@@ -21,6 +21,11 @@ public class StorageException extends RuntimeException {
         this.file = file;
     }
 
+    public StorageException(File file, String message) {
+        super(message);
+        this.file = file;
+    }
+
     public Optional<File> getFile() {
         return Optional.ofNullable(file);
     }

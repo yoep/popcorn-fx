@@ -16,8 +16,7 @@ public class TorrentSettings extends AbstractSettings {
     public static final String CONNECTIONS_LIMIT_PROPERTY = "connectionsLimit";
     public static final String DOWNLOAD_RATE_PROPERTY = "downloadRateLimit";
     public static final String UPLOAD_RATE_PROPERTY = "uploadRateLimit";
-
-    private static final String DEFAULT_TORRENT_DIRECTORY = "torrents";
+    public static final String DEFAULT_TORRENT_DIRECTORY = "torrents";
 
     /**
      * The directory to save the torrents to.

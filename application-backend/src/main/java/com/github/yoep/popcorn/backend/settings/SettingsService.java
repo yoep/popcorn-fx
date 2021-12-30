@@ -2,9 +2,7 @@ package com.github.yoep.popcorn.backend.settings;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.UIScale;
-import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -128,7 +126,7 @@ public class SettingsService {
     }
 
     private void initializeSettings() {
-        this.currentSettings = loadSettingsFromFile().orElse(ApplicationSettings.builder().build());
+        this.currentSettings = loadSettingsFromFile().orElseGet(this::createDefaultApplicationSettings);
         var uiSettings = this.currentSettings.getUiSettings();
 
         uiSettings.addListener(event -> {
@@ -185,6 +183,17 @@ public class SettingsService {
     private Optional<ApplicationSettings> loadSettingsFromFile() {
         log.debug("Loading application settings from storage");
         return storageService.read(STORAGE_NAME, ApplicationSettings.class);
+    }
+
+    private ApplicationSettings createDefaultApplicationSettings() {
+        return ApplicationSettings.builder()
+                .subtitleSettings(SubtitleSettings.builder()
+                        .directory(storageService.determineDirectoryWithinStorage(SubtitleSettings.DEFAULT_SUBTITLE_DIRECTORY))
+                        .build())
+                .torrentSettings(TorrentSettings.builder()
+                        .directory(storageService.determineDirectoryWithinStorage(TorrentSettings.DEFAULT_TORRENT_DIRECTORY))
+                        .build())
+                .build();
     }
 
     private int getCurrentUIScaleIndex() {

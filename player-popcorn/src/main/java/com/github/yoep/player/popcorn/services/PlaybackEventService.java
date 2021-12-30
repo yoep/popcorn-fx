@@ -69,8 +69,6 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
 
     @Override
     public void onStop() {
-        playerSection.reset();
-        playerControls.reset();
     }
 
     //endregion
@@ -121,8 +119,6 @@ public class PlaybackEventService implements PlaybackListener, PlayerListener {
     }
 
     private void handleControlsOnPlay(PlayRequest request) {
-        playerControls.updateSubtitleVisibility(request.isSubtitlesEnabled());
-
         // check if the activity contains media information
         if (request instanceof MediaPlayRequest) {
             var mediaActivity = (MediaPlayRequest) request;

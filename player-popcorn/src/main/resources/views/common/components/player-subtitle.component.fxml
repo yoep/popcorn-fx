@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.player.popcorn.subtitles.controls.LanguageSelection?>
+<?import javafx.scene.layout.HBox?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.player.popcorn.controllers.components.PlayerSubtitleComponent">
+    <Icon styleClass="player-button, subtitle, subtitle-smaller" onMouseClicked="#onSubtitleSmaller" cache="true">
+        <Icon fx:constant="FONT_UNICODE"/>
+    </Icon>
+    <Icon styleClass="player-button, subtitle" onMouseClicked="#onSubtitleLarger" cache="true">
+        <Icon fx:constant="FONT_UNICODE"/>
+    </Icon>
+    <LanguageSelection fx:id="languageSelection" styleClass="player-button, subtitle" cache="true">
+        <Icon fx:constant="COMMENT_UNICODE"/>
+    </LanguageSelection>
+</HBox>

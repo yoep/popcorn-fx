@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.storage;
 
 import javax.validation.constraints.NotNull;
+import java.io.File;
 import java.util.Optional;
 
 /**
@@ -8,6 +9,15 @@ import java.util.Optional;
  * It will determine in the background where the data should be stored or read on the system.
  */
 public interface StorageService {
+    /**
+     * Determine the subdirectory within the storage.
+     *
+     * @param directory The subdirectory to place within the storage.
+     * @return Returns the directory from within the storage.
+     * @throws StorageException Is thrown when the directory is invalid or the directory couldn't be determined.
+     */
+    File determineDirectoryWithinStorage(String directory);
+
     /**
      * Read the given name from the storage.
      * The contents will deserialized by the {@link StorageService}.

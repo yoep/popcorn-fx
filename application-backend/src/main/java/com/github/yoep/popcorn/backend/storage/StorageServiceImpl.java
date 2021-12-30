@@ -25,6 +25,26 @@ public class StorageServiceImpl implements StorageService {
     private final ObjectMapper objectMapper;
 
     @Override
+    public File determineDirectoryWithinStorage(String directory) {
+        Objects.requireNonNull(directory, "directory cannot be null");
+        var storageDirectory = new File(determineStorageBaseDirectory());
+        var calculatedDirectory = new File(storageDirectory.getAbsolutePath() + File.separator + directory);
+
+        try {
+            var storagePath = storageDirectory.getCanonicalPath();
+            var calculatedPath = calculatedDirectory.getCanonicalPath();
+
+            if (calculatedPath.startsWith(storagePath)) {
+                return calculatedDirectory;
+            } else {
+                throw new StorageException(calculatedDirectory, "Directory is invalid as it leaves the storage space");
+            }
+        } catch (IOException ex) {
+            throw new StorageException(calculatedDirectory, ex.getMessage(), ex);
+        }
+    }
+
+    @Override
     public <T> Optional<T> read(String name, Class<T> valueType) {
         Objects.requireNonNull(name, "name cannot be null");
         var file = determineStorageFile(name);
@@ -110,7 +130,7 @@ public class StorageServiceImpl implements StorageService {
      * @return Returns the storage base directory path.
      */
     private String determineStorageBaseDirectory() {
-        var baseDir = System.getProperty("user.home");
+        var baseDir = System.getProperty("user.home") + File.separator + BackendConstants.POPCORN_HOME_DIRECTORY;
 
         if (StringUtils.isNotEmpty(System.getProperty(BackendConstants.POPCORN_HOME_PROPERTY))) {
             log.trace("Property {} has been defined and will override the base storage directory", BackendConstants.POPCORN_HOME_PROPERTY);

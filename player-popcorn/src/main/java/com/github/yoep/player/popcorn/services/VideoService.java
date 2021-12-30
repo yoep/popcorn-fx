@@ -110,7 +110,7 @@ public class VideoService {
     //region PreDestroy
 
     @PreDestroy
-    public void dispose() {
+    void dispose() {
         log.trace("Disposing the video players");
         videoPlayers.forEach(VideoPlayer::dispose);
     }
@@ -126,7 +126,7 @@ public class VideoService {
      * @return Returns the new active video player that supports the url.
      * @throws VideoPlayerException Is thrown when no video player could be found that supports the given url.
      */
-    VideoPlayer switchSupportedVideoPlayer(String url) {
+    private VideoPlayer switchSupportedVideoPlayer(String url) {
         Assert.notNull(url, "url cannot be null");
         var videoPlayer = videoPlayers.stream()
                 .filter(e -> e.supports(url))

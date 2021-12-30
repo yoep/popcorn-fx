@@ -11,7 +11,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -32,7 +31,6 @@ import java.util.function.Consumer;
 public class VideoService {
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
     private final List<VideoPlayer> videoPlayers;
-    private final ApplicationEventPublisher eventPublisher;
 
     private final Queue<PlaybackListener> playbackListeners = new ConcurrentLinkedQueue<>();
     private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);

@@ -4,10 +4,9 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
-import com.github.yoep.player.popcorn.services.PlaybackService;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -19,8 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 
 import java.net.URL;
-import java.util.List;
-import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 
@@ -28,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 @ViewController
 @RequiredArgsConstructor
 public class PlayerControlsComponent implements Initializable {
-    private final PlaybackService playbackService;
     private final PlayerControlsService playerControlsService;
 
     @FXML
@@ -47,42 +43,12 @@ public class PlayerControlsComponent implements Initializable {
 
     //region Methods
 
-    public void updatePlaybackState(boolean isPlaying) {
-        if (isPlaying) {
-            Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
-        } else {
-            Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
-        }
-    }
-
-    public void updateDuration(Long duration) {
-        Platform.runLater(() -> {
-            durationLabel.setText(formatTime(duration));
-            playProgress.setDuration(duration);
-        });
-    }
-
-    public void updateTime(Long time) {
-        Platform.runLater(() -> {
-            timeLabel.setText(formatTime(time));
-
-            if (!playProgress.isValueChanging())
-                playProgress.setTime(time);
-        });
-    }
-
     private void onFullscreenStateChanged(Boolean isFullscreen) {
         if (isFullscreen) {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
         } else {
             Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
         }
-    }
-
-    public void updateAvailableSubtitles(List<SubtitleInfo> subtitles, SubtitleInfo subtitle) {
-        Objects.requireNonNull(subtitles, "subtitles cannot be null");
-        log.trace("Updating available subtitles to {}", subtitles.size());
-
     }
 
     @EventListener(PlayerStoppedEvent.class)
@@ -104,16 +70,11 @@ public class PlayerControlsComponent implements Initializable {
     }
 
     private void initializeSlider() {
-        playProgress.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue) {
-                playbackService.pause();
-            } else {
-                playbackService.resume();
-            }
-        });
+        playProgress.valueChangingProperty().addListener((observable, oldValue, newValue) ->
+                playerControlsService.onSeekChanging(newValue));
         playProgress.timeProperty().addListener((observableValue, oldValue, newValue) -> {
             if (playProgress.isValueChanging()) {
-                playbackService.seek(newValue.longValue());
+                playerControlsService.seek(newValue.longValue());
             }
         });
 
@@ -131,12 +92,51 @@ public class PlayerControlsComponent implements Initializable {
             public void onSubtitleStateChanged(boolean isSubtitlesEnabled) {
                 onSubtitleVisibilityChanged(isSubtitlesEnabled);
             }
+
+            @Override
+            public void onPlayerStateChanged(PlayerState state) {
+                PlayerControlsComponent.this.onPlayerStateChanged(state == PlayerState.PLAYING);
+            }
+
+            @Override
+            public void onPlayerTimeChanged(long time) {
+                onTimeChanged(time);
+            }
+
+            @Override
+            public void onPlayerDurationChanged(long duration) {
+                onDurationChanged(duration);
+            }
         });
     }
 
     //endregion
 
     //region Functions
+
+    private void onPlayerStateChanged(boolean isPlaying) {
+        if (isPlaying) {
+            Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
+        } else {
+            Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
+        }
+    }
+
+    private void onDurationChanged(Long duration) {
+        Platform.runLater(() -> {
+            durationLabel.setText(formatTime(duration));
+            playProgress.setDuration(duration);
+        });
+    }
+
+    private void onTimeChanged(Long time) {
+        Platform.runLater(() -> {
+            timeLabel.setText(formatTime(time));
+
+            if (!playProgress.isValueChanging())
+                playProgress.setTime(time);
+        });
+    }
 
     private void onSubtitleVisibilityChanged(boolean isVisible) {
         // update the visibility of the subtitles section
@@ -158,7 +158,7 @@ public class PlayerControlsComponent implements Initializable {
     @FXML
     void onPlayPauseClicked(MouseEvent event) {
         event.consume();
-        playbackService.togglePlayerPlaybackState();
+        playerControlsService.togglePlayerPlaybackState();
     }
 
     @FXML

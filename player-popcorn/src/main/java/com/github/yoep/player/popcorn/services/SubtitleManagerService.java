@@ -47,13 +47,8 @@ public class SubtitleManagerService {
 
     //region Properties
 
-    /**
-     * Get the subtitle font size.
-     *
-     * @return Returns the subtitle font size.
-     */
-    public int getSubtitleSize() {
-        return subtitleSize.get();
+    public ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty() {
+        return subtitleService.activeSubtitleProperty();
     }
 
     /**

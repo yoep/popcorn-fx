@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.media.filters.models.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
-import com.github.yoep.popcorn.backend.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

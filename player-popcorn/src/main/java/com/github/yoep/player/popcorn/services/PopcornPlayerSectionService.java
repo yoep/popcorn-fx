@@ -111,6 +111,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     }
 
     private void onPlayerStateChanged(PlayerState newState) {
+        log.trace("Video player entered state {}", newState);
         invokeListeners(e -> e.onPlayerStateChanged(newState));
     }
 

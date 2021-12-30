@@ -188,6 +188,7 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onError() {
+        log.warn("Video player entered ERROR state");
         Platform.runLater(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
         updateBufferIndicator(false);
     }
@@ -204,6 +205,7 @@ public class PopcornPlayerSectionController implements Initializable {
                 break;
             case PAUSED:
                 onShowOverlay(null);
+                break;
             case ERROR:
                 onError();
                 onShowOverlay(null);

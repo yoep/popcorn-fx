@@ -20,7 +20,7 @@ public abstract class AbstractTorrentListener implements TorrentListener {
     }
 
     @Override
-    public void onDownloadProgress(DownloadStatus status) {
+    public void onDownloadStatus(DownloadStatus status) {
         //no-op
     }
 

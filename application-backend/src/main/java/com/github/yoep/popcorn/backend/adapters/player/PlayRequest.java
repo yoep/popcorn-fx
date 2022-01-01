@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.adapters.player;
 
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 
+import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
 /**
@@ -13,6 +14,7 @@ public interface PlayRequest {
      *
      * @return Returns the playback url.
      */
+    @NotNull
     String getUrl();
 
     /**

@@ -6,11 +6,9 @@
 Popcorn FX is based on the original Popcorn Time Desktop and Popcorn Time Android versions.
 Popcorn FX uses **Java 11+** and **OpenJFX 13+**.
 This version was created to work with embedded devices such as the Raspberry PI, 
-but it also works on desktop environments such as **Linux & Windows** (not tested on Mac).
+but it also works on desktop environments such as **Linux, Windows & Mac**.
 
 Popcorn FX has been tested with **Raspberry Pi 3B+ and 4**.
-
-![Desktop preview](https://i.imgur.com/hkmMGDb.png)
 
 ## Launch options
 

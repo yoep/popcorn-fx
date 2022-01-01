@@ -2,7 +2,7 @@ package com.github.yoep.player.popcorn.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.player.popcorn.utils.SizeUtils;
-import com.github.yoep.popcorn.backend.adapters.player.embaddable.DownloadProgress;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -90,7 +90,7 @@ public class StreamInfo extends Icon {
      *
      * @param progress The update information to display.
      */
-    public void update(DownloadProgress progress) {
+    public void update(DownloadStatus progress) {
         popup.updateInfo(progress);
     }
 
@@ -161,7 +161,7 @@ public class StreamInfo extends Icon {
          *
          * @param progress The update information to display.
          */
-        void updateInfo(DownloadProgress progress) {
+        void updateInfo(DownloadStatus progress) {
             Platform.runLater(() -> skin.updateInfo(progress));
         }
     }
@@ -208,13 +208,13 @@ public class StreamInfo extends Icon {
             this.downloadedValue = null;
         }
 
-        void updateInfo(DownloadProgress downloadProgress) {
-            int progress = (int) (downloadProgress.getProgress() * 100);
-            String downloaded = MessageFormat.format("{0} ({1}%)", SizeUtils.toDisplaySize(downloadProgress.getDownloaded()), progress);
+        void updateInfo(DownloadStatus DownloadStatus) {
+            int progress = (int) (DownloadStatus.getProgress() * 100);
+            String downloaded = MessageFormat.format("{0} ({1}%)", SizeUtils.toDisplaySize(DownloadStatus.getDownloaded()), progress);
 
-            downloadValue.setText(SizeUtils.toDisplaySize(downloadProgress.getDownloadSpeed()) + "/s");
-            uploadValue.setText(SizeUtils.toDisplaySize(downloadProgress.getUploadSpeed()) + "/s");
-            activePeersValue.setText(String.valueOf(downloadProgress.getSeeds()));
+            downloadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.getDownloadSpeed()) + "/s");
+            uploadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.getUploadSpeed()) + "/s");
+            activePeersValue.setText(String.valueOf(DownloadStatus.getSeeds()));
             downloadedValue.setText(downloaded);
         }
 

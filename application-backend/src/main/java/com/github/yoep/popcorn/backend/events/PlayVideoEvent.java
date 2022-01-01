@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.events;
 
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
@@ -31,6 +32,7 @@ public class PlayVideoEvent extends ApplicationEvent {
         this(source, url, title, subtitlesEnabled, null);
     }
 
+    @Builder
     public PlayVideoEvent(Object source, String url, String title, boolean subtitlesEnabled, @Nullable String thumbnail) {
         super(source);
         Assert.notNull(url, "url cannot be null");

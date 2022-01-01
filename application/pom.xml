@@ -245,6 +245,9 @@
                                 <param>${project.basedir}/../assets/${platform}/vlc/lua</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>
                             </additionalResources>
+                            <vmArgs>
+                                <param>-Djava.library.path=".:$PATH"</param>
+                            </vmArgs>
                         </configuration>
                     </plugin>
                 </plugins>
@@ -265,7 +268,12 @@
                         <configuration>
                             <additionalResources>
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.dylib</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/libvlc.dylib</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.dylib</param>
                             </additionalResources>
+                            <vmArgs>
+                                <param>-Djava.library.path=".:$PATH"</param>
+                            </vmArgs>
                         </configuration>
                     </plugin>
                 </plugins>

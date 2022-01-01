@@ -6,6 +6,7 @@ import com.github.yoep.player.popcorn.controls.StreamInfo;
 import com.github.yoep.player.popcorn.controls.StreamInfoCell;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.player.popcorn.services.PlayerHeaderService;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -69,6 +70,16 @@ public class PlayerHeaderComponent implements Initializable {
             public void onQualityChanged(String quality) {
                 PlayerHeaderComponent.this.onQualityChanged(quality);
             }
+
+            @Override
+            public void onStreamStateChanged(boolean isStreaming) {
+                PlayerHeaderComponent.this.onStreamStateChanged(isStreaming);
+            }
+
+            @Override
+            public void onDownloadStatusChanged(DownloadStatus progress) {
+                PlayerHeaderComponent.this.onDownloadStatusChanged(progress);
+            }
         });
     }
 
@@ -85,6 +96,14 @@ public class PlayerHeaderComponent implements Initializable {
             this.quality.setText(quality);
             this.quality.setVisible(true);
         });
+    }
+
+    private void onStreamStateChanged(boolean isStreaming) {
+        Platform.runLater(() -> this.streamInfo.setVisible(isStreaming));
+    }
+
+    private void onDownloadStatusChanged(DownloadStatus progress) {
+        Platform.runLater(() -> this.streamInfo.update(progress));
     }
 
     @FXML

@@ -359,7 +359,7 @@ public class FrostTorrent implements Torrent, AlertListener {
         }
 
         synchronized (listeners) {
-            listeners.forEach(e -> safeInvoke(() -> e.onDownloadProgress(downloadStatus)));
+            listeners.forEach(e -> safeInvoke(() -> e.onDownloadStatus(downloadStatus)));
         }
     }
 

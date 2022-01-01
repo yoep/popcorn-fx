@@ -5,9 +5,11 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.backend.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
+import com.github.yoep.popcorn.backend.player.model.StreamPlayRequest;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,8 @@ public class PlayerPlayService {
         log.debug("Starting playback of {} in player {}", event.getUrl(), player.getName());
         if (event instanceof PlayMediaEvent) {
             playMediaVideo((PlayMediaEvent) event, player);
+        } else if (event instanceof PlayVideoTorrentEvent) {
+            playStreamVideo((PlayVideoTorrentEvent) event, player);
         } else {
             playSimpleVideo(event, player);
         }
@@ -66,6 +70,19 @@ public class PlayerPlayService {
                         .flatMap(Subtitle::getSubtitleInfo)
                         .orElse(null))
                 .autoResumeTimestamp(autoResumeService.getResumeTimestamp(event.getMedia().getId(), filename).orElse(null))
+                .torrentStream(event.getTorrentStream())
+                .build());
+    }
+
+    private void playStreamVideo(PlayVideoTorrentEvent event, Player player) {
+        var filename = FilenameUtils.getName(event.getUrl());
+
+        player.play(StreamPlayRequest.streamBuilder()
+                .url(event.getUrl())
+                .title(event.getTitle())
+                .thumb(event.getThumbnail())
+                .autoResumeTimestamp(autoResumeService.getResumeTimestamp(filename).orElse(null))
+                .torrentStream(event.getTorrentStream())
                 .build());
     }
 

@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.player.model;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import lombok.Builder;
@@ -12,15 +13,15 @@ import java.util.Optional;
 @Getter
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
-public class MediaPlayRequest extends SimplePlayRequest {
+public class MediaPlayRequest extends StreamPlayRequest {
     private final SubtitleInfo subtitle;
     private final String quality;
     private final Media media;
 
     @Builder(builderMethodName = "mediaBuilder")
-    public MediaPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp,
+    public MediaPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp, TorrentStream torrentStream,
                             SubtitleInfo subtitle, String quality, Media media) {
-        super(url, title, thumb, autoResumeTimestamp);
+        super(url, title, thumb, autoResumeTimestamp, torrentStream);
         this.subtitle = subtitle;
         this.quality = quality;
         this.media = media;

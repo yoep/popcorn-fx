@@ -28,7 +28,7 @@ public interface TorrentListener {
      *
      * @param status The new download status information.
      */
-    void onDownloadProgress(DownloadStatus status);
+    void onDownloadStatus(DownloadStatus status);
 
     /**
      * Invoked when a piece of the torrent has been finished.

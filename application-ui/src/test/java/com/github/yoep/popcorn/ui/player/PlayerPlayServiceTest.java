@@ -3,12 +3,21 @@ package com.github.yoep.popcorn.ui.player;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.resume.AutoResumeService;
+import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
+import com.github.yoep.popcorn.backend.player.model.StreamPlayRequest;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,6 +46,11 @@ class PlayerPlayServiceTest {
     @InjectMocks
     private PlayerPlayService service;
 
+    @BeforeEach
+    void setUp() {
+        lenient().when(settingsService.getSettings()).thenReturn(settings);
+    }
+
     @Test
     void testOnPlayVideo_whenThereIsNoActivePlayer_shouldNotThrowAnException() {
         var event = mock(PlayVideoEvent.class);
@@ -59,7 +73,6 @@ class PlayerPlayServiceTest {
                 .title(title)
                 .build();
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
-        when(settingsService.getSettings()).thenReturn(settings);
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
 
         service.onPlayVideo(event);
@@ -72,12 +85,106 @@ class PlayerPlayServiceTest {
         var event = mock(PlayVideoEvent.class);
         var player = mock(Player.class);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
-        when(settingsService.getSettings()).thenReturn(settings);
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(true);
 
         service.onPlayVideo(event);
 
         verify(screenService).fullscreen(true);
+    }
+
+    @Test
+    void testOnPlayVideo_whenEventIsPlayMediaEvent_shouldInvokeMediaPlayRequestOnPlayer() {
+        var id = "tt006";
+        var url = "my-media-video.mp4";
+        var title = "006";
+        var timestamp = 18000L;
+        var player = mock(Player.class);
+        var media = Movie.builder()
+                .id(id)
+                .images(Images.builder().build())
+                .build();
+        var torrent = mock(Torrent.class);
+        var torrentStream = mock(TorrentStream.class);
+        var event = PlayMediaEvent.mediaBuilder()
+                .source(this)
+                .url(url)
+                .title(title)
+                .media(media)
+                .torrent(torrent)
+                .torrentStream(torrentStream)
+                .build();
+        var request = MediaPlayRequest.mediaBuilder()
+                .url(url)
+                .title(title)
+                .media(media)
+                .autoResumeTimestamp(timestamp)
+                .torrentStream(torrentStream)
+                .build();
+        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
+        when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
+        when(playbackSettings.isFullscreen()).thenReturn(false);
+        when(autoResumeService.getResumeTimestamp(id, url)).thenReturn(Optional.of(timestamp));
+
+        service.onPlayVideo(event);
+
+        verify(player).play(request);
+    }
+
+    @Test
+    void testOnPlayVideo_whenEventIsPlayTorrentVideoEvent_shouldInvokeStreamPlayRequestOnPlayer() {
+        var url = "my-torrent-video.mp4";
+        var title = "001";
+        var timestamp = 16000L;
+        var player = mock(Player.class);
+        var torrent = mock(Torrent.class);
+        var torrentStream = mock(TorrentStream.class);
+        var event = PlayVideoTorrentEvent.videoTorrentBuilder()
+                .source(this)
+                .url(url)
+                .title(title)
+                .torrent(torrent)
+                .torrentStream(torrentStream)
+                .build();
+        var request = StreamPlayRequest.streamBuilder()
+                .url(url)
+                .title(title)
+                .autoResumeTimestamp(timestamp)
+                .torrentStream(torrentStream)
+                .build();
+        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
+        when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
+        when(playbackSettings.isFullscreen()).thenReturn(false);
+        when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.of(timestamp));
+
+        service.onPlayVideo(event);
+
+        verify(player).play(request);
+    }
+
+    @Test
+    void testOnPlayVideo_whenEventIsPlayVideoEvent_shouldInvokeSimplePlayRequestOnPlayer() {
+        var url = "my-video.mp4";
+        var title = "file-video";
+        var timestamp = 22000L;
+        var player = mock(Player.class);
+        var event = PlayVideoEvent.builder()
+                .source(this)
+                .url(url)
+                .title(title)
+                .build();
+        var request = SimplePlayRequest.builder()
+                .url(url)
+                .title(title)
+                .autoResumeTimestamp(timestamp)
+                .build();
+        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
+        when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
+        when(playbackSettings.isFullscreen()).thenReturn(false);
+        when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.of(timestamp));
+
+        service.onPlayVideo(event);
+
+        verify(player).play(request);
     }
 }

@@ -211,8 +211,8 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
             this.torrent.addListener(torrentListener);
 
             // create a stream for this torrent
-            torrentStream = torrentStreamService.startStream(torrent);
-            torrentStream.addListener(torrentStreamListener);
+            this.torrentStream = torrentStreamService.startStream(torrent);
+            this.torrentStream.addListener(torrentStreamListener);
         } else {
             log.error("Failed to create torrent, " + throwable.getMessage(), throwable);
             updateProgressToErrorState();
@@ -249,7 +249,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         }
     }
 
-    private void onDownloadProgress(DownloadStatus status) {
+    private void onDownloadStatus(DownloadStatus status) {
         runOnFx(() -> {
             progressStatus.setVisible(true);
             progressBar.setProgress(status.getProgress());
@@ -321,8 +321,8 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
             }
 
             @Override
-            public void onDownloadProgress(DownloadStatus status) {
-                AbstractLoaderTorrentComponent.this.onDownloadProgress(status);
+            public void onDownloadStatus(DownloadStatus status) {
+                AbstractLoaderTorrentComponent.this.onDownloadStatus(status);
             }
         };
     }

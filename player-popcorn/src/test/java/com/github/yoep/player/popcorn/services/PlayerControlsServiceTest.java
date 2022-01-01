@@ -6,6 +6,7 @@ import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import javafx.beans.property.BooleanProperty;
@@ -143,9 +144,11 @@ class PlayerControlsServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsMediaPlayback_shouldEnableSubtitles() {
+        var torrentStream = mock(TorrentStream.class);
         var request = MediaPlayRequest.mediaBuilder()
                 .title("lorem")
                 .thumb("ipsum")
+                .torrentStream(torrentStream)
                 .build();
         service.init();
 

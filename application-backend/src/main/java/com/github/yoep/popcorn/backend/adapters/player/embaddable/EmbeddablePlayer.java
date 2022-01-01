@@ -26,11 +26,4 @@ public interface EmbeddablePlayer extends Player {
      * @param mode The display/layout mode to use.
      */
     void setLayoutMode(LayoutMode mode);
-
-    /**
-     * Invoked when the download progress is changed.
-     *
-     * @param downloadStatus The new download progress info.
-     */
-    void updateDownloadProgress(DownloadProgress downloadStatus);
 }

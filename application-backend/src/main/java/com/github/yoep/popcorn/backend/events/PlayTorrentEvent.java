@@ -5,7 +5,8 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.springframework.util.Assert;
+
+import java.util.Objects;
 
 @Getter
 @EqualsAndHashCode(callSuper = false)
@@ -19,11 +20,11 @@ public class PlayTorrentEvent extends PlayVideoEvent {
      */
     private final TorrentStream torrentStream;
 
-    @Builder
+    @Builder(builderMethodName = "playTorrentBuilder")
     public PlayTorrentEvent(Object source, String url, String title, boolean subtitlesEnabled, String thumbnail, Torrent torrent, TorrentStream torrentStream) {
         super(source, url, title, subtitlesEnabled, thumbnail);
-        Assert.notNull(torrent, "torrent cannot be null");
-        Assert.notNull(torrentStream, "torrentStream cannot be null");
+        Objects.requireNonNull(torrent, "torrent cannot be null");
+        Objects.requireNonNull(torrentStream, "torrentStream cannot be null");
         this.torrent = torrent;
         this.torrentStream = torrentStream;
     }

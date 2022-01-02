@@ -5,6 +5,7 @@ import com.github.yoep.player.popcorn.player.PopcornPlayerException;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
+import com.github.yoep.popcorn.backend.adapters.video.listeners.AbstractVideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import javafx.beans.property.ObjectProperty;
@@ -17,11 +18,7 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PreDestroy;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Consumer;
 
 /**
  * The video service is responsible for handling the active video player and surface.
@@ -29,11 +26,10 @@ import java.util.function.Consumer;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class VideoService {
+public class VideoService extends AbstractListenerService<PlaybackListener> {
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
     private final List<VideoPlayer> videoPlayers;
 
-    private final Queue<PlaybackListener> playbackListeners = new ConcurrentLinkedQueue<>();
     private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
     private final VideoListener videoListener = createVideoListener();
 
@@ -78,23 +74,25 @@ public class VideoService {
             invokeListeners(e -> e.onPlay(request));
         } catch (Exception ex) {
             log.error("Failed to start video playback of {}, {}", url, ex.getMessage(), ex);
-
             throw new PopcornPlayerException(url, ex.getMessage(), ex);
         }
     }
 
     public void onResume() {
-        videoPlayer.get().resume();
+        Optional.ofNullable(videoPlayer.get())
+                .ifPresent(VideoPlayer::resume);
         invokeListeners(PlaybackListener::onResume);
     }
 
     public void onPause() {
-        videoPlayer.get().pause();
+        Optional.ofNullable(videoPlayer.get())
+                .ifPresent(VideoPlayer::pause);
         invokeListeners(PlaybackListener::onPause);
     }
 
     public void onSeek(long time) {
-        videoPlayer.get().seek(time);
+        Optional.ofNullable(videoPlayer.get())
+                .ifPresent(e -> e.seek(time));
         invokeListeners(e -> e.onSeek(time));
     }
 
@@ -104,13 +102,9 @@ public class VideoService {
     }
 
     public void onStop() {
-        videoPlayer.get().stop();
+        Optional.ofNullable(videoPlayer.get())
+                .ifPresent(VideoPlayer::stop);
         invokeListeners(PlaybackListener::onStop);
-    }
-
-    public void addListener(PlaybackListener listener) {
-        Objects.requireNonNull(listener, "listener cannot be null");
-        playbackListeners.add(listener);
     }
 
     //endregion
@@ -157,16 +151,6 @@ public class VideoService {
         videoPlayer.addListener(videoListener);
     }
 
-    private void invokeListeners(Consumer<PlaybackListener> action) {
-        playbackListeners.forEach(listener -> {
-            try {
-                action.accept(listener);
-            } catch (Exception ex) {
-                log.error("Failed to invoke playback listener, {}", ex.getMessage(), ex);
-            }
-        });
-    }
-
     private void onVideoError() {
         var videoPlayerError = getVideoPlayerError();
         log.error("Video player {} changed to state {}, {}", getVideoPlayerType(), getVideoPlayerState(), videoPlayerError.getMessage(), videoPlayerError);
@@ -191,17 +175,7 @@ public class VideoService {
     }
 
     private VideoListener createVideoListener() {
-        return new VideoListener() {
-            @Override
-            public void onDurationChanged(long newDuration) {
-
-            }
-
-            @Override
-            public void onTimeChanged(long newTime) {
-
-            }
-
+        return new AbstractVideoListener() {
             @Override
             public void onStateChanged(VideoState newState) {
                 if (newState == VideoState.ERROR) {

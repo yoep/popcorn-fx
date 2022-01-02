@@ -8,6 +8,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>application</artifactId>
+    <name>Popcorn Time</name>
     <description>Popcorn Time is a multi-platform, free software BitTorrent client that includes an integrated media player.</description>
 
     <properties>
@@ -188,19 +189,16 @@
                     <assetsDir>../assets</assetsDir>
                     <licenseFile>../LICENSE</licenseFile>
                     <version>${project.version}</version>
-                    <vmArgs>
-                        <param>-Dsun.awt.disablegrab=true</param>
-                        <param>-Dprism.dirtyopts=false</param>
-                        <param>-Dprism.lcdtext=false</param>
-                        <param>-XX:+UseG1GC</param>
-                    </vmArgs>
                     <linuxConfig>
                         <generateRpm>false</generateRpm>
                     </linuxConfig>
+                    <macConfig>
+                        <generateDmg>true</generateDmg>
+                        <generatePkg>false</generatePkg>
+                    </macConfig>
                     <winConfig>
                         <generateMsi>false</generateMsi>
                         <generateMsm>false</generateMsm>
-                        <productName>Popcorn Time</productName>
                         <setupLanguages>
                             <english>compiler:Default.isl</english>
                             <dutch>compiler:Languages\Dutch.isl</dutch>
@@ -209,6 +207,8 @@
                             <spanish>compiler:Languages\Spanish.isl</spanish>
                         </setupLanguages>
                         <setupMode>askTheUser</setupMode>
+                        <disableDirPage>false</disableDirPage>
+                        <disableProgramGroupPage>false</disableProgramGroupPage>
                         <createDesktopIconTask>true</createDesktopIconTask>
                     </winConfig>
                 </configuration>
@@ -246,7 +246,12 @@
                                 <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>
                             </additionalResources>
                             <vmArgs>
-                                <param>-Djava.library.path=".:$PATH"</param>
+                                <param>-Djava.library.path=".;$PATH"</param>
+                                <param>-Dsun.awt.disablegrab=true</param>
+                                <param>-Dprism.dirtyopts=false</param>
+                                <param>-Dprism.lcdtext=false</param>
+                                <param>-Xms100M</param>
+                                <param>-XX:+UseG1GC</param>
                             </vmArgs>
                         </configuration>
                     </plugin>
@@ -273,6 +278,11 @@
                             </additionalResources>
                             <vmArgs>
                                 <param>-Djava.library.path=".:$PATH"</param>
+                                <param>-Dsun.awt.disablegrab=true</param>
+                                <param>-Dprism.dirtyopts=false</param>
+                                <param>-Dprism.lcdtext=false</param>
+                                <param>-Xms100M</param>
+                                <param>-XX:+UseG1GC</param>
                             </vmArgs>
                         </configuration>
                     </plugin>
@@ -301,6 +311,11 @@
                             </additionalResources>
                             <vmArgs>
                                 <param>-Djava.library.path=".:$PATH"</param>
+                                <param>-Dsun.awt.disablegrab=true</param>
+                                <param>-Dprism.dirtyopts=false</param>
+                                <param>-Dprism.lcdtext=false</param>
+                                <param>-Xms100M</param>
+                                <param>-XX:+UseG1GC</param>
                             </vmArgs>
                         </configuration>
                     </plugin>

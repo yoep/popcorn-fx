@@ -62,6 +62,10 @@ public class PopcornTimePreloader extends Preloader {
 
         alert.showAndWait();
 
+        // close the JVM with a failure indication
+        Platform.exit();
+        System.exit(1);
+
         return true;
     }
 

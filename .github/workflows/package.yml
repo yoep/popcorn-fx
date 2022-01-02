@@ -83,4 +83,3 @@ jobs:
           name: macos-package
           path: |
             application/target/popcorn-time*.dmg
-            application/target/popcorn-time*.pkg

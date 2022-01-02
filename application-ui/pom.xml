@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>application-ui</artifactId>
-    <name>Popcorn FX UI</name>
+    <name>Popcorn Time UI</name>
 
     <properties>
         <java.version>11</java.version>
@@ -117,6 +117,16 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-swing</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-junit5</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

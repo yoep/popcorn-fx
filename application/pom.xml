@@ -262,7 +262,7 @@
             <id>macosx</id>
 
             <properties>
-                <platform>macosx</platform>
+                <platform>mac</platform>
             </properties>
 
             <build>

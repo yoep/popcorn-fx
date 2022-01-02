@@ -3,7 +3,11 @@
 #include "PopcornKeys.h"
 
 #include <exception>
+#ifdef _WIN32
 #include <malloc.h>
+#else
+#include <cstdlib>
+#endif
 
 using namespace std;
 

@@ -45,11 +45,6 @@
         </dependency>
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>video-vlc-native</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.yoep</groupId>
             <artifactId>video-youtube</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -63,6 +58,11 @@
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>player-chromecast</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>player-qt</artifactId>
             <version>${project.version}</version>
         </dependency>
 

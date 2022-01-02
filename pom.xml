@@ -15,17 +15,17 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>application</module>
         <module>application-backend</module>
         <module>application-ui</module>
-        <module>video-javafx</module>
-        <module>video-vlc</module>
-        <module>video-vlc-native</module>
-        <module>video-youtube</module>
-        <module>torrent-stream</module>
-        <module>torrent-frostwire</module>
+        <module>application</module>
         <module>player-chromecast</module>
         <module>player-popcorn</module>
+        <module>player-qt</module>
+        <module>torrent-frostwire</module>
+        <module>torrent-stream</module>
+        <module>video-javafx</module>
+        <module>video-vlc</module>
+        <module>video-youtube</module>
     </modules>
 
     <repositories>

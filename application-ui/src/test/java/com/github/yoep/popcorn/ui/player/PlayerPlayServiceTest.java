@@ -1,10 +1,12 @@
 package com.github.yoep.popcorn.ui.player;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
@@ -17,12 +19,14 @@ import com.github.yoep.popcorn.backend.player.model.StreamPlayRequest;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
+import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 
@@ -43,6 +47,10 @@ class PlayerPlayServiceTest {
     private ApplicationSettings settings;
     @Mock
     private PlaybackSettings playbackSettings;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private LocaleText localeText;
     @InjectMocks
     private PlayerPlayService service;
 
@@ -186,5 +194,31 @@ class PlayerPlayServiceTest {
         service.onPlayVideo(event);
 
         verify(player).play(request);
+    }
+
+    @Test
+    void testOnPlayVideo_whenPlayerThrowsError_shouldShowErrorNotification() {
+        var url = "my-video.mp4";
+        var title = "file-video";
+        var errorMessage = "video player failed";
+        var player = mock(Player.class);
+        var event = PlayVideoEvent.builder()
+                .source(this)
+                .url(url)
+                .title(title)
+                .build();
+        var request = SimplePlayRequest.builder()
+                .url(url)
+                .title(title)
+                .build();
+        var expectedErrorNotification = new ErrorNotificationEvent(service, errorMessage);
+        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
+        when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.empty());
+        when(localeText.get(MediaMessage.VIDEO_PLAYBACK_FAILED)).thenReturn(errorMessage);
+        doThrow(new RuntimeException("my player error")).when(player).play(request);
+
+        service.onPlayVideo(event);
+
+        verify(eventPublisher).publishEvent(expectedErrorNotification);
     }
 }

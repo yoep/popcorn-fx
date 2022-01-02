@@ -1,10 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <script
-            src="https://code.jquery.com/jquery-3.4.1.min.js"
-            integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
-            crossorigin="anonymous"></script>
+    <title>Youtube video player</title>
     <style>
         body {
             margin: 0;
@@ -20,15 +17,16 @@
 <!-- Youtube script -->
 <script type="text/javascript">
     // 2. This code loads the IFrame Player API code asynchronously.
-    var tag = document.createElement('script');
+    const tag = document.createElement('script');
 
     tag.src = "https://www.youtube.com/iframe_api";
-    var firstScriptTag = document.getElementsByTagName('script')[0];
+    const firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
     // 3. This function creates an <iframe> (and YouTube player)
     //    after the API code downloads.
     var player;
+    var playerReady = false;
 
     function onYouTubeIframeAPIReady() {
         console.log("Youtube Iframe API is ready");
@@ -48,8 +46,12 @@
 
     function onPlayerStateChange(event) {
         let state = event.data;
-
         console.log("Youtube Player state changed to " + state);
+
+        if (typeof VPY === 'undefined') {
+            console.warn("Unable to call bridge, bridge variable is unavailable");
+        }
+
         if (state === YT.PlayerState.PLAYING) {
             VPY.state("playing");
             startListener();
@@ -70,7 +72,16 @@
 
     function onPlayerReady(event) {
         console.log("Youtube player is ready");
-        VPY.ready();
+        playerReady = true;
+
+        if (typeof VPY !== 'undefined') {
+            VPY.ready();
+        } else {
+            // try a few time to see if we're able to call the bridge
+            executeOnBridge(function(){
+                VPY.ready();
+            });
+        }
     }
 
     /**
@@ -80,6 +91,7 @@
      */
     function play(id) {
         player.loadVideoById(id, 0);
+        console.log("Playing youtube video " + id);
     }
 
     function pause() {
@@ -107,21 +119,41 @@
 
 <!-- Webpage script -->
 <script>
-    var playerListener;
+    let playerListener;
 
-    console.log = function (message) {
-        VPY.log(message);
-    };
+    function executeOnBridge(actionToExecute) {
+        let intervalHandler = setInterval(function () {
+            // check if the bridge is ready
+            // if so, execute the action
+            if (typeof VPY !== 'undefined') {
+                actionToExecute();
+                clearInterval(intervalHandler);
+            }
+        }, 200);
+    }
 
-    $(window).resize(function () {
-        if (player === undefined)
+    function overrideConsoleLog() {
+        executeOnBridge(function () {
+            console.log = function (message) {
+                VPY.log(message);
+            };
+
+            console.error = function (message) {
+                VPY.logError(message);
+            };
+        });
+    }
+
+    function resizePlayerToWindowSize() {
+        if (player === undefined) {
             return;
+        }
 
-        var iframe = $(player.getIframe());
+        let iframe = player.getIframe();
 
-        iframe.width($(window).width());
-        iframe.height($(window).height());
-    });
+        iframe.width = window.innerWidth;
+        iframe.height = window.innerHeight;
+    }
 
     function startListener() {
         console.log("Starting Youtube Player listener");
@@ -133,9 +165,20 @@
     }
 
     function stopListener() {
-        console.log("Starting Youtube Player listener");
+        console.log("Stopping Youtube Player listener");
         clearInterval(playerListener);
     }
+
+    // initial resize the player to the window size
+    window.onload = (event) => {
+        resizePlayerToWindowSize();
+        overrideConsoleLog();
+    };
+
+    // resize the player everytime the window is resized
+    window.onresize = (event) => {
+        resizePlayerToWindowSize();
+    };
 </script>
 </body>
 </html>

@@ -34,9 +34,9 @@ import java.util.regex.Pattern;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlayer {
-    private static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
-    private static final String YOUTUBE_URL_INDICATOR = "youtu";
-    private static final int BRIDGE_TIMEOUT = 2000;
+    static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
+    static final String YOUTUBE_URL_INDICATOR = "youtu";
+    private static final int BRIDGE_TIMEOUT = 3000;
 
     private final YoutubePlayerBridge playerBridge = new YoutubePlayerBridge();
 
@@ -130,9 +130,11 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
     @Override
     public void stop() {
-        checkInitialized();
+        if (initialized) {
+            Platform.runLater(this::stopPlayer);
+        }
 
-        Platform.runLater(this::stopPlayer);
+        setVideoState(VideoState.STOPPED);
     }
 
     @Override
@@ -196,12 +198,15 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     }
 
     private void initializeWebviewEvents() {
-        WebEngine engine = getEngine();
-        ClassPathResource resource = new ClassPathResource("embed_youtube.html");
+        var engine = getEngine();
+        var resource = new ClassPathResource("embed_youtube.html");
 
         engine.setJavaScriptEnabled(true);
         engine.getLoadWorker().stateProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue == Worker.State.RUNNING) {
+                JSObject window = (JSObject) engine.executeScript("window");
+                window.setMember("VPY", playerBridge);
+            } else if (newValue == Worker.State.SUCCEEDED) {
                 JSObject window = (JSObject) engine.executeScript("window");
                 window.setMember("VPY", playerBridge);
             }
@@ -334,6 +339,10 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
         public void log(String message) {
             log.trace("[WebView] " + message);
+        }
+
+        public void logError(String message) {
+            log.error("[WebView] " + message);
         }
 
         public void error(String code) {

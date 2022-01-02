@@ -63,6 +63,7 @@ public class PlayerPlayService {
             // check if the user prefers to start the video playback in fullscreen mode
             fullscreenVideo();
         } catch (Exception ex) {
+            log.error("Failed to start player {}, {}", player.getName(), ex.getMessage(), ex);
             eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(MediaMessage.VIDEO_PLAYBACK_FAILED)));
         }
     }

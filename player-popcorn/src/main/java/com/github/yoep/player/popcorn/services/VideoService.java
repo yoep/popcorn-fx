@@ -1,6 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
+import com.github.yoep.player.popcorn.player.PopcornPlayerException;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
@@ -64,15 +65,22 @@ public class VideoService {
         Assert.notNull(request, "request cannot be null");
         var url = request.getUrl();
 
-        videoPlayer.set(switchSupportedVideoPlayer(url));
-        videoPlayer.get().play(url);
-        // verify if a resume timestamp is known
-        // if so, seek the given timestamp
-        request.getAutoResumeTimestamp()
-                .ifPresent(e -> videoPlayer.get().seek(e));
+        try {
+            videoPlayer.set(switchSupportedVideoPlayer(url));
+            videoPlayer.get().play(url);
 
-        // let the listeners known that a play request was received
-        invokeListeners(e -> e.onPlay(request));
+            // verify if a resume timestamp is known
+            // if so, seek the given timestamp
+            request.getAutoResumeTimestamp()
+                    .ifPresent(e -> videoPlayer.get().seek(e));
+
+            // let the listeners known that a play request was received
+            invokeListeners(e -> e.onPlay(request));
+        } catch (Exception ex) {
+            log.error("Failed to start video playback of {}, {}", url, ex.getMessage(), ex);
+
+            throw new PopcornPlayerException(url, ex.getMessage(), ex);
+        }
     }
 
     public void onResume() {

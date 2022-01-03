@@ -1,8 +1,16 @@
 .idea/
 .cmake/
 target/
+
+assets/linux/vlc/lua/
+assets/linux/vlc/plugins/
+assets/linux/vlc/vlc-*/
+assets/mac/vlc/lua/
+assets/mac/vlc/plugins/
+assets/mac/vlc/vlc-*/
 assets/windows/vlc/lua/
 assets/windows/vlc/plugins/
+assets/windows/vlc/vlc-*/
 
 **/*.iml
 **/docker-compose.yml

@@ -246,7 +246,7 @@
                                 <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>
                             </additionalResources>
                             <vmArgs>
-                                <param>-Djava.library.path=".;$PATH"</param>
+                                <param>-Djava.library.path=".;${PATH}"</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
                                 <param>-Dprism.lcdtext=false</param>
@@ -275,6 +275,8 @@
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.dylib</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlc.dylib</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.dylib</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/lua</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>
                             </additionalResources>
                             <vmArgs>
                                 <param>-Djava.library.path=".:$PATH"</param>
@@ -308,6 +310,8 @@
                                 <param>${project.basedir}/../assets/${platform}/libPopcornPlayer.so</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlc.so</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.so</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/lua</param>
+                                <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>
                             </additionalResources>
                             <vmArgs>
                                 <param>-Djava.library.path=".:$PATH"</param>

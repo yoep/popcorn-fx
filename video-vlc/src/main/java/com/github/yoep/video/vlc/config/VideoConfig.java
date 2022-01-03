@@ -2,7 +2,6 @@ package com.github.yoep.video.vlc.config;
 
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
-import com.github.yoep.video.vlc.conditions.ConditionalOnNonArmDevice;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcInstall;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcVideoEnabled;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +14,6 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
 @Slf4j
 @Configuration
-@ConditionalOnNonArmDevice
 @ConditionalOnVlcVideoEnabled
 public class VideoConfig {
     @Bean

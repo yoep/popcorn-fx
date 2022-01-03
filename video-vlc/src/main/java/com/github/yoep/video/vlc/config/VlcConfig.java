@@ -1,6 +1,5 @@
 package com.github.yoep.video.vlc.config;
 
-import com.github.yoep.video.vlc.conditions.ConditionalOnNonArmDevice;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcVideoEnabled;
 import com.github.yoep.video.vlc.discovery.LinuxNativeDiscoveryStrategy;
 import com.github.yoep.video.vlc.discovery.OsxNativeDiscoveryStrategy;
@@ -15,7 +14,6 @@ import java.util.List;
 
 @Slf4j
 @Configuration
-@ConditionalOnNonArmDevice
 @ConditionalOnVlcVideoEnabled
 public class VlcConfig {
     @Bean

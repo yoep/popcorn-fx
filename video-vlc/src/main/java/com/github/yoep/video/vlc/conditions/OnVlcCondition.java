@@ -23,7 +23,7 @@ class OnVlcCondition implements ConfigurationCondition {
             var nativeInstallationDiscovered = nativeDiscovery.discover();
 
             if (nativeInstallationDiscovered) {
-                log.debug("Found native VLC installation at \"{}\"", nativeDiscovery.discoveredPath());
+                log.debug("Found VLC installation at \"{}\"", nativeDiscovery.discoveredPath());
             } else {
                 log.warn("VLC installation not found");
             }

@@ -1,5 +1,6 @@
 package com.github.yoep.video.vlc.discovery;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 import uk.co.caprica.vlcj.factory.discovery.provider.DiscoveryDirectoryProvider;
 import uk.co.caprica.vlcj.factory.discovery.strategy.BaseNativeDiscoveryStrategy;
@@ -8,6 +9,7 @@ import java.util.*;
 
 import static java.util.Arrays.asList;
 
+@Slf4j
 abstract class DirectoryProviderDiscoveryStrategy extends BaseNativeDiscoveryStrategy {
     private static final String VLC_PATH_PROPERTY = "vlc.path";
     private static final String BUNDLED_LIB_PATH = System.getProperty("user.dir");
@@ -46,6 +48,7 @@ abstract class DirectoryProviderDiscoveryStrategy extends BaseNativeDiscoveryStr
             directories.addAll(asList(provider.directories()));
         }
 
+        log.trace("Directories which will be checked for VLC installation: {}", directories);
         return directories;
     }
 

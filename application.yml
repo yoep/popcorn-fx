@@ -9,6 +9,7 @@ logging:
     com.github.yoep.popcorn: INFO
     com.github.yoep.torrent.frostwire: INFO
     com.github.yoep.torrent.stream: INFO
+    com.github.yoep.video.vlc: INFO
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
     org.springframework: INFO

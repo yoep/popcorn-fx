@@ -51,9 +51,8 @@ public class MainDesktopController extends AbstractMainController implements Mai
     }
 
     private void initializeStageHeader() {
-        var stageWrapper = BorderlessStageHolder.getWrapper();
-
-        stageWrapper.setHeader(28);
+        BorderlessStageHolder.getWrapper()
+                .ifPresent(e -> e.setHeader(28));
     }
 
     private void initializeSceneEvents() {

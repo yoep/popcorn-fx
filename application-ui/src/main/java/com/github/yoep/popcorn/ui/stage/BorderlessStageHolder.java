@@ -4,6 +4,8 @@ import com.github.spring.boot.javafx.stage.BorderlessStageWrapper;
 import lombok.Data;
 import lombok.Setter;
 
+import java.util.Optional;
+
 @Data
 public class BorderlessStageHolder {
     private static final BorderlessStageHolder holder = new BorderlessStageHolder();
@@ -14,8 +16,8 @@ public class BorderlessStageHolder {
     private BorderlessStageHolder() {
     }
 
-    public static BorderlessStageWrapper getWrapper() {
-        return holder.getStageWrapper();
+    public static Optional<BorderlessStageWrapper> getWrapper() {
+        return Optional.ofNullable(holder.getStageWrapper());
     }
 
     public static void setWrapper(BorderlessStageWrapper wrapper) {

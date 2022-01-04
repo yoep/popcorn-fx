@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -17,11 +18,13 @@ import java.util.ResourceBundle;
 
 public class SettingsUIComponent extends AbstractSettingsUiComponent implements Initializable {
     @FXML
-    private ComboBox<Locale> defaultLanguage;
+    ComboBox<Locale> defaultLanguage;
     @FXML
-    private ComboBox<UIScale> uiScale;
+    ComboBox<UIScale> uiScale;
     @FXML
-    private ComboBox<StartScreen> startScreen;
+    ComboBox<StartScreen> startScreen;
+    @FXML
+    CheckBox nativeWindow;
 
     public SettingsUIComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
         super(eventPublisher, localeText, settingsService);
@@ -32,6 +35,7 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         initializeDefaultLanguage();
         initializeUIScale();
         initializeStartScreen();
+        initializeNativeWindow();
     }
 
     private void initializeDefaultLanguage() {
@@ -59,6 +63,11 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         startScreen.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateStartScreen(newValue));
     }
 
+    private void initializeNativeWindow() {
+        nativeWindow.setSelected(getUiSettings().isNativeWindowEnabled());
+        nativeWindow.selectedProperty().addListener((observableValue, oldValue, newValue) -> updateNativeWindow(newValue));
+    }
+
     private void updateLanguage(Locale locale) {
         getUiSettings().setDefaultLanguage(locale);
         showNotification();
@@ -75,7 +84,10 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         showNotification();
     }
 
-
+    private void updateNativeWindow(Boolean newValue) {
+        getUiSettings().setNativeWindowEnabled(newValue);
+        showNotification();
+    }
 
     private UISettings getUiSettings() {
         return settingsService.getSettings().getUiSettings();

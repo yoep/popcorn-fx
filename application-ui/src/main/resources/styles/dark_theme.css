@@ -1140,6 +1140,10 @@
     -fx-alignment: TOP_LEFT;
 }
 
+.root .settings-section .additional-info {
+    -fx-font-style: italic;
+}
+
 .root .settings-section .sub-section .combo-box {
     -fx-min-width: 150;
     -fx-max-width: 150;

@@ -36,7 +36,9 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private final LocaleText localeText;
 
     @FXML
-    private Pane headerPane;
+    Pane headerPane;
+    @FXML
+    Pane titleBar;
     @FXML
     private ComboBox<Genre> genreCombo;
     @FXML
@@ -78,6 +80,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         initializeSearchListener();
         initializeIcons();
         initializeSceneListener(headerPane);
+        initializeTitleBar();
     }
 
     //endregion
@@ -117,6 +120,14 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
                 watchlistIcon.setVisible(traktSettings.getAccessToken().isPresent());
             }
         });
+    }
+
+    private void initializeTitleBar() {
+        var uiSettings = settingsService.getSettings().getUiSettings();
+
+        if (uiSettings.isNativeWindowEnabled()) {
+            headerPane.getChildren().remove(titleBar);
+        }
     }
 
     @Override

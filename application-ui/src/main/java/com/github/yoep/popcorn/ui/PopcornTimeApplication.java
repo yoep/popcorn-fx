@@ -7,61 +7,76 @@ import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.BackendConstants;
+import com.github.yoep.popcorn.backend.environment.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
-import javafx.application.ConditionalFeature;
-import javafx.application.Platform;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 
 import java.io.File;
 
 @Slf4j
 @SpringBootApplication
+@NoArgsConstructor
 public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static final String ICON_NAME = "icon_64.png";
     public static final String APPLICATION_TITLE = "Popcorn Time";
+
+    static final String STAGE_VIEW = "main.fxml";
 
     public static void main(String[] args) {
         System.setProperty("log.dir", getLogDirectory());
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
 
+    protected PopcornTimeApplication(ConfigurableApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
+
     @Override
     public void start(Stage stage) throws Exception {
         log.trace("Starting the application");
-        BorderlessStageHolder.setWrapper(new BorderlessStageWrapper(stage));
+        updateStageType(stage);
         super.start(stage);
 
         var loader = applicationContext.getBean(ViewLoader.class);
         var viewManager = applicationContext.getBean(ViewManager.class);
 
-        initializeStage(stage);
-
         log.trace("Loading the main view of the application");
-        loader.show(stage, "main.fxml", getViewProperties());
+        loader.show(stage, STAGE_VIEW, getViewProperties());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
     }
 
-    private void initializeStage(Stage primaryStage) {
-        log.trace("Initializing the primary stage");
-        primaryStage.initStyle(StageStyle.UNDECORATED);
+    private void updateStageType(Stage stage) {
+        var settingsService = applicationContext.getBean(SettingsService.class);
+        var uiSettings = settingsService.getSettings().getUiSettings();
+
+        if (uiSettings.isNativeWindowEnabled()) {
+            log.debug("Showing application in window mode");
+        } else {
+            log.debug("Showing application in borderless window mode");
+            BorderlessStageHolder.setWrapper(new BorderlessStageWrapper(stage));
+            stage.initStyle(StageStyle.UNDECORATED);
+        }
     }
 
     private ViewProperties getViewProperties() {
         log.trace("Building the view properties of the application");
         var optionsService = applicationContext.getBean(OptionsService.class);
         var maximizeService = applicationContext.getBean(MaximizeService.class);
+        var platformProvider = applicationContext.getBean(PlatformProvider.class);
         var options = optionsService.options();
         var properties = ViewProperties.builder()
                 .title(APPLICATION_TITLE)
                 .icon(ICON_NAME)
-                .background(getBackgroundColor());
+                .background(getBackgroundColor(platformProvider));
 
         // check if the big-picture or kiosk mode or maximized is enabled
         // if so, force the application to be maximized
@@ -85,8 +100,9 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         return viewProperties;
     }
 
-    private Color getBackgroundColor() {
-        return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW) ? Color.TRANSPARENT : Color.BLACK;
+    private Color getBackgroundColor(PlatformProvider platformProvider) {
+        return platformProvider.isTransparentWindowSupported() ?
+                Color.TRANSPARENT : Color.BLACK;
     }
 
     public static String getLogDirectory() {

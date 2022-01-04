@@ -3,13 +3,15 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.SettingsUIComponent" styleClass="sub-section">
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.SettingsUIComponent"
+          styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
         <ColumnConstraints prefWidth="200"/>
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
+        <RowConstraints/>
         <RowConstraints/>
         <RowConstraints/>
         <RowConstraints/>
@@ -38,7 +40,11 @@
     <ComboBox fx:id="startScreen"
               GridPane.columnIndex="2" GridPane.rowIndex="2"/>
 
+    <!-- Native window -->
+    <CheckBox fx:id="nativeWindow" text="%settings_native_window_description"
+              GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
     <!-- Separator -->
     <Separator
-            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 </GridPane>

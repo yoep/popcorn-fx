@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.environment;
+package com.github.yoep.popcorn.backend.platform;
 
 /**
  * Provider which supplies/check certain aspects of the environment.
@@ -12,4 +12,11 @@ public interface PlatformProvider {
      * @return Returns true if supported, else false.
      */
     boolean isTransparentWindowSupported();
+
+    /**
+     * Run the given action on the rendering thread of the platform.
+     *
+     * @param runnable The action to execute on the rendering thread.
+     */
+    void runOnRenderer(Runnable runnable);
 }

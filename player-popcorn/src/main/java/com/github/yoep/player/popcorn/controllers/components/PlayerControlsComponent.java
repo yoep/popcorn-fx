@@ -6,8 +6,9 @@ import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
-import javafx.application.Platform;
+import com.github.yoep.popcorn.backend.platform.PlatformProvider;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PlayerControlsComponent implements Initializable {
     private final PlayerControlsService playerControlsService;
+    private final PlatformProvider platformProvider;
 
     @FXML
     Icon playPauseIcon;
@@ -45,15 +47,15 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onFullscreenStateChanged(Boolean isFullscreen) {
         if (isFullscreen) {
-            Platform.runLater(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
+            platformProvider.runOnRenderer(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
         } else {
-            Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
+            platformProvider.runOnRenderer(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
         }
     }
 
     @EventListener(PlayerStoppedEvent.class)
     public void reset() {
-        Platform.runLater(() -> {
+        platformProvider.runOnRenderer(() -> {
             playProgress.setTime(0);
             subtitleSection.setVisible(false);
         });
@@ -104,6 +106,11 @@ public class PlayerControlsComponent implements Initializable {
             public void onPlayerDurationChanged(long duration) {
                 onDurationChanged(duration);
             }
+
+            @Override
+            public void onDownloadStatusChanged(DownloadStatus progress) {
+                PlayerControlsComponent.this.onDownloadStatusChanged(progress);
+            }
         });
     }
 
@@ -113,21 +120,21 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onPlayerStateChanged(boolean isPlaying) {
         if (isPlaying) {
-            Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
+            platformProvider.runOnRenderer(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
         } else {
-            Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
+            platformProvider.runOnRenderer(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
         }
     }
 
     private void onDurationChanged(Long duration) {
-        Platform.runLater(() -> {
+        platformProvider.runOnRenderer(() -> {
             durationLabel.setText(formatTime(duration));
             playProgress.setDuration(duration);
         });
     }
 
     private void onTimeChanged(Long time) {
-        Platform.runLater(() -> {
+        platformProvider.runOnRenderer(() -> {
             timeLabel.setText(formatTime(time));
 
             if (!playProgress.isValueChanging())
@@ -137,7 +144,7 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onSubtitleVisibilityChanged(boolean isVisible) {
         // update the visibility of the subtitles section
-        Platform.runLater(() -> subtitleSection.setVisible(isVisible));
+        platformProvider.runOnRenderer(() -> subtitleSection.setVisible(isVisible));
     }
 
     private void onSeeking(Number newValue) {
@@ -149,6 +156,10 @@ public class PlayerControlsComponent implements Initializable {
 
         playerControlsService.seek(newValue.longValue());
         timeLabel.setText(formatTime(newValue.longValue()));
+    }
+
+    private void onDownloadStatusChanged(DownloadStatus progress) {
+        playProgress.setLoadProgress(progress.getProgress());
     }
 
     private String formatTime(long time) {

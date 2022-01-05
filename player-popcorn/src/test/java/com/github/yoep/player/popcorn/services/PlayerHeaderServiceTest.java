@@ -5,7 +5,6 @@ import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
@@ -68,13 +67,11 @@ class PlayerHeaderServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsMediaPlayRequest_shouldSetTheQuality() {
         var expectedQuality = "1080p";
-        var torrent = mock(Torrent.class);
         var torrentStream = mock(TorrentStream.class);
         var request = MediaPlayRequest.mediaBuilder()
                 .quality(expectedQuality)
                 .torrentStream(torrentStream)
                 .build();
-        when(torrentStream.getTorrent()).thenReturn(torrent);
         service.init();
 
         listenerHolder.get().onPlay(request);
@@ -84,12 +81,10 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldSetStreamStateToTrue() {
-        var torrent = mock(Torrent.class);
         var torrentStream = mock(TorrentStream.class);
         var request = StreamPlayRequest.streamBuilder()
                 .torrentStream(torrentStream)
                 .build();
-        when(torrentStream.getTorrent()).thenReturn(torrent);
         service.init();
 
         listenerHolder.get().onPlay(request);
@@ -99,18 +94,16 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldInvokeDownloadStatusChangedOnListeners() {
-        var torrent = mock(Torrent.class);
         var torrentListenerHolder = new AtomicReference<TorrentListener>();
         var torrentStream = mock(TorrentStream.class);
         var progress = mock(DownloadStatus.class);
         var request = StreamPlayRequest.streamBuilder()
                 .torrentStream(torrentStream)
                 .build();
-        when(torrentStream.getTorrent()).thenReturn(torrent);
         doAnswer(invocation -> {
             torrentListenerHolder.set(invocation.getArgument(0, TorrentListener.class));
             return null;
-        }).when(torrent).addListener(isA(TorrentListener.class));
+        }).when(torrentStream).addListener(isA(TorrentListener.class));
         service.init();
 
         listenerHolder.get().onPlay(request);

@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewProperties;
-import com.github.yoep.popcorn.backend.environment.PlatformProvider;
+import com.github.yoep.popcorn.backend.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;

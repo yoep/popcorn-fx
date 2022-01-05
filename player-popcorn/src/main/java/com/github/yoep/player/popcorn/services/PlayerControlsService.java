@@ -6,14 +6,20 @@ import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.PlayStreamRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -25,6 +31,9 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     private final PlaybackListener playbackListener = createPlaybackListener();
     private final PlayerListener playerListener = createPlayerListener();
+    private final TorrentListener torrentListener = createTorrentListener();
+
+    private TorrentStream lastKnownTorrent;
 
     //region Methods
 
@@ -69,6 +78,13 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     private void onPlayRequest(PlayRequest request) {
         invokeListeners(e -> e.onSubtitleStateChanged(request.isSubtitlesEnabled()));
+
+        Optional.ofNullable(lastKnownTorrent)
+                .ifPresent(e -> e.removeListener(torrentListener));
+
+        if (request instanceof PlayStreamRequest) {
+            onStreamRequest((PlayStreamRequest) request);
+        }
     }
 
     private void onPlayerStateChanged(PlayerState state) {
@@ -81,6 +97,17 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     private void onPlayerDurationChanged(long duration) {
         invokeListeners(e -> e.onPlayerDurationChanged(duration));
+    }
+
+    private void onStreamRequest(PlayStreamRequest request) {
+        var torrent = request.getTorrentStream();
+
+        torrent.addListener(torrentListener);
+        this.lastKnownTorrent = torrent;
+    }
+
+    private void onStreamProgressChanged(DownloadStatus status) {
+        invokeListeners(e -> e.onDownloadStatusChanged(status));
     }
 
     private PlayerListener createPlayerListener() {
@@ -107,6 +134,15 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
             @Override
             public void onPlay(PlayRequest request) {
                 onPlayRequest(request);
+            }
+        };
+    }
+
+    private TorrentListener createTorrentListener() {
+        return new AbstractTorrentListener() {
+            @Override
+            public void onDownloadStatus(DownloadStatus status) {
+                onStreamProgressChanged(status);
             }
         };
     }

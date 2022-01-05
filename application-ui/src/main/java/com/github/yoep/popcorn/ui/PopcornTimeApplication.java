@@ -7,7 +7,7 @@ import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.BackendConstants;
-import com.github.yoep.popcorn.backend.environment.PlatformProvider;
+import com.github.yoep.popcorn.backend.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;

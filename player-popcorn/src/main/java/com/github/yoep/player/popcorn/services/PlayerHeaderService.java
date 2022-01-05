@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayStreamRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
     private final PlaybackListener listener = createListener();
     private final TorrentListener torrentListener = createTorrentListener();
 
-    private Torrent lastKnownTorrent;
+    private TorrentStream lastKnownTorrent;
 
     public void stop() {
         player.stop();
@@ -52,7 +52,7 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
     }
 
     private void onStreamRequest(PlayStreamRequest request) {
-        var torrent = request.getTorrentStream().getTorrent();
+        var torrent = request.getTorrentStream();
 
         torrent.addListener(torrentListener);
         this.lastKnownTorrent = torrent;

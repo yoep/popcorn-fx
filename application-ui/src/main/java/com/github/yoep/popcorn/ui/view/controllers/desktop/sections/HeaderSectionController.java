@@ -51,6 +51,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private Icon torrentCollectionIcon;
     @FXML
     private Icon settingsIcon;
+    @FXML
+    private Icon aboutIcon;
 
     //region Constructors
 
@@ -185,6 +187,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         watchlistIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         torrentCollectionIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         settingsIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
+        aboutIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
     }
 
     private void onSettingsClosed() {
@@ -214,21 +217,31 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     }
 
     @FXML
-    private void onWatchlistClicked() {
+    void onWatchlistClicked(MouseEvent event) {
+        event.consume();
         switchIcon(watchlistIcon);
         eventPublisher.publishEvent(new ShowWatchlistEvent(this));
     }
 
     @FXML
-    private void onTorrentCollectionClicked() {
+    void onTorrentCollectionClicked(MouseEvent event) {
+        event.consume();
         switchIcon(torrentCollectionIcon);
         eventPublisher.publishEvent(new ShowTorrentCollectionEvent(this));
     }
 
     @FXML
-    private void onSettingsClicked() {
+    void onSettingsClicked(MouseEvent event) {
+        event.consume();
         switchIcon(settingsIcon);
         eventPublisher.publishEvent(new ShowSettingsEvent(this));
+    }
+
+    @FXML
+    void onAboutClicked(MouseEvent event) {
+        event.consume();
+        switchIcon(aboutIcon);
+        eventPublisher.publishEvent(new ShowAboutEvent(this));
     }
 
     //endregion

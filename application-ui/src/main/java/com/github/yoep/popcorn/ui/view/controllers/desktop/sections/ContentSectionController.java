@@ -34,6 +34,7 @@ public class ContentSectionController implements Initializable {
     private Pane watchlistPane;
     private Pane torrentCollectionPane;
     private Pane settingsPane;
+    private Pane aboutPane;
     private ContentType activeType;
 
     @FXML
@@ -59,6 +60,11 @@ public class ContentSectionController implements Initializable {
     @EventListener(ShowSettingsEvent.class)
     public void onShowSettings() {
         switchContent(ContentType.SETTINGS);
+    }
+
+    @EventListener(ShowAboutEvent.class)
+    public void onShowAbout() {
+        switchContent(ContentType.ABOUT);
     }
 
     @EventListener(CategoryChangedEvent.class)
@@ -99,11 +105,13 @@ public class ContentSectionController implements Initializable {
             torrentCollectionPane = viewLoader.load("sections/torrent-collection.section.fxml");
             watchlistPane = viewLoader.load("sections/watchlist.section.fxml");
             settingsPane = viewLoader.load("sections/settings.section.fxml");
+            aboutPane = viewLoader.load("sections/about.section.fxml");
 
             setAnchor(detailsPane);
             setAnchor(torrentCollectionPane);
             setAnchor(watchlistPane);
             setAnchor(settingsPane);
+            setAnchor(aboutPane);
         });
     }
 
@@ -134,6 +142,9 @@ public class ContentSectionController implements Initializable {
             case SETTINGS:
                 pane.set(settingsPane);
                 break;
+            case ABOUT:
+                pane.set(aboutPane);
+                break;
         }
 
         Platform.runLater(() -> {
@@ -163,6 +174,7 @@ public class ContentSectionController implements Initializable {
         DETAILS,
         WATCHLIST,
         TORRENT_COLLECTION,
-        SETTINGS
+        SETTINGS,
+        ABOUT
     }
 }

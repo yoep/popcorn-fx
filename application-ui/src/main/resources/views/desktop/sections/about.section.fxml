@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.AboutSectionController"
+          styleClass="about-section">
+    <columnConstraints>
+        <ColumnConstraints percentWidth="15"/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+        <ColumnConstraints percentWidth="15"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints percentHeight="10"/>
+        <RowConstraints vgrow="ALWAYS" valignment="TOP"/>
+        <RowConstraints percentHeight="10"/>
+    </rowConstraints>
+
+    <BackgroundImageCover fx:id="backgroundCover"
+                          GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="4" GridPane.rowSpan="3"/>
+
+    <ImageView fx:id="logoImage" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+    <VBox GridPane.columnIndex="2" GridPane.rowIndex="1">
+        <Label fx:id="titleLabel" styleClass="title"/>
+        <Label fx:id="versionLabel" styleClass="version"/>
+    </VBox>
+</GridPane>

@@ -1276,3 +1276,15 @@
     -fx-opacity: 0;
     -fx-cursor: default;
 }
+
+.root .about-section .title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 4em;
+    -fx-text-fill: #fff;
+}
+
+.root .about-section .version {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 2em;
+    -fx-text-fill: #bbb;
+}

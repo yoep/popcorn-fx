@@ -6,6 +6,7 @@ import lombok.Getter;
 public enum Category {
     MOVIES("movies"),
     SERIES("series"),
+    ANIME("animes"),
     FAVORITES("favorites");
 
     /**

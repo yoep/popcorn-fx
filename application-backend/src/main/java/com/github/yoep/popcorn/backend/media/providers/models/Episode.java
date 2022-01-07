@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Data
 @Builder
@@ -126,8 +127,8 @@ public class Episode implements Media, Comparable<Episode> {
     }
 
     @Override
-    public Rating getRating() {
-        return null;
+    public Optional<Rating> getRating() {
+        return Optional.empty();
     }
 
     @Override

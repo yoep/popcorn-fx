@@ -32,7 +32,7 @@ popcorn:
         - https://movies-v2.api-fetch.sh
         - https://movies-v2.api-fetch.am
         - https://movies-v2.api-fetch.website
-        - http://popcorn-ru.tk
+        - https://popcorn-ru.tk
       genres:
         - all
         - action
@@ -69,7 +69,7 @@ popcorn:
         - https://tv-v2.api-fetch.sh
         - https://tv-v2.api-fetch.am
         - https://tv-v2.api-fetch.website
-        - http://popcorn-ru.tk
+        - https://popcorn-ru.tk
       genres:
         - all
         - action
@@ -103,6 +103,18 @@ popcorn:
         - year
         - name
         - rating
+    animes:
+      uris:
+        - https://nyaa.si
+      genres:
+        - all
+        - anime-music-video
+        - english-translated
+        - non-english-translated
+        - raw
+      sort-by:
+        - trending
+        - last added
     favorites:
       genres:
         - all

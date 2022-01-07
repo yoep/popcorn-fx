@@ -92,6 +92,10 @@ public abstract class AbstractMedia implements Media {
         return StringEscapeUtils.unescapeHtml4(synopsis);
     }
 
+    public Optional<Rating> getRating() {
+        return Optional.ofNullable(rating);
+    }
+
     @Override
     public List<String> getGenres() {
         return Optional.ofNullable(genres)

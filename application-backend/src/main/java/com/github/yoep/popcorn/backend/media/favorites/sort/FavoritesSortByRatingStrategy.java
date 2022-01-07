@@ -27,11 +27,18 @@ public class FavoritesSortByRatingStrategy extends AbstractFavoriteSortStrategy 
     private int sortByRating(Media o1, Media o2) {
         var typeSort = sortByType(o1, o2);
 
+        if (o1.getRating().isEmpty()) {
+            return 1;
+        }
+        if (o2.getRating().isEmpty()) {
+            return -1;
+        }
+
         if (typeSort != 0)
             return typeSort;
 
-        var rating1 = o1.getRating().getPercentage();
-        var rating2 = o2.getRating().getPercentage();
+        var rating1 = o1.getRating().get().getPercentage();
+        var rating2 = o2.getRating().get().getPercentage();
 
         // make sure the highest rating is always first
         // so swap the ratings around during comparison

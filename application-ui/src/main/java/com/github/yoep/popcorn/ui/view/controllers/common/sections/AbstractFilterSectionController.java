@@ -26,6 +26,8 @@ public abstract class AbstractFilterSectionController {
     @FXML
     protected Node seriesCategory;
     @FXML
+    protected Node animeCategory;
+    @FXML
     protected Node favoritesCategory;
 
     protected Node lastKnownSelectedCategory;
@@ -101,6 +103,8 @@ public abstract class AbstractFilterSectionController {
             category = Category.MOVIES;
         } else if (item == seriesCategory) {
             category = Category.SERIES;
+        }  else if (item == animeCategory) {
+            category = Category.ANIME;
         } else if (item == favoritesCategory) {
             category = Category.FAVORITES;
         } else {
@@ -139,6 +143,7 @@ public abstract class AbstractFilterSectionController {
         // categories
         moviesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         seriesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
+        animeCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         favoritesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
     }
 

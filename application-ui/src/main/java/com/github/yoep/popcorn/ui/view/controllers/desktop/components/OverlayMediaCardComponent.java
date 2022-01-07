@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.beans.value.ChangeListener;
@@ -66,13 +67,15 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     }
 
     private void initializeRating() {
-        double rating = (double) media.getRating().getPercentage() / 10;
-
-        ratingValue.setText(rating + "/10");
+        media.getRating()
+                .map(Rating::getPercentage)
+                .map(e -> (double) e / 10)
+                .map(e -> e + "/10")
+                .ifPresent(ratingValue::setText);
     }
 
     private void initializeStars() {
-        ratingStars.setRating(media.getRating());
+        media.getRating().ifPresent(ratingStars::setRating);
     }
 
     private void initializeFavorite() {

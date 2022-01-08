@@ -2,138 +2,59 @@ package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
-import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import lombok.*;
-import org.apache.commons.text.StringEscapeUtils;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode(exclude = {"watched", "liked", "show"})
-@ToString(exclude = {"watched", "liked", "show"})
-public class Episode implements Media, Comparable<Episode> {
-    @JsonIgnore
-    private final transient BooleanProperty watched = new SimpleBooleanProperty(this, Watchable.WATCHED_PROPERTY);
-    @JsonIgnore
-    private final transient BooleanProperty liked = new SimpleBooleanProperty(this, Favorable.LIKED_PROPERTY);
-
-    /**
-     * The unique video ID of the {@link Episode}.
-     * This value is based on the ID of TVDB.
-     */
-    @JsonProperty("tvdb_id")
-    private String id;
-    /**
-     * The show parent of the episode.
-     */
-    private Show show;
+@Getter
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
+public class Episode extends AbstractMedia implements Comparable<Episode> {
     /**
      * The available torrents for the episode.
      */
-    private Map<String, MediaTorrentInfo> torrents;
+    private final Map<String, MediaTorrentInfo> torrents;
     /**
      * The first air time of the episode
      */
-    private long firstAired;
-    /**
-     * The episode's title
-     */
-    private String title;
-    /**
-     * The description text of the episode
-     */
-    @JsonProperty("overview")
-    private String synopsis;
+    private final long firstAired;
     /**
      * The episode number
      */
-    private int episode;
+    private final int episode;
     /**
      * The season of the episode
      */
-    private int season;
+    private final int season;
 
-    //region Properties
-
-    @Override
-    public boolean isWatched() {
-        return watched.get();
+    @Builder
+    public Episode(@JsonProperty("tvdb_id") String tvdbId,
+                   Map<String, MediaTorrentInfo> torrents,
+                   long firstAired,
+                   String title,
+                   @JsonProperty("overview") String synopsis,
+                   Images images,
+                   int episode,
+                   int season) {
+        super(tvdbId, null, title, null, null, Collections.emptyList(), null, images, synopsis);
+        this.torrents = torrents;
+        this.firstAired = firstAired;
+        this.episode = episode;
+        this.season = season;
     }
-
-    @Override
-    public BooleanProperty watchedProperty() {
-        return watched;
-    }
-
-    @Override
-    public void setWatched(boolean watched) {
-        this.watched.set(watched);
-    }
-
-    @Override
-    public boolean isLiked() {
-        return liked.get();
-    }
-
-    @Override
-    public BooleanProperty likedProperty() {
-        return liked;
-    }
-
-    @Override
-    public void setLiked(boolean liked) {
-        this.liked.set(liked);
-    }
-
-    //endregion
 
     //region Getters
 
     @Override
-    public String getTitle() {
-        return StringEscapeUtils.unescapeHtml4(title);
-    }
-
-    @Override
-    public String getSynopsis() {
-        return StringEscapeUtils.unescapeHtml4(synopsis);
-    }
-
-    @Override
     public String getYear() {
         return String.valueOf(getAirDate().getYear());
-    }
-
-    @Override
-    public Integer getRuntime() {
-        return show.getRuntime();
-    }
-
-    @Override
-    public List<String> getGenres() {
-        return Collections.emptyList();
-    }
-
-    @Override
-    public Optional<Rating> getRating() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Images getImages() {
-        return show.getImages();
     }
 
     @Override

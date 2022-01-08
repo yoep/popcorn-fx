@@ -1,7 +1,9 @@
 package com.github.yoep.provider.anime.parsers;
 
+import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.validation.constraints.NotNull;
 import java.time.Instant;
@@ -11,11 +13,12 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DateParser {
     public static String convertDateToYear(@NotNull String htmlDateValue) {
         Objects.requireNonNull(htmlDateValue, "htmlDateValue cannot be null");
         return Optional.of(htmlDateValue)
+                .filter(StringUtils::isNotEmpty)
                 .flatMap(DateParser::tryParsingLongValue)
                 .map(Instant::ofEpochSecond)
                 .map(DateParser::toSystemZone)

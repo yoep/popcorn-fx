@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 
@@ -55,10 +54,6 @@ public class Show extends AbstractMedia {
      */
     public void setEpisodes(List<Episode> episodes) {
         this.episodes = episodes;
-
-        // link the episode to this show
-        if (!CollectionUtils.isEmpty(this.episodes))
-            this.episodes.forEach(e -> e.setShow(this));
     }
 
     @Override

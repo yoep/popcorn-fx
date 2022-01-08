@@ -77,6 +77,7 @@ public class PlayerPlayService {
                 .thumb(event.getThumbnail())
                 .quality(event.getQuality())
                 .media(event.getMedia())
+                .subMediaItem(event.getSubMediaItem().orElse(null))
                 .subtitle(event.getSubtitle()
                         .flatMap(Subtitle::getSubtitleInfo)
                         .orElse(null))

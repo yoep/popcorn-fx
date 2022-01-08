@@ -8,7 +8,7 @@ class MediaTorrentInfoTest {
     @Test
     void testSetPeers_whenInvoked_shouldSetThePeerValue() {
         var peers = 10;
-        var mediaTorrent = new MediaTorrentInfo();
+        var mediaTorrent = MediaTorrentInfo.builder().build();
 
         mediaTorrent.setPeers(peers);
 
@@ -18,7 +18,7 @@ class MediaTorrentInfoTest {
     @Test
     void testSetSeeds_whenInvoked_shouldSetTheSeedValue() {
         var seeds = 23;
-        var mediaTorrent = new MediaTorrentInfo();
+        var mediaTorrent = MediaTorrentInfo.builder().build();
 
         mediaTorrent.setSeeds(seeds);
 

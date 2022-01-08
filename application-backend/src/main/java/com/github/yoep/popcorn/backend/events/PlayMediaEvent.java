@@ -19,6 +19,11 @@ public class PlayMediaEvent extends PlayTorrentEvent {
      */
     private final Media media;
     /**
+     * The media sub item that needs to be played.
+     */
+    @Nullable
+    private final Media subMediaItem;
+    /**
      * The video quality of the media.
      */
     private final String quality;
@@ -38,12 +43,18 @@ public class PlayMediaEvent extends PlayTorrentEvent {
                           Torrent torrent,
                           TorrentStream torrentStream,
                           Media media,
+                          Media subMediaItem,
                           String quality,
                           @Nullable Subtitle subtitle) {
         super(source, url, title, subtitlesEnabled, media.getImages().getFanart(), torrent, torrentStream);
         this.media = media;
+        this.subMediaItem = subMediaItem;
         this.quality = quality;
         this.subtitle = subtitle;
+    }
+
+    public Optional<Media> getSubMediaItem() {
+        return Optional.ofNullable(subMediaItem);
     }
 
     public Optional<Subtitle> getSubtitle() {

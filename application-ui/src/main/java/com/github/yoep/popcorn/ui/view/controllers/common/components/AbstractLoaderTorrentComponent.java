@@ -59,6 +59,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
 
     protected String title;
     protected Media media;
+    protected Media subItemMedia;
     protected SubtitleInfo subtitleInfo;
     protected Subtitle subtitle;
     protected String quality;
@@ -141,6 +142,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         // store the requested media locally for later use
         this.title = activity.getMedia().getTitle();
         this.media = activity.getMedia();
+        this.subItemMedia = activity.getSubItem().orElse(null);
         this.subtitleInfo = activity.getSubtitle().orElse(null);
         this.quality = activity.getQuality();
         this.mediaTorrent = activity.getTorrent();
@@ -295,6 +297,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
         eventPublisher.publishEvent(PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .media(media)
+                .subMediaItem(subItemMedia)
                 .quality(quality)
                 .subtitle(subtitle)
                 .subtitlesEnabled(true)

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.PlayNextService;
 import javafx.application.Platform;
@@ -61,22 +60,22 @@ public class PlayerPlayNextComponent implements Initializable {
 
     //region Functions
 
-    private void onEpisodeChanged(Episode episode) {
+    private void onEpisodeChanged(PlayNextService.NextEpisode nextEpisode) {
         reset();
 
-        if (episode == null) {
+        if (nextEpisode == null) {
             return;
         }
 
-        var show = episode.getShow();
+        var show = nextEpisode.getShow();
 
         Platform.runLater(() -> {
             showName.setText(show.getTitle());
-            episodeTitle.setText(episode.getTitle());
-            episodeNumber.setText(String.valueOf(episode.getEpisode()));
+            episodeTitle.setText(nextEpisode.getEpisode().getTitle());
+            episodeNumber.setText(String.valueOf(nextEpisode.getEpisode()));
         });
 
-        imageService.loadPoster(episode, 100, 140).whenComplete((image, throwable) -> {
+        imageService.loadPoster(nextEpisode.getEpisode(), 100, 140).whenComplete((image, throwable) -> {
             if (throwable == null) {
                 image.ifPresentOrElse(playNextPoster::setImage,
                         () -> playNextPoster.setImage(imageService.getPosterHolder()));

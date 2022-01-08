@@ -421,7 +421,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     private void onWatchNowClicked() {
         var mediaTorrentInfo = episode.getTorrents().get(quality);
 
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, episode, quality, subtitle));
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, quality, subtitle));
     }
 
     @FXML

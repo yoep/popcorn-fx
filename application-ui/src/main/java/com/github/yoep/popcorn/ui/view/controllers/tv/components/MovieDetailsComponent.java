@@ -174,7 +174,7 @@ public class MovieDetailsComponent extends AbstractTvDetailsComponent<Movie> imp
     private void onPlay() {
         var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
 
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, quality, subtitle));
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, null, quality, subtitle));
     }
 
     private void onWatchTrailer() {

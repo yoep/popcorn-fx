@@ -302,7 +302,7 @@ public abstract class AbstractListSectionController implements Initializable {
 
             if (media instanceof Movie) {
                 eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, (Movie) media));
-            } else {
+            } else if (media instanceof Show) {
                 eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, (Show) media));
             }
         } else {

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+<!-- Fixed navbar -->
+<nav class="navbar navbar-default navbar-static-top navbar-inverse">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Nyaa</a>
+        </div><!--/.navbar-header -->
+        <div id="navbar" class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li ><a href="/upload">Upload</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                        Info
+                        <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li ><a href="/rules">Rules</a></li>
+                        <li ><a href="/help">Help</a></li>
+                    </ul>
+                </li>
+                <li><a href="/?page=rss">RSS</a></li>
+                <li><a href="https://twitter.com/NyaaV2">Twitter</a></li>
+                <li><a href="//sukebei.nyaa.si">Fap</a></li>
+            </ul>
+
+            <ul class="nav navbar-nav navbar-right">
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle visible-lg visible-sm visible-xs" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-user fa-fw"></i>
+                        Guest
+                        <span class="caret"></span>
+                    </a>
+                    <a href="#" class="dropdown-toggle hidden-lg hidden-sm hidden-xs" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-user fa-fw"></i>
+                        <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a href="/login">
+                                <i class="fa fa-sign-in fa-fw"></i>
+                                Login
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/register">
+                                <i class="fa fa-pencil fa-fw"></i>
+                                Register
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+
+
+
+            <div class="search-container visible-xs visible-sm">
+                <form class="navbar-form navbar-right form" action="/" method="get">
+
+                    <input type="text" class="form-control" name="q" placeholder="Search..." value="">
+                    <br>
+
+                    <select class="form-control" title="Filter" data-width="120px" name="f">
+                        <option value="0" title="No filter" selected>No filter</option>
+                        <option value="1" title="No remakes" >No remakes</option>
+                        <option value="2" title="Trusted only" >Trusted only</option>
+                    </select>
+
+                    <br>
+
+                    <select class="form-control" title="Category" data-width="200px" name="c">
+                        <option value="0_0" title="All categories" selected>
+                            All categories
+                        </option>
+                        <option value="1_0" title="Anime" >
+                            Anime
+                        </option>
+                        <option value="1_1" title="Anime - AMV" >
+                            - Anime Music Video
+                        </option>
+                        <option value="1_2" title="Anime - English" >
+                            - English-translated
+                        </option>
+                        <option value="1_3" title="Anime - Non-English" >
+                            - Non-English-translated
+                        </option>
+                        <option value="1_4" title="Anime - Raw" >
+                            - Raw
+                        </option>
+                        <option value="2_0" title="Audio" >
+                            Audio
+                        </option>
+                        <option value="2_1" title="Audio - Lossless" >
+                            - Lossless
+                        </option>
+                        <option value="2_2" title="Audio - Lossy" >
+                            - Lossy
+                        </option>
+                        <option value="3_0" title="Literature" >
+                            Literature
+                        </option>
+                        <option value="3_1" title="Literature - English" >
+                            - English-translated
+                        </option>
+                        <option value="3_2" title="Literature - Non-English" >
+                            - Non-English-translated
+                        </option>
+                        <option value="3_3" title="Literature - Raw" >
+                            - Raw
+                        </option>
+                        <option value="4_0" title="Live Action" >
+                            Live Action
+                        </option>
+                        <option value="4_1" title="Live Action - English" >
+                            - English-translated
+                        </option>
+                        <option value="4_2" title="Live Action - Idol/PV" >
+                            - Idol/Promotional Video
+                        </option>
+                        <option value="4_3" title="Live Action - Non-English" >
+                            - Non-English-translated
+                        </option>
+                        <option value="4_4" title="Live Action - Raw" >
+                            - Raw
+                        </option>
+                        <option value="5_0" title="Pictures" >
+                            Pictures
+                        </option>
+                        <option value="5_1" title="Pictures - Graphics" >
+                            - Graphics
+                        </option>
+                        <option value="5_2" title="Pictures - Photos" >
+                            - Photos
+                        </option>
+                        <option value="6_0" title="Software" >
+                            Software
+                        </option>
+                        <option value="6_1" title="Software - Apps" >
+                            - Applications
+                        </option>
+                        <option value="6_2" title="Software - Games" >
+                            - Games
+                        </option>
+                    </select>
+
+                    <br>
+
+                    <button class="btn btn-primary form-control" type="submit">
+                        <i class="fa fa-search fa-fw"></i> Search
+                    </button>
+                </form>
+            </div><!--/.search-container -->
+
+            <form class="navbar-form navbar-right form" action="/" method="get">
+                <div class="input-group search-container hidden-xs hidden-sm">
+                    <div class="input-group-btn nav-filter" id="navFilter-criteria">
+                        <select class="selectpicker show-tick" title="Filter" data-width="120px" name="f">
+                            <option value="0" title="No filter" selected>No filter</option>
+                            <option value="1" title="No remakes" >No remakes</option>
+                            <option value="2" title="Trusted only" >Trusted only</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group-btn nav-filter" id="navFilter-category">
+                        <!--
+                            On narrow viewports, there isn't enough room to fit the full stuff in the selectpicker, so we show a full-width one on wide viewports, but squish it on narrow ones.
+                        -->
+                        <select class="selectpicker show-tick" title="Category" data-width="130px" name="c">
+                            <option value="0_0" title="All categories" selected>
+                                All categories
+                            </option>
+                            <option value="1_0" title="Anime" >
+                                Anime
+                            </option>
+                            <option value="1_1" title="Anime - AMV" >
+                                - Anime Music Video
+                            </option>
+                            <option value="1_2" title="Anime - English" >
+                                - English-translated
+                            </option>
+                            <option value="1_3" title="Anime - Non-English" >
+                                - Non-English-translated
+                            </option>
+                            <option value="1_4" title="Anime - Raw" >
+                                - Raw
+                            </option>
+                            <option value="2_0" title="Audio" >
+                                Audio
+                            </option>
+                            <option value="2_1" title="Audio - Lossless" >
+                                - Lossless
+                            </option>
+                            <option value="2_2" title="Audio - Lossy" >
+                                - Lossy
+                            </option>
+                            <option value="3_0" title="Literature" >
+                                Literature
+                            </option>
+                            <option value="3_1" title="Literature - English" >
+                                - English-translated
+                            </option>
+                            <option value="3_2" title="Literature - Non-English" >
+                                - Non-English-translated
+                            </option>
+                            <option value="3_3" title="Literature - Raw" >
+                                - Raw
+                            </option>
+                            <option value="4_0" title="Live Action" >
+                                Live Action
+                            </option>
+                            <option value="4_1" title="Live Action - English" >
+                                - English-translated
+                            </option>
+                            <option value="4_2" title="Live Action - Idol/PV" >
+                                - Idol/Promotional Video
+                            </option>
+                            <option value="4_3" title="Live Action - Non-English" >
+                                - Non-English-translated
+                            </option>
+                            <option value="4_4" title="Live Action - Raw" >
+                                - Raw
+                            </option>
+                            <option value="5_0" title="Pictures" >
+                                Pictures
+                            </option>
+                            <option value="5_1" title="Pictures - Graphics" >
+                                - Graphics
+                            </option>
+                            <option value="5_2" title="Pictures - Photos" >
+                                - Photos
+                            </option>
+                            <option value="6_0" title="Software" >
+                                Software
+                            </option>
+                            <option value="6_1" title="Software - Apps" >
+                                - Applications
+                            </option>
+                            <option value="6_2" title="Software - Games" >
+                                - Games
+                            </option>
+                        </select>
+                    </div>
+                    <input type="text" class="form-control search-bar" name="q" placeholder="Search..." value="" />
+                    <div class="input-group-btn search-btn">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fa fa-search fa-fw"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div><!--/.nav-collapse -->
+    </div><!--/.container -->
+</nav>
+
+<div class="container">
+
+
+
+
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover table-striped torrent-list">
+            <thead>
+            <tr>
+                <th class="hdr-category text-center" style="width:80px;">Category</th>
+                <th class="hdr-name" style="width:auto;">Name</th>
+                <th class="hdr-comments sorting text-center" title="Comments" style="width:50px;"><a href="/?s=comments&amp;o=desc"></a><i class="fa fa-comments-o"></i></th>
+                <th class="hdr-link text-center" style="width:70px;">Link</th>
+                <th class="hdr-size sorting text-center" style="width:100px;"><a href="/?s=size&amp;o=desc"></a>Size</th>
+                <th class="hdr-date sorting_desc text-center" title="In UTC" style="width:140px;"><a href="/?s=id&amp;o=asc"></a>Date</th>
+
+                <th class="hdr-seeders sorting text-center" title="Seeders" style="width:50px;"><a href="/?s=seeders&amp;o=desc"></a><i class="fa fa-arrow-up" aria-hidden="true"></i></th>
+                <th class="hdr-leechers sorting text-center" title="Leechers" style="width:50px;"><a href="/?s=leechers&amp;o=desc"></a><i class="fa fa-arrow-down" aria-hidden="true"></i></th>
+                <th class="hdr-downloads sorting text-center" title="Completed downloads" style="width:50px;"><a href="/?s=downloads&amp;o=desc"></a><i class="fa fa-check" aria-hidden="true"></i></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr class="default">
+                <td>
+                    <a href="/?c=1_3" title="Anime - Non-English-translated">
+                        <img src="/static/img/icons/nyaa/1_3.png" alt="Anime - Non-English-translated" class="category-icon">
+                    </a>
+                </td>
+                <td colspan="2">
+                    <a href="/view/1477854" title="[DJB] Dragon Quest - Dai no Daibouken (2020) - 65 VOSTFR [1080p].mp4">[DJB] Dragon Quest - Dai no Daibouken (2020) - 65 VOSTFR [1080p].mp4</a>
+                </td>
+                <td class="text-center">
+
+                </td>
+                <td class="text-center">1.4 GiB</td>
+                <td class="text-center" data-timestamp="1642238115">2022-01-15 09:15</td>
+
+                <td class="text-center">8</td>
+                <td class="text-center">4</td>
+                <td class="text-center">5</td>
+            </tr>
+            <tr class="default">
+                <td>
+                    <a href="/?c=1_2" title="Anime - English-translated">
+                        <img src="/static/img/icons/nyaa/1_2.png" alt="Anime - English-translated" class="category-icon">
+                    </a>
+                </td>
+                <td colspan="2">
+                    <a href="/view/1477853#comments" class="comments" title="2 comments">
+                        <i class="fa fa-comments-o"></i>2</a>
+                    <a href="/view/1477853" title="[HENiL] Shuumatsu no Harem (World&#39;s End Harem) - S01E02 [1080p][HEVC x265 10bit] (Uncensored)">[HENiL] Shuumatsu no Harem (World&#39;s End Harem) - S01E02 [1080p][HEVC x265 10bit] (Uncensored)</a>
+                </td>
+                <td class="text-center">
+                </td>
+                <td class="text-center">565.7 MiB</td>
+                <td class="text-center" data-timestamp="1642234960">2022-01-15 08:22</td>
+
+                <td class="text-center">52</td>
+                <td class="text-center">30</td>
+                <td class="text-center">40</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="center">
+        <nav>
+            <ul class="pagination">
+                <li class="disabled"><a href="#">&laquo;</a></li>
+                <li class="active"><a href="#">1 <span class="sr-only">(current)</span></a></li>
+                <li><a href="/?p=2">2</a></li>
+                <li><a href="/?p=3">3</a></li>
+                <li><a href="/?p=4">4</a></li>
+                <li><a href="/?p=5">5</a></li>
+                <li><a href="/?p=6">6</a></li>
+
+                <li><a rel="next" href="/?p=2">&raquo;</a></li>
+            </ul>
+        </nav>
+
+    </div>
+</div> <!-- /container -->
+
+<footer style="text-align: center;">
+    <p>Dark Mode: <a href="#" id="themeToggle">Toggle</a></p>
+</footer>
+</body>
+</html>

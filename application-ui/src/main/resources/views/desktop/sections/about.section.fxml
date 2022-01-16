@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.yoep.popcorn.ui.view.controls.AboutDetails?>
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -27,5 +28,22 @@
     <VBox GridPane.columnIndex="2" GridPane.rowIndex="1">
         <Label fx:id="titleLabel" styleClass="title"/>
         <Label fx:id="versionLabel" styleClass="version"/>
+
+        <!-- Section players -->
+        <Label styleClass="subsection-title" text="%about_players" />
+        <AboutDetails fx:id="playersPane" hgap="8">
+            <columnConstraints>
+                <ColumnConstraints />
+                <ColumnConstraints percentWidth="100"/>
+                <ColumnConstraints />
+            </columnConstraints>
+        </AboutDetails>
+
+        <!-- Section video -->
+        <Label styleClass="subsection-title" text="%about_video" />
+
+        <!-- Section providers -->
+        <Label styleClass="subsection-title" text="%about_providers" />
+
     </VBox>
 </GridPane>

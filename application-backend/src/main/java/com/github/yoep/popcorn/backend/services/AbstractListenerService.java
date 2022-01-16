@@ -1,4 +1,4 @@
-package com.github.yoep.player.popcorn.services;
+package com.github.yoep.popcorn.backend.services;
 
 import javax.validation.constraints.NotNull;
 import java.util.Objects;

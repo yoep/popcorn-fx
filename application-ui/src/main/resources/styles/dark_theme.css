@@ -1277,10 +1277,21 @@
     -fx-cursor: default;
 }
 
+.root .about-section .label {
+    -fx-text-fill: #fff;
+}
+
 .root .about-section .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 4em;
-    -fx-text-fill: #fff;
+    -fx-text-fill: #fafafa;
+}
+
+.root .about-section .subsection-title {
+    -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
+    -fx-text-fill: #2d75df;
+    -fx-font-size: 1.5em;
+    -fx-padding: 15 0 0 0;
 }
 
 .root .about-section .version {

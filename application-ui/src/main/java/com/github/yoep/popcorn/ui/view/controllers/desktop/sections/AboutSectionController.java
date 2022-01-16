@@ -2,7 +2,12 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.platform.PlatformProvider;
+import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
+import com.github.yoep.popcorn.ui.view.model.AboutDetail;
+import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -16,6 +21,7 @@ import org.springframework.core.io.ClassPathResource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
@@ -25,6 +31,8 @@ import java.util.ResourceBundle;
 public class AboutSectionController implements Initializable {
     private final PopcornProperties properties;
     private final ApplicationContext applicationContext;
+    private final AboutSectionService aboutService;
+    private final PlatformProvider platformProvider;
 
     @FXML
     BackgroundImageCover backgroundCover;
@@ -34,12 +42,15 @@ public class AboutSectionController implements Initializable {
     Label titleLabel;
     @FXML
     Label versionLabel;
+    @FXML
+    AboutDetails playersPane;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeLogo();
         initializeBackgroundCover();
         initializeLabels();
+        initializeListeners();
     }
 
     private void initializeLogo() {
@@ -59,6 +70,16 @@ public class AboutSectionController implements Initializable {
         versionLabel.setText(properties.getVersion());
     }
 
+    private void initializeListeners() {
+        aboutService.addListener(new AboutSectionListener() {
+            @Override
+            public void onPlayersChanged(List<AboutDetail> players) {
+                AboutSectionController.this.onPlayersChanged(players);
+            }
+        });
+        aboutService.updateAll();
+    }
+
     private Optional<InputStream> loadResource(String filename) {
         var resource = new ClassPathResource("images/" + filename);
 
@@ -73,5 +94,9 @@ public class AboutSectionController implements Initializable {
         }
 
         return Optional.empty();
+    }
+
+    private void onPlayersChanged(List<AboutDetail> players) {
+        platformProvider.runOnRenderer(() -> playersPane.setItems(players));
     }
 }

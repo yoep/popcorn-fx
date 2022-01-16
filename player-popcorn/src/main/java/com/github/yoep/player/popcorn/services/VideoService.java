@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.AbstractVideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
+import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;

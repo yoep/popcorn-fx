@@ -2,9 +2,11 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.info.ComponentState;
+import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
-import com.github.yoep.popcorn.ui.view.model.AboutDetail;
 import javafx.collections.MapChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,11 +42,22 @@ public class AboutSectionService extends AbstractListenerService<AboutSectionLis
 
     private void onPlayersChanged(List<Player> players) {
         var details = players.stream()
-                .map(e -> AboutDetail.builder()
+                .map(e -> SimpleComponentDetails.builder()
                         .name(e.getName())
-                        .state(AboutDetail.State.UNKNOWN)
+                        .state(mapToComponentState(e.getState()))
                         .build())
                 .collect(Collectors.toList());
         invokeListeners(e -> e.onPlayersChanged(details));
+    }
+
+    private static ComponentState mapToComponentState(PlayerState state) {
+        switch (state) {
+            case ERROR:
+                return ComponentState.ERROR;
+            case UNKNOWN:
+                return ComponentState.UNKNOWN;
+            default:
+                return ComponentState.READY;
+        }
     }
 }

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.listeners;
 
-import com.github.yoep.popcorn.ui.view.model.AboutDetail;
+import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 
 import java.util.List;
 
@@ -10,5 +10,5 @@ public interface AboutSectionListener {
      *
      * @param players The new available players.
      */
-    void onPlayersChanged(List<AboutDetail> players);
+    void onPlayersChanged(List<SimpleComponentDetails> players);
 }

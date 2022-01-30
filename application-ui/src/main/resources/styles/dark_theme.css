@@ -1299,3 +1299,15 @@
     -fx-font-size: 2em;
     -fx-text-fill: #bbb;
 }
+
+.root .about-section .about-details .details-card {
+    -fx-background-color: #1b2d4c;
+    -fx-background-radius: 1em;
+    -fx-padding: 10 15 10 15;
+}
+
+.root .about-section .about-details .details-card .name {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 1.25em;
+    -fx-text-fill: #fff;
+}

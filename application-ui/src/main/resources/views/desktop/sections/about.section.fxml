@@ -31,19 +31,12 @@
 
         <!-- Section players -->
         <Label styleClass="subsection-title" text="%about_players" />
-        <AboutDetails fx:id="playersPane" hgap="8">
-            <columnConstraints>
-                <ColumnConstraints />
-                <ColumnConstraints percentWidth="100"/>
-                <ColumnConstraints />
-            </columnConstraints>
-        </AboutDetails>
+        <AboutDetails fx:id="playersPane" spacing="8" />
 
         <!-- Section video -->
         <Label styleClass="subsection-title" text="%about_video" />
 
         <!-- Section providers -->
         <Label styleClass="subsection-title" text="%about_providers" />
-
     </VBox>
 </GridPane>

@@ -33,7 +33,7 @@ public class PopcornPlayer implements Player {
     private final VideoListener videoListener = createVideoListener();
     private final VideoService videoService;
 
-    private PlayerState playerState;
+    private PlayerState playerState = PlayerState.UNKNOWN;
     private Long time;
 
     //region EmbeddablePlayer

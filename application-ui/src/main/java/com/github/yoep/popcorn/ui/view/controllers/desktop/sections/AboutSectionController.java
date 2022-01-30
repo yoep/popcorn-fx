@@ -2,11 +2,11 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 import com.github.yoep.popcorn.backend.platform.PlatformProvider;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
-import com.github.yoep.popcorn.ui.view.model.AboutDetail;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -73,7 +73,7 @@ public class AboutSectionController implements Initializable {
     private void initializeListeners() {
         aboutService.addListener(new AboutSectionListener() {
             @Override
-            public void onPlayersChanged(List<AboutDetail> players) {
+            public void onPlayersChanged(List<SimpleComponentDetails> players) {
                 AboutSectionController.this.onPlayersChanged(players);
             }
         });
@@ -96,7 +96,7 @@ public class AboutSectionController implements Initializable {
         return Optional.empty();
     }
 
-    private void onPlayersChanged(List<AboutDetail> players) {
+    private void onPlayersChanged(List<SimpleComponentDetails> players) {
         platformProvider.runOnRenderer(() -> playersPane.setItems(players));
     }
 }

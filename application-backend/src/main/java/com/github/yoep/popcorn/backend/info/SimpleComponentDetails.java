@@ -11,8 +11,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Getter
-@EqualsAndHashCode
-@ToString
+@EqualsAndHashCode(exclude = "changes")
+@ToString(exclude = "changes")
 public class SimpleComponentDetails implements ComponentInfo {
     private final String name;
     private String description;

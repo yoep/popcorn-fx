@@ -77,7 +77,7 @@ public class MaximizeService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         log.trace("Initializing maximize service");
         initializeStageListeners();
         initializeMaximizedListener();

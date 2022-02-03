@@ -5,7 +5,7 @@
 <?import javafx.scene.layout.*?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.TitleBarComponent"
-           styleClass="title-bar">
+           styleClass="title-bar" onMouseClicked="#onTitleBarClicked">
     <Label text="Popcorn Time" cache="true" cacheHint="SCALE"/>
 
     <HBox fx:id="osButtons" styleClass="os-buttons" StackPane.alignment="CENTER_RIGHT">

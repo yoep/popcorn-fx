@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 import javafx.geometry.VPos;
@@ -57,9 +58,17 @@ public class AboutDetails extends VBox {
     }
 
     private static Icon createStateNode(SimpleComponentDetails detail) {
-        var node = stateToIcon(detail.getState());
+        var node = new Icon(stateToIconUnicode(detail.getState()));
+
         node.setSizeFactor(2);
         GridPane.setValignment(node, VPos.TOP);
+
+        detail.addChangeListener(evt -> {
+            if (evt.getPropertyName().equals(ComponentInfo.STATE_PROPERTY)) {
+                node.setText(stateToIconUnicode((ComponentState) evt.getNewValue()));
+            }
+        });
+
         return node;
     }
 
@@ -76,15 +85,15 @@ public class AboutDetails extends VBox {
         return grid;
     }
 
-    private static Icon stateToIcon(ComponentState state) {
+    private static String stateToIconUnicode(ComponentState state) {
         switch (state) {
             case UNKNOWN:
-                return new Icon(Icon.QUESTION_CIRCLE_UNICODE);
+                return Icon.QUESTION_CIRCLE_UNICODE;
             case READY:
-                return new Icon(Icon.CHECK_CIRCLE_UNICODE);
+                return Icon.CHECK_CIRCLE_UNICODE;
             case ERROR:
             default:
-                return new Icon(Icon.TIMES_CIRCLE_O_UNICODE);
+                return Icon.TIMES_CIRCLE_O_UNICODE;
         }
     }
 

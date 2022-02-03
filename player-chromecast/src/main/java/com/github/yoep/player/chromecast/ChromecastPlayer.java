@@ -59,6 +59,11 @@ public class ChromecastPlayer implements Player {
     }
 
     @Override
+    public String getDescription() {
+        return "Chromecast streaming media device which allows the playback of videos on your TV.";
+    }
+
+    @Override
     public Optional<Resource> getGraphicResource() {
         return Optional.of(GRAPHIC_RESOURCE);
     }

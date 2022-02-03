@@ -49,6 +49,12 @@ public class PopcornPlayer implements Player {
     }
 
     @Override
+    public String getDescription() {
+        return "Popcorn Time is the default embedded player of the application. " +
+                "It allows the video playback within the application itself.";
+    }
+
+    @Override
     public Optional<Resource> getGraphicResource() {
         return Optional.of(GRAPHIC_RESOURCE);
     }

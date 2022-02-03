@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.AbstractPlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
@@ -42,12 +43,26 @@ public class AboutSectionService extends AbstractListenerService<AboutSectionLis
 
     private void onPlayersChanged(List<Player> players) {
         var details = players.stream()
-                .map(e -> SimpleComponentDetails.builder()
-                        .name(e.getName())
-                        .state(mapToComponentState(e.getState()))
-                        .build())
+                .map(this::createComponentDetails)
                 .collect(Collectors.toList());
         invokeListeners(e -> e.onPlayersChanged(details));
+    }
+
+    private SimpleComponentDetails createComponentDetails(Player player) {
+        var componentDetails = SimpleComponentDetails.builder()
+                .name(player.getName())
+                .description(player.getDescription())
+                .state(mapToComponentState(player.getState()))
+                .build();
+
+        player.addListener(new AbstractPlayerListener() {
+            @Override
+            public void onStateChanged(PlayerState newState) {
+                componentDetails.setState(mapToComponentState(newState));
+            }
+        });
+
+        return componentDetails;
     }
 
     private static ComponentState mapToComponentState(PlayerState state) {

@@ -48,12 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
       - name: Prepare VLC
-        run: |
-          cd assets/windows/vlc &&
-          7z e vlc-3.0.16-win32.zip vlc-3.0.16/libvlc.dll vlc-3.0.16/libvlccore.dll &&
-          7z x vlc-3.0.16-win32.zip vlc-3.0.16/plugins vlc-3.0.16/lua &&
-          move .\vlc-3.0.16\plugins\ .\plugins\ &&
-          move .\vlc-3.0.16\lua\ .\lua\
+        run: ./assets/windows/prepare-vlc.bat
       - name: Prepare packaging
         run: mvn -B clean -Pwindows
       - name: Package

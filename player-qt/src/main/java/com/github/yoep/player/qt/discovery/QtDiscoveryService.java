@@ -27,7 +27,7 @@ public class QtDiscoveryService {
             log.debug("QT player has been loaded");
         } catch (Throwable ex) {
             log.debug("Failed to load the QT player, {}", ex.getMessage(), ex);
-            log.info("QT player could not be loaded ");
+            log.warn("QT player could not be loaded ");
         }
     }
 }

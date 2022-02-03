@@ -53,7 +53,7 @@ public class PlayerEventService {
     //region Functions
 
     private void onPlayerChanged(Player oldValue, Player newValue) {
-        log.debug("Active player has been changed to {}, updating the player listener", newValue);
+        log.debug("Active player has been changed to {}, updating the player listener", newValue.getId());
         // check if we need to unregister the listener from the old player
         Optional.ofNullable(oldValue)
                 .ifPresent(e -> e.removeListener(playerListener));

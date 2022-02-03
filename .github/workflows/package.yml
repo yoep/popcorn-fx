@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
       - name: Prepare VLC
-        run: ./assets/windows/prepare-vlc.bat
+        run: cd ./assets/windows && ./prepare-vlc.bat
       - name: Prepare packaging
         run: mvn -B clean -Pwindows
       - name: Package

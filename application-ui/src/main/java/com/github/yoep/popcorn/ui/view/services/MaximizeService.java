@@ -129,7 +129,7 @@ public class MaximizeService {
 
     private void toMaximizedStage() {
         viewManager.getPrimaryStage().ifPresent(stage -> Platform.runLater(() -> {
-            var screen = Screen.getPrimary();
+            var screen = detectCurrentScreen(stage);
 
             // store the current windowed stage information
             originX = stage.getX();
@@ -138,8 +138,8 @@ public class MaximizeService {
             originHeight = stage.getHeight();
 
             // maximize the stage
-            stage.setX(0);
-            stage.setY(0);
+            stage.setX(screen.getVisualBounds().getMinX());
+            stage.setY(screen.getVisualBounds().getMinY());
             stage.setWidth(screen.getVisualBounds().getWidth());
             stage.setHeight(screen.getVisualBounds().getHeight());
         }));
@@ -147,6 +147,17 @@ public class MaximizeService {
 
     private UISettings getUiSettings() {
         return settingsService.getSettings().getUiSettings();
+    }
+
+    private static Screen detectCurrentScreen(Stage stage) {
+        var screens = Screen.getScreensForRectangle(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+
+        return screens.stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    log.warn("Failed to detect current window screen, using primary screen instead");
+                    return Screen.getPrimary();
+                });
     }
 
     //endregion

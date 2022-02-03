@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.player;
 
 import com.github.yoep.player.popcorn.services.VideoService;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import javafx.beans.property.ObjectProperty;
@@ -24,7 +24,7 @@ class PopcornPlayerTest {
     @InjectMocks
     private PopcornPlayer popcornPlayer;
 
-    private final ObjectProperty<VideoPlayer> videoPlayerProperty = new SimpleObjectProperty<>();
+    private final ObjectProperty<VideoPlayback> videoPlayerProperty = new SimpleObjectProperty<>();
 
     @BeforeEach
     void setUp() {
@@ -83,7 +83,7 @@ class PopcornPlayerTest {
 
     @Test
     void testVideoPlayerListener_whenChanged_shouldAddVideoListener() {
-        var videoPlayer = mock(VideoPlayer.class);
+        var videoPlayer = mock(VideoPlayback.class);
         popcornPlayer.init();
 
         videoPlayerProperty.set(videoPlayer);

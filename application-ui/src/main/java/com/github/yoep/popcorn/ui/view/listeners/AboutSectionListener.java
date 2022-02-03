@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.listeners;
 
-import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
+import com.github.yoep.popcorn.backend.info.ComponentInfo;
 
 import java.util.List;
 
@@ -10,5 +10,12 @@ public interface AboutSectionListener {
      *
      * @param players The new available players.
      */
-    void onPlayersChanged(List<SimpleComponentDetails> players);
+    void onPlayersChanged(List<ComponentInfo> players);
+
+    /**
+     * Invoked when the video players have been changed.
+     *
+     * @param videoPlayers The new list of video players.
+     */
+    void onVideoPlayersChanged(List<ComponentInfo> videoPlayers);
 }

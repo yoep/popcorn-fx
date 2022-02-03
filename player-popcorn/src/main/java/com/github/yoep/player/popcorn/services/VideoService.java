@@ -3,7 +3,7 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayerException;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.AbstractVideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
@@ -29,9 +29,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class VideoService extends AbstractListenerService<PlaybackListener> {
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
-    private final List<VideoPlayer> videoPlayers;
+    private final List<VideoPlayback> videoPlaybacks;
 
-    private final ObjectProperty<VideoPlayer> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
+    private final ObjectProperty<VideoPlayback> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
     private final VideoListener videoListener = createVideoListener();
 
     //region Properties
@@ -41,7 +41,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
      *
      * @return Returns the active video player if one is present, else {@link Optional#empty()}.
      */
-    public Optional<VideoPlayer> getVideoPlayer() {
+    public Optional<VideoPlayback> getVideoPlayer() {
         return Optional.ofNullable(videoPlayer.get());
     }
 
@@ -50,7 +50,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
      *
      * @return Returns the active video player property.
      */
-    public ReadOnlyObjectProperty<VideoPlayer> videoPlayerProperty() {
+    public ReadOnlyObjectProperty<VideoPlayback> videoPlayerProperty() {
         return videoPlayer;
     }
 
@@ -81,13 +81,13 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
 
     public void onResume() {
         Optional.ofNullable(videoPlayer.get())
-                .ifPresent(VideoPlayer::resume);
+                .ifPresent(VideoPlayback::resume);
         invokeListeners(PlaybackListener::onResume);
     }
 
     public void onPause() {
         Optional.ofNullable(videoPlayer.get())
-                .ifPresent(VideoPlayer::pause);
+                .ifPresent(VideoPlayback::pause);
         invokeListeners(PlaybackListener::onPause);
     }
 
@@ -104,7 +104,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
 
     public void onStop() {
         Optional.ofNullable(videoPlayer.get())
-                .ifPresent(VideoPlayer::stop);
+                .ifPresent(VideoPlayback::stop);
         invokeListeners(PlaybackListener::onStop);
     }
 
@@ -115,7 +115,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     @PreDestroy
     void dispose() {
         log.trace("Disposing the video players");
-        videoPlayers.forEach(VideoPlayer::dispose);
+        videoPlaybacks.forEach(VideoPlayback::dispose);
     }
 
     //endregion
@@ -129,9 +129,9 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
      * @return Returns the new active video player that supports the url.
      * @throws VideoPlayerException Is thrown when no video player could be found that supports the given url.
      */
-    private VideoPlayer switchSupportedVideoPlayer(String url) {
+    private VideoPlayback switchSupportedVideoPlayer(String url) {
         Assert.notNull(url, "url cannot be null");
-        var videoPlayer = videoPlayers.stream()
+        var videoPlayer = videoPlaybacks.stream()
                 .filter(e -> e.supports(url))
                 .findFirst()
                 .orElseThrow(() -> new VideoPlayerException("No compatible video player found for " + url));
@@ -142,14 +142,14 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
         return videoPlayer;
     }
 
-    private void registerListener(VideoPlayer videoPlayer, VideoPlayer oldVideoPlayer) {
+    private void registerListener(VideoPlayback videoPlayback, VideoPlayback oldVideoPlayback) {
         // if an old video player is known
         // unregister the listener from the old video player first
-        if (oldVideoPlayer != null) {
-            oldVideoPlayer.removeListener(videoListener);
+        if (oldVideoPlayback != null) {
+            oldVideoPlayback.removeListener(videoListener);
         }
 
-        videoPlayer.addListener(videoListener);
+        videoPlayback.addListener(videoListener);
     }
 
     private void onVideoError() {
@@ -159,13 +159,13 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
 
     private Throwable getVideoPlayerError() {
         return getVideoPlayer()
-                .map(VideoPlayer::getError)
+                .map(VideoPlayback::getError)
                 .orElseGet(UnknownError::new);
     }
 
     private VideoState getVideoPlayerState() {
         return getVideoPlayer()
-                .map(VideoPlayer::getVideoState)
+                .map(VideoPlayback::getVideoState)
                 .orElse(VideoState.UNKNOWN);
     }
 

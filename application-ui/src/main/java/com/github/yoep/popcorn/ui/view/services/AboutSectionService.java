@@ -1,35 +1,31 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.adapters.player.Player;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.listeners.AbstractPlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.info.ComponentState;
-import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
+import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.ui.info.PlayerInfoService;
+import com.github.yoep.popcorn.ui.info.VideoInfoService;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
-import javafx.collections.MapChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AboutSectionService extends AbstractListenerService<AboutSectionListener> {
-    private final PlayerManagerService playerManagerService;
+    private final PlayerInfoService playerInfoService;
+    private final VideoInfoService videoInfoService;
 
     /**
      * Update all information.
      * This will invoke all listeners with the latest known information.
      */
     public void updateAll() {
-        onPlayersChanged(new ArrayList<>(playerManagerService.getPlayers()));
+        onPlayersChanged(playerInfoService.getComponentDetails());
+        onVideoPlayersChanged(videoInfoService.getComponentDetails());
     }
 
     @PostConstruct
@@ -38,41 +34,15 @@ public class AboutSectionService extends AbstractListenerService<AboutSectionLis
     }
 
     private void initializeListeners() {
-        playerManagerService.playersProperty().addListener((MapChangeListener<? super String, ? super Player>) e -> onPlayersChanged(new ArrayList<>(e.getMap().values())));
+        playerInfoService.addListener(this::onPlayersChanged);
+        videoInfoService.addListener(this::onVideoPlayersChanged);
     }
 
-    private void onPlayersChanged(List<Player> players) {
-        var details = players.stream()
-                .map(this::createComponentDetails)
-                .collect(Collectors.toList());
-        invokeListeners(e -> e.onPlayersChanged(details));
+    private void onVideoPlayersChanged(List<ComponentInfo> componentInfos) {
+        invokeListeners(e -> e.onVideoPlayersChanged(componentInfos));
     }
 
-    private SimpleComponentDetails createComponentDetails(Player player) {
-        var componentDetails = SimpleComponentDetails.builder()
-                .name(player.getName())
-                .description(player.getDescription())
-                .state(mapToComponentState(player.getState()))
-                .build();
-
-        player.addListener(new AbstractPlayerListener() {
-            @Override
-            public void onStateChanged(PlayerState newState) {
-                componentDetails.setState(mapToComponentState(newState));
-            }
-        });
-
-        return componentDetails;
-    }
-
-    private static ComponentState mapToComponentState(PlayerState state) {
-        switch (state) {
-            case ERROR:
-                return ComponentState.ERROR;
-            case UNKNOWN:
-                return ComponentState.UNKNOWN;
-            default:
-                return ComponentState.READY;
-        }
-    }
+    private void onPlayersChanged(List<ComponentInfo> players) {
+        invokeListeners(e -> e.onPlayersChanged(players));
+   }
 }

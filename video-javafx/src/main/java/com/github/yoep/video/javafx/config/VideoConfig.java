@@ -1,6 +1,6 @@
 package com.github.yoep.video.javafx.config;
 
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.video.javafx.VideoPlayerFX;
 import com.github.yoep.video.javafx.conditions.ConditionalOnFXVideoEnabled;
 import com.github.yoep.video.javafx.conditions.ConditionalOnMediaSupported;
@@ -16,7 +16,7 @@ public class VideoConfig {
     @Order
     @ConditionalOnFXVideoEnabled
     @ConditionalOnMediaSupported
-    public VideoPlayer javaFxVideoPlayer() {
+    public VideoPlayback javaFxVideoPlayer() {
         log.info("Using JavaFX player as fallback player");
         return new VideoPlayerFX();
     }

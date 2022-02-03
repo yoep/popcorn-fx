@@ -4,9 +4,9 @@ package com.github.yoep.popcorn.backend.adapters.video;
  * Exception indicating that the video player instance has not yet been initialized.
  */
 public class VideoPlayerNotInitializedException extends VideoPlayerException {
-    private final VideoPlayer instance;
+    private final VideoPlayback instance;
 
-    public VideoPlayerNotInitializedException(VideoPlayer instance) {
+    public VideoPlayerNotInitializedException(VideoPlayback instance) {
         super("Video player has not been initialized");
         this.instance = instance;
     }
@@ -16,7 +16,7 @@ public class VideoPlayerNotInitializedException extends VideoPlayerException {
      *
      * @return Returns the video player instance.
      */
-    public VideoPlayer getInstance() {
+    public VideoPlayback getInstance() {
         return instance;
     }
 }

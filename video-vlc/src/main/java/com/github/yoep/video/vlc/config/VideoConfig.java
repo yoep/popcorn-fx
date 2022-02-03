@@ -1,6 +1,6 @@
 package com.github.yoep.video.vlc.config;
 
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcInstall;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcVideoEnabled;
@@ -19,7 +19,7 @@ public class VideoConfig {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 10)
     @ConditionalOnVlcInstall
-    public VideoPlayer vlcVideoPlayer(MediaPlayerFactory mediaPlayerFactory) {
+    public VideoPlayback vlcVideoPlayer(MediaPlayerFactory mediaPlayerFactory) {
         log.info("Using VLC player for video playbacks");
         return new VideoPlayerVlc(mediaPlayerFactory);
     }

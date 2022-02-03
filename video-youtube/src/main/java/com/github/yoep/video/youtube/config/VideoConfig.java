@@ -1,6 +1,6 @@
 package com.github.yoep.video.youtube.config;
 
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.video.youtube.VideoPlayerYoutube;
 import com.github.yoep.video.youtube.conditions.ConditionalOnWebkitSupported;
 import com.github.yoep.video.youtube.conditions.ConditionalOnYoutubeVideoEnabled;
@@ -17,7 +17,7 @@ public class VideoConfig {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnWebkitSupported
     @ConditionalOnYoutubeVideoEnabled
-    public VideoPlayer youtubeVideoPlayer() {
+    public VideoPlayback youtubeVideoPlayer() {
         log.info("Using Youtube player for trailer playbacks");
         return new VideoPlayerYoutube();
     }

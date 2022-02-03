@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.ui.view.controls;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.info.ComponentState;
-import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 import javafx.geometry.VPos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.ColumnConstraints;
@@ -24,7 +23,7 @@ public class AboutDetails extends VBox {
 
     //region Properties
 
-    public void setItems(List<SimpleComponentDetails> items) {
+    public void setItems(List<ComponentInfo> items) {
         renderItems(items);
     }
 
@@ -34,7 +33,7 @@ public class AboutDetails extends VBox {
         this.getStyleClass().add(STYLE_CLASS);
     }
 
-    private void renderItems(List<SimpleComponentDetails> items) {
+    private void renderItems(List<ComponentInfo> items) {
         this.getChildren().clear();
 
         items.forEach(e -> {
@@ -51,13 +50,13 @@ public class AboutDetails extends VBox {
         });
     }
 
-    private static Label createNameNode(SimpleComponentDetails detail) {
+    private static Label createNameNode(ComponentInfo detail) {
         var node = new Label(detail.getName());
         node.getStyleClass().add(NAME_STYLE_CLASS);
         return node;
     }
 
-    private static Icon createStateNode(SimpleComponentDetails detail) {
+    private static Icon createStateNode(ComponentInfo detail) {
         var node = new Icon(stateToIconUnicode(detail.getState()));
 
         node.setSizeFactor(2);

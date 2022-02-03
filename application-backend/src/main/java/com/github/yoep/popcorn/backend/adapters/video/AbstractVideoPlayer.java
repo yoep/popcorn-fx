@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public abstract class AbstractVideoPlayer implements VideoPlayer {
+public abstract class AbstractVideoPlayer implements VideoPlayback {
     protected final Collection<VideoListener> listeners = new ConcurrentLinkedQueue<>();
 
     private VideoState videoState = VideoState.UNKNOWN;

@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
+import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.platform.PlatformProvider;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
@@ -44,6 +44,8 @@ public class AboutSectionController implements Initializable {
     Label versionLabel;
     @FXML
     AboutDetails playersPane;
+    @FXML
+    AboutDetails videoPane;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -73,8 +75,13 @@ public class AboutSectionController implements Initializable {
     private void initializeListeners() {
         aboutService.addListener(new AboutSectionListener() {
             @Override
-            public void onPlayersChanged(List<SimpleComponentDetails> players) {
+            public void onPlayersChanged(List<ComponentInfo> players) {
                 AboutSectionController.this.onPlayersChanged(players);
+            }
+
+            @Override
+            public void onVideoPlayersChanged(List<ComponentInfo> videoPlayers) {
+                AboutSectionController.this.onVideoPlayersChanged(videoPlayers);
             }
         });
         aboutService.updateAll();
@@ -96,7 +103,11 @@ public class AboutSectionController implements Initializable {
         return Optional.empty();
     }
 
-    private void onPlayersChanged(List<SimpleComponentDetails> players) {
+    private void onPlayersChanged(List<ComponentInfo> players) {
         platformProvider.runOnRenderer(() -> playersPane.setItems(players));
+    }
+
+    private void onVideoPlayersChanged(List<ComponentInfo> videoPlayers) {
+        platformProvider.runOnRenderer(() -> videoPane.setItems(videoPlayers));
     }
 }

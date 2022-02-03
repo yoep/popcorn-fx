@@ -35,6 +35,7 @@
 
         <!-- Section video -->
         <Label styleClass="subsection-title" text="%about_video" />
+        <AboutDetails fx:id="videoPane" spacing="8" />
 
         <!-- Section providers -->
         <Label styleClass="subsection-title" text="%about_providers" />

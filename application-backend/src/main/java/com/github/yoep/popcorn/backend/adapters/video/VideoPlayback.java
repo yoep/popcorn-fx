@@ -4,12 +4,13 @@ import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import javafx.scene.Node;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 
 /**
- * The video player is a embedded video backend which supports playback in the application itself.
+ * The video playback is an embedded video backend which supports playback in the application itself.
  */
-public interface VideoPlayer {
+public interface VideoPlayback {
     //region Properties
 
     /**
@@ -36,6 +37,21 @@ public interface VideoPlayer {
     //endregion
 
     //region Getters & Setters
+
+    /**
+     * Get the unique name of the video player.
+     *
+     * @return Return the name of the video player.
+     */
+    @NotNull
+    String getName();
+
+    /**
+     * Get the summary of the video player.
+     *
+     * @return Returns the description of the video player.
+     */
+    String getDescription();
 
     /**
      * Check if the video player supports the given url.

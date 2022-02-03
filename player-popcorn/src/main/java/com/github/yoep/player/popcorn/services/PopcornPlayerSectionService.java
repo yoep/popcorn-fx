@@ -6,7 +6,7 @@ import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
@@ -35,7 +35,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
 
     public boolean isNativeSubtitlePlaybackSupported() {
         return videoService.getVideoPlayer()
-                .map(VideoPlayer::supportsNativeSubtitleFile)
+                .map(VideoPlayback::supportsNativeSubtitleFile)
                 .orElse(false);
     }
 
@@ -118,8 +118,8 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         invokeListeners(e -> e.onPlayerStateChanged(newState));
     }
 
-    private void onVideoViewChanged(VideoPlayer newVideoPlayer) {
-        invokeListeners(e -> e.onVideoViewChanged(newVideoPlayer.getVideoSurface()));
+    private void onVideoViewChanged(VideoPlayback newVideoPlayback) {
+        invokeListeners(e -> e.onVideoViewChanged(newVideoPlayback.getVideoSurface()));
     }
 
     private PlayerListener createPlayerListener() {

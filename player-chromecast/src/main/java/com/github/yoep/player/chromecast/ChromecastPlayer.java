@@ -41,7 +41,7 @@ public class ChromecastPlayer implements Player {
     @Nullable
     private final ChromecastContentTypeResolver contentTypeResolver;
 
-    private PlayerState playerState = PlayerState.UNKNOWN;
+    private PlayerState playerState = PlayerState.READY;
     private PlaybackThread playbackThread;
     private boolean connected;
     private boolean appLaunched;

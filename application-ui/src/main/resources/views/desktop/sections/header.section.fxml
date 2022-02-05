@@ -66,6 +66,12 @@
                     <Tooltip text="%header_settings" showDelay="200ms" showDuration="1h"/>
                 </tooltip>
             </Icon>
+            <Icon fx:id="aboutIcon" styleClass="icon" onMouseClicked="#onAboutClicked">
+                <Icon fx:constant="INFO_CIRCLE_UNICODE"/>
+                <tooltip>
+                    <Tooltip text="%header_about" showDelay="200ms" showDuration="1h"/>
+                </tooltip>
+            </Icon>
         </HBox>
     </GridPane>
 

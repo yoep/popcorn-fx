@@ -41,7 +41,7 @@ public class ChromecastPlayer implements Player {
     @Nullable
     private final ChromecastContentTypeResolver contentTypeResolver;
 
-    private PlayerState playerState = PlayerState.UNKNOWN;
+    private PlayerState playerState = PlayerState.READY;
     private PlaybackThread playbackThread;
     private boolean connected;
     private boolean appLaunched;
@@ -56,6 +56,11 @@ public class ChromecastPlayer implements Player {
     @Override
     public String getName() {
         return chromeCast.getTitle();
+    }
+
+    @Override
+    public String getDescription() {
+        return "Chromecast streaming media device which allows the playback of videos on your TV.";
     }
 
     @Override

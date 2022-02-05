@@ -53,6 +53,11 @@ public class QtPlayer implements Player {
     }
 
     @Override
+    public String getDescription() {
+        return "Player which uses the native playback from VLC for better performance.";
+    }
+
+    @Override
     public Optional<Resource> getGraphicResource() {
         return Optional.of(GRAPHIC_RESOURCE);
     }

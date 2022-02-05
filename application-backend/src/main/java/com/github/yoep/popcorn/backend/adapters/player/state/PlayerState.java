@@ -5,6 +5,7 @@ package com.github.yoep.popcorn.backend.adapters.player.state;
  */
 public enum PlayerState {
     UNKNOWN,
+    READY,
     LOADING,
     BUFFERING,
     PLAYING,

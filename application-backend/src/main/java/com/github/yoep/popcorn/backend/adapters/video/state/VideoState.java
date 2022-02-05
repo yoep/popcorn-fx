@@ -7,5 +7,6 @@ public enum VideoState {
     FINISHED,
     ERROR,
     BUFFERING,
+    READY,
     UNKNOWN
 }

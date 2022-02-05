@@ -2,7 +2,7 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
@@ -178,7 +178,7 @@ public class SubtitleManagerService {
         if (subtitleInfo.isCustom() && subtitleInfo.getFiles().isEmpty()) {
             // pause the video playback as a popup will be shown
             videoService.getVideoPlayer()
-                    .ifPresent(VideoPlayer::pause);
+                    .ifPresent(VideoPlayback::pause);
 
             // show the subtitle picker popup
             var customSubtitle = subtitlePickerService.pickCustomSubtitle();
@@ -193,7 +193,7 @@ public class SubtitleManagerService {
 
             // resume the video playback
             videoService.getVideoPlayer()
-                    .ifPresent(VideoPlayer::resume);
+                    .ifPresent(VideoPlayback::resume);
         }
 
         log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);

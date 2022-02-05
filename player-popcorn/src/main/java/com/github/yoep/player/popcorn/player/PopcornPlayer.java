@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class PopcornPlayer implements Player {
     private final VideoListener videoListener = createVideoListener();
     private final VideoService videoService;
 
-    private PlayerState playerState;
+    private PlayerState playerState = PlayerState.UNKNOWN;
     private Long time;
 
     //region EmbeddablePlayer
@@ -46,6 +46,12 @@ public class PopcornPlayer implements Player {
     @Override
     public String getName() {
         return PLAYER_NAME;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Popcorn Time is the default embedded player of the application. " +
+                "It allows the video playback within the application itself.";
     }
 
     @Override
@@ -130,6 +136,7 @@ public class PopcornPlayer implements Player {
         videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
             onVideoPlayerChanged(oldValue, newValue);
         });
+        setPlayerState(PlayerState.READY);
     }
 
     //endregion
@@ -150,7 +157,7 @@ public class PopcornPlayer implements Player {
         listeners.forEach(e -> e.onDurationChanged(duration));
     }
 
-    private void onVideoPlayerChanged(VideoPlayer oldValue, VideoPlayer newValue) {
+    private void onVideoPlayerChanged(VideoPlayback oldValue, VideoPlayback newValue) {
         Optional.ofNullable(oldValue)
                 .ifPresent(e -> e.removeListener(videoListener));
         Optional.ofNullable(newValue)

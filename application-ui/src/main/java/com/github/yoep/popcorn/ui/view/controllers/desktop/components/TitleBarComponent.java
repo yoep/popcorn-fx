@@ -7,6 +7,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
@@ -108,6 +109,14 @@ public class TitleBarComponent implements Initializable {
     private void onCloseClicked(MouseEvent event) {
         event.consume();
         Platform.exit();
+    }
+
+    @FXML
+    private void onTitleBarClicked(MouseEvent event) {
+        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+            event.consume();
+            maximizeService.setMaximized(!maximizeService.isMaximized());
+        }
     }
 
     //endregion

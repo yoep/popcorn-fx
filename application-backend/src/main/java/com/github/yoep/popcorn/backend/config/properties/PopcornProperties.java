@@ -36,6 +36,12 @@ public class PopcornProperties {
     private TraktProperties trakt;
 
     /**
+     * The application version.
+     */
+    @NotNull
+    private String version;
+
+    /**
      * Get the provider with the given name.
      *
      * @param name The name of the provider to retrieve.

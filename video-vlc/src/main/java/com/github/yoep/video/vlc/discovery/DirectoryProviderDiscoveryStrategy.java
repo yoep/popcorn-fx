@@ -36,6 +36,7 @@ abstract class DirectoryProviderDiscoveryStrategy extends BaseNativeDiscoveryStr
         // check if a vlc path has been configured
         // if so, return the path as the exclusive search path for VLC
         if (StringUtils.hasText(vlcPathProperty)) {
+            log.debug("The following VLC path has been provided: {}", vlcPathProperty);
             return Collections.singletonList(vlcPathProperty);
         }
 

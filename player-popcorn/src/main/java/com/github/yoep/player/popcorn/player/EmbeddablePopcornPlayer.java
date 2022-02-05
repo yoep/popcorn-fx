@@ -8,7 +8,9 @@ import com.github.yoep.popcorn.backend.adapters.player.embaddable.LayoutMode;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import javafx.scene.Node;
+import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
@@ -19,6 +21,8 @@ import java.util.Optional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@EqualsAndHashCode(exclude = "embeddablePlayer")
+@ToString(exclude = "embeddablePlayer")
 public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     static final String PLAYER_SECTION_VIEW = "common/sections/popcorn-player.section.fxml";
 
@@ -38,6 +42,11 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     @Override
     public String getName() {
         return popcornPlayer.getName();
+    }
+
+    @Override
+    public String getDescription() {
+        return popcornPlayer.getDescription();
     }
 
     @Override

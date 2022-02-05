@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Interface definition of media items of the Popcorn Time API.
@@ -54,11 +55,11 @@ public interface Media extends Watchable, Favorable, Serializable {
     List<String> getGenres();
 
     /**
-     * Get the rating of the media item.
+     * The rating information of the media item.
      *
-     * @return Returns the rating of the media.
+     * @return Returns the rating of the media if known, else {@link Optional#empty()}.
      */
-    Rating getRating();
+    Optional<Rating> getRating();
 
     /**
      * Get the images of the media item.

@@ -21,6 +21,7 @@
         <module>player-chromecast</module>
         <module>player-popcorn</module>
         <module>player-qt</module>
+        <module>provider-anime</module>
         <module>torrent-frostwire</module>
         <module>torrent-stream</module>
         <module>video-javafx</module>

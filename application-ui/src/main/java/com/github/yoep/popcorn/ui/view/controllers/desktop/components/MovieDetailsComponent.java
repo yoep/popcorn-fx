@@ -242,7 +242,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         event.consume();
 
         var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, quality, subtitle));
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, null, quality, subtitle));
     }
 
     @FXML

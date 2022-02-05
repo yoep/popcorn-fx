@@ -1,6 +1,8 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -11,14 +13,16 @@ import java.util.Optional;
  * This model is primarily used for displaying media details.
  */
 @Data
+@Builder
+@AllArgsConstructor
 public class MediaTorrentInfo implements Serializable {
-    private String provider;
-    private String filesize;
-    private String file;
+    private final String provider;
+    private final String filesize;
+    private final String file;
+    private final String url;
     private long size;
     private int peer;
     private int seed;
-    private String url;
 
     //region Getters & Setters
 

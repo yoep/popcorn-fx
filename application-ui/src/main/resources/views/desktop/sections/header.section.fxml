@@ -26,6 +26,7 @@
         <HBox styleClass="filter-nav-bar" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.valignment="BOTTOM">
             <Label fx:id="moviesCategory" text="%filter_movies" onMouseClicked="#onCategoryClicked"/>
             <Label fx:id="seriesCategory" text="%filter_series" onMouseClicked="#onCategoryClicked"/>
+            <Label fx:id="animeCategory" text="%filter_anime" onMouseClicked="#onCategoryClicked"/>
             <Label fx:id="favoritesCategory" text="%filter_favorites" onMouseClicked="#onCategoryClicked"/>
         </HBox>
 

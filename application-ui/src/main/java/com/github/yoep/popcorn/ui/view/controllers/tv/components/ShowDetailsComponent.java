@@ -305,7 +305,7 @@ public class ShowDetailsComponent extends AbstractTvDetailsComponent<Show> imple
 
     private void onWatchNowEvent() {
         var mediaTorrentInfo = episode.getTorrents().get(quality);
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, episode, quality, null));
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, quality, null));
     }
 
     private void onQualityEvent() {

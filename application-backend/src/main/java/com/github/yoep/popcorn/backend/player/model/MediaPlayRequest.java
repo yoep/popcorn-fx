@@ -17,14 +17,16 @@ public class MediaPlayRequest extends StreamPlayRequest {
     private final SubtitleInfo subtitle;
     private final String quality;
     private final Media media;
+    private final Media subMediaItem;
 
     @Builder(builderMethodName = "mediaBuilder")
     public MediaPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp, TorrentStream torrentStream,
-                            SubtitleInfo subtitle, String quality, Media media) {
+                            SubtitleInfo subtitle, String quality, Media media, Media subMediaItem) {
         super(url, title, thumb, autoResumeTimestamp, torrentStream);
         this.subtitle = subtitle;
         this.quality = quality;
         this.media = media;
+        this.subMediaItem = subMediaItem;
     }
 
     @Override
@@ -35,6 +37,15 @@ public class MediaPlayRequest extends StreamPlayRequest {
     @Override
     public Optional<String> getQuality() {
         return Optional.ofNullable(quality);
+    }
+
+    /**
+     * The sub media item to play.
+     *
+     * @return Returns the sub item if known, else {@link Optional#empty()}.
+     */
+    public Optional<Media> getSubMediaItem() {
+        return Optional.ofNullable(subMediaItem);
     }
 
     @Override

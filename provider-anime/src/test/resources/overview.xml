@@ -1,0 +1,44 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:nyaa="https://nyaa.si/xmlns/nyaa" version="2.0">
+    <channel>
+        <title>Torrent File RSS</title>
+        <description>RSS Feed for nyaa</description>
+        <link>https://nyaa.si/</link>
+        <atom:link href="https://nyaa.si/?page=rss" rel="self" type="application/rss+xml" />
+        <item>
+            <title>lorem ipsum</title>
+            <link>https://nyaa.si/download/589697.torrent</link>
+            <guid isPermaLink="true">https://nyaa.si/view/589697</guid>
+            <pubDate>Tue, 19 Aug 2014 03:40:00 -0000</pubDate>
+
+            <nyaa:seeders>0</nyaa:seeders>
+            <nyaa:leechers>2</nyaa:leechers>
+            <nyaa:downloads>0</nyaa:downloads>
+            <nyaa:infoHash>1f924ddc18a85ea7db86ae9c72b17ba2c4c7d9bd</nyaa:infoHash>
+            <nyaa:categoryId>1_4</nyaa:categoryId>
+            <nyaa:category>Anime - Raw</nyaa:category>
+            <nyaa:size>154.3 GiB</nyaa:size>
+            <nyaa:comments>1</nyaa:comments>
+            <nyaa:trusted>Yes</nyaa:trusted>
+            <nyaa:remake>No</nyaa:remake>
+            <description></description>
+        </item>
+        <item>
+            <title>estla dolor</title>
+            <link>https://nyaa.si/download/589697.torrent</link>
+            <guid isPermaLink="true">https://nyaa.si/view/589697</guid>
+            <pubDate>Sat, 05 Feb 2022 15:01:50 -0000</pubDate>
+
+            <nyaa:seeders>0</nyaa:seeders>
+            <nyaa:leechers>2</nyaa:leechers>
+            <nyaa:downloads>0</nyaa:downloads>
+            <nyaa:infoHash></nyaa:infoHash>
+            <nyaa:categoryId>1_4</nyaa:categoryId>
+            <nyaa:category>Anime - Raw</nyaa:category>
+            <nyaa:size>154.3 GiB</nyaa:size>
+            <nyaa:comments>1</nyaa:comments>
+            <nyaa:trusted>Yes</nyaa:trusted>
+            <nyaa:remake>No</nyaa:remake>
+            <description></description>
+        </item>
+    </channel>
+</rss>

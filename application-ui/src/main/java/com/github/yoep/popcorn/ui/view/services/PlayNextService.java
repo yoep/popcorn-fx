@@ -6,8 +6,10 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.player.PlayerEventService;
@@ -15,6 +17,8 @@ import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.ReadOnlyLongWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -42,9 +46,10 @@ public class PlayNextService {
     private final PlayerManagerService playerManagerService;
     private final SettingsService settingsService;
 
-    private final ReadOnlyObjectWrapper<Episode> nextEpisode = new ReadOnlyObjectWrapper<>(this, NEXT_EPISODE_PROPERTY);
+    private final ReadOnlyObjectWrapper<NextEpisode> nextEpisode = new ReadOnlyObjectWrapper<>(this, NEXT_EPISODE_PROPERTY);
     private final ReadOnlyLongWrapper playingIn = new ReadOnlyLongWrapper(this, PLAYING_IN_PROPERTY, COUNTDOWN_FROM);
 
+    private Show show;
     private String quality;
     private long duration;
 
@@ -55,7 +60,7 @@ public class PlayNextService {
      *
      * @return Returns the next episode if available, else {@link Optional#empty()}.
      */
-    public Optional<Episode> getNextEpisode() {
+    public Optional<NextEpisode> getNextEpisode() {
         return Optional.ofNullable(nextEpisode.get());
     }
 
@@ -64,7 +69,7 @@ public class PlayNextService {
      *
      * @return Returns the next episode property.
      */
-    public ReadOnlyObjectProperty<Episode> nextEpisodeProperty() {
+    public ReadOnlyObjectProperty<NextEpisode> nextEpisodeProperty() {
         return nextEpisode.getReadOnlyProperty();
     }
 
@@ -172,15 +177,19 @@ public class PlayNextService {
     private void onPlayMedia(PlayMediaEvent event) {
         var media = event.getMedia();
 
-        // check if the current media is an episode
+        // check if the current media is a show/serie
         // if not, ignore the update of information
-        if (!isEpisode(media)) {
+        if (!isShow(media)) {
             reset();
             return;
         }
 
-        var episode = (Episode) media;
-        var show = episode.getShow();
+        // remember the show item for later use
+        this.show = (Show) media;
+
+        var episode = event.getSubMediaItem()
+                .map(e -> (Episode) e)
+                .orElseThrow(() -> new MediaException("Expected an episode media item to be present"));
         var sortedEpisodes = show.getEpisodes().stream()
                 .sorted()
                 .collect(Collectors.toList());
@@ -203,8 +212,7 @@ public class PlayNextService {
             return;
         }
 
-        var episode = nextEpisode.get();
-        var mediaTorrentInfo = episode.getTorrents().get(quality);
+        var mediaTorrentInfo = nextEpisode.get().getEpisode().getTorrents().get(quality);
 
         // stop the video playback
         playerManagerService.getActivePlayer()
@@ -214,19 +222,23 @@ public class PlayNextService {
         eventPublisher.publishEvent(LoadMediaTorrentEvent.builder()
                 .source(this)
                 .torrent(mediaTorrentInfo)
-                .media(episode)
+                .media(nextEpisode.get().getShow())
+                .subItem(nextEpisode.get().getEpisode())
                 .quality(quality)
                 .subtitle(null)
                 .build());
     }
 
     private void setNextEpisode(Episode nextEpisode, String quality) {
-        this.nextEpisode.set(nextEpisode);
+        this.nextEpisode.set(new NextEpisode(show, nextEpisode));
         this.quality = quality;
     }
 
     private void reset() {
-        nextEpisode.set(null);
+        this.show = null;
+        this.quality = null;
+        this.duration = 0;
+        this.nextEpisode.set(null);
     }
 
     private boolean isPlayNextDisabled() {
@@ -235,9 +247,16 @@ public class PlayNextService {
         return !settings.getPlaybackSettings().isAutoPlayNextEpisodeEnabled();
     }
 
-    private boolean isEpisode(Media media) {
-        return media instanceof Episode;
+    private boolean isShow(Media media) {
+        return media instanceof Show;
     }
 
     //endregion
+
+    @Data
+    @AllArgsConstructor
+    public static class NextEpisode {
+        private final Show show;
+        private final Episode episode;
+    }
 }

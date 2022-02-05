@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
@@ -101,7 +102,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      * This will set the rating of the stars that needs to be shown.
      */
     protected void loadStars() {
-        ratingStars.setRating(media.getRating());
+        media.getRating().ifPresent(ratingStars::setRating);
     }
 
     /**
@@ -209,8 +210,11 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      * @return Returns the rating display text.
      */
     protected String getRatingText() {
-        var score = media.getRating().getPercentage() / 10;
-        return score + "/10";
+        return media.getRating()
+                .map(Rating::getPercentage)
+                .map(percentage -> percentage / 10)
+                .map(e -> e + "/10")
+                .orElse(null);
     }
 
     /**

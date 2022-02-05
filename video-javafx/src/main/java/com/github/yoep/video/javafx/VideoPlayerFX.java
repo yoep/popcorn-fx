@@ -1,7 +1,7 @@
 package com.github.yoep.video.javafx;
 
 import com.github.yoep.popcorn.backend.adapters.video.AbstractVideoPlayer;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerNotInitializedException;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
@@ -26,7 +26,9 @@ import java.io.File;
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = true)
-public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayer {
+public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback {
+    private static final String NAME = "FX";
+
     private MediaView mediaView;
     private MediaPlayer mediaPlayer;
 
@@ -36,6 +38,16 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayer {
     private boolean initialized;
 
     //region Getters
+
+    @Override
+    public String getName() {
+        return NAME;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Video playback which uses the JavaFX video playback device. This is in most cases used as a fallback backend.";
+    }
 
     @Override
     public boolean supports(String url) {
@@ -157,6 +169,7 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayer {
 
                 stackPane.getChildren().add(mediaView);
                 initialized = true;
+                setVideoState(VideoState.READY);
                 log.trace("JavaFX player initialization done");
             } catch (Exception ex) {
                 log.error("Failed to initialize JavaFX player, " + ex.getMessage(), ex);

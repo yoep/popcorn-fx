@@ -26,6 +26,7 @@ logging:
       total-size-cap: 100MB
 
 popcorn:
+  version: @project.version@
   providers:
     movies:
       uris:

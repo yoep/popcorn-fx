@@ -1,7 +1,7 @@
 package com.github.yoep.video.youtube;
 
 import com.github.yoep.popcorn.backend.adapters.video.AbstractVideoPlayer;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerNotInitializedException;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
@@ -33,9 +33,10 @@ import java.util.regex.Pattern;
 @Slf4j
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
-public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlayer {
+public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlayback {
     static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
     static final String YOUTUBE_URL_INDICATOR = "youtu";
+    private static final String NAME = "Youtube";
     private static final int BRIDGE_TIMEOUT = 3000;
 
     private final YoutubePlayerBridge playerBridge = new YoutubePlayerBridge();
@@ -47,6 +48,16 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     private Throwable error;
 
     //region Getters
+
+    @Override
+    public String getName() {
+        return NAME;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Video playback backend which uses a dedicated web view for playback of Youtube videos.";
+    }
 
     @Override
     public boolean supports(String url) {
@@ -307,6 +318,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     public class YoutubePlayerBridge {
         public void ready() {
             playerReady = true;
+            setVideoState(VideoState.READY);
         }
 
         public void state(String state) {

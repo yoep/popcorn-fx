@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorren
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

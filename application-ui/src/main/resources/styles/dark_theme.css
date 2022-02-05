@@ -1276,3 +1276,53 @@
     -fx-opacity: 0;
     -fx-cursor: default;
 }
+
+.root .about-section .label {
+    -fx-text-fill: #fff;
+}
+
+.root .about-section .title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 4em;
+    -fx-text-fill: #fafafa;
+}
+
+.root .about-section .subsection-title {
+    -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
+    -fx-text-fill: #2d75df;
+    -fx-font-size: 1.5em;
+    -fx-padding: 15 0 0 0;
+}
+
+.root .about-section .version {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 2em;
+    -fx-text-fill: #bbb;
+}
+
+.root .about-section .about-details .details-card {
+    -fx-background-color: linear-gradient(#253d66 10%,#1b2d4c 100%);
+    -fx-background-radius: 0.5em;
+    -fx-padding: 10 15 10 15;
+}
+
+.root .about-section .about-details .details-card .caret {
+    -fx-cursor: hand;
+    -fx-padding: 0 10 0 0;
+}
+
+.root .about-section .about-details .details-card .name {
+    -fx-cursor: hand;
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 1.25em;
+    -fx-text-fill: #fff;
+}
+
+.root .about-section .about-details .details-card .state {
+    -fx-cursor: hand;
+}
+
+.root .about-section .about-details .details-card .description {
+    -fx-font-family: "Arial";
+    -fx-font-style: italic;
+}

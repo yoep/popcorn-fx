@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import org.springframework.core.io.Resource;
 
+import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
 /**
@@ -23,7 +24,17 @@ public interface Player {
      *
      * @return Returns the name of the player.
      */
+    @NotNull
     String getName();
+
+    /**
+     * Get the description of the player.
+     * This summarizes the capabilities of the player.
+     *
+     * @return Returns the description of the player.
+     */
+    @NotNull
+    String getDescription();
 
     /**
      * Get the graphical icon resource for the player.
@@ -37,6 +48,7 @@ public interface Player {
      *
      * @return Returns the current player state.
      */
+    @NotNull
     PlayerState getState();
 
     /**

@@ -1,7 +1,7 @@
 package com.github.yoep.video.vlc;
 
 import com.github.yoep.popcorn.backend.adapters.video.AbstractVideoPlayer;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerNotInitializedException;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
@@ -28,7 +28,8 @@ import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactor
 @Slf4j
 @ToString
 @EqualsAndHashCode
-public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayer {
+public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback {
+    private static final String NAME = "VLC";
     private final ImageView videoSurface = new ImageView();
 
     private final MediaPlayerFactory mediaPlayerFactory;
@@ -55,6 +56,16 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayer {
     //endregion
 
     //region Getters
+
+    @Override
+    public String getName() {
+        return NAME;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Video backend which uses the VLC library for video playbacks.";
+    }
 
     @Override
     public boolean supports(String url) {
@@ -178,6 +189,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayer {
         initializeListeners();
         initializeEvents();
         initializeVideoSurface();
+        setVideoState(VideoState.READY);
     }
 
     private void initializeListeners() {

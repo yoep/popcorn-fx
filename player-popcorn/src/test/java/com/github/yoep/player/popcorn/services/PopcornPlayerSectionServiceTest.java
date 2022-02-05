@@ -5,7 +5,7 @@ import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
@@ -53,7 +53,7 @@ class PopcornPlayerSectionServiceTest {
     @InjectMocks
     private PopcornPlayerSectionService service;
 
-    private final ObjectProperty<VideoPlayer> videoPlayerProperty = new SimpleObjectProperty<>();
+    private final ObjectProperty<VideoPlayback> videoPlayerProperty = new SimpleObjectProperty<>();
     private final IntegerProperty subtitleSizeProperty = new SimpleIntegerProperty();
     private final ObjectProperty<Subtitle> activeSubtitleProperty = new SimpleObjectProperty<>();
     private final AtomicReference<PlayerListener> listenerHolder = new AtomicReference<>();
@@ -121,7 +121,7 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testIsNativeSubtitlePlaybackSupported_whenVideoPlayerIsActive_shouldReturnTheNativeSubtitleState() {
-        var videoPlayer = mock(VideoPlayer.class);
+        var videoPlayer = mock(VideoPlayback.class);
         var supportNativeSubtitle = true;
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(supportNativeSubtitle);
@@ -164,7 +164,7 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testVideoPlayerListener_whenVideoPlayerIsChanged_shouldInvokeListeners() {
-        var videoPlayer = mock(VideoPlayer.class);
+        var videoPlayer = mock(VideoPlayback.class);
         var videoView = mock(Node.class);
         when(videoPlayer.getVideoSurface()).thenReturn(videoView);
         when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder().build());

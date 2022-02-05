@@ -2,7 +2,7 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
@@ -69,7 +69,7 @@ class SubtitleManagerServiceTest {
     @Test
     void testUpdateSubtitleOffset_whenVideoIsPresentAndSupportNativeSubtitles_shouldUpdateTheOffsetInTheVideo() {
         var value = 800;
-        var videoPlayer = mock(VideoPlayer.class);
+        var videoPlayer = mock(VideoPlayback.class);
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(true);
 
@@ -113,7 +113,7 @@ class SubtitleManagerServiceTest {
     void testUpdateSubtitle_whenSubtitleIsDownloadedAndVideoPlayerSupportNativeSubtitle_shouldUpdateSubtitleWithinVideoPlayer() {
         var subtitleInfo = mock(SubtitleInfo.class);
         var subtitle = mock(Subtitle.class);
-        var videoPlayer = mock(VideoPlayer.class);
+        var videoPlayer = mock(VideoPlayback.class);
         var subtitleFile = new File(".");
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));

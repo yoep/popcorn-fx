@@ -45,6 +45,11 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
+    public String getDescription() {
+        return popcornPlayer.getDescription();
+    }
+
+    @Override
     public Optional<Resource> getGraphicResource() {
         return popcornPlayer.getGraphicResource();
     }

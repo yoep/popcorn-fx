@@ -51,6 +51,13 @@ class StorageServiceImplTest {
     }
 
     @Test
+    void testDetermineDirectoryWithinStorage_whenDirectoryIsInvalid_shouldTrowStorageException() {
+        System.setProperty(BackendConstants.POPCORN_HOME_PROPERTY, workingDir.getAbsolutePath());
+
+        assertThrows(StorageException.class, () -> service.determineDirectoryWithinStorage("\u0000"));
+    }
+
+    @Test
     void testRead_whenStorageNameDoesNotExist_shouldReturnEmpty() {
         var name = "non-existing";
 
@@ -83,6 +90,17 @@ class StorageServiceImplTest {
         System.setProperty(BackendConstants.POPCORN_HOME_PROPERTY, workingDir.getAbsolutePath());
 
         assertThrows(StorageDeserializationException.class, () -> service.read(name, TestType.class));
+    }
+
+    @Test
+    void testRead_whenIoExceptionOccurs_shouldThrowStorageException() throws IOException {
+        var name = "my-file.json";
+        var contents = "lorem ipsum dolor";
+        var expectedFile = writeContents(name, contents);
+        when(objectMapper.readValue(expectedFile, TestType.class)).thenThrow(mock(IOException.class));
+        System.setProperty(BackendConstants.POPCORN_HOME_PROPERTY, workingDir.getAbsolutePath());
+
+        assertThrows(StorageException.class, () -> service.read(name, TestType.class));
     }
 
     @Test

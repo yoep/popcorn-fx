@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayer;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
@@ -21,9 +21,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class VideoServiceTest {
     @Mock
-    private VideoPlayer videoPlayer1;
+    private VideoPlayback videoPlayback1;
     @Mock
-    private VideoPlayer videoPlayer2;
+    private VideoPlayback videoPlayback2;
     @Mock
     private PlaybackListener listener;
 
@@ -36,8 +36,8 @@ class VideoServiceTest {
         lenient().doAnswer(invocation -> {
             videoListener.set(invocation.getArgument(0, VideoListener.class));
             return null;
-        }).when(videoPlayer1).addListener(isA(VideoListener.class));
-        service = new VideoService(asList(videoPlayer1, videoPlayer2));
+        }).when(videoPlayback1).addListener(isA(VideoListener.class));
+        service = new VideoService(asList(videoPlayback1, videoPlayback2));
     }
 
     @Test
@@ -50,15 +50,15 @@ class VideoServiceTest {
         var request2 = SimplePlayRequest.builder()
                 .url(url2)
                 .build();
-        when(videoPlayer1.supports(url1)).thenReturn(true);
-        when(videoPlayer2.supports(url2)).thenReturn(true);
+        when(videoPlayback1.supports(url1)).thenReturn(true);
+        when(videoPlayback2.supports(url2)).thenReturn(true);
         service.onPlay(request1);
 
         service.onPlay(request2);
         var result = service.getVideoPlayer();
 
         assertTrue(result.isPresent(), "Expected a video player to be active");
-        assertEquals(videoPlayer2, result.get());
+        assertEquals(videoPlayback2, result.get());
     }
 
     @Test
@@ -67,7 +67,7 @@ class VideoServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        when(videoPlayer1.supports(url)).thenReturn(true);
+        when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
 
         service.onPlay(request);
@@ -83,11 +83,11 @@ class VideoServiceTest {
                 .url(url)
                 .autoResumeTimestamp(timestamp)
                 .build();
-        when(videoPlayer2.supports(url)).thenReturn(true);
+        when(videoPlayback2.supports(url)).thenReturn(true);
 
         service.onPlay(request);
 
-        verify(videoPlayer2).seek(timestamp);
+        verify(videoPlayback2).seek(timestamp);
     }
 
     @Test
@@ -96,13 +96,13 @@ class VideoServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        when(videoPlayer1.supports(url)).thenReturn(true);
+        when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
 
         service.onResume();
 
-        verify(videoPlayer1).resume();
+        verify(videoPlayback1).resume();
         verify(listener).onResume();
     }
 
@@ -112,13 +112,13 @@ class VideoServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        when(videoPlayer1.supports(url)).thenReturn(true);
+        when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
 
         service.onPause();
 
-        verify(videoPlayer1).pause();
+        verify(videoPlayback1).pause();
         verify(listener).onPause();
     }
 
@@ -129,13 +129,13 @@ class VideoServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        when(videoPlayer1.supports(url)).thenReturn(true);
+        when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
 
         service.onSeek(time);
 
-        verify(videoPlayer1).seek(time);
+        verify(videoPlayback1).seek(time);
         verify(listener).onSeek(time);
     }
 
@@ -146,7 +146,7 @@ class VideoServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        when(videoPlayer1.supports(url)).thenReturn(true);
+        when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
 
@@ -161,13 +161,13 @@ class VideoServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        when(videoPlayer1.supports(url)).thenReturn(true);
+        when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
 
         service.onStop();
 
-        verify(videoPlayer1).stop();
+        verify(videoPlayback1).stop();
         verify(listener).onStop();
     }
 
@@ -175,8 +175,8 @@ class VideoServiceTest {
     void testDispose_whenInvokeD_shouldDisposeAllVideoPlayers() {
         service.dispose();
 
-        verify(videoPlayer1).dispose();
-        verify(videoPlayer2).dispose();
+        verify(videoPlayback1).dispose();
+        verify(videoPlayback2).dispose();
     }
 
     @Test
@@ -185,13 +185,13 @@ class VideoServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        when(videoPlayer1.supports(url)).thenReturn(true);
-        when(videoPlayer1.getError()).thenReturn(new RuntimeException("My video player error"));
+        when(videoPlayback1.supports(url)).thenReturn(true);
+        when(videoPlayback1.getError()).thenReturn(new RuntimeException("My video player error"));
         service.addListener(listener);
         service.onPlay(request);
 
         videoListener.get().onStateChanged(VideoState.ERROR);
 
-        verify(videoPlayer1).getError();
+        verify(videoPlayback1).getError();
     }
 }

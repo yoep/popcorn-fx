@@ -1301,13 +1301,28 @@
 }
 
 .root .about-section .about-details .details-card {
-    -fx-background-color: #1b2d4c;
-    -fx-background-radius: 1em;
+    -fx-background-color: linear-gradient(#253d66 10%,#1b2d4c 100%);
+    -fx-background-radius: 0.5em;
     -fx-padding: 10 15 10 15;
 }
 
+.root .about-section .about-details .details-card .caret {
+    -fx-cursor: hand;
+    -fx-padding: 0 10 0 0;
+}
+
 .root .about-section .about-details .details-card .name {
+    -fx-cursor: hand;
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1.25em;
     -fx-text-fill: #fff;
+}
+
+.root .about-section .about-details .details-card .state {
+    -fx-cursor: hand;
+}
+
+.root .about-section .about-details .details-card .description {
+    -fx-font-family: "Arial";
+    -fx-font-style: italic;
 }

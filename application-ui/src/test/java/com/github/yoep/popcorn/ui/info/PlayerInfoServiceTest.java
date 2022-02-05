@@ -14,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -74,5 +75,29 @@ class PlayerInfoServiceTest {
 
         assertEquals(1, result.size());
         assertEquals(ComponentState.ERROR, result.get(0).getState());
+    }
+
+    @Test
+    void testListener_whenPlayersAreChanged_shouldInvokeListenersWithAllPlayers() {
+        var name = "player-name";
+        var player = mock(Player.class);
+        var infoListener = mock(InfoListener.class);
+        var expectedResult = SimpleComponentDetails.builder()
+                .name(name)
+                .state(ComponentState.UNKNOWN)
+                .build();
+        when(playerManagerService.playersProperty()).thenReturn(players);
+        when(player.getName()).thenReturn(name);
+        when(player.getState()).thenReturn(PlayerState.UNKNOWN);
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
+            return null;
+        }).when(player).addListener(isA(PlayerListener.class));
+        service.init();
+
+        service.addListener(infoListener);
+        players.put(name, player);
+
+        verify(infoListener).onComponentDetailsChanged(Collections.singletonList(expectedResult));
     }
 }

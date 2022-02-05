@@ -12,14 +12,13 @@ import java.util.regex.Pattern;
 public class EpisodeParser {
     private static final Pattern EPISODE_PATTERN = Pattern.compile("\\s([0-9]+)\\s");
 
-    public static int extractEpisode(String filename) {
+    public static Optional<Integer> extractEpisode(String filename) {
         Objects.requireNonNull(filename, "filename cannot be null");
         var matcher = EPISODE_PATTERN.matcher(filename);
 
         return Optional.of(matcher)
                 .filter(Matcher::find)
                 .map(e -> e.group(1))
-                .map(Integer::parseInt)
-                .orElse(1);
+                .map(Integer::parseInt);
     }
 }

@@ -3,6 +3,7 @@ package com.github.yoep.provider.anime.parsers;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EpisodeParserTest {
     @Test
@@ -12,6 +13,7 @@ class EpisodeParserTest {
 
         var result = EpisodeParser.extractEpisode(filename);
 
-        assertEquals(episode, result);
+        assertTrue(result.isPresent(), "Expected the episode number to have been found");
+        assertEquals(episode, result.get());
     }
 }

@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class DateParserTest {
     @Test
-    void testConvertDateToYear_whenEpochIs2018_shouldReturn2018() {
-        var epochValue = "1518453282";
-        var expectedResult = "2018";
+    void testConvertDateToYear_whenEpochIs2022_shouldReturn2022() {
+        var epochValue = "Thu, 03 Feb 2022 15:48:54 -0000";
+        var expectedResult = "2022";
 
         var result = DateParser.convertDateToYear(epochValue);
 
@@ -17,9 +17,9 @@ class DateParserTest {
     }
 
     @Test
-    void testConvertDateToYear_whenEpochIs2019_shouldReturn2019() {
-        var epochValue = "1572299853";
-        var expectedResult = "2019";
+    void testConvertDateToYear_whenEpochIs2016_shouldReturn2016() {
+        var epochValue = "Sun, 10 Jan 2016 04:57:00 -0000";
+        var expectedResult = "2016";
 
         var result = DateParser.convertDateToYear(epochValue);
 

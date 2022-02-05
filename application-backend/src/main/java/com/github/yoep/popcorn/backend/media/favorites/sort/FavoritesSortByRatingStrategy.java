@@ -27,11 +27,13 @@ public class FavoritesSortByRatingStrategy extends AbstractFavoriteSortStrategy 
     private int sortByRating(Media o1, Media o2) {
         var typeSort = sortByType(o1, o2);
 
-        if (o1.getRating().isEmpty()) {
-            return 1;
-        }
-        if (o2.getRating().isEmpty()) {
-            return -1;
+        if (o1.getRating().isPresent() || o2.getRating().isPresent()) {
+            if (o1.getRating().isEmpty()) {
+                return 1;
+            }
+            if (o2.getRating().isEmpty()) {
+                return -1;
+            }
         }
 
         if (typeSort != 0)

@@ -1,34 +1,41 @@
 package com.github.yoep.provider.anime.media;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
 import com.github.yoep.popcorn.backend.media.filters.models.Genre;
 import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.AbstractProviderService;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
+import com.github.yoep.popcorn.backend.media.providers.MediaRetrievalException;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.provider.anime.media.mappers.AnimeMapper;
 import com.github.yoep.provider.anime.media.models.Anime;
+import com.github.yoep.provider.anime.media.models.Item;
+import com.github.yoep.provider.anime.media.models.Nyaa;
 import com.github.yoep.provider.anime.parsers.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,15 +46,17 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
     private static final String QUERY_GENRE_KEY = "c";
     private static final String QUERY_SEARCH_KEY = "q";
     private static final String QUERY_PAGE_KEY = "p";
-    private static final String DATE_ATTRIBUTE = "data-timestamp";
-    private static final String SCRAPER_FIELD_TITLE = "td:nth-child(2) a:last-child";
-    private static final String SCRAPER_FIELD_DATE = "a[" + DATE_ATTRIBUTE + "]";
+    private static final String QUERY_PAGE_TYPE_KEY = "page";
+    private static final String QUERY_PAGE_XML = "rss";
     private static final String DEFAULT_QUALITY = "480p";
+
+    private final TorrentService torrentService;
 
     public AnimeProviderService(RestTemplate restTemplate,
                                 PopcornProperties popcornConfig,
-                                SettingsService settingsService) {
+                                SettingsService settingsService, TorrentService torrentService) {
         super(restTemplate);
+        this.torrentService = torrentService;
 
         initializeUriProviders(settingsService.getSettings().getServerSettings(), popcornConfig.getProvider(CATEGORY.getProviderName()));
     }
@@ -91,90 +100,97 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
     public Page<Anime> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         return invokeWithUriProvider(apiUri -> {
             var uri = buildSearchRequestUri(apiUri, genre, sortBy, keywords, page);
-            var result = new ArrayList<Anime>();
 
             log.debug("Retrieving anime provider page \"{}\"", uri);
             var response = restTemplate.getForEntity(uri, String.class);
 
             if (response.hasBody()) {
-                var document = Jsoup.parse(response.getBody());
-                var torrents = document.select(".torrent-list tbody tr");
+                var document = parseXmlResponse(response.getBody());
+                var items = document.getChannel().getItems();
 
-                for (Element torrent : torrents) {
-                    var title = torrent.select(SCRAPER_FIELD_TITLE).text();
-                    var id = IdParser.extractId(torrent.select(SCRAPER_FIELD_TITLE).attr("href"));
-
-                    result.add(Anime.builder()
-                            .nyaaId(id)
-                            .imdbId(id)
-                            .title(TitleParser.normaliseTitle(title))
-                            .year(DateParser.convertDateToYear(torrent.select(SCRAPER_FIELD_DATE).attr(DATE_ATTRIBUTE)))
-                            .build());
+                if (items != null) {
+                    return new PageImpl<>(items.stream()
+                            .map(e -> Anime.builder()
+                                    .nyaaId(e.getTitle())
+                                    .imdbId(IdParser.extractId(e.getGuid()))
+                                    .title(TitleParser.normaliseTitle(e.getTitle()))
+                                    .year(DateParser.convertDateToYear(e.getPubDate()))
+                                    .build())
+                            .collect(Collectors.toList()));
                 }
             }
 
-            return new PageImpl<>(result);
+            return Page.empty();
         });
     }
 
     private Anime getDetailsInternal(String imdbId) {
         return invokeWithUriProvider(apiUri -> {
-            var uri = buildDetailsRequestUri(apiUri, imdbId);
+            var genre = new Genre(Genre.ALL_KEYWORD, "");
+            var uri = buildSearchRequestUri(apiUri, genre, null, imdbId, 1);
 
             log.debug("Retrieving anime provider details of \"{}\"", uri);
             var response = restTemplate.getForEntity(uri, String.class);
 
             if (response.hasBody()) {
-                var document = Jsoup.parse(response.getBody());
-                var title = document.select(".panel-title").text();
-                var year = DateParser.convertDateToYear(document.select(SCRAPER_FIELD_DATE).attr(DATE_ATTRIBUTE));
-                var torrentUrl = document.select(".panel-footer a:first-child").attr("href");
-                var files = document.select(".torrent-file-list li:has(.fa-file)");
-                var episodes = extractEpisodesFromFiles(apiUri, torrentUrl, files);
+                var document = parseXmlResponse(response.getBody());
+                var items = document.getChannel().getItems();
 
-                return Anime.builder()
-                        .nyaaId(imdbId)
-                        .imdbId(imdbId)
-                        .title(TitleParser.normaliseTitle(title))
-                        .year(year)
-                        .episodes(episodes)
-                        .build();
+                if (items != null && items.size() == 1) {
+                    var item = items.get(0);
+                    var id = IdParser.extractId(item.getGuid());
+                    var torrentInfo = retrieveTorrentData(item);
+
+                    return Anime.builder()
+                            .nyaaId(id)
+                            .imdbId(id)
+                            .title(TitleParser.normaliseTitle(item.getTitle()))
+                            .year(DateParser.convertDateToYear(item.getPubDate()))
+                            .episodes(extractEpisodesFromTorrentInfo(item.getLink(), torrentInfo))
+                            .build();
+                } else {
+                    throw new MediaException("Could not find the details of the given media");
+                }
             } else {
                 throw new MediaException("No details response available for " + uri);
             }
         });
     }
 
-    private List<Episode> extractEpisodesFromFiles(URI apiUri, String torrentUrl, Elements files) {
-        return files.stream()
-                .map(Element::text)
-                .map(e -> createEpisode(apiUri, torrentUrl, e))
+    private TorrentInfo retrieveTorrentData(Item item) {
+        try {
+            return torrentService.getTorrentInfo(item.getLink()).get();
+        } catch (InterruptedException | ExecutionException ex) {
+            log.error(ex.getMessage(), ex);
+            throw new MediaException("Failed to retrieve torrent data");
+        }
+    }
+
+    private List<Episode> extractEpisodesFromTorrentInfo(String url, TorrentInfo torrentInfo) {
+        return torrentInfo.getFiles().stream()
+                .map(e -> createEpisode(url, e))
                 .collect(Collectors.toList());
     }
 
-    private Episode createEpisode(URI apiUri, String torrentUrl, String filename) {
-        var quality = QualityParser.extractQuality(filename)
+    private Episode createEpisode(String url, TorrentFileInfo fileInfo) {
+        var quality = QualityParser.extractQuality(fileInfo.getFilename())
                 .orElse(DEFAULT_QUALITY);
 
         return Episode.builder()
-                .title(TitleParser.normaliseTitle(filename))
+                .title(TitleParser.normaliseTitle(fileInfo.getFilename()))
                 .season(1)
-                .episode(EpisodeParser.extractEpisode(filename))
+                .episode(EpisodeParser.extractEpisode(fileInfo.getFilename())
+                        .orElseGet(() -> fileInfo.getFileIndex() + 1))
                 .torrents(Collections.singletonMap(quality, MediaTorrentInfo.builder()
-                        .file(filename)
-                        .url(apiUri + torrentUrl)
+                        .file(fileInfo.getFilename())
+                        .url(url)
                         .build()))
                 .build();
     }
 
-    private static URI buildDetailsRequestUri(URI apiUri, String id) {
-        return UriComponentsBuilder.fromUri(apiUri)
-                .path("/view/{id}")
-                .build(id);
-    }
-
     private static URI buildSearchRequestUri(URI apiUri, Genre genre, SortBy sortBy, String keywords, int page) {
         var uriBuilder = UriComponentsBuilder.fromUri(apiUri)
+                .queryParam(QUERY_PAGE_TYPE_KEY, QUERY_PAGE_XML)
                 .queryParam(QUERY_FILTER_KEY, 2)
                 .queryParam(QUERY_GENRE_KEY, genreToQueryValue(genre))
                 .queryParam(QUERY_PAGE_KEY, page);
@@ -184,6 +200,18 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
         }
 
         return uriBuilder.build(Collections.emptyMap());
+    }
+
+    private static Nyaa parseXmlResponse(String response) {
+        try {
+            var inputStream = new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8));
+            var context = JAXBContext.newInstance(Nyaa.class);
+
+            return (Nyaa) context.createUnmarshaller().unmarshal(inputStream);
+        } catch (JAXBException ex) {
+            log.error(ex.getMessage(), ex);
+            throw new MediaRetrievalException(null, ex.getMessage(), ex);
+        }
     }
 
     private static String genreToQueryValue(Genre genre) {

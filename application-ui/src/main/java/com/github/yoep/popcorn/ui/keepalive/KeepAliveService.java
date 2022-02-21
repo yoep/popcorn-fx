@@ -1,34 +1,39 @@
 package com.github.yoep.popcorn.ui.keepalive;
 
-import com.github.yoep.popcorn.backend.BackendConstants;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.ui.view.services.RobotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
 
 /**
  * Service which will keep the screen and machine alive by sending random inputs to the system.
  * This will prevent the screen from blanking and the machine from going to standby.
- * <p>
- * It uses a {@link Scheduled} task in the background which is managed by the Spring Framework.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class KeepAliveService {
     private final OptionsService optionsService;
-    private final RobotService robotService;
+    private final PlatformProvider platformProvider;
 
-    @Scheduled(fixedRate = 3 * 60 * 1000, initialDelay = 5 * 60 * 1000)
-    public void keepAlive() {
-        // check if the keep alive service should be disabled
-        // if so, ignore the invocations
-        if (isDisabled())
-            return;
+    @PostConstruct
+    void init() {
+        // offload the screensaver functionality to a separate thread
+        // as this should not block the startup of the application
+        new Thread(this::handleScreensaver, "ScreensaverHandle")
+                .start();
+    }
 
-        robotService.pressKey(BackendConstants.KEEP_ALIVE_SIGNAL);
+    void handleScreensaver() {
+        if (!isDisabled()) {
+            log.trace("Disabling screensaver");
+            platformProvider.disableScreensaver();
+        } else {
+            log.trace("Screensaver will not be disabled as the option is disabled");
+        }
     }
 
     private boolean isDisabled() {

@@ -7,8 +7,7 @@ import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 import com.github.yoep.popcorn.backend.media.watched.models.Watched;
 import com.github.yoep.popcorn.backend.storage.StorageException;
 import com.github.yoep.popcorn.backend.storage.StorageService;
-import javafx.animation.PauseTransition;
-import javafx.util.Duration;
+import com.github.yoep.popcorn.backend.utils.IdleTimer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -17,6 +16,7 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,11 +28,11 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class WatchedService {
-    private static final String STORAGE_NAME = "watched.json";
+    static final String STORAGE_NAME = "watched.json";
     private static final int WATCHED_PERCENTAGE_THRESHOLD = 85;
     private static final int IDLE_TIME = 10;
 
-    private final PauseTransition idleTimer = new PauseTransition(Duration.seconds(IDLE_TIME));
+    private final IdleTimer idleTimer = new IdleTimer(Duration.ofSeconds(IDLE_TIME));
     private final StorageService storageService;
     private final Object cacheLock = new Object();
 
@@ -151,12 +151,12 @@ public class WatchedService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         initializeIdleTimer();
     }
 
     private void initializeIdleTimer() {
-        idleTimer.setOnFinished(e -> onSave());
+        idleTimer.setOnTimeout(this::onSave);
     }
 
     //endregion
@@ -164,7 +164,7 @@ public class WatchedService {
     //region PreDestroy
 
     @PreDestroy
-    private void destroy() {
+    void destroy() {
         onSave();
     }
 
@@ -206,7 +206,7 @@ public class WatchedService {
     }
 
     private void loadWatchedFileToCache() {
-        idleTimer.playFromStart();
+        idleTimer.runFromStart();
 
         // check if cache is still present
         // if so, return the cache

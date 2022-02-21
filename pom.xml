@@ -16,6 +16,7 @@
 
     <modules>
         <module>application-backend</module>
+        <module>application-platform</module>
         <module>application-ui</module>
         <module>application</module>
         <module>player-chromecast</module>
@@ -153,6 +154,7 @@
                 <version>${commons-text.version}</version>
             </dependency>
 
+            <!-- JNA -->
             <dependency>
                 <groupId>net.java.dev.jna</groupId>
                 <artifactId>jna</artifactId>

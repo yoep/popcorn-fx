@@ -33,7 +33,7 @@ if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm")
             PATHS
             "${PROJECT_SOURCE_DIR}/assets/linux-arm/vlc"
     )
-elseif (${APPLE} OR "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin")
+elseif ((${APPLE}) OR ("${CMAKE_SYSTEM_NAME}" MATCHES "Darwin"))
     FIND_LIBRARY(
             LIBVLC_LIBRARY
             NAMES vlc libvlc

@@ -1,9 +1,8 @@
 package com.github.yoep.popcorn.ui.keepalive;
 
-import com.github.yoep.popcorn.backend.BackendConstants;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
-import com.github.yoep.popcorn.ui.view.services.RobotService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,31 +16,31 @@ class KeepAliveServiceTest {
     @Mock
     private OptionsService optionsService;
     @Mock
-    private RobotService robotService;
+    private PlatformProvider platformProvider;
     @InjectMocks
     private KeepAliveService keepAliveService;
 
     @Test
-    void testKeepAlive_whenDisabledOptionIsPresent_shouldNotInvokeKeyStroke() {
+    void testInit_whenDisabledOptionIsPresent_shouldNotInvokeKeyStroke() {
         var options = ApplicationOptions.builder()
                 .keepAliveDisabled(true)
                 .build();
         when(optionsService.options()).thenReturn(options);
 
-        keepAliveService.keepAlive();
+        keepAliveService.handleScreensaver();
 
-        verify(robotService, times(0)).pressKey(BackendConstants.KEEP_ALIVE_SIGNAL);
+        verify(platformProvider, times(0)).disableScreensaver();
     }
 
     @Test
-    void testKeepAlive_whenServiceIsEnabled_shouldInvokeKeyStroke() {
+    void testInit_whenServiceIsEnabled_shouldInvokeKeyStroke() {
         var options = ApplicationOptions.builder()
                 .keepAliveDisabled(false)
                 .build();
         when(optionsService.options()).thenReturn(options);
 
-        keepAliveService.keepAlive();
+        keepAliveService.handleScreensaver();
 
-        verify(robotService).pressKey(BackendConstants.KEEP_ALIVE_SIGNAL);
+        verify(platformProvider).disableScreensaver();
     }
 }

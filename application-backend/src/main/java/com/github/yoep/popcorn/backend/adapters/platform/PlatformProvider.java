@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.platform;
+package com.github.yoep.popcorn.backend.adapters.platform;
 
 /**
  * Provider which supplies/check certain aspects of the environment.
@@ -19,4 +19,9 @@ public interface PlatformProvider {
      * @param runnable The action to execute on the rendering thread.
      */
     void runOnRenderer(Runnable runnable);
+
+    /**
+     * Disable the screensaver function on the platform.
+     */
+    void disableScreensaver();
 }

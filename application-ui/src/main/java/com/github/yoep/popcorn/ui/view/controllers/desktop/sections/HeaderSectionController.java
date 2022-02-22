@@ -1,7 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
@@ -14,6 +16,8 @@ import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.ui.view.controls.SearchField;
 import com.github.yoep.popcorn.ui.view.controls.SearchListener;
+import com.github.yoep.popcorn.ui.view.listeners.HeaderSectionListener;
+import com.github.yoep.popcorn.ui.view.services.HeaderSectionService;
 import javafx.animation.Animation;
 import javafx.animation.Transition;
 import javafx.application.Platform;
@@ -35,9 +39,12 @@ import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 @Slf4j
+@ViewController
 public class HeaderSectionController extends AbstractFilterSectionController implements Initializable {
     private final PopcornProperties properties;
     private final LocaleText localeText;
+    private final PlatformProvider platformProvider;
+    private final HeaderSectionService headerSectionService;
 
     private final Transition updateAvailableAnimation = createColorTransition();
 
@@ -65,10 +72,12 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     //region Constructors
 
     public HeaderSectionController(ApplicationEventPublisher eventPublisher, PopcornProperties properties, LocaleText localeText,
-                                   SettingsService settingsService) {
+                                   SettingsService settingsService, PlatformProvider platformProvider, HeaderSectionService headerSectionService) {
         super(eventPublisher, settingsService);
         this.properties = properties;
         this.localeText = localeText;
+        this.platformProvider = platformProvider;
+        this.headerSectionService = headerSectionService;
     }
 
     //endregion
@@ -91,6 +100,16 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         initializeIcons();
         initializeSceneListener(headerPane);
         initializeTitleBar();
+        initializeListeners();
+    }
+
+    private void initializeListeners() {
+        headerSectionService.addListener(new HeaderSectionListener() {
+            @Override
+            public void onUpdateAvailableChanged(boolean isUpdateAvailable) {
+                HeaderSectionController.this.onUpdateAvailableChanged(isUpdateAvailable);
+            }
+        });
     }
 
     //endregion
@@ -142,6 +161,10 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         if (uiSettings.isNativeWindowEnabled()) {
             headerPane.getChildren().remove(titleBar);
         }
+    }
+
+    private void onUpdateAvailableChanged(boolean updateAvailable) {
+        platformProvider.runOnRenderer(() -> updateAvailableIcon.setVisible(updateAvailable));
     }
 
     @Override
@@ -275,6 +298,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     @FXML
     void onUpdateAvailableClicked(MouseEvent event) {
         event.consume();
+        headerSectionService.executeUpdate();
     }
 
     //endregion

@@ -15,4 +15,4 @@ logging:
     org.springframework: INFO
 
 popcorn:
-  update-channel: https://raw.githubusercontent.com/yoep/popcorn-fx/
+  update-channel: https://raw.githubusercontent.com/yoep/popcorn-fx/feature/%2338_add_auto_updater

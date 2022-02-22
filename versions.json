@@ -1,8 +1,8 @@
 {
-  "version": "0.0.5",
+  "version": "0.0.7",
   "platforms": {
     "debian": "",
     "macos": "",
-    "windows": ""
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.5/popcorn-time_0.0.5.exe"
   }
 }

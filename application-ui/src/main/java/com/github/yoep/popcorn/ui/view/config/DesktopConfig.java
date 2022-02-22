@@ -5,7 +5,6 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -60,14 +59,6 @@ public class DesktopConfig {
                                                              ViewLoader viewLoader,
                                                              TaskExecutor taskExecutor) {
         return new DetailsSectionController(eventPublisher, viewLoader, taskExecutor);
-    }
-
-    @Bean
-    public HeaderSectionController headerSectionController(ApplicationEventPublisher eventPublisher,
-                                                           PopcornProperties properties,
-                                                           LocaleText localeText,
-                                                           SettingsService settingsService) {
-        return new HeaderSectionController(eventPublisher, properties, localeText, settingsService);
     }
 
     @Bean

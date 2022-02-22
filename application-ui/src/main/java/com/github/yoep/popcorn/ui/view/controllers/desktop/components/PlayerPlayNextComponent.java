@@ -72,10 +72,10 @@ public class PlayerPlayNextComponent implements Initializable {
         Platform.runLater(() -> {
             showName.setText(show.getTitle());
             episodeTitle.setText(nextEpisode.getEpisode().getTitle());
-            episodeNumber.setText(String.valueOf(nextEpisode.getEpisode()));
+            episodeNumber.setText(String.valueOf(nextEpisode.getEpisode().getEpisode()));
         });
 
-        imageService.loadPoster(nextEpisode.getEpisode(), 100, 140).whenComplete((image, throwable) -> {
+        imageService.loadPoster(nextEpisode.getShow(), 100, 140).whenComplete((image, throwable) -> {
             if (throwable == null) {
                 image.ifPresentOrElse(playNextPoster::setImage,
                         () -> playNextPoster.setImage(imageService.getPosterHolder()));

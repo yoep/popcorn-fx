@@ -4,8 +4,8 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![codecov](https://codecov.io/gh/yoep/popcorn-desktop-javafx/branch/master/graph/badge.svg?token=A801IOOZAH)](https://codecov.io/gh/yoep/popcorn-desktop-javafx)
 
-Popcorn FX is based on the original Popcorn Time Desktop and Popcorn Time Android versions. Popcorn FX uses **Java 11+**
-and **OpenJFX 13+**. This version was created to work with embedded devices such as the Raspberry PI, but it also works
+Popcorn FX was based on the original Popcorn Desktop and Popcorn Android versions. Popcorn FX uses **Java**
+and **OpenJFX**. This version was created to work with embedded devices such as the Raspberry PI, but it also works
 on desktop environments such as **Linux, Windows & Mac**.
 
 Popcorn FX has been tested with **Raspberry Pi 3B+ and 4**.
@@ -98,13 +98,13 @@ Within the runtime configuration, make sure that the classpath is set to the `ap
 The following dependencies are required for development.
 
 - Java 11+
-- OpenJFX 13+
-- Qt5+ (only required when building the `video-vlc-native` player)
-- CMake (only required when building the `video-vlc-native` player)
+- OpenJFX 17+
+- Qt5+ (only required when building the `player-qt` player)
+- CMake (only required when building the `player-qt` player)
 
-### Building native VLC player
+### Building player QT
 
-The module `video-vlc-native` makes use of a native VLC player build on top of `QT5+` for video playbacks. This is used
+The module `player-qt` makes use of a native VLC player build on top of `QT5+` for video playbacks. This is used
 for the Raspberry Pi video playbacks to increase the performance as the JavaFX rendering is too heavy for video
 playbacks.
 

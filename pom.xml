@@ -10,8 +10,9 @@
     </parent>
 
     <groupId>com.github.yoep</groupId>
-    <artifactId>popcorn-time</artifactId>
+    <artifactId>popcorn-fx</artifactId>
     <version>0.0.6-SNAPSHOT</version>
+    <name>Popcorn FX</name>
     <packaging>pom</packaging>
 
     <modules>
@@ -58,8 +59,8 @@
     </repositories>
 
     <scm>
-        <url>https://github.com/yoep/popcorn-desktop-javafx</url>
-        <connection>scm:git:git@github.com:yoep/popcorn-desktop-javafx.git</connection>
+        <url>https://github.com/yoep/popcorn-fx</url>
+        <connection>scm:git:git@github.com:yoep/popcorn-fx.git</connection>
         <tag>HEAD</tag>
     </scm>
 
@@ -70,7 +71,7 @@
 
         <spring-boot-starter-javafx.version>1.0.10</spring-boot-starter-javafx.version>
         <spring-security-bom.version>5.6.1</spring-security-bom.version>
-        <javafx.version>16</javafx.version>
+        <javafx.version>17</javafx.version>
         <commons-io.version>2.11.0</commons-io.version>
         <commons-text.version>1.8</commons-text.version>
         <commons-collections.version>4.4</commons-collections.version>

@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>popcorn-time</artifactId>
+        <artifactId>popcorn-fx</artifactId>
         <groupId>com.github.yoep</groupId>
         <version>0.0.6-SNAPSHOT</version>
     </parent>

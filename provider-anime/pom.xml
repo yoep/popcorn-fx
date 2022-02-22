@@ -11,10 +11,6 @@
     <artifactId>provider-anime</artifactId>
 
     <properties>
-        <java.version>11</java.version>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-
         <jsoup.version>1.14.3</jsoup.version>
     </properties>
 

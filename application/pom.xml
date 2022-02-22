@@ -12,10 +12,6 @@
     <description>Popcorn Time is a multi-platform, free software BitTorrent client that includes an integrated media player.</description>
 
     <properties>
-        <java.version>11</java.version>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-
         <start-class>com.github.yoep.popcorn.PopcornTimeStarter</start-class>
     </properties>
 

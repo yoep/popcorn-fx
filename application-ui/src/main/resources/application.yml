@@ -27,6 +27,7 @@ logging:
 
 popcorn:
   version: @project.version@
+  update-channel: https://raw.github.com/yoep/popcorn-fx/master/
   providers:
     movies:
       uris:

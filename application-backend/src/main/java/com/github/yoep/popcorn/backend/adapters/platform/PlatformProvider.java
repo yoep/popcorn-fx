@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.adapters.platform;
 
 /**
- * Provider which supplies/check certain aspects of the environment.
+ * Provider which supplies/checks certain aspects of the current platform/environment.
  * This is mainly a wrapper class around the {@link javafx.application.Platform}.
  */
 public interface PlatformProvider {
@@ -12,6 +12,13 @@ public interface PlatformProvider {
      * @return Returns true if supported, else false.
      */
     boolean isTransparentWindowSupported();
+
+    /**
+     * Retrieve the current platform information.
+     *
+     * @return Returns the detected platform information.
+     */
+    PlatformInfo platformInfo();
 
     /**
      * Run the given action on the rendering thread of the platform.

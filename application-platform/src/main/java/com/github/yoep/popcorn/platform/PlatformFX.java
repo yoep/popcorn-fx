@@ -1,6 +1,8 @@
 package com.github.yoep.popcorn.platform;
 
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
 import com.github.yoep.popcorn.platform.jna.linux.LinuxUtils;
 import com.github.yoep.popcorn.platform.jna.macos.MacOsUtils;
 import com.github.yoep.popcorn.platform.jna.win32.Win32Utils;
@@ -11,6 +13,11 @@ public class PlatformFX implements PlatformProvider {
     @Override
     public boolean isTransparentWindowSupported() {
         return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW);
+    }
+
+    @Override
+    public PlatformInfo platformInfo() {
+        return new SimplePlatformInfo(platformType(), com.sun.jna.Platform.ARCH);
     }
 
     @Override
@@ -41,6 +48,6 @@ public class PlatformFX implements PlatformProvider {
             return PlatformType.WINDOWS;
         }
 
-        return PlatformType.LINUX;
+        return PlatformType.DEBIAN;
     }
 }

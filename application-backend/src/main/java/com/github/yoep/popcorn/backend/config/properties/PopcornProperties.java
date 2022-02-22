@@ -7,6 +7,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.net.URI;
 import java.util.Map;
 
 @Data
@@ -40,6 +41,12 @@ public class PopcornProperties {
      */
     @NotNull
     private String version;
+
+    /**
+     * The uri to use as the update channel for checking new application versions.
+     */
+    @NotNull
+    private URI updateChannel;
 
     /**
      * Get the provider with the given name.

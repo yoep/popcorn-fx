@@ -18,7 +18,6 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
-import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.MainDesktopController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
@@ -33,7 +32,6 @@ import org.springframework.core.task.TaskExecutor;
 import java.util.List;
 
 @Configuration
-@ConditionalOnDesktopMode
 public class DesktopConfig {
 
     @Bean

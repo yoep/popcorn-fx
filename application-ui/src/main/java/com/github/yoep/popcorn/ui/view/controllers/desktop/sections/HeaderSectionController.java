@@ -14,6 +14,8 @@ import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.ui.view.controls.SearchField;
 import com.github.yoep.popcorn.ui.view.controls.SearchListener;
+import javafx.animation.Animation;
+import javafx.animation.Transition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -21,6 +23,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -34,6 +38,8 @@ import java.util.stream.Collectors;
 public class HeaderSectionController extends AbstractFilterSectionController implements Initializable {
     private final PopcornProperties properties;
     private final LocaleText localeText;
+
+    private final Transition updateAvailableAnimation = createColorTransition();
 
     @FXML
     Pane headerPane;
@@ -53,6 +59,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private Icon settingsIcon;
     @FXML
     private Icon aboutIcon;
+    @FXML
+    private Icon updateAvailableIcon;
 
     //region Constructors
 
@@ -122,6 +130,10 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
                 watchlistIcon.setVisible(traktSettings.getAccessToken().isPresent());
             }
         });
+
+        updateAvailableIcon.setVisible(false);
+
+        Platform.runLater(updateAvailableAnimation::playFromStart);
     }
 
     private void initializeTitleBar() {
@@ -201,6 +213,22 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         return settingsService.getSettings();
     }
 
+    private Transition createColorTransition() {
+        return new Transition() {
+            {
+                setCycleCount(Animation.INDEFINITE);
+                setCycleDuration(Duration.seconds(2));
+                setAutoReverse(true);
+            }
+
+            @Override
+            protected void interpolate(double frac) {
+                var color = Color.rgb(36, 104, 204);
+                updateAvailableIcon.setTextFill(color.interpolate(Color.rgb(45, 150, 217), frac));
+            }
+        };
+    }
+
     @FXML
     private void onCategoryClicked(MouseEvent event) {
         switchCategory((Label) event.getSource());
@@ -242,6 +270,11 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         event.consume();
         switchIcon(aboutIcon);
         eventPublisher.publishEvent(new ShowAboutEvent(this));
+    }
+
+    @FXML
+    void onUpdateAvailableClicked(MouseEvent event) {
+        event.consume();
     }
 
     //endregion

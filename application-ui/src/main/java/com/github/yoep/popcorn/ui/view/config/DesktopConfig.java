@@ -204,12 +204,6 @@ public class DesktopConfig {
     }
 
     @Bean
-    public TitleBarComponent titleBarComponent(MaximizeService maximizeService,
-                                               OptionsService optionsService) {
-        return new TitleBarComponent(maximizeService, optionsService);
-    }
-
-    @Bean
     public PlayerPlayNextComponent playerPlaylistComponent(ImageService imageService,
                                                            PlayNextService playNextService) {
         return new PlayerPlayNextComponent(imageService, playNextService);

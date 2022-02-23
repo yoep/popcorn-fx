@@ -13,11 +13,13 @@ import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.updater.UpdateState;
+import com.github.yoep.popcorn.ui.updater.VersionInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.ui.view.controls.SearchField;
 import com.github.yoep.popcorn.ui.view.controls.SearchListener;
-import com.github.yoep.popcorn.ui.view.listeners.HeaderSectionListener;
-import com.github.yoep.popcorn.ui.view.services.HeaderSectionService;
+import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
+import com.github.yoep.popcorn.ui.view.services.UpdateSectionService;
 import javafx.animation.Animation;
 import javafx.animation.Transition;
 import javafx.application.Platform;
@@ -44,7 +46,7 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private final PopcornProperties properties;
     private final LocaleText localeText;
     private final PlatformProvider platformProvider;
-    private final HeaderSectionService headerSectionService;
+    private final UpdateSectionService updateSectionService;
 
     private final Transition updateAvailableAnimation = createColorTransition();
 
@@ -72,12 +74,12 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     //region Constructors
 
     public HeaderSectionController(ApplicationEventPublisher eventPublisher, PopcornProperties properties, LocaleText localeText,
-                                   SettingsService settingsService, PlatformProvider platformProvider, HeaderSectionService headerSectionService) {
+                                   SettingsService settingsService, PlatformProvider platformProvider, UpdateSectionService updateSectionService) {
         super(eventPublisher, settingsService);
         this.properties = properties;
         this.localeText = localeText;
         this.platformProvider = platformProvider;
-        this.headerSectionService = headerSectionService;
+        this.updateSectionService = updateSectionService;
     }
 
     //endregion
@@ -101,13 +103,20 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         initializeSceneListener(headerPane);
         initializeTitleBar();
         initializeListeners();
+
+        updateSectionService.updateAll();
     }
 
     private void initializeListeners() {
-        headerSectionService.addListener(new HeaderSectionListener() {
+        updateSectionService.addListener(new UpdateListener() {
             @Override
-            public void onUpdateAvailableChanged(boolean isUpdateAvailable) {
-                HeaderSectionController.this.onUpdateAvailableChanged(isUpdateAvailable);
+            public void onUpdateInfoChanged(VersionInfo newValue) {
+                // no-op
+            }
+
+            @Override
+            public void onUpdateStateChanged(UpdateState newState) {
+                onUpdateAvailableChanged(newState == UpdateState.UPDATE_AVAILABLE);
             }
         });
     }
@@ -298,7 +307,8 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     @FXML
     void onUpdateAvailableClicked(MouseEvent event) {
         event.consume();
-        headerSectionService.executeUpdate();
+        switchIcon(updateAvailableIcon);
+        eventPublisher.publishEvent(new ShowUpdateEvent(this));
     }
 
     //endregion

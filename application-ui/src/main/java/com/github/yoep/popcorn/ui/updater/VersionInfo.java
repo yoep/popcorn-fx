@@ -15,6 +15,7 @@ import java.util.Optional;
 @AllArgsConstructor
 public class VersionInfo {
     private final String version;
+    private final Changelog changelog;
     private final Map<String, String> platforms;
 
     public Optional<String> downloadForPlatform(PlatformType type, String arch) {

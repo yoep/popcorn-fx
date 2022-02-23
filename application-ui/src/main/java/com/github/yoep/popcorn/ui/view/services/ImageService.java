@@ -14,7 +14,9 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -114,6 +116,31 @@ public class ImageService {
         byte[] image = internalLoad(url);
 
         return CompletableFuture.completedFuture(convertToImage(image));
+    }
+
+    /**
+     * Load an image from the images resources.
+     *
+     * @param url The images url to retrieve from the resources.
+     * @return Returns the loaded image resource.
+     * @throws ImageException Is thrown when the resource image failed to load.
+     */
+    @Async
+    public CompletableFuture<Image> loadResource(String url) {
+        Objects.requireNonNull(url, "url cannot be empty");
+        var classpathUrl = "images/" + url;
+        var resource = new ClassPathResource(classpathUrl);
+
+        if (resource.exists()) {
+            try {
+                var inputStream = resource.getInputStream();
+                return CompletableFuture.completedFuture(new Image(inputStream));
+            } catch (IOException ex) {
+                throw new ImageException(classpathUrl, ex.getMessage(), ex);
+            }
+        }
+
+        throw new ImageException(classpathUrl, "resource file doesn't exist");
     }
 
     //endregion

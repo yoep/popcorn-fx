@@ -8,7 +8,12 @@ import com.github.yoep.popcorn.platform.jna.macos.MacOsUtils;
 import com.github.yoep.popcorn.platform.jna.win32.Win32Utils;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
+import java.nio.file.Path;
+
+@Slf4j
 public class PlatformFX implements PlatformProvider {
     @Override
     public boolean isTransparentWindowSupported() {
@@ -38,6 +43,20 @@ public class PlatformFX implements PlatformProvider {
                 LinuxUtils.disableScreensaver();
                 break;
         }
+    }
+
+    @Override
+    public void launch(Path path) {
+        try {
+            Runtime.getRuntime().exec(path.toString());
+        } catch (IOException e) {
+            log.error("Failed to launch process, {}", e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void exit() {
+        Platform.exit();
     }
 
     private static PlatformType platformType() {

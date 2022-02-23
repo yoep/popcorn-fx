@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
@@ -131,6 +132,28 @@ class StorageServiceImplTest {
         service.store(name, "lorem");
 
         assertTrue(expectedDirectory.exists(), "Expected the storage directory to have been created");
+    }
+
+    @Test
+    void testClean_whenNameDoesNotExist_shouldIgnoreAction() {
+        System.setProperty(BackendConstants.POPCORN_HOME_PROPERTY, workingDir.getAbsolutePath());
+
+        // this action shouldn't throw any exception
+        service.remove("non-existing-file");
+    }
+
+    @Test
+    void testClean_whenNameExists_shouldRemoveFileFromStorage() {
+        var name = "myFile.txt";
+        System.setProperty(BackendConstants.POPCORN_HOME_PROPERTY, workingDir.getAbsolutePath());
+        service.store(name, "lorem");
+        var file = service.retrieve(name)
+                .map(Path::toFile)
+                .orElseThrow(() -> new StorageException(null, "File was not created"));
+
+        service.remove(name);
+
+        assertFalse(file.exists(), "Expected the file to have been removed");
     }
 
     private File writeContents(String name, String contents) throws IOException {

@@ -2,17 +2,17 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
 import com.github.yoep.popcorn.ui.player.PlayerEventService;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import javafx.application.Platform;
+import com.github.yoep.popcorn.ui.view.services.PlayerExternalComponentService;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -31,7 +30,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PlayerExternalComponent {
     private final ImageService imageService;
     private final PlayerEventService playerEventService;
-    private final PlayerManagerService playerManagerService;
+    private final PlatformProvider platformProvider;
+    private final PlayerExternalComponentService playerExternalService;
 
     private Long duration;
 
@@ -54,13 +54,13 @@ public class PlayerExternalComponent {
     public void onLoadMediaTorrent(LoadMediaTorrentEvent event) {
         reset();
         loadBackgroundImage(event.getMedia());
-        Platform.runLater(() -> titleText.setText(event.getMedia().getTitle()));
+        platformProvider.runOnRenderer(() -> titleText.setText(event.getMedia().getTitle()));
     }
 
     @EventListener
     public void onLoadUrlTorrent(LoadUrlTorrentEvent event) {
         reset();
-        Platform.runLater(() -> titleText.setText(event.getTorrentFileInfo().getFilename()));
+        platformProvider.runOnRenderer(() -> titleText.setText(event.getTorrentFileInfo().getFilename()));
     }
 
     //endregion
@@ -77,7 +77,7 @@ public class PlayerExternalComponent {
     //region Functions
 
     private void reset() {
-        Platform.runLater(() -> {
+        platformProvider.runOnRenderer(() -> {
             backgroundImage.reset();
             playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
         });
@@ -95,7 +95,7 @@ public class PlayerExternalComponent {
 
     private void onPlayerDurationChanged(long duration) {
         this.duration = duration;
-        Platform.runLater(() -> durationText.setText(formatTime(duration)));
+        platformProvider.runOnRenderer(() -> durationText.setText(TimeUtils.format(duration)));
     }
 
     private void onPlayerTimeChanged(long time) {
@@ -105,51 +105,28 @@ public class PlayerExternalComponent {
             progress.set((double) time / duration);
         }
 
-        Platform.runLater(() -> {
-            timeText.setText(formatTime(time));
+        platformProvider.runOnRenderer(() -> {
+            timeText.setText(TimeUtils.format(time));
             playbackProgress.setProgress(progress.get());
         });
     }
 
     private void onPlayerStateChanged(PlayerState state) {
         switch (state) {
-            case PLAYING:
-                updatePlayState(true);
-                break;
-            case PAUSED:
-                updatePlayState(false);
-                break;
-            case LOADING:
-                Platform.runLater(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
-                break;
+            case PLAYING -> updatePlayState(true);
+            case PAUSED -> updatePlayState(false);
+            case LOADING -> platformProvider.runOnRenderer(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
         }
     }
 
-    private void onTogglePlaybackState() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(e -> {
-                    if (e.getState() == PlayerState.PAUSED) {
-                        e.resume();
-                    } else {
-                        e.pause();
-                    }
-                });
-    }
-
     private void updatePlayState(boolean isPlaying) {
-        Platform.runLater(() -> {
+        platformProvider.runOnRenderer(() -> {
             if (isPlaying) {
                 playPauseIcon.setText(Icon.PAUSE_UNICODE);
             } else {
                 playPauseIcon.setText(Icon.PLAY_UNICODE);
             }
         });
-    }
-
-    private String formatTime(long time) {
-        return String.format("%02d:%02d",
-                TimeUnit.MILLISECONDS.toMinutes(time),
-                TimeUnit.MILLISECONDS.toSeconds(time) % 60);
     }
 
     private PlayerListener createPlayerListener() {
@@ -174,14 +151,13 @@ public class PlayerExternalComponent {
     @FXML
     void onPlayPauseClicked(MouseEvent event) {
         event.consume();
-        onTogglePlaybackState();
+        playerExternalService.togglePlaybackState();
     }
 
     @FXML
     void onStopClicked(MouseEvent event) {
         event.consume();
-        playerManagerService.getActivePlayer()
-                .ifPresent(Player::stop);
+        playerExternalService.closePlayer();
     }
 
     //endregion

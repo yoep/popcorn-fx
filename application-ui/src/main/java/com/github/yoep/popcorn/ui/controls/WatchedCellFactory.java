@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.media.watched.controls;
+package com.github.yoep.popcorn.ui.controls;
 
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 

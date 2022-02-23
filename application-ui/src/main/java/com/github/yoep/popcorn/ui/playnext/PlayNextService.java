@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.services;
+package com.github.yoep.popcorn.ui.playnext;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
@@ -102,6 +102,15 @@ public class PlayNextService {
         onPlayNextEpisode();
     }
 
+    /**
+     * Stop the play next event.
+     */
+    public void stop() {
+        playerManagerService.getActivePlayer()
+                .ifPresent(Player::stop);
+        reset();
+    }
+
     @EventListener
     public void onPlayVideo(PlayVideoEvent event) {
         // check if the play next option is enabled
@@ -152,7 +161,7 @@ public class PlayNextService {
 
     //region Functions
 
-    void onTimeChanged(long time) {
+    private void onTimeChanged(long time) {
         // check if the next episode to be played is known and the play next option is enabled
         // if not, ignore this event
         if (getNextEpisode().isEmpty() || isPlayNextDisabled()) {
@@ -170,7 +179,7 @@ public class PlayNextService {
         }
     }
 
-    void onDurationChanged(long newValue) {
+    private void onDurationChanged(long newValue) {
         this.duration = newValue;
     }
 
@@ -216,7 +225,7 @@ public class PlayNextService {
 
         // stop the video playback
         playerManagerService.getActivePlayer()
-                .ifPresent(Player::pause);
+                .ifPresent(Player::stop);
 
         // start loading the next episode
         eventPublisher.publishEvent(LoadMediaTorrentEvent.builder()

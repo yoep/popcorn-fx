@@ -3,10 +3,14 @@ package com.github.yoep.popcorn.ui.player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,19 +43,32 @@ class PlayerStopServiceTest {
     }
 
     @Test
-    void testInit_whenPlayerIsStoppedAndDurationIsLargerThanZero_shouldPublishClosePlayerEvent() {
+    void testInit_whenPlayerIsStoppedAndIsEndOfVideo_shouldPublishClosePlayerEvent() {
         var listenerHolder = new AtomicReference<PlayerListener>();
+        var videoLength = 1000L;
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(playerEventService).addListener(isA(PlayerListener.class));
-
         service.init();
+        service.onPlayMedia(PlayMediaEvent.mediaBuilder()
+                .source(this)
+                .url("my-movie-url")
+                .title("my-title-url")
+                .torrent(mock(Torrent.class))
+                .torrentStream(mock(TorrentStream.class))
+                .media(Movie.builder()
+                        .images(new Images())
+                        .build())
+                .build());
+
         var playerListener = listenerHolder.get();
-        playerListener.onDurationChanged(1000L);
+        playerListener.onDurationChanged(videoLength);
+        playerListener.onTimeChanged(videoLength);
         playerListener.onStateChanged(PlayerState.STOPPED);
 
-        verify(eventPublisher).publishEvent(isA(ClosePlayerEvent.class));
+        verify(eventPublisher).publishEvent(new com.github.yoep.popcorn.backend.events.ClosePlayerEvent(service,
+                com.github.yoep.popcorn.backend.events.ClosePlayerEvent.Reason.END_OF_VIDEO));
     }
 
     @Test
@@ -84,7 +101,6 @@ class PlayerStopServiceTest {
             eventHolder.set(invocation.getArgument(0, PlayerStoppedEvent.class));
             return null;
         }).when(eventPublisher).publishEvent(isA(PlayerStoppedEvent.class));
-        doNothing().when(eventPublisher).publishEvent(isA(ClosePlayerEvent.class));
 
         service.init();
         var playerListener = listenerHolder.get();
@@ -117,7 +133,6 @@ class PlayerStopServiceTest {
             eventHolder.set(invocation.getArgument(0, PlayerStoppedEvent.class));
             return null;
         }).when(eventPublisher).publishEvent(isA(PlayerStoppedEvent.class));
-        doNothing().when(eventPublisher).publishEvent(isA(ClosePlayerEvent.class));
 
         service.init();
         service.onPlayMedia(event);

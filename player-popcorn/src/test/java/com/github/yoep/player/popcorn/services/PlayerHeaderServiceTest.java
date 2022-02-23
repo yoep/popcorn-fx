@@ -46,7 +46,7 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testStop_whenInvokeD_shouldStopThePlayer() {
-        service.stop();
+        service.closePlayer();
 
         verify(player).stop();
     }

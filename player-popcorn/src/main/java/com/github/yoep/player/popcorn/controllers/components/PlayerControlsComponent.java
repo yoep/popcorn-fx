@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -20,7 +21,6 @@ import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ResourceBundle;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @ViewController
@@ -128,14 +128,14 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onDurationChanged(Long duration) {
         platformProvider.runOnRenderer(() -> {
-            durationLabel.setText(formatTime(duration));
+            durationLabel.setText(TimeUtils.format(duration));
             playProgress.setDuration(duration);
         });
     }
 
     private void onTimeChanged(Long time) {
         platformProvider.runOnRenderer(() -> {
-            timeLabel.setText(formatTime(time));
+            timeLabel.setText(TimeUtils.format(time));
 
             if (!playProgress.isValueChanging())
                 playProgress.setTime(time);
@@ -155,17 +155,11 @@ public class PlayerControlsComponent implements Initializable {
         }
 
         playerControlsService.seek(newValue.longValue());
-        timeLabel.setText(formatTime(newValue.longValue()));
+        timeLabel.setText(TimeUtils.format(newValue.longValue()));
     }
 
     private void onDownloadStatusChanged(DownloadStatus progress) {
         playProgress.setLoadProgress(progress.getProgress());
-    }
-
-    private String formatTime(long time) {
-        return String.format("%02d:%02d",
-                TimeUnit.MILLISECONDS.toMinutes(time),
-                TimeUnit.MILLISECONDS.toSeconds(time) % 60);
     }
 
     private void setVideoTime(double time) {

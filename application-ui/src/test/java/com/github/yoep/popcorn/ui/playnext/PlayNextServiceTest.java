@@ -1,6 +1,8 @@
-package com.github.yoep.popcorn.ui.view.services;
+package com.github.yoep.popcorn.ui.playnext;
 
+import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
@@ -21,6 +23,8 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,10 +48,16 @@ class PlayNextServiceTest {
     @InjectMocks
     private PlayNextService playNextService;
 
+    private final AtomicReference<PlayerListener> listenerHolder = new AtomicReference<>();
+
     @BeforeEach
     void setUp() {
         lenient().when(settingsService.getSettings()).thenReturn(settings);
         lenient().when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
+        lenient().doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
+            return null;
+        }).when(playerEventService).addListener(isA(PlayerListener.class));
     }
 
     @Test
@@ -188,14 +198,15 @@ class PlayNextServiceTest {
                 .media(show)
                 .subMediaItem(episode)
                 .build();
+        playNextService.init();
 
         // update the next episode
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.onPlayVideo(activity);
 
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(false);
-        playNextService.onDurationChanged(90);
-        playNextService.onTimeChanged(70);
+        listenerHolder.get().onDurationChanged(90);
+        listenerHolder.get().onTimeChanged(70);
         var result = playNextService.getPlayingIn();
 
         assertEquals(PlayNextService.COUNTDOWN_FROM, result);
@@ -220,10 +231,11 @@ class PlayNextServiceTest {
                 .subMediaItem(episode)
                 .build();
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
         playNextService.onPlayVideo(activity);
-        playNextService.onDurationChanged(90000);
-        playNextService.onTimeChanged(70000);
+        listenerHolder.get().onDurationChanged(90000);
+        listenerHolder.get().onTimeChanged(70000);
         var result = playNextService.getPlayingIn();
 
         assertEquals(expectedResult, result);
@@ -249,12 +261,23 @@ class PlayNextServiceTest {
                 .build();
         var videoLength = 90000;
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
         playNextService.onPlayVideo(activity);
-        playNextService.onDurationChanged(videoLength);
-        playNextService.onTimeChanged(videoLength);
+        listenerHolder.get().onDurationChanged(videoLength);
+        listenerHolder.get().onTimeChanged(videoLength);
 
         verify(eventPublisher).publishEvent(isA(LoadMediaTorrentEvent.class));
+    }
+
+    @Test
+    void testStop_whenInvoked_shouldStopThePlayer() {
+        var player = mock(Player.class);
+        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
+
+        playNextService.stop();
+
+        verify(player).stop();
     }
 
     //endregion

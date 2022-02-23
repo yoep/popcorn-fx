@@ -109,7 +109,7 @@ public class PlayerHeaderComponent implements Initializable {
     @FXML
     void close(MouseEvent event) {
         event.consume();
-        headerService.stop();
+        headerService.closePlayer();
     }
 
     //endregion

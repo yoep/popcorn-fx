@@ -2,12 +2,12 @@ package com.github.yoep.popcorn.ui.view.controllers.common;
 
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
-import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
@@ -196,15 +196,9 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
         this.currentSection = sectionType;
 
         switch (sectionType) {
-            case CONTENT:
-                content.set(contentPane);
-                break;
-            case PLAYER:
-                content.set(playerPane);
-                break;
-            case LOADER:
-                content.set(loaderPane);
-                break;
+            case CONTENT -> content.set(contentPane);
+            case PLAYER -> content.set(playerPane);
+            case LOADER -> content.set(loaderPane);
         }
 
         Platform.runLater(() -> {

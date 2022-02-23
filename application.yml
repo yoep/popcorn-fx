@@ -13,6 +13,3 @@ logging:
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
     org.springframework: INFO
-
-popcorn:
-  update-channel: https://raw.githubusercontent.com/yoep/popcorn-fx/feature/%2338_add_auto_updater

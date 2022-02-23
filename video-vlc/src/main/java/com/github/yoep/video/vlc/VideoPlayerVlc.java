@@ -21,17 +21,19 @@ import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
+import java.util.Objects;
 
 import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
 import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactory.videoSurfaceForImageView;
 
 @Slf4j
 @ToString
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback {
-    private static final String NAME = "VLC";
-    private final ImageView videoSurface = new ImageView();
+    static final String NAME = "VLC";
+    static final String DESCRIPTION = "Video backend which uses the VLC library for video playbacks.";
 
+    private final ImageView videoSurface = new ImageView();
     private final MediaPlayerFactory mediaPlayerFactory;
     private final EmbeddedMediaPlayer mediaPlayer;
 
@@ -47,6 +49,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
      * @param mediaPlayerFactory The VLC media player factory to use.
      */
     public VideoPlayerVlc(MediaPlayerFactory mediaPlayerFactory) {
+        Objects.requireNonNull(mediaPlayerFactory, "mediaPlayerFactory cannot be null");
         this.mediaPlayerFactory = mediaPlayerFactory;
         this.mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
 
@@ -64,12 +67,12 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
     @Override
     public String getDescription() {
-        return "Video backend which uses the VLC library for video playbacks.";
+        return DESCRIPTION;
     }
 
     @Override
     public boolean supports(String url) {
-        return !StringUtils.isEmpty(url);
+        return isInitialized() && StringUtils.hasText(url);
     }
 
     @Override

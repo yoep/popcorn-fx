@@ -1,7 +1,9 @@
 package com.github.yoep.popcorn.backend.adapters.platform;
 
+import java.nio.file.Path;
+
 /**
- * Provider which supplies/check certain aspects of the environment.
+ * Provider which supplies/checks certain aspects of the current platform/environment.
  * This is mainly a wrapper class around the {@link javafx.application.Platform}.
  */
 public interface PlatformProvider {
@@ -14,6 +16,13 @@ public interface PlatformProvider {
     boolean isTransparentWindowSupported();
 
     /**
+     * Retrieve the current platform information.
+     *
+     * @return Returns the detected platform information.
+     */
+    PlatformInfo platformInfo();
+
+    /**
      * Run the given action on the rendering thread of the platform.
      *
      * @param runnable The action to execute on the rendering thread.
@@ -24,4 +33,16 @@ public interface PlatformProvider {
      * Disable the screensaver function on the platform.
      */
     void disableScreensaver();
+
+    /**
+     * Launch the given process path on the current platform.
+     *
+     * @param path The process path that needs to be started.
+     */
+    void launch(Path path);
+
+    /**
+     * Exit the application in a safe manner.
+     */
+    void exit();
 }

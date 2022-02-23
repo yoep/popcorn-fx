@@ -8,12 +8,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.text.MessageFormat;
 import java.util.Objects;
 import java.util.Optional;
@@ -64,6 +69,16 @@ public class StorageServiceImpl implements StorageService {
     }
 
     @Override
+    public Optional<Path> retrieve(String name) {
+        Objects.requireNonNull(name, "name cannot be null");
+        var file = determineStorageFile(name);
+
+        return Optional.of(file)
+                .filter(File::exists)
+                .map(File::toPath);
+    }
+
+    @Override
     public void store(String name, Object contents) {
         Objects.requireNonNull(name, "name cannot be null");
         var file = determineStorageFile(name);
@@ -83,6 +98,31 @@ public class StorageServiceImpl implements StorageService {
         } catch (IOException ex) {
             var message = MessageFormat.format("Failed to save file contents to {0}, {1}", file.getAbsolutePath(), ex.getMessage());
             throw new StorageException(file, message, ex);
+        }
+    }
+
+    @Override
+    public void store(String name, Flux<DataBuffer> buffer) {
+        Objects.requireNonNull(name, "name cannot be null");
+        var file = determineStorageFile(name);
+
+        DataBufferUtils
+                .write(buffer, file.toPath(), StandardOpenOption.CREATE)
+                .block();
+    }
+
+    @Override
+    public void remove(String name) {
+        Objects.requireNonNull(name, "name cannot be null");
+        var file = determineStorageFile(name);
+
+        if (file.exists()) {
+            log.debug("Deleting file {}", file.getAbsolutePath());
+            if (file.delete()) {
+                log.info("Storage file {} has been deleted", name);
+            } else {
+                log.warn("Failed to delete storage file {}", name);
+            }
         }
     }
 

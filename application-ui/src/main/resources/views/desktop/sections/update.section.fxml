@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx"
+          xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.UpdateSectionController"
+          styleClass="loader,about-section">
+    <columnConstraints>
+        <ColumnConstraints percentWidth="30"/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+        <ColumnConstraints percentWidth="30"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints percentHeight="10"/>
+        <RowConstraints vgrow="ALWAYS" valignment="TOP"/>
+        <RowConstraints percentHeight="10"/>
+    </rowConstraints>
+
+    <BackgroundImageCover fx:id="backgroundCover"
+                          GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="4" GridPane.rowSpan="3"/>
+
+    <ImageView fx:id="logoImage" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+    <VBox fx:id="changelogPane" GridPane.columnIndex="2" GridPane.rowIndex="1">
+        <Label fx:id="titleLabel" styleClass="title"/>
+        <Label fx:id="versionLabel" styleClass="version"/>
+        <Label text="%update_available_description"/>
+
+        <!-- Section changelog -->
+        <Label styleClass="subsection-title" text="%update_changelog"/>
+        <Label styleClass="category-title" text="%update_changelog_features"/>
+        <Label fx:id="changelogFeaturesLabel"/>
+
+        <Label styleClass="category-title" text="%update_changelog_bugfixes"/>
+        <Label fx:id="changelogBugfixesLabel"/>
+
+        <!-- Update button -->
+        <Button text="%update_now" onMouseClicked="#onUpdateNowClicked">
+            <VBox.margin>
+                <Insets top="10" />
+            </VBox.margin>
+        </Button>
+    </VBox>
+    <VBox fx:id="progressPane" GridPane.columnIndex="2" GridPane.rowIndex="1" alignment="CENTER">
+        <Label fx:id="progressLabel" styleClass="status-text"/>
+        <ProgressBar fx:id="progressBarUpdate" cache="true" cacheHint="SPEED" maxWidth="Infinity"/>
+    </VBox>
+</GridPane>

@@ -1,8 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
@@ -20,10 +21,12 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
+@ViewController
 @RequiredArgsConstructor
 public class TitleBarComponent implements Initializable {
     private final MaximizeService maximizeService;
     private final OptionsService optionsService;
+    private final PlatformProvider platformProvider;
 
     private Image restoreImage;
     private Image maximizeImage;
@@ -108,7 +111,7 @@ public class TitleBarComponent implements Initializable {
     @FXML
     private void onCloseClicked(MouseEvent event) {
         event.consume();
-        Platform.exit();
+        platformProvider.exit();
     }
 
     @FXML

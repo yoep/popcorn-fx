@@ -42,6 +42,12 @@ public class PopcornProperties {
     private String version;
 
     /**
+     * The uri to use as the update channel for checking new application versions.
+     */
+    @NotNull
+    private String updateChannel;
+
+    /**
      * Get the provider with the given name.
      *
      * @param name The name of the provider to retrieve.

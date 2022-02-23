@@ -12,10 +12,6 @@
     <artifactId>player-qt</artifactId>
     <name>Popcorn player QT</name>
 
-    <properties>
-        <java.version>11</java.version>
-    </properties>
-
     <dependencies>
         <!-- Popcorn Time -->
         <dependency>

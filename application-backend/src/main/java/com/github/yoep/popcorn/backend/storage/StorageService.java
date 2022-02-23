@@ -1,7 +1,11 @@
 package com.github.yoep.popcorn.backend.storage;
 
+import org.springframework.core.io.buffer.DataBuffer;
+import reactor.core.publisher.Flux;
+
 import javax.validation.constraints.NotNull;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Optional;
 
 /**
@@ -30,6 +34,14 @@ public interface StorageService {
     <T> Optional<T> read(@NotNull String name, Class<T> valueType);
 
     /**
+     * Retrieve a path from the storage based on the given filename.
+     *
+     * @param name The filename to retrieve.
+     * @return Returns the path to the storage file if found, else {@link Optional#empty()}.
+     */
+    Optional<Path> retrieve(@NotNull String name);
+
+    /**
      * Store the given contents to the name within the storage.
      * The contents will be serialized by the {@link StorageService}.
      *
@@ -38,4 +50,20 @@ public interface StorageService {
      * @throws StorageException Is thrown when storing of the contents failed within the storage.
      */
     void store(@NotNull String name, Object contents);
+
+    /**
+     * Store the given data buffer flux within the storage.
+     *
+     * @param name   The name within the storage to write to.
+     * @param buffer The data flux which needs to be written.
+     */
+    void store(@NotNull String name, Flux<DataBuffer> buffer);
+
+    /**
+     * Clean/remove the given name from within the storage.
+     * If the name doesn't exist in the storage, the action will be ignored and not result in an exception.
+     *
+     * @param name The name to clean within the storage.
+     */
+    void remove(@NotNull String name);
 }

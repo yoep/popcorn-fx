@@ -5,7 +5,9 @@ import com.github.yoep.player.chromecast.services.MetaDataService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
 
 @Configuration
 public class ChromecastConfig {
@@ -16,6 +18,10 @@ public class ChromecastConfig {
 
     @Bean
     public WebClient chromecastWebClient() {
-        return WebClient.create();
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(
+                        HttpClient.create().followRedirect(true)
+                ))
+                .build();
     }
 }

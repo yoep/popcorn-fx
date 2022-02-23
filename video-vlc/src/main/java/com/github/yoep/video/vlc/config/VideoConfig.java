@@ -2,7 +2,7 @@ package com.github.yoep.video.vlc.config;
 
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
-import com.github.yoep.video.vlc.conditions.ConditionalOnVlcInstall;
+import com.github.yoep.video.vlc.VideoPlayerVlcError;
 import com.github.yoep.video.vlc.conditions.ConditionalOnVlcVideoEnabled;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -18,16 +18,21 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 public class VideoConfig {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 10)
-    @ConditionalOnVlcInstall
-    public VideoPlayback vlcVideoPlayer(MediaPlayerFactory mediaPlayerFactory) {
-        log.info("Using VLC player for video playbacks");
-        return new VideoPlayerVlc(mediaPlayerFactory);
+    public VideoPlayback vlcVideoPlayer(NativeDiscovery nativeDiscovery) {
+        if (nativeDiscovery.discover()) {
+            log.debug("Discovered VLC library at {}", nativeDiscovery.discoveredPath());
+            return createVideoPlayerVlcInstance(nativeDiscovery);
+        } else {
+            log.warn("Failed to discover VLC library");
+            return new VideoPlayerVlcError();
+        }
     }
 
-    @Bean
-    @ConditionalOnVlcInstall
-    public MediaPlayerFactory mediaPlayerFactory(NativeDiscovery nativeDiscovery) {
+    private static VideoPlayerVlc createVideoPlayerVlcInstance(NativeDiscovery nativeDiscovery) {
         log.trace("Creating VLC media player factory instance");
-        return new MediaPlayerFactory(nativeDiscovery);
+        var mediaPlayerFactory = new MediaPlayerFactory(nativeDiscovery);
+
+        log.info("Using VLC player for video playbacks");
+        return new VideoPlayerVlc(mediaPlayerFactory);
     }
 }

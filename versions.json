@@ -1,0 +1,24 @@
+{
+  "version": "0.0.6",
+  "platforms": {
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6_x86_64.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6.dmg",
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6.exe"
+  },
+  "changelog": {
+    "features": [
+      "Use system native functions for disabling the screensaver",
+      "Added anime category with media provider",
+      "Added information/about page with additional information about loaded players",
+      "Added Chromecast support",
+      "Refresh the favorites info in the background instead of when it being requested",
+      "Add setting to switch header to native window header"
+    ],
+    "bugfixes": [
+      "Player progress bar not showing download progress",
+      "Play next not selecting the correct \"next episode\"",
+      "Movie/Show list scroll position being reset"
+    ]
+  }
+}

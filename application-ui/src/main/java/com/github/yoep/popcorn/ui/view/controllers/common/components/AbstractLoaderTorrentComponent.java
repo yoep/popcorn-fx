@@ -137,7 +137,7 @@ public abstract class AbstractLoaderTorrentComponent extends AbstractLoaderCompo
 
     protected void startTorrent(LoadMediaTorrentEvent activity) {
         Assert.notNull(activity.getMedia(), "LoadMediaTorrentActivity#getMedia cannot be null");
-        log.debug("Starting media torrent stream for {}", activity.getMedia());
+        log.debug("Starting media torrent stream for {}, {}", activity.getMedia().getId(), activity.getMedia().getTitle());
 
         // store the requested media locally for later use
         this.title = activity.getMedia().getTitle();

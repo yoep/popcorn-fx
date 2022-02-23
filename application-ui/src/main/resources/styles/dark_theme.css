@@ -1294,6 +1294,13 @@
     -fx-padding: 15 0 0 0;
 }
 
+.root .about-section .category-title {
+    -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
+    -fx-text-fill: #fafafa;
+    -fx-font-size: 1.2em;
+    -fx-padding: 15 0 0 0;
+}
+
 .root .about-section .version {
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 2em;

@@ -5,7 +5,6 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -18,7 +17,6 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
-import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.MainDesktopController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
@@ -33,7 +31,6 @@ import org.springframework.core.task.TaskExecutor;
 import java.util.List;
 
 @Configuration
-@ConditionalOnDesktopMode
 public class DesktopConfig {
 
     @Bean
@@ -62,14 +59,6 @@ public class DesktopConfig {
                                                              ViewLoader viewLoader,
                                                              TaskExecutor taskExecutor) {
         return new DetailsSectionController(eventPublisher, viewLoader, taskExecutor);
-    }
-
-    @Bean
-    public HeaderSectionController headerSectionController(ApplicationEventPublisher eventPublisher,
-                                                           PopcornProperties properties,
-                                                           LocaleText localeText,
-                                                           SettingsService settingsService) {
-        return new HeaderSectionController(eventPublisher, properties, localeText, settingsService);
     }
 
     @Bean
@@ -212,12 +201,6 @@ public class DesktopConfig {
                                                            LocaleText localeText,
                                                            SettingsService settingsService) {
         return new SettingsServerComponent(eventPublisher, localeText, settingsService);
-    }
-
-    @Bean
-    public TitleBarComponent titleBarComponent(MaximizeService maximizeService,
-                                               OptionsService optionsService) {
-        return new TitleBarComponent(maximizeService, optionsService);
     }
 
     @Bean

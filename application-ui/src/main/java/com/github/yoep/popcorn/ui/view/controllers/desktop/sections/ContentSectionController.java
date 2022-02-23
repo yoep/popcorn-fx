@@ -35,6 +35,7 @@ public class ContentSectionController implements Initializable {
     private Pane torrentCollectionPane;
     private Pane settingsPane;
     private Pane aboutPane;
+    private Pane updatePane;
     private ContentType activeType;
 
     @FXML
@@ -65,6 +66,11 @@ public class ContentSectionController implements Initializable {
     @EventListener(ShowAboutEvent.class)
     public void onShowAbout() {
         switchContent(ContentType.ABOUT);
+    }
+
+    @EventListener(ShowUpdateEvent.class)
+    public void onShowUpdate() {
+        switchContent(ContentType.UPDATE);
     }
 
     @EventListener(CategoryChangedEvent.class)
@@ -106,12 +112,14 @@ public class ContentSectionController implements Initializable {
             watchlistPane = viewLoader.load("sections/watchlist.section.fxml");
             settingsPane = viewLoader.load("sections/settings.section.fxml");
             aboutPane = viewLoader.load("sections/about.section.fxml");
+            updatePane = viewLoader.load("sections/update.section.fxml");
 
             setAnchor(detailsPane);
             setAnchor(torrentCollectionPane);
             setAnchor(watchlistPane);
             setAnchor(settingsPane);
             setAnchor(aboutPane);
+            setAnchor(updatePane);
         });
     }
 
@@ -127,24 +135,13 @@ public class ContentSectionController implements Initializable {
         this.activeType = contentType;
 
         switch (contentType) {
-            case LIST:
-                pane.set(listPane);
-                break;
-            case DETAILS:
-                pane.set(detailsPane);
-                break;
-            case WATCHLIST:
-                pane.set(watchlistPane);
-                break;
-            case TORRENT_COLLECTION:
-                pane.set(torrentCollectionPane);
-                break;
-            case SETTINGS:
-                pane.set(settingsPane);
-                break;
-            case ABOUT:
-                pane.set(aboutPane);
-                break;
+            case LIST -> pane.set(listPane);
+            case DETAILS -> pane.set(detailsPane);
+            case WATCHLIST -> pane.set(watchlistPane);
+            case TORRENT_COLLECTION -> pane.set(torrentCollectionPane);
+            case SETTINGS -> pane.set(settingsPane);
+            case ABOUT -> pane.set(aboutPane);
+            case UPDATE -> pane.set(updatePane);
         }
 
         Platform.runLater(() -> {
@@ -175,6 +172,7 @@ public class ContentSectionController implements Initializable {
         WATCHLIST,
         TORRENT_COLLECTION,
         SETTINGS,
-        ABOUT
+        ABOUT,
+        UPDATE
     }
 }

@@ -8,21 +8,17 @@ import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
+import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
-import org.springframework.core.io.ClassPathResource;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -33,6 +29,7 @@ public class AboutSectionController implements Initializable {
     private final ApplicationContext applicationContext;
     private final AboutSectionService aboutService;
     private final PlatformProvider platformProvider;
+    private final ImageService imageService;
 
     @FXML
     BackgroundImageCover backgroundCover;
@@ -56,15 +53,13 @@ public class AboutSectionController implements Initializable {
     }
 
     private void initializeLogo() {
-        loadResource("icon.png")
-                .map(Image::new)
-                .ifPresent(e -> logoImage.setImage(e));
+        imageService.loadResource("icon.png")
+                .thenAccept(e -> logoImage.setImage(e));
     }
 
     private void initializeBackgroundCover() {
-        loadResource("placeholder-background.jpg")
-                .map(Image::new)
-                .ifPresent(e -> backgroundCover.setBackgroundImage(e));
+        imageService.loadResource("placeholder-background.jpg")
+                .thenAccept(e -> backgroundCover.setBackgroundImage(e));
     }
 
     private void initializeLabels() {
@@ -85,22 +80,6 @@ public class AboutSectionController implements Initializable {
             }
         });
         aboutService.updateAll();
-    }
-
-    private Optional<InputStream> loadResource(String filename) {
-        var resource = new ClassPathResource("images/" + filename);
-
-        if (resource.exists()) {
-            try {
-                return Optional.of(resource.getInputStream());
-            } catch (IOException e) {
-                log.error(e.getMessage(), e);
-            }
-        } else {
-            log.warn("Unable to load image {}, file does not exist", filename);
-        }
-
-        return Optional.empty();
     }
 
     private void onPlayersChanged(List<ComponentInfo> players) {

@@ -1,7 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
@@ -11,9 +13,15 @@ import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.updater.UpdateState;
+import com.github.yoep.popcorn.ui.updater.VersionInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractFilterSectionController;
 import com.github.yoep.popcorn.ui.view.controls.SearchField;
 import com.github.yoep.popcorn.ui.view.controls.SearchListener;
+import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
+import com.github.yoep.popcorn.ui.view.services.UpdateSectionService;
+import javafx.animation.Animation;
+import javafx.animation.Transition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -21,6 +29,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -31,9 +41,14 @@ import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 @Slf4j
+@ViewController
 public class HeaderSectionController extends AbstractFilterSectionController implements Initializable {
     private final PopcornProperties properties;
     private final LocaleText localeText;
+    private final PlatformProvider platformProvider;
+    private final UpdateSectionService updateSectionService;
+
+    private final Transition updateAvailableAnimation = createColorTransition();
 
     @FXML
     Pane headerPane;
@@ -53,14 +68,18 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
     private Icon settingsIcon;
     @FXML
     private Icon aboutIcon;
+    @FXML
+    private Icon updateAvailableIcon;
 
     //region Constructors
 
     public HeaderSectionController(ApplicationEventPublisher eventPublisher, PopcornProperties properties, LocaleText localeText,
-                                   SettingsService settingsService) {
+                                   SettingsService settingsService, PlatformProvider platformProvider, UpdateSectionService updateSectionService) {
         super(eventPublisher, settingsService);
         this.properties = properties;
         this.localeText = localeText;
+        this.platformProvider = platformProvider;
+        this.updateSectionService = updateSectionService;
     }
 
     //endregion
@@ -83,6 +102,23 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         initializeIcons();
         initializeSceneListener(headerPane);
         initializeTitleBar();
+        initializeListeners();
+
+        updateSectionService.updateAll();
+    }
+
+    private void initializeListeners() {
+        updateSectionService.addListener(new UpdateListener() {
+            @Override
+            public void onUpdateInfoChanged(VersionInfo newValue) {
+                // no-op
+            }
+
+            @Override
+            public void onUpdateStateChanged(UpdateState newState) {
+                onUpdateAvailableChanged(newState == UpdateState.UPDATE_AVAILABLE);
+            }
+        });
     }
 
     //endregion
@@ -122,6 +158,10 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
                 watchlistIcon.setVisible(traktSettings.getAccessToken().isPresent());
             }
         });
+
+        updateAvailableIcon.setVisible(false);
+
+        Platform.runLater(updateAvailableAnimation::playFromStart);
     }
 
     private void initializeTitleBar() {
@@ -130,6 +170,10 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         if (uiSettings.isNativeWindowEnabled()) {
             headerPane.getChildren().remove(titleBar);
         }
+    }
+
+    private void onUpdateAvailableChanged(boolean updateAvailable) {
+        platformProvider.runOnRenderer(() -> updateAvailableIcon.setVisible(updateAvailable));
     }
 
     @Override
@@ -201,6 +245,22 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         return settingsService.getSettings();
     }
 
+    private Transition createColorTransition() {
+        return new Transition() {
+            {
+                setCycleCount(Animation.INDEFINITE);
+                setCycleDuration(Duration.seconds(2));
+                setAutoReverse(true);
+            }
+
+            @Override
+            protected void interpolate(double frac) {
+                var color = Color.rgb(36, 104, 204);
+                updateAvailableIcon.setTextFill(color.interpolate(Color.rgb(45, 150, 217), frac));
+            }
+        };
+    }
+
     @FXML
     private void onCategoryClicked(MouseEvent event) {
         switchCategory((Label) event.getSource());
@@ -242,6 +302,13 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
         event.consume();
         switchIcon(aboutIcon);
         eventPublisher.publishEvent(new ShowAboutEvent(this));
+    }
+
+    @FXML
+    void onUpdateAvailableClicked(MouseEvent event) {
+        event.consume();
+        switchIcon(updateAvailableIcon);
+        eventPublisher.publishEvent(new ShowUpdateEvent(this));
     }
 
     //endregion

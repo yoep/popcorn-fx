@@ -266,12 +266,12 @@
                     <gitFlowConfig>
                         <developmentBranch>master</developmentBranch>
                         <versionTagPrefix>v</versionTagPrefix>
-                        <versionDigitToIncrement>1</versionDigitToIncrement>
-                        <versionsForceUpdate>true</versionsForceUpdate>
-                        <argLine>-DskipITs -B</argLine>
                     </gitFlowConfig>
 
                     <verbose>true</verbose>
+                    <versionDigitToIncrement>1</versionDigitToIncrement>
+                    <versionsForceUpdate>true</versionsForceUpdate>
+                    <argLine>-DskipITs -B</argLine>
                 </configuration>
             </plugin>
             <plugin>

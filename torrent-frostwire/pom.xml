@@ -10,7 +10,7 @@
     <artifactId>torrent-frostwire</artifactId>
 
     <properties>
-        <jlibtorrent.version>1.2.10.0</jlibtorrent.version>
+        <jlibtorrent.version>1.2.15.2</jlibtorrent.version>
     </properties>
 
     <dependencies>

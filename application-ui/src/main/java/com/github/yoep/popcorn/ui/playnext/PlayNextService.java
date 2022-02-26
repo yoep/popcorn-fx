@@ -248,6 +248,7 @@ public class PlayNextService {
         this.quality = null;
         this.duration = 0;
         this.nextEpisode.set(null);
+        this.playingIn.set(Long.MAX_VALUE);
     }
 
     private boolean isPlayNextDisabled() {

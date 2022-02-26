@@ -41,7 +41,7 @@ public class PlayerStopService {
 
     @EventListener
     public void onPlayMedia(PlayMediaEvent event) {
-        this.media = event.getMedia();
+        this.media = event.getSubMediaItem().orElse(event.getMedia());
         this.quality = event.getQuality();
         this.url = event.getUrl();
     }

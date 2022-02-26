@@ -14,8 +14,8 @@ import java.util.Collections;
 import java.util.Map;
 
 @Getter
+@ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = true)
-@ToString(callSuper = true)
 public class Episode extends AbstractMedia implements Comparable<Episode> {
     /**
      * The available torrents for the episode.

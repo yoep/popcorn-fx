@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.models.Category;
 import com.github.yoep.popcorn.backend.media.filters.models.Genre;
 import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.providers.MediaParsingException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
@@ -55,6 +56,10 @@ public abstract class AbstractListSectionController implements Initializable {
     protected Genre genre;
     protected SortBy sortBy;
     protected String search;
+    /**
+     * Indicates how many pages have failed to load for the current retrieval
+     */
+    protected int numberOfPageFailures;
 
     protected CompletableFuture<? extends Page<? extends Media>> currentLoadRequest;
 
@@ -223,6 +228,7 @@ public abstract class AbstractListSectionController implements Initializable {
         if (currentLoadRequest != null)
             currentLoadRequest.cancel(true);
 
+        numberOfPageFailures = 0;
         scrollPane.reset();
     }
 
@@ -269,8 +275,23 @@ public abstract class AbstractListSectionController implements Initializable {
         var message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
         log.error("Failed to retrieve media list, " + rootCause.getMessage(), throwable);
 
-        if (rootCause instanceof HttpStatusCodeException) {
-            HttpStatusCodeException ex = (HttpStatusCodeException) rootCause;
+        // verify if the parsing of the page failed
+        // if so, ignore this page and load the next one
+        if (rootCause instanceof MediaParsingException) {
+            if (numberOfPageFailures < 2) {
+                log.warn("Media page {} has been skipped due to a parsing error, loading next page", scrollPane.getPage());
+                numberOfPageFailures++;
+                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_INVALID_RESPONSE_RECEIVED)));
+                // force load the next page as this method is currently in the updating state
+                // of the scroll pane, calling the normal load won't do anything
+                scrollPane.forceLoadNewPage();
+                return new Media[0];
+            }
+        }
+
+        // verify if an invalid response was received from the backend
+        // if so, show the status code
+        if (rootCause instanceof HttpStatusCodeException ex) {
             message.set(localeText.get(ListMessage.API_UNAVAILABLE, ex.getStatusCode()));
         }
 

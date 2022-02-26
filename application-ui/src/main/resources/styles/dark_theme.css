@@ -347,9 +347,13 @@
     -fx-background-color: #17181b;
 }
 
-.root .list-section .failed Icon {
+.root .list-section .failed .icon {
     -fx-font-size: 4em;
     -fx-text-fill: #fff;
+}
+
+.root .list-section .failed .button .icon {
+    -fx-font-size: 1em;
 }
 
 .root .list-section .failed Label {

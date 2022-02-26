@@ -18,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class InfiniteScrollPane<T> extends ManageableScrollPane {
@@ -55,6 +54,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     private Pane loader;
     private boolean updating;
     private boolean endOfItems;
+    private boolean forcePageLoad;
     private double lastKnownScrollPosition;
     private Node lastFocusedItem;
     private Thread contentUpdater;
@@ -207,6 +207,20 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
             increasePage();
     }
 
+    /**
+     * Load a new page into the infinite scroll pane.
+     * This method ignores the update state of the scroll pane.
+     */
+    public void forceLoadNewPage() {
+        // lock the loader to prevent any threading conflicts
+        synchronized (loaderLock) {
+            forcePageLoad = true;
+            endOfItems = false;
+        }
+
+        increasePage();
+    }
+
     //endregion
 
     //region Functions
@@ -315,10 +329,13 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
     }
 
     private void onPageChanged() {
-        // check if the content is already being updated
-        // if so, ignore this page change
-        if (updating)
-            return;
+        // lock the loader to prevent any check issues due to threading
+        synchronized (loaderLock) {
+            // check if the content is already being updated
+            // if so, ignore this page change
+            if (updating && !forcePageLoad)
+                return;
+        }
 
         updating = true;
 
@@ -344,13 +361,15 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
                         contentUpdater = new Thread(() -> {
                             // when the total page items is smaller than 10
                             // assume that we have reached the end
-                            if (pageItems.size() < 10)
+                            if (!forcePageLoad && pageItems.size() < 10)
                                 endOfItems = true;
+
+                            forcePageLoad = false;
 
                             var nodes = pageItems.stream()
                                     .map(this::createWrapperForItem)
                                     .filter(Objects::nonNull)
-                                    .collect(Collectors.toList());
+                                    .toList();
 
                             this.items.addAll(nodes);
 

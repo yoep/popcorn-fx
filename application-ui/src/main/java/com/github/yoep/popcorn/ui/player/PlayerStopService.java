@@ -3,11 +3,12 @@ package com.github.yoep.popcorn.ui.player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.ui.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -40,7 +41,7 @@ public class PlayerStopService {
 
     @EventListener
     public void onPlayMedia(PlayMediaEvent event) {
-        this.media = event.getMedia();
+        this.media = event.getSubMediaItem().orElse(event.getMedia());
         this.quality = event.getQuality();
         this.url = event.getUrl();
     }
@@ -110,9 +111,6 @@ public class PlayerStopService {
         if (!isAllowedToClose())
             return;
 
-        // close the player
-        eventPublisher.publishEvent(new ClosePlayerEvent(this));
-
         log.trace("Publishing player stopped event with info: [time: {}, duration: {}]", time, duration);
         eventPublisher.publishEvent(PlayerStoppedEvent.builder()
                 .source(this)
@@ -125,6 +123,12 @@ public class PlayerStopService {
                         .orElse(PlayerStoppedEvent.UNKNOWN))
                 .build());
         torrentStreamService.stopAllStreams();
+
+        // verify if the player needs to be closed
+        if (media instanceof Movie &&
+                (time / (double) duration) > 0.99) {
+            eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO));
+        }
 
         // reset the current known media information
         reset();

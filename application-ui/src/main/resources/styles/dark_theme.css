@@ -347,9 +347,13 @@
     -fx-background-color: #17181b;
 }
 
-.root .list-section .failed Icon {
+.root .list-section .failed .icon {
     -fx-font-size: 4em;
     -fx-text-fill: #fff;
+}
+
+.root .list-section .failed .button .icon {
+    -fx-font-size: 1em;
 }
 
 .root .list-section .failed Label {
@@ -1012,6 +1016,16 @@
     -fx-background-color: rgba(45, 114, 217, 0.5);
 }
 
+.root .player .playing-next:hover .button {
+    -fx-background-color: #2d72d9;
+    -fx-text-fill: #fff;
+}
+
+.root .player .playing-next:hover .button:hover {
+    -fx-background-color: #fff;
+    -fx-text-fill: #1f375f;
+}
+
 .root .player .playing-next .info {
     -fx-text-fill: #fff;
     -fx-padding: 0 10 0 10;
@@ -1043,6 +1057,10 @@
     -fx-font-size: 2.5em;
     -fx-text-fill: #fff;
     -fx-alignment: center;
+}
+
+.root .player .playing-next .button {
+    -fx-padding: 5 15 5 15;
 }
 
 .root .loader .status-text,

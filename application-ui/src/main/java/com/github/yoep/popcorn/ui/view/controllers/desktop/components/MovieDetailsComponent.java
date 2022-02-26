@@ -13,10 +13,10 @@ import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -199,30 +199,36 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @Override
     protected void switchActiveQuality(String quality) {
-        super.switchActiveQuality(quality);
-        switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality));
+        Platform.runLater(() -> {
+            super.switchActiveQuality(quality);
+            switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality));
+        });
     }
 
     @Override
     protected void switchWatched(boolean isWatched) {
-        super.switchWatched(isWatched);
+        Platform.runLater(() -> {
+            super.switchWatched(isWatched);
 
-        if (isWatched) {
-            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
-        } else {
-            watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
-        }
+            if (isWatched) {
+                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
+            } else {
+                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
+            }
+        });
     }
 
     @Override
     protected void switchLiked(boolean isLiked) {
-        super.switchLiked(isLiked);
+        Platform.runLater(() -> {
+            super.switchLiked(isLiked);
 
-        if (isLiked) {
-            favoriteTooltip.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
-        } else {
-            favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
-        }
+            if (isLiked) {
+                favoriteTooltip.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
+            } else {
+                favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
+            }
+        });
     }
 
     @FXML

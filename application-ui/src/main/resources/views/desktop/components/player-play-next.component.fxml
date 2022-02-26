@@ -18,6 +18,7 @@
         <rowConstraints>
             <RowConstraints/>
             <RowConstraints/>
+            <RowConstraints vgrow="ALWAYS" valignment="TOP"/>
             <RowConstraints/>
         </rowConstraints>
         <padding>
@@ -37,5 +38,13 @@
         <Label styleClass="playing-in" text="%player_playing_next" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
         <Label fx:id="playingInCountdown" styleClass="playing-in-countdown" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="1"
                GridPane.rowSpan="2147483647" GridPane.valignment="CENTER"/>
+
+        <!-- Stop button -->
+        <Button GridPane.columnIndex="1" GridPane.rowIndex="3"
+                text="%player_playing_next_stop" onMouseClicked="#onPlayNextStopClicked">
+            <GridPane.margin>
+                <Insets top="10" left="10"/>
+            </GridPane.margin>
+        </Button>
     </GridPane>
 </HBox>

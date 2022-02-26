@@ -107,7 +107,7 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
 
     private void handleInvalidResponseException(UriProvider provider, RestClientException ex) {
         log.error("Failed to parse API response, {}", ex.getMessage(), ex);
-        throw new MediaRetrievalException(provider.getUri(), "Failed to parse API response", ex);
+        throw new MediaParsingException(provider.getUri(), "Failed to parse API response", ex);
     }
 
     private void handleProviderException(UriProvider provider, RestClientException ex) {

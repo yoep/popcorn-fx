@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.PlayNextService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -107,6 +107,13 @@ public class PlayerPlayNextComponent implements Initializable {
     private void onPlayNextClicked(MouseEvent event) {
         event.consume();
         playNextService.playNextEpisodeNow();
+        reset();
+    }
+
+    @FXML
+    void onPlayNextStopClicked(MouseEvent event) {
+        event.consume();
+        playNextService.stop();
         reset();
     }
 

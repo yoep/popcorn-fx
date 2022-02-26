@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @Getter
-@ToString(callSuper = true)
+@ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = true)
 public class Movie extends AbstractMedia {
     private String trailer;

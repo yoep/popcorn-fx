@@ -10,8 +10,10 @@ import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractListS
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayMediaCardComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
+import javafx.scene.input.MouseEvent;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -81,6 +83,13 @@ public class ListSectionController extends AbstractListSectionController impleme
                 }
             }
         };
+    }
+
+    @FXML
+    void onRetryListLoading(MouseEvent event) {
+        event.consume();
+        scrollPane.reset();
+        scrollPane.loadNewPage();
     }
 
     //endregion

@@ -103,6 +103,12 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     }
 
     public void onStop() {
+        // verify if the current status isn't already stopped
+        // if so, ignore the action
+        if (getVideoPlayerState() == VideoState.STOPPED) {
+            return;
+        }
+
         Optional.ofNullable(videoPlayer.get())
                 .ifPresent(VideoPlayback::stop);
         invokeListeners(PlaybackListener::onStop);

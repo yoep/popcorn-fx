@@ -282,6 +282,13 @@ public class FrostTorrent implements Torrent, AlertListener {
         }
 
         handle.prioritizeFiles(filePriorities);
+
+        // wait for jlibtorrent to reflect the change
+        // as of a newer update, the TorrentHandle#prioritizeFiles doesn't wait for thew change to apply
+        // which causes issues when prioritizing pieces
+        while (!Arrays.equals(handle.filePriorities(), filePriorities)) {
+            Thread.onSpinWait();
+        }
     }
 
     private void initializePieces() {

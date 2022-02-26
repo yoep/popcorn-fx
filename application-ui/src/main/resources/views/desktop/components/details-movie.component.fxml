@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
-<?import com.github.yoep.popcorn.ui.subtitles.controls.LanguageFlagSelection?>
+<?import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection?>
 <?import com.github.yoep.popcorn.ui.view.controls.*?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>

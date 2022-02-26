@@ -263,10 +263,12 @@
                 <artifactId>gitflow-maven-plugin</artifactId>
                 <version>1.18.0</version>
                 <configuration>
-                    <gitFlowConfig>
-                        <developmentBranch>master</developmentBranch>
-                        <versionTagPrefix>v</versionTagPrefix>
-                    </gitFlowConfig>
+                    <developmentBranch>master</developmentBranch>
+                    <versionTagPrefix>v</versionTagPrefix>
+                    <verbose>true</verbose>
+                    <versionDigitToIncrement>1</versionDigitToIncrement>
+                    <versionsForceUpdate>true</versionsForceUpdate>
+                    <argLine>-DskipITs -B</argLine>
                 </configuration>
             </plugin>
             <plugin>

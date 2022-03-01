@@ -3,6 +3,8 @@ name: Package
 on:
   workflow_dispatch:
     inputs: {}
+  push:
+    tags: [ '*' ]
 
 jobs:
   package-linux:

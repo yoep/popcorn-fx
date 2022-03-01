@@ -10,6 +10,7 @@ import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -33,15 +34,9 @@ public class PlatformFX implements PlatformProvider {
     @Override
     public void disableScreensaver() {
         switch (platformType()) {
-            case WINDOWS:
-                Win32Utils.disableScreensaver();
-                break;
-            case MAC:
-                MacOsUtils.disableScreensaver();
-                break;
-            default:
-                LinuxUtils.disableScreensaver();
-                break;
+            case WINDOWS -> Win32Utils.disableScreensaver();
+            case MAC -> MacOsUtils.disableScreensaver();
+            default -> LinuxUtils.disableScreensaver();
         }
     }
 
@@ -57,6 +52,13 @@ public class PlatformFX implements PlatformProvider {
     @Override
     public void exit() {
         Platform.exit();
+    }
+
+    @PreDestroy
+    private void onDestroy() {
+        if (platformType() == PlatformType.WINDOWS) {
+            Win32Utils.allowScreensaver();
+        }
     }
 
     private static PlatformType platformType() {

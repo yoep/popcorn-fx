@@ -19,7 +19,7 @@ import com.github.yoep.provider.anime.media.mappers.AnimeMapper;
 import com.github.yoep.provider.anime.media.models.Anime;
 import com.github.yoep.provider.anime.media.models.Item;
 import com.github.yoep.provider.anime.media.models.Nyaa;
-import com.github.yoep.provider.anime.parsers.*;
+import com.github.yoep.provider.anime.parsers.nyaa.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
@@ -220,17 +220,12 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
     }
 
     private static String genreToQueryValue(Genre genre) {
-        switch (genre.getKey()) {
-            case "anime-music-video":
-                return "1_1";
-            case "english-translated":
-                return "1_2";
-            case "non-english-translated":
-                return "1_3";
-            case "raw":
-                return "1_4";
-            default:
-                return "1_0";
-        }
+        return switch (genre.getKey()) {
+            case "anime-music-video" -> "1_1";
+            case "english-translated" -> "1_2";
+            case "non-english-translated" -> "1_3";
+            case "raw" -> "1_4";
+            default -> "1_0";
+        };
     }
 }

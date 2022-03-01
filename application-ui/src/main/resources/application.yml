@@ -118,7 +118,9 @@ popcorn:
         - raw
       sort-by:
         - trending
-        - last added
+        - name
+        - rating
+        - year
     favorites:
       genres:
         - all

@@ -1,9 +1,6 @@
 package com.github.yoep.provider.anime.media.models;
 
-import com.github.yoep.popcorn.backend.media.providers.models.AbstractMedia;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
+import com.github.yoep.popcorn.backend.media.providers.models.*;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -26,8 +23,8 @@ public class Anime extends AbstractMedia {
     @Builder
     public Anime(String nyaaId, List<Episode> episodes, String imdbId, String title, String year,
                  Integer runtime, List<String> genres,
-                 Images images, String synopsis) {
-        super(nyaaId, imdbId, title, year, runtime, genres, null, images, synopsis);
+                 Rating rating, Images images, String synopsis) {
+        super(nyaaId, imdbId, title, year, runtime, genres, rating, images, synopsis);
         Objects.requireNonNull(nyaaId, "nyaaId cannot be null");
         this.nyaaId = nyaaId;
         this.episodes = episodes;

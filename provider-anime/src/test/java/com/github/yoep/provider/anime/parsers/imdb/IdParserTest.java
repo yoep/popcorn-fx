@@ -1,4 +1,4 @@
-package com.github.yoep.provider.anime.imdb.parsers;
+package com.github.yoep.provider.anime.parsers.imdb;
 
 import org.junit.jupiter.api.Test;
 

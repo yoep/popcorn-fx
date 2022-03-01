@@ -1,10 +1,11 @@
-package com.github.yoep.provider.anime.imdb.parsers;
+package com.github.yoep.provider.anime.parsers.imdb;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -15,10 +16,8 @@ public class IdParser {
         Objects.requireNonNull(rawHrefLink, "rawHrefLink cannot be null");
         var matcher = ID_PATTERN.matcher(rawHrefLink);
 
-        if (matcher.find()) {
-            return Optional.of(matcher.group(0));
-        }
-
-        return Optional.empty();
+        return Optional.of(matcher)
+                .filter(Matcher::find)
+                .map(e -> e.group(0));
     }
 }

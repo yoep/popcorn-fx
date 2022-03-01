@@ -38,5 +38,3 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         verbose: true
-        ignore:
-          - ./application-platform/**/*

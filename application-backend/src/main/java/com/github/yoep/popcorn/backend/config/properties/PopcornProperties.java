@@ -15,21 +15,21 @@ import java.util.Map;
 @ConfigurationProperties("popcorn")
 public class PopcornProperties {
     /**
-     * The providers for the available categories in Popcorn Time.
+     * The providers for the available categories in Popcorn FX.
      */
     @Valid
     @NotNull
     private Map<String, ProviderProperties> providers;
 
     /**
-     * The subtitle properties of Popcorn Time.
+     * The subtitle properties of Popcorn FX.
      */
     @Valid
     @NotNull
     private SubtitleProperties subtitle;
 
     /**
-     * The trakt properties for Popcorn Time.
+     * The trakt properties for Popcorn FX.
      */
     @Valid
     @NotNull
@@ -46,6 +46,13 @@ public class PopcornProperties {
      */
     @NotNull
     private String updateChannel;
+
+    /**
+     * The imdb service properties.
+     */
+    @Valid
+    @NotNull
+    private ImdbProperties imdb;
 
     /**
      * Get the provider with the given name.

@@ -13,6 +13,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.ServerSettings;
+import com.github.yoep.provider.anime.imdb.ImdbScraperService;
 import com.github.yoep.provider.anime.media.models.Anime;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,8 @@ class AnimeProviderServiceTest {
     private ProviderProperties providerProperties;
     @Mock
     private TorrentService torrentService;
+    @Mock
+    private ImdbScraperService imdbScraperService;
 
     private AnimeProviderService service;
 
@@ -64,7 +67,7 @@ class AnimeProviderServiceTest {
         when(settingsService.getSettings()).thenReturn(applicationSettings);
         when(popcornConfig.getProvider(Category.ANIME.getProviderName())).thenReturn(providerProperties);
 
-        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService);
+        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService, imdbScraperService);
     }
 
     @Test
@@ -96,7 +99,7 @@ class AnimeProviderServiceTest {
         var expectedUri = new URI(MessageFormat.format("{0}?page=rss&f={1}&c={2}&p={3}", uri, 2, "1_1", page));
         when(providerProperties.getUris()).thenReturn(Collections.singletonList(new URI(uri)));
         when(restTemplate.getForEntity(isA(URI.class), eq(String.class))).thenReturn(ResponseEntity.ok(response));
-        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService);
+        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService, imdbScraperService);
 
         var completableFuture = service.getPage(genre, sortBy, page);
 
@@ -116,7 +119,7 @@ class AnimeProviderServiceTest {
         var expectedUri = new URI(MessageFormat.format("{0}?page=rss&f={1}&c={2}&p={3}", uri, 2, "1_2", page));
         when(providerProperties.getUris()).thenReturn(Collections.singletonList(new URI(uri)));
         when(restTemplate.getForEntity(isA(URI.class), eq(String.class))).thenReturn(ResponseEntity.ok(response));
-        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService);
+        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService, imdbScraperService);
 
         var completableFuture = service.getPage(genre, sortBy, page);
 
@@ -155,7 +158,7 @@ class AnimeProviderServiceTest {
         when(torrentService.getTorrentInfo(expectedTorrentUri)).thenReturn(CompletableFuture.completedFuture(torrentInfo));
         when(torrentInfo.getFiles()).thenReturn(Collections.singletonList(torrentFile));
         when(torrentFile.getFilename()).thenReturn("my filename [720p]");
-        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService);
+        service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService, imdbScraperService);
 
         var completableFuture = service.getDetails(detailId);
 

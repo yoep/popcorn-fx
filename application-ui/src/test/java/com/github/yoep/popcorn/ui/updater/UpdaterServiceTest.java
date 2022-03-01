@@ -15,11 +15,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.autoconfigure.codec.CodecProperties;
 import org.springframework.boot.jackson.JsonComponentModule;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.util.unit.DataSize;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,7 +63,7 @@ class UpdaterServiceTest {
         var objectMapperBuilder = restConfig.jacksonObjectMapperBuilder(asList(
                 new ParameterNamesModule(), new JsonComponentModule(), restConfig.javaTimeModule(), restConfig.jdk8Module()));
 
-        updaterService = new UpdateService(platformProvider, properties, restConfig.webClient(objectMapperBuilder.createXmlMapper(false).build()), storageService, taskExecutor);
+        updaterService = new UpdateService(platformProvider, properties, restConfig.webClient(objectMapperBuilder.createXmlMapper(false).build(), createDefaultCodecProperties()), storageService, taskExecutor);
     }
 
     @Test
@@ -118,7 +120,7 @@ class UpdaterServiceTest {
         verify(platformProvider).exit();
     }
 
-    private PlatformInfo createPlatformInfo() {
+    private static PlatformInfo createPlatformInfo() {
         return new PlatformInfo() {
             @Override
             public PlatformType getType() {
@@ -141,5 +143,14 @@ class UpdaterServiceTest {
         } else {
             throw new IOException("Resource " + name + " doesn't exist");
         }
+    }
+
+    private static CodecProperties createDefaultCodecProperties() {
+        return new CodecProperties() {
+            @Override
+            public DataSize getMaxInMemorySize() {
+                return DataSize.ofMegabytes(20);
+            }
+        };
     }
 }

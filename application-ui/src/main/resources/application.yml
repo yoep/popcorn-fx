@@ -6,6 +6,8 @@ spring:
     lazy-initialization: false
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+  codec:
+    max-in-memory-size: 25MB
 
 server:
   tomcat:
@@ -142,3 +144,5 @@ popcorn:
       pre-established-redirect-uri: http://localhost:9999
       token-name: oauth_token
       use-current-uri: false
+  imdb:
+    url: https://www.imdb.com/

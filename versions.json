@@ -1,25 +1,18 @@
 {
-  "version": "0.0.6",
+  "version": "0.0.7",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6_x86_64.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6_arm64.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6.dmg",
-    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.6/popcorn-time_0.0.6.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.7/popcorn-time_0.0.7_x86_64.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.7/popcorn-time_0.0.7_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.7/popcorn-time_0.0.7.dmg",
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.0.7/popcorn-time_0.0.7.exe"
   },
   "changelog": {
     "features": [
-      "Use system native functions for disabling the screensaver",
-      "Added anime category with media provider",
-      "Added information/about page with additional information about loaded players",
-      "Added Chromecast support",
-      "Refresh the favorites info in the background instead of when it being requested",
-      "Added setting to switch header to native window header",
-      "Added a \"stop\" button to the playing next episode overlay"
+      "Updated the API providers"
     ],
     "bugfixes": [
-      "Player progress bar not showing download progress",
-      "Play next not selecting the correct \"next episode\"",
-      "Movie/Show list scroll position being reset"
+      "Health check interferes when loading the media",
+      "Prevent screen saver not correctly working on windows"
     ]
   }
 }

@@ -6,21 +6,23 @@ import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.frostwire.jlibtorrent.alerts.ScrapeFailedAlert;
 import com.frostwire.jlibtorrent.alerts.ScrapeReplyAlert;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
-import java.util.function.Consumer;
+import java.text.MessageFormat;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @ToString(exclude = "handle")
-@EqualsAndHashCode
+@EqualsAndHashCode(exclude = "handle")
 public class FrostTorrentHealth implements AlertListener {
     @Getter
     private final TorrentHandle handle;
-    private final Consumer<FrostTorrentHealth> onComplete;
+    private final CompletableFuture<FrostTorrentHealth> completableFuture = new CompletableFuture<>();
 
     @Getter
     private int seeds;
@@ -29,13 +31,35 @@ public class FrostTorrentHealth implements AlertListener {
 
     //region Constructors
 
-    public FrostTorrentHealth(TorrentHandle handle, Consumer<FrostTorrentHealth> onComplete) {
-        Assert.notNull(handle, "handle cannot be null");
-        Assert.notNull(onComplete, "onComplete cannot be null");
+    private FrostTorrentHealth(TorrentHandle handle) {
+        Objects.requireNonNull(handle, "handle cannot be null");
         this.handle = handle;
-        this.onComplete = onComplete;
 
         init();
+    }
+
+    //endregion
+
+    //region Methods
+
+    /**
+     * Create a new health instance for the given handle.
+     * The instance will start scraping the handle information to retrieve the health information.
+     * The result of the health scraping from the handle can be retrieved through {@link FrostTorrentHealth#healthFuture()}.
+     *
+     * @return Returns the health instance.
+     */
+    public static FrostTorrentHealth create(TorrentHandle handle) {
+        return new FrostTorrentHealth(handle);
+    }
+
+    /**
+     * Retrieve the {@link CompletableFuture} for this health check.
+     *
+     * @return Returns the future of the health instance.
+     */
+    public CompletableFuture<FrostTorrentHealth> healthFuture() {
+        return completableFuture;
     }
 
     //endregion
@@ -55,18 +79,9 @@ public class FrostTorrentHealth implements AlertListener {
     public void alert(Alert<?> alert) {
         try {
             switch (alert.type()) {
-                case TRACKER_ANNOUNCE:
-                    handle.scrapeTracker();
-                    break;
-                case SCRAPE_REPLY:
-                    onScrapeRetrieved((ScrapeReplyAlert) alert);
-                    break;
-                case SCRAPE_FAILED:
-                    onScrapeFailed((ScrapeFailedAlert) alert);
-                    break;
-                default:
-                    //no-op
-                    break;
+                case TRACKER_ANNOUNCE -> handle.scrapeTracker();
+                case SCRAPE_REPLY -> onScrapeRetrieved((ScrapeReplyAlert) alert);
+                case SCRAPE_FAILED -> onScrapeFailed((ScrapeFailedAlert) alert);
             }
         } catch (Exception ex) {
             log.error("An error occurred while processing an alert, " + ex.getMessage(), ex);
@@ -90,13 +105,16 @@ public class FrostTorrentHealth implements AlertListener {
     }
 
     private void onScrapeFailed(ScrapeFailedAlert alert) {
+        log.warn("Failed to retrieve the health information, {}:{}", alert.error(), alert.errorMessage());
+        completableFuture.completeExceptionally(new TorrentException(MessageFormat.format("Failed to retrieve health information, {0}:{1}",
+                alert.error().value(), alert.error().message())));
     }
 
     private void onComplete() {
         var name = handle.name();
 
         log.debug("Health has been retrieved for \"{}\", {}", name, this);
-        onComplete.accept(this);
+        completableFuture.complete(this);
     }
 
     //endregion

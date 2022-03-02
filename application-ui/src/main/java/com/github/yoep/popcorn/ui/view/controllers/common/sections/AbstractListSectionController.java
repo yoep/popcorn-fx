@@ -298,8 +298,10 @@ public abstract class AbstractListSectionController implements Initializable {
         Platform.runLater(() -> {
             failedText.setText(message.get());
             failedPane.setVisible(true);
+            hideOverlay();
         });
 
+        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ListMessage.RETRIEVAL_FAILED)));
         return new Media[0];
     }
 
@@ -329,6 +331,7 @@ public abstract class AbstractListSectionController implements Initializable {
         } else {
             log.error(throwable.getMessage(), throwable);
             eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
+            Platform.runLater(this::hideOverlay);
         }
     }
 

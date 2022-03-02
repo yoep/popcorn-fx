@@ -319,33 +319,30 @@ public class PopcornPlayerSectionController implements Initializable {
      */
     private void onPlayerKeyReleased(KeyEvent event) {
         switch (event.getCode()) {
-            case SPACE:
-            case P:
+            case SPACE, P -> {
                 sectionService.togglePlayerPlaybackState();
                 event.consume();
-                break;
-            case F11:
+            }
+            case F11 -> {
                 sectionService.toggleFullscreen();
                 event.consume();
-                break;
-            case G:
+            }
+            case G -> {
                 updateSubtitleOffset(event, false);
                 event.consume();
-                break;
-            case H:
+            }
+            case H -> {
                 updateSubtitleOffset(event, true);
                 event.consume();
-                break;
-            case LEFT:
-            case KP_LEFT:
+            }
+            case LEFT, KP_LEFT -> {
                 sectionService.videoTimeOffset(-5000);
                 event.consume();
-                break;
-            case RIGHT:
-            case KP_RIGHT:
+            }
+            case RIGHT, KP_RIGHT -> {
                 sectionService.videoTimeOffset(5000);
                 event.consume();
-                break;
+            }
         }
     }
 

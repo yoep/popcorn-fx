@@ -22,4 +22,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Create release
-      run: mvn -B -Plinux gitflow:release
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@noreply.github.com'
+        mvn -B -Plinux gitflow:release

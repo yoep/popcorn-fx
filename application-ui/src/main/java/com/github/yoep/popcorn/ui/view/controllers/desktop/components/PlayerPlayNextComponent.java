@@ -88,7 +88,7 @@ public class PlayerPlayNextComponent implements Initializable {
 
     private void onPlayingInChanged(long remainingTime) {
         Platform.runLater(() -> {
-            playNextPane.setVisible(true);
+            playNextPane.setVisible(remainingTime != PlayNextService.UNDEFINED);
             playingInCountdown.setText(String.valueOf(remainingTime));
         });
     }

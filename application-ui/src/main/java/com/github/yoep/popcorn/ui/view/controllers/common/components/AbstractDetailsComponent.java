@@ -119,11 +119,12 @@ public abstract class AbstractDetailsComponent<T extends Media> {
 
         // request the real-time health
         healthService.getTorrentHealth(torrentInfo.getUrl()).whenComplete((torrentHealth, throwable) -> {
+            this.health.setUpdating(false);
+
             if (throwable == null) {
                 updateHealthIcon(torrentHealth);
-                this.health.setUpdating(false);
             } else if (!(throwable instanceof CancellationException)) {
-                removeHealthState();
+                // do not remove the health state, keep the original info from the API
                 log.error("Failed to retrieve health info, " + throwable.getMessage(), throwable);
             }
         });

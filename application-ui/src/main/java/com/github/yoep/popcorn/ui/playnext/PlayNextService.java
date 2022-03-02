@@ -27,7 +27,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * The {@link PlayNextService} is responsible for determining if the playing next should be activated for the current playback.
@@ -40,6 +39,10 @@ public class PlayNextService {
     public static final String NEXT_EPISODE_PROPERTY = "nextEpisode";
     public static final String PLAYING_IN_PROPERTY = "playingIn";
     public static final int COUNTDOWN_FROM = 60;
+    /**
+     * Indicates that there is currently no play next event available.
+     */
+    public static final int UNDEFINED = -1;
 
     private final ApplicationEventPublisher eventPublisher;
     private final PlayerEventService playerEventService;
@@ -201,7 +204,7 @@ public class PlayNextService {
                 .orElseThrow(() -> new MediaException("Expected an episode media item to be present"));
         var sortedEpisodes = show.getEpisodes().stream()
                 .sorted()
-                .collect(Collectors.toList());
+                .toList();
         var nextEpisodeIndex = sortedEpisodes.indexOf(episode) + 1;
 
         if (nextEpisodeIndex < sortedEpisodes.size()) {
@@ -248,7 +251,7 @@ public class PlayNextService {
         this.quality = null;
         this.duration = 0;
         this.nextEpisode.set(null);
-        this.playingIn.set(Long.MAX_VALUE);
+        this.playingIn.set(UNDEFINED);
     }
 
     private boolean isPlayNextDisabled() {

@@ -11,7 +11,7 @@
 
     <groupId>com.github.yoep</groupId>
     <artifactId>popcorn-fx</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <name>Popcorn FX</name>
     <packaging>pom</packaging>
 

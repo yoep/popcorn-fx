@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
@@ -41,7 +42,7 @@
             <vgap>2</vgap>
             <hgap>2</hgap>
             <padding>
-                <Insets topRightBottomLeft="10" />
+                <Insets topRightBottomLeft="10"/>
             </padding>
 
             <!-- Percentage -->
@@ -63,7 +64,16 @@
                    GridPane.columnIndex="1" GridPane.rowIndex="3"/>
         </GridPane>
 
-        <!-- Cancel -->
-        <Button text="%torrent_cancel" onMouseClicked="#onCancelClicked"/>
+        <!-- Actions -->
+        <HBox fx:id="loaderActions" alignment="CENTER" spacing="5">
+            <Button fx:id="loadRetryButton" text="%torrent_retry" onMouseClicked="#onRetryClicked">
+                <graphic>
+                    <Icon>
+                        <Icon fx:constant="REFRESH_UNICODE"/>
+                    </Icon>
+                </graphic>
+            </Button>
+            <Button text="%torrent_cancel" onMouseClicked="#onCancelClicked"/>
+        </HBox>
     </VBox>
 </GridPane>

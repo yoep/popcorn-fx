@@ -19,7 +19,7 @@ import java.util.Optional;
  * This is effectively a wrapper around the {@link SubtitleIndex} objects which contain the actual parsed data and a reference to the original
  * {@link SubtitleInfo} from which this {@link Subtitle} was generated.
  */
-@ToString
+@ToString(exclude = "indexes")
 @EqualsAndHashCode
 public class Subtitle implements Serializable {
     public static final String INDEXES_PROPERTY = "indexes";

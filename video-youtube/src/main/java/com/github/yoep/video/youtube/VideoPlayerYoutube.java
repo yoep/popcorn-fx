@@ -323,21 +323,11 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
         public void state(String state) {
             switch (state) {
-                case "playing":
-                    setVideoState(VideoState.PLAYING);
-                    break;
-                case "paused":
-                    setVideoState(VideoState.PAUSED);
-                    break;
-                case "ended":
-                    setVideoState(VideoState.STOPPED);
-                    break;
-                case "buffering":
-                    setVideoState(VideoState.BUFFERING);
-                    break;
-                default:
-                    setVideoState(VideoState.UNKNOWN);
-                    break;
+                case "playing" -> setVideoState(VideoState.PLAYING);
+                case "paused" -> setVideoState(VideoState.PAUSED);
+                case "ended" -> setVideoState(VideoState.STOPPED);
+                case "buffering" -> setVideoState(VideoState.BUFFERING);
+                default -> setVideoState(VideoState.UNKNOWN);
             }
         }
 

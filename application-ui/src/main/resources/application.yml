@@ -34,7 +34,6 @@ popcorn:
         - https://movies-v2.api-fetch.sh
         - https://movies-v2.api-fetch.am
         - https://movies-v2.api-fetch.website
-        - https://popcorn-ru.tk
         - https://popcorn-time.ga
       genres:
         - all
@@ -72,7 +71,6 @@ popcorn:
         - https://tv-v2.api-fetch.sh
         - https://tv-v2.api-fetch.am
         - https://tv-v2.api-fetch.website
-        - https://popcorn-ru.tk
         - https://popcorn-time.ga
       genres:
         - all

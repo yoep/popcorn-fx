@@ -28,7 +28,11 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public void runOnRenderer(Runnable runnable) {
-        Platform.runLater(runnable);
+        if (Platform.isFxApplicationThread()) {
+            runnable.run();
+        } else {
+            Platform.runLater(runnable);
+        }
     }
 
     @Override

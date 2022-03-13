@@ -1,108 +1,239 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
-import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractLoaderTorrentComponent;
+import com.github.yoep.popcorn.ui.torrent.utils.SizeUtils;
+import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import javafx.application.Platform;
+import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.task.TaskExecutor;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import javax.annotation.PostConstruct;
+import java.net.URL;
+import java.util.ResourceBundle;
 
 @Slf4j
-public class LoaderTorrentComponent extends AbstractLoaderTorrentComponent {
+@ViewController
+@RequiredArgsConstructor
+public class LoaderTorrentComponent implements Initializable {
+    static final String PROGRESS_ERROR_STYLE_CLASS = "error";
 
-    //region Constructors
+    private final LoadTorrentService service;
+    private final PlatformProvider platformProvider;
+    private final LocaleText localeText;
+    private final ImageService imageService;
 
-    public LoaderTorrentComponent(LocaleText localeText, TorrentService torrentService, TorrentStreamService torrentStreamService,
-                                  ApplicationEventPublisher eventPublisher, ImageService imageService, SubtitleService subtitleService,
-                                  TaskExecutor taskExecutor, SettingsService settingsService) {
-        super(localeText, torrentService, torrentStreamService, eventPublisher, imageService, subtitleService, taskExecutor, settingsService);
+    @FXML
+    Pane loaderActions;
+    @FXML
+    Label progressPercentage;
+    @FXML
+    Label downloadText;
+    @FXML
+    Label uploadText;
+    @FXML
+    Label activePeersText;
+    @FXML
+    Pane progressStatus;
+    @FXML
+    BackgroundImageCover backgroundImage;
+    @FXML
+    Label statusText;
+    @FXML
+    ProgressBar progressBar;
+    @FXML
+    Button loadRetryButton;
+
+    //region Initializable
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeProgressBar();
+        initializeRetryButton();
+    }
+
+    private void initializeProgressBar() {
+        progressBar.setProgress(0.0);
+        progressBar.setVisible(false);
+    }
+
+    private void initializeRetryButton() {
+        removeRetryButton();
     }
 
     //endregion
 
-    //region Methods
+    //region Init
 
-    @EventListener
-    public void onLoadMediaTorrent(LoadMediaTorrentEvent event) {
-        startTorrent(event);
-    }
+    @PostConstruct
+    void init() {
+        service.addListener(new LoadTorrentListener() {
+            @Override
+            public void onStateChanged(State newState) {
+                LoaderTorrentComponent.this.onStateChanged(newState);
+            }
 
-    @EventListener
-    public void onLoadUrlTorrent(LoadUrlTorrentEvent event) {
-        startTorrent(event);
+            @Override
+            public void onMediaChanged(Media media) {
+                LoaderTorrentComponent.this.onMediaChanged(media);
+            }
+
+            @Override
+            public void onDownloadStatusChanged(DownloadStatus status) {
+                LoaderTorrentComponent.this.onDownloadStatusChanged(status);
+            }
+        });
     }
 
     //endregion
 
     //region Functions
 
-    private void startTorrent(LoadUrlTorrentEvent activity) {
-        log.debug("Starting url torrent stream for {}", activity.getTorrentFileInfo().getFilename());
-        var filename = activity.getTorrentFileInfo().getFilename();
-        var torrentSettings = getTorrentSettings();
-        this.title = filename;
+    private void onStateChanged(LoadTorrentListener.State newState) {
+        removeRetryButton();
 
-
-        this.torrentThread = new Thread(() -> {
-            // reset the progress bar to "infinite" animation
-            resetProgress();
-            Platform.runLater(() -> {
-                progressStatus.setVisible(false);
-                statusText.setText(localeText.get(TorrentMessage.STARTING));
-            });
-
-            // check if the torrent stream is initialized, of not, wait for it to be initialized before proceeding
-            if (torrentService.getSessionState() != SessionState.RUNNING)
-                waitForTorrentStream();
-
-            // update the status to retrieving subtitles and request the subtitles for the filename
-            Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES)));
-            retrieveSubtitles(filename);
-
-            // download the default subtitle that was determined in the last step
-            downloadSubtitles(filename);
-
-            // update the status text to "connecting"
-            Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
-
-            log.trace("Calling torrent service stream for \"{}\"", filename);
-            torrentService.create(activity.getTorrentFileInfo(), torrentSettings.getDirectory(), true).whenComplete(this::onTorrentCreated);
-        });
-
-        taskExecutor.execute(this.torrentThread);
-    }
-
-    private void retrieveSubtitles(String filename) {
-        // retrieve the subtitles for the filename and update the subtitle to the default one
-        try {
-            var subtitles = subtitleService
-                    .retrieveSubtitles(filename)
-                    .get(10, TimeUnit.SECONDS);
-
-            subtitleInfo = subtitleService.getDefault(subtitles);
-        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
-            log.warn(ex.getMessage(), ex);
+        switch (newState) {
+            case INITIALIZING -> onLoadTorrentInitializing();
+            case STARTING -> onLoadTorrentStarting();
+            case RETRIEVING_SUBTITLES -> onLoadTorrentRetrievingSubtitles();
+            case DOWNLOADING_SUBTITLE -> onLoadTorrentDownloadingSubtitle();
+            case CONNECTING -> onLoadTorrentConnecting();
+            case DOWNLOADING -> onLoadTorrentDownloading();
+            case READY -> onLoadTorrentReady();
+            case ERROR -> onLoadTorrentError();
         }
     }
 
+    private void onMediaChanged(Media media) {
+        loadBackgroundImage(media);
+    }
+
+    private void onDownloadStatusChanged(DownloadStatus status) {
+        platformProvider.runOnRenderer(() -> {
+            progressStatus.setVisible(true);
+            progressBar.setProgress(status.getProgress());
+            progressBar.setVisible(true);
+            statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
+            progressPercentage.setText(String.format("%1$,.2f", status.getProgress() * 100) + "%");
+            downloadText.setText(SizeUtils.toDisplaySize(status.getDownloadSpeed()) + "/s");
+            uploadText.setText(SizeUtils.toDisplaySize(status.getUploadSpeed()) + "/s");
+            activePeersText.setText(String.valueOf(status.getSeeds()));
+        });
+    }
+
+    private void onLoadTorrentStarting() {
+        // reset the progress bar to "infinite" animation
+        reset();
+
+        platformProvider.runOnRenderer(() -> {
+            progressStatus.setVisible(false);
+            statusText.setText(localeText.get(TorrentMessage.STARTING));
+        });
+    }
+
+    private void onLoadTorrentInitializing() {
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
+    }
+
+    private void onLoadTorrentRetrievingSubtitles() {
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES)));
+    }
+
+    private void onLoadTorrentDownloadingSubtitle() {
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE)));
+    }
+
+    private void onLoadTorrentConnecting() {
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
+    }
+
+    private void onLoadTorrentDownloading() {
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING)));
+    }
+
+    private void onLoadTorrentReady() {
+        platformProvider.runOnRenderer(() -> {
+            statusText.setText(localeText.get(TorrentMessage.READY));
+            progressBar.setProgress(1);
+            progressBar.setVisible(true);
+        });
+    }
+
+    private void onLoadTorrentError() {
+        platformProvider.runOnRenderer(() -> {
+            // update the actions with the retry button
+            loaderActions.getChildren().add(0, loadRetryButton);
+
+            statusText.setText(localeText.get(TorrentMessage.FAILED));
+            progressBar.setProgress(1);
+            progressBar.setVisible(true);
+            progressBar.getStyleClass().add(PROGRESS_ERROR_STYLE_CLASS);
+        });
+    }
+
+    private void reset() {
+        platformProvider.runOnRenderer(() -> {
+            statusText.setText(null);
+            progressBar.getStyleClass().removeIf(e -> e.equals(PROGRESS_ERROR_STYLE_CLASS));
+        });
+
+        resetProgressToDefaultState();
+        removeRetryButton();
+    }
+
+    private void resetProgressToDefaultState() {
+        platformProvider.runOnRenderer(() -> {
+            progressBar.setProgress(0.0);
+            progressBar.setVisible(false);
+            progressBar.getStyleClass().removeIf(e -> e.equals(PROGRESS_ERROR_STYLE_CLASS));
+        });
+    }
+
+    private void removeRetryButton() {
+        platformProvider.runOnRenderer(() -> loaderActions.getChildren().removeIf(e -> e == loadRetryButton));
+    }
+
+    private void loadBackgroundImage(Media media) {
+        platformProvider.runOnRenderer(() -> backgroundImage.reset());
+        imageService.loadFanart(media).whenComplete((bytes, throwable) -> {
+            if (throwable == null) {
+                platformProvider.runOnRenderer(() ->
+                        bytes.ifPresent(e -> backgroundImage.setBackgroundImage(e)));
+            } else {
+                log.error(throwable.getMessage(), throwable);
+            }
+        });
+    }
+
+    private void close() {
+        log.debug("Cancelling torrent loader");
+        service.cancel();
+        reset();
+    }
+
     @FXML
-    private void onCancelClicked() {
+    private void onCancelClicked(MouseEvent event) {
+        event.consume();
         close();
+    }
+
+    @FXML
+    void onRetryClicked(MouseEvent event) {
+        event.consume();
+        service.retryLoadingTorrent();
     }
 
     //endregion

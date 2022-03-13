@@ -1,4 +1,4 @@
-name: Release
+name: Create hotfix
 
 on:
   workflow_dispatch:
@@ -21,8 +21,5 @@ jobs:
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-maven-
-    - name: Create release
-      run: |
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'actions@noreply.github.com'
-        xvfb-run mvn -B -Plinux gitflow:release
+    - name: Create hotfix
+      run: xvfb-run mvn -B -Plinux gitflow:hotfix-start -DuseSnapshotInHotfix=true -DversionsForceUpdate=true -DpushRemote=true

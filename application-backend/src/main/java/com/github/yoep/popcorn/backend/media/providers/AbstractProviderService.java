@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Abstract implementation of {@link ProviderService}.
@@ -131,7 +130,7 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
             // add all available uri from the provider config to the uri providers
             var newUriProviders = providerConfig.getUris().stream()
                     .map(DefaultUriProvider::from)
-                    .collect(Collectors.toList());
+                    .toList();
 
             uriProviders.addAll(newUriProviders);
         }

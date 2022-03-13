@@ -233,6 +233,7 @@ public class LoaderTorrentComponent implements Initializable {
     @FXML
     void onRetryClicked(MouseEvent event) {
         event.consume();
+        service.retryLoadingTorrent();
     }
 
     //endregion

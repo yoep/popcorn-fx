@@ -40,6 +40,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -113,6 +114,15 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
 
         subtitleService.setActiveSubtitle(Subtitle.none());
         eventPublisher.publishEvent(new CloseLoadEvent(this));
+    }
+
+    /**
+     * Retry the last load event.
+     * If no event is stored, the retry will be ignored.
+     */
+    public void retryLoadingTorrent() {
+        Optional.ofNullable(event)
+                .ifPresent(eventPublisher::publishEvent);
     }
 
     //endregion

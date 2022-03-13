@@ -92,6 +92,26 @@ class LoadTorrentServiceTest {
     }
 
     @Test
+    void testRetryLoadingTorrent_whenPreviousLoadFailed_shouldPublishEventAgain() {
+        var torrentMagnet = "magnet://my-retrying-torrent";
+        var event = LoadMediaTorrentEvent.builder()
+                .source(this)
+                .torrent(MediaTorrentInfo.builder()
+                        .url(torrentMagnet)
+                        .build())
+                .quality("720p")
+                .media(Movie.builder().build())
+                .build();
+        when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
+        when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(new CompletableFuture<>());
+
+        service.onLoadMediaTorrent(event);
+        service.retryLoadingTorrent();
+
+        verify(eventPublisher).publishEvent(event);
+    }
+
+    @Test
     void testOnLoadMediaTorrent_whenDefaultSubtitleIsAvailable_shouldActivateSubtitle() {
         var torrentInfo = mock(TorrentInfo.class);
         var torrent = mock(Torrent.class);

@@ -54,7 +54,7 @@ jobs:
       - name: Prepare packaging
         run: mvn -B clean -Pwindows
       - name: Package
-        run: xvfb-run mvn -B install -DskipITs -Pwindows
+        run: mvn -B install -DskipITs -Pwindows
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -80,7 +80,7 @@ jobs:
       - name: Prepare packaging
         run: mvn -B clean -Pmacosx
       - name: Package
-        run: xvfb-run mvn -B install -DskipITs -Pmacosx
+        run: mvn -B install -DskipITs -Pmacosx
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:

@@ -3,7 +3,6 @@ package com.github.yoep.torrent.frostwire;
 import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentUrlException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.torrent.frostwire.wrappers.TorrentInfoWrapper;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -14,10 +13,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 
-@RequiredArgsConstructor
-public class TorrentResolverService {
-    private final TorrentSessionManager sessionManager;
-    private final HttpClient httpClient;
+public record TorrentResolverService(TorrentSessionManager sessionManager, HttpClient httpClient) {
+    private static final String MAGNET_IDENTIFIER = "magnet";
+    private static final String FILE_IDENTIFIER = "file";
 
     //region Methods
 
@@ -105,19 +103,19 @@ public class TorrentResolverService {
         }
     }
 
-    private boolean isMagnetUrl(String url) {
-        return url.startsWith("magnet");
+    private static boolean isMagnetUrl(String url) {
+        return url.startsWith(MAGNET_IDENTIFIER);
     }
 
-    private boolean isHttpUrl(String url) {
+    private static boolean isHttpUrl(String url) {
         return url.startsWith("http") || url.startsWith("https");
     }
 
-    private boolean isFileUrl(String url) {
-        return url.startsWith("file");
+    private static boolean isFileUrl(String url) {
+        return url.startsWith(FILE_IDENTIFIER);
     }
 
-    private TorrentInfoWrapper toTorrentInfoWrapper(com.frostwire.jlibtorrent.TorrentInfo info) {
+    private static TorrentInfoWrapper toTorrentInfoWrapper(com.frostwire.jlibtorrent.TorrentInfo info) {
         return new TorrentInfoWrapper(info);
     }
 

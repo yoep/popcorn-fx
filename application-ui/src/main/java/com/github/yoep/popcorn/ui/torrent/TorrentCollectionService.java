@@ -16,7 +16,7 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class TorrentCollectionService {
-    private static final String STORAGE_NAME = "torrent-collection.json";
+    static final String STORAGE_NAME = "torrent-collection.json";
 
     private final StorageService storageService;
 

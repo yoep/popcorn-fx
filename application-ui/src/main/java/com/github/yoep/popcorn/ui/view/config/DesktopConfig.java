@@ -3,8 +3,6 @@ package com.github.yoep.popcorn.ui.view.config;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -110,28 +108,6 @@ public class DesktopConfig {
                                                            TorrentCollectionService torrentCollectionService,
                                                            LocaleText localeText) {
         return new DetailsTorrentComponent(eventPublisher, torrentCollectionService, localeText);
-    }
-
-    @Bean
-    public LoaderTorrentComponent loaderTorrentComponent(LocaleText localeText,
-                                                         TorrentService torrentService,
-                                                         TorrentStreamService torrentStreamService,
-                                                         ApplicationEventPublisher eventPublisher,
-                                                         ImageService imageService,
-                                                         SubtitleService subtitleService,
-                                                         TaskExecutor taskExecutor,
-                                                         SettingsService settingsService) {
-        return new LoaderTorrentComponent(localeText, torrentService, torrentStreamService, eventPublisher, imageService, subtitleService, taskExecutor,
-                settingsService);
-    }
-
-    @Bean
-    public LoaderUrlComponent loaderUrlComponent(LocaleText localeText,
-                                                 TorrentService torrentService,
-                                                 TorrentStreamService torrentStreamService,
-                                                 ApplicationEventPublisher eventPublisher,
-                                                 TaskExecutor taskExecutor) {
-        return new LoaderUrlComponent(localeText, torrentService, torrentStreamService, eventPublisher, taskExecutor);
     }
 
     @Bean

@@ -73,26 +73,18 @@ public class TorrentServiceImpl implements TorrentService {
         var session = sessionManager.getSession();
         var completableFuture = new CompletableFuture<TorrentHealth>();
         var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
-        var torrentHealth = new FrostTorrentHealth(handle, health -> completableFuture.complete(calculateHealth(health.getSeeds(), health.getPeers())));
+        var torrentHealth = FrostTorrentHealth.create(handle);
 
-        completableFuture.whenComplete((health, throwable) -> {
-            var healthHandle = torrentHealth.getHandle();
+        torrentHealth.healthFuture()
+                .whenComplete((health, throwable) -> {
+                    session.removeListener(torrentHealth);
 
-            // check if we need to remove the handle from the session
-            if (healthHandle != null && isDeletable(healthHandle)) {
-                var name = healthHandle.name();
-
-                // pause the handle for deletion
-                handle.pause();
-
-                // delete the handle
-                session.remove(healthHandle);
-                log.debug("Torrent health handle \"{}\" has been removed from the torrent session", name);
-            }
-
-            session.removeListener(torrentHealth);
-        });
-
+                    if (throwable == null) {
+                        completableFuture.complete(calculateHealth(health.getSeeds(), health.getPeers()));
+                    } else {
+                        completableFuture.completeExceptionally(throwable);
+                    }
+                });
         session.addListener(torrentHealth);
 
         return completableFuture;
@@ -158,30 +150,17 @@ public class TorrentServiceImpl implements TorrentService {
 
         // weight the above metrics differently
         // ratio is weighted 60% whilst seeders is 40%
-        double weightedRatio = normalizedRatio * 0.6;
-        double weightedSeeds = normalizedSeeds * 0.4;
-        double weightedTotal = weightedRatio + weightedSeeds;
-
-        int scaledTotal = (int) (weightedTotal * 3 / 100);
-        TorrentHealthState healthState;
-
-        switch (scaledTotal) {
-            case 0:
-                healthState = TorrentHealthState.BAD;
-                break;
-            case 1:
-                healthState = TorrentHealthState.MEDIUM;
-                break;
-            case 2:
-                healthState = TorrentHealthState.GOOD;
-                break;
-            case 3:
-                healthState = TorrentHealthState.EXCELLENT;
-                break;
-            default:
-                healthState = TorrentHealthState.UNKNOWN;
-                break;
-        }
+        var weightedRatio = normalizedRatio * 0.6;
+        var weightedSeeds = normalizedSeeds * 0.4;
+        var weightedTotal = weightedRatio + weightedSeeds;
+        var scaledTotal = (int) (weightedTotal * 3 / 100);
+        var healthState = switch (scaledTotal) {
+            case 0 -> TorrentHealthState.BAD;
+            case 1 -> TorrentHealthState.MEDIUM;
+            case 2 -> TorrentHealthState.GOOD;
+            case 3 -> TorrentHealthState.EXCELLENT;
+            default -> TorrentHealthState.UNKNOWN;
+        };
 
         return new TorrentHealthImpl(healthState, ratio, seeds, peers);
     }

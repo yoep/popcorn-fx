@@ -26,7 +26,7 @@ jobs:
       - name: Prepare packaging
         run: mvn -B clean -Plinux
       - name: Package
-        run: mvn -B install -DskipITs -Plinux
+        run: xvfb-run mvn -B install -DskipITs -Plinux
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:

@@ -1,78 +1,103 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
-import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
-import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
-import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import javafx.application.Platform;
+import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
+import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.task.TaskExecutor;
+
+import javax.annotation.PostConstruct;
 
 @Slf4j
-public class LoaderUrlComponent extends AbstractLoaderComponent {
-    private final ApplicationEventPublisher eventPublisher;
-    private final TaskExecutor taskExecutor;
+@ViewController
+@RequiredArgsConstructor
+public class LoaderUrlComponent {
+    static final String PROGRESS_ERROR_STYLE_CLASS = "error";
 
-    private Thread torrentThread;
+    private final LoadTorrentService service;
+    private final LocaleText localeText;
+    private final PlatformProvider platformProvider;
 
-    //region Constructors
+    @FXML
+    Label statusText;
+    @FXML
+    ProgressBar progressBar;
 
-    public LoaderUrlComponent(LocaleText localeText, TorrentService torrentService, TorrentStreamService torrentStreamService,
-                              ApplicationEventPublisher eventPublisher, TaskExecutor taskExecutor) {
-        super(localeText, torrentService, torrentStreamService);
-        this.eventPublisher = eventPublisher;
-        this.taskExecutor = taskExecutor;
-    }
+    //region Init
 
-    //endregion
+    @PostConstruct
+    void init() {
+        service.addListener(new LoadTorrentListener() {
+            @Override
+            public void onStateChanged(State newState) {
+                LoaderUrlComponent.this.onStateChanged(newState);
+            }
 
-    //region Methods
+            @Override
+            public void onMediaChanged(Media media) {
+                // no-op
+            }
 
-    @EventListener
-    public void onLoadUrl(LoadUrlEvent event) {
-        var magnetUri = event.getUrl();
-
-        this.torrentThread = new Thread(() -> {
-            // reset the progress bar to infinite
-            resetProgress();
-
-            // check if the torrent stream is initialized, of not, wait for it to be initialized before proceeding
-            if (torrentService.getSessionState() != SessionState.RUNNING)
-                waitForTorrentStream();
-
-            // update the status text to "connecting"
-            Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
-
-            log.debug("Resolving torrent information for \"{}\"", magnetUri);
-            torrentService.getTorrentInfo(magnetUri).whenComplete((torrentInfo, throwable) -> {
-                if (throwable == null) {
-                    eventPublisher.publishEvent(new ShowTorrentDetailsEvent(this, magnetUri, torrentInfo));
-                } else {
-                    log.error("Failed to retrieve torrent, " + throwable.getMessage(), throwable);
-                    updateProgressToErrorState();
-                }
-            });
+            @Override
+            public void onDownloadStatusChanged(DownloadStatus status) {
+                // no-op
+            }
         });
-
-        taskExecutor.execute(this.torrentThread);
     }
 
     //endregion
 
     //region Functions
 
-    private void close() {
-        if (torrentThread != null && torrentThread.isAlive())
-            torrentThread.interrupt();
+    private void onStateChanged(LoadTorrentListener.State newState) {
+        switch (newState) {
+            case INITIALIZING -> onLoadTorrentInitializing();
+            case STARTING -> onLoadTorrentStarting();
+            case CONNECTING -> onLoadTorrentConnecting();
+            case ERROR -> onLoadTorrentError();
+        }
+    }
 
-        eventPublisher.publishEvent(new CloseLoadEvent(this));
+    private void onLoadTorrentInitializing() {
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
+    }
+
+    private void onLoadTorrentStarting() {
+        reset();
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.STARTING)));
+    }
+
+    private void onLoadTorrentConnecting() {
+        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
+    }
+
+    private void onLoadTorrentError() {
+        platformProvider.runOnRenderer(() -> {
+            statusText.setText(localeText.get(TorrentMessage.FAILED));
+            progressBar.setProgress(1);
+            progressBar.setVisible(true);
+            progressBar.getStyleClass().add(PROGRESS_ERROR_STYLE_CLASS);
+        });
+    }
+
+    private void reset() {
+        platformProvider.runOnRenderer(() -> {
+            statusText.setText(null);
+            progressBar.getStyleClass().removeIf(e -> e.equals(PROGRESS_ERROR_STYLE_CLASS));
+        });
+    }
+
+    private void close() {
+        reset();
+        service.cancel();
     }
 
     @FXML

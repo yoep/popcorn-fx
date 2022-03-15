@@ -13,7 +13,6 @@ import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.player.model.StreamPlayRequest;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,9 +77,6 @@ public class PlayerPlayService {
                 .quality(event.getQuality())
                 .media(event.getMedia())
                 .subMediaItem(event.getSubMediaItem().orElse(null))
-                .subtitle(event.getSubtitle()
-                        .flatMap(Subtitle::getSubtitleInfo)
-                        .orElse(null))
                 .autoResumeTimestamp(autoResumeService.getResumeTimestamp(event.getMedia().getId(), filename).orElse(null))
                 .torrentStream(event.getTorrentStream())
                 .build());

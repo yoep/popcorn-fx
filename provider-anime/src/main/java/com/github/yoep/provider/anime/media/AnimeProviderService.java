@@ -19,7 +19,10 @@ import com.github.yoep.provider.anime.media.mappers.AnimeMapper;
 import com.github.yoep.provider.anime.media.models.Anime;
 import com.github.yoep.provider.anime.media.models.Item;
 import com.github.yoep.provider.anime.media.models.Nyaa;
-import com.github.yoep.provider.anime.parsers.nyaa.*;
+import com.github.yoep.provider.anime.parsers.nyaa.EpisodeParser;
+import com.github.yoep.provider.anime.parsers.nyaa.IdParser;
+import com.github.yoep.provider.anime.parsers.nyaa.QualityParser;
+import com.github.yoep.provider.anime.parsers.nyaa.TitleParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
@@ -102,37 +105,15 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
 
     public Page<Anime> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         return imdbScraperService.retrievePage(genre, sortBy, page, keywords);
-
-//        return invokeWithUriProvider(apiUri -> {
-//            var uri = buildSearchRequestUri(apiUri, genre, sortBy, keywords, page);
-//
-//            log.debug("Retrieving anime provider page \"{}\"", uri);
-//            var response = restTemplate.getForEntity(uri, String.class);
-//
-//            if (response.hasBody()) {
-//                var document = parseXmlResponse(response.getBody());
-//                var items = document.getChannel().getItems();
-//
-//                if (items != null) {
-//                    return new PageImpl<>(items.stream()
-//                            .map(e -> Anime.builder()
-//                                    .nyaaId(e.getTitle())
-//                                    .imdbId(IdParser.extractId(e.getGuid()))
-//                                    .title(TitleParser.normaliseTitle(e.getTitle()))
-//                                    .year(DateParser.convertDateToYear(e.getPubDate()))
-//                                    .build())
-//                            .collect(Collectors.toList()));
-//                }
-//            }
-//
-//            return Page.empty();
-//        });
     }
 
     private Anime getDetailsInternal(String imdbId) {
+        // retrieve the imdb details first
+        var anime = imdbScraperService.retrieveDetails(imdbId);
+
         return invokeWithUriProvider(apiUri -> {
             var genre = new Genre(Genre.ALL_KEYWORD, "");
-            var uri = buildSearchRequestUri(apiUri, genre, null, imdbId, 1);
+            var uri = buildSearchRequestUri(apiUri, genre, null, anime.getTitle(), 1);
 
             log.debug("Retrieving anime provider details of \"{}\"", uri);
             var response = restTemplate.getForEntity(uri, String.class);
@@ -141,20 +122,17 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
                 var document = parseXmlResponse(response.getBody());
                 var items = document.getChannel().getItems();
 
-                if (items != null && items.size() == 1) {
+                if (items != null && items.size() >= 1) {
                     var item = items.get(0);
                     var id = IdParser.extractId(item.getGuid());
                     var torrentInfo = retrieveTorrentData(item);
 
-                    return Anime.builder()
+                    return Anime.copy(anime)
                             .nyaaId(id)
-                            .imdbId(id)
-                            .title(TitleParser.normaliseTitle(item.getTitle()))
-                            .year(DateParser.convertDateToYear(item.getPubDate()))
                             .episodes(extractEpisodesFromTorrentInfo(item.getLink(), torrentInfo))
                             .build();
                 } else {
-                    throw new MediaException("Could not find the details of the given media");
+                    return anime;
                 }
             } else {
                 throw new MediaException("No details response available for " + uri);

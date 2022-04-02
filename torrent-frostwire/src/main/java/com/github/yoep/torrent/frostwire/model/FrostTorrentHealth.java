@@ -105,9 +105,12 @@ public class FrostTorrentHealth implements AlertListener {
     }
 
     private void onScrapeFailed(ScrapeFailedAlert alert) {
-        log.warn("Failed to retrieve the health information, {}:{}", alert.error(), alert.errorMessage());
+        var code = alert.error().value();
+        var message = alert.errorMessage();
+
+        log.warn("Failed to retrieve the health information, {}:{}", code, message);
         completableFuture.completeExceptionally(new TorrentException(MessageFormat.format("Failed to retrieve health information, {0}:{1}",
-                alert.error().value(), alert.error().message())));
+                code, message)));
     }
 
     private void onComplete() {

@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -89,43 +88,28 @@ class AnimeProviderServiceTest {
     }
 
     @Test
-    void testGetPage_whenGenreIsAnimeMusicVideo_shouldRetrieveAnimeDataForTheGenre()
-            throws URISyntaxException, IOException, ExecutionException, InterruptedException {
+    void testGetPage_whenGenreIsAnimeMusicVideo_shouldRetrieveAnimeDataFromImdb() {
         var genre = new Genre("anime-music-video", "lorem");
         var sortBy = new SortBy("popular", "ipsum");
         var page = 1;
-        var response = getResourceHtml("overview.xml");
-        var uri = "https://www.default-api.com";
-        var expectedUri = new URI(MessageFormat.format("{0}?page=rss&f={1}&c={2}&p={3}", uri, 2, "1_1", page));
-        when(providerProperties.getUris()).thenReturn(Collections.singletonList(new URI(uri)));
-        when(restTemplate.getForEntity(isA(URI.class), eq(String.class))).thenReturn(ResponseEntity.ok(response));
         service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService, imdbScraperService);
 
-        var completableFuture = service.getPage(genre, sortBy, page);
+        service.getPage(genre, sortBy, page);
 
-        verify(restTemplate).getForEntity(expectedUri, String.class);
-        var result = completableFuture.get();
-        assertEquals(2, result.getTotalElements());
+        verify(imdbScraperService).retrievePage(genre, sortBy, page, "");
     }
 
     @Test
-    void testGetPage_whenGenreIsEnglishTranslated_shouldRetrieveAnimeDataForTheGenre()
-            throws URISyntaxException, IOException, ExecutionException, InterruptedException {
-        var genre = new Genre("english-translated", "lorem");
+    void testGetPage_whenKeywordsIsPresent_shouldPassKeywordsToImdbScraper() {
+        var genre = new Genre("anime-music-video", "lorem");
         var sortBy = new SortBy("popular", "ipsum");
-        var page = 1;
-        var response = getResourceHtml("overview.xml");
-        var uri = "https://www.default-api.com";
-        var expectedUri = new URI(MessageFormat.format("{0}?page=rss&f={1}&c={2}&p={3}", uri, 2, "1_2", page));
-        when(providerProperties.getUris()).thenReturn(Collections.singletonList(new URI(uri)));
-        when(restTemplate.getForEntity(isA(URI.class), eq(String.class))).thenReturn(ResponseEntity.ok(response));
+        var keywords = "lorem ipsum";
+        var page = 2;
         service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService, imdbScraperService);
 
-        var completableFuture = service.getPage(genre, sortBy, page);
+        service.getPage(genre, sortBy, page, keywords);
 
-        verify(restTemplate).getForEntity(expectedUri, String.class);
-        var result = completableFuture.get();
-        assertEquals(2, result.getTotalElements());
+        verify(imdbScraperService).retrievePage(genre, sortBy, page, keywords);
     }
 
     @Test
@@ -133,16 +117,28 @@ class AnimeProviderServiceTest {
             throws URISyntaxException, IOException, ExecutionException, InterruptedException {
         var detailId = "My details title";
         var id = "589001";
+        var imdbId = "tt1306666";
         var response = getResourceHtml("details.xml");
         var uri = "https://www.default-api.com";
         var torrentInfo = mock(TorrentInfo.class);
         var torrentFile = mock(TorrentFileInfo.class);
         var expectedTorrentUri = "https://nyaa.si/download/my.torrent";
+        var synopsis = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque iaculis, neque et sodales molestie, lorem odio accumsan magna, " +
+                "quis sagittis dolor elit et lacus.";
+        var year = "2018";
+        var detailsAnime = Anime.builder()
+                .nyaaId(id)
+                .imdbId(imdbId)
+                .title(detailId)
+                .year(year)
+                .synopsis(synopsis)
+                .build();
         var expectedResult = Anime.builder()
                 .nyaaId(id)
-                .imdbId(id)
+                .imdbId(imdbId)
                 .title(detailId)
-                .year("2022")
+                .year(year)
+                .synopsis(synopsis)
                 .episodes(Collections.singletonList(Episode.builder()
                         .title("my filename")
                         .episode(1)
@@ -156,11 +152,12 @@ class AnimeProviderServiceTest {
         when(providerProperties.getUris()).thenReturn(Collections.singletonList(new URI(uri)));
         when(restTemplate.getForEntity(isA(URI.class), eq(String.class))).thenReturn(ResponseEntity.ok(response));
         when(torrentService.getTorrentInfo(expectedTorrentUri)).thenReturn(CompletableFuture.completedFuture(torrentInfo));
+        when(imdbScraperService.retrieveDetails(imdbId)).thenReturn(detailsAnime);
         when(torrentInfo.getFiles()).thenReturn(Collections.singletonList(torrentFile));
         when(torrentFile.getFilename()).thenReturn("my filename [720p]");
         service = new AnimeProviderService(restTemplate, popcornConfig, settingsService, torrentService, imdbScraperService);
 
-        var completableFuture = service.getDetails(detailId);
+        var completableFuture = service.getDetails(imdbId);
 
         verify(torrentService).getTorrentInfo(expectedTorrentUri);
         var result = completableFuture.get();

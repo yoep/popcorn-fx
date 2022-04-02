@@ -266,7 +266,7 @@ public abstract class AbstractListSectionController implements Initializable {
 
         // check if the media request was cancelled
         // if so, ignore this failure
-        if (throwable instanceof CancellationException) {
+        if (throwable instanceof CancellationException || throwable.getCause() instanceof CancellationException) {
             log.trace("Media request has been cancelled by the user");
             return new Media[0];
         }

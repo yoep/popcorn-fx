@@ -34,4 +34,23 @@ public class Anime extends AbstractMedia {
     public MediaType getType() {
         return MediaType.SHOW;
     }
+
+    /**
+     * Create a builder copy of the given {@link Anime} item.
+     *
+     * @param anime The item to copy.
+     * @return Returns the builder instance of the copied item.
+     */
+    public static Anime.AnimeBuilder copy(Anime anime) {
+        return Anime.builder()
+                .imdbId(anime.getImdbId())
+                .nyaaId(anime.getNyaaId())
+                .title(anime.getTitle())
+                .year(anime.getYear())
+                .genres(anime.getGenres())
+                .synopsis(anime.getSynopsis())
+                .runtime(anime.getRuntime())
+                .images(anime.getImages())
+                .episodes(anime.getEpisodes());
+    }
 }

@@ -6,9 +6,7 @@ import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.MediaRetrievalException;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.provider.anime.media.models.Anime;
-import com.github.yoep.provider.anime.parsers.imdb.RatingParser;
-import com.github.yoep.provider.anime.parsers.imdb.RuntimeParser;
-import com.github.yoep.provider.anime.parsers.imdb.YearParser;
+import com.github.yoep.provider.anime.parsers.imdb.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
@@ -22,6 +20,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -50,6 +49,7 @@ public record TitleSearchScraper(WebClient webClient,
     static final String LINK_ATTRIBUTE = "href";
     static final String IMAGE_TAG = "img";
     static final String IMAGE_ATTRIBUTE = "loadlate";
+    static final String IMAGE_LINK = "https://m.media-amazon.com/images/M/{0}@._V1_QL75_UY281_CR1,0,190,281_.jpg";
 
     public Page<Anime> retrievePage(Genre genre, SortBy sortBy, int page, String keywords) {
         var uri = buildRequestUri(sortBy, page, keywords);
@@ -110,6 +110,7 @@ public record TitleSearchScraper(WebClient webClient,
         return Optional.ofNullable(item.getElementsByClass(TITLE_CLASS).first())
                 .map(e -> e.getElementsByTag(LINK_TAG))
                 .map(e -> e.attr(LINK_ATTRIBUTE))
+                .flatMap(IdParser::extractId)
                 .orElse("Unknown");
     }
 
@@ -124,6 +125,8 @@ public record TitleSearchScraper(WebClient webClient,
         return Optional.ofNullable(item.getElementsByClass(IMAGE_CLASS).first())
                 .map(e -> e.getElementsByTag(IMAGE_TAG))
                 .map(e -> e.attr(IMAGE_ATTRIBUTE))
+                .map(ImageParser::extractImage)
+                .map(e -> MessageFormat.format(IMAGE_LINK, e))
                 .map(e -> Images.builder()
                         .fanart(e)
                         .poster(e)
@@ -134,7 +137,7 @@ public record TitleSearchScraper(WebClient webClient,
     private static String extractYear(Element item) {
         return Optional.ofNullable(item.getElementsByClass(YEAR_CLASS).first())
                 .map(Element::text)
-                .map(YearParser::extractStartYear)
+                .map(YearParser::extractStartYearFromSearch)
                 .orElse("");
     }
 

@@ -11,6 +11,8 @@ import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.springframework.boot.autoconfigure.codec.CodecProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,6 +36,7 @@ import java.util.List;
 import static java.time.format.DateTimeFormatter.ofPattern;
 
 @Configuration
+@EnableConfigurationProperties(CodecProperties.class)
 public class RestConfig {
     private static final String USER_AGENT_VALUE = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
             "Chrome/80.0.3987.149 Safari/537.36";
@@ -82,14 +85,20 @@ public class RestConfig {
     }
 
     @Bean
-    public WebClient webClient(ObjectMapper objectMapper) {
+    public WebClient webClient(ObjectMapper objectMapper, CodecProperties codecProperties) {
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(
                         HttpClient.create().followRedirect(true)
                 ))
                 .exchangeStrategies(ExchangeStrategies.builder()
-                        .codecs(configurer ->
-                                configurer.customCodecs().registerWithDefaultConfig(new Jackson2JsonDecoder(objectMapper, MediaType.TEXT_PLAIN)))
+                        .codecs(configurer -> {
+                            configurer.defaultCodecs()
+                                    .enableLoggingRequestDetails(codecProperties.isLogRequestDetails());
+                            configurer.defaultCodecs()
+                                    .maxInMemorySize((int) codecProperties.getMaxInMemorySize().toBytes());
+                            configurer.customCodecs()
+                                    .registerWithDefaultConfig(new Jackson2JsonDecoder(objectMapper, MediaType.TEXT_PLAIN));
+                        })
                         .build())
                 .defaultHeader(HttpHeaders.USER_AGENT, USER_AGENT_VALUE)
                 .build();

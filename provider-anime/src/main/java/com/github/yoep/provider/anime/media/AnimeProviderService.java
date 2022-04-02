@@ -14,15 +14,18 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.provider.anime.imdb.ImdbScraperService;
 import com.github.yoep.provider.anime.media.mappers.AnimeMapper;
 import com.github.yoep.provider.anime.media.models.Anime;
 import com.github.yoep.provider.anime.media.models.Item;
 import com.github.yoep.provider.anime.media.models.Nyaa;
-import com.github.yoep.provider.anime.parsers.*;
+import com.github.yoep.provider.anime.parsers.nyaa.EpisodeParser;
+import com.github.yoep.provider.anime.parsers.nyaa.IdParser;
+import com.github.yoep.provider.anime.parsers.nyaa.QualityParser;
+import com.github.yoep.provider.anime.parsers.nyaa.TitleParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -51,12 +54,15 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
     private static final String DEFAULT_QUALITY = "480p";
 
     private final TorrentService torrentService;
+    private final ImdbScraperService imdbScraperService;
 
     public AnimeProviderService(RestTemplate restTemplate,
                                 PopcornProperties popcornConfig,
-                                SettingsService settingsService, TorrentService torrentService) {
+                                SettingsService settingsService,
+                                TorrentService torrentService, ImdbScraperService imdbScraperService) {
         super(restTemplate);
         this.torrentService = torrentService;
+        this.imdbScraperService = imdbScraperService;
 
         initializeUriProviders(settingsService.getSettings().getServerSettings(), popcornConfig.getProvider(CATEGORY.getProviderName()));
     }
@@ -98,36 +104,16 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
     }
 
     public Page<Anime> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        return invokeWithUriProvider(apiUri -> {
-            var uri = buildSearchRequestUri(apiUri, genre, sortBy, keywords, page);
-
-            log.debug("Retrieving anime provider page \"{}\"", uri);
-            var response = restTemplate.getForEntity(uri, String.class);
-
-            if (response.hasBody()) {
-                var document = parseXmlResponse(response.getBody());
-                var items = document.getChannel().getItems();
-
-                if (items != null) {
-                    return new PageImpl<>(items.stream()
-                            .map(e -> Anime.builder()
-                                    .nyaaId(e.getTitle())
-                                    .imdbId(IdParser.extractId(e.getGuid()))
-                                    .title(TitleParser.normaliseTitle(e.getTitle()))
-                                    .year(DateParser.convertDateToYear(e.getPubDate()))
-                                    .build())
-                            .collect(Collectors.toList()));
-                }
-            }
-
-            return Page.empty();
-        });
+        return imdbScraperService.retrievePage(genre, sortBy, page, keywords);
     }
 
     private Anime getDetailsInternal(String imdbId) {
+        // retrieve the imdb details first
+        var anime = imdbScraperService.retrieveDetails(imdbId);
+
         return invokeWithUriProvider(apiUri -> {
             var genre = new Genre(Genre.ALL_KEYWORD, "");
-            var uri = buildSearchRequestUri(apiUri, genre, null, imdbId, 1);
+            var uri = buildSearchRequestUri(apiUri, genre, null, anime.getTitle(), 1);
 
             log.debug("Retrieving anime provider details of \"{}\"", uri);
             var response = restTemplate.getForEntity(uri, String.class);
@@ -136,20 +122,17 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
                 var document = parseXmlResponse(response.getBody());
                 var items = document.getChannel().getItems();
 
-                if (items != null && items.size() == 1) {
+                if (items != null && items.size() >= 1) {
                     var item = items.get(0);
                     var id = IdParser.extractId(item.getGuid());
                     var torrentInfo = retrieveTorrentData(item);
 
-                    return Anime.builder()
+                    return Anime.copy(anime)
                             .nyaaId(id)
-                            .imdbId(id)
-                            .title(TitleParser.normaliseTitle(item.getTitle()))
-                            .year(DateParser.convertDateToYear(item.getPubDate()))
                             .episodes(extractEpisodesFromTorrentInfo(item.getLink(), torrentInfo))
                             .build();
                 } else {
-                    throw new MediaException("Could not find the details of the given media");
+                    return anime;
                 }
             } else {
                 throw new MediaException("No details response available for " + uri);
@@ -215,17 +198,12 @@ public class AnimeProviderService extends AbstractProviderService<Anime> {
     }
 
     private static String genreToQueryValue(Genre genre) {
-        switch (genre.getKey()) {
-            case "anime-music-video":
-                return "1_1";
-            case "english-translated":
-                return "1_2";
-            case "non-english-translated":
-                return "1_3";
-            case "raw":
-                return "1_4";
-            default:
-                return "1_0";
-        }
+        return switch (genre.getKey()) {
+            case "anime-music-video" -> "1_1";
+            case "english-translated" -> "1_2";
+            case "non-english-translated" -> "1_3";
+            case "raw" -> "1_4";
+            default -> "1_0";
+        };
     }
 }

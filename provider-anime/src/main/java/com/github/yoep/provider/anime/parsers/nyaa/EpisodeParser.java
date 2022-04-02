@@ -1,4 +1,4 @@
-package com.github.yoep.provider.anime.parsers;
+package com.github.yoep.provider.anime.parsers.nyaa;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

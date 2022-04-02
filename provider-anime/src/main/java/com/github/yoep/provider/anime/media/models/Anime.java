@@ -1,9 +1,6 @@
 package com.github.yoep.provider.anime.media.models;
 
-import com.github.yoep.popcorn.backend.media.providers.models.AbstractMedia;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
+import com.github.yoep.popcorn.backend.media.providers.models.*;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -26,8 +23,8 @@ public class Anime extends AbstractMedia {
     @Builder
     public Anime(String nyaaId, List<Episode> episodes, String imdbId, String title, String year,
                  Integer runtime, List<String> genres,
-                 Images images, String synopsis) {
-        super(nyaaId, imdbId, title, year, runtime, genres, null, images, synopsis);
+                 Rating rating, Images images, String synopsis) {
+        super(nyaaId, imdbId, title, year, runtime, genres, rating, images, synopsis);
         Objects.requireNonNull(nyaaId, "nyaaId cannot be null");
         this.nyaaId = nyaaId;
         this.episodes = episodes;
@@ -36,5 +33,24 @@ public class Anime extends AbstractMedia {
     @Override
     public MediaType getType() {
         return MediaType.SHOW;
+    }
+
+    /**
+     * Create a builder copy of the given {@link Anime} item.
+     *
+     * @param anime The item to copy.
+     * @return Returns the builder instance of the copied item.
+     */
+    public static Anime.AnimeBuilder copy(Anime anime) {
+        return Anime.builder()
+                .imdbId(anime.getImdbId())
+                .nyaaId(anime.getNyaaId())
+                .title(anime.getTitle())
+                .year(anime.getYear())
+                .genres(anime.getGenres())
+                .synopsis(anime.getSynopsis())
+                .runtime(anime.getRuntime())
+                .images(anime.getImages())
+                .episodes(anime.getEpisodes());
     }
 }

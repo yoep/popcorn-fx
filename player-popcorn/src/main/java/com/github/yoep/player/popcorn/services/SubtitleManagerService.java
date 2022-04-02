@@ -64,6 +64,10 @@ public class SubtitleManagerService {
         return subtitleSize.get();
     }
 
+    public void setSubtitleSize(int subtitleSize) {
+        this.subtitleSize.set(subtitleSize);
+    }
+
     public long getSubtitleOffset() {
         return subtitleOffset.get();
     }

@@ -55,12 +55,27 @@ class PlayerSubtitleServiceTest {
     }
 
     @Test
-    void testUpdateSubtitleSizeWithSizeOffset_whenInvoked_shouldUpdateTheSubtitleSize() {
-        var pixelChange = 80;
+    void testUpdateSubtitleSizeWithSizeOffset_whenOffsetIsNegative_shouldDecreaseTheSubtitleSize() {
+        var pixelChange = -5;
+        var currentValue = 20;
+        var expectedResult = currentValue + pixelChange;
+        when(subtitleManagerService.getSubtitleSize()).thenReturn(currentValue);
 
         service.updateSubtitleSizeWithSizeOffset(pixelChange);
 
-        verify(subtitleManagerService).updateSubtitleOffset(pixelChange);
+        verify(subtitleManagerService).updateSubtitleSize(expectedResult);
+    }
+
+    @Test
+    void testUpdateSubtitleSizeWithSizeOffset_whenOffsetIsPositive_shouldIncreaseTheSubtitleSize() {
+        var pixelChange = 8;
+        var currentValue = 24;
+        var expectedResult = currentValue + pixelChange;
+        when(subtitleManagerService.getSubtitleSize()).thenReturn(currentValue);
+
+        service.updateSubtitleSizeWithSizeOffset(pixelChange);
+
+        verify(subtitleManagerService).updateSubtitleSize(expectedResult);
     }
 
     @Test

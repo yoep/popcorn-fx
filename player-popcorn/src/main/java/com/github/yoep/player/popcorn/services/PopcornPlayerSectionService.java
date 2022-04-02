@@ -93,19 +93,10 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
 
     private void onSubtitleSettingsChanged(PropertyChangeEvent evt) {
         switch (evt.getPropertyName()) {
-            case SubtitleSettings.FONT_FAMILY_PROPERTY:
-                invokeListeners(e -> e.onSubtitleFamilyChanged((String) evt.getNewValue()));
-                break;
-            case SubtitleSettings.FONT_SIZE_PROPERTY:
-                invokeListeners(e -> e.onSubtitleSizeChanged((Integer) evt.getNewValue()));
-                break;
-            case SubtitleSettings.BOLD_PROPERTY:
-                var bold = (Boolean) evt.getNewValue();
-                invokeListeners(e -> e.onSubtitleFontWeightChanged(bold));
-                break;
-            case SubtitleSettings.DECORATION_PROPERTY:
-                invokeListeners(e -> e.onSubtitleDecorationChanged((DecorationType) evt.getNewValue()));
-                break;
+            case SubtitleSettings.FONT_FAMILY_PROPERTY -> invokeListeners(e -> e.onSubtitleFamilyChanged((String) evt.getNewValue()));
+            case SubtitleSettings.FONT_SIZE_PROPERTY -> invokeListeners(e -> e.onSubtitleSizeChanged((Integer) evt.getNewValue()));
+            case SubtitleSettings.BOLD_PROPERTY -> invokeListeners(e -> e.onSubtitleFontWeightChanged((Boolean) evt.getNewValue()));
+            case SubtitleSettings.DECORATION_PROPERTY -> invokeListeners(e -> e.onSubtitleDecorationChanged((DecorationType) evt.getNewValue()));
         }
     }
 

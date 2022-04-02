@@ -1,16 +1,15 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.filters.models.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
-import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -22,6 +21,7 @@ import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.controls.Episodes;
 import com.github.yoep.popcorn.ui.view.controls.Seasons;
+import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.ShowHelperService;
@@ -48,6 +48,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
+@ViewController
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> {
 
     private static final double POSTER_WIDTH = 198.0;
@@ -94,12 +95,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
                                 SubtitlePickerService subtitlePickerService,
                                 ImageService imageService,
                                 SettingsService settingsService,
-                                FavoriteService favoriteService,
-                                WatchedService watchedService,
+                                DetailsComponentService service,
                                 ShowHelperService showHelperService,
                                 PlayerManagerService playerService) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, favoriteService,
-                watchedService, playerService);
+        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService);
         this.showHelperService = showHelperService;
     }
 
@@ -202,7 +201,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
                 super.onItemChanged(oldItem, newItem);
 
                 if (newItem != null) {
-                    boolean watched = watchedService.isWatched(getWatchableItem());
+                    boolean watched = service.isWatched(getWatchableItem());
 
                     setWatched(watched);
                     updateIcon(watched);
@@ -303,7 +302,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     private boolean isSeasonWatched(Season season) {
         return showHelperService.getSeasonEpisodes(season, media).stream()
-                .allMatch(watchedService::isWatched);
+                .allMatch(service::isWatched);
     }
 
     private void markSeasonAsWatched(Season season) {
@@ -360,12 +359,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     private void onEpisodeWatchedChanged(Boolean newValue, Episode episode, Icon icon) {
         Tooltip.install(icon, instantTooltip(getWatchedTooltip(newValue)));
-
-        if (newValue) {
-            watchedService.addToWatchList(episode);
-        } else {
-            watchedService.removeFromWatchList(episode);
-        }
+        service.toggleWatchedState(episode);
 
         // check if a batch update is running
         // if so, do not go to the next unwatched episode
@@ -394,21 +388,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     @FXML
     private void onWatchedClicked(MouseEvent event) {
         event.consume();
-        if (!media.isWatched()) {
-            watchedService.addToWatchList(media);
-        } else {
-            watchedService.removeFromWatchList(media);
-        }
+        service.toggleWatchedState();
     }
 
     @FXML
     private void onFavoriteClicked(MouseEvent event) {
         event.consume();
-        if (!media.isLiked()) {
-            favoriteService.addToFavorites(media);
-        } else {
-            favoriteService.removeFromFavorites(media);
-        }
+        service.toggleLikedState();
     }
 
     @FXML

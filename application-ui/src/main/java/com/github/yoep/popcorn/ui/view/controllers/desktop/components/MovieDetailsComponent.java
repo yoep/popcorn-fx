@@ -1,13 +1,12 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
@@ -17,6 +16,7 @@ import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -40,6 +40,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
+@ViewController
 public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
 
@@ -60,10 +61,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     public MovieDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, HealthService healthService,
                                  SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
-                                 SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
+                                 SettingsService settingsService, DetailsComponentService service,
                                  PlayerManagerService playerService) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, favoriteService,
-                watchedService, playerService);
+        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService);
 
     }
 
@@ -241,21 +241,13 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private void onFavoriteClicked(MouseEvent event) {
         event.consume();
-        if (!media.isLiked()) {
-            favoriteService.addToFavorites(media);
-        } else {
-            favoriteService.removeFromFavorites(media);
-        }
+        service.toggleLikedState();
     }
 
     @FXML
     private void onWatchedClicked(MouseEvent event) {
         event.consume();
-        if (!media.isWatched()) {
-            watchedService.addToWatchList(media);
-        } else {
-            watchedService.removeFromWatchList(media);
-        }
+        service.toggleWatchedState();
     }
 
     @FXML

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.config;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -11,8 +10,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
-import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
@@ -20,7 +17,9 @@ import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.MainDesktopController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.*;
-import com.github.yoep.popcorn.ui.view.services.*;
+import com.github.yoep.popcorn.ui.view.services.ImageService;
+import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
+import com.github.yoep.popcorn.ui.view.services.UrlService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -115,37 +114,6 @@ public class DesktopConfig {
                                                    LocaleText localeText,
                                                    SettingsService settingsService) {
         return new SettingsUIComponent(eventPublisher, localeText, settingsService);
-    }
-
-    @Bean
-    public MovieDetailsComponent movieDetailsComponent(ApplicationEventPublisher eventPublisher,
-                                                       LocaleText localeText,
-                                                       HealthService healthService,
-                                                       SubtitleService subtitleService,
-                                                       SubtitlePickerService subtitlePickerService,
-                                                       ImageService imageService,
-                                                       SettingsService settingsService,
-                                                       FavoriteService favoriteService,
-                                                       WatchedService watchedService,
-                                                       PlayerManagerService playerService) {
-        return new MovieDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
-                favoriteService, watchedService, playerService);
-    }
-
-    @Bean
-    public ShowDetailsComponent showDetailsComponent(ApplicationEventPublisher eventPublisher,
-                                                     LocaleText localeText,
-                                                     HealthService healthService,
-                                                     SubtitleService subtitleService,
-                                                     SubtitlePickerService subtitlePickerService,
-                                                     ImageService imageService,
-                                                     SettingsService settingsService,
-                                                     FavoriteService favoriteService,
-                                                     WatchedService watchedService,
-                                                     ShowHelperService showHelperService,
-                                                     PlayerManagerService playerService) {
-        return new ShowDetailsComponent(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService,
-                favoriteService, watchedService, showHelperService, playerService);
     }
 
     @Bean

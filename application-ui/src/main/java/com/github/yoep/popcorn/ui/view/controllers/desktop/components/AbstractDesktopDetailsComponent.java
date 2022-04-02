@@ -3,10 +3,8 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
-import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -18,11 +16,11 @@ import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
 import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
+import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
-import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -53,15 +51,11 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected final ApplicationEventPublisher eventPublisher;
     protected final SubtitleService subtitleService;
     protected final SubtitlePickerService subtitlePickerService;
-    protected final FavoriteService favoriteService;
-    protected final WatchedService watchedService;
+    protected final DetailsComponentService service;
     protected final PlayerManagerService playerService;
 
     protected SubtitleInfo subtitle;
     protected String quality;
-
-    private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
-    private final ChangeListener<Boolean> likedListener = (observable, oldValue, newValue) -> switchLiked(newValue);
 
     @FXML
     protected Icon favoriteIcon;
@@ -88,14 +82,13 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SubtitleService subtitleService,
                                               SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
-                                              SettingsService settingsService, FavoriteService favoriteService, WatchedService watchedService,
-                                              PlayerManagerService playerService) {
+                                              SettingsService settingsService,
+                                              DetailsComponentService service, PlayerManagerService playerService) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
         this.subtitlePickerService = subtitlePickerService;
-        this.favoriteService = favoriteService;
-        this.watchedService = watchedService;
+        this.service = service;
         this.playerService = playerService;
     }
 
@@ -157,11 +150,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     }
 
     protected void loadFavoriteAndWatched() {
-        switchLiked(favoriteService.isLiked(media));
-        switchWatched(watchedService.isWatched(media));
-
-        media.watchedProperty().addListener(watchedListener);
-        media.likedProperty().addListener(likedListener);
+        switchLiked(service.isLiked(media));
+        switchWatched(service.isWatched(media));
     }
 
     protected void switchWatched(boolean isWatched) {
@@ -258,11 +248,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
      * This will allow the GC to dispose the items when the media details are no longer needed.
      */
     protected void reset() {
-        if (media != null) {
-            media.watchedProperty().removeListener(watchedListener);
-            media.likedProperty().removeListener(likedListener);
-        }
-
         this.media = null;
         this.subtitle = null;
         this.quality = null;

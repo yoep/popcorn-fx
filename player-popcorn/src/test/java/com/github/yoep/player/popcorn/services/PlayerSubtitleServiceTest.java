@@ -63,7 +63,7 @@ class PlayerSubtitleServiceTest {
 
         service.updateSubtitleSizeWithSizeOffset(pixelChange);
 
-        verify(subtitleManagerService).updateSubtitleSize(expectedResult);
+        verify(subtitleManagerService).setSubtitleSize(expectedResult);
     }
 
     @Test
@@ -75,7 +75,7 @@ class PlayerSubtitleServiceTest {
 
         service.updateSubtitleSizeWithSizeOffset(pixelChange);
 
-        verify(subtitleManagerService).updateSubtitleSize(expectedResult);
+        verify(subtitleManagerService).setSubtitleSize(expectedResult);
     }
 
     @Test

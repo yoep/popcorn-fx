@@ -54,10 +54,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     private Label genres;
     @FXML
-    private Tooltip watchedTooltip;
-    @FXML
-    private Tooltip favoriteTooltip;
-    @FXML
     private Button watchTrailerButton;
 
     //region Constructors
@@ -130,15 +126,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     //endregion
 
     //region Functions
-
-    private void initializeTooltips() {
-        var tooltip = new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK));
-        instantTooltip(tooltip);
-        Tooltip.install(magnetLink, tooltip);
-
-        instantTooltip(watchedTooltip);
-        instantTooltip(favoriteTooltip);
-    }
 
     private void initializeLanguageSelection() {
         languageSelection.setFactory(new LanguageFlagCell() {
@@ -214,19 +201,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                 watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
             } else {
                 watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
-            }
-        });
-    }
-
-    @Override
-    protected void switchLiked(boolean isLiked) {
-        Platform.runLater(() -> {
-            super.switchLiked(isLiked);
-
-            if (isLiked) {
-                favoriteTooltip.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
-            } else {
-                favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
             }
         });
     }

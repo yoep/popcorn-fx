@@ -11,6 +11,7 @@
     <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
         <columnConstraints>
             <ColumnConstraints minWidth="198"/>
+            <ColumnConstraints minWidth="5"/>
             <ColumnConstraints hgrow="ALWAYS"/>
             <ColumnConstraints minWidth="25"/>
         </columnConstraints>
@@ -23,20 +24,36 @@
 
         <!-- Background -->
         <BackgroundImageCover fx:id="backgroundImage"
-                              GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="0" GridPane.rowSpan="4"/>
+                              GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.rowIndex="0" GridPane.rowSpan="4"/>
 
         <!-- Image -->
         <StackPane fx:id="posterHolder" styleClass="poster"
                    GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
-            <padding>
-                <Insets left="10" right="10"/>
-            </padding>
-
             <ImageCover fx:id="poster" styleClass="poster-image" coverType="HEIGHT"/>
+
+            <CornerButton position="TOP_LEFT" onMouseClicked="#onWatchedClicked"
+                          StackPane.alignment="TOP_LEFT">
+                <Icon fx:id="watchedIcon" styleClass="view">
+                    <Icon fx:constant="EYE_SLASH_UNICODE"/>
+                    <tooltip>
+                        <Tooltip fx:id="watchedTooltip"/>
+                    </tooltip>
+                </Icon>
+            </CornerButton>
+
+            <CornerButton position="TOP_RIGHT" onMouseClicked="#onFavoriteClicked"
+                          StackPane.alignment="TOP_RIGHT">
+                <Icon fx:id="favoriteIcon" styleClass="like">
+                    <Icon fx:constant="HEART_UNICODE"/>
+                    <tooltip>
+                        <Tooltip fx:id="favoriteTooltip"/>
+                    </tooltip>
+                </Icon>
+            </CornerButton>
         </StackPane>
 
         <!-- Close -->
-        <Icon onMouseClicked="#close" sizeFactor="2" styleClass="close-button" GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="0"
+        <Icon onMouseClicked="#close" sizeFactor="2" styleClass="close-button" GridPane.columnIndex="3" GridPane.halignment="RIGHT" GridPane.rowIndex="0"
               GridPane.rowSpan="4" GridPane.valignment="TOP">
             <padding>
                 <Insets right="15" top="5"/>
@@ -45,10 +62,10 @@
         </Icon>
 
         <!-- Title -->
-        <Label fx:id="title" styleClass="title" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+        <Label fx:id="title" styleClass="title" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
         <!-- Metadata -->
-        <HBox alignment="CENTER_LEFT" styleClass="metadata" GridPane.columnIndex="1" GridPane.rowIndex="1">
+        <HBox alignment="CENTER_LEFT" styleClass="metadata" GridPane.columnIndex="2" GridPane.rowIndex="1">
             <Label fx:id="year"/>
             <Icon styleClass="separator">
                 <Icon fx:constant="CIRCLE_UNICODE"/>
@@ -69,15 +86,7 @@
         </HBox>
 
         <!-- Synopsis/overview text -->
-        <Label fx:id="overview" styleClass="overview" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-
-        <HBox alignment="CENTER_LEFT" styleClass="bookmark" GridPane.columnIndex="1" GridPane.rowIndex="3"
-              onMouseClicked="#onFavoriteClicked">
-            <Icon fx:id="favoriteIcon" styleClass="like">
-                <Icon fx:constant="HEART_UNICODE"/>
-            </Icon>
-            <Label fx:id="favoriteText" text="%details_add_to_bookmarks"/>
-        </HBox>
+        <Label fx:id="overview" styleClass="overview" wrapText="true" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
     </GridPane>
 
     <GridPane styleClass="show-details"

@@ -71,8 +71,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     @FXML
     private Label overview;
     @FXML
-    private Label favoriteText;
-    @FXML
     private Seasons seasons;
     @FXML
     private Episodes episodes;
@@ -125,7 +123,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         loadText();
         loadButtons();
         loadSeasons();
-        loadFavorite();
+        loadFavoriteAndWatched();
     }
 
     @Override
@@ -149,17 +147,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         poster.setImage(null);
     }
 
-    @Override
-    protected void switchLiked(boolean isLiked) {
-        super.switchLiked(isLiked);
-
-        if (isLiked) {
-            favoriteText.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
-        } else {
-            favoriteText.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
-        }
-    }
-
     //endregion
 
     //region Initiazable
@@ -170,6 +157,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         initializeEpisodes();
         initializeLanguageSelection();
         initializeWatchNow();
+        initializeTooltips();
     }
 
     //endregion
@@ -267,10 +255,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     private void loadSeasons() {
         seasons.getItems().addAll(showHelperService.getSeasons(media));
         selectUnwatchedSeason();
-    }
-
-    private void loadFavorite() {
-        switchLiked(favoriteService.isLiked(media));
     }
 
     private void switchSeason(Season newSeason) {
@@ -404,6 +388,16 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
             copyMagnetLink(torrentInfo);
         } else {
             openMagnetLink(torrentInfo);
+        }
+    }
+
+    @FXML
+    private void onWatchedClicked(MouseEvent event) {
+        event.consume();
+        if (!media.isWatched()) {
+            watchedService.addToWatchList(media);
+        } else {
+            watchedService.removeFromWatchList(media);
         }
     }
 

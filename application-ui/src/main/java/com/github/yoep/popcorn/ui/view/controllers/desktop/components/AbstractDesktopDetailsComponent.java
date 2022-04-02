@@ -58,7 +58,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected final PlayerManagerService playerService;
 
     protected SubtitleInfo subtitle;
-    protected boolean liked;
     protected String quality;
 
     private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
@@ -76,6 +75,10 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected LanguageFlagSelection languageSelection;
     @FXML
     protected WatchNowButton watchNowButton;
+    @FXML
+    protected Tooltip watchedTooltip;
+    @FXML
+    protected Tooltip favoriteTooltip;
 
     //region Constructors
 
@@ -113,6 +116,15 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     //region Functions
 
+    protected void initializeTooltips() {
+        var tooltip = new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK));
+        instantTooltip(tooltip);
+        Tooltip.install(magnetLink, tooltip);
+
+        instantTooltip(watchedTooltip);
+        instantTooltip(favoriteTooltip);
+    }
+
     protected void initializeWatchNow() {
         // listen for changes in the players
         playerService.playersProperty().addListener((InvalidationListener) change -> updateExternalPlayers());
@@ -135,7 +147,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         var defaultQuality = getDefaultVideoResolution(resolutions);
         var qualities = resolutions.stream()
                 .map(this::createQualityOption)
-                .collect(Collectors.toList());
+                .toList();
 
         // replace the quality selection with the new items
         qualitySelectionPane.getChildren().clear();
@@ -153,23 +165,27 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     }
 
     protected void switchWatched(boolean isWatched) {
-        if (isWatched) {
-            watchedIcon.setText(Icon.CHECK_UNICODE);
-            watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
-        } else {
-            watchedIcon.setText(Icon.EYE_SLASH_UNICODE);
-            watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
-        }
+        Platform.runLater(() -> {
+            if (isWatched) {
+                watchedIcon.setText(Icon.CHECK_UNICODE);
+                watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
+            } else {
+                watchedIcon.setText(Icon.EYE_SLASH_UNICODE);
+                watchedIcon.getStyleClass().removeIf(e -> e.equals(WATCHED_STYLE_CLASS));
+            }
+        });
     }
 
     protected void switchLiked(boolean isLiked) {
-        this.liked = isLiked;
-
-        if (isLiked) {
-            favoriteIcon.getStyleClass().add(LIKED_STYLE_CLASS);
-        } else {
-            favoriteIcon.getStyleClass().remove(LIKED_STYLE_CLASS);
-        }
+        Platform.runLater(() -> {
+            if (isLiked) {
+                favoriteTooltip.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
+                favoriteIcon.getStyleClass().add(LIKED_STYLE_CLASS);
+            } else {
+                favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
+                favoriteIcon.getStyleClass().removeIf(e -> e.equals(LIKED_STYLE_CLASS));
+            }
+        });
     }
 
     protected void openMagnetLink(MediaTorrentInfo torrentInfo) {
@@ -249,7 +265,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
         this.media = null;
         this.subtitle = null;
-        this.liked = false;
         this.quality = null;
     }
 

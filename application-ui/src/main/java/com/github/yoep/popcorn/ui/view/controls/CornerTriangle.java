@@ -103,34 +103,26 @@ public class CornerTriangle extends Polygon {
         var points = getPoints();
 
         switch (getPosition()) {
-            case TOP_LEFT:
-                points.setAll(
-                        0.0, 0.0,
-                        width, 0.0,
-                        0.0, height
-                );
-                break;
-            case TOP_RIGHT:
-                points.setAll(
-                        0.0, 0.0,
-                        width, 0.0,
-                        width, height
-                );
-                break;
-            case BOTTOM_LEFT:
-                points.setAll(
-                        0.0, 0.0,
-                        width, height,
-                        0.0, height
-                );
-                break;
-            case BOTTOM_RIGHT:
-                points.setAll(
-                        width, 0.0,
-                        width, height,
-                        0.0, height
-                );
-                break;
+            case TOP_LEFT -> points.setAll(
+                    0.0, 0.0,
+                    width, 0.0,
+                    0.0, height
+            );
+            case TOP_RIGHT -> points.setAll(
+                    0.0, 0.0,
+                    width, 0.0,
+                    width, height
+            );
+            case BOTTOM_LEFT -> points.setAll(
+                    0.0, 0.0,
+                    0.0, height,
+                    width, height
+            );
+            case BOTTOM_RIGHT -> points.setAll(
+                    0.0, height,
+                    width, height,
+                    width, 0.0
+            );
         }
     }
 

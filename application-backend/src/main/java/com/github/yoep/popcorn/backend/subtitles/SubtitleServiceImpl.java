@@ -18,6 +18,7 @@ import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;
 import de.timroes.axmlrpc.XMLRPCServerException;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +55,7 @@ public class SubtitleServiceImpl implements SubtitleService {
     public static final String SUBTITLE_PROPERTY = "activeSubtitle";
     private static final Pattern QUALITY_PATTERN = Pattern.compile("([0-9]{3,4})p");
 
-    private final ObjectProperty<Subtitle> activeSubtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, Subtitle.none());
+    private final ObjectProperty<Subtitle> activeSubtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, null);
     private final Map<String, List<SubtitleInfo>> cachedSubtitles = new HashMap<>();
     private final PopcornProperties popcornProperties;
     private final SettingsService settingsService;
@@ -64,18 +65,17 @@ public class SubtitleServiceImpl implements SubtitleService {
     //region Properties
 
     @Override
-    public Subtitle getActiveSubtitle() {
-        return activeSubtitle.get();
+    public Optional<Subtitle> getActiveSubtitle() {
+        return Optional.ofNullable(activeSubtitle.get());
     }
 
     @Override
-    public ObjectProperty<Subtitle> activeSubtitleProperty() {
+    public ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty() {
         return activeSubtitle;
     }
 
     @Override
     public void setActiveSubtitle(Subtitle activeSubtitle) {
-        Assert.notNull(activeSubtitle, "subtitle cannot be null");
         this.activeSubtitle.set(activeSubtitle);
     }
 

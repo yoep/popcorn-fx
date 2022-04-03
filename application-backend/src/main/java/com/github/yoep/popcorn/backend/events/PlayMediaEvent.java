@@ -39,7 +39,7 @@ public class PlayMediaEvent extends PlayTorrentEvent {
                           Media media,
                           Media subMediaItem,
                           String quality) {
-        super(source, url, title, subtitlesEnabled, media.getImages().getFanart(), torrent, torrentStream);
+        super(source, url, title, subtitlesEnabled,  media.getImages().getFanart(), torrent, torrentStream);
         this.media = media;
         this.subMediaItem = subMediaItem;
         this.quality = quality;

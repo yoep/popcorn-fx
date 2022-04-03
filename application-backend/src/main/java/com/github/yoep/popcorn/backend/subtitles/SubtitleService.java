@@ -6,12 +6,13 @@ import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleIndex;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
-import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import org.springframework.scheduling.annotation.Async;
 
 import java.io.File;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public interface SubtitleService {
@@ -20,14 +21,14 @@ public interface SubtitleService {
      *
      * @return Returns the subtitle.
      */
-    Subtitle getActiveSubtitle();
+    Optional<Subtitle> getActiveSubtitle();
 
     /**
      * Get the subtitle property.
      *
      * @return Returns the subtitle property.
      */
-    ObjectProperty<Subtitle> activeSubtitleProperty();
+    ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty();
 
     /**
      * Set the subtitle for the video player.

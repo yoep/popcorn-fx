@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.backend.adapters.player;
 
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-
 import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
@@ -23,13 +21,6 @@ public interface PlayRequest {
      * @return Returns the title of the playback if known, else {@link Optional#empty()}.
      */
     Optional<String> getTitle();
-
-    /**
-     * The subtitle that needs to be added to the playback of the video.
-     *
-     * @return Returns the subtitle if one was selected, else {@link Optional#empty()}.
-     */
-    Optional<SubtitleInfo> getSubtitle();
 
     /**
      * Get the thumbnail url if one is present for the video.

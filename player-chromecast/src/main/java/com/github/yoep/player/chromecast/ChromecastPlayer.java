@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
@@ -40,6 +41,7 @@ public class ChromecastPlayer implements Player {
     private final ChromeCast chromeCast;
     @Nullable
     private final ChromecastContentTypeResolver contentTypeResolver;
+    private final SubtitleService subtitleService;
 
     private PlayerState playerState = PlayerState.READY;
     private PlaybackThread playbackThread;
@@ -179,10 +181,10 @@ public class ChromecastPlayer implements Player {
         return metadata;
     }
 
-    private List<Track> getMediaTracks(PlayRequest request) {
+    private List<Track> getMediaTracks() {
         // check if a subtitle track is provided
         // if so, add it to the media
-        return request.getSubtitle()
+        return subtitleService.getActiveSubtitle()
                 .map(e -> new Track(1, Track.TrackType.TEXT))
                 .map(Collections::singletonList)
                 .orElse(Collections.emptyList());
@@ -297,18 +299,10 @@ public class ChromecastPlayer implements Player {
 
     private void onPlayerStateChanged(MediaStatus.PlayerState status) {
         switch (status) {
-            case LOADING:
-                updateState(PlayerState.LOADING);
-                break;
-            case PLAYING:
-                updateState(PlayerState.PLAYING);
-                break;
-            case PAUSED:
-                updateState(PlayerState.PAUSED);
-                break;
-            case BUFFERING:
-                updateState(PlayerState.BUFFERING);
-                break;
+            case LOADING -> updateState(PlayerState.LOADING);
+            case PLAYING -> updateState(PlayerState.PLAYING);
+            case PAUSED -> updateState(PlayerState.PAUSED);
+            case BUFFERING -> updateState(PlayerState.BUFFERING);
         }
     }
 
@@ -371,7 +365,7 @@ public class ChromecastPlayer implements Player {
                 log.debug("Loading url \"{}\" on Chromecast \"{}\"", url, getName());
                 updateState(PlayerState.LOADING);
 
-                var tracks = getMediaTracks(request);
+                var tracks = getMediaTracks();
                 var metadata = getMediaMetaData(request);
                 var media = new Media(url, videoMetadata.getContentType(), videoMetadata.getDuration().doubleValue(), Media.StreamType.BUFFERED,
                         null, metadata, null, tracks);

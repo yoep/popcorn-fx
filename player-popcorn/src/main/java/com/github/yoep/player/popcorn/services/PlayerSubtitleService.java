@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +31,6 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private final SubtitleManagerService subtitleManagerService;
 
     private final PlaybackListener listener = createListener();
-
-    private SubtitleInfo subtitle;
 
     //region Methods
 
@@ -72,10 +71,6 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     }
 
     private void onMediaPlayRequest(MediaPlayRequest request) {
-        // set the subtitle for the playback
-        this.subtitle = request.getSubtitle()
-                .orElse(SubtitleInfo.none());
-
         var media = request.getMedia();
 
         if (media instanceof Movie) {
@@ -98,7 +93,9 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private void handleSubtitlesResponse(final List<SubtitleInfo> subtitles, Throwable throwable) {
         if (throwable == null) {
             log.trace("Available subtitles have been retrieved");
-            var subtitle = this.subtitle != null ? this.subtitle : subtitleService.getDefault(subtitles);
+            var subtitle = subtitleService.getActiveSubtitle()
+                    .flatMap(Subtitle::getSubtitleInfo)
+                    .orElseGet(() -> subtitleService.getDefault(subtitles));
 
             invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, subtitle));
         } else {
@@ -110,8 +107,8 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
         return new AbstractPlaybackListener() {
             @Override
             public void onPlay(PlayRequest request) {
-                if (request instanceof MediaPlayRequest) {
-                    onMediaPlayRequest((MediaPlayRequest) request);
+                if (request instanceof MediaPlayRequest mediaRequest) {
+                    onMediaPlayRequest(mediaRequest);
                 } else {
                     onPlayRequest(request);
                 }
@@ -119,7 +116,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
 
             @Override
             public void onStop() {
-                subtitle = null;
+                // no-op
             }
         };
     }

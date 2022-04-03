@@ -14,7 +14,6 @@ import java.util.Optional;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class MediaPlayRequest extends StreamPlayRequest {
-    private final SubtitleInfo subtitle;
     private final String quality;
     private final Media media;
     private final Media subMediaItem;
@@ -23,15 +22,9 @@ public class MediaPlayRequest extends StreamPlayRequest {
     public MediaPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp, TorrentStream torrentStream,
                             SubtitleInfo subtitle, String quality, Media media, Media subMediaItem) {
         super(url, title, thumb, autoResumeTimestamp, torrentStream);
-        this.subtitle = subtitle;
         this.quality = quality;
         this.media = media;
         this.subMediaItem = subMediaItem;
-    }
-
-    @Override
-    public Optional<SubtitleInfo> getSubtitle() {
-        return Optional.ofNullable(subtitle);
     }
 
     @Override

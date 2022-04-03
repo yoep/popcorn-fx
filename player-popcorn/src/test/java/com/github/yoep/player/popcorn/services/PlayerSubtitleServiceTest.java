@@ -105,15 +105,17 @@ class PlayerSubtitleServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsMoviePlayRequest_shouldInvokeListenersWithAvailableSubtitles() {
         var movie = Movie.builder().build();
+        var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);
         var request = MediaPlayRequest.mediaBuilder()
                 .media(movie)
-                .subtitle(activeSubtitle)
                 .torrentStream(torrentStream)
                 .build();
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
         when(subtitleService.retrieveSubtitles(movie)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
+        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
         service.init();
 
         listenerHolder.get().onPlay(request);
@@ -129,16 +131,18 @@ class PlayerSubtitleServiceTest {
         var show = Show.builder()
                 .episodes(Collections.singletonList(episode))
                 .build();
+        var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);
         var request = MediaPlayRequest.mediaBuilder()
                 .media(show)
                 .subMediaItem(episode)
-                .subtitle(activeSubtitle)
                 .torrentStream(torrentStream)
                 .build();
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
         when(subtitleService.retrieveSubtitles(show, episode)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
+        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
         service.init();
 
         listenerHolder.get().onPlay(request);

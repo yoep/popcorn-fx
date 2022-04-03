@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.player.model;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import lombok.*;
 
 import java.util.Optional;
@@ -20,11 +19,6 @@ public class SimplePlayRequest implements PlayRequest {
     @Override
     public Optional<String> getTitle() {
         return Optional.ofNullable(title);
-    }
-
-    @Override
-    public Optional<SubtitleInfo> getSubtitle() {
-        return Optional.empty();
     }
 
     @Override

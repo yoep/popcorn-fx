@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
@@ -133,6 +134,24 @@ class DetailsComponentServiceTest {
         movie.setLiked(expectedResult);
 
         verify(listener).onLikedChanged(expectedResult);
+    }
+
+    @Test
+    void testUpdateWatchedStated_whenMediaItemIsGivenAndIsWatched_shouldAddToWatchlist() {
+        var media = mock(Media.class);
+
+        service.updateWatchedStated(media, true);
+
+        verify(watchedService).addToWatchList(media);
+    }
+
+    @Test
+    void testUpdateWatchedStated_whenMediaItemIsGivenAndMarkAsUnseen_shouldRemoveFromWatchlist() {
+        var media = mock(Media.class);
+
+        service.updateWatchedStated(media, false);
+
+        verify(watchedService).removeFromWatchList(media);
     }
 
     @Test

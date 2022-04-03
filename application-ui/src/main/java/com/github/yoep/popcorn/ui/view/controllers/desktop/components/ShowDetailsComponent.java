@@ -359,7 +359,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     private void onEpisodeWatchedChanged(Boolean newValue, Episode episode, Icon icon) {
         Tooltip.install(icon, instantTooltip(getWatchedTooltip(newValue)));
-        service.toggleWatchedState(episode);
+        service.updateWatchedStated(episode, newValue);
 
         // check if a batch update is running
         // if so, do not go to the next unwatched episode

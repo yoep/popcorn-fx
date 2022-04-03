@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.matchers.StyleClassMatchers;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseButton;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.testfx.api.FxAssert;
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled
 public class HeaderSectionControllerIT extends TestFxBase {
     @Nested
     class Icons {

@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.events;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.util.Assert;
@@ -13,6 +14,7 @@ public class ShowMovieDetailsEvent extends ShowDetailsEvent {
      */
     private final Movie media;
 
+    @Builder
     public ShowMovieDetailsEvent(Object source, Movie media) {
         super(source);
         Assert.notNull(media, "media cannot be null");

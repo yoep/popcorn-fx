@@ -16,6 +16,7 @@ import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
 import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
+import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -32,6 +33,7 @@ import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -107,6 +109,25 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     //endregion
 
+    //region Init
+
+    @PostConstruct
+    void init() {
+        service.addListener(new DetailsComponentListener() {
+            @Override
+            public void onWatchChanged(boolean newState) {
+                switchWatched(newState);
+            }
+
+            @Override
+            public void onLikedChanged(boolean newState) {
+                switchLiked(newState);
+            }
+        });
+    }
+
+    //endregion
+
     //region Functions
 
     protected void initializeTooltips() {
@@ -154,24 +175,28 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         switchWatched(service.isWatched(media));
     }
 
-    protected void switchWatched(boolean isWatched) {
+    private void switchWatched(boolean isWatched) {
         Platform.runLater(() -> {
             if (isWatched) {
                 watchedIcon.setText(Icon.CHECK_UNICODE);
                 watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
+                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
             } else {
                 watchedIcon.setText(Icon.EYE_SLASH_UNICODE);
                 watchedIcon.getStyleClass().removeIf(e -> e.equals(WATCHED_STYLE_CLASS));
+                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
             }
         });
     }
 
-    protected void switchLiked(boolean isLiked) {
+    private void switchLiked(boolean isLiked) {
         Platform.runLater(() -> {
             if (isLiked) {
+                favoriteIcon.setText(Icon.HEART_UNICODE);
                 favoriteTooltip.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
                 favoriteIcon.getStyleClass().add(LIKED_STYLE_CLASS);
             } else {
+                favoriteIcon.setText(Icon.HEART_O_UNICODE);
                 favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
                 favoriteIcon.getStyleClass().removeIf(e -> e.equals(LIKED_STYLE_CLASS));
             }

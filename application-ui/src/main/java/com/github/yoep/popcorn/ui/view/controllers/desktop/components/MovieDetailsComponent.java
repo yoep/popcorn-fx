@@ -15,7 +15,6 @@ import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
-import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -189,19 +188,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         Platform.runLater(() -> {
             super.switchActiveQuality(quality);
             switchHealth(media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality));
-        });
-    }
-
-    @Override
-    protected void switchWatched(boolean isWatched) {
-        Platform.runLater(() -> {
-            super.switchWatched(isWatched);
-
-            if (isWatched) {
-                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
-            } else {
-                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
-            }
         });
     }
 

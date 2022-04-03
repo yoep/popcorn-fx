@@ -4,7 +4,9 @@ import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -19,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,12 +58,27 @@ class PlayerSubtitleServiceTest {
     }
 
     @Test
-    void testUpdateSubtitleSizeWithSizeOffset_whenInvoked_shouldUpdateTheSubtitleSize() {
-        var pixelChange = 80;
+    void testUpdateSubtitleSizeWithSizeOffset_whenOffsetIsNegative_shouldDecreaseTheSubtitleSize() {
+        var pixelChange = -5;
+        var currentValue = 20;
+        var expectedResult = currentValue + pixelChange;
+        when(subtitleManagerService.getSubtitleSize()).thenReturn(currentValue);
 
         service.updateSubtitleSizeWithSizeOffset(pixelChange);
 
-        verify(subtitleManagerService).updateSubtitleOffset(pixelChange);
+        verify(subtitleManagerService).setSubtitleSize(expectedResult);
+    }
+
+    @Test
+    void testUpdateSubtitleSizeWithSizeOffset_whenOffsetIsPositive_shouldIncreaseTheSubtitleSize() {
+        var pixelChange = 8;
+        var currentValue = 24;
+        var expectedResult = currentValue + pixelChange;
+        when(subtitleManagerService.getSubtitleSize()).thenReturn(currentValue);
+
+        service.updateSubtitleSizeWithSizeOffset(pixelChange);
+
+        verify(subtitleManagerService).setSubtitleSize(expectedResult);
     }
 
     @Test
@@ -85,7 +103,7 @@ class PlayerSubtitleServiceTest {
     }
 
     @Test
-    void testPlaybackListener_whenRequestIsMediaPlayRequest_shouldInvokeListenersWithAvailableSubtitles() {
+    void testPlaybackListener_whenRequestIsMoviePlayRequest_shouldInvokeListenersWithAvailableSubtitles() {
         var movie = Movie.builder().build();
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);
@@ -96,6 +114,31 @@ class PlayerSubtitleServiceTest {
                 .build();
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
         when(subtitleService.retrieveSubtitles(movie)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
+        service.init();
+
+        listenerHolder.get().onPlay(request);
+
+        verify(listener).onAvailableSubtitlesChanged(availableSubtitles, activeSubtitle);
+    }
+
+    @Test
+    void testPlaybackListener_whenRequestIsShowPlayRequest_shouldInvokeListenersWithAvailableEpisodeSubtitles() {
+        var episode = Episode.builder()
+                .episode(2)
+                .build();
+        var show = Show.builder()
+                .episodes(Collections.singletonList(episode))
+                .build();
+        var activeSubtitle = mock(SubtitleInfo.class);
+        var torrentStream = mock(TorrentStream.class);
+        var request = MediaPlayRequest.mediaBuilder()
+                .media(show)
+                .subMediaItem(episode)
+                .subtitle(activeSubtitle)
+                .torrentStream(torrentStream)
+                .build();
+        var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
+        when(subtitleService.retrieveSubtitles(show, episode)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
         service.init();
 
         listenerHolder.get().onPlay(request);

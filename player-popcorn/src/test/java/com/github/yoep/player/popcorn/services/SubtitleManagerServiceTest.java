@@ -2,11 +2,18 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
+import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -23,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -45,6 +53,8 @@ class SubtitleManagerServiceTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private ApplicationSettings settings;
+    @Mock
+    private SubtitleSettings subtitleSettings;
     @InjectMocks
     private SubtitleManagerService service;
 
@@ -53,6 +63,7 @@ class SubtitleManagerServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(settingsService.getSettings()).thenReturn(settings);
+        lenient().when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         lenient().when(subtitleService.activeSubtitleProperty()).thenReturn(activeSubtitleProperty);
     }
 
@@ -123,6 +134,53 @@ class SubtitleManagerServiceTest {
         service.updateSubtitle(subtitleInfo);
 
         verify(videoPlayer).subtitleFile(subtitleFile);
+    }
+
+    @Test
+    void testSubtitleListener_whenSubtitleIsChangedToCustom_shouldLetTheUserPickASubtitle() {
+        var url = "my-video-url";
+        var quality = "720p";
+        var title = "my-video-title";
+        var subtitle = new Subtitle(SubtitleInfo.custom(), new File(""), Collections.emptyList());
+        var matcher = SubtitleMatcher.from(url, quality);
+        var pickedSubtitle = SubtitleInfo.builder()
+                .language(SubtitleLanguage.ENGLISH)
+                .build();
+        var videoEvent = PlayVideoEvent.builder()
+                .source(this)
+                .url(url)
+                .title(title)
+                .build();
+        var mediaUrl = PlayMediaEvent.mediaBuilder()
+                .source(this)
+                .title(title)
+                .url(url)
+                .quality(quality)
+                .media(Movie.builder()
+                        .images(Images.builder().build())
+                        .build())
+                .torrent(mock(Torrent.class))
+                .torrentStream(mock(TorrentStream.class))
+                .build();
+        when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(pickedSubtitle));
+        service.init();
+        service.onPlayVideo(videoEvent);
+        service.onPlayMedia(mediaUrl);
+
+        activeSubtitleProperty.set(subtitle);
+
+        verify(subtitleService).downloadAndParse(pickedSubtitle, matcher);
+    }
+
+    @Test
+    void testSubtitleListener_whenSubtitleIsChangedToCustomAndUserCancels_shouldDisableTheSubtitleTrack() {
+        var subtitle = new Subtitle(SubtitleInfo.custom(), new File(""), Collections.emptyList());
+        when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.empty());
+        service.init();
+
+        activeSubtitleProperty.set(subtitle);
+
+        verify(subtitleService).setActiveSubtitle(Subtitle.none());
     }
 
     @Test

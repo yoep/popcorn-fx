@@ -199,19 +199,13 @@ public class PopcornPlayerSectionController implements Initializable {
         this.lastKnownPlayerState = newState;
 
         switch (newState) {
-            case BUFFERING:
-                onBuffering();
-                break;
-            case PLAYING:
-                onPlaying();
-                break;
-            case PAUSED:
-                onShowOverlay(null);
-                break;
-            case ERROR:
+            case BUFFERING -> onBuffering();
+            case PLAYING -> onPlaying();
+            case PAUSED -> onShowOverlay(null);
+            case ERROR -> {
                 onError();
                 onShowOverlay(null);
-                break;
+            }
         }
     }
 

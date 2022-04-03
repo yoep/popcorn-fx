@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
@@ -180,24 +181,10 @@ public class SubtitleManagerService {
         // if so, pause the playback and let the user pick a custom subtitle file
         // if the custom subtitle contains files, than the passed subtitle file is from the details components
         if (subtitleInfo.isCustom() && subtitleInfo.getFiles().isEmpty()) {
-            // pause the video playback as a popup will be shown
-            videoService.getVideoPlayer()
-                    .ifPresent(VideoPlayback::pause);
+            subtitleInfo = pickCustomSubtitleTrack();
 
-            // show the subtitle picker popup
-            var customSubtitle = subtitlePickerService.pickCustomSubtitle();
-
-            if (customSubtitle.isPresent()) {
-                // overrule the given subtitleInfo with the custom subtitle file picked by the user
-                subtitleInfo = customSubtitle.get();
-            } else {
-                disableSubtitleTrack();
+            if (subtitleInfo == null)
                 return;
-            }
-
-            // resume the video playback
-            videoService.getVideoPlayer()
-                    .ifPresent(VideoPlayback::resume);
         }
 
         log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
@@ -214,6 +201,27 @@ public class SubtitleManagerService {
                 eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
             }
         });
+    }
+
+    private SubtitleInfo pickCustomSubtitleTrack() {
+        final var subtitleInfo = new AtomicReference<SubtitleInfo>(null);
+
+        // pause the video playback as a popup will be shown
+        videoService.getVideoPlayer()
+                .ifPresent(VideoPlayback::pause);
+
+        // show the subtitle picker popup and let the user pick a subtitle file
+        // if the user cancels the picking, we disable the subtitle
+        subtitlePickerService.pickCustomSubtitle().ifPresentOrElse(
+                subtitleInfo::set,
+                this::disableSubtitleTrack
+        );
+
+        // resume the video playback
+        videoService.getVideoPlayer()
+                .ifPresent(VideoPlayback::resume);
+
+        return subtitleInfo.get();
     }
 
     private void disableSubtitleTrack() {

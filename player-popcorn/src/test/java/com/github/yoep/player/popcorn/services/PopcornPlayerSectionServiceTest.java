@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -26,6 +27,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.File;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -279,5 +282,29 @@ class PopcornPlayerSectionServiceTest {
         settingsListener.get().propertyChange(changeEvent);
 
         verify(listener).onSubtitleFontWeightChanged(value);
+    }
+
+    @Test
+    void testSubtitleListener_whenSubtitleIsChanged_shouldInvokedListeners() {
+        var subtitle = new Subtitle(SubtitleInfo.custom(), new File(""), Collections.emptyList());
+        var subtitleSettings = mock(SubtitleSettings.class);
+        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
+        service.init();
+
+        activeSubtitleProperty.set(subtitle);
+
+        verify(listener).onSubtitleChanged(subtitle);
+    }
+
+    @Test
+    void testSubtitleListener_whenSubtitleSizeIsChanged_shouldInvokedListeners() {
+        var subtitleSize = 28;
+        var subtitleSettings = mock(SubtitleSettings.class);
+        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
+        service.init();
+
+        subtitleSizeProperty.set(subtitleSize);
+
+        verify(listener).onSubtitleSizeChanged(subtitleSize);
     }
 }

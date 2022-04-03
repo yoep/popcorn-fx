@@ -29,7 +29,7 @@ jobs:
     - name: Prepare build
       run: mvn -B clean -Plinux
     - name: Build
-      run: xvfb-run mvn -B verify -DskipITs -Plinux
+      run: xvfb-run mvn -B verify -Plinux
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:

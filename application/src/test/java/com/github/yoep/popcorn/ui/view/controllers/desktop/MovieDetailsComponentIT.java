@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.scene.Node;
 import javafx.scene.layout.GridPane;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testfx.api.FxAssert;
 import org.testfx.util.WaitForAsyncUtils;
@@ -14,6 +15,7 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+@Disabled
 public class MovieDetailsComponentIT extends TestFxBase {
     @Test
     void testMovieDetails_whenMovieIsClick_shouldShowDetails() throws TimeoutException {

@@ -124,18 +124,13 @@ public class CornerButton extends StackPane {
     }
 
     private Pos toAlignmentPosition(CornerTriangle.Position position) {
-        switch (position) {
-            case TOP_LEFT:
-                return Pos.TOP_LEFT;
-            case TOP_RIGHT:
-                return Pos.TOP_RIGHT;
-            case BOTTOM_LEFT:
-                return Pos.BOTTOM_LEFT;
-            case BOTTOM_RIGHT:
-                return Pos.BOTTOM_RIGHT;
-        }
+        return switch (position) {
+            case TOP_LEFT -> Pos.TOP_LEFT;
+            case TOP_RIGHT -> Pos.TOP_RIGHT;
+            case BOTTOM_LEFT -> Pos.BOTTOM_LEFT;
+            case BOTTOM_RIGHT -> Pos.BOTTOM_RIGHT;
+        };
 
-        return null;
     }
 
     //endregion

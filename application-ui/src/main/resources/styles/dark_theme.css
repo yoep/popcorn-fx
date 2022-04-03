@@ -453,33 +453,41 @@
     -fx-background-radius: 2em;
 }
 
-.root .movie-details .poster .corner-button {
+.root .movie-details .poster .corner-button,
+.root .show-details-section .poster .corner-button {
     -fx-max-width: 6em;
     -fx-max-height: 6em;
     -fx-cursor: hand;
 }
 
-.root .movie-details .poster .corner-button .corner {
+.root .movie-details .poster .corner-button .corner,
+.root .show-details-section .poster .corner-button .corner {
     -fx-fill: rgba(0, 0, 0, 0.3);
 }
 
-.root .movie-details .poster .corner-button .icon {
+.root .movie-details .poster .corner-button .icon,
+.root .show-details-section .poster .corner-button .icon {
     -fx-font-size: 2em;
     -fx-text-fill: #ccc;
     -fx-padding: 8 8 0 8;
 }
 
-.root .movie-details .poster .corner-button .icon.seen {
+.root .movie-details .poster .corner-button .icon.seen,
+.root .show-details-section .poster .corner-button .icon.seen {
     -fx-text-fill: #299000;
 }
 
-.root .movie-details .poster .corner-button .icon.liked {
+.root .movie-details .poster .corner-button .icon.liked,
+.root .show-details-section .poster .corner-button .icon.liked {
     -fx-text-fill: #df2d37;
 }
 
 .root .movie-details .poster .corner-button:hover .icon.seen,
 .root .movie-details .poster .corner-button:hover .icon.liked,
-.root .movie-details .poster .corner-button:hover .icon {
+.root .movie-details .poster .corner-button:hover .icon,
+.root .show-details-section .poster .corner-button:hover .icon.seen,
+.root .show-details-section .poster .corner-button:hover .icon.liked,
+.root .show-details-section .poster .corner-button:hover .icon {
     -fx-text-fill: #2d72d9;
 }
 
@@ -677,29 +685,6 @@
 
 .root .show-details-section .show-header .poster .poster-image {
     -fx-effect: dropshadow(three-pass-box, #17181b, 15, 0, 0, 0);
-}
-
-.root .show-details-section .show-header .bookmark {
-    -fx-cursor: hand;
-    -fx-padding: 5 0 8 5;
-}
-
-.root .show-details-section .show-header .bookmark Icon,
-.root .show-details-section .show-header .bookmark Label {
-    -fx-text-fill: #fff;
-    -fx-font-size: 1.2em;
-}
-
-.root .show-details-section .show-header .bookmark:hover Icon {
-    -fx-text-fill: #2468cc;
-}
-
-.root .show-details-section .show-header .bookmark .like {
-    -fx-padding: 0 5 0 0;
-}
-
-.root .show-details-section .show-header .bookmark Label {
-    -fx-font-family: "Open Sans Semibold";
 }
 
 .root .show-details-section .show-details {
@@ -1075,14 +1060,14 @@
 }
 
 .root .loader .progress-status,
-.root .player-external .progress-status{
+.root .player-external .progress-status {
     -fx-max-width: 400;
     -fx-background-color: rgba(0, 0, 0, 0.5);
     -fx-background-radius: 5;
 }
 
 .root .loader .progress-status Label,
-.root .player-external .progress-status Label{
+.root .player-external .progress-status Label {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #f9fafc;
     -fx-font-size: 1.2em;
@@ -1326,7 +1311,7 @@
 }
 
 .root .about-section .about-details .details-card {
-    -fx-background-color: linear-gradient(#253d66 10%,#1b2d4c 100%);
+    -fx-background-color: linear-gradient(#253d66 10%, #1b2d4c 100%);
     -fx-background-radius: 0.5em;
     -fx-padding: 10 15 10 15;
 }

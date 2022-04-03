@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.PopcornTimeApplicationTest;
 import com.github.yoep.popcorn.TestFxBase;
 import javafx.stage.Stage;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testfx.api.FxAssert;
 import org.testfx.api.FxToolkit;
@@ -13,6 +14,7 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+@Disabled
 public class MainControllerIT extends TestFxBase {
     static final String CONTENT_PANE_ID = "#contentPane";
     static final String PLAYER_PANE_ID = "#playerPane";
@@ -37,7 +39,7 @@ public class MainControllerIT extends TestFxBase {
     public void testStartup_whenNoNonOptionArgumentAreGiven_shouldShowContentAsStartScreen() throws TimeoutException {
         application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class);
         FxToolkit.showStage();
-        WaitForAsyncUtils.waitForFxEvents(100);
+        WaitForAsyncUtils.waitForFxEvents(20);
 
         FxAssert.verifyThat(CONTENT_PANE_ID, NodeMatchers.isNotNull());
     }
@@ -46,7 +48,7 @@ public class MainControllerIT extends TestFxBase {
     public void testStartup_whenNonOptionArgumentIsGiven_shouldShowPlayerAsStartScreen() throws TimeoutException {
         application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "--disable-popcorn-keys", "https://www.youtube.com/watch?v=BSF5yoD-vC4");
         FxToolkit.showStage();
-        WaitForAsyncUtils.waitForFxEvents(100);
+        WaitForAsyncUtils.waitForFxEvents(20);
 
         FxAssert.verifyThat(PLAYER_PANE_ID, NodeMatchers.isNotNull());
 

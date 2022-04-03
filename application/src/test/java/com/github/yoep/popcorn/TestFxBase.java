@@ -30,7 +30,7 @@ public abstract class TestFxBase extends ApplicationTest {
         FxToolkit.registerStage(Stage::new);
         application = (PopcornTimeApplicationTest) FxToolkit.setupApplication(PopcornTimeApplicationTest.class, "--disable-popcorn-keys");
         FxToolkit.showStage();
-        WaitForAsyncUtils.waitForFxEvents(100);
+        WaitForAsyncUtils.waitForFxEvents(20);
     }
 
     @AfterEach

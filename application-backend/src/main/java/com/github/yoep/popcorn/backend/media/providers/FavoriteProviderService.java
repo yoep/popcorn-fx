@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteSortStrategy;
-import com.github.yoep.popcorn.backend.media.filters.models.Category;
-import com.github.yoep.popcorn.backend.media.filters.models.Genre;
-import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.media.filters.model.Genre;
+import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;

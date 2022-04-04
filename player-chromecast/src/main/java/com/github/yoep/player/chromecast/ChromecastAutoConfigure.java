@@ -9,6 +9,9 @@ import org.springframework.context.annotation.Import;
 @Import({
         ChromecastConfig.class
 })
-@ComponentScan("com.github.yoep.player.chromecast.services")
-public class AutoConfigure {
+@ComponentScan({
+        "com.github.yoep.player.chromecast.controllers",
+        "com.github.yoep.player.chromecast.services"
+})
+public class ChromecastAutoConfigure {
 }

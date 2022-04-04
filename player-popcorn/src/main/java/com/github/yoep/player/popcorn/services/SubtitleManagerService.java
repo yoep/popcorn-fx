@@ -12,8 +12,8 @@ import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import javafx.beans.property.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -162,7 +162,7 @@ public class SubtitleManagerService {
 
         if (videoPlayer.supportsNativeSubtitleFile()) {
             log.debug("Using native subtitle file render for the current video playback");
-            videoPlayer.subtitleFile(subtitle.getFile());
+            subtitle.getFile().ifPresent(videoPlayer::subtitleFile);
         }
     }
 

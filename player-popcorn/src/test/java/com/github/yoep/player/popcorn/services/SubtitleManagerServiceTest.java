@@ -17,8 +17,8 @@ import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguag
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -129,7 +129,7 @@ class SubtitleManagerServiceTest {
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(true);
-        when(subtitle.getFile()).thenReturn(subtitleFile);
+        when(subtitle.getFile()).thenReturn(Optional.of(subtitleFile));
 
         service.updateSubtitle(subtitleInfo);
 

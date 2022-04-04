@@ -1,19 +1,17 @@
 package com.github.yoep.player.chromecast;
 
 import com.github.yoep.player.chromecast.model.VideoMetadata;
+import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import su.litvak.chromecast.api.v2.*;
 
@@ -29,19 +27,18 @@ import java.util.function.Consumer;
 @EqualsAndHashCode(exclude = {"playerState", "chromeCast", "listener"})
 @RequiredArgsConstructor
 public class ChromecastPlayer implements Player {
-    private static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
-    private static final String APP_ID = "CC1AD845";
-    private static final String METADATA_THUMBNAIL = "thumb";
-    private static final String METADATA_THUMBNAIL_URL = "thumbnailUrl";
-    private static final String METADATA_POSTER_URL = "posterUrl";
+    static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
+    static final String APP_ID = "CC1AD845";
+    static final String METADATA_THUMBNAIL = "thumb";
+    static final String METADATA_THUMBNAIL_URL = "thumbnailUrl";
+    static final String METADATA_POSTER_URL = "posterUrl";
+    static final String DESCRIPTION = "Chromecast streaming media device which allows the playback of videos on your TV.";
 
     private final ChromeCastSpontaneousEventListener listener = createEventListener();
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
     private final Timer statusTimer = new Timer("ChromecastPlaybackStatus");
     private final ChromeCast chromeCast;
-    @Nullable
-    private final ChromecastContentTypeResolver contentTypeResolver;
-    private final SubtitleService subtitleService;
+    private final ChromecastService service;
 
     private PlayerState playerState = PlayerState.READY;
     private PlaybackThread playbackThread;
@@ -62,7 +59,7 @@ public class ChromecastPlayer implements Player {
 
     @Override
     public String getDescription() {
-        return "Chromecast streaming media device which allows the playback of videos on your TV.";
+        return DESCRIPTION;
     }
 
     @Override
@@ -175,6 +172,9 @@ public class ChromecastPlayer implements Player {
         var metadata = new HashMap<String, Object>();
         metadata.put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
         metadata.put(Media.METADATA_TITLE, request.getTitle().orElse(null));
+        metadata.put(Media.METADATA_SUBTITLE, service.retrieveVttSubtitleUri()
+                .map(URI::toString)
+                .orElse(null));
         metadata.put(METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
         metadata.put(METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
         metadata.put(METADATA_POSTER_URL, request.getThumbnail().orElse(null));
@@ -184,23 +184,11 @@ public class ChromecastPlayer implements Player {
     private List<Track> getMediaTracks() {
         // check if a subtitle track is provided
         // if so, add it to the media
-        return subtitleService.getActiveSubtitle()
-                .map(e -> new Track(1, Track.TrackType.TEXT))
-                .map(Collections::singletonList)
-                .orElse(Collections.emptyList());
+        return Collections.singletonList(new Track(1, Track.TrackType.TEXT));
     }
 
     private VideoMetadata resolveVideoMetaData(String url) {
-        // check if a content type resolver has been provided
-        // if not, use the octet stream as fallback value
-        if (contentTypeResolver == null) {
-            return VideoMetadata.builder()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
-                    .duration(VideoMetadata.UNKNOWN_DURATION)
-                    .build();
-        }
-
-        return contentTypeResolver.resolve(URI.create(url));
+        return service.resolveMetadata(URI.create(url));
     }
 
     private void prepareDeviceIfNeeded() {

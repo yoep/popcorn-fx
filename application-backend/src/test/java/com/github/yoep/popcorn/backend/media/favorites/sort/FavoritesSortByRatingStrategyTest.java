@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media.favorites.sort;
 
-import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;

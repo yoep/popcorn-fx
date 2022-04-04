@@ -1,9 +1,8 @@
 package com.github.yoep.player.chromecast.config;
 
 import com.github.yoep.player.chromecast.discovery.DiscoveryService;
-import com.github.yoep.player.chromecast.services.MetaDataService;
+import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -13,8 +12,8 @@ import reactor.netty.http.client.HttpClient;
 @Configuration
 public class ChromecastConfig {
     @Bean
-    public DiscoveryService discoveryService(PlayerManagerService playerService, MetaDataService contentTypeService, SubtitleService subtitleService) {
-        return new DiscoveryService(playerService, contentTypeService, subtitleService);
+    public DiscoveryService discoveryService(PlayerManagerService playerService, ChromecastService chromecastService) {
+        return new DiscoveryService(playerService, chromecastService);
     }
 
     @Bean

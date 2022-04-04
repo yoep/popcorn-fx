@@ -30,6 +30,12 @@
             <version>${chromecast-api.version}</version>
         </dependency>
 
+        <!-- Vlcj -->
+        <dependency>
+            <groupId>uk.co.caprica</groupId>
+            <artifactId>vlcj</artifactId>
+        </dependency>
+
         <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

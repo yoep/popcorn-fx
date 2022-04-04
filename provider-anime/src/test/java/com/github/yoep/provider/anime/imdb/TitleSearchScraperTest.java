@@ -2,8 +2,8 @@ package com.github.yoep.provider.anime.imdb;
 
 import com.github.yoep.popcorn.backend.config.properties.ImdbProperties;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.backend.media.filters.models.Genre;
-import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.filters.model.Genre;
+import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import com.github.yoep.provider.anime.media.models.Anime;

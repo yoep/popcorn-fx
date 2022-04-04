@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
@@ -251,7 +251,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
             Platform.runLater(() -> {
                 languageSelection.getItems().clear();
                 languageSelection.getItems().addAll(filteredSubtitles);
-                languageSelection.select(subtitleService.getDefault(filteredSubtitles));
+                languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(filteredSubtitles));
             });
         } else {
             log.error(throwable.getMessage(), throwable);

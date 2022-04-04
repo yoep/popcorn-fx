@@ -6,7 +6,7 @@ import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.player.popcorn.messages.MediaMessage;
 import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
 import com.github.yoep.player.popcorn.subtitles.controls.LanguageSelection;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

@@ -24,8 +24,8 @@ import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
 import javafx.beans.value.ChangeListener;
@@ -250,7 +250,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         }
 
         if (selectedSubtitle == null) {
-            selectedSubtitle = subtitleService.getDefault(availableSubtitles);
+            selectedSubtitle = subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles);
         }
 
         downloadSubtitles(selectedSubtitle, quality, torrent.getFilename());

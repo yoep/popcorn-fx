@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.subtitles.models;
+package com.github.yoep.popcorn.backend.subtitles.model;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleException;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
  * This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
  */
 @Data
+@ToString(exclude = {"files"})
 @EqualsAndHashCode(of = {"imdbId", "language"})
 public class SubtitleInfo implements Comparable<SubtitleInfo>, Serializable {
     private static final SubtitleInfo NONE = new SubtitleInfo(SubtitleLanguage.NONE);

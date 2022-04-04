@@ -1,7 +1,7 @@
 package com.github.yoep.provider.anime.imdb;
 
-import com.github.yoep.popcorn.backend.media.filters.models.Genre;
-import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.filters.model.Genre;
+import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.provider.anime.media.models.Anime;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;

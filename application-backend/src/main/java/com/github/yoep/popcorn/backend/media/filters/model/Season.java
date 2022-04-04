@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.filters.models;
+package com.github.yoep.popcorn.backend.media.filters.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaType;

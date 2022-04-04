@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.subtitles.models;
+package com.github.yoep.popcorn.backend.subtitles.model;
 
 import lombok.Data;
 

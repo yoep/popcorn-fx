@@ -16,8 +16,8 @@ import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -151,7 +151,7 @@ class LoadTorrentServiceTest {
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(CompletableFuture.completedFuture(torrentInfo));
         when(torrentService.create(torrentFileInfo, workingDir, true)).thenReturn(CompletableFuture.completedFuture(torrent));
         when(subtitleService.retrieveSubtitles(media, episode)).thenReturn(CompletableFuture.completedFuture(Collections.singletonList(subtitleInfo)));
-        when(subtitleService.getDefault(Collections.singletonList(subtitleInfo))).thenReturn(subtitleInfo);
+        when(subtitleService.getDefaultOrInterfaceLanguage(Collections.singletonList(subtitleInfo))).thenReturn(subtitleInfo);
         when(subtitleService.downloadAndParse(subtitleInfo, subtitleMatcher)).thenReturn(CompletableFuture.completedFuture(subtitle));
 
         service.onLoadMediaTorrent(event);

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles.listeners;
 
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 
 public interface LanguageSelectionListener {
     /**

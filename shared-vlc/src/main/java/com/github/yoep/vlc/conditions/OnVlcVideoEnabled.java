@@ -1,4 +1,4 @@
-package com.github.yoep.video.vlc.conditions;
+package com.github.yoep.vlc.conditions;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;

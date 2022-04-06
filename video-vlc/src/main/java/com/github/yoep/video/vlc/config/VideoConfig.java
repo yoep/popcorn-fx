@@ -3,7 +3,7 @@ package com.github.yoep.video.vlc.config;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
 import com.github.yoep.video.vlc.VideoPlayerVlcError;
-import com.github.yoep.video.vlc.conditions.ConditionalOnVlcVideoEnabled;
+import com.github.yoep.vlc.conditions.ConditionalOnVlcVideoEnabled;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-package com.github.yoep.video.vlc.discovery;
+package com.github.yoep.vlc.discovery;
 
 import com.sun.jna.NativeLibrary;
 import lombok.EqualsAndHashCode;

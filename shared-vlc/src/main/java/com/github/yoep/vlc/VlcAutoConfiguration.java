@@ -1,12 +1,12 @@
-package com.github.yoep.video.vlc;
+package com.github.yoep.vlc;
 
-import com.github.yoep.video.vlc.config.VideoConfig;
+import com.github.yoep.vlc.config.VlcConfig;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 @Configuration
 @Import({
-        VideoConfig.class
+        VlcConfig.class
 })
-public class AutoConfiguration {
+public class VlcAutoConfiguration {
 }

@@ -1,4 +1,4 @@
-package com.github.yoep.video.vlc.conditions;
+package com.github.yoep.vlc.conditions;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

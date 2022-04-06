@@ -1,9 +1,9 @@
-package com.github.yoep.video.vlc.config;
+package com.github.yoep.vlc.config;
 
-import com.github.yoep.video.vlc.conditions.ConditionalOnVlcVideoEnabled;
-import com.github.yoep.video.vlc.discovery.LinuxNativeDiscoveryStrategy;
-import com.github.yoep.video.vlc.discovery.OsxNativeDiscoveryStrategy;
-import com.github.yoep.video.vlc.discovery.WindowsNativeDiscoveryStrategy;
+import com.github.yoep.vlc.conditions.ConditionalOnVlcVideoEnabled;
+import com.github.yoep.vlc.discovery.LinuxNativeDiscoveryStrategy;
+import com.github.yoep.vlc.discovery.OsxNativeDiscoveryStrategy;
+import com.github.yoep.vlc.discovery.WindowsNativeDiscoveryStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

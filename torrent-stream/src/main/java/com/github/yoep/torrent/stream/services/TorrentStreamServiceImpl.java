@@ -13,6 +13,8 @@ import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.util.Assert;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.*;
 
 @Slf4j
@@ -30,7 +32,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         var filename = getFilename(torrent);
         var url = UriComponentsBuilder.newInstance()
                 .scheme("http")
-                .host("127.0.0.1")
+                .host(getHostAddress())
                 .port(serverProperties.getPort())
                 .path("/video/{filename}")
                 .build(Collections.singletonMap("filename", filename))
@@ -92,6 +94,14 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         var filePath = torrent.getFile().getAbsolutePath();
 
         return FilenameUtils.getName(filePath);
+    }
+
+    private static String getHostAddress() {
+        try {
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            throw new TorrentException(e.getMessage(), e);
+        }
     }
 
     //endregion

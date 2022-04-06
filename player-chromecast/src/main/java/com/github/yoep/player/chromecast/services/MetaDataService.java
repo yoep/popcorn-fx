@@ -1,7 +1,6 @@
 package com.github.yoep.player.chromecast.services;
 
 import com.github.yoep.player.chromecast.model.VideoMetadata;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -15,11 +14,8 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
-public class MetaDataService {
+public record MetaDataService(WebClient chromecastWebClient) {
     private static final int DEFAULT_RETRIEVE_TIMEOUT_SECONDS = 3;
-
-    private final WebClient chromecastWebClient;
 
     /**
      * Resolve the meta data for the given video uri.
@@ -28,6 +24,7 @@ public class MetaDataService {
      * @return Returns the resolved metadata.
      */
     public VideoMetadata resolveMetadata(URI uri) {
+        log.trace("Resolving video metadata of {}", uri);
         var headers = retrieveVideoHeaders(uri);
         var contentType = headers
                 .map(HttpHeaders::getContentType)

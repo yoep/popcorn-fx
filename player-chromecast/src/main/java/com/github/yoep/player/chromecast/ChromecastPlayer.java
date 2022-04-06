@@ -1,6 +1,5 @@
 package com.github.yoep.player.chromecast;
 
-import com.github.yoep.player.chromecast.model.VideoMetadata;
 import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
@@ -13,10 +12,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
-import su.litvak.chromecast.api.v2.*;
+import su.litvak.chromecast.api.v2.ChromeCast;
+import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEvent;
+import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEventListener;
+import su.litvak.chromecast.api.v2.MediaStatus;
 
 import java.io.IOException;
-import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -29,9 +30,6 @@ import java.util.function.Consumer;
 public class ChromecastPlayer implements Player {
     static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
     static final String APP_ID = "CC1AD845";
-    static final String METADATA_THUMBNAIL = "thumb";
-    static final String METADATA_THUMBNAIL_URL = "thumbnailUrl";
-    static final String METADATA_POSTER_URL = "posterUrl";
     static final String DESCRIPTION = "Chromecast streaming media device which allows the playback of videos on your TV.";
 
     private final ChromeCastSpontaneousEventListener listener = createEventListener();
@@ -167,29 +165,6 @@ public class ChromecastPlayer implements Player {
     //endregion
 
     //region Functions
-
-    private Map<String, Object> getMediaMetaData(PlayRequest request) {
-        var metadata = new HashMap<String, Object>();
-        metadata.put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
-        metadata.put(Media.METADATA_TITLE, request.getTitle().orElse(null));
-        metadata.put(Media.METADATA_SUBTITLE, service.retrieveVttSubtitleUri()
-                .map(URI::toString)
-                .orElse(null));
-        metadata.put(METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
-        metadata.put(METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
-        metadata.put(METADATA_POSTER_URL, request.getThumbnail().orElse(null));
-        return metadata;
-    }
-
-    private List<Track> getMediaTracks() {
-        // check if a subtitle track is provided
-        // if so, add it to the media
-        return Collections.singletonList(new Track(1, Track.TrackType.TEXT));
-    }
-
-    private VideoMetadata resolveVideoMetaData(String url) {
-        return service.resolveMetadata(URI.create(url));
-    }
 
     private void prepareDeviceIfNeeded() {
         // check if a connection to the Chromecast device has been made
@@ -347,19 +322,14 @@ public class ChromecastPlayer implements Player {
             // prepare the chromecast device if needed
             prepareDeviceIfNeeded();
             var url = request.getUrl();
-            var videoMetadata = resolveVideoMetaData(url);
 
             try {
                 log.debug("Loading url \"{}\" on Chromecast \"{}\"", url, getName());
                 updateState(PlayerState.LOADING);
 
-                var tracks = getMediaTracks();
-                var metadata = getMediaMetaData(request);
-                var media = new Media(url, videoMetadata.getContentType(), videoMetadata.getDuration().doubleValue(), Media.StreamType.BUFFERED,
-                        null, metadata, null, tracks);
-
+                var media = service.toMediaRequest(request);
                 var status = chromeCast.load(media);
-                log.debug("Received status {}", status);
+                log.debug("Received chromecast status {}", status);
 
                 var statusThread = new PlaybackStatusThread();
                 statusTimer.schedule(statusThread, 0, 1000);

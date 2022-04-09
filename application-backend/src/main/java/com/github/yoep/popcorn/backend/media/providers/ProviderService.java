@@ -59,4 +59,10 @@ public interface ProviderService<T extends Media> {
      */
     @Async
     CompletableFuture<Media> retrieveDetails(Media media);
+
+    /**
+     * Reset the API availability.
+     * This will allow each API to become available again and tested/invoked.
+     */
+    void resetApiAvailability();
 }

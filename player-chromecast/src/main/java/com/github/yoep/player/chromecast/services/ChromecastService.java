@@ -1,12 +1,12 @@
 package com.github.yoep.player.chromecast.services;
 
 import com.github.yoep.player.chromecast.ChromeCastMetaData;
-import com.github.yoep.player.chromecast.ChromecastException;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
+import com.github.yoep.popcorn.backend.utils.HostUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
@@ -17,9 +17,7 @@ import su.litvak.chromecast.api.v2.Track;
 
 import java.io.File;
 import java.io.InputStream;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.*;
 
 import static java.util.Arrays.asList;
@@ -32,6 +30,7 @@ import static java.util.Arrays.asList;
 @Service
 public record ChromecastService(MetaDataService contentTypeService,
                                 SubtitleService subtitleService,
+                                TranscodeService transcodeService,
                                 ServerProperties serverProperties) {
     static final Collection<String> SUPPORTED_MEDIA_TYPES = asList("mp4", "ogg", "wav", "webm");
 
@@ -62,7 +61,7 @@ public record ChromecastService(MetaDataService contentTypeService,
                 .map(e -> e + "." + SubtitleType.VTT.getExtension())
                 .map(e -> UriComponentsBuilder.newInstance()
                         .scheme("http")
-                        .host(getHostAddress())
+                        .host(HostUtils.hostAddress())
                         .port(serverProperties.getPort())
                         .path("/subtitle/{subtitle}")
                         .build(Collections.singletonMap("subtitle", e)));
@@ -86,17 +85,21 @@ public record ChromecastService(MetaDataService contentTypeService,
      */
     public Media toMediaRequest(PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
-        log.debug("Creating ChromeCast media request for {}", request);
+        log.trace("Creating ChromeCast media request for {}", request);
         var tracks = subtitleService.getActiveSubtitle()
                 .filter(this::isSubtitleNotDisabled)
                 .map(e -> Collections.singletonList(new Track(1, Track.TrackType.TEXT)))
                 .orElse(Collections.emptyList());
         var url = request.getUrl();
+        var extension = FilenameUtils.getExtension(url);
 
         // verify if the media url is supported
         // if not, we start a transcoding process through VLC
-        if (!isSupportedVideoFormat(FilenameUtils.getExtension(url))) {
-            // TODO: implement
+        if (!isSupportedVideoFormat(extension)) {
+            log.debug("Current video format {} is not supported by Chromecast, starting transcoding of the video", extension);
+            url = transcodeService.transcode(url);
+        } else {
+            log.debug("Current video format {} is supported, transcoding not needed", extension);
         }
 
         var metadata = getMediaMetaData(request);
@@ -116,23 +119,29 @@ public record ChromecastService(MetaDataService contentTypeService,
     }
 
     private Map<String, Object> getMediaMetaData(PlayRequest request) {
-        var metadata = new HashMap<String, Object>();
-        metadata.put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
-        metadata.put(Media.METADATA_TITLE, request.getTitle().orElse(null));
-        metadata.put(Media.METADATA_SUBTITLE, retrieveVttSubtitleUri()
+        var subtitleUri = retrieveVttSubtitleUri()
                 .map(URI::toString)
-                .orElse(null));
-        metadata.put(ChromeCastMetaData.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
-        metadata.put(ChromeCastMetaData.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
-        metadata.put(ChromeCastMetaData.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
-        return metadata;
+                .map(this::subtitleAvailability)
+                .orElseGet(this::noSubtitleAvailable);
+
+        return new HashMap<>() {{
+            put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
+            put(Media.METADATA_TITLE, request.getTitle().orElse(null));
+            put(Media.METADATA_SUBTITLE, subtitleUri);
+            put(ChromeCastMetaData.METADATA_SUBTITLES, subtitleUri);
+            put(ChromeCastMetaData.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetaData.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetaData.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+        }};
     }
 
-    private static String getHostAddress() {
-        try {
-            return InetAddress.getLocalHost().getHostAddress();
-        } catch (UnknownHostException e) {
-            throw new ChromecastException(e.getMessage(), e);
-        }
+    private String subtitleAvailability(String uri) {
+        log.debug("Chromecast subtitle will be available at {}", uri);
+        return uri;
+    }
+
+    private String noSubtitleAvailable() {
+        log.debug("No active subtitle available for Chromecast");
+        return null;
     }
 }

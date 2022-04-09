@@ -58,6 +58,12 @@ public class ListSectionController extends AbstractListSectionController impleme
         return viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
     }
 
+    private void onRetryMediaLoading() {
+        providerServices.forEach(ProviderService::resetApiAvailability);
+        scrollPane.reset();
+        scrollPane.loadNewPage();
+    }
+
     private OverlayItemListener createItemListener() {
         return new OverlayItemListener() {
             @Override
@@ -88,8 +94,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     @FXML
     void onRetryListLoading(MouseEvent event) {
         event.consume();
-        scrollPane.reset();
-        scrollPane.loadNewPage();
+        onRetryMediaLoading();
     }
 
     //endregion

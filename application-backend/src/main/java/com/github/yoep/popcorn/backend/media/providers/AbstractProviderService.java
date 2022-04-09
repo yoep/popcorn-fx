@@ -40,6 +40,18 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
 
     private final List<UriProvider> uriProviders = new ArrayList<>();
 
+    // region ProviderService
+
+    @Override
+    public void resetApiAvailability() {
+        log.debug("Resetting api availability for {}", this.getClass().getSimpleName());
+        uriProviders.forEach(UriProvider::reset);
+    }
+
+    //endregion
+
+    //region Functions
+
     protected URI getUriFor(URI baseUrl, String resource, Genre genre, SortBy sortBy, String keywords, int page) {
         log.trace("Creating uri for base \"{}\", resource \"{}\", genre \"{}\", sort \"{}\", keywords \"{}\" and page \"{}\"",
                 baseUrl, resource, genre, sortBy, keywords, page);
@@ -150,4 +162,6 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
                     .orElseThrow(() -> new MediaException("No uri providers are available to be used"));
         }
     }
+
+    //endregion
 }

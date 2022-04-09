@@ -1,15 +1,21 @@
 package com.github.yoep.player.chromecast.services;
 
+import com.github.yoep.player.chromecast.ChromeCastMetaData;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
+import com.github.yoep.popcorn.backend.utils.HostUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
+import su.litvak.chromecast.api.v2.Media;
+import su.litvak.chromecast.api.v2.Track;
 
 import java.io.File;
 import java.io.InputStream;
@@ -18,6 +24,8 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.text.MessageFormat;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,6 +41,8 @@ class ChromecastServiceTest {
     private SubtitleService subtitleService;
     @Mock
     private ServerProperties serverProperties;
+    @Mock
+    private TranscodeService transcodeService;
     @InjectMocks
     private ChromecastService service;
 
@@ -99,5 +109,73 @@ class ChromecastServiceTest {
 
         assertTrue(result.isPresent(), "Expected a subtitle to be returned");
         assertEquals(expectedResult, result.get());
+    }
+
+    @Test
+    void testToMediaRequest_whenFormatIsSupported_shouldUseOriginalUrl() {
+        var url = "http://localhost:9976/my-video-url.mp4";
+        var contentType = "video/mp4";
+        var duration = 20000L;
+        var port = 9999;
+        var subtitle = new Subtitle(new File("my-subtitle.srt"), Collections.emptyList());
+        var request = SimplePlayRequest.builder()
+                .url(url)
+                .title("My movie title")
+                .autoResumeTimestamp(20000L)
+                .thumb("https://thumbs.com/my-thumb.jpg")
+                .build();
+        var metadata = createMetadata(request, MessageFormat.format("http://{0}:{1}/subtitle/my-subtitle.vtt", HostUtils.hostAddress(), String.valueOf(port)));
+        var tracks = Collections.singletonList(new Track(1, Track.TrackType.TEXT));
+        var expectedResult = new Media(url, contentType, (double) duration, Media.StreamType.BUFFERED, null, metadata, null, tracks);
+        when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
+                .contentType(contentType)
+                .duration(duration)
+                .build());
+        when(serverProperties.getPort()).thenReturn(port);
+        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
+
+        var result = service.toMediaRequest(request);
+
+        assertEquals(expectedResult, result);
+        assertEquals(metadata, result.metadata);
+    }
+
+    @Test
+    void testToMediaRequest_whenFormatIsNotSupported_shouldUseTranscodedUrl() {
+        var url = "http://localhost:9976/my-video-url.mkv";
+        var transcodedUrl = "http://localhost:9976/my-video-url.mp4";
+        var contentType = "video/mp4";
+        var duration = 20000L;
+        var request = SimplePlayRequest.builder()
+                .url(url)
+                .title("My movie title")
+                .autoResumeTimestamp(20000L)
+                .thumb("https://thumbs.com/my-thumb.jpg")
+                .build();
+        var metadata = createMetadata(request, null);
+        var expectedResult = new Media(transcodedUrl, contentType, (double) duration, Media.StreamType.BUFFERED, null, metadata, null, Collections.emptyList());
+        when(contentTypeService.resolveMetadata(URI.create(transcodedUrl))).thenReturn(VideoMetadata.builder()
+                .contentType(contentType)
+                .duration(duration)
+                .build());
+        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.empty());
+        when(transcodeService.transcode(url)).thenReturn(transcodedUrl);
+
+        var result = service.toMediaRequest(request);
+
+        assertEquals(expectedResult, result);
+        assertEquals(metadata, result.metadata);
+    }
+
+    private static Map<String, Object> createMetadata(PlayRequest request, String subtitleUri) {
+        return new HashMap<>() {{
+            put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
+            put(Media.METADATA_TITLE, request.getTitle().orElse(null));
+            put(Media.METADATA_SUBTITLE, subtitleUri);
+            put(ChromeCastMetaData.METADATA_SUBTITLES, subtitleUri);
+            put(ChromeCastMetaData.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetaData.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetaData.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+        }};
     }
 }

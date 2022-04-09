@@ -17,6 +17,12 @@ public interface UriProvider {
     void disable();
 
     /**
+     * Reset the availability of this uri provider.
+     * This will make the {@link #isAvailable()} return {@code true} even if the {@link #disable()} has been called.
+     */
+    void reset();
+
+    /**
      * Get the uri of this provider.
      *
      * @return Returns the uri of this provider.

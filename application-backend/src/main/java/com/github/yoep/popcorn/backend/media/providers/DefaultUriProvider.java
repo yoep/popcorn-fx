@@ -41,6 +41,11 @@ public class DefaultUriProvider implements UriProvider {
     }
 
     @Override
+    public void reset() {
+        disabled = false;
+    }
+
+    @Override
     public @NotNull URI getUri() {
         return uri;
     }

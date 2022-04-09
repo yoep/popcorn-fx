@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.utils.HostUtils;
 import com.github.yoep.torrent.stream.models.TorrentStreamImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +14,6 @@ import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.util.Assert;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.*;
 
 @Slf4j
@@ -32,7 +31,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         var filename = getFilename(torrent);
         var url = UriComponentsBuilder.newInstance()
                 .scheme("http")
-                .host(getHostAddress())
+                .host(HostUtils.hostAddress())
                 .port(serverProperties.getPort())
                 .path("/video/{filename}")
                 .build(Collections.singletonMap("filename", filename))
@@ -94,14 +93,6 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         var filePath = torrent.getFile().getAbsolutePath();
 
         return FilenameUtils.getName(filePath);
-    }
-
-    private static String getHostAddress() {
-        try {
-            return InetAddress.getLocalHost().getHostAddress();
-        } catch (UnknownHostException e) {
-            throw new TorrentException(e.getMessage(), e);
-        }
     }
 
     //endregion

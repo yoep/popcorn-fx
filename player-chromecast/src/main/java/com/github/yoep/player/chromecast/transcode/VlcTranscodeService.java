@@ -46,7 +46,7 @@ public class VlcTranscodeService implements TranscodeService {
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newMediaPlayer();
         mediaPlayer.events().addMediaPlayerEventListener(listener);
 
-        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=VP80,vb=1000,vfilter=canvas{width=640,height=360},acodec=vorb,ab=128,channels=2," +
+        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=VP80,vb=1000,acodec=vorb,ab=128,channels=2," +
                 "samplerate=44100,threads=2}:http{mux=" + EXTENSION + ",dst=:" + port + "/" + name + "}", ":sout-keep");
 
         if (!started) {
@@ -67,18 +67,18 @@ public class VlcTranscodeService implements TranscodeService {
         return new MediaPlayerEventAdapter() {
             @Override
             public void opening(MediaPlayer mediaPlayer) {
-                log.debug("Opening");
+                log.trace("Transcoding is opening the original video");
             }
 
             @Override
             public void buffering(MediaPlayer mediaPlayer, float newCache) {
-                log.debug("Buffering");
+                log.trace("Transcoding is currently buffering at {}", newCache);
             }
 
             @Override
             public void error(MediaPlayer mediaPlayer) {
                 var message = libvlc_errmsg();
-                log.error("Transcoding failed, {}", message);
+                log.error("Transcoding has failed, {}", message);
             }
         };
     }

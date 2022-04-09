@@ -274,7 +274,9 @@ public class ChromecastPlayer implements Player {
     }
 
     private void onPlayerDurationChanged(Double duration) {
-        invokeSafeListeners(e -> e.onDurationChanged(duration.longValue() * 1000));
+        Optional.ofNullable(duration)
+                .map(Double::longValue)
+                .ifPresent(e -> invokeSafeListeners(listener -> listener.onDurationChanged(e * 1000)));
     }
 
     private ChromeCastSpontaneousEventListener createEventListener() {

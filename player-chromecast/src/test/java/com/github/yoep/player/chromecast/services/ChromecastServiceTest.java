@@ -171,7 +171,7 @@ class ChromecastServiceTest {
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
             put(Media.METADATA_TITLE, request.getTitle().orElse(null));
-            put(Media.METADATA_SUBTITLE, subtitleUri);
+            put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
             put(ChromeCastMetaData.METADATA_SUBTITLES, subtitleUri);
             put(ChromeCastMetaData.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
             put(ChromeCastMetaData.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));

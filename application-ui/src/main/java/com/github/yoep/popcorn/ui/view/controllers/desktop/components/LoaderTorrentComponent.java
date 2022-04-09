@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import com.github.yoep.popcorn.ui.torrent.utils.SizeUtils;
+import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -127,9 +127,9 @@ public class LoaderTorrentComponent implements Initializable {
             progressBar.setProgress(status.getProgress());
             progressBar.setVisible(true);
             statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
-            progressPercentage.setText(String.format("%1$,.2f", status.getProgress() * 100) + "%");
-            downloadText.setText(SizeUtils.toDisplaySize(status.getDownloadSpeed()) + "/s");
-            uploadText.setText(SizeUtils.toDisplaySize(status.getUploadSpeed()) + "/s");
+            progressPercentage.setText(ProgressUtils.progressToPercentage(status));
+            downloadText.setText(ProgressUtils.progressToDownload(status));
+            uploadText.setText(ProgressUtils.progressToUpload(status));
             activePeersText.setText(String.valueOf(status.getSeeds()));
         });
     }

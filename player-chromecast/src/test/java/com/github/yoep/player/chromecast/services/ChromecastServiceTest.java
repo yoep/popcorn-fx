@@ -128,9 +128,9 @@ class ChromecastServiceTest {
                 .thumb("https://thumbs.com/my-thumb.jpg")
                 .build();
         var subtitleUri = MessageFormat.format("http://{0}:{1}/subtitle/my-subtitle.vtt", HostUtils.hostAddress(), String.valueOf(port));
-        var metadata = createMetadata(request, subtitleUri);
+        var metadata = createMetadata(request);
         var tracks = Collections.singletonList(Track.builder()
-                .trackId(1)
+                .trackId(0)
                 .type(su.litvak.chromecast.api.v2.Track.TrackType.TEXT)
                 .subtype(TextTrackType.SUBTITLES)
                 .language("en")
@@ -148,9 +148,10 @@ class ChromecastServiceTest {
                         .duration((double) duration)
                         .streamType(Media.StreamType.BUFFERED)
                         .metadata(metadata)
+                        .textTrackStyle(createTrackStyle())
                         .tracks(tracks)
                         .build())
-                .activeTrackIds(Collections.singletonList(1))
+                .activeTrackIds(Collections.singletonList(0))
                 .build();
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
@@ -177,7 +178,7 @@ class ChromecastServiceTest {
                 .autoResumeTimestamp(60500L)
                 .thumb("https://thumbs.com/my-thumb.jpg")
                 .build();
-        var metadata = createMetadata(request, null);
+        var metadata = createMetadata(request);
         var expectedResult = Load.builder()
                 .sessionId(sessionId)
                 .autoplay(true)
@@ -188,6 +189,7 @@ class ChromecastServiceTest {
                         .duration((double) duration)
                         .streamType(Media.StreamType.BUFFERED)
                         .metadata(metadata)
+                        .textTrackStyle(createTrackStyle())
                         .tracks(Collections.emptyList())
                         .build())
                 .activeTrackIds(Collections.emptyList())
@@ -214,7 +216,7 @@ class ChromecastServiceTest {
         assertEquals(expectedTime, result);
     }
 
-    private static Map<String, Object> createMetadata(PlayRequest request, String subtitleUri) {
+    private static Map<String, Object> createMetadata(PlayRequest request) {
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
             put(Media.METADATA_TITLE, request.getTitle().orElse(null));
@@ -222,6 +224,15 @@ class ChromecastServiceTest {
             put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
             put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
             put(ChromeCastMetadata.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+        }};
+    }
+
+    private static Map<String, Object> createTrackStyle() {
+        return new HashMap<>() {{
+            put("backgroundColor", "#00000000");
+            put("edgeType", "OUTLINE");
+            put("edgeColor", "#000000FF");
+            put("foregroundColor", "#FFFFFFFF");
         }};
     }
 }

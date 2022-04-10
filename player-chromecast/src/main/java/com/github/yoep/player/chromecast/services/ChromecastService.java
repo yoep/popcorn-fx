@@ -136,10 +136,10 @@ public class ChromecastService {
                         .streamType(Media.StreamType.BUFFERED)
                         .customData(null)
                         .metadata(metadata)
-                        //                        .textTrackStyle(getMediaTrackStyle())
+                        .textTrackStyle(getTrackStyle())
                         .tracks(tracks)
                         .build())
-                .activeTrackIds(tracks.size() > 0 ? Collections.singletonList(1) : Collections.emptyList())
+                .activeTrackIds(tracks.size() > 0 ? Collections.singletonList(0) : Collections.emptyList())
                 .build();
     }
 
@@ -178,17 +178,6 @@ public class ChromecastService {
         return SUPPORTED_MEDIA_TYPES.contains(extension.toLowerCase());
     }
 
-    private Map<String, Object> getMediaMetaData(PlayRequest request) {
-        return new HashMap<>() {{
-            put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
-            put(Media.METADATA_TITLE, request.getTitle().orElse(null));
-            put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
-            put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetadata.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
-        }};
-    }
-
     private List<Track> getMediaTrack(Subtitle subtitle) {
         var languageCode = subtitle.getSubtitleInfo()
                 .map(SubtitleInfo::getLanguage)
@@ -200,7 +189,7 @@ public class ChromecastService {
                 .orElse(SubtitleLanguage.ENGLISH.getNativeName());
 
         return Collections.singletonList(Track.builder()
-                .trackId(1)
+                .trackId(0)
                 .type(su.litvak.chromecast.api.v2.Track.TrackType.TEXT)
                 .trackContentId(retrieveVttSubtitleUri()
                         .map(URI::toString)
@@ -210,6 +199,26 @@ public class ChromecastService {
                 .language(languageCode)
                 .name(languageName)
                 .build());
+    }
+
+    private static Map<String, Object> getMediaMetaData(PlayRequest request) {
+        return new HashMap<>() {{
+            put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
+            put(Media.METADATA_TITLE, request.getTitle().orElse(null));
+            put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+        }};
+    }
+
+    private static Map<String, Object> getTrackStyle() {
+        return new HashMap<>() {{
+            put("backgroundColor", "#00000000");
+            put("edgeType", "OUTLINE");
+            put("edgeColor", "#000000FF");
+            put("foregroundColor", "#FFFFFFFF");
+        }};
     }
 
     //endregion

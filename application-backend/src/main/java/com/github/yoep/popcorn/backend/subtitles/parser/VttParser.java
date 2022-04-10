@@ -51,7 +51,6 @@ public class VttParser implements Parser {
                     .map(e -> e.texts().stream()
                             .map(SubtitleText::text)
                             .collect(Collectors.joining("")))
-                    .map(e -> "- " + e)
                     .map(e -> e + System.lineSeparator())
                     .forEach(output::append);
 

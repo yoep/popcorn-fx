@@ -1,6 +1,5 @@
 package com.github.yoep.player.chromecast.api.v2;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -36,7 +35,7 @@ public class Media {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public final Map<String, Object> customData;
 
-    @JsonIgnore
+    @JsonProperty
     public final Map<String, Object> textTrackStyle;
 
     @JsonProperty

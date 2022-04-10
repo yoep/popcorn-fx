@@ -3,13 +3,15 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleIndex;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import org.springframework.scheduling.annotation.Async;
 
 import java.io.File;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +69,7 @@ public interface SubtitleService {
     CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(String filename);
 
     /**
-     * Parse the given SRT file to a list of {@link SubtitleIndex}'s.
+     * Parse the given SRT file to a list of {@link SubtitleCue}'s.
      *
      * @param file     The SRT file to parse.
      * @param encoding The encoding of the SRT file.
@@ -86,6 +88,16 @@ public interface SubtitleService {
     CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher);
 
     /**
+     * Convert the given subtitle to the format type.
+     * It will output a string stream of the converted subtitle.
+     *
+     * @param subtitle The subtitle to convert.
+     * @param type     The expected subtitle type.
+     * @return Returns the converted subtitle output.
+     */
+    InputStream convert(Subtitle subtitle, SubtitleType type);
+
+    /**
      * Get the subtitle that needs to be selected by default for the given subtitles list.
      * This is based on the subtitle settings and tries to find the user's preferred language if it exist.
      * If the user's preferred language doesn't exist in the list, it returns the default {@link SubtitleInfo#none()} subtitle.
@@ -97,7 +109,7 @@ public interface SubtitleService {
 
     /**
      * Get the subtitle that needs to be selected by default for the given subtitles list.
-     * This is based on the subtitle settings and tries to find the user's preferred language if it exist or uses the interface language if not found.
+     * This is based on the subtitle settings and tries to find the user's preferred language if it exists or uses the interface language if not found.
      * If the user's preferred language doesn't exist in the list, it will use the interface language.
      * If both the user's preferred language and interface language don't exist, it returns the default {@link SubtitleInfo#none()} subtitle.
      *

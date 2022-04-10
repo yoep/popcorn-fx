@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.events;
 
-import com.github.yoep.popcorn.backend.media.filters.models.Genre;
+import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;

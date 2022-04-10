@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.utils.HostUtils;
 import com.github.yoep.torrent.stream.models.TorrentStreamImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         var filename = getFilename(torrent);
         var url = UriComponentsBuilder.newInstance()
                 .scheme("http")
-                .host("127.0.0.1")
+                .host(HostUtils.hostAddress())
                 .port(serverProperties.getPort())
                 .path("/video/{filename}")
                 .build(Collections.singletonMap("filename", filename))

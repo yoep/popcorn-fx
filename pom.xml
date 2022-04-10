@@ -24,6 +24,7 @@
         <module>player-popcorn</module>
         <module>player-qt</module>
         <module>provider-anime</module>
+        <module>shared-vlc</module>
         <module>torrent-frostwire</module>
         <module>torrent-stream</module>
         <module>video-javafx</module>
@@ -78,6 +79,8 @@
         <jna.version>5.10.0</jna.version>
         <testfx.version>4.0.16-alpha</testfx.version>
         <javapackager.version>1.6.5</javapackager.version>
+        <vlcj.version>4.7.2</vlcj.version>
+        <vlcj-javafx.version>1.0.3</vlcj-javafx.version>
 
         <cmake-maven-plugin.version>3.19.2-b1</cmake-maven-plugin.version>
         <cmake.download>false</cmake.download>
@@ -166,6 +169,18 @@
                 <groupId>net.java.dev.jna</groupId>
                 <artifactId>jna-platform</artifactId>
                 <version>${jna.version}</version>
+            </dependency>
+
+            <!-- VLCj -->
+            <dependency>
+                <groupId>uk.co.caprica</groupId>
+                <artifactId>vlcj</artifactId>
+                <version>${vlcj.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>uk.co.caprica</groupId>
+                <artifactId>vlcj-javafx</artifactId>
+                <version>${vlcj-javafx.version}</version>
             </dependency>
 
             <dependency>

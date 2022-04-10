@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.adapters.torrent.model;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.InvalidStreamException;
+import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentStreamException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -57,7 +57,7 @@ public interface TorrentStream extends Torrent {
      *
      * @return Returns the stream resource of the given torrent.
      */
-    Resource stream() throws InvalidStreamException;
+    Resource stream() throws InvalidTorrentStreamException;
 
     /**
      * Stop this torrent stream.

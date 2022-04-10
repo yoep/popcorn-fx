@@ -1,7 +1,7 @@
 package com.github.yoep.provider.anime.imdb;
 
-import com.github.yoep.popcorn.backend.media.filters.models.Genre;
-import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.filters.model.Genre;
+import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

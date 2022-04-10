@@ -1,5 +1,6 @@
 package com.github.yoep.player.chromecast.services;
 
+import com.github.yoep.player.chromecast.config.ChromecastConfig;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -26,7 +27,7 @@ class MetaDataServiceTest {
     private static final MockWebServer MOCK_WEB_SERVER = new MockWebServer();
 
     @Spy
-    private WebClient webClient = WebClient.builder().build();
+    private WebClient webClient = new ChromecastConfig().chromecastWebClient();
     private MetaDataService service;
 
     @BeforeAll

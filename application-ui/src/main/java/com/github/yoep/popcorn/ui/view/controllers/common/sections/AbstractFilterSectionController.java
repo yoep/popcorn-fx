@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.yoep.popcorn.backend.media.filters.models.Category;
+import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.StartScreen;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;

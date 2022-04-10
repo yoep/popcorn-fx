@@ -348,6 +348,9 @@ public class FrostTorrent implements Torrent, AlertListener {
     }
 
     private void onStatsReceived() {
+        if (!handle.isValid())
+            return;
+
         var status = handle.status();
         var state = status.state();
         var downloadStatus = FrostDownloadStatus.builder()

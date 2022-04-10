@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -51,11 +52,12 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         return favoriteService.isLiked(media);
     }
 
-    public void toggleWatchedState(Media media) {
-        if (media.isWatched()) {
-            watchedService.removeFromWatchList(media);
-        } else {
+    public void updateWatchedStated(Media media, boolean isWatched) {
+        Objects.requireNonNull(media, "media cannot be null");
+        if (isWatched) {
             watchedService.addToWatchList(media);
+        } else {
+            watchedService.removeFromWatchList(media);
         }
     }
 
@@ -65,7 +67,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
             return;
         }
 
-        toggleWatchedState(lastShownMediaItem);
+        updateWatchedStated(lastShownMediaItem, !lastShownMediaItem.isWatched());
     }
 
     public void toggleLikedState() {

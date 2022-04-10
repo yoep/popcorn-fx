@@ -120,9 +120,7 @@ public class TorrentServiceImpl implements TorrentService {
         torrent.pause();
 
         // check if the torrent can be removed from the session
-        if (torrent instanceof FrostTorrent) {
-            var frostTorrent = (FrostTorrent) torrent;
-
+        if (torrent instanceof FrostTorrent frostTorrent) {
             session.removeListener(frostTorrent);
             session.remove(frostTorrent.getHandle());
             log.info("Torrent \"{}\" has been removed from the torrent session", torrent.getFilename());

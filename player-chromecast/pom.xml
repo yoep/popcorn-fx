@@ -22,12 +22,23 @@
             <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>shared-vlc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Chromecast -->
         <dependency>
             <groupId>su.litvak.chromecast</groupId>
             <artifactId>api-v2</artifactId>
             <version>${chromecast-api.version}</version>
+        </dependency>
+
+        <!-- Vlcj -->
+        <dependency>
+            <groupId>uk.co.caprica</groupId>
+            <artifactId>vlcj</artifactId>
         </dependency>
 
         <!-- Spring -->

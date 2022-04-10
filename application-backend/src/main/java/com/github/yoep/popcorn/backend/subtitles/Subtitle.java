@@ -1,70 +1,56 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleIndex;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-import javafx.beans.property.SimpleListProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
-import org.springframework.util.Assert;
 
 import java.io.File;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
  * The subtitle contains the parsed information of a subtitle file.
- * This is effectively a wrapper around the {@link SubtitleIndex} objects which contain the actual parsed data and a reference to the original
+ * This is effectively a wrapper around the {@link SubtitleCue} objects which contain the actual parsed data and a reference to the original
  * {@link SubtitleInfo} from which this {@link Subtitle} was generated.
  */
-@ToString(exclude = "indexes")
+@Getter
+@ToString(exclude = "cues")
 @EqualsAndHashCode
 public class Subtitle implements Serializable {
-    public static final String INDEXES_PROPERTY = "indexes";
     private static final Subtitle NONE = new Subtitle(SubtitleInfo.none());
 
-    private final transient SimpleListProperty<SubtitleIndex> indexes = new SimpleListProperty<>(this, INDEXES_PROPERTY, FXCollections.observableArrayList());
+    private final transient List<SubtitleCue> cues;
     private final SubtitleInfo subtitleInfo;
     private final File file;
 
     //region Constructors
 
     Subtitle(SubtitleInfo subtitleInfo) {
-        Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
+        Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         this.subtitleInfo = subtitleInfo;
         this.file = null;
+        this.cues = Collections.emptyList();
     }
 
-    public Subtitle(File file, List<SubtitleIndex> indexes) {
-        Assert.notNull(file, "file cannot be null");
+    public Subtitle(File file, List<SubtitleCue> cues) {
+        Objects.requireNonNull(file, "file cannot be null");
+        Objects.requireNonNull(cues, "cues cannot be null");
         this.subtitleInfo = null;
         this.file = file;
-        this.indexes.addAll(indexes);
+        this.cues = cues;
     }
 
-    public Subtitle(SubtitleInfo subtitleInfo, File file, List<SubtitleIndex> indexes) {
-        Assert.notNull(file, "file cannot be null");
+    public Subtitle(SubtitleInfo subtitleInfo, File file, List<SubtitleCue> cues) {
+        Objects.requireNonNull(file, "file cannot be null");
+        Objects.requireNonNull(cues, "cues cannot be null");
         this.subtitleInfo = subtitleInfo;
         this.file = file;
-        this.indexes.addAll(indexes);
-    }
-
-    //endregion
-
-    //region Properties
-
-    public ObservableList<SubtitleIndex> getIndexes() {
-        return indexes.get();
-    }
-
-    public SimpleListProperty<SubtitleIndex> indexesProperty() {
-        return indexes;
-    }
-
-    public void setIndexes(ObservableList<SubtitleIndex> indexes) {
-        this.indexes.set(indexes);
+        this.cues = cues;
     }
 
     //endregion
@@ -107,7 +93,7 @@ public class Subtitle implements Serializable {
         return Optional.ofNullable(subtitleInfo);
     }
 
-    public File getFile() {
-        return file;
+    public Optional<File> getFile() {
+        return Optional.ofNullable(file);
     }
 }

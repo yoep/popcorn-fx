@@ -11,7 +11,7 @@ import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -171,7 +171,7 @@ class PlayerSubtitleServiceTest {
         when(request.isSubtitlesEnabled()).thenReturn(true);
         when(request.getUrl()).thenReturn(filename);
         when(subtitleService.retrieveSubtitles(filename)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.getDefault(availableSubtitles)).thenReturn(SubtitleInfo.none());
+        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(SubtitleInfo.none());
         service.init();
 
         listenerHolder.get().onPlay(request);

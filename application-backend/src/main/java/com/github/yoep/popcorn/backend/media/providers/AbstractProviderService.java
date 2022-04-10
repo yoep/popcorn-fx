@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.config.properties.ProviderProperties;
-import com.github.yoep.popcorn.backend.media.filters.models.Genre;
-import com.github.yoep.popcorn.backend.media.filters.models.SortBy;
+import com.github.yoep.popcorn.backend.media.filters.model.Genre;
+import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.settings.models.ServerSettings;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +39,18 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
     protected final RestTemplate restTemplate;
 
     private final List<UriProvider> uriProviders = new ArrayList<>();
+
+    // region ProviderService
+
+    @Override
+    public void resetApiAvailability() {
+        log.debug("Resetting api availability for {}", this.getClass().getSimpleName());
+        uriProviders.forEach(UriProvider::reset);
+    }
+
+    //endregion
+
+    //region Functions
 
     protected URI getUriFor(URI baseUrl, String resource, Genre genre, SortBy sortBy, String keywords, int page) {
         log.trace("Creating uri for base \"{}\", resource \"{}\", genre \"{}\", sort \"{}\", keywords \"{}\" and page \"{}\"",
@@ -150,4 +162,6 @@ public abstract class AbstractProviderService<T extends Media> implements Provid
                     .orElseThrow(() -> new MediaException("No uri providers are available to be used"));
         }
     }
+
+    //endregion
 }

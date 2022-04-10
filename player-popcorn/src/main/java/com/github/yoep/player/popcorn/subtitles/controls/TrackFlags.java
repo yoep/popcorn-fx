@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.subtitles.controls;
 
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleLine;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleText;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -36,11 +36,11 @@ public class TrackFlags {
     public static TrackFlags from(SubtitleText line) {
         int flags = 0;
 
-        if (line.isItalic())
+        if (line.italic())
             flags += 1;
-        if (line.isBold())
+        if (line.bold())
             flags += 2;
-        if (line.isUnderline())
+        if (line.underline())
             flags += 4;
 
         return new TrackFlags(flags);

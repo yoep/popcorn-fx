@@ -97,6 +97,7 @@ public class PlayerManagerServiceImpl implements PlayerManagerService {
 
     @PreDestroy
     void onDestroy() {
+        log.debug("Disposing all player resources");
         players.values().forEach(Player::dispose);
     }
 

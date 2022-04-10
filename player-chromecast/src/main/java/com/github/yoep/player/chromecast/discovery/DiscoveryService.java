@@ -1,9 +1,8 @@
 package com.github.yoep.player.chromecast.discovery;
 
 import com.github.yoep.player.chromecast.ChromecastPlayer;
-import com.github.yoep.player.chromecast.services.MetaDataService;
+import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import su.litvak.chromecast.api.v2.ChromeCast;
@@ -18,8 +17,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class DiscoveryService implements ChromeCastsListener {
     private final PlayerManagerService playerService;
-    private final MetaDataService contentTypeService;
-    private final SubtitleService subtitleService;
+    private final ChromecastService chromecastService;
 
     private Thread discoveryThread;
 
@@ -28,7 +26,7 @@ public class DiscoveryService implements ChromeCastsListener {
     @Override
     public void newChromeCastDiscovered(ChromeCast chromeCast) {
         log.info("Discovered new Chromecast device \"{}\"", chromeCast.getName());
-        var chromecastPlayer = new ChromecastPlayer(chromeCast, contentTypeService::resolveMetadata, subtitleService);
+        var chromecastPlayer = new ChromecastPlayer(chromeCast, chromecastService);
 
         playerService.register(chromecastPlayer);
     }

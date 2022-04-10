@@ -49,7 +49,7 @@
 
         <!-- Playback control -->
         <HBox GridPane.columnIndex="1" GridPane.rowIndex="2" alignment="CENTER" spacing="20">
-            <Icon styleClass="player-control-item">
+            <Icon styleClass="player-control-item" onMouseClicked="#onGoBackClicked">
                 <Icon fx:constant="BACKWARD_UNICODE" />
             </Icon>
             <Icon fx:id="playPauseIcon" styleClass="player-control-item" onMouseClicked="#onPlayPauseClicked">
@@ -58,7 +58,7 @@
             <Icon styleClass="player-control-item" onMouseClicked="#onStopClicked">
                 <Icon fx:constant="STOP_UNICODE"/>
             </Icon>
-            <Icon styleClass="player-control-item">
+            <Icon styleClass="player-control-item" onMouseClicked="#onGoForwardClicked">
                 <Icon fx:constant="FORWARD_UNICODE" />
             </Icon>
         </HBox>

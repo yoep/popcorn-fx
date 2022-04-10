@@ -12,7 +12,7 @@ import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;

@@ -10,9 +10,10 @@ import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleFile;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.*;
+import com.github.yoep.popcorn.backend.subtitles.parser.Parser;
+import com.github.yoep.popcorn.backend.subtitles.parser.SrtParser;
+import com.github.yoep.popcorn.backend.subtitles.parser.VttParser;
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;
@@ -35,9 +36,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -48,6 +47,8 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.zip.ZipFile;
 
+import static java.util.Arrays.asList;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -57,6 +58,7 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     private final ObjectProperty<Subtitle> activeSubtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, null);
     private final Map<String, List<SubtitleInfo>> cachedSubtitles = new HashMap<>();
+    private final Collection<Parser> parsers = asList(new SrtParser(), new VttParser());
     private final PopcornProperties popcornProperties;
     private final SettingsService settingsService;
     private final RestTemplate restTemplate;
@@ -162,13 +164,23 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     @Override
     public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
-        Assert.notNull(subtitleInfo, "subtitleInfo cannot be null");
-        Assert.notNull(matcher, "matcher cannot be null");
+        Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
+        Objects.requireNonNull(matcher, "matcher cannot be null");
         var subtitleFile = subtitleInfo.getFile(matcher);
         var file = subtitleInfo.isCustom() ? getCustomSubtitleFile(subtitleFile) : internalDownload(subtitleFile);
         var encoding = subtitleFile.getEncoding();
 
         return CompletableFuture.completedFuture(internalParse(subtitleInfo, file, encoding));
+    }
+
+    @Override
+    public InputStream convert(Subtitle subtitle, SubtitleType type) {
+        Objects.requireNonNull(subtitle, "subtitle cannot be null");
+        return parsers.stream()
+                .filter(e -> e.support(type))
+                .findFirst()
+                .map(e -> e.parse(subtitle.getCues()))
+                .orElseThrow(() -> new SubtitleParsingException("No parser found for type " + type));
     }
 
     @Override
@@ -514,9 +526,23 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     private Subtitle internalParse(SubtitleInfo subtitleInfo, File file, Charset encoding) {
-        var indexes = SrtParser.parse(file, encoding);
+        var extension = FilenameUtils.getExtension(file.getName());
+        var type = SubtitleType.fromExtension(extension);
+        var cues = parsers.stream()
+                .filter(e -> e.support(type))
+                .findFirst()
+                .map(e -> parseFileWithParser(e, file, encoding))
+                .orElseThrow(() -> new SubtitleParsingException("No parser found for subtitle type " + type));
 
-        return new Subtitle(subtitleInfo, file, indexes);
+        return new Subtitle(subtitleInfo, file, cues);
+    }
+
+    private List<SubtitleCue> parseFileWithParser(Parser parser, File file, Charset encoding) {
+        try {
+            return parser.parse(new FileInputStream(file), encoding);
+        } catch (FileNotFoundException ex) {
+            throw new SubtitleParsingException(ex.getMessage(), ex);
+        }
     }
 
     private Charset parseSubEncoding(String encoding) {

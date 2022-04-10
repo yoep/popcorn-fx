@@ -5,7 +5,7 @@ import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.filters.models.Season;
+import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
@@ -13,7 +13,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
@@ -359,7 +359,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
 
     private void onEpisodeWatchedChanged(Boolean newValue, Episode episode, Icon icon) {
         Tooltip.install(icon, instantTooltip(getWatchedTooltip(newValue)));
-        service.toggleWatchedState(episode);
+        service.updateWatchedStated(episode, newValue);
 
         // check if a batch update is running
         // if so, do not go to the next unwatched episode

@@ -12,6 +12,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.text.MessageFormat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,14 +42,16 @@ class TorrentStreamServiceImplTest {
     }
 
     @Test
-    void testStartStream_whenInvoked_shouldRetrnTheTorrentStreamForTheGivenTorrent() {
+    void testStartStream_whenInvoked_shouldReturnTheTorrentStreamForTheGivenTorrent() throws UnknownHostException {
         var torrent = mock(Torrent.class);
         var filename = "my-video.mp4";
         var port = 9999;
-        var url = MessageFormat.format("http://127.0.0.1:{0}/video/{1}", String.valueOf(port), filename);
-        var expectedResult = new TorrentStreamImpl(torrent, url);
+        var host = InetAddress.getLocalHost().getHostAddress();
+        var url = MessageFormat.format("http://{0}:{1}/video/{2}", host, String.valueOf(port), filename);
         var file = mock(File.class);
         when(torrent.getFile()).thenReturn(file);
+        when(torrent.getTotalPieces()).thenReturn(100);
+        var expectedResult = new TorrentStreamImpl(torrent, url);
         when(file.getAbsolutePath()).thenReturn("/" + filename);
         when(serverProperties.getPort()).thenReturn(port);
 
@@ -75,6 +79,7 @@ class TorrentStreamServiceImplTest {
         var file = mock(File.class);
         var filename = "lorem.mp4";
         when(torrent.getFile()).thenReturn(file);
+        when(torrent.getTotalPieces()).thenReturn(100);
         when(file.getAbsolutePath()).thenReturn(filename);
 
         var torrentStream = torrentStreamService.startStream(torrent);

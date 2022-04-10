@@ -2,9 +2,9 @@ package com.github.yoep.player.popcorn.subtitles.controls;
 
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleIndex;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleLine;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleText;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.geometry.Pos;
@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class SubtitleTrack extends VBox {
@@ -41,7 +40,7 @@ public class SubtitleTrack extends VBox {
 
     private List<TrackLabel> labels;
     private Subtitle subtitle;
-    private SubtitleIndex activeSubtitle;
+    private SubtitleCue activeSubtitle;
 
     //region Constructors
 
@@ -141,7 +140,7 @@ public class SubtitleTrack extends VBox {
 
         var offset = (long) (getOffset() * 1000);
 
-        subtitle.getIndexes().stream()
+        subtitle.getCues().stream()
                 .filter(e -> time >= (e.getStartTime() + offset) && time <= (e.getEndTime() + offset))
                 .findFirst()
                 .ifPresentOrElse(this::updateSubtitleTrack, this::clearSubtitleTrack);
@@ -182,7 +181,7 @@ public class SubtitleTrack extends VBox {
         offset.addListener((observable, oldValue, newValue) -> onOffsetChanged());
     }
 
-    private void updateSubtitleTrack(SubtitleIndex subtitle) {
+    private void updateSubtitleTrack(SubtitleCue subtitle) {
         if (activeSubtitle == subtitle)
             return;
 
@@ -194,7 +193,7 @@ public class SubtitleTrack extends VBox {
         };
         var lines = subtitle.getLines().stream()
                 .map(line -> new TrackLine(flags, parseSubtitleLine(line, flags)))
-                .collect(Collectors.toList());
+                .toList();
 
         activeSubtitle = subtitle;
 
@@ -205,7 +204,7 @@ public class SubtitleTrack extends VBox {
     }
 
     private TrackLabel[] parseSubtitleLine(SubtitleLine line, TrackFlags[] flags) {
-        return line.getTexts().stream()
+        return line.texts().stream()
                 .map(text -> createLabel(text, flags))
                 .toArray(TrackLabel[]::new);
     }
@@ -317,7 +316,7 @@ public class SubtitleTrack extends VBox {
         private FontWeight weight;
 
         private TrackLabel(SubtitleText line, String family, int size, FontWeight weight, TrackFlags... flags) {
-            super(line.getText());
+            super(line.text());
             this.flags = TrackFlags.from(line);
             this.family = family;
             this.size = size;

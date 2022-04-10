@@ -12,7 +12,7 @@ import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -95,7 +95,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
             log.trace("Available subtitles have been retrieved");
             var subtitle = subtitleService.getActiveSubtitle()
                     .flatMap(Subtitle::getSubtitleInfo)
-                    .orElseGet(() -> subtitleService.getDefault(subtitles));
+                    .orElseGet(() -> subtitleService.getDefaultOrInterfaceLanguage(subtitles));
 
             invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, subtitle));
         } else {

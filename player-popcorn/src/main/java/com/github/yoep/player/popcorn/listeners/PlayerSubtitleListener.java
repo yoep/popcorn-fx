@@ -1,6 +1,6 @@
 package com.github.yoep.player.popcorn.listeners;
 
-import com.github.yoep.popcorn.backend.subtitles.models.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 
 import java.util.List;
 

@@ -10,15 +10,16 @@
 
     <artifactId>video-vlc</artifactId>
 
-    <properties>
-        <vlcj-javafx.version>1.0.3</vlcj-javafx.version>
-    </properties>
-
     <dependencies>
         <!-- Popcorn Time -->
         <dependency>
             <groupId>com.github.yoep</groupId>
             <artifactId>application-backend</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>shared-vlc</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -33,7 +34,6 @@
         <dependency>
             <groupId>uk.co.caprica</groupId>
             <artifactId>vlcj-javafx</artifactId>
-            <version>${vlcj-javafx.version}</version>
         </dependency>
 
         <!-- Spring -->

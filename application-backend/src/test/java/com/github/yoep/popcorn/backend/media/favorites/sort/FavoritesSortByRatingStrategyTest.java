@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -66,11 +67,37 @@ class FavoritesSortByRatingStrategyTest {
         assertEquals(expectedResult, result);
     }
 
-    private Media createMedia(int ratingPercentage) {
+    @Test
+    void testSort_whenMedia1RatingIsNull_shouldReturnMedia2BeforeMedia1() {
+        var media1 = createMedia(null);
+        var media2 = createMedia(80);
+        var stream = Stream.of(media2, media1);
+        var expectedResult = asList(media2, media1);
+
+        var result = strategy.sort(stream).collect(Collectors.toList());
+
+        assertEquals(expectedResult, result);
+    }
+
+    @Test
+    void testSort_whenMedia2RatingIsNull_shouldReturnMedia1BeforeMedia1() {
+        var media1 = createMedia(60);
+        var media2 = createMedia(null);
+        var stream = Stream.of(media2, media1);
+        var expectedResult = asList(media1, media2);
+
+        var result = strategy.sort(stream).collect(Collectors.toList());
+
+        assertEquals(expectedResult, result);
+    }
+
+    private Media createMedia(Integer ratingPercentage) {
         return Movie.builder()
-                .rating(Rating.builder()
-                        .percentage(ratingPercentage)
-                        .build())
+                .rating(Optional.ofNullable(ratingPercentage)
+                        .map(e -> Rating.builder()
+                                .percentage(ratingPercentage)
+                                .build())
+                        .orElse(null))
                 .build();
     }
 }

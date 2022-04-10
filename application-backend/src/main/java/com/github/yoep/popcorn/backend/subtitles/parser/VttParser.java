@@ -54,7 +54,7 @@ public class VttParser implements Parser {
                     .map(e -> e + System.lineSeparator())
                     .forEach(output::append);
 
-            // add am empty line after each cue
+            // add an empty line after each cue
             output.append(System.lineSeparator());
         }
 

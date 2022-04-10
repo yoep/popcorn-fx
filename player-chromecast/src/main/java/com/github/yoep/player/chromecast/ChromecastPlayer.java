@@ -29,7 +29,8 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor
 public class ChromecastPlayer implements Player {
     static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
-    static final String APP_ID = "CC1AD845";
+    static final String MEDIA_RECEIVER_APP_ID = "CC1AD845";
+    static final String MEDIA_NAMESPACE = "urn:x-cast:com.google.cast.media";
     static final String DESCRIPTION = "Chromecast streaming media device which allows the playback of videos on your TV.";
 
     private final ChromeCastSpontaneousEventListener listener = createEventListener();
@@ -40,6 +41,7 @@ public class ChromecastPlayer implements Player {
 
     private PlayerState playerState = PlayerState.READY;
     private PlaybackThread playbackThread;
+    private String sessionId;
     private boolean connected;
     private boolean appLaunched;
 
@@ -129,12 +131,8 @@ public class ChromecastPlayer implements Player {
 
     @Override
     public void stop() {
-        try {
-            stopPreviousPlaybackThreadIfNeeded();
-            chromeCast.stopApp();
-        } catch (IOException ex) {
-            log.error("Failed to stop the Chromecast playback, {}", ex.getMessage(), ex);
-        }
+        stopPreviousPlaybackThreadIfNeeded();
+        stopApp();
 
         statusTimer.cancel();
         statusTimer.purge();
@@ -144,7 +142,7 @@ public class ChromecastPlayer implements Player {
     @Override
     public void seek(long time) {
         try {
-            chromeCast.seek(time);
+            chromeCast.seek(service.toChromecastTime(time));
         } catch (IOException ex) {
             log.error("Failed to seek within the Chromecast playback, {}", ex.getMessage(), ex);
         }
@@ -212,11 +210,12 @@ public class ChromecastPlayer implements Player {
         }
 
         try {
-            if (!chromeCast.isAppRunning(APP_ID)) {
-                log.debug("Launching Chromecast application {} on \"{}\"", APP_ID, getName());
-                var application = chromeCast.launchApp(APP_ID);
+            if (!chromeCast.isAppRunning(MEDIA_RECEIVER_APP_ID)) {
+                log.debug("Launching Chromecast application {} on \"{}\"", MEDIA_RECEIVER_APP_ID, getName());
+                var application = chromeCast.launchApp(MEDIA_RECEIVER_APP_ID);
 
                 if (application != null) {
+                    sessionId = application.sessionId;
                     appLaunched = true;
                 } else {
                     log.error("Failed to launch Chromecast app");
@@ -231,6 +230,8 @@ public class ChromecastPlayer implements Player {
         try {
             log.trace("Trying to stop currently running app on Chromecast \"{}\"", getName());
             chromeCast.stopApp();
+            appLaunched = false;
+            sessionId = null;
             log.debug("Stopped app on the Chromecast \"{}\"", getName());
         } catch (IOException ex) {
             log.error("Failed to stop app on Chromecast \"{}\", {}", getName(), ex.getMessage(), ex);
@@ -270,13 +271,13 @@ public class ChromecastPlayer implements Player {
     }
 
     private void onPlayerTimeChanged(double currentTime) {
-        invokeSafeListeners(e -> e.onTimeChanged((long) currentTime * 1000));
+        invokeSafeListeners(e -> e.onTimeChanged(service.toApplicationTime(currentTime)));
     }
 
     private void onPlayerDurationChanged(Double duration) {
         Optional.ofNullable(duration)
                 .map(Double::longValue)
-                .ifPresent(e -> invokeSafeListeners(listener -> listener.onDurationChanged(e * 1000)));
+                .ifPresent(e -> invokeSafeListeners(listener -> listener.onDurationChanged(service.toApplicationTime(e))));
     }
 
     private ChromeCastSpontaneousEventListener createEventListener() {
@@ -329,17 +330,12 @@ public class ChromecastPlayer implements Player {
                 log.debug("Loading url \"{}\" on Chromecast \"{}\"", url, getName());
                 updateState(PlayerState.LOADING);
 
-                var media = service.toMediaRequest(request);
-                var status = chromeCast.load(media);
-                log.debug("Received chromecast status {}", status);
+                var loadRequest = service.toLoadRequest(sessionId, request);
+                log.trace("Sending load request to Chromecast, {}", loadRequest);
+                chromeCast.send(MEDIA_NAMESPACE, loadRequest);
 
                 var statusThread = new PlaybackStatusThread();
                 statusTimer.schedule(statusThread, 0, 1000);
-
-                // check if a resume timestamp is known
-                // if so, seek the timestamp in chromecast
-                request.getAutoResumeTimestamp()
-                        .ifPresent(ChromecastPlayer.this::seek);
 
                 while (keepAlive) {
                     Thread.onSpinWait();

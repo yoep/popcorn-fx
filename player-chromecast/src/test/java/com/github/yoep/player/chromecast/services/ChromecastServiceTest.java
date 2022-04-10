@@ -1,6 +1,9 @@
 package com.github.yoep.player.chromecast.services;
 
-import com.github.yoep.player.chromecast.ChromeCastMetaData;
+import com.github.yoep.player.chromecast.ChromeCastMetadata;
+import com.github.yoep.player.chromecast.api.v2.Load;
+import com.github.yoep.player.chromecast.api.v2.TextTrackType;
+import com.github.yoep.player.chromecast.api.v2.Track;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
@@ -15,7 +18,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 import su.litvak.chromecast.api.v2.Media;
-import su.litvak.chromecast.api.v2.Track;
 
 import java.io.File;
 import java.io.InputStream;
@@ -112,8 +114,9 @@ class ChromecastServiceTest {
     }
 
     @Test
-    void testToMediaRequest_whenFormatIsSupported_shouldUseOriginalUrl() {
+    void testToLoadRequest_whenFormatIsSupported_shouldUseOriginalUrl() {
         var url = "http://localhost:9976/my-video-url.mp4";
+        var sessionId = "mySessionId";
         var contentType = "video/mp4";
         var duration = 20000L;
         var port = 9999;
@@ -124,9 +127,31 @@ class ChromecastServiceTest {
                 .autoResumeTimestamp(20000L)
                 .thumb("https://thumbs.com/my-thumb.jpg")
                 .build();
-        var metadata = createMetadata(request, MessageFormat.format("http://{0}:{1}/subtitle/my-subtitle.vtt", HostUtils.hostAddress(), String.valueOf(port)));
-        var tracks = Collections.singletonList(new Track(1, Track.TrackType.TEXT));
-        var expectedResult = new Media(url, contentType, (double) duration, Media.StreamType.BUFFERED, null, metadata, null, tracks);
+        var subtitleUri = MessageFormat.format("http://{0}:{1}/subtitle/my-subtitle.vtt", HostUtils.hostAddress(), String.valueOf(port));
+        var metadata = createMetadata(request, subtitleUri);
+        var tracks = Collections.singletonList(Track.builder()
+                .trackId(1)
+                .type(su.litvak.chromecast.api.v2.Track.TrackType.TEXT)
+                .subtype(TextTrackType.SUBTITLES)
+                .language("en")
+                .name("English")
+                .trackContentType("text/vtt")
+                .trackContentId(subtitleUri)
+                .build());
+        var expectedResult = Load.builder()
+                .sessionId(sessionId)
+                .autoplay(true)
+                .currentTime(20.0)
+                .media(com.github.yoep.player.chromecast.api.v2.Media.builder()
+                        .url(url)
+                        .contentType(contentType)
+                        .duration((double) duration)
+                        .streamType(Media.StreamType.BUFFERED)
+                        .metadata(metadata)
+                        .tracks(tracks)
+                        .build())
+                .activeTrackIds(Collections.singletonList(1))
+                .build();
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
@@ -134,26 +159,39 @@ class ChromecastServiceTest {
         when(serverProperties.getPort()).thenReturn(port);
         when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
 
-        var result = service.toMediaRequest(request);
+        var result = service.toLoadRequest(sessionId, request);
 
         assertEquals(expectedResult, result);
-        assertEquals(metadata, result.metadata);
     }
 
     @Test
     void testToMediaRequest_whenFormatIsNotSupported_shouldUseTranscodedUrl() {
         var url = "http://localhost:9976/my-video-url.mkv";
+        var sessionId = "mySessionId";
         var transcodedUrl = "http://localhost:9976/my-video-url.mp4";
         var contentType = "video/mp4";
         var duration = 20000L;
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .title("My movie title")
-                .autoResumeTimestamp(20000L)
+                .autoResumeTimestamp(60500L)
                 .thumb("https://thumbs.com/my-thumb.jpg")
                 .build();
         var metadata = createMetadata(request, null);
-        var expectedResult = new Media(transcodedUrl, contentType, (double) duration, Media.StreamType.BUFFERED, null, metadata, null, Collections.emptyList());
+        var expectedResult = Load.builder()
+                .sessionId(sessionId)
+                .autoplay(true)
+                .currentTime(60.5)
+                .media(com.github.yoep.player.chromecast.api.v2.Media.builder()
+                        .url(transcodedUrl)
+                        .contentType(contentType)
+                        .duration((double) duration)
+                        .streamType(Media.StreamType.BUFFERED)
+                        .metadata(metadata)
+                        .tracks(Collections.emptyList())
+                        .build())
+                .activeTrackIds(Collections.emptyList())
+                .build();
         when(contentTypeService.resolveMetadata(URI.create(transcodedUrl))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
@@ -161,10 +199,19 @@ class ChromecastServiceTest {
         when(subtitleService.getActiveSubtitle()).thenReturn(Optional.empty());
         when(transcodeService.transcode(url)).thenReturn(transcodedUrl);
 
-        var result = service.toMediaRequest(request);
+        var result = service.toLoadRequest(sessionId, request);
 
         assertEquals(expectedResult, result);
-        assertEquals(metadata, result.metadata);
+    }
+
+    @Test
+    void testToApplicationTime_whenTimeIsGiven_shouldReturnExpectedResult() {
+        var time = 20.5;
+        var expectedTime = 20500L;
+
+        var result = service.toApplicationTime(time);
+
+        assertEquals(expectedTime, result);
     }
 
     private static Map<String, Object> createMetadata(PlayRequest request, String subtitleUri) {
@@ -172,10 +219,9 @@ class ChromecastServiceTest {
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
             put(Media.METADATA_TITLE, request.getTitle().orElse(null));
             put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
-            put(ChromeCastMetaData.METADATA_SUBTITLES, subtitleUri);
-            put(ChromeCastMetaData.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetaData.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetaData.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
         }};
     }
 }

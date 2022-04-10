@@ -1,19 +1,24 @@
 package com.github.yoep.player.chromecast.services;
 
-import com.github.yoep.player.chromecast.ChromeCastMetaData;
+import com.github.yoep.player.chromecast.ChromeCastMetadata;
+import com.github.yoep.player.chromecast.api.v2.Load;
+import com.github.yoep.player.chromecast.api.v2.TextTrackType;
+import com.github.yoep.player.chromecast.api.v2.Track;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import com.github.yoep.popcorn.backend.utils.HostUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 import su.litvak.chromecast.api.v2.Media;
-import su.litvak.chromecast.api.v2.Track;
 
 import java.io.File;
 import java.io.InputStream;
@@ -28,11 +33,17 @@ import static java.util.Arrays.asList;
  */
 @Slf4j
 @Service
-public record ChromecastService(MetaDataService contentTypeService,
-                                SubtitleService subtitleService,
-                                TranscodeService transcodeService,
-                                ServerProperties serverProperties) {
+@RequiredArgsConstructor
+public class ChromecastService {
     static final Collection<String> SUPPORTED_MEDIA_TYPES = asList("mp4", "ogg", "wav", "webm");
+    static final String SUBTITLE_CONTENT_TYPE = "text/vtt";
+
+    private final MetaDataService contentTypeService;
+    private final SubtitleService subtitleService;
+    private final TranscodeService transcodeService;
+    private final ServerProperties serverProperties;
+
+    //region Methods
 
     /**
      * Resolve the metadata of the given video uri.
@@ -67,6 +78,12 @@ public record ChromecastService(MetaDataService contentTypeService,
                         .build(Collections.singletonMap("subtitle", e)));
     }
 
+    /**
+     * Retrieve the subtitle contents for the given subtitle file.
+     *
+     * @param subtitle The subtitle to retrieve.
+     * @return Returns the content stream if found, else {@link Optional#empty()}.
+     */
     public Optional<InputStream> retrieveVttSubtitle(String subtitle) {
         var name = FilenameUtils.getBaseName(subtitle);
 
@@ -83,12 +100,13 @@ public record ChromecastService(MetaDataService contentTypeService,
      * @param request The request to convert.
      * @return Returns the chromecast media request for playback.
      */
-    public Media toMediaRequest(PlayRequest request) {
+    public Load toLoadRequest(String sessionId, PlayRequest request) {
+        Objects.requireNonNull(request, "request cannot be null");
         Objects.requireNonNull(request, "request cannot be null");
         log.trace("Creating ChromeCast media request for {}", request);
         var tracks = subtitleService.getActiveSubtitle()
                 .filter(this::isSubtitleNotDisabled)
-                .map(e -> Collections.singletonList(new Track(1, Track.TrackType.TEXT)))
+                .map(this::getMediaTrack)
                 .orElse(Collections.emptyList());
         var url = request.getUrl();
         var extension = FilenameUtils.getExtension(url);
@@ -105,9 +123,51 @@ public record ChromecastService(MetaDataService contentTypeService,
         var metadata = getMediaMetaData(request);
         var videoMetadata = resolveMetadata(URI.create(url));
 
-        return new Media(url, videoMetadata.getContentType(), videoMetadata.getDuration().doubleValue(), Media.StreamType.BUFFERED,
-                null, metadata, null, tracks);
+        return Load.builder()
+                .sessionId(sessionId)
+                .autoplay(true)
+                .currentTime(request.getAutoResumeTimestamp()
+                        .map(this::toChromecastTime)
+                        .orElse(0.0))
+                .media(com.github.yoep.player.chromecast.api.v2.Media.builder()
+                        .url(url)
+                        .contentType(videoMetadata.getContentType())
+                        .duration(videoMetadata.getDuration().doubleValue())
+                        .streamType(Media.StreamType.BUFFERED)
+                        .customData(null)
+                        .metadata(metadata)
+                        //                        .textTrackStyle(getMediaTrackStyle())
+                        .tracks(tracks)
+                        .build())
+                .activeTrackIds(tracks.size() > 0 ? Collections.singletonList(1) : Collections.emptyList())
+                .build();
     }
+
+    /**
+     * Calculate the Chromecast time from the given application time (in millis).
+     * This converts the time used within the application to the format expected by the Chromecast receiver.
+     *
+     * @param time The time in millis.
+     * @return Returns the Chromecast time as a {@link Double}.
+     */
+    public double toChromecastTime(long time) {
+        return (double) time / 1000;
+    }
+
+    /**
+     * Calculate the application time from the given Chromecast time.
+     * This convert the Chromecast receiver time to the application format time.
+     *
+     * @param time The time from the Chromecast receiver.
+     * @return Returns the application time as a {@link Long}.
+     */
+    public long toApplicationTime(double time) {
+        return (long) (time * 1000);
+    }
+
+    //endregion
+
+    //region Functions
 
     private boolean isSubtitleNotDisabled(Subtitle e) {
         return !e.isNone();
@@ -119,31 +179,38 @@ public record ChromecastService(MetaDataService contentTypeService,
     }
 
     private Map<String, Object> getMediaMetaData(PlayRequest request) {
-        var subtitleUri = retrieveVttSubtitleUri()
-                .map(URI::toString)
-                .map(this::subtitleAvailability)
-                .orElseGet(this::noSubtitleAvailable);
-
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
             put(Media.METADATA_TITLE, request.getTitle().orElse(null));
             put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
-            put(ChromeCastMetaData.METADATA_SUBTITLES, new HashMap<>() {{
-                put("uri", subtitleUri);
-            }});
-            put(ChromeCastMetaData.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetaData.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetaData.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
         }};
     }
 
-    private String subtitleAvailability(String uri) {
-        log.debug("Chromecast subtitle will be available at {}", uri);
-        return uri;
+    private List<Track> getMediaTrack(Subtitle subtitle) {
+        var languageCode = subtitle.getSubtitleInfo()
+                .map(SubtitleInfo::getLanguage)
+                .map(SubtitleLanguage::getCode)
+                .orElse(SubtitleLanguage.ENGLISH.getCode());
+        var languageName = subtitle.getSubtitleInfo()
+                .map(SubtitleInfo::getLanguage)
+                .map(SubtitleLanguage::getNativeName)
+                .orElse(SubtitleLanguage.ENGLISH.getNativeName());
+
+        return Collections.singletonList(Track.builder()
+                .trackId(1)
+                .type(su.litvak.chromecast.api.v2.Track.TrackType.TEXT)
+                .trackContentId(retrieveVttSubtitleUri()
+                        .map(URI::toString)
+                        .orElse(null))
+                .trackContentType(SUBTITLE_CONTENT_TYPE)
+                .subtype(TextTrackType.SUBTITLES)
+                .language(languageCode)
+                .name(languageName)
+                .build());
     }
 
-    private String noSubtitleAvailable() {
-        log.debug("No active subtitle available for Chromecast");
-        return null;
-    }
+    //endregion
 }

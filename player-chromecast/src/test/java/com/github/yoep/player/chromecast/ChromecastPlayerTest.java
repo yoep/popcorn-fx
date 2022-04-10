@@ -1,22 +1,29 @@
 package com.github.yoep.player.chromecast;
 
+import com.github.yoep.player.chromecast.api.v2.Load;
+import com.github.yoep.player.chromecast.services.ChromecastService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import su.litvak.chromecast.api.v2.Application;
 import su.litvak.chromecast.api.v2.ChromeCast;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ChromecastPlayerTest {
     @Mock
     private ChromeCast chromeCast;
+    @Mock
+    private ChromecastService service;
     @InjectMocks
     private ChromecastPlayer player;
 
@@ -86,10 +93,12 @@ class ChromecastPlayerTest {
     @Test
     void testSeek_whenTimeIsGiven_shouldSeekChromecastPlayer() throws IOException {
         var time = 845500L;
+        var expectedResult = 845.5;
+        when(service.toChromecastTime(time)).thenReturn(expectedResult);
 
         player.seek(time);
 
-        verify(chromeCast).seek(time);
+        verify(chromeCast).seek(expectedResult);
     }
 
     @Test
@@ -99,5 +108,43 @@ class ChromecastPlayerTest {
         player.volume(volume);
 
         verify(chromeCast).setVolume(0.5f);
+    }
+
+    @Test
+    void testPlay_whenRequestIsGiven_shouldStartPlayback() throws IOException {
+        var request = SimplePlayRequest.builder()
+                .url("http://localhost/my-video.mp4")
+                .title("lorem ipsum")
+                .build();
+        var sessionId = "mySessionId";
+        var application = new Application("1", "", "", sessionId, "", false, false, "", Collections.emptyList());
+        var loadRequest = Load.builder()
+                .sessionId(sessionId)
+                .build();
+        when(chromeCast.launchApp(ChromecastPlayer.MEDIA_RECEIVER_APP_ID)).thenReturn(application);
+        when(service.toLoadRequest(sessionId, request)).thenReturn(loadRequest);
+
+        player.play(request);
+
+        verify(chromeCast, timeout(500)).send(ChromecastPlayer.MEDIA_NAMESPACE, loadRequest);
+    }
+
+    @Test
+    void testDispose_whenInvoked_shouldStopAppAndCloseConnection() throws IOException {
+        var request = SimplePlayRequest.builder()
+                .url("http://localhost/my-video.mp4")
+                .title("lorem ipsum")
+                .build();
+        var application = mock(Application.class);
+        var loadRequest = mock(Load.class);
+        when(chromeCast.launchApp(ChromecastPlayer.MEDIA_RECEIVER_APP_ID)).thenReturn(application);
+        when(service.toLoadRequest(any(), isA(PlayRequest.class))).thenReturn(loadRequest);
+        player.play(request);
+
+        verify(chromeCast, timeout(500)).send(isA(String.class), isA(Load.class));
+        player.dispose();
+
+       verify(chromeCast).stopApp();
+       verify(chromeCast).disconnect();
     }
 }

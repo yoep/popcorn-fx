@@ -171,7 +171,7 @@ class PlayerSubtitleServiceTest {
         when(request.isSubtitlesEnabled()).thenReturn(true);
         when(request.getUrl()).thenReturn(filename);
         when(subtitleService.retrieveSubtitles(filename)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.getDefault(availableSubtitles)).thenReturn(SubtitleInfo.none());
+        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(SubtitleInfo.none());
         service.init();
 
         listenerHolder.get().onPlay(request);

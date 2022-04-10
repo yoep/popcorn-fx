@@ -1,6 +1,7 @@
 package com.github.yoep.torrent.stream.models;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.InvalidStreamStateException;
+import com.github.yoep.popcorn.backend.adapters.torrent.FailedToPrepareTorrentStreamException;
+import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentStreamStateException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
@@ -18,6 +19,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
 import java.io.File;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -178,7 +180,7 @@ public class TorrentStreamImpl implements TorrentStream {
 
         // verify if the stream has not been stopped
         if (state == TorrentStreamState.STOPPED) {
-            throw new InvalidStreamStateException(state);
+            throw new InvalidTorrentStreamStateException(state);
         }
 
         return new TorrentResource(this);
@@ -206,12 +208,8 @@ public class TorrentStreamImpl implements TorrentStream {
             listeners.forEach(e -> safeInvoke(() -> e.onStateChanged(oldValue, newValue)));
 
             switch (newValue) {
-                case STREAMING:
-                    listeners.forEach(e -> safeInvoke(e::onStreamReady));
-                    break;
-                case STOPPED:
-                    listeners.forEach(e -> safeInvoke(e::onStreamStopped));
-                    break;
+                case STREAMING -> listeners.forEach(e -> safeInvoke(e::onStreamReady));
+                case STOPPED -> listeners.forEach(e -> safeInvoke(e::onStreamStopped));
             }
         });
     }
@@ -252,10 +250,17 @@ public class TorrentStreamImpl implements TorrentStream {
             pieces.add(i);
         }
 
-        return pieces
+        var piecesToPrepare = pieces
                 .stream()
                 .filter(this::isValidPreparationPiece)
                 .toArray(Integer[]::new);
+
+        if (piecesToPrepare.length == 0 || piecesToPrepare.length == 1 && piecesToPrepare[0] == 0) {
+            throw new FailedToPrepareTorrentStreamException(MessageFormat.format("Failed to prepare stream {0}, pieces to prepare couldn't be determined",
+                    streamUrl));
+        }
+
+        return piecesToPrepare;
     }
 
     private boolean isValidPreparationPiece(Integer index) {

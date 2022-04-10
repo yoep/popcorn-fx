@@ -24,6 +24,8 @@ import javax.annotation.PostConstruct;
 @Service
 @RequiredArgsConstructor
 public class PlayerExternalComponentService extends AbstractListenerService<PlayerExternalListener> {
+    static final int TIME_STEP_OFFSET = 10000;
+
     private final PlayerManagerService playerManagerService;
     private final PlayerEventService playerEventService;
     private final ApplicationEventPublisher eventPublisher;
@@ -62,12 +64,12 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
 
     public void goBack() {
         playerManagerService.getActivePlayer()
-                .ifPresent(e -> e.seek(time - 5000));
+                .ifPresent(e -> e.seek(time - TIME_STEP_OFFSET));
     }
 
     public void goForward() {
         playerManagerService.getActivePlayer()
-                .ifPresent(e -> e.seek(time + 5000));
+                .ifPresent(e -> e.seek(time + TIME_STEP_OFFSET));
     }
 
     @PostConstruct

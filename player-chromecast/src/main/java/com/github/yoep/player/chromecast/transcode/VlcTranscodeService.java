@@ -46,8 +46,8 @@ public class VlcTranscodeService implements TranscodeService {
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newMediaPlayer();
         mediaPlayer.events().addMediaPlayerEventListener(listener);
 
-        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=VP80,vb=1000,acodec=vorb,ab=128,channels=2," +
-                "samplerate=44100,threads=2}:http{mux=" + EXTENSION + ",dst=:" + port + "/" + name + "}", ":sout-keep");
+        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=VP80,vb=300,acodec=vorb,ab=128,channels=2," +
+                "samplerate=44100,threads=2}:http{mux=webm,dst=:" + port + "/" + name + "}", ":sout-keep");
 
         if (!started) {
             throw new TranscodeException("Failed to start transcoding of " + url);

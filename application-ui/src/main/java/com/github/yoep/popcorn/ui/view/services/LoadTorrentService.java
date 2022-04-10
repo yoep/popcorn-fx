@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.FailedToPrepareTorrentStreamException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
@@ -156,11 +157,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
                 .thenCompose(this::createTorrentFromTorrentInfo)
                 .thenCompose(this::retrieveAndDownloadAvailableSubtitles)
                 .thenCompose(this::startDownloadingTorrent)
-                .exceptionally(throwable -> {
-                    log.error("Failed to load media torrent, " + throwable.getMessage(), throwable);
-                    invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.ERROR));
-                    return null;
-                });
+                .exceptionally(this::handleLoadTorrentError);
     }
 
     private synchronized void loadUrlTorrent(LoadUrlTorrentEvent event) {
@@ -181,11 +178,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         currentFuture = torrentService.create(event.getTorrentFileInfo(), torrentSettings.getDirectory(), true)
                 .thenCompose(this::retrieveAndDownloadAvailableSubtitles)
                 .thenCompose(this::startDownloadingTorrent)
-                .exceptionally(throwable -> {
-                    log.error("Failed to load url torrent, " + throwable.getMessage(), throwable);
-                    invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.ERROR));
-                    return null;
-                });
+                .exceptionally(this::handleLoadTorrentError);
     }
 
     private synchronized void loadUrl(LoadUrlEvent event) {
@@ -204,6 +197,28 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
                 invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.ERROR));
             }
         });
+    }
+
+    private Torrent handleLoadTorrentError(Throwable throwable) {
+        // check if an error occurred while preparing the stream
+        // if so, start the flow again from the start
+        // by publishing the original message
+        if (throwable instanceof FailedToPrepareTorrentStreamException ex) {
+            log.trace(ex.getMessage(), ex);
+            log.warn("Failed to prepare torrent stream, restarting load torrent process");
+            if (event instanceof LoadMediaTorrentEvent mediaTorrentEvent) {
+                loadMediaTorrent(mediaTorrentEvent);
+            } else if (event instanceof LoadUrlTorrentEvent urlTorrentEvent) {
+                loadUrlTorrent(urlTorrentEvent);
+            } else if (event != null) {
+                log.error("Failed to restart torrent loading process, unknown event {}", event.getClass().getSimpleName());
+            }
+        } else {
+            log.error("Failed to load torrent, " + throwable.getMessage(), throwable);
+            invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.ERROR));
+        }
+
+        return null;
     }
 
     private CompletableFuture<Torrent> createTorrentFromTorrentInfo(TorrentInfo torrentInfo) {

@@ -126,7 +126,7 @@ class PlayerExternalComponentServiceTest {
     void testGoBack_whenInvoked_shouldGoBackInTime() {
         var time = 20000L;
         var player = mock(Player.class);
-        var expectedTime = 15000L;
+        var expectedTime = time - PlayerExternalComponentService.TIME_STEP_OFFSET;
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         service.init();
         var listener = playerListenerHolder.get();
@@ -141,7 +141,7 @@ class PlayerExternalComponentServiceTest {
     void testGoForward_whenInvoked_shouldGoForwardInTime() {
         var time = 20000L;
         var player = mock(Player.class);
-        var expectedTime = 25000L;
+        var expectedTime = time + PlayerExternalComponentService.TIME_STEP_OFFSET;
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         service.init();
         var listener = playerListenerHolder.get();

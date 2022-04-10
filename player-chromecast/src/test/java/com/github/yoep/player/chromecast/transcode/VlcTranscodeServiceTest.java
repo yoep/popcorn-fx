@@ -59,9 +59,11 @@ class VlcTranscodeServiceTest {
     @Test
     void testTranscode_whenUrlIsGiven_shouldReturnTheExpectedTranscodeUrl() {
         var url = "http://localhost:8754/my-original-video.mkv";
-        var expectedUrl = MessageFormat.format("http://{0}:{1}/my-original-video.{2}", HostUtils.hostAddress(), HostUtils.availablePort(),
+        var expectedUrl = MessageFormat.format("http://{0}:{1}/my-original-video.{2}", HostUtils.hostAddress(), String.valueOf(HostUtils.availablePort()),
                 VlcTranscodeService.EXTENSION);
-        when(mediaApi.play(url, "")).thenReturn(true);
+        when(mediaApi.play(url, ":sout=#transcode{vcodec=VP80,vb=300,acodec=vorb,ab=128,channels=2,samplerate=44100,threads=2}:http{mux=webm," +
+                        "dst=:1001/my-original-video.webm}",
+                ":sout-keep")).thenReturn(true);
 
         var result = service.transcode(url);
 

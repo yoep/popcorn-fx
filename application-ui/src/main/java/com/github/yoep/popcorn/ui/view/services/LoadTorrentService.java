@@ -203,7 +203,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         // check if an error occurred while preparing the stream
         // if so, start the flow again from the start
         // by publishing the original message
-        if (throwable instanceof FailedToPrepareTorrentStreamException ex) {
+        if (throwable.getCause() instanceof FailedToPrepareTorrentStreamException ex) {
             log.trace(ex.getMessage(), ex);
             log.warn("Failed to prepare torrent stream, restarting load torrent process");
             if (event instanceof LoadMediaTorrentEvent mediaTorrentEvent) {

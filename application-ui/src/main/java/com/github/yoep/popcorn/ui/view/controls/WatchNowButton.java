@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class WatchNowButton extends SplitMenuButton {
@@ -48,6 +49,17 @@ public class WatchNowButton extends SplitMenuButton {
      */
     public ReadOnlyObjectProperty<Player> selectedItemProperty() {
         return selectedItem;
+    }
+
+    /**
+     * Get the known players of this button.
+     *
+     * @return Returns the known players.
+     */
+    public Collection<Player> getPlayers() {
+        return players.values().stream()
+                .map(PlayerHolder::getPlayer)
+                .collect(Collectors.toList());
     }
 
     //endregion

@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -208,14 +209,16 @@ public class LoaderTorrentComponent implements Initializable {
 
     private void loadBackgroundImage(Media media) {
         platformProvider.runOnRenderer(() -> backgroundImage.reset());
-        imageService.loadFanart(media).whenComplete((bytes, throwable) -> {
-            if (throwable == null) {
-                platformProvider.runOnRenderer(() ->
-                        bytes.ifPresent(e -> backgroundImage.setBackgroundImage(e)));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
+        Optional.ofNullable(media)
+                .map(imageService::loadFanart)
+                .ifPresent(e -> e.whenComplete((bytes, throwable) -> {
+                    if (throwable == null) {
+                        bytes.ifPresent(image ->
+                                platformProvider.runOnRenderer(() -> backgroundImage.setBackgroundImage(image)));
+                    } else {
+                        log.error(throwable.getMessage(), throwable);
+                    }
+                }));
     }
 
     private void close() {

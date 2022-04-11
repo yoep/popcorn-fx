@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.view.controls.WatchNowButton?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
@@ -9,8 +10,9 @@
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DetailsTorrentComponent" styleClass="torrent-details">
     <GridPane AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75" AnchorPane.leftAnchor="75">
         <columnConstraints>
-            <ColumnConstraints percentWidth="50"/>
-            <ColumnConstraints percentWidth="50"/>
+            <ColumnConstraints/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints/>
@@ -21,17 +23,20 @@
 
         <!-- Title -->
         <Label text="%torrent_select_file_to_play" styleClass="title" GridPane.halignment="CENTER"
-               GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+               GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
         <!-- Torrent contents -->
         <StackPane fx:id="fileShadow"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="1">
             <ListView fx:id="fileList" styleClass="files"/>
         </StackPane>
 
-        <!-- Store -->
-        <Button fx:id="storeTorrentButton" text="%torrent_store_collection" onMouseClicked="#onStoreClicked"
+        <!-- Store/Remove torrent -->
+        <Button fx:id="storeTorrentButton" text="%torrent_store_collection" onMouseClicked="#onStoreOrRemoveTorrentClicked"
                 GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <!-- Player selection -->
+        <WatchNowButton fx:id="playerButton"
+                        GridPane.columnIndex="2" GridPane.rowIndex="2"/>
     </GridPane>
 
     <!-- Close Button -->

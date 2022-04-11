@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,6 +33,8 @@ class PlayerStopServiceTest {
     @Mock
     private TorrentStreamService torrentStreamService;
     @Mock
+    private PlayNextService playNextService;
+    @Mock
     private ApplicationEventPublisher eventPublisher;
     @InjectMocks
     private PlayerStopService service;
@@ -43,13 +47,14 @@ class PlayerStopServiceTest {
     }
 
     @Test
-    void testInit_whenPlayerIsStoppedAndIsEndOfVideo_shouldPublishClosePlayerEvent() {
+    void testOnPlayerStopped_whenIsEndOfVideoAndNextEpisodeIsNotPresent_shouldPublishClosePlayerEvent() {
         var listenerHolder = new AtomicReference<PlayerListener>();
         var videoLength = 1000L;
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(playerEventService).addListener(isA(PlayerListener.class));
+        when(playNextService.getNextEpisode()).thenReturn(Optional.empty());
         service.init();
         service.onPlayMedia(PlayMediaEvent.mediaBuilder()
                 .source(this)
@@ -67,7 +72,39 @@ class PlayerStopServiceTest {
         playerListener.onTimeChanged(videoLength);
         playerListener.onStateChanged(PlayerState.STOPPED);
 
+        verify(torrentStreamService).stopAllStreams();
         verify(eventPublisher).publishEvent(new com.github.yoep.popcorn.backend.events.ClosePlayerEvent(service,
+                com.github.yoep.popcorn.backend.events.ClosePlayerEvent.Reason.END_OF_VIDEO));
+    }
+
+    @Test
+    void testOnPlayerStopped_whenIsEndOfVideoAndNextEpisodeIsPresent_shouldNotPublishClosePlayerEvent() {
+        var listenerHolder = new AtomicReference<PlayerListener>();
+        var videoLength = 1000L;
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
+            return null;
+        }).when(playerEventService).addListener(isA(PlayerListener.class));
+        when(playNextService.getNextEpisode()).thenReturn(Optional.of(mock(PlayNextService.NextEpisode.class)));
+        service.init();
+        service.onPlayMedia(PlayMediaEvent.mediaBuilder()
+                .source(this)
+                .url("my-movie-url")
+                .title("my-title-url")
+                .torrent(mock(Torrent.class))
+                .torrentStream(mock(TorrentStream.class))
+                .media(Movie.builder()
+                        .images(new Images())
+                        .build())
+                .build());
+
+        var playerListener = listenerHolder.get();
+        playerListener.onDurationChanged(videoLength);
+        playerListener.onTimeChanged(videoLength);
+        playerListener.onStateChanged(PlayerState.STOPPED);
+
+        verify(torrentStreamService).stopAllStreams();
+        verify(eventPublisher, times(0)).publishEvent(new com.github.yoep.popcorn.backend.events.ClosePlayerEvent(service,
                 com.github.yoep.popcorn.backend.events.ClosePlayerEvent.Reason.END_OF_VIDEO));
     }
 
@@ -137,7 +174,8 @@ class PlayerStopServiceTest {
         service.init();
         service.onPlayMedia(event);
         var playerListener = listenerHolder.get();
-        playerListener.onDurationChanged(500L);
+        playerListener.onTimeChanged(1000L);
+        playerListener.onDurationChanged(5000L);
         playerListener.onStateChanged(PlayerState.STOPPED);
 
         verify(eventPublisher).publishEvent(isA(PlayerStoppedEvent.class));

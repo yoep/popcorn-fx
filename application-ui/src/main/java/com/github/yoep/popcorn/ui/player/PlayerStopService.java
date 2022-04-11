@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -28,6 +28,7 @@ import java.util.Optional;
 public class PlayerStopService {
     private final PlayerEventService playerEventService;
     private final TorrentStreamService torrentStreamService;
+    private final PlayNextService playNextService;
     private final ApplicationEventPublisher eventPublisher;
 
     private Media media;
@@ -124,9 +125,8 @@ public class PlayerStopService {
                 .build());
         torrentStreamService.stopAllStreams();
 
-        // verify if the player needs to be closed
-        if (media instanceof Movie &&
-                (time / (double) duration) > 0.99) {
+        // verify if the player needs to be closed automatically
+        if ((time / (double) duration) > 0.99 && playNextService.getNextEpisode().isEmpty()) {
             eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO));
         }
 

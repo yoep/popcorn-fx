@@ -93,22 +93,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
      * Cancel the current loading process.
      */
     public void cancel() {
-        if (currentFuture != null && !currentFuture.isDone()) {
-            log.debug("Cancelling current future task");
-            currentFuture.cancel(true);
-        }
-
-        // stop the torrent if it was already created
-        if (torrent != null) {
-            torrent.removeListener(torrentListener);
-            torrentService.remove(torrent);
-        }
-
-        // stop the torrent stream if it was already created
-        if (torrentStream != null) {
-            torrentStream.removeListener(torrentStreamListener);
-            torrentStreamService.stopStream(torrentStream);
-        }
+        doInternalCancel();
 
         // remove the stored info
         resetToIdleState();
@@ -206,6 +191,10 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         if (throwable.getCause() instanceof FailedToPrepareTorrentStreamException ex) {
             log.trace(ex.getMessage(), ex);
             log.warn("Failed to prepare torrent stream, restarting load torrent process");
+
+            // cancel the current loading process
+            doInternalCancel();
+
             if (event instanceof LoadMediaTorrentEvent mediaTorrentEvent) {
                 loadMediaTorrent(mediaTorrentEvent);
             } else if (event instanceof LoadUrlTorrentEvent urlTorrentEvent) {
@@ -354,6 +343,25 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
             this.wait();
         } catch (InterruptedException e) {
             log.error("Unexpectedly quit of wait for torrent stream monitor", e);
+        }
+    }
+
+    private void doInternalCancel() {
+        if (currentFuture != null && !currentFuture.isDone()) {
+            log.debug("Cancelling current future task");
+            currentFuture.cancel(true);
+        }
+
+        // stop the torrent if it was already created
+        if (torrent != null) {
+            torrent.removeListener(torrentListener);
+            torrentService.remove(torrent);
+        }
+
+        // stop the torrent stream if it was already created
+        if (torrentStream != null) {
+            torrentStream.removeListener(torrentStreamListener);
+            torrentStreamService.stopStream(torrentStream);
         }
     }
 

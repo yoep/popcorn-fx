@@ -28,9 +28,9 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 public class ImageService {
-    private static final int POSTER_WIDTH = 201;
-    private static final int POSTER_HEIGHT = 294;
-    private static final String POSTER_HOLDER = "/images/posterholder.png";
+    static final int POSTER_WIDTH = 201;
+    static final int POSTER_HEIGHT = 294;
+    static final String POSTER_HOLDER = "/images/posterholder.png";
 
     private final RestTemplate restTemplate;
     private Image posterHolder;
@@ -55,7 +55,7 @@ public class ImageService {
      */
     @Async
     public CompletableFuture<Optional<Image>> loadFanart(Media media) {
-        Assert.notNull(media, "media cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
         var image = Optional.ofNullable(media.getImages())
                 .map(Images::getFanart)
                 .filter(StringUtils::isNotEmpty)
@@ -148,11 +148,11 @@ public class ImageService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         loadPosterHolder();
     }
 
-    void loadPosterHolder() {
+    private void loadPosterHolder() {
         try {
             var resource = getPosterHolderResource();
 

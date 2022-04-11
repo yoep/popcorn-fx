@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
@@ -15,6 +16,7 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -58,11 +60,18 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     //region Constructors
 
-    public MovieDetailsComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, HealthService healthService,
-                                 SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, ImageService imageService,
-                                 SettingsService settingsService, DetailsComponentService service,
-                                 PlayerManagerService playerService) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService);
+    public MovieDetailsComponent(ApplicationEventPublisher eventPublisher,
+                                 LocaleText localeText,
+                                 HealthService healthService,
+                                 SubtitleService subtitleService,
+                                 SubtitlePickerService subtitlePickerService,
+                                 ImageService imageService,
+                                 SettingsService settingsService,
+                                 DetailsComponentService service,
+                                 PlayerManagerService playerService,
+                                 PlatformProvider platformProvider) {
+        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService,
+                platformProvider);
 
     }
 
@@ -83,7 +92,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     public void initialize(URL location, ResourceBundle resources) {
         initializeTooltips();
         initializeLanguageSelection();
-        initializeWatchNow();
+
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerService, watchNowButton);
     }
 
     //endregion

@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
@@ -21,7 +22,6 @@ import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
-import javafx.beans.InvalidationListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -55,6 +55,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected final SubtitlePickerService subtitlePickerService;
     protected final DetailsComponentService service;
     protected final PlayerManagerService playerService;
+    protected final PlatformProvider platformProvider;
 
     protected SubtitleInfo subtitle;
     protected String quality;
@@ -85,13 +86,16 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SubtitlePickerService subtitlePickerService,
                                               ImageService imageService,
                                               SettingsService settingsService,
-                                              DetailsComponentService service, PlayerManagerService playerService) {
+                                              DetailsComponentService service,
+                                              PlayerManagerService playerService,
+                                              PlatformProvider platformProvider) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
         this.subtitlePickerService = subtitlePickerService;
         this.service = service;
         this.playerService = playerService;
+        this.platformProvider = platformProvider;
     }
 
     //endregion
@@ -137,23 +141,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
         instantTooltip(watchedTooltip);
         instantTooltip(favoriteTooltip);
-    }
-
-    protected void initializeWatchNow() {
-        // listen for changes in the players
-        playerService.playersProperty().addListener((InvalidationListener) change -> updateExternalPlayers());
-        playerService.activePlayerProperty().addListener((observable, oldValue, newValue) -> watchNowButton.select(newValue));
-
-        // create initial list for the current known external players
-        updateExternalPlayers();
-
-        // listen on player selection changed
-        watchNowButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            // verify if the new value is not null
-            // if so, update the active player
-            if (newValue != null)
-                playerService.setActivePlayer(newValue);
-        });
     }
 
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {
@@ -285,14 +272,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         languageSelection.getItems().clear();
         languageSelection.getItems().add(SubtitleInfo.none());
         languageSelection.select(0);
-    }
-
-    private void updateExternalPlayers() {
-        Platform.runLater(() -> {
-            watchNowButton.clear();
-            watchNowButton.addItems(playerService.getPlayers());
-            watchNowButton.select(playerService.getActivePlayer().orElse(null));
-        });
     }
 
     private void onCustomSubtitleSelected() {

@@ -558,13 +558,15 @@
 }
 
 .root .movie-details .watch-now .context-menu,
-.root .show-details .watch-now .context-menu {
+.root .show-details .watch-now .context-menu,
+.root .torrent-details .watch-now .context-menu {
     -fx-background-color: transparent;
     -fx-padding: 2 0 2 0;
 }
 
 .root .movie-details .watch-now .menu-item,
-.root .show-details .watch-now .menu-item {
+.root .show-details .watch-now .menu-item,
+.root .torrent-details .watch-now .menu-item {
     -fx-background-color: rgb(23, 24, 27);
     -fx-text-fill: #ccc;
     -fx-padding: 0;
@@ -572,24 +574,28 @@
 }
 
 .root .movie-details .watch-now .menu-item.active,
-.root .show-details .watch-now .menu-item.active {
+.root .show-details .watch-now .menu-item.active,
+.root .torrent-details .watch-now .menu-item.active {
     -fx-background-color: #225694;
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .watch-now .menu-item:focused,
-.root .show-details .watch-now .menu-item:focused {
+.root .show-details .watch-now .menu-item:focused,
+.root .torrent-details .watch-now .menu-item:focused {
     -fx-background-color: #226e94;
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .watch-now .menu-item .label,
-.root .show-details .watch-now .menu-item .label {
+.root .show-details .watch-now .menu-item .label,
+.root .torrent-details .watch-now .menu-item .label {
     -fx-background-color: transparent;
 }
 
 .root .movie-details .watch-now .menu-item .graphic-container,
-.root .show-details .watch-now .menu-item .graphic-container {
+.root .show-details .watch-now .menu-item .graphic-container,
+.root .torrent-details .watch-now .menu-item .graphic-container {
     -fx-padding: 0 8 0 8;
 }
 

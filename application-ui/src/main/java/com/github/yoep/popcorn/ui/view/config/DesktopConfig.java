@@ -103,13 +103,6 @@ public class DesktopConfig {
     //region Components
 
     @Bean
-    public DetailsTorrentComponent detailsTorrentComponent(ApplicationEventPublisher eventPublisher,
-                                                           TorrentCollectionService torrentCollectionService,
-                                                           LocaleText localeText) {
-        return new DetailsTorrentComponent(eventPublisher, torrentCollectionService, localeText);
-    }
-
-    @Bean
     public SettingsUIComponent settingsUIComponent(ApplicationEventPublisher eventPublisher,
                                                    LocaleText localeText,
                                                    SettingsService settingsService) {

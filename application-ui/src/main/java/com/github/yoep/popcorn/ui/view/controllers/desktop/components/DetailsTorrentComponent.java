@@ -1,6 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
@@ -8,6 +11,8 @@ import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
+import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -15,6 +20,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.InnerShadow;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +38,7 @@ import java.util.ResourceBundle;
 import static java.util.Arrays.asList;
 
 @Slf4j
+@ViewController
 @RequiredArgsConstructor
 public class DetailsTorrentComponent implements Initializable {
     private static final List<String> SUPPORTED_FILES = asList("mp4", "m4v", "avi", "mov", "mkv", "wmv");
@@ -39,16 +46,20 @@ public class DetailsTorrentComponent implements Initializable {
     private final ApplicationEventPublisher eventPublisher;
     private final TorrentCollectionService torrentCollectionService;
     private final LocaleText localeText;
+    private final PlayerManagerService playerManagerService;
+    private final PlatformProvider platformProvider;
 
     private String magnetUri;
     private TorrentInfo torrentInfo;
 
     @FXML
-    private ListView<String> fileList;
+    ListView<String> fileList;
     @FXML
-    private Pane fileShadow;
+    Pane fileShadow;
     @FXML
-    private Button storeTorrentButton;
+    Button storeTorrentButton;
+    @FXML
+    WatchNowButton playerButton;
 
     //region Methods
 
@@ -78,15 +89,17 @@ public class DetailsTorrentComponent implements Initializable {
         updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
     }
 
+    //endregion
+
+    //region Initializable
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeFileShadow();
         initializeFileList();
+
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, playerButton);
     }
-
-    //endregion
-
-    //region Functions
 
     private void initializeFileShadow() {
         // inner shadows cannot be defined in CSS, so this needs to be done in code
@@ -107,6 +120,10 @@ public class DetailsTorrentComponent implements Initializable {
             }
         });
     }
+
+    //endregion
+
+    //region Functions
 
     private void onFileClicked(TorrentFileInfo fileInfo) {
         eventPublisher.publishEvent(new LoadUrlTorrentEvent(this, torrentInfo, fileInfo));
@@ -138,12 +155,13 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     @FXML
-    private void onClose() {
+    void onClose() {
         close();
     }
 
     @FXML
-    private void onStoreClicked() {
+    void onStoreOrRemoveTorrentClicked(MouseEvent event) {
+        event.consume();
         if (torrentCollectionService.isStored(magnetUri)) {
             torrentCollectionService.removeTorrent(magnetUri);
             updateStoreTorrent(false);

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
@@ -19,6 +20,7 @@ import com.github.yoep.popcorn.ui.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.controls.Episodes;
 import com.github.yoep.popcorn.ui.view.controls.Seasons;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
@@ -97,8 +99,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
                                 SettingsService settingsService,
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
-                                PlayerManagerService playerService) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService);
+                                PlayerManagerService playerService,
+                                PlatformProvider platformProvider) {
+        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService,
+                platformProvider);
         this.showHelperService = showHelperService;
     }
 
@@ -155,8 +159,9 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
         initializeSeasons();
         initializeEpisodes();
         initializeLanguageSelection();
-        initializeWatchNow();
         initializeTooltips();
+
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerService, watchNowButton);
     }
 
     //endregion

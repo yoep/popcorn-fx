@@ -1,6 +1,7 @@
 # Popcorn FX
 
 ![Build](https://github.com/yoep/popcorn-fx/workflows/Build/badge.svg)
+![Version](https://img.shields.io/github/v/tag/yoep/popcorn-fx?label=version)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![codecov](https://codecov.io/gh/yoep/popcorn-fx/branch/master/graph/badge.svg?token=A801IOOZAH)](https://codecov.io/gh/yoep/popcorn-fx)
 

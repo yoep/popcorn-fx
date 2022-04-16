@@ -26,4 +26,5 @@ jobs:
         git config --global user.name 'GitHub Actions'
         git config --global user.email 'actions@noreply.github.com'
         VERSION=$(mvn -q -s .m2/settings.xml help:evaluate -Dexpression=project.version -DforceStdout)
+        export VERSION=${VERSION/-SNAPSHOT/}
         xvfb-run mvn -B -Plinux gitflow:hotfix-start -DuseSnapshotInHotfix=true -DversionsForceUpdate=true -DpushRemote=true -DhotfixVersion="${VERSION}"

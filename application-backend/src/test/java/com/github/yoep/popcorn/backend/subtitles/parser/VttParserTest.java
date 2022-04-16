@@ -61,13 +61,29 @@ class VttParserTest {
     @Test
     void testParse_whenSubtitleCuesISGiven_shouldReturnExpectedInputStream() throws IOException {
         var resource = new ClassPathResource("subtitles/parse-to-inputstream.vtt");
-        var line1 = new SubtitleLine(Collections.singletonList(new SubtitleText("lorem ipsum dolor", false, false, false)));
+        var line1 = new SubtitleLine(asList(SubtitleText.builder()
+                .text("lorem ipsum ")
+                .build(), SubtitleText.builder()
+                .text("dolor")
+                .bold(true)
+                .build()));
         var line2 = new SubtitleLine(Collections.singletonList(new SubtitleText("estla", false, false, false)));
-        var cues = Collections.singletonList(SubtitleCue.builder()
+        var line3 = SubtitleLine.builder()
+                .texts(Collections.singletonList(SubtitleText.builder()
+                        .text("Donec iaculis sem sed")
+                        .italic(true)
+                        .build()))
+                .build();
+        var cues = asList(SubtitleCue.builder()
                 .id("1")
                 .startTime(0)
                 .endTime(5000)
                 .lines(asList(line1, line2))
+                .build(), SubtitleCue.builder()
+                .id("2")
+                .startTime(10000)
+                .endTime(10500)
+                .lines(Collections.singletonList(line3))
                 .build());
         var expectedResult = IOUtils.toString(resource.getInputStream(), StandardCharsets.UTF_8);
 

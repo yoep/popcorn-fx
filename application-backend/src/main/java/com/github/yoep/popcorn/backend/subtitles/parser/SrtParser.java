@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.backend.subtitles.parser;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleParsingException;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -19,18 +18,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
 public class SrtParser implements Parser {
     private static final Pattern TIME_PATTERN = Pattern.compile("(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})");
-    private static final Pattern TEXT_PATTERN = Pattern.compile("(<([a-z])>)?([^<]+)(</([a-z])>)?");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
-    private static final String STYLE_ITALIC = "i";
-    private static final String STYLE_BOLD = "b";
-    private static final String STYLE_UNDERLINE = "u";
 
     @Override
     public boolean support(SubtitleType type) {
@@ -66,7 +60,7 @@ public class SrtParser implements Parser {
                             readTime(cueBuilder, lineIndex, line);
                             stage = stage.next();
                         }
-                        case TEXT -> lines.add(readText(line));
+                        case TEXT -> lines.add(StyleParser.parseLineStyle(line));
                         case FINISH -> {
                             cues.add(finishSubtitle(cueBuilder, lines));
                             stage = stage.next();
@@ -112,20 +106,6 @@ public class SrtParser implements Parser {
         }
     }
 
-    private SubtitleLine readText(String line) {
-        var matcher = TEXT_PATTERN.matcher(line);
-        var subtitleTexts = new ArrayList<SubtitleText>();
-
-        while (matcher.find()) {
-            var text = matcher.group(3);
-            var style = getStyle(matcher);
-
-            subtitleTexts.add(new SubtitleText(text, style.equals(STYLE_ITALIC), style.equals(STYLE_BOLD), style.equals(STYLE_UNDERLINE)));
-        }
-
-        return new SubtitleLine(subtitleTexts);
-    }
-
     private SubtitleCue finishSubtitle(SubtitleCue.SubtitleCueBuilder cueBuilder, ArrayList<SubtitleLine> lines) {
         if (cueBuilder == null)
             return null;
@@ -141,15 +121,6 @@ public class SrtParser implements Parser {
         int seconds = (minutes * 60) + time.getSecond();
 
         return (seconds * 1000) + (long) (time.getNano() / 1000000);
-    }
-
-    private String getStyle(Matcher matcher) {
-        final var firstStylePosition = matcher.group(2);
-        final var lastStylePosition = matcher.group(5);
-
-        return Optional.ofNullable(firstStylePosition)
-                .orElse(Optional.ofNullable(lastStylePosition)
-                        .orElse(StringUtils.EMPTY));
     }
 
     private enum Stage {

@@ -109,6 +109,9 @@ public class PlayerStopService {
     }
 
     private void onPlayerStopped() {
+        // always stop all streams
+        torrentStreamService.stopAllStreams();
+
         if (!isAllowedToClose())
             return;
 
@@ -123,7 +126,6 @@ public class PlayerStopService {
                 .duration(Optional.ofNullable(duration)
                         .orElse(PlayerStoppedEvent.UNKNOWN))
                 .build());
-        torrentStreamService.stopAllStreams();
 
         // verify if the player needs to be closed automatically
         if (time != null &&

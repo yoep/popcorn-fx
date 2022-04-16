@@ -24,8 +24,6 @@ import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
 @EqualsAndHashCode
 @RequiredArgsConstructor
 public class VlcTranscodeService implements TranscodeService {
-    static final String EXTENSION = "mp4";
-
     private final MediaPlayerFactory mediaPlayerFactory;
     private final MediaPlayerEventListener listener = createListener();
 
@@ -36,8 +34,7 @@ public class VlcTranscodeService implements TranscodeService {
         Objects.requireNonNull(url, "url cannot be null");
         log.trace("Starting transcoding of {}", url);
         var baseName = FilenameUtils.getBaseName(url);
-        var name = baseName + "." + EXTENSION;
-        var destination = MessageFormat.format("{0}:{1}/{2}", HostUtils.hostAddress(), String.valueOf(HostUtils.availablePort()), name);
+        var destination = MessageFormat.format("{0}:{1}/{2}", HostUtils.hostAddress(), String.valueOf(HostUtils.availablePort()), baseName);
 
         // release the previous resources if needed
         releaseMediaPlayer();
@@ -46,8 +43,8 @@ public class VlcTranscodeService implements TranscodeService {
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newMediaPlayer();
         mediaPlayer.events().addMediaPlayerEventListener(listener);
 
-        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=h264,vb=2048,acodec=mp3,ab=128,channels=2,threads=0,deinterlace}:" +
-                "http{mux=ffmpeg{mux=mp4},dst=" + destination + "}", ":sout-keep");
+        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=h264,vb=2048,maxwidth=1920,maxheight=1080,acodec=mp3,ab=128,channels=2,threads=0}:" +
+                "http{mux=raw,dst=" + destination + "}", ":sout-all", ":sout-keep");
 
         if (!started) {
             throw new TranscodeException("Failed to start transcoding of " + url);
@@ -82,6 +79,16 @@ public class VlcTranscodeService implements TranscodeService {
             }
 
             @Override
+            public void playing(MediaPlayer mediaPlayer) {
+                log.debug("Transcoding of the video has started");
+            }
+
+            @Override
+            public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
+                super.timeChanged(mediaPlayer, newTime);
+            }
+
+            @Override
             public void error(MediaPlayer mediaPlayer) {
                 var message = libvlc_errmsg();
                 log.error("Transcoding has failed, {}", message);
@@ -95,6 +102,7 @@ public class VlcTranscodeService implements TranscodeService {
                 log.debug("Releasing the transcode process");
                 e.controls().stop();
                 e.release();
+                mediaPlayer = null;
             } catch (Throwable ex) {
                 log.error("Failed to release transcode process, {}", ex.getMessage(), ex);
             }

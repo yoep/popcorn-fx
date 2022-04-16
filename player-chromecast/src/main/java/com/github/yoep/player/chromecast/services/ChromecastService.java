@@ -114,6 +114,7 @@ public class ChromecastService {
                 .orElse(Collections.emptyList());
         var url = request.getUrl();
         var videoMetadata = resolveMetadata(URI.create(url));
+        var streamType = Media.StreamType.BUFFERED;
 
         // verify if the media url is supported
         // if not, we start a transcoding process through VLC
@@ -123,6 +124,7 @@ public class ChromecastService {
                     .contentType("video/mp4")
                     .duration(videoMetadata.getDuration())
                     .build();
+            streamType = Media.StreamType.LIVE;
             url = transcodeService.transcode(url);
         } else {
             log.debug("Current video format/codec is supported, transcoding not needed");
@@ -140,7 +142,7 @@ public class ChromecastService {
                         .url(url)
                         .contentType(videoMetadata.getContentType())
                         .duration(videoMetadata.getDuration().doubleValue())
-                        .streamType(Media.StreamType.BUFFERED)
+                        .streamType(streamType)
                         .customData(null)
                         .metadata(metadata)
                         .textTrackStyle(getTrackStyle())

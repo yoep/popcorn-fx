@@ -35,12 +35,12 @@ public class ChromecastPlayer implements Player {
 
     private final ChromeCastSpontaneousEventListener listener = createEventListener();
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
-    private final Timer statusTimer = new Timer("ChromecastPlaybackStatus");
     private final ChromeCast chromeCast;
     private final ChromecastService service;
 
     private PlayerState playerState = PlayerState.READY;
     private PlaybackThread playbackThread;
+    private Timer statusTimer;
     private String sessionId;
     private boolean connected;
     private boolean appLaunched;
@@ -134,9 +134,10 @@ public class ChromecastPlayer implements Player {
         stopPreviousPlaybackThreadIfNeeded();
         stopApp();
 
+        Optional.ofNullable(statusTimer)
+                        .ifPresent(Timer::cancel);
+
         service.stop();
-        statusTimer.cancel();
-        statusTimer.purge();
         updateState(PlayerState.STOPPED);
     }
 
@@ -336,12 +337,13 @@ public class ChromecastPlayer implements Player {
                 chromeCast.send(MEDIA_NAMESPACE, loadRequest);
 
                 var statusThread = new PlaybackStatusThread();
+                statusTimer = new Timer("ChromecastPlaybackStatus");
                 statusTimer.schedule(statusThread, 0, 1000);
 
                 while (keepAlive) {
                     Thread.onSpinWait();
                 }
-            } catch (IOException ex) {
+            } catch (Exception ex) {
                 log.error("Failed to play url on Chromecast \"{}\", {}", getName(), ex.getMessage(), ex);
                 updateState(PlayerState.ERROR);
             }

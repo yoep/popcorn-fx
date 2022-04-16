@@ -22,4 +22,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Create hotfix
-      run: xvfb-run mvn -B -Plinux gitflow:hotfix-start -DuseSnapshotInHotfix=true -DversionsForceUpdate=true -DpushRemote=true
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@noreply.github.com'
+        xvfb-run mvn -B -Plinux gitflow:hotfix-start -DuseSnapshotInHotfix=true -DversionsForceUpdate=true -DpushRemote=true

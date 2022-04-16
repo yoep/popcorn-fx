@@ -19,8 +19,8 @@ logging:
   level:
     org.springframework: WARN
     com.github.yoep.popcorn: INFO
-  file:
-    name: '${log.dir}/logs/popcorn-time.log'
+    com.github.kokorin.jaffree: WARN
+  file.name: '${log.dir}/logs/popcorn-time.log'
   logback:
     rollingpolicy:
       clean-history-on-start: true

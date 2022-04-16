@@ -13,6 +13,8 @@ assets/mac/vlc/vlc-*/
 assets/windows/vlc/lua/
 assets/windows/vlc/plugins/
 assets/windows/vlc/vlc-*/
+assets/windows/**.dll
+assets/windows/**.exe
 
 **/*.iml
 **/docker-compose.yml

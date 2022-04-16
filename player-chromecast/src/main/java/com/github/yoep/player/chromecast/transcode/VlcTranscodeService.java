@@ -24,7 +24,7 @@ import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
 @EqualsAndHashCode
 @RequiredArgsConstructor
 public class VlcTranscodeService implements TranscodeService {
-    static final String EXTENSION = "webm";
+    static final String EXTENSION = "mp4";
 
     private final MediaPlayerFactory mediaPlayerFactory;
     private final MediaPlayerEventListener listener = createListener();
@@ -37,7 +37,7 @@ public class VlcTranscodeService implements TranscodeService {
         log.trace("Starting transcoding of {}", url);
         var baseName = FilenameUtils.getBaseName(url);
         var name = baseName + "." + EXTENSION;
-        var port = HostUtils.availablePort();
+        var destination = MessageFormat.format("{0}:{1}/{2}", HostUtils.hostAddress(), String.valueOf(HostUtils.availablePort()), name);
 
         // release the previous resources if needed
         releaseMediaPlayer();
@@ -46,14 +46,20 @@ public class VlcTranscodeService implements TranscodeService {
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newMediaPlayer();
         mediaPlayer.events().addMediaPlayerEventListener(listener);
 
-        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=VP80,vb=300,acodec=vorb,ab=128,channels=2," +
-                "samplerate=44100,threads=2}:http{mux=webm,dst=:" + port + "/" + name + "}", ":sout-keep");
+        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=h264,vb=2048,acodec=mp3,ab=128,channels=2,threads=0,deinterlace}:" +
+                "http{mux=ffmpeg{mux=mp4},dst=" + destination + "}", ":sout-keep");
 
         if (!started) {
             throw new TranscodeException("Failed to start transcoding of " + url);
         }
 
-        return MessageFormat.format("http://{0}:{1}/{2}", HostUtils.hostAddress(), String.valueOf(port), name);
+        log.info("Converted video is available at http://{}", destination);
+        return "http://" + destination;
+    }
+
+    @Override
+    public void stop() {
+        releaseMediaPlayer();
     }
 
     @PreDestroy
@@ -84,6 +90,14 @@ public class VlcTranscodeService implements TranscodeService {
     }
 
     private void releaseMediaPlayer() {
-        Optional.ofNullable(mediaPlayer).ifPresent(MediaPlayer::release);
+        Optional.ofNullable(mediaPlayer).ifPresent(e -> {
+            try {
+                log.debug("Releasing the transcode process");
+                e.controls().stop();
+                e.release();
+            } catch (Throwable ex) {
+                log.error("Failed to release transcode process, {}", ex.getMessage(), ex);
+            }
+        });
     }
 }

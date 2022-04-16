@@ -81,6 +81,7 @@
         <javapackager.version>1.6.5</javapackager.version>
         <vlcj.version>4.7.2</vlcj.version>
         <vlcj-javafx.version>1.0.3</vlcj-javafx.version>
+        <jaffree.version>2021.12.30</jaffree.version>
 
         <cmake-maven-plugin.version>3.19.2-b1</cmake-maven-plugin.version>
         <cmake.download>false</cmake.download>
@@ -171,7 +172,7 @@
                 <version>${jna.version}</version>
             </dependency>
 
-            <!-- VLCj -->
+            <!-- Media -->
             <dependency>
                 <groupId>uk.co.caprica</groupId>
                 <artifactId>vlcj</artifactId>
@@ -181,6 +182,11 @@
                 <groupId>uk.co.caprica</groupId>
                 <artifactId>vlcj-javafx</artifactId>
                 <version>${vlcj-javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.kokorin.jaffree</groupId>
+                <artifactId>jaffree</artifactId>
+                <version>${jaffree.version}</version>
             </dependency>
 
             <dependency>

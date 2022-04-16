@@ -126,7 +126,8 @@ public class PlayerStopService {
         torrentStreamService.stopAllStreams();
 
         // verify if the player needs to be closed automatically
-        if ((time / (double) duration) > 0.99 && playNextService.getNextEpisode().isEmpty()) {
+        if (time != null &&
+                (time / (double) duration) > 0.99 && playNextService.getNextEpisode().isEmpty()) {
             eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO));
         }
 

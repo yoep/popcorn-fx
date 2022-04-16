@@ -49,8 +49,8 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Prepare VLC
-        run: cd ./assets/windows && ./prepare-vlc.bat
+      - name: Prepare libraries
+        run: cd ./assets/windows && ./prepare-libs.bat
       - name: Prepare packaging
         run: mvn -B clean -Pwindows
       - name: Package

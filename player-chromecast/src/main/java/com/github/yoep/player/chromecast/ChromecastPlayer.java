@@ -134,6 +134,7 @@ public class ChromecastPlayer implements Player {
         stopPreviousPlaybackThreadIfNeeded();
         stopApp();
 
+        service.stop();
         statusTimer.cancel();
         statusTimer.purge();
         updateState(PlayerState.STOPPED);

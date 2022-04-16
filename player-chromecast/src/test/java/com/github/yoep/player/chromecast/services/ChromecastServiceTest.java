@@ -1,5 +1,6 @@
 package com.github.yoep.player.chromecast.services;
 
+import com.github.kokorin.jaffree.ffprobe.FFprobe;
 import com.github.yoep.player.chromecast.ChromeCastMetadata;
 import com.github.yoep.player.chromecast.api.v2.Load;
 import com.github.yoep.player.chromecast.api.v2.TextTrackType;
@@ -45,6 +46,8 @@ class ChromecastServiceTest {
     private ServerProperties serverProperties;
     @Mock
     private TranscodeService transcodeService;
+    @Mock
+    private FFprobe ffprobe;
     @InjectMocks
     private ChromecastService service;
 

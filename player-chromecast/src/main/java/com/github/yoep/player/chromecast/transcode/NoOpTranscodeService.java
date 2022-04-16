@@ -10,4 +10,9 @@ public record NoOpTranscodeService() implements TranscodeService {
         log.warn("Unable to transcode url, NO-OP transcode service is being used");
         return url;
     }
+
+    @Override
+    public void stop() {
+        // no-op
+    }
 }

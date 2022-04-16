@@ -12,4 +12,9 @@ public interface TranscodeService {
      */
     @NotNull
     String transcode(@NotNull String url);
+
+    /**
+     * Stop the transcoding process.
+     */
+    void stop();
 }

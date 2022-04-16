@@ -1,13 +1,14 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.0/popcorn-time_0.2.0.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.0/popcorn-time_0.2.0.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.0/popcorn-time_0.2.0.dmg",
-    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.0/popcorn-time_0.2.0.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.1/popcorn-time_0.2.1.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.2/popcorn-time_0.2.1_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.1/popcorn-time_0.2.1.dmg",
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.1/popcorn-time_0.2.1.exe"
   },
   "changelog": {
     "features": [
+      "Optimised Chromecast transcoding process",
       "Added the ability to select a player within the magnet info view",
       "Used IMDB as main source for Anime",
       "Added various option for retrying failed load operations"

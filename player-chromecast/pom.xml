@@ -35,10 +35,14 @@
             <version>${chromecast-api.version}</version>
         </dependency>
 
-        <!-- Vlcj -->
+        <!-- Transcoding -->
         <dependency>
             <groupId>uk.co.caprica</groupId>
             <artifactId>vlcj</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.kokorin.jaffree</groupId>
+            <artifactId>jaffree</artifactId>
         </dependency>
 
         <!-- Spring -->

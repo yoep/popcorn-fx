@@ -1,7 +1,6 @@
 package com.github.yoep.player.chromecast.discovery;
 
 import com.github.yoep.player.chromecast.ChromecastPlayer;
-import com.github.yoep.player.chromecast.services.MetaDataService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,10 +9,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import su.litvak.chromecast.api.v2.ChromeCast;
 
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -23,8 +21,6 @@ class DiscoveryServiceTest {
     private PlayerManagerService playerService;
     @Mock
     private ChromeCast chromeCast;
-    @Mock
-    private MetaDataService contentTypeService;
     @InjectMocks
     private DiscoveryService service;
 
@@ -46,37 +42,25 @@ class DiscoveryServiceTest {
 
     @Test
     void testChromeCastRemoved_whenChromeCastIsNotRegistered_shouldNotUnregisterPlayer() {
-        when(playerService.getPlayers()).thenReturn(Collections.emptyList());
-
         service.chromeCastRemoved(chromeCast);
 
         verify(playerService, times(0)).unregister(isA(ChromecastPlayer.class));
     }
 
     @Test
-    void testChromeCastRemoved_whenChromeCastNameDoesNotMatchId_shouldNotUnregisterPlayer() {
-        var id = "my-not-matching-id";
-        var name = "my-chromecast-name";
-        var player = mock(ChromecastPlayer.class);
-        when(playerService.getPlayers()).thenReturn(Collections.singletonList(player));
-        when(player.getId()).thenReturn(id);
-        when(chromeCast.getName()).thenReturn(name);
+    void testInit_whenInvoked_shouldCreateDiscoveryThread() {
+        service.init();
 
-        service.chromeCastRemoved(chromeCast);
-
-        verify(playerService, times(0)).unregister(isA(ChromecastPlayer.class));
+        assertNotNull(service.discoveryThread, "Expected a discovery thread to have been started");
     }
 
     @Test
-    void testChromeCastRemoved_whenChromeCastNameMatchesTheId_shouldUnregisterTheChromecastPlayer() {
-        var name = "my-chromecast-name";
-        var registeredPlayer = mock(ChromecastPlayer.class);
-        when(playerService.getPlayers()).thenReturn(Collections.singletonList(registeredPlayer));
-        when(registeredPlayer.getId()).thenReturn(name);
-        when(chromeCast.getName()).thenReturn(name);
+    void testOnDestroy_whenInvoked_shouldStopRunningDiscoveryThread() {
+        service.init();
 
-        service.chromeCastRemoved(chromeCast);
+        service.onDestroy();
+        var result = service.discoveryThread.isInterrupted() || !service.discoveryThread.isAlive();
 
-        verify(playerService).unregister(registeredPlayer);
+        assertTrue(result, "Expected a discovery thread to have been stopped");
     }
 }

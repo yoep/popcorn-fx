@@ -1,5 +1,6 @@
 package com.github.yoep.player.chromecast.transcode;
 
+import com.github.yoep.player.chromecast.services.TranscodeState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -11,6 +12,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class NoOpTranscodeServiceTest {
     @InjectMocks
     private NoOpTranscodeService service;
+
+    @Test
+    void testGetState_whenInvoked_shouldReturnStopped() {
+        var result = service.getState();
+
+        assertEquals(TranscodeState.STOPPED, result);
+    }
 
     @Test
     void testTranscode_whenUrlIsGiven_shouldReturnTheSameUrl() {

@@ -1,5 +1,8 @@
 package com.github.yoep.player.chromecast.services;
 
+import com.github.kokorin.jaffree.StreamType;
+import com.github.kokorin.jaffree.ffprobe.FFprobe;
+import com.github.kokorin.jaffree.ffprobe.Stream;
 import com.github.yoep.player.chromecast.ChromeCastMetadata;
 import com.github.yoep.player.chromecast.api.v2.Load;
 import com.github.yoep.player.chromecast.api.v2.TextTrackType;
@@ -35,13 +38,14 @@ import static java.util.Arrays.asList;
 @Service
 @RequiredArgsConstructor
 public class ChromecastService {
-    static final Collection<String> SUPPORTED_MEDIA_TYPES = asList("mp4", "ogg", "wav", "webm");
+    static final Collection<String> SUPPORTED_CODECS = asList("h264", "vp8");
     static final String SUBTITLE_CONTENT_TYPE = "text/vtt";
 
     private final MetaDataService contentTypeService;
     private final SubtitleService subtitleService;
     private final TranscodeService transcodeService;
     private final ServerProperties serverProperties;
+    private final FFprobe ffprobe;
 
     //region Methods
 
@@ -109,19 +113,24 @@ public class ChromecastService {
                 .map(this::getMediaTrack)
                 .orElse(Collections.emptyList());
         var url = request.getUrl();
-        var extension = FilenameUtils.getExtension(url);
+        var videoMetadata = resolveMetadata(URI.create(url));
+        var streamType = Media.StreamType.BUFFERED;
 
         // verify if the media url is supported
         // if not, we start a transcoding process through VLC
-        if (!isSupportedVideoFormat(extension)) {
-            log.debug("Current video format {} is not supported by Chromecast, starting transcoding of the video", extension);
+        if (!isSupportedVideoFormat(url)) {
+            log.debug("Current video format/codec is not supported by Chromecast, starting transcoding of the video");
+            videoMetadata = VideoMetadata.builder()
+                    .contentType("video/mp4")
+                    .duration(videoMetadata.getDuration())
+                    .build();
+            streamType = Media.StreamType.LIVE;
             url = transcodeService.transcode(url);
         } else {
-            log.debug("Current video format {} is supported, transcoding not needed", extension);
+            log.debug("Current video format/codec is supported, transcoding not needed");
         }
 
         var metadata = getMediaMetaData(request);
-        var videoMetadata = resolveMetadata(URI.create(url));
 
         return Load.builder()
                 .sessionId(sessionId)
@@ -133,7 +142,7 @@ public class ChromecastService {
                         .url(url)
                         .contentType(videoMetadata.getContentType())
                         .duration(videoMetadata.getDuration().doubleValue())
-                        .streamType(Media.StreamType.BUFFERED)
+                        .streamType(streamType)
                         .customData(null)
                         .metadata(metadata)
                         .textTrackStyle(getTrackStyle())
@@ -165,6 +174,13 @@ public class ChromecastService {
         return (long) (time * 1000);
     }
 
+    /**
+     * Stop all chromecast processes.
+     */
+    public void stop() {
+        transcodeService.stop();
+    }
+
     //endregion
 
     //region Functions
@@ -173,9 +189,26 @@ public class ChromecastService {
         return !e.isNone();
     }
 
-    private boolean isSupportedVideoFormat(String extension) {
-        Objects.requireNonNull(extension, "extension cannot be null");
-        return SUPPORTED_MEDIA_TYPES.contains(extension.toLowerCase());
+    private boolean isSupportedVideoFormat(String url) {
+        Objects.requireNonNull(url, "url cannot be null");
+        return ffprobe
+                .setShowStreams(true)
+                .setInput(url)
+                .execute()
+                .getStreams().stream()
+                .filter(e -> e.getCodecType() == StreamType.VIDEO)
+                .findFirst()
+                .map(e -> {
+                    log.trace("Probe of {}: {}", url, e);
+                    return e;
+                })
+                .map(Stream::getCodecName)
+                .filter(SUPPORTED_CODECS::contains)
+                .map(e -> {
+                    log.debug("Codec {} is supported by Chromecast", e);
+                    return e;
+                })
+                .isPresent();
     }
 
     private List<Track> getMediaTrack(Subtitle subtitle) {

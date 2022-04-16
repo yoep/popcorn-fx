@@ -125,9 +125,13 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     @Override
     public boolean hasByte(long byteIndex) {
-        int pieceIndex = getPieceIndexOfByte(byteIndex);
+        if (handle.isValid()) {
+            int pieceIndex = getPieceIndexOfByte(byteIndex);
 
-        return handle.havePiece(pieceIndex);
+            return handle.havePiece(pieceIndex);
+        } else {
+            throw new TorrentException("Handle is invalid for " + filename);
+        }
     }
 
     @Override

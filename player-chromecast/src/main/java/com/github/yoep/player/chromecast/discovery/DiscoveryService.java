@@ -19,7 +19,7 @@ public class DiscoveryService implements ChromeCastsListener {
     private final PlayerManagerService playerService;
     private final ChromecastService chromecastService;
 
-    private Thread discoveryThread;
+    Thread discoveryThread;
 
     //region ChromeCastsListener
 
@@ -33,12 +33,9 @@ public class DiscoveryService implements ChromeCastsListener {
 
     @Override
     public void chromeCastRemoved(ChromeCast chromeCast) {
-        log.debug("Chromecast device \"{}\" has been removed", chromeCast.getName());
-        playerService.getPlayers().stream()
-                .filter(e -> e instanceof ChromecastPlayer)
-                .filter(e -> e.getId().equals(chromeCast.getName()))
-                .findFirst()
-                .ifPresent(playerService::unregister);
+        // the discovery has some weird issue once an app is launched
+        // causing the Chromecast to always be removed
+        // for this reason, we ignore the event
     }
 
     //endregion

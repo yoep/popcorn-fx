@@ -251,6 +251,7 @@
                         <configuration>
                             <additionalResources>
                                 <param>${project.basedir}/../assets/${platform}/jlibtorrent.dll</param>
+                                <param>${project.basedir}/../assets/${platform}/ffprobe.exe</param>
 <!--                                <param>${project.basedir}/../assets/${platform}/vlc/libvlc.dll</param>-->
 <!--                                <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.dll</param>-->
 <!--                                <param>${project.basedir}/../assets/${platform}/vlc/lua</param>-->

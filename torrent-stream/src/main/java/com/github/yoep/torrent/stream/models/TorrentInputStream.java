@@ -1,6 +1,7 @@
 package com.github.yoep.torrent.stream.models;
 
 
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
@@ -112,6 +113,9 @@ public class TorrentInputStream extends FilterInputStream {
             } catch (InterruptedException ex) {
                 log.debug("Torrent input stream wait got interrupted for {}", this);
                 Thread.currentThread().interrupt();
+            } catch (TorrentException ex) {
+                log.error(ex.getMessage(), ex);
+                return false;
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }

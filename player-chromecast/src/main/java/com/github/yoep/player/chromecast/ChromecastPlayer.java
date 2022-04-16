@@ -131,11 +131,15 @@ public class ChromecastPlayer implements Player {
 
     @Override
     public void stop() {
-        stopPreviousPlaybackThreadIfNeeded();
-        stopApp();
+        // move this operation to a separate thread
+        // as the stop command on the chromecast may timeout
+        new Thread(() -> {
+            stopPreviousPlaybackThreadIfNeeded();
+            stopApp();
+        }, "Chromecast-command").start();
 
         Optional.ofNullable(statusTimer)
-                        .ifPresent(Timer::cancel);
+                .ifPresent(Timer::cancel);
 
         service.stop();
         updateState(PlayerState.STOPPED);

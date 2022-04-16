@@ -19,7 +19,7 @@ public class DiscoveryService implements ChromeCastsListener {
     private final PlayerManagerService playerService;
     private final ChromecastService chromecastService;
 
-    private Thread discoveryThread;
+    Thread discoveryThread;
 
     //region ChromeCastsListener
 

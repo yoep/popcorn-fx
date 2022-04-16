@@ -1,6 +1,7 @@
 package com.github.yoep.player.chromecast.transcode;
 
 import com.github.yoep.player.chromecast.services.TranscodeService;
+import com.github.yoep.player.chromecast.services.TranscodeState;
 import com.github.yoep.popcorn.backend.utils.HostUtils;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +18,6 @@ import java.text.MessageFormat;
 import java.util.Objects;
 import java.util.Optional;
 
-import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
-
 @Slf4j
 @ToString
 @EqualsAndHashCode
@@ -27,12 +26,19 @@ public class VlcTranscodeService implements TranscodeService {
     private final MediaPlayerFactory mediaPlayerFactory;
     private final MediaPlayerEventListener listener = createListener();
 
+    private TranscodeState state = TranscodeState.UNKNOWN;
     private MediaPlayer mediaPlayer;
+
+    @Override
+    public TranscodeState getState() {
+        return state;
+    }
 
     @Override
     public String transcode(String url) {
         Objects.requireNonNull(url, "url cannot be null");
         log.trace("Starting transcoding of {}", url);
+        state = TranscodeState.PREPARING;
         var baseName = FilenameUtils.getBaseName(url);
         var destination = MessageFormat.format("{0}:{1}/{2}", HostUtils.hostAddress(), String.valueOf(HostUtils.availablePort()), baseName);
 
@@ -43,8 +49,10 @@ public class VlcTranscodeService implements TranscodeService {
         mediaPlayer = mediaPlayerFactory.mediaPlayers().newMediaPlayer();
         mediaPlayer.events().addMediaPlayerEventListener(listener);
 
-        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=h264,vb=2048,maxwidth=1920,maxheight=1080,acodec=mp3,ab=128,channels=2,threads=0}:" +
-                "http{mux=raw,dst=" + destination + "}", ":sout-all", ":sout-keep");
+        var started = mediaPlayer.media().play(url, ":sout=#transcode{vcodec=h264,vb=2048,fps=24,maxwidth=1920,maxheight=1080,acodec=mp3,ab=128,channels=2," +
+                "threads=0}:" +
+                "std{mux=avformat{mux=matroska,options={live=1},reset-ts},dst=" + destination + ",access=http}", ":demux-filter=demux_chromecast", ":sout-mux" +
+                "-caching=8192", ":sout-all", ":sout-keep");
 
         if (!started) {
             throw new TranscodeException("Failed to start transcoding of " + url);
@@ -57,6 +65,7 @@ public class VlcTranscodeService implements TranscodeService {
     @Override
     public void stop() {
         releaseMediaPlayer();
+        state = TranscodeState.STOPPED;
     }
 
     @PreDestroy
@@ -71,6 +80,7 @@ public class VlcTranscodeService implements TranscodeService {
             @Override
             public void opening(MediaPlayer mediaPlayer) {
                 log.trace("Transcoding is opening the original video");
+                state = TranscodeState.STARTING;
             }
 
             @Override
@@ -80,18 +90,19 @@ public class VlcTranscodeService implements TranscodeService {
 
             @Override
             public void playing(MediaPlayer mediaPlayer) {
-                log.debug("Transcoding of the video has started");
+                log.info("Transcoding of the video has started");
+                state = TranscodeState.TRANSCODING;
             }
 
             @Override
             public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
-                super.timeChanged(mediaPlayer, newTime);
+                log.trace("Transcoding progress at {}", newTime);
             }
 
             @Override
             public void error(MediaPlayer mediaPlayer) {
-                var message = libvlc_errmsg();
-                log.error("Transcoding has failed, {}", message);
+                log.error("Failed to transcode video");
+                state = TranscodeState.ERROR;
             }
         };
     }

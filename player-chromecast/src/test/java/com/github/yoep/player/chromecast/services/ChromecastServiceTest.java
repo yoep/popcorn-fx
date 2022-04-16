@@ -1,6 +1,10 @@
 package com.github.yoep.player.chromecast.services;
 
+import com.github.kokorin.jaffree.StreamType;
 import com.github.kokorin.jaffree.ffprobe.FFprobe;
+import com.github.kokorin.jaffree.ffprobe.FFprobeResult;
+import com.github.kokorin.jaffree.ffprobe.Stream;
+import com.github.kokorin.jaffree.ffprobe.data.ProbeData;
 import com.github.yoep.player.chromecast.ChromeCastMetadata;
 import com.github.yoep.player.chromecast.api.v2.Load;
 import com.github.yoep.player.chromecast.api.v2.TextTrackType;
@@ -12,6 +16,7 @@ import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import com.github.yoep.popcorn.backend.utils.HostUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,15 +31,11 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.text.MessageFormat;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ChromecastServiceTest {
@@ -48,8 +49,19 @@ class ChromecastServiceTest {
     private TranscodeService transcodeService;
     @Mock
     private FFprobe ffprobe;
+    @Mock
+    private FFprobeResult ffprobeResult;
+    @Mock
+    private ProbeData probeData;
     @InjectMocks
     private ChromecastService service;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(ffprobe.setShowStreams(true)).thenReturn(ffprobe);
+        lenient().when(ffprobe.setInput(isA(String.class))).thenReturn(ffprobe);
+        lenient().when(ffprobe.execute()).thenReturn(ffprobeResult);
+    }
 
     @Test
     void testResolveMetadata_whenUriIsGiven_shouldResolveMetadata() {
@@ -162,6 +174,9 @@ class ChromecastServiceTest {
                 .build());
         when(serverProperties.getPort()).thenReturn(port);
         when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
+        when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
+        when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);
+        when(probeData.getString("codec_name")).thenReturn(getSupportedCodec());
 
         var result = service.toLoadRequest(sessionId, request);
 
@@ -190,19 +205,22 @@ class ChromecastServiceTest {
                         .url(transcodedUrl)
                         .contentType(contentType)
                         .duration((double) duration)
-                        .streamType(Media.StreamType.BUFFERED)
+                        .streamType(Media.StreamType.LIVE)
                         .metadata(metadata)
                         .textTrackStyle(createTrackStyle())
                         .tracks(Collections.emptyList())
                         .build())
                 .activeTrackIds(Collections.emptyList())
                 .build();
-        when(contentTypeService.resolveMetadata(URI.create(transcodedUrl))).thenReturn(VideoMetadata.builder()
+        when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
                 .build());
         when(subtitleService.getActiveSubtitle()).thenReturn(Optional.empty());
         when(transcodeService.transcode(url)).thenReturn(transcodedUrl);
+        when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
+        when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);
+        when(probeData.getString("codec_name")).thenReturn("mkv");
 
         var result = service.toLoadRequest(sessionId, request);
 
@@ -237,5 +255,9 @@ class ChromecastServiceTest {
             put("edgeColor", "#000000FF");
             put("foregroundColor", "#FFFFFFFF");
         }};
+    }
+
+    private static String getSupportedCodec() {
+        return new ArrayList<>(ChromecastService.SUPPORTED_CODECS).get(0);
     }
 }

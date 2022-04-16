@@ -59,7 +59,8 @@ class DiscoveryServiceTest {
         service.init();
 
         service.onDestroy();
+        var result = service.discoveryThread.isInterrupted() || !service.discoveryThread.isAlive();
 
-        assertTrue(service.discoveryThread.isInterrupted(), "Expected a discovery thread to have been stopped");
+        assertTrue(result, "Expected a discovery thread to have been stopped");
     }
 }

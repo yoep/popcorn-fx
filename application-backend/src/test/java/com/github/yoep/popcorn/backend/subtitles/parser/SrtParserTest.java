@@ -47,6 +47,12 @@ class SrtParserTest {
                                 new SubtitleText("consectetur adipiscing ", false, false, false),
                                 new SubtitleText("elit", true, false, false))),
                         new SubtitleLine(Collections.singletonList(new SubtitleText("nec felis dictum mattis", false, false, false)))))
+                .build(), SubtitleCue.builder()
+                .id("3")
+                .startTime(10000)
+                .endTime(15500)
+                .lines(Collections.singletonList(new SubtitleLine(Collections.singletonList(
+                        new SubtitleText("Nunc rhoncus tortor urna", false, false, false)))))
                 .build());
 
         var result = parser.parse(resource.getInputStream(), StandardCharsets.UTF_8);

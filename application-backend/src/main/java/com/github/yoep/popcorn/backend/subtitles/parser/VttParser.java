@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles.parser;
 
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,7 +13,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class VttParser implements Parser {
@@ -48,9 +46,7 @@ public class VttParser implements Parser {
                     .append(System.lineSeparator());
 
             cue.getLines().stream()
-                    .map(e -> e.texts().stream()
-                            .map(SubtitleText::text)
-                            .collect(Collectors.joining("")))
+                    .map(StyleParser::write)
                     .map(e -> e + System.lineSeparator())
                     .forEach(output::append);
 

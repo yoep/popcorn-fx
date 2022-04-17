@@ -5,7 +5,7 @@
     <parent>
         <artifactId>popcorn-fx</artifactId>
         <groupId>com.github.yoep</groupId>
-        <version>0.2.2-SNAPSHOT</version>
+        <version>0.2.2</version>
     </parent>
 
     <artifactId>video-vlc</artifactId>

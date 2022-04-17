@@ -21,7 +21,7 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Create hotfix
+      - name: Finish hotfix
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@noreply.github.com'

@@ -271,6 +271,35 @@ class PlayNextServiceTest {
     }
 
     @Test
+    void testOnTimeChanged_whenMediaTimeAndDurationInfoIsNotKnown_shouldNotTriggerTheNextEpisodePlayback() {
+        var episode1 = createEpisode(1);
+        var episode2 = createEpisode(2);
+        var show = Show.builder()
+                .images(Images.builder().build())
+                .episodes(asList(episode1, episode2))
+                .build();
+        var activity = PlayMediaEvent.mediaBuilder()
+                .source(this)
+                .url("my-url")
+                .title("my-title")
+                .torrent(mock(Torrent.class))
+                .torrentStream(mock(TorrentStream.class))
+                .media(show)
+                .subMediaItem(episode1)
+                .quality("480p")
+                .build();
+        var videoLength = 0;
+        when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
+
+        playNextService.onPlayVideo(activity);
+        listenerHolder.get().onDurationChanged(videoLength);
+        listenerHolder.get().onTimeChanged(videoLength);
+
+        verify(eventPublisher, times(0)).publishEvent(isA(LoadMediaTorrentEvent.class));
+    }
+
+    @Test
     void testStop_whenInvoked_shouldStopThePlayer() {
         var player = mock(Player.class);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));

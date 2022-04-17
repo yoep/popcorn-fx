@@ -84,11 +84,10 @@ class ChromecastPlayerTest {
     }
 
     @Test
-    void testStop_whenInvoked_shouldStopTheChromecastPlayer() throws IOException, InterruptedException {
+    void testStop_whenInvoked_shouldStopTheChromecastPlayer() throws IOException {
         player.stop();
-        Thread.sleep(50);
 
-        verify(chromeCast).stopApp();
+        verify(chromeCast, timeout(500)).stopApp();
     }
 
     @Test

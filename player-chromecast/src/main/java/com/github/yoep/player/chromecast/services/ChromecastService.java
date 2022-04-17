@@ -141,7 +141,7 @@ public class ChromecastService {
                 .media(com.github.yoep.player.chromecast.api.v2.Media.builder()
                         .url(url)
                         .contentType(videoMetadata.getContentType())
-                        .duration(videoMetadata.getDuration().doubleValue())
+                        .duration(toChromecastTime(videoMetadata.getDuration()))
                         .streamType(streamType)
                         .customData(null)
                         .metadata(metadata)

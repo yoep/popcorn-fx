@@ -42,6 +42,7 @@ public class ChromecastPlayer implements Player {
     private PlaybackThread playbackThread;
     private Timer statusTimer;
     private String sessionId;
+    private Double originalLoadDuration;
     private boolean connected;
     private boolean appLaunched;
 
@@ -282,6 +283,7 @@ public class ChromecastPlayer implements Player {
 
     private void onPlayerDurationChanged(Double duration) {
         Optional.ofNullable(duration)
+                .map(e -> e == Double.MAX_VALUE ? originalLoadDuration : e)
                 .map(Double::longValue)
                 .ifPresent(e -> invokeSafeListeners(listener -> listener.onDurationChanged(service.toApplicationTime(e))));
     }
@@ -337,6 +339,9 @@ public class ChromecastPlayer implements Player {
                 updateState(PlayerState.LOADING);
 
                 var loadRequest = service.toLoadRequest(sessionId, request);
+                // store the original duration if we need it later on
+                // due to the transcoding being a live stream instead of a buffered one
+                originalLoadDuration = loadRequest.getMedia().getDuration();
                 log.trace("Sending load request to Chromecast, {}", loadRequest);
                 chromeCast.send(MEDIA_NAMESPACE, loadRequest);
 

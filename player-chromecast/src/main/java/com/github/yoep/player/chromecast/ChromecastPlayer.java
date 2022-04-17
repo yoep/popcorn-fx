@@ -285,7 +285,8 @@ public class ChromecastPlayer implements Player {
         Optional.ofNullable(duration)
                 .map(e -> e == Double.MAX_VALUE ? originalLoadDuration : e)
                 .map(Double::longValue)
-                .ifPresent(e -> invokeSafeListeners(listener -> listener.onDurationChanged(service.toApplicationTime(e))));
+                .map(service::toApplicationTime)
+                .ifPresent(e -> invokeSafeListeners(listener -> listener.onDurationChanged(e)));
     }
 
     private ChromeCastSpontaneousEventListener createEventListener() {

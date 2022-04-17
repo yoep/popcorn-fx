@@ -173,7 +173,7 @@ public class PlayNextService {
 
         var remainingTime = (duration - time) / 1000;
 
-        if (remainingTime <= COUNTDOWN_FROM) {
+        if (isPlaybackInformationKnown(time) && remainingTime <= COUNTDOWN_FROM) {
             playingIn.set(remainingTime);
 
             if (remainingTime <= 1) {
@@ -262,6 +262,10 @@ public class PlayNextService {
 
     private boolean isShow(Media media) {
         return media instanceof Show;
+    }
+
+    private boolean isPlaybackInformationKnown(long time) {
+        return duration > 0 && time > 0;
     }
 
     //endregion

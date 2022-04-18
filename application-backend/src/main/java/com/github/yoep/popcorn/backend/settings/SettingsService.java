@@ -162,7 +162,7 @@ public class SettingsService {
     //region PreDestroy
 
     @PreDestroy
-    private void destroy() {
+    void destroy() {
         save();
     }
 

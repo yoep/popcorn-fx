@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.backend.media.favorites;
 
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
+import com.github.yoep.popcorn.backend.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.storage.StorageService;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
@@ -89,6 +92,39 @@ class FavoriteServiceTest {
     }
 
     @Test
+    void testAddToFavorites_whenShowIsGiven_shouldRemoveEpisodeDetails() {
+        var favoritesHolder = new AtomicReference<Favorites>();
+        var show = Show.builder()
+                .id("tv0215554")
+                .title("myShow")
+                .year("2019")
+                .episodes(Collections.singletonList(Episode.builder()
+                        .tvdbId("tv125554")
+                        .images(Images.builder()
+                                .fanart("episode fanart")
+                                .build())
+                        .synopsis("my episode synopsis")
+                        .build()))
+                .build();
+        var favorites = Favorites.builder()
+                .build();
+        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.of(favorites));
+        doAnswer(invocation -> {
+            favoritesHolder.set(invocation.getArgument(1, Favorites.class));
+            return null;
+        }).when(storageService).store(eq(FavoriteService.STORAGE_NAME), isA(Favorites.class));
+
+        favoriteService.addToFavorites(show);
+        favoriteService.destroy();
+
+        verify(storageService).store(eq(FavoriteService.STORAGE_NAME), isA(Favorites.class));
+        var result = favoritesHolder.get();
+        var actualStoredShow = result.getShows().get(0);
+        assertNull(actualStoredShow.getEpisodes().get(0).getSynopsis(), "Expected the episode synopsis to have been emptied");
+        assertNull(actualStoredShow.getEpisodes().get(0).getImages(), "Expected the episode images to have been emptied");
+    }
+
+    @Test
     void testRemoveFromFavorites_whenInvoked_shouldAddTheItemToTheList() {
         var show = Show.builder()
                 .id("showId")
@@ -96,6 +132,11 @@ class FavoriteServiceTest {
                 .year("showYear")
                 .imdbId("showImdbId")
                 .numberOfSeasons(5)
+                .episodes(Collections.singletonList(Episode.builder()
+                        .tvdbId("tv0001")
+                        .season(1)
+                        .episode(1)
+                        .build()))
                 .build();
         var favorites = Favorites.builder()
                 .shows(new ArrayList<>(Collections.singletonList(show)))

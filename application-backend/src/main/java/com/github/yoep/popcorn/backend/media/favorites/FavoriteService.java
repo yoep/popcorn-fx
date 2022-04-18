@@ -87,6 +87,10 @@ public class FavoriteService {
 
             // verify that the favorable doesn't already exist
             if (!isLiked(favorable)) {
+                if (favorable instanceof Show show) {
+                    favorable = pruneShowDetails(new Show(show));
+                }
+
                 cache.add(favorable);
             }
         }
@@ -220,13 +224,8 @@ public class FavoriteService {
         var newShowsCache = cache.getShows().stream()
                 .map(e -> showProviderService.getDetails(e.getImdbId()))
                 .map(CompletableFuture::join)
+                .map(this::pruneShowDetails)
                 .collect(Collectors.toList());
-
-        // remove the nested episodes & overview text from the cache
-        newShowsCache.forEach(show -> {
-            show.setEpisodes(null);
-            show.setSynopsis(null);
-        });
 
         synchronized (cacheLock) {
             cache.setShows(newShowsCache);
@@ -246,6 +245,17 @@ public class FavoriteService {
         }
 
         return shouldUpdate;
+    }
+
+    private Show pruneShowDetails(Show show) {
+        var showCopy = new Show(show);
+
+        showCopy.getEpisodes().forEach(episode -> {
+            episode.setSynopsis(null);
+            episode.setImages(null);
+        });
+
+        return showCopy;
     }
 
     private void onSave() {

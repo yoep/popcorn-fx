@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -48,6 +49,19 @@ public class Episode extends AbstractMedia implements Comparable<Episode> {
         this.firstAired = firstAired;
         this.episode = episode;
         this.season = season;
+    }
+
+    /**
+     * Create a copy of the given episode.
+     *
+     * @param episode The episode to copy.
+     */
+    public Episode(@NotNull Episode episode) {
+        super(episode.getId(), null, episode.getTitle(), null, null, Collections.emptyList(), null, episode.getImages(), episode.getSynopsis());
+        this.torrents = episode.getTorrents();
+        this.firstAired = episode.getFirstAired();
+        this.episode = episode.getEpisode();
+        this.season = episode.getSeason();
     }
 
     //region Getters

@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @Getter
@@ -45,6 +46,23 @@ public class Show extends AbstractMedia {
         this.lastUpdated = lastUpdated;
 
         setEpisodes(episodes);
+    }
+
+    /**
+     * Create a copy of the given show.
+     *
+     * @param show The show to copy.
+     */
+    public Show(@NotNull Show show) {
+        super(show.getId(), show.getImdbId(), show.getTitle(), show.getYear(), show.getRuntime(), show.getGenres(), show.getRating().orElse(null),
+                show.getImages(), show.getSynopsis());
+        this.tvdbId = show.tvdbId;
+        this.numberOfSeasons = show.getNumberOfSeasons();
+        this.status = show.getStatus();
+        this.lastUpdated = show.getLastUpdated();
+        this.episodes = show.getEpisodes().stream()
+                .map(Episode::new)
+                .toList();
     }
 
     /**

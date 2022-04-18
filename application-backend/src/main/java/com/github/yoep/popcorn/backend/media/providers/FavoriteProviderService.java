@@ -90,7 +90,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
         List<Media> mediaList = favoriteService.getAll().stream()
                 .filter(e -> e instanceof Media)
                 .map(e -> (Media) e)
-                .collect(Collectors.toList());
+                .toList();
 
         var items = mediaList.stream()
                 .filter(e -> e.getTitle().toLowerCase().contains(keywords.toLowerCase()))
@@ -123,7 +123,12 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
 
     private CompletableFuture<Media> retrieveDetails(ProviderService<?> provider, Media media) {
         try {
-            return provider.retrieveDetails(media);
+            return provider.retrieveDetails(media)
+                    .exceptionally(throwable -> {
+                        log.warn("Provider {} failed to fetch media info of {}, using cached information instead",
+                                provider.getClass().getSimpleName(), media.getId());
+                        return media;
+                    });
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
             throw new MediaDetailsException(media, "Failed to retrieve show details", ex);

@@ -113,8 +113,8 @@ public class TorrentSessionManagerImpl implements TorrentSessionManager {
         session.startDht();
 
         try {
-            // wait for the dht to have at least 10 nodes before continuing
-            while (session.stats().dhtNodes() < 10) {
+            // wait for the dht to have at least one node before continuing
+            while (session.stats().dhtNodes() > 0) {
                 Thread.sleep(500);
             }
 

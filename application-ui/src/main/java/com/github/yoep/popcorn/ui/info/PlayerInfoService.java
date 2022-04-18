@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,7 +29,7 @@ public class PlayerInfoService extends AbstractInfoService {
     }
 
     private void onPlayersChanged(List<Player> players) {
-       updateComponents(players.stream()
+        updateComponents(players.stream()
                 .map(this::createComponentDetails)
                 .collect(Collectors.toList()));
     }
@@ -51,13 +52,12 @@ public class PlayerInfoService extends AbstractInfoService {
     }
 
     private static ComponentState mapToComponentState(PlayerState state) {
-        switch (state) {
-            case ERROR:
-                return ComponentState.ERROR;
-            case UNKNOWN:
-                return ComponentState.UNKNOWN;
-            default:
-                return ComponentState.READY;
-        }
+        return Optional.ofNullable(state)
+                .map(e -> switch (e) {
+                    case ERROR -> ComponentState.ERROR;
+                    case UNKNOWN -> ComponentState.UNKNOWN;
+                    default -> ComponentState.READY;
+                })
+                .orElse(ComponentState.UNKNOWN);
     }
 }

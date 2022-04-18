@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AbstractListenerServiceTest {
@@ -38,6 +39,21 @@ class AbstractListenerServiceTest {
         var result = service.getListeners();
 
         assertEquals(0, result.size());
+    }
+
+    @Test
+    void testInvokeListener_whenListenerThrowsException_shouldNotThrowExceptionUpwards() {
+        var listener = new TestListener() {
+            @Override
+            public void onChange() {
+            }
+        };
+        var service = new TestService();
+        service.addListener(listener);
+
+        assertDoesNotThrow(() -> service.invokeListeners(e -> {
+            throw new RuntimeException("my exception");
+        }), "Expected no exception to have been thrown upwards");
     }
 
     interface TestListener {

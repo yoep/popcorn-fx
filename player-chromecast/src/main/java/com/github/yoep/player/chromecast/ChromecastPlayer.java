@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
@@ -19,22 +20,22 @@ import su.litvak.chromecast.api.v2.MediaStatus;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Consumer;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Timer;
+import java.util.TimerTask;
 
 @Slf4j
 @ToString(exclude = {"playerState", "chromeCast", "listener"})
-@EqualsAndHashCode(exclude = {"playerState", "chromeCast", "listener"})
+@EqualsAndHashCode(exclude = {"playerState", "chromeCast", "listener"}, callSuper = true)
 @RequiredArgsConstructor
-public class ChromecastPlayer implements Player {
+public class ChromecastPlayer extends AbstractListenerService<PlayerListener> implements Player {
     static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
     static final String MEDIA_RECEIVER_APP_ID = "CC1AD845";
     static final String MEDIA_NAMESPACE = "urn:x-cast:com.google.cast.media";
     static final String DESCRIPTION = "Chromecast streaming media device which allows the playback of videos on your TV.";
 
     private final ChromeCastSpontaneousEventListener listener = createEventListener();
-    private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
     private final ChromeCast chromeCast;
     private final ChromecastService service;
 
@@ -87,17 +88,6 @@ public class ChromecastPlayer implements Player {
         if (connected) {
             disconnect();
         }
-    }
-
-    @Override
-    public void addListener(PlayerListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        listeners.add(listener);
-    }
-
-    @Override
-    public void removeListener(PlayerListener listener) {
-        listeners.remove(listener);
     }
 
     @Override
@@ -278,7 +268,7 @@ public class ChromecastPlayer implements Player {
     }
 
     private void onPlayerTimeChanged(double currentTime) {
-        invokeSafeListeners(e -> e.onTimeChanged(service.toApplicationTime(currentTime)));
+        invokeListeners(e -> e.onTimeChanged(service.toApplicationTime(currentTime)));
     }
 
     private void onPlayerDurationChanged(Double duration) {
@@ -286,7 +276,7 @@ public class ChromecastPlayer implements Player {
                 .map(e -> e == Double.MAX_VALUE ? originalLoadDuration : e)
                 .map(Double::longValue)
                 .map(service::toApplicationTime)
-                .ifPresent(e -> invokeSafeListeners(listener -> listener.onDurationChanged(e)));
+                .ifPresent(e -> invokeListeners(listener -> listener.onDurationChanged(e)));
     }
 
     private ChromeCastSpontaneousEventListener createEventListener() {
@@ -300,17 +290,7 @@ public class ChromecastPlayer implements Player {
 
     private void updateState(PlayerState state) {
         playerState = state;
-        invokeSafeListeners(e -> e.onStateChanged(state));
-    }
-
-    private void invokeSafeListeners(Consumer<PlayerListener> action) {
-        listeners.forEach(e -> {
-            try {
-                action.accept(e);
-            } catch (Exception ex) {
-                log.warn("Failed to invoked player listener, {}", ex.getMessage(), ex);
-            }
-        });
+        invokeListeners(e -> e.onStateChanged(state));
     }
 
     //endregion

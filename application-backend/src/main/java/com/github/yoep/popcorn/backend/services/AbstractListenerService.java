@@ -1,15 +1,20 @@
 package com.github.yoep.popcorn.backend.services;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+
 import javax.validation.constraints.NotNull;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
+@Slf4j
+@ToString
+@EqualsAndHashCode
 public abstract class AbstractListenerService<T> {
     protected final Queue<T> listeners = new ConcurrentLinkedQueue<>();
-
-    //region Methods
 
     /**
      * Register the listener within the service.
@@ -30,13 +35,13 @@ public abstract class AbstractListenerService<T> {
         listeners.remove(listener);
     }
 
-    //endregion
-
-    //region Functions
-
     protected void invokeListeners(Consumer<T> action) {
-        listeners.forEach(action);
+        listeners.forEach(e -> {
+            try {
+                action.accept(e);
+            } catch (Exception ex) {
+                log.warn("Failed to invoked listener {}, {}", e, ex.getMessage(), ex);
+            }
+        });
     }
-
-    //endregion
 }

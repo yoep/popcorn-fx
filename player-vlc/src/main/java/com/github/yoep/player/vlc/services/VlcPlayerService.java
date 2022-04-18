@@ -7,6 +7,8 @@ import com.github.yoep.player.vlc.model.VlcStatus;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
@@ -17,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.validation.constraints.NotNull;
+import java.io.File;
 import java.net.ConnectException;
 import java.text.MessageFormat;
 import java.time.Duration;
@@ -31,16 +34,32 @@ import java.util.TimerTask;
 public class VlcPlayerService extends AbstractListenerService<VlcListener> {
     static final String OPTIONS = MessageFormat.format("--http-host={0} --http-port={1} --extraintf=http --http-password={2}",
             VlcPlayerConstants.HOST, VlcPlayerConstants.PORT, VlcPlayerConstants.PASSWORD);
+    static final String SUBTITLE_OPTION = "--sub-file=";
+    static final String STATUS_PATH = "/requests/status.xml";
     static final String COMMAND_NAME_PARAM = "command";
     static final String COMMAND_VALUE_PARAM = "val";
 
     private final PlatformProvider platformProvider;
+    private final SubtitleService subtitleService;
     private final WebClient vlcWebClient;
 
-    private Timer statusTimer;
+    Timer statusTimer;
 
+    /**
+     * Pla the given request through an external VLC player.
+     *
+     * @param request The request to play.
+     * @return Returns true if the player started with success, else false.
+     */
     public boolean play(PlayRequest request) {
-        var command = MessageFormat.format("vlc {0} {1}", request.getUrl(), OPTIONS);
+        Objects.requireNonNull(request, "request cannot be null");
+        var subtitleOption = subtitleService.getActiveSubtitle()
+                .filter(e -> !e.isNone())
+                .flatMap(Subtitle::getFile)
+                .map(File::getAbsolutePath)
+                .map(e -> SUBTITLE_OPTION + e)
+                .orElse("");
+        var command = MessageFormat.format("vlc {0} {1} {2}", request.getUrl(), OPTIONS, subtitleOption).trim();
 
         log.debug("Launching VLC process");
         if (platformProvider.launch(command)) {
@@ -53,12 +72,14 @@ public class VlcPlayerService extends AbstractListenerService<VlcListener> {
 
     /**
      * Stop the VLC playback.
+     * This will quit the status monitor of the VLC player and purge it's resources.
      */
     public void stop() {
         Optional.ofNullable(statusTimer)
                 .ifPresent(e -> {
                     log.debug("Stopping the VLC status thread");
                     statusTimer.cancel();
+                    statusTimer.purge();
                     statusTimer = null;
                 });
     }
@@ -100,6 +121,9 @@ public class VlcPlayerService extends AbstractListenerService<VlcListener> {
     }
 
     private void startStatusListener() {
+        // stop an existing status timer if one is present
+        stop();
+
         statusTimer = new Timer("VlcPlaybackStatus");
         statusTimer.schedule(new VlcStatusThread(), 0, 1000);
     }
@@ -132,7 +156,7 @@ public class VlcPlayerService extends AbstractListenerService<VlcListener> {
                 .scheme("http")
                 .host(VlcPlayerConstants.HOST)
                 .port(VlcPlayerConstants.PORT)
-                .path("/requests/status.xml");
+                .path(STATUS_PATH);
     }
 
     /**

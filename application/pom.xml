@@ -66,6 +66,11 @@
             <artifactId>player-qt</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.yoep</groupId>
+            <artifactId>player-vlc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Popcorn Torrent -->
         <dependency>

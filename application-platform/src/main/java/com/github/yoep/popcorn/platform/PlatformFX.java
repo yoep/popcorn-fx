@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Objects;
 
 @Slf4j
 public class PlatformFX implements PlatformProvider {
@@ -45,12 +46,21 @@ public class PlatformFX implements PlatformProvider {
     }
 
     @Override
-    public void launch(Path path) {
+    public boolean launch(Path path) {
+        return launch(path.toString());
+    }
+
+    @Override
+    public boolean launch(String command) {
+        Objects.requireNonNull(command, "command cannot be null");
         try {
-            Runtime.getRuntime().exec(path.toString());
+            Runtime.getRuntime().exec(command);
+            return true;
         } catch (IOException e) {
             log.error("Failed to launch process, {}", e.getMessage(), e);
         }
+
+        return false;
     }
 
     @Override

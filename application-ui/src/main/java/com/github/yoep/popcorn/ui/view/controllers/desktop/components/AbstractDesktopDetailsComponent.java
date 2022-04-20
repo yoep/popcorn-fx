@@ -16,7 +16,7 @@ import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
-import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
+import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
@@ -71,7 +71,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     @FXML
     protected LanguageFlagSelection languageSelection;
     @FXML
-    protected WatchNowButton watchNowButton;
+    protected PlayerDropDownButton watchNowButton;
     @FXML
     protected Tooltip watchedTooltip;
     @FXML

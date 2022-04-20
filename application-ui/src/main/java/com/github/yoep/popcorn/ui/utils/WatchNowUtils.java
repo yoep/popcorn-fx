@@ -2,7 +2,8 @@ package com.github.yoep.popcorn.ui.utils;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
+import com.github.yoep.popcorn.ui.view.controls.DropDownButton;
+import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import javafx.beans.InvalidationListener;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -13,7 +14,7 @@ import java.util.Objects;
 public class WatchNowUtils {
     public static void syncPlayerManagerAndWatchNowButton(PlatformProvider platformProvider,
                                                           PlayerManagerService playerManagerService,
-                                                          WatchNowButton watchNowButton) {
+                                                          PlayerDropDownButton watchNowButton) {
         Objects.requireNonNull(playerManagerService, "playerManagerService cannot be null");
         Objects.requireNonNull(watchNowButton, "watchNowButton cannot be null");
 
@@ -34,10 +35,10 @@ public class WatchNowUtils {
         });
     }
 
-    private static void updateExternalPlayers(PlatformProvider platformProvider, PlayerManagerService playerManagerService, WatchNowButton watchNowButton) {
+    private static void updateExternalPlayers(PlatformProvider platformProvider, PlayerManagerService playerManagerService, DropDownButton watchNowButton) {
         platformProvider.runOnRenderer(() -> {
             watchNowButton.clear();
-            watchNowButton.addItems(playerManagerService.getPlayers());
+            watchNowButton.addDropDownItems(playerManagerService.getPlayers());
             watchNowButton.select(playerManagerService.getActivePlayer().orElse(null));
         });
     }

@@ -6,13 +6,16 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
-import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
+import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
+import com.github.yoep.popcorn.ui.view.controls.SubtitleDropDownButton;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -48,9 +51,11 @@ public class DetailsTorrentComponent implements Initializable {
     private final LocaleText localeText;
     private final PlayerManagerService playerManagerService;
     private final PlatformProvider platformProvider;
+    private final SubtitlePickerService subtitlePickerService;
 
     private String magnetUri;
     private TorrentInfo torrentInfo;
+    private SubtitleInfo activeSubtitleInfo;
 
     @FXML
     ListView<String> fileList;
@@ -59,7 +64,9 @@ public class DetailsTorrentComponent implements Initializable {
     @FXML
     Button storeTorrentButton;
     @FXML
-    WatchNowButton playerButton;
+    PlayerDropDownButton playerButton;
+    @FXML
+    SubtitleDropDownButton subtitleButton;
 
     //region Methods
 
@@ -97,6 +104,7 @@ public class DetailsTorrentComponent implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeFileShadow();
         initializeFileList();
+        initializeSubtitleDropDown();
 
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, playerButton);
     }
@@ -109,24 +117,45 @@ public class DetailsTorrentComponent implements Initializable {
     private void initializeFileList() {
         fileList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
-                var files = torrentInfo.getFiles();
-
-                files.stream()
-                        .filter(e -> e.getFilename().equals(newValue))
-                        .findFirst()
-                        .ifPresentOrElse(
-                                this::onFileClicked,
-                                () -> log.error("Failed to find torrent file with name \"{}\"", newValue));
+                handleFileChanged(newValue);
             }
         });
+    }
+
+    private void initializeSubtitleDropDown() {
+        subtitleButton.addDropDownItems(SubtitleInfo.none(), SubtitleInfo.custom());
+        subtitleButton.select(SubtitleInfo.none());
+        subtitleButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
     }
 
     //endregion
 
     //region Functions
 
+    private void handleFileChanged(String filename) {
+        var files = torrentInfo.getFiles();
+
+        files.stream()
+                .filter(e -> e.getFilename().equals(filename))
+                .findFirst()
+                .ifPresentOrElse(
+                        this::onFileClicked,
+                        () -> log.error("Failed to find torrent file with name \"{}\"", filename));
+
+        // reset the file selection for later use
+        fileList.getSelectionModel().clearSelection();
+    }
+
     private void onFileClicked(TorrentFileInfo fileInfo) {
-        eventPublisher.publishEvent(new LoadUrlTorrentEvent(this, torrentInfo, fileInfo));
+        eventPublisher.publishEvent(new LoadUrlTorrentEvent(this, torrentInfo, fileInfo, activeSubtitleInfo));
+    }
+
+    private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
+        if (SubtitleInfo.custom().equals(subtitleInfo)) {
+            subtitlePickerService.pickCustomSubtitle().ifPresent(e -> activeSubtitleInfo = e);
+        } else {
+            activeSubtitleInfo = subtitleInfo;
+        }
     }
 
     private void updateStoreTorrent(boolean isStored) {

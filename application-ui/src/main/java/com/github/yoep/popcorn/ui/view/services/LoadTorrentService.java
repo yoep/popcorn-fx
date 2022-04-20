@@ -250,6 +250,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
             quality = mediaEvent.getQuality();
             availableSubtitles = retrieveAvailableMediaSubtitles(mediaEvent.getMedia(), mediaEvent.getSubItem().orElse(null));
         } else if (event instanceof LoadUrlTorrentEvent urlEvent) {
+            selectedSubtitle = urlEvent.getSubtitle().orElse(null);
             availableSubtitles = retrieveAvailableFilenameSubtitles(urlEvent.getTorrentFileInfo().getFilename());
         }
 
@@ -407,7 +408,14 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     private void invokePlayVideoEvent(LoadUrlTorrentEvent torrentEvent) {
         var url = torrentStream.getStreamUrl();
 
-        eventPublisher.publishEvent(new PlayVideoTorrentEvent(this, url, torrentEvent.getTorrentFileInfo().getFilename(), true, torrent, torrentStream));
+        eventPublisher.publishEvent(PlayVideoTorrentEvent.videoTorrentBuilder()
+                .source(this)
+                .url(url)
+                .title(torrentEvent.getTorrentFileInfo().getFilename())
+                .subtitlesEnabled(true)
+                .torrent(torrent)
+                .torrentStream(torrentStream)
+                .build());
     }
 
     private void invokePlayMediaActivity(LoadMediaTorrentEvent mediaEvent) {

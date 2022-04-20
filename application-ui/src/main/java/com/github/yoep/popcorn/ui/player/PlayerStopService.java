@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class PlayerStopService {
     private final PlayerEventService playerEventService;
     private final TorrentStreamService torrentStreamService;
     private final PlayNextService playNextService;
+    private final SubtitleService subtitleService;
     private final ApplicationEventPublisher eventPublisher;
 
     private Media media;
@@ -114,6 +116,9 @@ public class PlayerStopService {
 
         if (!isAllowedToClose())
             return;
+
+        // clean the current active subtitle
+        subtitleService.setActiveSubtitle(null);
 
         log.trace("Publishing player stopped event with info: [time: {}, duration: {}]", time, duration);
         eventPublisher.publishEvent(PlayerStoppedEvent.builder()

@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.utils;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.ui.view.controls.DropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
@@ -35,7 +36,7 @@ public class WatchNowUtils {
         });
     }
 
-    private static void updateExternalPlayers(PlatformProvider platformProvider, PlayerManagerService playerManagerService, DropDownButton watchNowButton) {
+    private static void updateExternalPlayers(PlatformProvider platformProvider, PlayerManagerService playerManagerService, DropDownButton<Player> watchNowButton) {
         platformProvider.runOnRenderer(() -> {
             watchNowButton.clear();
             watchNowButton.addDropDownItems(playerManagerService.getPlayers());

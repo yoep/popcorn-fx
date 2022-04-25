@@ -18,7 +18,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import java.util.LinkedHashMap;
 
 import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -50,12 +50,11 @@ class WatchNowUtilsIT {
         var player = mock(Player.class);
         var players = asList(mock(Player.class), player);
         when(playerManagerService.getPlayers()).thenReturn(players);
-        when(player.getId()).thenReturn("newPlayer");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, watchNowButton);
 
         playerProperty.put("myPlayer", player);
 
-        assertEquals(players, watchNowButton.getDropDownItems());
+        assertTrue(watchNowButton.getDropDownItems().containsAll(players), "Expected the players to have been present");
     }
 
     @Test
@@ -64,7 +63,6 @@ class WatchNowUtilsIT {
         var player2 = mock(Player.class);
         var players = asList(player2, player);
         when(playerManagerService.getPlayers()).thenReturn(players);
-        when(player.getId()).thenReturn("newPlayer");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, watchNowButton);
 
         watchNowButton.select(player2);

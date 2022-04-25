@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.utils;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.ui.view.controls.WatchNowButton;
+import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -18,7 +18,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import java.util.LinkedHashMap;
 
 import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -28,7 +28,7 @@ class WatchNowUtilsIT {
     private PlatformProvider platformProvider;
     @Mock
     private PlayerManagerService playerManagerService;
-    private WatchNowButton watchNowButton;
+    private PlayerDropDownButton watchNowButton;
 
     private final ObservableMap<String, Player> playerProperty = FXCollections.observableMap(new LinkedHashMap<>());
     private final ObjectProperty<Player> activePlayerProperty = new SimpleObjectProperty<>();
@@ -42,7 +42,7 @@ class WatchNowUtilsIT {
             return null;
         }).when(platformProvider).runOnRenderer(isA(Runnable.class));
 
-        watchNowButton = new WatchNowButton();
+        watchNowButton = new PlayerDropDownButton();
     }
 
     @Test
@@ -50,12 +50,11 @@ class WatchNowUtilsIT {
         var player = mock(Player.class);
         var players = asList(mock(Player.class), player);
         when(playerManagerService.getPlayers()).thenReturn(players);
-        when(player.getId()).thenReturn("newPlayer");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, watchNowButton);
 
         playerProperty.put("myPlayer", player);
 
-        assertEquals(players, watchNowButton.getPlayers());
+        assertTrue(watchNowButton.getDropDownItems().containsAll(players), "Expected the players to have been present");
     }
 
     @Test
@@ -64,7 +63,6 @@ class WatchNowUtilsIT {
         var player2 = mock(Player.class);
         var players = asList(player2, player);
         when(playerManagerService.getPlayers()).thenReturn(players);
-        when(player.getId()).thenReturn("newPlayer");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, watchNowButton);
 
         watchNowButton.select(player2);

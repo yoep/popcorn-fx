@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +35,8 @@ class PlayerStopServiceTest {
     private TorrentStreamService torrentStreamService;
     @Mock
     private PlayNextService playNextService;
+    @Mock
+    private SubtitleService subtitleService;
     @Mock
     private ApplicationEventPublisher eventPublisher;
     @InjectMocks
@@ -73,6 +76,7 @@ class PlayerStopServiceTest {
         playerListener.onStateChanged(PlayerState.STOPPED);
 
         verify(torrentStreamService).stopAllStreams();
+        verify(subtitleService).setActiveSubtitle(null);
         verify(eventPublisher).publishEvent(new com.github.yoep.popcorn.backend.events.ClosePlayerEvent(service,
                 com.github.yoep.popcorn.backend.events.ClosePlayerEvent.Reason.END_OF_VIDEO));
     }

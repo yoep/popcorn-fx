@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
+import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
@@ -20,6 +21,7 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -208,5 +210,55 @@ class LoadTorrentServiceTest {
         listenerHolder.get().onStreamReady();
 
         verify(eventPublisher).publishEvent(expectedMediaEvent);
+    }
+
+    @Test
+    void testLoadTorrentUrl_whenUrlIsGiven_shouldInvokePlayVideoEvent() {
+        var listenerHolder = new AtomicReference<TorrentStreamListener>();
+        var filename = "lorem ipsum.mkv";
+        var url = "http://localhost:8081/" + filename;
+        var torrentInfo = mock(TorrentInfo.class);
+        var torrentFileInfo = mock(TorrentFileInfo.class);
+        var torrent = mock(Torrent.class);
+        var torrentStream = mock(TorrentStream.class);
+        var subtitleInfo = SubtitleInfo.builder()
+                .imdbId("tv00001")
+                .language(SubtitleLanguage.ENGLISH)
+                .build();
+        var subtitle = new Subtitle(subtitleInfo, new File(""), Collections.emptyList());
+        var availableSubtitles = Collections.singletonList(subtitleInfo);
+        var event = LoadUrlTorrentEvent.builder()
+                .source(this)
+                .torrentInfo(torrentInfo)
+                .torrentFileInfo(torrentFileInfo)
+                .build();
+        var expectedResult = PlayVideoTorrentEvent.videoTorrentBuilder()
+                .source(service)
+                .url(url)
+                .title(filename)
+                .torrent(torrent)
+                .torrentStream(torrentStream)
+                .subtitlesEnabled(true)
+                .build();
+        when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
+        when(torrentService.create(torrentFileInfo, workingDir, true)).thenReturn(CompletableFuture.completedFuture(torrent));
+        when(torrentStreamService.startStream(torrent)).thenReturn(torrentStream);
+        when(subtitleService.retrieveSubtitles(isA(String.class))).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
+        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(subtitleInfo);
+        when(subtitleService.downloadAndParse(subtitleInfo, SubtitleMatcher.from(filename, (String) null))).thenReturn(CompletableFuture.completedFuture(subtitle));
+        when(torrentFileInfo.getFilename()).thenReturn(filename);
+        when(torrentStream.getStreamUrl()).thenReturn(url);
+        when(torrent.getFilename()).thenReturn(filename);
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, TorrentStreamListener.class));
+            return null;
+        }).when(torrentStream).addListener(isA(TorrentStreamListener.class));
+
+        service.onLoadUrlTorrent(event);
+        listenerHolder.get().onStreamReady();
+
+        verify(eventPublisher).publishEvent(expectedResult);
+        verify(subtitleService).retrieveSubtitles(filename);
+        verify(subtitleService).setActiveSubtitle(subtitle);
     }
 }

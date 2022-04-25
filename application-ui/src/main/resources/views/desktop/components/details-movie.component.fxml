@@ -97,7 +97,7 @@
             <!-- Play actions -->
             <HBox alignment="CENTER_LEFT" spacing="5"
                   GridPane.columnIndex="0" GridPane.rowIndex="4">
-                <WatchNowButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
+                <PlayerDropDownButton fx:id="watchNowButton" styleClass="watch-now" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
 
                 <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
             </HBox>

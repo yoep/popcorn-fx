@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
 import lombok.Data;
+import org.springframework.lang.Nullable;
 
 import java.util.regex.Pattern;
 
@@ -29,7 +30,7 @@ public class SubtitleMatcher {
      * @param quality The quality of the media.
      * @return Returns the subtitle matcher.
      */
-    public static SubtitleMatcher from(String name, String quality) {
+    public static SubtitleMatcher from(String name, @Nullable String quality) {
         Integer actualQuality = null;
 
         if (quality != null) {

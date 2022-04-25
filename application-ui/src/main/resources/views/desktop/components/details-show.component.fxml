@@ -190,8 +190,8 @@
                       GridPane.columnIndex="0" GridPane.rowIndex="1"/>
 
                 <!-- Play actions -->
-                <WatchNowButton fx:id="watchNowButton" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"
-                                GridPane.rowSpan="2" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                <PlayerDropDownButton fx:id="watchNowButton" text="%details_watch_now" styleClass="watch-now" onMouseClicked="#onWatchNowClicked"
+                                      GridPane.rowSpan="2" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
             </GridPane>
         </GridPane>
     </GridPane>

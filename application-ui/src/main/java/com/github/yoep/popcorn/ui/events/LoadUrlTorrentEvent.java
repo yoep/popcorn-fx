@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.events;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.lang.Nullable;
@@ -27,6 +28,7 @@ public class LoadUrlTorrentEvent extends LoadTorrentEvent {
     @Nullable
     private final SubtitleInfo subtitle;
 
+    @Builder
     public LoadUrlTorrentEvent(Object source, TorrentInfo torrentInfo, TorrentFileInfo torrentFileInfo, @Nullable SubtitleInfo subtitle) {
         super(source);
         Assert.notNull(torrentInfo, "torrentInfo cannot be null");

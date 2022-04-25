@@ -379,52 +379,5 @@
                 </plugins>
             </build>
         </profile>
-
-        <profile>
-            <id>cmake</id>
-
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.googlecode.cmake-maven-project</groupId>
-                        <artifactId>cmake-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>cmake-generate</id>
-                                <goals>
-                                    <goal>generate</goal>
-                                </goals>
-                                <configuration>
-                                    <sourcePath>${project.parent.basedir}</sourcePath>
-                                    <targetPath>${project.build.directory}/cmake-build</targetPath>
-                                    <options>
-                                        <option>-DCMAKE_BUILD_TYPE=${cmake.type}</option>
-                                        <!-- The path to the QT compiler -->
-                                        <!-- e.g.: /opt/Qt/5.15.0/gcc_64 -->
-                                        <option>-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}</option>
-                                        <!-- The path to the QT module path -->
-                                        <!-- e.g.: /opt/Qt/5.15.0/gcc_64/lib -->
-                                        <option>-DCMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}</option>
-                                    </options>
-                                    <environmentVariables>
-                                        <CMAKE_LIBRARY_OUTPUT_DIRECTORY>${project.parent.basedir}/assets/${platform}</CMAKE_LIBRARY_OUTPUT_DIRECTORY>
-                                    </environmentVariables>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>cmake-compile</id>
-                                <goals>
-                                    <goal>compile</goal>
-                                </goals>
-                                <configuration>
-                                    <projectDirectory>${project.build.directory}/cmake-build</projectDirectory>
-                                    <target>all</target>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
     </profiles>
 </project>

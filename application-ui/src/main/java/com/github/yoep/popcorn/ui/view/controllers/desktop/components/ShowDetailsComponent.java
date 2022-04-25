@@ -239,7 +239,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
             }
         });
 
-        languageSelection.addListener(newValue -> this.subtitle = newValue);
+        languageSelection.addListener(createLanguageListener());
         resetLanguageSelection();
     }
 

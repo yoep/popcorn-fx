@@ -22,7 +22,6 @@
         <module>application</module>
         <module>player-chromecast</module>
         <module>player-popcorn</module>
-        <module>player-qt</module>
         <module>player-vlc</module>
         <module>provider-anime</module>
         <module>shared-vlc</module>

@@ -2,6 +2,7 @@
 
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.player.popcorn.controls.ProgressSliderControl?>
+<?import com.github.yoep.player.popcorn.controls.Volume?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -11,7 +12,6 @@
         <ColumnConstraints minWidth="55" halignment="RIGHT"/>
         <ColumnConstraints hgrow="ALWAYS"/>
         <ColumnConstraints minWidth="55" halignment="LEFT"/>
-        <ColumnConstraints/>
         <ColumnConstraints/>
     </columnConstraints>
     <rowConstraints>
@@ -36,12 +36,16 @@
     <Label fx:id="durationLabel" styleClass="time" text="00:00"
            GridPane.columnIndex="3" GridPane.rowIndex="0"/>
 
-    <!-- Subtitle -->
-    <fx:include fx:id="subtitleSection" source="player-subtitle.component.fxml" GridPane.columnIndex="4" GridPane.rowIndex="0" />
+    <HBox fx:id="playerActions" GridPane.columnIndex="4" GridPane.rowIndex="0">
+        <!-- Subtitle -->
+        <fx:include fx:id="subtitleSection" source="player-subtitle.component.fxml"/>
 
-    <!-- Fullscreen -->
-    <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked" cache="true"
-          GridPane.columnIndex="5" GridPane.rowIndex="0">
-        <Icon fx:constant="EXPAND_UNICODE"/>
-    </Icon>
+        <!-- Volume -->
+        <Volume fx:id="volumeIcon" styleClass="player-button" cache="true"/>
+
+        <!-- Fullscreen -->
+        <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked" cache="true">
+            <Icon fx:constant="EXPAND_UNICODE"/>
+        </Icon>
+    </HBox>
 </GridPane>

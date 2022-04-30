@@ -37,9 +37,12 @@ public class PlayerControlsComponent implements Initializable {
     ProgressSliderControl playProgress;
     @FXML
     Label durationLabel;
-
+    @FXML
+    Icon volumeIcon;
     @FXML
     Icon fullscreenIcon;
+    @FXML
+    Pane playerActions;
     @FXML
     Pane subtitleSection;
 
@@ -57,7 +60,7 @@ public class PlayerControlsComponent implements Initializable {
     public void reset() {
         platformProvider.runOnRenderer(() -> {
             playProgress.setTime(0);
-            subtitleSection.setVisible(false);
+            playerActions.getChildren().remove(subtitleSection);
         });
     }
 
@@ -144,7 +147,13 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onSubtitleVisibilityChanged(boolean isVisible) {
         // update the visibility of the subtitles section
-        platformProvider.runOnRenderer(() -> subtitleSection.setVisible(isVisible));
+        platformProvider.runOnRenderer(() -> {
+            if (isVisible && !playerActions.getChildren().contains(subtitleSection)) {
+                playerActions.getChildren().add(0, subtitleSection);
+            } else {
+                playerActions.getChildren().remove(subtitleSection);
+            }
+        });
     }
 
     private void onSeeking(Number newValue) {

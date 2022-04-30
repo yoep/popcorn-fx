@@ -4,13 +4,14 @@ import javafx.beans.property.LongProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.ReadOnlyDoubleWrapper;
 import javafx.beans.property.SimpleLongProperty;
-import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.StackPane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 @Slf4j
-public class ProgressControl extends StackPane {
+public class ProgressControl extends AnchorPane {
     public static final String DURATION_PROPERTY = "duration";
     public static final String TIME_PROPERTY = "time";
     public static final String PROGRESS_PROPERTY = "progress";
@@ -113,9 +114,8 @@ public class ProgressControl extends StackPane {
         initializeLoadProgress();
         initializeListeners();
 
-        this.setAlignment(Pos.CENTER_LEFT);
         this.getStyleClass().add(STYLE_CLASS);
-        this.getChildren().addAll(backgroundTrackPane, loadProgressPane, playProgressPane);
+        this.getChildren().addAll(anchor(backgroundTrackPane, false), anchor(loadProgressPane, false), anchor(playProgressPane, false));
     }
 
     private void initializeBackgroundTrack() {
@@ -174,6 +174,20 @@ public class ProgressControl extends StackPane {
     private void updateLoadProgress(double width) {
         loadProgressPane.setMinWidth(width);
         loadProgressPane.setMaxWidth(width);
+    }
+
+    protected <T extends Node> T anchor(T node, boolean isSliderControl) {
+        var verticalAnchor = isSliderControl ? 0.0 : 2.0;
+
+        AnchorPane.setTopAnchor(node, verticalAnchor);
+        AnchorPane.setBottomAnchor(node, verticalAnchor);
+        AnchorPane.setLeftAnchor(node, 0.0);
+
+        if (isSliderControl) {
+            AnchorPane.setRightAnchor(node, 0.0);
+        }
+
+        return node;
     }
 
     //endregion

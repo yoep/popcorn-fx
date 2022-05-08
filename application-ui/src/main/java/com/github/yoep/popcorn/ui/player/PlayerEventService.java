@@ -90,6 +90,11 @@ public class PlayerEventService {
             public void onStateChanged(PlayerState newState) {
                 onPlayerStateChanged(newState);
             }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                // no-op
+            }
         };
     }
 

@@ -3,6 +3,7 @@ package com.github.yoep.player.popcorn.controllers.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
+import com.github.yoep.player.popcorn.controls.Volume;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
@@ -38,7 +39,7 @@ public class PlayerControlsComponent implements Initializable {
     @FXML
     Label durationLabel;
     @FXML
-    Icon volumeIcon;
+    Volume volumeIcon;
     @FXML
     Icon fullscreenIcon;
     @FXML
@@ -79,6 +80,7 @@ public class PlayerControlsComponent implements Initializable {
                 playerControlsService.onSeekChanging(newValue));
         playProgress.timeProperty().addListener((observableValue, oldValue, newValue) ->
                 onSeeking(newValue));
+        volumeIcon.volumeProperty().addListener((observable, oldValue, newValue) -> playerControlsService.onVolumeChanged(newValue.doubleValue()));
 
         playProgress.setOnMouseReleased(event -> setVideoTime(playProgress.getTime() + 1.0));
     }
@@ -114,7 +116,14 @@ public class PlayerControlsComponent implements Initializable {
             public void onDownloadStatusChanged(DownloadStatus progress) {
                 PlayerControlsComponent.this.onDownloadStatusChanged(progress);
             }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                PlayerControlsComponent.this.onVolumeChanged(volume);
+            }
         });
+
+        playerControlsService.retrieveValues();
     }
 
     //endregion
@@ -169,6 +178,12 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onDownloadStatusChanged(DownloadStatus progress) {
         playProgress.setLoadProgress(progress.getProgress());
+    }
+
+    private void onVolumeChanged(int volume) {
+        if (!volumeIcon.isValueChanging()) {
+            volumeIcon.setVolume((double) volume / 100);
+        }
     }
 
     private void setVideoTime(double time) {

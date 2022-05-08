@@ -17,4 +17,9 @@ public abstract class AbstractPlayerListener implements PlayerListener {
     public void onStateChanged(PlayerState newState) {
         // no-op
     }
+
+    @Override
+    public void onVolumeChanged(int volume) {
+        // no-op
+    }
 }

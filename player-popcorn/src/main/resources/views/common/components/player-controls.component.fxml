@@ -12,7 +12,7 @@
         <ColumnConstraints minWidth="55" halignment="RIGHT"/>
         <ColumnConstraints hgrow="ALWAYS"/>
         <ColumnConstraints minWidth="55" halignment="LEFT"/>
-        <ColumnConstraints/>
+        <ColumnConstraints hgrow="SOMETIMES"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints valignment="CENTER"/>

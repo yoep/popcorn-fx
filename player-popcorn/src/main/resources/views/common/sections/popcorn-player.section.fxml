@@ -18,7 +18,7 @@
     <StackPane fx:id="bufferPane" AnchorPane.topAnchor="100" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="100"/>
 
     <!-- Subtitle offset info -->
-    <Label fx:id="subtitleOffset" styleClass="video-info" cache="true" cacheHint="SPEED"
+    <Label fx:id="infoLabel" styleClass="video-info" cache="true" cacheHint="SPEED"
            AnchorPane.topAnchor="50" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="15"/>
 
     <!-- Error info -->

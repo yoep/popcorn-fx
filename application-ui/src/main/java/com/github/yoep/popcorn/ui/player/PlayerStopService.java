@@ -79,6 +79,11 @@ public class PlayerStopService {
                     lastKnownState = newState;
                 }
             }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                // no-op
+            }
         });
     }
 

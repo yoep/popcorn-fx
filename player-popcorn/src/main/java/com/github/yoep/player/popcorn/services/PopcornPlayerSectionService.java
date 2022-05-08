@@ -55,6 +55,22 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         player.seek(player.getTime() + offset);
     }
 
+    public void onVolumeScroll(double volumeDelta) {
+        log.trace("Updating the player volume with an offset of {}", volumeDelta);
+        var currentVolume = player.getVolume();
+        var newVolume = (int) (currentVolume + volumeDelta);
+
+        // check if the new value is between 100 or 0
+        if (newVolume > 100) {
+            newVolume = 100;
+        } else if (newVolume < 0) {
+            newVolume = 0;
+        }
+
+        log.trace("Updating the player volume to {}", newVolume);
+        player.volume(newVolume);
+    }
+
     public void provideSubtitleValues() {
         var subtitleSettings = settingsService.getSettings().getSubtitleSettings();
 
@@ -109,6 +125,10 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         invokeListeners(e -> e.onPlayerStateChanged(newState));
     }
 
+    private void onPlayerVolumeChanged(int volume) {
+        invokeListeners(e -> e.onVolumeChanged(volume));
+    }
+
     private void onVideoViewChanged(VideoPlayback newVideoPlayback) {
         invokeListeners(e -> e.onVideoViewChanged(newVideoPlayback.getVideoSurface()));
     }
@@ -123,6 +143,11 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
             @Override
             public void onStateChanged(PlayerState newState) {
                 onPlayerStateChanged(newState);
+            }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                onPlayerVolumeChanged(volume);
             }
         };
     }

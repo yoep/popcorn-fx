@@ -307,4 +307,34 @@ class PopcornPlayerSectionServiceTest {
 
         verify(listener).onSubtitleSizeChanged(subtitleSize);
     }
+
+    @Test
+    void testOnVolumeScroll_whenNewVolumeIsAbove100_shouldUpdateVolumeTo100() {
+        when(player.getVolume()).thenReturn(95);
+
+        service.onVolumeScroll(15);
+
+        verify(player).volume(100);
+    }
+
+    @Test
+    void testOnVolumeScroll_whenNewVolumeIsBelowZero_shouldUpdateVolumeToZero() {
+        when(player.getVolume()).thenReturn(10);
+
+        service.onVolumeScroll(-20);
+
+        verify(player).volume(0);
+    }
+
+    @Test
+    void testListener_whenPlayerVolumeIsChanged_shouldInvokedListeners() {
+        var volume = 75;
+        var subtitleSettings = mock(SubtitleSettings.class);
+        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
+        service.init();
+
+        listenerHolder.get().onVolumeChanged(volume);
+
+        verify(listener).onVolumeChanged(volume);
+    }
 }

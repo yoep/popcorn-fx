@@ -22,6 +22,8 @@ import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
 import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactory.videoSurfaceForImageView;
@@ -150,6 +152,28 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
     }
 
     @Override
+    public void volume(int volume) {
+        checkInitialized();
+
+        invokeOnVlc(() -> mediaPlayer.audio().setVolume(volume));
+    }
+
+    @Override
+    public int getVolume() {
+        checkInitialized();
+        var volume = new CompletableFuture<Integer>();
+
+        invokeOnVlc(() -> volume.complete(mediaPlayer.audio().volume()));
+
+        try {
+            return volume.get();
+        } catch (InterruptedException | ExecutionException ex) {
+            log.error("Failed to retrieve the player volume", ex);
+            return 100;
+        }
+    }
+
+    @Override
     public boolean supportsNativeSubtitleFile() {
         return false;
     }
@@ -254,11 +278,20 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
             public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
                 setDuration(newLength);
             }
+
+            @Override
+            public void volumeChanged(MediaPlayer mediaPlayer, float volume) {
+                onVolumeChanged(volume);
+            }
         });
     }
 
     private void initializeVideoSurface() {
         videoSurface.setPreserveRatio(true);
+    }
+
+    private void onVolumeChanged(float volumeLevel) {
+        invokeListeners(e -> e.onVolumeChanged((int) (volumeLevel * 100)));
     }
 
     private void bindToParent(Pane parent) {

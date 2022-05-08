@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
 @Data
@@ -19,6 +20,7 @@ public class VideoTimestamp {
     /**
      * The last known url of the resumable video.
      */
+    @NotNull
     private String filename;
     /**
      * The last known timestamp of the video before it was closed.

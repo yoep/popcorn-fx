@@ -8,6 +8,7 @@ import lombok.ToString;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.lang.Nullable;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -50,6 +51,7 @@ public class PlayerStoppedEvent extends ApplicationEvent {
     @Builder
     public PlayerStoppedEvent(Object source, String url, @Nullable Media media, @Nullable String quality, long time, long duration) {
         super(source);
+        Objects.requireNonNull(url, "url cannot be null");
         this.url = url;
         this.media = media;
         this.quality = quality;

@@ -1,6 +1,7 @@
 package com.github.yoep.player.popcorn.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.font.controls.IconSolid;
+import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Insets;
@@ -14,20 +15,32 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
-public class Volume extends Icon {
+public class Volume extends IconSolid {
     public static final String VOLUME_PROPERTY = "volume";
+    public static final String VOLUME_HIGH_UNICODE = IconSolid.VOLUME_UP_UNICODE;
+    public static final String VOLUME_UNICODE = IconSolid.VOLUME_DOWN_UNICODE;
+    public static final String VOLUME_LOW_UNICODE = IconSolid.VOLUME_OFF_UNICODE;
+    public static final String VOLUME_XMARK_UNICODE = IconSolid.VOLUME_MUTE_UNICODE;
 
+    /**
+     * The volume value between 0 and 1.
+     */
     private final DoubleProperty volume = new SimpleDoubleProperty(this, VOLUME_PROPERTY);
     private final VolumePopup popup = new VolumePopup();
 
     private boolean firstRender = true;
+    private boolean isValueChanging;
 
     public Volume() {
-        super(Icon.VOLUME_UP_UNICODE);
+        super(VOLUME_HIGH_UNICODE);
         init();
     }
 
     //region Properties
+
+    public boolean isValueChanging() {
+        return isValueChanging;
+    }
 
     public double getVolume() {
         return volume.get();
@@ -47,6 +60,7 @@ public class Volume extends Icon {
         popup.setAutoHide(true);
         popup.setAutoFix(true);
         setOnMouseClicked(this::onClicked);
+        volume.addListener((observable, oldValue, newValue) -> onVolumeChanged(newValue.doubleValue()));
     }
 
     private void onClicked(MouseEvent event) {
@@ -70,6 +84,20 @@ public class Volume extends Icon {
             firstRender = false;
             onShowPopup();
         }
+    }
+
+    private void onVolumeChanged(double value) {
+        Platform.runLater(() -> {
+            if (value == 0) {
+                setText(VOLUME_XMARK_UNICODE);
+            } else if (value <= 0.33) {
+                setText(VOLUME_LOW_UNICODE);
+            } else if (value > 0.33 && value < 0.66) {
+                setText(VOLUME_UNICODE);
+            } else {
+                setText(VOLUME_HIGH_UNICODE);
+            }
+        });
     }
 
     private class VolumePopup extends PopupControl {
@@ -166,10 +194,8 @@ public class Volume extends Icon {
             var pane = new StackPane();
             pane.getStyleClass().add(VOLUME_TRACK_STYLE_CLASS);
 
-            volumeSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-                pane.setMinHeight(volumeSlider.getHeight() * newValue.doubleValue());
-                pane.setMaxWidth(volumeSlider.getHeight() * newValue.doubleValue());
-            });
+            volumeSlider.heightProperty().addListener(observable -> updateVolumeTrack());
+            volume.addListener(observable -> updateVolumeTrack());
 
             AnchorPane.setRightAnchor(pane, 0.0);
             AnchorPane.setBottomAnchor(pane, 0.0);
@@ -180,10 +206,17 @@ public class Volume extends Icon {
 
         private Slider createSlider() {
             var slider = new Slider();
+            slider.valueProperty().bindBidirectional(volume);
+            slider.valueChangingProperty().addListener((observable, oldValue, newValue) -> isValueChanging = newValue);
             slider.setOrientation(Orientation.VERTICAL);
             slider.setMin(0.0);
             slider.setMax(1.0);
             return slider;
+        }
+
+        private void updateVolumeTrack() {
+            volumeTrackPane.setMinHeight(volumeSlider.getHeight() * volume.get());
+            volumeTrackPane.setMaxWidth(volumeSlider.getHeight() * volume.get());
         }
 
         private <T extends Node> T anchor(T node) {

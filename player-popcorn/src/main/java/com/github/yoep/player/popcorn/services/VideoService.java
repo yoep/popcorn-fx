@@ -98,7 +98,8 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     }
 
     public void onVolume(int volume) {
-        //TODO: implement
+        Optional.ofNullable(videoPlayer.get())
+                .ifPresent(e -> e.volume(volume));
         invokeListeners(e -> e.onVolume(volume));
     }
 
@@ -112,6 +113,12 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
         Optional.ofNullable(videoPlayer.get())
                 .ifPresent(VideoPlayback::stop);
         invokeListeners(PlaybackListener::onStop);
+    }
+
+    public int getVolume() {
+        return Optional.ofNullable(videoPlayer.get())
+                .map(e -> e.getVolume())
+                .orElse(100);
     }
 
     //endregion

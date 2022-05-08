@@ -26,6 +26,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -146,6 +150,28 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
         }
 
         setVideoState(VideoState.STOPPED);
+    }
+
+    @Override
+    public void volume(int volume) {
+        checkInitialized();
+
+        Platform.runLater(() -> invokeOnEngine(e -> e.executeScript("volume(" + volume + ")")));
+    }
+
+    @Override
+    public int getVolume() {
+        checkInitialized();
+        var volume = new CompletableFuture<Integer>();
+
+        Platform.runLater(() -> invokeOnEngine(e -> volume.complete((Integer) e.executeScript("getVolume()"))));
+
+        try {
+            return volume.get(2, TimeUnit.SECONDS);
+        } catch (InterruptedException | TimeoutException | ExecutionException ex) {
+            log.warn("Unable to retrieve youtube player volume, " + ex.getMessage(), ex);
+            return 100;
+        }
     }
 
     @Override

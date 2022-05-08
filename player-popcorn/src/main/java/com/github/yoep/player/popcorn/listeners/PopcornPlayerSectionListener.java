@@ -21,4 +21,6 @@ public interface PopcornPlayerSectionListener {
     void onSubtitleDecorationChanged(DecorationType newDecorationType);
 
     void onVideoViewChanged(Node videoView);
+
+    void onVolumeChanged(int volume);
 }

@@ -157,6 +157,12 @@ public class ChromecastPlayer extends AbstractListenerService<PlayerListener> im
         }
     }
 
+    @Override
+    public int getVolume() {
+        // TODO: implement
+        return 100;
+    }
+
     //endregion
 
     //region Functions

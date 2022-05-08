@@ -114,6 +114,11 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
             public void onStateChanged(PlayerState newState) {
                 PlayerExternalComponentService.this.onStateChanged(newState);
             }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                // no-op
+            }
         };
     }
 }

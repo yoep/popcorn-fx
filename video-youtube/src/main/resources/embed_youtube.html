@@ -115,6 +115,25 @@
         player.stopVideo();
         stopListener();
     }
+
+    /**
+     * Sets the volume. Accepts an integer between 0 and 100.
+     *
+     * @param volume The volume level.
+     */
+    function volume(volume) {
+        player.setVolume(volume);
+    }
+
+    /**
+     * Returns the player's current volume, an integer between 0 and 100.
+     * Note that getVolume() will return the volume even if the player is muted.
+     *
+     * @returns Number
+     */
+    function getVolume() {
+        return player.getVolume();
+    }
 </script>
 
 <!-- Webpage script -->

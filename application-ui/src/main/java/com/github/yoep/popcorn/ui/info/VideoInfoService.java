@@ -49,6 +49,11 @@ public class VideoInfoService extends AbstractInfoService {
             public void onStateChanged(VideoState newState) {
                 componentDetails.setState(mapVideoStateToComponentState(newState));
             }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                // no-op
+            }
         });
 
         return componentDetails;

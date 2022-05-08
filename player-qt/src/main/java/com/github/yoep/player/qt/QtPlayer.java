@@ -122,6 +122,11 @@ public class QtPlayer implements Player {
         //TODO: implement
     }
 
+    @Override
+    public int getVolume() {
+        return 0;
+    }
+
     //endregion
 
     //region PostConstruct

@@ -85,6 +85,16 @@ public class VideoPlayerVlcError extends AbstractVideoPlayer implements VideoPla
     }
 
     @Override
+    public void volume(int volume) {
+
+    }
+
+    @Override
+    public int getVolume() {
+        return 100;
+    }
+
+    @Override
     public boolean supportsNativeSubtitleFile() {
         return false;
     }

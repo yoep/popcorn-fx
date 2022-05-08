@@ -26,4 +26,11 @@ public interface VideoListener {
      * @param newState The new state of the video playback.
      */
     void onStateChanged(VideoState newState);
+
+    /**
+     * Invoked when the video playback volume is changed.
+     *
+     * @param volume The new volume level between 0 and 100.
+     */
+    void onVolumeChanged(int volume);
 }

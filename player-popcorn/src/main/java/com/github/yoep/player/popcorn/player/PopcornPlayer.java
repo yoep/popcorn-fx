@@ -119,6 +119,11 @@ public class PopcornPlayer implements Player {
         videoService.onVolume(volume);
     }
 
+    @Override
+    public int getVolume() {
+        return videoService.getVolume();
+    }
+
     //endregion
 
     //region Properties
@@ -189,6 +194,10 @@ public class PopcornPlayer implements Player {
         }
     }
 
+    private void onVolumeChanged(int volume) {
+        listeners.forEach(e -> e.onVolumeChanged(volume));
+    }
+
     private VideoListener createVideoListener() {
         return new VideoListener() {
             @Override
@@ -204,6 +213,11 @@ public class PopcornPlayer implements Player {
             @Override
             public void onStateChanged(VideoState newState) {
                 onVideoStateChanged(newState);
+            }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                PopcornPlayer.this.onVolumeChanged(volume);
             }
         };
     }

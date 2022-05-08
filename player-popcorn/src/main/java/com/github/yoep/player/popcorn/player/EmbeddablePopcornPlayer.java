@@ -110,6 +110,11 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
+    public int getVolume() {
+        return popcornPlayer.getVolume();
+    }
+
+    @Override
     public Node getEmbeddedPlayer() {
         return embeddablePlayer;
     }

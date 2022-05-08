@@ -58,8 +58,19 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
         }
     }
 
+    public void onVolumeChanged(double volume) {
+        player.volume((int) (volume * 100));
+    }
+
     public void seek(long time) {
         player.seek(time);
+    }
+
+    /**
+     * Retrieve the initial values for the player through the listeners.
+     */
+    public void retrieveValues() {
+        invokeListeners(e -> e.onVolumeChanged(player.getVolume()));
     }
 
     //endregion
@@ -100,6 +111,10 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
         invokeListeners(e -> e.onPlayerDurationChanged(duration));
     }
 
+    private void onPlayerVolumeChanged(int volume) {
+        invokeListeners(e -> e.onVolumeChanged(volume));
+    }
+
     private void onStreamRequest(PlayStreamRequest request) {
         var torrent = request.getTorrentStream();
 
@@ -126,6 +141,11 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
             @Override
             public void onDurationChanged(long newDuration) {
                 onPlayerDurationChanged(newDuration);
+            }
+
+            @Override
+            public void onVolumeChanged(int volume) {
+                onPlayerVolumeChanged(volume);
             }
         };
     }

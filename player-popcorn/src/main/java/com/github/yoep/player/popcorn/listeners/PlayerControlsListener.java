@@ -17,4 +17,6 @@ public interface PlayerControlsListener {
     void onPlayerDurationChanged(long duration);
 
     void onDownloadStatusChanged(@NotNull DownloadStatus progress);
+
+    void onVolumeChanged(int volume);
 }

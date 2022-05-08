@@ -918,8 +918,8 @@
     -fx-background-color: #111214;
 }
 
-.root .player .player-controls Icon,
-.root .player .player-controls Label,
+.root .player .player-controls .icon,
+.root .player .player-controls .label,
 .root .player .player-controls LanguageSelection {
     -fx-text-fill: #f9fafc;
 }
@@ -973,9 +973,9 @@
     -fx-padding: 0 5 0 5;
 }
 
-.root .player .player-controls .progress .track {
-    -fx-max-height: 8;
-    -fx-background-radius: 1em;
+.root .player .player-controls .progress {
+    -fx-min-height: 14px;
+    -fx-max-height: 14px;
 }
 
 .root .player .player-controls .progress .background-track {
@@ -992,6 +992,37 @@
 
 .root .player .player-controls .progress .slider .track {
     -fx-background-color: null;
+}
+
+.root .player .player-controls .progress .slider .thumb,
+.root .player .player-controls .volume-popup .volume-slider .slider .thumb {
+    -fx-background-color: linear-gradient(#fdfdfd 10%, #e2e2e2e2 100%);
+    -fx-background-radius: 0;
+}
+
+.root .player .player-controls .progress .slider .thumb:hover,
+.root .player .player-controls .volume-popup .volume-slider .slider .thumb:hover {
+    -fx-background-color: linear-gradient(#fdfdfd 10%, #93989c 100%);
+}
+
+.root .player .player-controls .volume-popup {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+}
+
+.root .player .player-controls .volume-popup {
+    -fx-padding: 10 15 10 15;
+}
+
+.root .player .player-controls .volume-popup .volume-slider .slider .track {
+    -fx-background-color: null;
+}
+
+.root .player .player-controls .volume-popup .volume-slider .background-track {
+    -fx-background-color: #30333c;
+}
+
+.root .player .player-controls .volume-popup .volume-slider .volume-track {
+    -fx-background-color: #2d72d9;
 }
 
 .root .player .playing-next {

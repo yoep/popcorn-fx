@@ -27,4 +27,11 @@ public interface PlayerListener {
      * @param newState The new state of the player.
      */
     void onStateChanged(PlayerState newState);
+
+    /**
+     * Invoked when the player volume is changed.
+     *
+     * @param volume The volume level between 0 and 100.
+     */
+    void onVolumeChanged(int volume);
 }

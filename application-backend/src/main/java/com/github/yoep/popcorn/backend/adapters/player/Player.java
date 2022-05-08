@@ -111,9 +111,16 @@ public interface Player {
 
     /**
      * The new volume of the player.
-     * The level vale must be between 0 and 100.
+     * The level value must be between 0 and 100.
      *
      * @param volume The volume level of the player (0 = mute, 100 = max).
      */
     void volume(int volume);
+
+    /**
+     * Retrieve the current volume level of the player.
+     *
+     * @return The volume level between 0 and 100.
+     */
+    int getVolume();
 }

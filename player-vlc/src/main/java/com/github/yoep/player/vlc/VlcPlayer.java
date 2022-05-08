@@ -113,6 +113,11 @@ public class VlcPlayer extends AbstractListenerService<PlayerListener> implement
         service.executeCommand(COMMAND_VOLUME, String.valueOf((int) vlcVolume));
     }
 
+    @Override
+    public int getVolume() {
+        return 0;
+    }
+
     private void updateState(PlayerState state) {
         playerState = state;
         invokeListeners(e -> e.onStateChanged(state));

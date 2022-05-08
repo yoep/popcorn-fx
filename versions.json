@@ -1,24 +1,18 @@
 {
-  "version": "0.2.2",
+  "version": "0.3.0",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.2/popcorn-time_0.2.2.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.2/popcorn-time_0.2.2_arm64.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.2/popcorn-time_0.2.2.dmg",
-    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.2.2/popcorn-time_0.2.2.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.0/popcorn-time_0.3.0.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.0/popcorn-time_0.3.0_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.0/popcorn-time_0.3.0.dmg",
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.0/popcorn-time_0.3.0.exe"
   },
   "changelog": {
     "features": [
-      "Optimised Chromecast transcoding process",
-      "Added the ability to select a player within the magnet info view",
-      "Used IMDB as main source for Anime",
-      "Added various option for retrying failed load operations"
+      "Added support for video volume",
+      "Added subtitle selection within torrent collection/loaded magnet info",
+      "Cached the favorite show details",
+      "Added VLC external player support"
     ],
-    "bugfixes": [
-      "Fixed an issue which caused the Chromecast playback to start playing the next episode much too early",
-      "Fixed subtitle font color breaking subtitles",
-      "Selected subtitle not playing when it was selected in the details screen",
-      "Fixed the add to bookmark not working in the show details",
-      "Fixed subtitle size not changing within the Popcorn player"
-    ]
+    "bugfixes": []
   }
 }

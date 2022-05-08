@@ -20,4 +20,9 @@ public abstract class AbstractVideoListener implements VideoListener {
     public void onStateChanged(VideoState newState) {
         // no-op
     }
+
+    @Override
+    public void onVolumeChanged(int volume) {
+        // no-op
+    }
 }

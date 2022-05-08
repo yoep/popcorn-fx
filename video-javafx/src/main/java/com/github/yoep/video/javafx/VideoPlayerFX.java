@@ -138,6 +138,20 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
     }
 
     @Override
+    public void volume(int volume) {
+        checkInitialized();
+
+        mediaPlayer.setVolume((double) volume / 100);
+    }
+
+    @Override
+    public int getVolume() {
+        checkInitialized();
+
+        return (int) (mediaPlayer.getVolume() * 100);
+    }
+
+    @Override
     public boolean supportsNativeSubtitleFile() {
         return false;
     }

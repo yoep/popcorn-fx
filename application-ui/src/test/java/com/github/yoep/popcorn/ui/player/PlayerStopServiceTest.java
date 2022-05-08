@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
+import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -134,6 +135,13 @@ class PlayerStopServiceTest {
         var time = 500L;
         var listenerHolder = new AtomicReference<PlayerListener>();
         var eventHolder = new AtomicReference<PlayerStoppedEvent>();
+        var event = PlayTorrentEvent.playTorrentBuilder()
+                .source(this)
+                .url("http://localhost:8080/my-video.mp4")
+                .title("Lorem ipsum dolor")
+                .torrent(mock(Torrent.class))
+                .torrentStream(mock(TorrentStream.class))
+                .build();
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
@@ -144,6 +152,7 @@ class PlayerStopServiceTest {
         }).when(eventPublisher).publishEvent(isA(PlayerStoppedEvent.class));
 
         service.init();
+        service.onPlayTorrent(event);
         var playerListener = listenerHolder.get();
         playerListener.onDurationChanged(duration);
         playerListener.onTimeChanged(time);

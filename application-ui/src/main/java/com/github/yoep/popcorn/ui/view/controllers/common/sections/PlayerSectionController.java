@@ -8,30 +8,28 @@ import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlay
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.Node;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
-import java.net.URL;
-import java.util.ResourceBundle;
 
 @Slf4j
 @ViewController
 @RequiredArgsConstructor
-public class PlayerSectionController implements Initializable {
-    private static final String EXTERNAL_PLAYER_VIEW = "components/player-external.component.fxml";
+public class PlayerSectionController {
+    static final String EXTERNAL_PLAYER_VIEW = "components/player-external.component.fxml";
 
     private final PlayerManagerService playerManagerService;
     private final ViewLoader viewLoader;
 
     @FXML
-    private Pane playerContentPane;
+    Pane playerSectionPane;
 
-    private Pane externalPlayerPane;
+    Pane externalPlayerPane;
 
     //region Methods
 
@@ -40,15 +38,6 @@ public class PlayerSectionController implements Initializable {
         playerManagerService.getActivePlayer().ifPresentOrElse(
                 this::onPlayVideo,
                 () -> log.error("Unable to update player section, no player is active"));
-    }
-
-    //endregion
-
-    //region Initializable
-
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-
     }
 
     //endregion
@@ -78,13 +67,11 @@ public class PlayerSectionController implements Initializable {
     }
 
     private void useEmbeddedPlayerPane(Player player) {
-        if (!(player instanceof EmbeddablePlayer)) {
+        if (player instanceof EmbeddablePlayer embeddablePlayer) {
+            switchPlayerPane(embeddablePlayer.getEmbeddedPlayer());
+        } else {
             log.error("Unable to embed player {}, it supports embedded playback but doesn't implement the EmbeddablePlayer interface", player);
-            return;
         }
-
-        var embeddablePlayer = (EmbeddablePlayer) player;
-        switchPlayerPane(embeddablePlayer.getEmbeddedPlayer());
     }
 
     private void useExternalPlayerPane() {
@@ -92,7 +79,26 @@ public class PlayerSectionController implements Initializable {
     }
 
     private void switchPlayerPane(Node pane) {
-        Platform.runLater(() -> playerContentPane.getChildren().setAll(pane));
+        anchorPane(pane);
+
+        Platform.runLater(() -> {
+            var children = playerSectionPane.getChildren();
+
+            // check if the previous player should be removed
+            if (children.size() >= 2) {
+                children.remove(0);
+            }
+
+            // insert the new pane as first child
+            children.add(0, pane);
+        });
+    }
+
+    private void anchorPane(Node pane) {
+        AnchorPane.setTopAnchor(pane, 0.0);
+        AnchorPane.setRightAnchor(pane, 0.0);
+        AnchorPane.setBottomAnchor(pane, 0.0);
+        AnchorPane.setLeftAnchor(pane, 0.0);
     }
 
     //endregion

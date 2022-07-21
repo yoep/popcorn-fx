@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
@@ -15,6 +16,7 @@ import com.github.yoep.popcorn.ui.view.services.PlayerExternalComponentService;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -188,6 +190,26 @@ public class PlayerExternalComponent {
     void onGoForwardClicked(MouseEvent event) {
         event.consume();
         playerExternalService.goForward();
+    }
+
+    @FXML
+    void onPaneKeyReleased(KeyEvent event) {
+        PlayerAction.FromKey(event.getCode()).ifPresent(e -> {
+            switch (e) {
+                case TOGGLE_PLAYBACK_STATE -> {
+                    event.consume();
+                    playerExternalService.togglePlaybackState();
+                }
+                case REVERSE -> {
+                    event.consume();
+                    playerExternalService.goBack();
+                }
+                case FORWARD -> {
+                    event.consume();
+                    playerExternalService.goForward();
+                }
+            }
+        });
     }
 
     //endregion

@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.animation.FadeTransition;
@@ -322,32 +323,34 @@ public class PopcornPlayerSectionController implements Initializable {
      * @param event The key event that occurred.
      */
     private void onPlayerKeyReleased(KeyEvent event) {
-        switch (event.getCode()) {
-            case SPACE, P -> {
-                sectionService.togglePlayerPlaybackState();
-                event.consume();
+        PlayerAction.FromKey(event.getCode()).ifPresent(e -> {
+            switch (e) {
+                case TOGGLE_PLAYBACK_STATE -> {
+                    event.consume();
+                    sectionService.togglePlayerPlaybackState();
+                }
+                case TOGGLE_FULLSCREEN -> {
+                    event.consume();
+                    sectionService.toggleFullscreen();
+                }
+                case DECREASE_SUBTITLE_OFFSET -> {
+                    event.consume();
+                    updateSubtitleOffset(event, false);
+                }
+                case INCREASE_SUBTITLE_OFFSET -> {
+                    event.consume();
+                    updateSubtitleOffset(event, true);
+                }
+                case REVERSE -> {
+                    event.consume();
+                    sectionService.videoTimeOffset(-5000);
+                }
+                case FORWARD -> {
+                    event.consume();
+                    sectionService.videoTimeOffset(5000);
+                }
             }
-            case F11 -> {
-                sectionService.toggleFullscreen();
-                event.consume();
-            }
-            case G -> {
-                updateSubtitleOffset(event, false);
-                event.consume();
-            }
-            case H -> {
-                updateSubtitleOffset(event, true);
-                event.consume();
-            }
-            case LEFT, KP_LEFT -> {
-                sectionService.videoTimeOffset(-5000);
-                event.consume();
-            }
-            case RIGHT, KP_RIGHT -> {
-                sectionService.videoTimeOffset(5000);
-                event.consume();
-            }
-        }
+        });
     }
 
     private void onPlayerScrolled(ScrollEvent event) {

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.platform;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
+import com.github.yoep.popcorn.platform.jna.ApplicationPlatform;
 import com.github.yoep.popcorn.platform.jna.linux.LinuxUtils;
 import com.github.yoep.popcorn.platform.jna.macos.MacOsUtils;
 import com.github.yoep.popcorn.platform.jna.win32.Win32Utils;
@@ -17,6 +18,12 @@ import java.util.Objects;
 
 @Slf4j
 public class PlatformFX implements PlatformProvider {
+    private final ApplicationPlatform instance;
+
+    public PlatformFX() {
+        instance = ApplicationPlatform.INSTANCE;
+    }
+
     @Override
     public boolean isTransparentWindowSupported() {
         return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW);
@@ -24,7 +31,9 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public PlatformInfo platformInfo() {
-        return new SimplePlatformInfo(platformType(), com.sun.jna.Platform.ARCH);
+        try (var info = instance.platform_info()) {
+            return info;
+        }
     }
 
     @Override
@@ -38,7 +47,7 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public void disableScreensaver() {
-        switch (platformType()) {
+        switch (platformInfo().getType()) {
             case WINDOWS -> Win32Utils.disableScreensaver();
             case MAC -> MacOsUtils.disableScreensaver();
             default -> LinuxUtils.disableScreensaver();
@@ -70,19 +79,8 @@ public class PlatformFX implements PlatformProvider {
 
     @PreDestroy
     private void onDestroy() {
-        if (platformType() == PlatformType.WINDOWS) {
+        if (platformInfo().getType() == PlatformType.WINDOWS) {
             Win32Utils.allowScreensaver();
         }
-    }
-
-    private static PlatformType platformType() {
-        if (com.sun.jna.Platform.isMac()) {
-            return PlatformType.MAC;
-        }
-        if (com.sun.jna.Platform.isWindows() || com.sun.jna.Platform.isWindowsCE()) {
-            return PlatformType.WINDOWS;
-        }
-
-        return PlatformType.DEBIAN;
     }
 }

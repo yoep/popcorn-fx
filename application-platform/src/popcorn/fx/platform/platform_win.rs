@@ -67,8 +67,10 @@ impl Platform for PlatformWin {
             return true;
         }
 
+        let handle = self.request.unwrap();
+
         unsafe {
-            return if PowerClearRequest(self.request.unwrap(), PowerRequestDisplayRequired).as_bool() {
+            return if PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() {
                 debug!("Enabled windows screensaver");
                 self.request = None;
                 true
@@ -98,21 +100,12 @@ mod test {
     }
 
     #[test]
-    fn test_disable_screensaver_should_return_true() {
+    fn test_windows_enable_screensaver() {
         init();
 
         let mut platform = PlatformWin::new();
 
-        assert_eq!(platform.disable_screensaver(), true);
-    }
-
-    #[test]
-    fn test_enable_screensaver_should_return_true() {
-        init();
-
-        let mut platform = PlatformWin::new();
-
-        assert_eq!(platform.disable_screensaver(), true);
-        assert_eq!(platform.enable_screensaver(), true);
+        assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
+        assert_eq!(platform.enable_screensaver(), true, "Expected the screensaver to have been enabled");
     }
 }

@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.platform.jna;
+package com.github.yoep.popcorn.platform;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
 import com.sun.jna.DefaultTypeMapper;

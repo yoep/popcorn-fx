@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.platform;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
-import com.github.yoep.popcorn.platform.jna.ApplicationPlatform;
 import com.github.yoep.popcorn.platform.jna.linux.LinuxUtils;
 import com.github.yoep.popcorn.platform.jna.macos.MacOsUtils;
 import com.github.yoep.popcorn.platform.jna.win32.Win32Utils;

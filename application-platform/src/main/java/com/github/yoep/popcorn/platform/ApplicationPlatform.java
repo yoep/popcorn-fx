@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.platform.jna;
+package com.github.yoep.popcorn.platform;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;

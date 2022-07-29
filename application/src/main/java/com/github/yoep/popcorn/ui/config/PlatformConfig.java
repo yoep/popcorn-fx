@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.platform.config;
+package com.github.yoep.popcorn.ui.config;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.platform.PlatformFX;
@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class PlatformConfig {
     @Bean
-    public PlatformProvider platformProviderFX() {
+    public PlatformProvider platformProvider() {
         return new PlatformFX();
     }
 }

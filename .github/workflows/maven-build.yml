@@ -8,6 +8,8 @@ on:
     branches: [ master, hotfix/* ]
   pull_request:
     branches: [ master, hotfix/* ]
+  workflow_dispatch:
+    inputs: {}
 
 jobs:
   build:

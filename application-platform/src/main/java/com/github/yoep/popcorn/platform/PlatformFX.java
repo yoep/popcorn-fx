@@ -19,7 +19,6 @@ public class PlatformFX implements PlatformProvider {
 
     public PlatformFX() {
         instance = ApplicationPlatform.INSTANCE;
-        instance.init();
         platform = instance.new_platform_c();
     }
 

@@ -38,8 +38,6 @@ void disable_screensaver(Box<PlatformC> platform);
 /// Enable the screensaver on the current platform
 void enable_screensaver(Box<PlatformC> platform);
 
-void init();
-
 /// Retrieve the platform instance.
 Box<PlatformC> new_platform_c();
 

@@ -2,10 +2,6 @@ package com.github.yoep.popcorn.platform;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
-import com.github.yoep.popcorn.platform.jna.linux.LinuxUtils;
-import com.github.yoep.popcorn.platform.jna.macos.MacOsUtils;
-import com.github.yoep.popcorn.platform.jna.win32.Win32Utils;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
@@ -19,8 +15,12 @@ import java.util.Objects;
 public class PlatformFX implements PlatformProvider {
     private final ApplicationPlatform instance;
 
+    private final PlatformC platform;
+
     public PlatformFX() {
         instance = ApplicationPlatform.INSTANCE;
+        instance.init();
+        platform = instance.new_platform_c();
     }
 
     @Override
@@ -46,11 +46,8 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public void disableScreensaver() {
-        switch (platformInfo().getType()) {
-            case WINDOWS -> Win32Utils.disableScreensaver();
-            case MAC -> MacOsUtils.disableScreensaver();
-            default -> LinuxUtils.disableScreensaver();
-        }
+        log.debug("Disabling screensaver");
+        instance.disable_screensaver(platform);
     }
 
     @Override
@@ -78,8 +75,6 @@ public class PlatformFX implements PlatformProvider {
 
     @PreDestroy
     private void onDestroy() {
-        if (platformInfo().getType() == PlatformType.WINDOWS) {
-            Win32Utils.allowScreensaver();
-        }
+        instance.enable_screensaver(platform);
     }
 }

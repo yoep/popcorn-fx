@@ -16,8 +16,13 @@ enum class PlatformType {
   Linux = 2,
 };
 
-/// PlatformInfo defines the info of the current platform
-struct PlatformInfo {
+template<typename T = void>
+struct Box;
+
+/// The actions for the current platform.
+struct PlatformC;
+
+struct PlatformInfoC {
   /// The platform type
   PlatformType platform_type;
   /// The cpu architecture of the platform
@@ -27,7 +32,18 @@ struct PlatformInfo {
 
 extern "C" {
 
+/// Disable the screensaver on the current platform
+void disable_screensaver(Box<PlatformC> platform);
+
+/// Enable the screensaver on the current platform
+void enable_screensaver(Box<PlatformC> platform);
+
+void init();
+
+/// Retrieve the platform instance.
+Box<PlatformC> new_platform_c();
+
 /// Retrieve the platform information.
-PlatformInfo platform_info();
+PlatformInfoC platform_info();
 
 } // extern "C"

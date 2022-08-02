@@ -1,6 +1,3 @@
-use std::ffi::CString;
-use std::os::raw::c_char;
-
 use log::trace;
 
 #[cfg(target_arch = "x86_64")]
@@ -23,12 +20,11 @@ pub enum PlatformType {
 }
 
 /// PlatformInfo defines the info of the current platform
-#[repr(C)]
 pub struct PlatformInfo {
     /// The platform type
     pub platform_type: PlatformType,
     /// The cpu architecture of the platform
-    pub arch: *const c_char,
+    pub arch: String,
 }
 
 impl PlatformInfo {
@@ -39,7 +35,7 @@ impl PlatformInfo {
         trace!("Retrieving windows platform info");
         PlatformInfo {
             platform_type: PlatformType::Windows,
-            arch: CString::new(X64.to_string()).unwrap().into_raw(),
+            arch: String::from(X64),
         }
     }
 
@@ -90,8 +86,6 @@ impl PlatformInfo {
 
 #[cfg(test)]
 mod test {
-    use std::ffi::CStr;
-
     use super::*;
 
     #[test]
@@ -123,7 +117,7 @@ mod test {
     fn test_platform_info_new_should_return_x64_info() {
         let info = PlatformInfo::new();
 
-        unsafe { assert_eq!(X64, CStr::from_ptr(info.arch).to_str().unwrap()) };
+        unsafe { assert_eq!(X64, String::from(info.arch)) };
     }
 
     #[test]
@@ -131,7 +125,7 @@ mod test {
     fn test_platform_info_new_should_return_aarch64_info() {
         let info = PlatformInfo::new();
 
-        unsafe { assert_eq!(ARCH64, CStr::from_ptr(info.arch).to_str().unwrap()) };
+        unsafe { assert_eq!(ARCH64, String::from(info.arch)) };
     }
 
     #[test]
@@ -139,6 +133,6 @@ mod test {
     fn test_platform_info_new_should_return_arm_info() {
         let info = PlatformInfo::new();
 
-        unsafe { assert_eq!(ARM, CStr::from_ptr(info.arch).to_str().unwrap()) };
+        unsafe { assert_eq!(ARM, String::from(info.arch)) };
     }
 }

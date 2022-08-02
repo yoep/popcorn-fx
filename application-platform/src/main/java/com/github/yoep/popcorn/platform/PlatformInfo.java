@@ -15,10 +15,6 @@ import static java.util.Arrays.asList;
 
 @Getter
 public class PlatformInfo extends Structure implements com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo, Closeable {
-    public static class ByReference extends PlatformInfo implements Structure.ByReference {
-
-    }
-
     public static class ByValue extends PlatformInfo implements Structure.ByValue {
 
     }

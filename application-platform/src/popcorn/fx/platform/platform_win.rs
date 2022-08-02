@@ -1,6 +1,6 @@
 use std::io::Error;
 
-use log::{debug, trace, warn};
+use log::{info, trace, warn};
 use windows::core::PWSTR;
 use windows::core::Result;
 use windows::Win32::Foundation::HANDLE;
@@ -46,7 +46,7 @@ impl Platform for PlatformWin {
                 self.request = Some(request.unwrap());
 
                 return if PowerSetRequest(self.request.unwrap(), PowerRequestDisplayRequired).as_bool() {
-                    debug!("Disabled windows screensaver");
+                    info!("Screensaver has been disabled");
                     true
                 } else {
                     warn!("Failed to disable windows screensaver, {}", Error::last_os_error().to_string());
@@ -71,7 +71,7 @@ impl Platform for PlatformWin {
 
         unsafe {
             return if PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() {
-                debug!("Enabled windows screensaver");
+                info!("Screensaver has been enabled");
                 self.request = None;
                 true
             } else {
@@ -84,6 +84,8 @@ impl Platform for PlatformWin {
 
 #[cfg(test)]
 mod test {
+    use std::sync::Once;
+
     use log4rs::append::console::ConsoleAppender;
     use log4rs::Config;
     use log4rs::config::{Appender, Root};
@@ -91,12 +93,25 @@ mod test {
 
     use super::*;
 
+    static INIT: Once = Once::new();
+
     fn init() {
-        log4rs::init_config(Config::builder()
-            .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder().build())))
-            .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
-            .unwrap())
-            .unwrap();
+        INIT.call_once(|| {
+            log4rs::init_config(Config::builder()
+                .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder().build())))
+                .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
+                .unwrap())
+                .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_windows_disable_screensaver() {
+        init();
+
+        let mut platform = PlatformWin::new();
+
+        assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
     }
 
     #[test]

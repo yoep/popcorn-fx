@@ -1,3 +1,5 @@
+#[cfg(target_os = "macos")]
+use crate::popcorn::fx::platform::platform_mac::PlatformMac;
 #[cfg(target_os = "windows")]
 use crate::popcorn::fx::platform::platform_win::PlatformWin;
 
@@ -13,6 +15,12 @@ pub trait Platform {
 
 /// Initialize a new platform
 #[cfg(target_os = "windows")]
-fn new_platform() -> Box<dyn Platform> {
+pub fn new_platform() -> Box<dyn Platform> {
     return Box::new(PlatformWin::new())
+}
+
+/// Initialize a new platform
+#[cfg(target_os = "macos")]
+fn new_platform() -> Box<dyn Platform> {
+    return Box::new(PlatformMac::new())
 }

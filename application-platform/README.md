@@ -1,1 +1,0 @@
-The Rust/Java setup makes use of https://github.com/eqrion/cbindgen for generating the header files.

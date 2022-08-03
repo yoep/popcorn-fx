@@ -17,6 +17,7 @@
 
     <modules>
         <module>application-backend</module>
+        <module>application-media</module>
         <module>application-platform</module>
         <module>application-ui</module>
         <module>application</module>

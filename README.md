@@ -100,8 +100,8 @@ The following dependencies are required for development.
 
 - Java 11+
 - OpenJFX 17+
-- Qt5+ (only required when building the `player-qt` player)
-- CMake (only required when building the `player-qt` player)
+- Make
+- Rust
 
 ### Building player QT
 

@@ -84,31 +84,10 @@ impl Platform for PlatformWin {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Once;
-
-    use log4rs::append::console::ConsoleAppender;
-    use log4rs::Config;
-    use log4rs::config::{Appender, Root};
-    use log::LevelFilter;
-
     use super::*;
-
-    static INIT: Once = Once::new();
-
-    fn init() {
-        INIT.call_once(|| {
-            log4rs::init_config(Config::builder()
-                .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder().build())))
-                .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
-                .unwrap())
-                .unwrap();
-        });
-    }
 
     #[test]
     fn test_windows_disable_screensaver() {
-        init();
-
         let mut platform = PlatformWin::new();
 
         assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
@@ -116,8 +95,6 @@ mod test {
 
     #[test]
     fn test_windows_enable_screensaver() {
-        init();
-
         let mut platform = PlatformWin::new();
 
         assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");

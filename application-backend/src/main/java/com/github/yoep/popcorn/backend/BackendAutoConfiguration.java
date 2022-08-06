@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Import;
 
 @Configuration
 @Import({
-        BackendConfig.class,
         MediaConfig.class,
         RestConfig.class,
         SettingsConfig.class,

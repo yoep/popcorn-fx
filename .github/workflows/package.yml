@@ -12,6 +12,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Set up JDK 17
         uses: actions/setup-java@v1
         with:
@@ -24,9 +27,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
       - name: Prepare packaging
-        run: mvn -B clean -Plinux
+        run: make clean
       - name: Package
-        run: xvfb-run mvn -B install -DskipTests -DskipITs -Plinux
+        run: xvfb-run make package
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -38,6 +41,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Set up JDK 17
         uses: actions/setup-java@v1
         with:
@@ -52,9 +58,9 @@ jobs:
       - name: Prepare libraries
         run: cd ./assets/windows && ./prepare-libs.bat
       - name: Prepare packaging
-        run: mvn -B clean -Pwindows
+        run: make clean
       - name: Package
-        run: mvn -B install -DskipTests -DskipITs -Pwindows
+        run: make package
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -66,6 +72,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Set up JDK 17
         uses: actions/setup-java@v1
         with:
@@ -78,9 +87,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
       - name: Prepare packaging
-        run: mvn -B clean -Pmacosx
+        run: make clean
       - name: Package
-        run: mvn -B install -DskipTests -DskipITs -Pmacosx
+        run: make package
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:

@@ -20,11 +20,6 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-    - name: Cargo build
-      run: |
-        cargo install cbindgen && \
-        cargo test && \
-        cargo build
     - name: Set up JDK 17
       uses: actions/setup-java@v1
       with:
@@ -37,9 +32,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Prepare build
-      run: mvn -B clean -Plinux
+      run: make clean
     - name: Build
-      run: xvfb-run mvn -B verify -Plinux
+      run: make test && make build
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:

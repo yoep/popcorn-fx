@@ -46,7 +46,7 @@ impl PlatformInfo {
         trace!("Retrieving macos platform info");
         PlatformInfo {
             platform_type: PlatformType::MacOs,
-            arch: CString::new(X64.to_string()).unwrap().into_raw(),
+            arch: String::from(X64),
         }
     }
 
@@ -57,7 +57,7 @@ impl PlatformInfo {
         trace!("Retrieving linux platform info");
         PlatformInfo {
             platform_type: PlatformType::Linux,
-            arch: CString::new(X64.to_string()).unwrap().into_raw(),
+            arch: String::from(X64),
         }
     }
 
@@ -68,7 +68,7 @@ impl PlatformInfo {
         trace!("Retrieving linux platform info");
         PlatformInfo {
             platform_type: PlatformType::Linux,
-            arch: CString::new(ARCH64.to_string()).unwrap().into_raw(),
+            arch: String::from(ARCH64.to_string()),
         }
     }
 
@@ -79,7 +79,7 @@ impl PlatformInfo {
         trace!("Retrieving linux platform info");
         PlatformInfo {
             platform_type: PlatformType::Linux,
-            arch: CString::new(ARM.to_string()).unwrap().into_raw(),
+            arch: String::from(ARM.to_string()),
         }
     }
 }
@@ -117,7 +117,7 @@ mod test {
     fn test_platform_info_new_should_return_x64_info() {
         let info = PlatformInfo::new();
 
-        unsafe { assert_eq!(X64, String::from(info.arch)) };
+        assert_eq!(X64, String::from(info.arch))
     }
 
     #[test]
@@ -125,7 +125,7 @@ mod test {
     fn test_platform_info_new_should_return_aarch64_info() {
         let info = PlatformInfo::new();
 
-        unsafe { assert_eq!(ARCH64, String::from(info.arch)) };
+        assert_eq!(ARCH64, String::from(info.arch))
     }
 
     #[test]
@@ -133,6 +133,6 @@ mod test {
     fn test_platform_info_new_should_return_arm_info() {
         let info = PlatformInfo::new();
 
-        unsafe { assert_eq!(ARM, String::from(info.arch)) };
+        assert_eq!(ARM, String::from(info.arch))
     }
 }

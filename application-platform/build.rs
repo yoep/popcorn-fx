@@ -13,7 +13,12 @@ fn main() {
         .to_string();
     let config = Config::from_file("../cbindgen.toml").unwrap();
 
-    cbindgen::generate_with_config(&crate_dir, config)
-        .unwrap()
-        .write_to_file(&output_file);
+    let cbingen_config = cbindgen::generate_with_config(&crate_dir, config);
+
+    if cbingen_config.is_ok() {
+        cbingen_config.unwrap()
+            .write_to_file(&output_file);
+    } else {
+        eprintln!("{}", cbingen_config.err().unwrap().to_string())
+    }
 }

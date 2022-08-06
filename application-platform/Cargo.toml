@@ -13,11 +13,15 @@ crate-type = ["cdylib"]
 application-backend = { path = "../application-backend" }
 log = "0.4.17"
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.39.0", features = [
     "Win32_System_Power",
     "Win32_Foundation",
     "Win32_System_Threading"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2.127"
+core-foundation = "0.9.3"
 
 [build-dependencies]
 cbindgen = "0.24.3"

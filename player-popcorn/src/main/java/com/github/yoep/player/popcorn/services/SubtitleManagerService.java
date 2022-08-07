@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -145,7 +146,9 @@ public class SubtitleManagerService {
 
     private void initializeSubtitleListener() {
         subtitleService.activeSubtitleProperty().addListener((observable, oldValue, newValue) ->
-                newValue.getSubtitleInfo().ifPresent(this::onSubtitleChanged));
+                Optional.ofNullable(newValue)
+                        .flatMap(Subtitle::getSubtitleInfo)
+                        .ifPresent(this::onSubtitleChanged));
     }
 
     //endregion

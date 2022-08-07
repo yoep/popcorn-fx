@@ -73,7 +73,7 @@ endif
 
 build-java: cargo-lib-copy ## Build the java part of the application
 	$(info Building java)
-	@mvn -B clean compile -P$(PROFILE)
+	@mvn -B compile -P$(PROFILE)
 
 build: prerequisites build-cargo cargo-lib-copy build-java ## Build the application
 

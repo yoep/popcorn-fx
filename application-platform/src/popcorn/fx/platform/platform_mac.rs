@@ -1,7 +1,7 @@
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
 use libc::c_int;
-use log::{debug, warn};
+use log::{debug, info, warn};
 
 use crate::popcorn::fx::platform::platform::Platform;
 
@@ -44,11 +44,15 @@ impl PlatformMac {
 
 impl Platform for PlatformMac {
     fn disable_screensaver(&mut self) -> bool {
-        self.call_io_assertion(KIOPMASSERTIONLEVEL_ON)
+        let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_ON);
+        info!("Disable screensaver returned state {}", result);
+        result
     }
 
     fn enable_screensaver(&mut self) -> bool {
-        self.call_io_assertion(KIOPMASSERTIONLEVEL_OFF)
+        let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_OFF);
+        info!("Enable screensaver returned state {}", result);
+        result
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::{new_platform, Platform};
 
 /// The actions for the current platform.
+/// This is a C wrapper around the rust struct.
 #[repr(C)]
 pub struct PlatformC {
     platform: Box<dyn Platform>,

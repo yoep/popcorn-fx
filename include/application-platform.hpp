@@ -20,6 +20,7 @@ template<typename T = void>
 struct Box;
 
 /// The actions for the current platform.
+/// This is a C wrapper around the rust struct.
 struct PlatformC;
 
 struct PlatformInfoC {
@@ -32,13 +33,18 @@ struct PlatformInfoC {
 
 extern "C" {
 
+/// Drop the platform instance.
+void delete_platform_c(Box<PlatformC> platform);
+
 /// Disable the screensaver on the current platform
-void disable_screensaver(Box<PlatformC> platform);
+void disable_screensaver(PlatformC *platform);
 
 /// Enable the screensaver on the current platform
-void enable_screensaver(Box<PlatformC> platform);
+void enable_screensaver(PlatformC *platform);
 
 /// Retrieve the platform instance.
+/// The caller will become the owner of the instance and is responsible for the memory management of it.
+/// The instance can be safely deleted by using [delete_platform_c()]
 Box<PlatformC> new_platform_c();
 
 /// Retrieve the platform information.

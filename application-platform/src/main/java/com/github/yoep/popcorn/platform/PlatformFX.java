@@ -69,7 +69,7 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public void exit() {
-        Platform.exit();
+        runOnRenderer(Platform::exit);
     }
 
     @PreDestroy

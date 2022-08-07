@@ -15,8 +15,12 @@ struct PopcornFX;
 
 extern "C" {
 
+/// Delete the PopcornFX instance in a safe way.
+void delete_popcorn_fx(Box<PopcornFX> popcorn_fx);
+
 /// Create a new PopcornFX instance.
-/// It returns a reference to the popcorn FX instance.
-Box<PopcornFX> new_instance();
+/// The caller will become responsible for managing the memory of the struct.
+/// The instance can be safely deleted by using [delete_popcorn_fx].
+Box<PopcornFX> new_popcorn_fx();
 
 } // extern "C"

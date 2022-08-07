@@ -10,6 +10,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
     - name: Set up JDK 17
       uses: actions/setup-java@v1
       with:
@@ -25,4 +28,4 @@ jobs:
       run: |
         git config --global user.name 'GitHub Actions'
         git config --global user.email 'actions@noreply.github.com'
-        xvfb-run mvn -B -Plinux gitflow:release
+        xvfb-run make release

@@ -3,6 +3,9 @@ package com.github.yoep.popcorn.ui.utils;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import org.junit.jupiter.api.Test;
 
+import java.text.DecimalFormatSymbols;
+import java.text.MessageFormat;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ProgressUtilsTest {
@@ -14,7 +17,7 @@ class ProgressUtilsTest {
                 return 0.205f;
             }
         };
-        var expectedResult = "20.50%";
+        var expectedResult = MessageFormat.format("20{0}50%", DecimalFormatSymbols.getInstance().getDecimalSeparator());
 
         var result = ProgressUtils.progressToPercentage(status);
 

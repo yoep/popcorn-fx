@@ -21,6 +21,9 @@ The following dependencies are required for development:
 A [MakeFile](../Makefile) has been foreseen with some goals to get easily started.
 Use one of the following provided goals.
 
+Most of the targets also have a specific sub-task for Cargo or Java only.
+_e.g.: build-cargo, build-java_
+
 _The **cbingen** plugin for Cargo will always be installed through Make for almost all targets_
 
 ### clean
@@ -41,6 +44,12 @@ to the correct directories within the java resources.
 ### package
 
 Build the application and create an executable which can be distributed.
+
+### release
+
+Release a new version of the application.
+This will build the Rust libraries in `release` profile (optimised) mode.
+Afterwards, the maven `gitflow:release` target will be executed which will test, build & bump the version of the application.
 
 ## Running from an idea
 

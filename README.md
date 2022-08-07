@@ -16,6 +16,7 @@ Popcorn FX has been tested with **Raspberry Pi 3B+ and 4**.
 - [Launch options](./docs/application_options.md)
 - [Development](./docs/development.md)
 - [Raspberry Pi info](./docs/raspberry_pi.md)
+- [Rust/Java interop](./docs/rust_java.md)
 - [Known issues](./docs/known_issues.md)
 
 ## System Requirements

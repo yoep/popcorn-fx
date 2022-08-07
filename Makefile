@@ -6,6 +6,7 @@ SYSTEM := Windows
 else
 SYSTEM := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
 endif
+$(info Detected OS: $(SYSTEM))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
@@ -49,24 +50,27 @@ clean: prerequisites ## Clean the output
 test: ## Test the application code
 	$(info Running cargo tests)
 	@cargo test
-
 	$(info Running maven tests)
 	@mvn -B clean verify -P$(PROFILE)
 
 build-cargo: $(RESOURCE_DIRECTORIES) ## Build the rust part of the application
-	$(info Current OS: $(OS))
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
 	@cargo build
 
+build-cargo-release: $(RESOURCE_DIRECTORIES) ## Build the rust part of the application in release profile
+	$(info Using lib extension: $(EXTENSION))
+	$(info Building cargo packages)
+	@cargo test && cargo build --release
+
 ## Copy the cargo libraries to the java resources
 ifeq ($(SYSTEM),Windows)
-cargo-lib-copy: build-cargo
+cargo-lib-copy:
 	$(info Copying libraries to java resources)
 	@$(foreach file,$(LIBRARIES),xcopy "target\\debug\\$(file).$(EXTENSION)" "$(file)\\src\\main\\resources\\$(OS_RESOURCE_DIR)\\" /f /y;)
 
 else
-cargo-lib-copy: build-cargo
+cargo-lib-copy:
 	$(info Copying libraries to java resources)
 	@$(foreach file,$(LIBRARIES),cp "target/debug/lib$(subst -,_,$(file)).$(EXTENSION)" "$(file)/src/main/resources/$(OS_RESOURCE_DIR)/";)
 endif
@@ -80,4 +84,7 @@ build: prerequisites build-cargo cargo-lib-copy build-java ## Build the applicat
 package: prerequisites build ## Package the application for distribution
 	@mvn -B install -P$(PROFILE)
 
+release: prerequisites build-cargo-release cargo-lib-copy ## Release a new version of the application
+	$(info Starting maven gitflow release)
+	@mvn -B -P$(PROFILE) gitflow:release
 

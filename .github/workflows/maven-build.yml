@@ -34,7 +34,7 @@ jobs:
     - name: Prepare build
       run: make clean
     - name: Build
-      run: make test && make build
+      run: xvfb-run make test && make build
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:

@@ -34,7 +34,7 @@ public class HostUtils {
      * @return Returns the available port.
      */
     public static int availablePort() {
-        var port = 1000;
+        var port = 2000;
         var available = false;
 
         while (!available) {

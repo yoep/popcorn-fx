@@ -100,6 +100,9 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     //endregion
 
     private void onActiveSubtitleChanged(Subtitle newSubtitle) {
+        if (newSubtitle == null)
+            return;
+
         invokeListeners(e -> e.onSubtitleChanged(newSubtitle));
     }
 

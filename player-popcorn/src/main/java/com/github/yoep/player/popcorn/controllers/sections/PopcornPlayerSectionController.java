@@ -7,7 +7,6 @@ import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
-import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
@@ -289,17 +288,6 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onShowOverlay(Event event) {
-        // verify if the event is a key event
-        // if so, do some additional check before showing the overlay
-        if (event instanceof KeyEvent) {
-            var keyEvent = (KeyEvent) event;
-
-            // verify that the key event is not the key used by the keep alive service
-            // if so, don't show the overlay and ignore the event
-            if (keyEvent.getCode() == BackendConstants.KEEP_ALIVE_SIGNAL)
-                return;
-        }
-
         // cancel the transition faders
         if (transitionHeader != null) {
             transitionHeader.stop();

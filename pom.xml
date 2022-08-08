@@ -79,7 +79,7 @@
         <commons-collections.version>4.4</commons-collections.version>
         <jna.version>5.12.1</jna.version>
         <testfx.version>4.0.16-alpha</testfx.version>
-        <javapackager.version>1.6.5</javapackager.version>
+        <javapackager.version>1.6.3</javapackager.version>
         <vlcj.version>4.7.3</vlcj.version>
         <vlcj-javafx.version>1.1.0</vlcj-javafx.version>
         <jaffree.version>2021.12.30</jaffree.version>

@@ -41,6 +41,7 @@ endif
 prerequisites: ## Install the requirements for the application
 	$(info Installing Cargo plugins)
 	@cargo install cbindgen
+	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
 
 clean: prerequisites ## Clean the output
 	$(info Cleaning output directories)

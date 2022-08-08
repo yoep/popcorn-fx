@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.6.6</version>
+        <version>2.7.2</version>
     </parent>
 
     <groupId>com.github.yoep</groupId>
@@ -77,16 +77,12 @@
         <commons-io.version>2.11.0</commons-io.version>
         <commons-text.version>1.8</commons-text.version>
         <commons-collections.version>4.4</commons-collections.version>
-        <jna.version>5.10.0</jna.version>
+        <jna.version>5.12.1</jna.version>
         <testfx.version>4.0.16-alpha</testfx.version>
         <javapackager.version>1.6.5</javapackager.version>
-        <vlcj.version>4.7.2</vlcj.version>
-        <vlcj-javafx.version>1.0.3</vlcj-javafx.version>
+        <vlcj.version>4.7.3</vlcj.version>
+        <vlcj-javafx.version>1.1.0</vlcj-javafx.version>
         <jaffree.version>2021.12.30</jaffree.version>
-
-        <cmake-maven-plugin.version>3.19.2-b1</cmake-maven-plugin.version>
-        <cmake.download>false</cmake.download>
-        <cmake.type>Release</cmake.type>
     </properties>
 
     <dependencyManagement>
@@ -239,11 +235,6 @@
                     <groupId>org.sonarsource.jacoco</groupId>
                     <artifactId>sonar-jacoco-plugin</artifactId>
                     <version>1.1.0.898</version>
-                </plugin>
-                <plugin>
-                    <groupId>com.googlecode.cmake-maven-project</groupId>
-                    <artifactId>cmake-maven-plugin</artifactId>
-                    <version>${cmake-maven-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>io.github.fvarrui</groupId>

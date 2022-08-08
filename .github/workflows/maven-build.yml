@@ -28,7 +28,7 @@ jobs:
         cache: 'maven'
     - uses: Swatinem/rust-cache@v2
     - name: Prepare build
-      run: make clean
+      run: make prerequisites
     - name: Build
       run: xvfb-run make test && make build
     - name: Upload coverage to Codecov

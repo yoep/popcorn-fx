@@ -158,6 +158,12 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <id>none</id>
+                        <phase>test</phase>
+                        <goals/>
+                    </execution>
+                    <execution>
+                        <id>fat-package</id>
                         <phase>package</phase>
                         <goals>
                             <goal>shade</goal>

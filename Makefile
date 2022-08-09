@@ -38,6 +38,10 @@ else
 	mkdir -p $@
 endif
 
+tooling: ## Install additional plugins which can be used during development
+	$(info Installing tools)
+	@cargo install cargo-edit
+
 prerequisites: ## Install the requirements for the application
 	$(info Installing Cargo plugins)
 	@cargo install cbindgen
@@ -52,7 +56,7 @@ test: ## Test the application code
 	$(info Running cargo tests)
 	@cargo test
 	$(info Running maven tests)
-	@mvn -B clean verify -P$(PROFILE)
+	@mvn -B verify -P$(PROFILE)
 
 build-cargo: $(RESOURCE_DIRECTORIES) ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))
@@ -83,7 +87,7 @@ build-java: cargo-lib-copy ## Build the java part of the application
 build: prerequisites build-cargo cargo-lib-copy build-java ## Build the application
 
 package: prerequisites build ## Package the application for distribution
-	@mvn -B install -P$(PROFILE)
+	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
 
 release: prerequisites build-cargo-release cargo-lib-copy ## Release a new version of the application
 	$(info Starting maven gitflow release)

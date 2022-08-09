@@ -26,15 +26,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "application-media"
-version = "0.4.0"
-dependencies = [
- "cbindgen",
- "log",
- "windows",
-]
-
-[[package]]
 name = "application-platform"
 version = "0.4.0"
 dependencies = [

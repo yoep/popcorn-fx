@@ -33,3 +33,13 @@ pub fn new_platform() -> Box<dyn Platform> {
 pub fn new_platform() -> Box<dyn Platform> {
     return Box::new(PlatformLinux::new());
 }
+
+#[cfg(test)]
+mod test{
+    use crate::new_platform;
+
+    #[test]
+    fn test_new_platform_should_return_platform() {
+        new_platform();
+    }
+}

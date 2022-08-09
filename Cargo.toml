@@ -3,6 +3,5 @@
 members = [
     "application",
     "application-backend",
-    "application-media",
     "application-platform",
 ]

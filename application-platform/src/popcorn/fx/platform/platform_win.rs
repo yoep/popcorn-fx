@@ -1,5 +1,3 @@
-use std::io::Error;
-
 use log::{info, trace, warn};
 use windows::core::PWSTR;
 use windows::core::Result;
@@ -9,17 +7,19 @@ use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REA
 
 use crate::popcorn::fx::platform::platform::Platform;
 
+// TODO: integrate ISystemMediaTransportControls (https://docs.microsoft.com/en-us/windows/win32/api/systemmediatransportcontrolsinterop/nn-systemmediatransportcontrolsinterop-isystemmediatransportcontrolsinterop)
+
 /// Windows specific platform instructions
 pub struct PlatformWin {
     /// The power request which has been made to the windows system
-    request: Option<HANDLE>,
+    screensaver_request: Option<HANDLE>,
 }
 
 impl PlatformWin {
     /// Create a new windows platform instance.
     /// It returns the created instance.
     pub fn new() -> PlatformWin {
-        return PlatformWin { request: None };
+        return PlatformWin { screensaver_request: None };
     }
 }
 
@@ -43,9 +43,9 @@ impl Platform for PlatformWin {
             let request: Result<HANDLE> = PowerCreateRequest(&context);
 
             if request.is_ok() {
-                self.request = Some(request.unwrap());
+                self.screensaver_request = Some(request.unwrap());
 
-                return if PowerSetRequest(self.request.unwrap(), PowerRequestDisplayRequired).as_bool() {
+                return if PowerSetRequest(self.screensaver_request.unwrap(), PowerRequestDisplayRequired).as_bool() {
                     info!("Screensaver has been disabled");
                     true
                 } else {
@@ -62,17 +62,17 @@ impl Platform for PlatformWin {
     fn enable_screensaver(&mut self) -> bool {
         // verify if a request was made before to disable it
         // otherwise, ignore this call
-        if self.request.is_none() {
+        if self.screensaver_request.is_none() {
             trace!("Windows screensaver not disabled, not trying to clear power request");
             return true;
         }
 
-        let handle = self.request.unwrap();
+        let handle = self.screensaver_request.unwrap();
 
         unsafe {
             return if PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() {
                 info!("Screensaver has been enabled");
-                self.request = None;
+                self.screensaver_request = None;
                 true
             } else {
                 warn!("Failed to enabled windows screensaver");
@@ -84,8 +84,6 @@ impl Platform for PlatformWin {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     #[test]
     fn test_windows_disable_screensaver() {
         let mut platform = PlatformWin::new();

@@ -2,10 +2,6 @@ package com.github.yoep.popcorn.platform;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
-import com.github.yoep.popcorn.platform.jna.linux.LinuxUtils;
-import com.github.yoep.popcorn.platform.jna.macos.MacOsUtils;
-import com.github.yoep.popcorn.platform.jna.win32.Win32Utils;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +13,15 @@ import java.util.Objects;
 
 @Slf4j
 public class PlatformFX implements PlatformProvider {
+    private final ApplicationPlatform instance;
+
+    private final PlatformC platform;
+
+    public PlatformFX() {
+        instance = ApplicationPlatform.INSTANCE;
+        platform = instance.new_platform_c();
+    }
+
     @Override
     public boolean isTransparentWindowSupported() {
         return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW);
@@ -24,7 +29,9 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public PlatformInfo platformInfo() {
-        return new SimplePlatformInfo(platformType(), com.sun.jna.Platform.ARCH);
+        try (var info = instance.platform_info()) {
+            return info;
+        }
     }
 
     @Override
@@ -38,11 +45,8 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public void disableScreensaver() {
-        switch (platformType()) {
-            case WINDOWS -> Win32Utils.disableScreensaver();
-            case MAC -> MacOsUtils.disableScreensaver();
-            default -> LinuxUtils.disableScreensaver();
-        }
+        log.debug("Disabling screensaver");
+        instance.disable_screensaver(platform);
     }
 
     @Override
@@ -65,24 +69,11 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public void exit() {
-        Platform.exit();
+        runOnRenderer(Platform::exit);
     }
 
     @PreDestroy
     private void onDestroy() {
-        if (platformType() == PlatformType.WINDOWS) {
-            Win32Utils.allowScreensaver();
-        }
-    }
-
-    private static PlatformType platformType() {
-        if (com.sun.jna.Platform.isMac()) {
-            return PlatformType.MAC;
-        }
-        if (com.sun.jna.Platform.isWindows() || com.sun.jna.Platform.isWindowsCE()) {
-            return PlatformType.WINDOWS;
-        }
-
-        return PlatformType.DEBIAN;
+        instance.enable_screensaver(platform);
     }
 }

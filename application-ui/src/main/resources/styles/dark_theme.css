@@ -918,6 +918,12 @@
     -fx-background-color: #111214;
 }
 
+.root .player .player-controls .icon {
+    -fx-pref-width: 40px;
+    -fx-text-alignment: center;
+    -fx-text-overrun: CLIP;
+}
+
 .root .player .player-controls .icon,
 .root .player .player-controls .label,
 .root .player .player-controls LanguageSelection {

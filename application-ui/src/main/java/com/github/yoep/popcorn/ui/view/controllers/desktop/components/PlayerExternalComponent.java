@@ -6,33 +6,43 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.PlayerExternalComponentService;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
+import java.net.URL;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @ViewController
 @RequiredArgsConstructor
-public class PlayerExternalComponent {
+public class PlayerExternalComponent implements Initializable {
     private final ImageService imageService;
     private final PlatformProvider platformProvider;
     private final PlayerExternalComponentService playerExternalService;
+    private final EventHandler<KeyEvent> keyPressedEventHandler = this::onPaneKeyReleased;
 
     private Long duration;
 
+    @FXML
+    Pane playerExternalPane;
     @FXML
     BackgroundImageCover backgroundImage;
     @FXML
@@ -91,7 +101,24 @@ public class PlayerExternalComponent {
         });
     }
 
-    //region
+    //endregion
+
+    //region Initializable
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        playerExternalPane.sceneProperty().addListener((observableValue, scene, newScene) -> {
+            if (newScene != null) {
+                log.trace("Registering key event handler to scene for external player");
+                newScene.addEventHandler(KeyEvent.KEY_RELEASED, keyPressedEventHandler);
+            } else {
+                log.trace("Removing key event handler from scene for external player");
+                scene.removeEventHandler(KeyEvent.KEY_RELEASED, keyPressedEventHandler);
+            }
+        });
+    }
+
+    //endregion
 
     //region Functions
 
@@ -143,7 +170,8 @@ public class PlayerExternalComponent {
         switch (state) {
             case PLAYING -> updatePlayState(true);
             case PAUSED -> updatePlayState(false);
-            case LOADING -> platformProvider.runOnRenderer(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
+            case LOADING ->
+                    platformProvider.runOnRenderer(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
         }
     }
 
@@ -163,6 +191,25 @@ public class PlayerExternalComponent {
             downloadText.setText(ProgressUtils.progressToDownload(status));
             uploadText.setText(ProgressUtils.progressToUpload(status));
             activePeersText.setText(String.valueOf(status.getSeeds()));
+        });
+    }
+
+    void onPaneKeyReleased(KeyEvent event) {
+        PlayerAction.FromKey(event.getCode()).ifPresent(e -> {
+            switch (e) {
+                case TOGGLE_PLAYBACK_STATE -> {
+                    event.consume();
+                    playerExternalService.togglePlaybackState();
+                }
+                case REVERSE -> {
+                    event.consume();
+                    playerExternalService.goBack();
+                }
+                case FORWARD -> {
+                    event.consume();
+                    playerExternalService.goForward();
+                }
+            }
         });
     }
 

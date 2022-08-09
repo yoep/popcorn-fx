@@ -4,9 +4,9 @@ import lombok.Getter;
 
 @Getter
 public enum PlatformType {
-    DEBIAN("debian"),
+    WINDOWS("windows"),
     MAC("macos"),
-    WINDOWS("windows");
+    DEBIAN("debian");
 
     private final String name;
 

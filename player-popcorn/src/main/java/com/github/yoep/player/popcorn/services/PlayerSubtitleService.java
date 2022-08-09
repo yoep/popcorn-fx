@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -49,7 +50,8 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     @PostConstruct
     void init() {
         subtitleService.activeSubtitleProperty().addListener((observableValue, subtitle, newSubtitle) ->
-                invokeListeners(e -> e.onActiveSubtitleChanged(newSubtitle.getSubtitleInfo().orElse(SubtitleInfo.none()))));
+                invokeListeners(e -> e.onActiveSubtitleChanged(
+                        Optional.ofNullable(newSubtitle).flatMap(Subtitle::getSubtitleInfo).orElse(SubtitleInfo.none()))));
         videoService.addListener(listener);
     }
 

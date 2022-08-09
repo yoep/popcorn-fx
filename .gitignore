@@ -22,5 +22,5 @@ assets/windows/**.exe
 **/pom.xml.versionsBackup
 **/pom.xml.releaseBackup
 release.properties
-**/CMakeLists.txt.user
-**/cmake_install.cmake
+**/*.dll
+**/*.dylib

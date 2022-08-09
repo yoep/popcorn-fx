@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerExternalComponent"
-          styleClass="player-external">
+          fx:id="playerExternalPane" styleClass="player-external">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="20"/>
         <ColumnConstraints minWidth="400" percentWidth="60" hgrow="ALWAYS"/>

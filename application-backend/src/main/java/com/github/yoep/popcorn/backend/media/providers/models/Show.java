@@ -8,7 +8,9 @@ import lombok.Getter;
 import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Getter
 @ToString(callSuper = true)
@@ -60,7 +62,8 @@ public class Show extends AbstractMedia {
         this.numberOfSeasons = show.getNumberOfSeasons();
         this.status = show.getStatus();
         this.lastUpdated = show.getLastUpdated();
-        this.episodes = show.getEpisodes().stream()
+        this.episodes = Optional.ofNullable(show.getEpisodes()).stream()
+                .flatMap(Collection::stream)
                 .map(Episode::new)
                 .toList();
     }

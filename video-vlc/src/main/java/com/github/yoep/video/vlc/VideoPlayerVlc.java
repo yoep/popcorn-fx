@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
+import uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurface;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
@@ -26,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
-import static uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurfaceFactory.videoSurfaceForImageView;
 
 @Slf4j
 @ToString
@@ -198,7 +198,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
         log.trace("Initializing VLC player");
 
         try {
-            this.mediaPlayer.videoSurface().set(videoSurfaceForImageView(videoSurface));
+            this.mediaPlayer.videoSurface().set(new ImageViewVideoSurface(videoSurface));
 
             initialized = true;
             log.trace("VLC player initialization done");
@@ -295,6 +295,10 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
     }
 
     private void bindToParent(Pane parent) {
+        // set initial width/height
+        videoSurface.setFitWidth(parent.getWidth());
+        videoSurface.setFitHeight(parent.getHeight());
+
         parent.widthProperty().addListener((observable, oldValue, newValue) -> videoSurface.setFitWidth(newValue.longValue()));
         parent.heightProperty().addListener((observable, oldValue, newValue) -> videoSurface.setFitHeight(newValue.longValue()));
 

@@ -2,12 +2,14 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.PlayerExternalComponentService;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,5 +113,38 @@ class PlayerExternalComponentIT {
 
         verify(event).consume();
         verify(playerExternalService).goForward();
+    }
+
+    @Test
+    void testOnPaneKeyReleased_whenPauseKeyIsPressed_shouldToggleThePlaybackState() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(PlayerAction.TOGGLE_PLAYBACK_STATE.getKeys()[0]);
+
+        controller.onPaneKeyReleased(event);
+
+        verify(event).consume();
+        verify(playerExternalService).togglePlaybackState();
+    }
+
+    @Test
+    void testOnPaneKeyReleased_whenForwardKeyIsPressed_shouldForwardThePlayer() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(PlayerAction.FORWARD.getKeys()[0]);
+
+        controller.onPaneKeyReleased(event);
+
+        verify(event).consume();
+        verify(playerExternalService).goForward();
+    }
+
+    @Test
+    void testOnPaneKeyReleased_whenReverseKeyIsPressed_shouldReverseThePlayer() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(PlayerAction.REVERSE.getKeys()[0]);
+
+        controller.onPaneKeyReleased(event);
+
+        verify(event).consume();
+        verify(playerExternalService).goBack();
     }
 }

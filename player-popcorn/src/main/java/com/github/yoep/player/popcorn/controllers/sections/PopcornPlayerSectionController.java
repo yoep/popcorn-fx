@@ -7,10 +7,10 @@ import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
-import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.animation.FadeTransition;
@@ -288,17 +288,6 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onShowOverlay(Event event) {
-        // verify if the event is a key event
-        // if so, do some additional check before showing the overlay
-        if (event instanceof KeyEvent) {
-            var keyEvent = (KeyEvent) event;
-
-            // verify that the key event is not the key used by the keep alive service
-            // if so, don't show the overlay and ignore the event
-            if (keyEvent.getCode() == BackendConstants.KEEP_ALIVE_SIGNAL)
-                return;
-        }
-
         // cancel the transition faders
         if (transitionHeader != null) {
             transitionHeader.stop();
@@ -322,32 +311,34 @@ public class PopcornPlayerSectionController implements Initializable {
      * @param event The key event that occurred.
      */
     private void onPlayerKeyReleased(KeyEvent event) {
-        switch (event.getCode()) {
-            case SPACE, P -> {
-                sectionService.togglePlayerPlaybackState();
-                event.consume();
+        PlayerAction.FromKey(event.getCode()).ifPresent(e -> {
+            switch (e) {
+                case TOGGLE_PLAYBACK_STATE -> {
+                    event.consume();
+                    sectionService.togglePlayerPlaybackState();
+                }
+                case TOGGLE_FULLSCREEN -> {
+                    event.consume();
+                    sectionService.toggleFullscreen();
+                }
+                case DECREASE_SUBTITLE_OFFSET -> {
+                    event.consume();
+                    updateSubtitleOffset(event, false);
+                }
+                case INCREASE_SUBTITLE_OFFSET -> {
+                    event.consume();
+                    updateSubtitleOffset(event, true);
+                }
+                case REVERSE -> {
+                    event.consume();
+                    sectionService.videoTimeOffset(-5000);
+                }
+                case FORWARD -> {
+                    event.consume();
+                    sectionService.videoTimeOffset(5000);
+                }
             }
-            case F11 -> {
-                sectionService.toggleFullscreen();
-                event.consume();
-            }
-            case G -> {
-                updateSubtitleOffset(event, false);
-                event.consume();
-            }
-            case H -> {
-                updateSubtitleOffset(event, true);
-                event.consume();
-            }
-            case LEFT, KP_LEFT -> {
-                sectionService.videoTimeOffset(-5000);
-                event.consume();
-            }
-            case RIGHT, KP_RIGHT -> {
-                sectionService.videoTimeOffset(5000);
-                event.consume();
-            }
-        }
+        });
     }
 
     private void onPlayerScrolled(ScrollEvent event) {

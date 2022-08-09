@@ -43,8 +43,6 @@ public class PlayerControlsComponent implements Initializable {
     @FXML
     Icon fullscreenIcon;
     @FXML
-    Pane playerActions;
-    @FXML
     Pane subtitleSection;
 
     //region Methods
@@ -61,7 +59,7 @@ public class PlayerControlsComponent implements Initializable {
     public void reset() {
         platformProvider.runOnRenderer(() -> {
             playProgress.setTime(0);
-            playerActions.getChildren().remove(subtitleSection);
+            subtitleSection.setVisible(false);
         });
     }
 
@@ -156,13 +154,7 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onSubtitleVisibilityChanged(boolean isVisible) {
         // update the visibility of the subtitles section
-        platformProvider.runOnRenderer(() -> {
-            if (isVisible && !playerActions.getChildren().contains(subtitleSection)) {
-                playerActions.getChildren().add(0, subtitleSection);
-            } else {
-                playerActions.getChildren().remove(subtitleSection);
-            }
-        });
+        platformProvider.runOnRenderer(() -> subtitleSection.setVisible(isVisible));
     }
 
     private void onSeeking(Number newValue) {

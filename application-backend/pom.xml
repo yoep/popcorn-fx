@@ -97,6 +97,16 @@
             <version>1.8.0</version>
         </dependency>
 
+        <!-- JNA -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+        </dependency>
+
         <!-- Compilation -->
         <dependency>
             <groupId>org.projectlombok</groupId>

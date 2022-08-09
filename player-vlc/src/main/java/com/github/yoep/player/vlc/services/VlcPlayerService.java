@@ -61,7 +61,7 @@ public class VlcPlayerService extends AbstractListenerService<VlcListener> {
                 .orElse("");
         var command = MessageFormat.format("vlc {0} {1} {2}", request.getUrl(), OPTIONS, subtitleOption).trim();
 
-        log.debug("Launching VLC process");
+        log.debug("Launching VLC process ({})", command);
         if (platformProvider.launch(command)) {
             startStatusListener();
             return true;

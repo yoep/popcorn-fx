@@ -24,12 +24,12 @@
         </dependency>
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>application-platform</artifactId>
+            <artifactId>popcorn-fx-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>application-backend</artifactId>
+            <artifactId>popcorn-fx-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -256,14 +256,12 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
+                                <param>${project.basedir}/../assets/${platform}/popcorn_fx.dll</param>
                                 <param>${project.basedir}/../assets/${platform}/jlibtorrent.dll</param>
                                 <param>${project.basedir}/../assets/${platform}/ffprobe.exe</param>
-<!--                                <param>${project.basedir}/../assets/${platform}/vlc/libvlc.dll</param>-->
-<!--                                <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.dll</param>-->
-<!--                                <param>${project.basedir}/../assets/${platform}/vlc/lua</param>-->
-<!--                                <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>-->
                             </additionalResources>
                             <vmArgs>
+                                <param>-Djna.library.path=".;${PATH}"</param>
                                 <param>-Djava.library.path=".;${PATH}"</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
@@ -290,6 +288,7 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
+                                <param>${project.basedir}/../assets/${platform}/popcorn_fx.dylib</param>
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.x86_64.dylib</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlc.dylib</param>
                                 <param>${project.basedir}/../assets/${platform}/vlc/libvlccore.dylib</param>
@@ -297,6 +296,7 @@
                                 <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>
                             </additionalResources>
                             <vmArgs>
+                                <param>-Djna.library.path=".:$PATH"</param>
                                 <param>-Djava.library.path=".:$PATH"</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
@@ -323,6 +323,7 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
+                                <param>${project.basedir}/../assets/${platform}/popcorn_fx.so</param>
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
                                 <param>${project.basedir}/../assets/${platform}/libPopcornKeys.so</param>
                                 <param>${project.basedir}/../assets/${platform}/libPopcornPlayer.so</param>
@@ -332,9 +333,11 @@
                                 <param>${project.basedir}/../assets/${platform}/vlc/plugins</param>
                             </additionalResources>
                             <vmArgs>
+                                <param>-Djna.library.path=".:$PATH"</param>
                                 <param>-Djava.library.path=".:$PATH"</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
+                                <param>-Dprism.forceUploadingPainter=true</param>
                                 <param>-Dprism.lcdtext=false</param>
                                 <param>-Xms100M</param>
                                 <param>-XX:+UseG1GC</param>
@@ -358,6 +361,7 @@
                         <artifactId>javapackager</artifactId>
                         <configuration>
                             <additionalResources>
+                                <param>${project.basedir}/../assets/${platform}/popcorn_fx.so</param>
                                 <param>${project.basedir}/../assets/${platform}/libjlibtorrent.so</param>
                                 <param>${project.basedir}/../assets/${platform}/libPopcornKeys.so</param>
                                 <param>${project.basedir}/../assets/${platform}/libPopcornPlayer.so</param>
@@ -366,10 +370,12 @@
                             </additionalResources>
                             <vmArgs>
                                 <param>-Dvlc.path=/usr/lib/arm-linux-gnueabihf</param>
+                                <param>-Djna.library.path=".:$PATH"</param>
                                 <param>-Djava.library.path=".:/usr/lib/arm-linux-gnueabihf:$PATH"</param>
                                 <param>-Djavafx.platform=gtk</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
+                                <param>-Dprism.forceUploadingPainter=true</param>
                                 <param>-Dprism.lcdtext=false</param>
                                 <param>-XX:+UseG1GC</param>
                                 <param>-Xmx400M</param>

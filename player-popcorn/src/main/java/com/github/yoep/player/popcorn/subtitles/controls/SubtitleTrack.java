@@ -316,7 +316,7 @@ public class SubtitleTrack extends VBox {
         private FontWeight weight;
 
         private TrackLabel(SubtitleText line, String family, int size, FontWeight weight, TrackFlags... flags) {
-            super(line.text());
+            super(line.getText());
             this.flags = TrackFlags.from(line);
             this.family = family;
             this.size = size;

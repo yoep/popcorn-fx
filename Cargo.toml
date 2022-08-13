@@ -2,6 +2,8 @@
 
 members = [
     "application",
-    "application-backend",
-    "application-platform",
+    "popcorn-fx-core",
+    "popcorn-fx-platform",
+    "popcorn-fx-opensubtitles",
+#    "torrent-frostwire",
 ]

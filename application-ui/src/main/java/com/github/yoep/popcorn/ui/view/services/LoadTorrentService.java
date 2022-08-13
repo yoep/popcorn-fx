@@ -319,7 +319,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         try {
             var subtitle = subtitleService.downloadAndParse(subtitleInfo, SubtitleMatcher.from(filename, quality))
                     .exceptionally(throwable -> {
-                        log.warn("Failed to load torrent subtitle {}, {}", subtitleInfo, throwable.getMessage());
+                        log.warn("Failed to load torrent subtitle {}, {}", subtitleInfo, throwable.getMessage(), throwable);
                         return Subtitle.none();
                     })
                     .get(DOWNLOAD_SUBTITLE_TIMEOUT, TimeUnit.SECONDS);

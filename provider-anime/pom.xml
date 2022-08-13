@@ -19,7 +19,7 @@
         <!-- Popcorn -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>application-backend</artifactId>
+            <artifactId>popcorn-fx-core</artifactId>
             <version>${project.version}</version>
         </dependency>
 

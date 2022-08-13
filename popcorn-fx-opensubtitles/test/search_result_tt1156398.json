@@ -1,0 +1,2608 @@
+{
+  "total_pages": 6,
+  "total_count": 357,
+  "per_page": 60,
+  "page": 1,
+  "data": [
+    {
+      "id": "75913",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "75913",
+        "language": "en",
+        "download_count": 142669,
+        "new_download_count": 521,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 0,
+        "votes": 1,
+        "ratings": 10,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-09T15:08:16Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "DVDRip XviD-MAX [ and R5 LiNE XviD DEViSE]",
+        "comments": "",
+        "legacy_subtitle_id": 3588268,
+        "uploader": {
+          "uploader_id": 47823,
+          "name": "scooby007",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3588268",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78592,
+            "cd_number": 1,
+            "file_name": "Zombieland.R5.LiNE.XviD-DEViSE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "76108",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "76108",
+        "language": "en",
+        "download_count": 112880,
+        "new_download_count": 63,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 1,
+        "ratings": 10,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-14T22:06:50Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Jaha.zombie.r5.wWw.Downiran.Com_ir",
+        "comments": "Just removed a problematic space near line 337 from another version.",
+        "legacy_subtitle_id": 3591816,
+        "uploader": {
+          "uploader_id": 52330,
+          "name": "nopos",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3591816",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78792,
+            "cd_number": 1,
+            "file_name": "Jaha.zombie.r5.wWw.Downiran.Com_ir"
+          }
+        ]
+      }
+    },
+    {
+      "id": "87180",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "87180",
+        "language": "en",
+        "download_count": 54310,
+        "new_download_count": 214,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2010-10-03T20:23:05Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR",
+        "comments": "",
+        "legacy_subtitle_id": 3865204,
+        "uploader": {
+          "uploader_id": 35187,
+          "name": "ShooCat",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3865204",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 90057,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR.ENG"
+          }
+        ]
+      }
+    },
+    {
+      "id": "78480",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "78480",
+        "language": "en",
+        "download_count": 50931,
+        "new_download_count": 288,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-30T02:43:21Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.DVDRip.XviD.AC3-ViSiON",
+        "comments": "Source was quite good",
+        "legacy_subtitle_id": 3615425,
+        "uploader": {
+          "uploader_id": 51673,
+          "name": "Bernddasbrot",
+          "rank": "Silver Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3615425",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 81185,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.DVDRip.XviD.AC3-ViSiON.en"
+          }
+        ]
+      }
+    },
+    {
+      "id": "74269",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "74269",
+        "language": "pt-BR",
+        "download_count": 47424,
+        "new_download_count": 23,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-03T17:18:29Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland 2009 DVDRip XviD-MAX / MAXSPEED",
+        "comments": "",
+        "legacy_subtitle_id": 3585268,
+        "uploader": {
+          "uploader_id": 41022,
+          "name": "gutoresquin",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/pt-BR/subtitles/legacy/3585268",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/pt-BR/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 76833,
+            "cd_number": 1,
+            "file_name": "Zombieland 2009 DVDRip XviD-MAX.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "82265",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "82265",
+        "language": "en",
+        "download_count": 32148,
+        "new_download_count": 32,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 1,
+        "ratings": 10,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-11T21:15:22Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "ZombieLand R5 Line XviD IMAGINE",
+        "comments": "ZombieLand R5 Line XviD IMAGINE",
+        "legacy_subtitle_id": 3622241,
+        "uploader": {
+          "uploader_id": 47655,
+          "name": "anonim1979",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3622241",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 84952,
+            "cd_number": 1,
+            "file_name": "ZombieLand R5 Line XviD IMAGINE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "74064",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "74064",
+        "language": "ro",
+        "download_count": 30742,
+        "new_download_count": 7,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-03T17:15:38Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009)",
+        "comments": "Zombieland.R5.LiNE.XviD-DEViSE",
+        "legacy_subtitle_id": 3585264,
+        "uploader": {
+          "uploader_id": 51329,
+          "name": "majin87",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Bun venit în Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/ro/subtitles/legacy/3585264",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/ro/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 76610,
+            "cd_number": 1,
+            "file_name": "Zombieland.R5.LiNE.XviD-DEViSE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "76014",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "76014",
+        "language": "en",
+        "download_count": 28703,
+        "new_download_count": 34,
+        "hearing_impaired": true,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-12T19:14:47Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.[2009].DVDRIP.XVID.[Eng]-DUQA",
+        "comments": "",
+        "legacy_subtitle_id": 3590705,
+        "uploader": {
+          "uploader_id": 119465,
+          "name": "os_robot",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3590705",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78697,
+            "cd_number": 1,
+            "file_name": "Zombieland.[2009].DVDRIP.XVID.[Eng]-DUQA"
+          }
+        ]
+      }
+    },
+    {
+      "id": "75762",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "75762",
+        "language": "nl",
+        "download_count": 25848,
+        "new_download_count": 56,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-07T14:08:34Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) DVDRip XviD-MAX",
+        "comments": "Zombieland (2009) DVDRip XviD-MAX",
+        "legacy_subtitle_id": 3586970,
+        "uploader": {
+          "uploader_id": 119465,
+          "name": "os_robot",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/3586970",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/nl/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78435,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009) DVDRip XviD-MAX"
+          }
+        ]
+      }
+    },
+    {
+      "id": "90356",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "90356",
+        "language": "en",
+        "download_count": 23971,
+        "new_download_count": 115,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 1,
+        "ratings": 10,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2018-07-18T00:00:31Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.720p.BrRip.x264-YIFY",
+        "comments": "",
+        "legacy_subtitle_id": 7421603,
+        "uploader": {
+          "uploader_id": 70587,
+          "name": "islanq",
+          "rank": "Read Only Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/7421603",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 93474,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.720p.BrRip.x264-YIFY"
+          }
+        ]
+      }
+    },
+    {
+      "id": "79321",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "79321",
+        "language": "en",
+        "download_count": 22838,
+        "new_download_count": 40,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 2,
+        "ratings": 10,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-30T12:20:01Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) [720p] [BluRay] [YTS.MX]",
+        "comments": "Works for:\r\n[720p] [BluRay] [YTS.MX]\r\nBDRip.480p.x264.AC3-CH\r\nDVDR-BOW | DVDRip.XviD-ARROW",
+        "legacy_subtitle_id": 3615596,
+        "uploader": {
+          "uploader_id": 52015,
+          "name": "guilty57",
+          "rank": "Gold member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3615596",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 82038,
+            "cd_number": 1,
+            "file_name": "Zombieland.DVDR-BOW"
+          }
+        ]
+      }
+    },
+    {
+      "id": "88195",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "88195",
+        "language": "de",
+        "download_count": 22102,
+        "new_download_count": 47,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2011-09-05T18:50:29Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "zombieland german.srt",
+        "comments": "",
+        "legacy_subtitle_id": 4233857,
+        "uploader": {
+          "uploader_id": 54111,
+          "name": "arcchancellor",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/de/subtitles/legacy/4233857",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/de/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 91135,
+            "cd_number": 1,
+            "file_name": "zombieland german"
+          }
+        ]
+      }
+    },
+    {
+      "id": "83881",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "83881",
+        "language": "en",
+        "download_count": 21641,
+        "new_download_count": 24,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-05-27T03:11:20Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) [720p] [BluRay] [YTS.MX]",
+        "comments": "Works for:\r\n[720p] [BluRay] [YTS.MX]\r\nBDRip.480p.x264.AC3-CHD",
+        "legacy_subtitle_id": 3682351,
+        "uploader": {
+          "uploader_id": 40238,
+          "name": "w-sky",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3682351",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 86639,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.BDRip.480p.x264.AC3-CHD.en.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "74966",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "74966",
+        "language": "cs",
+        "download_count": 21530,
+        "new_download_count": 11,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-04T00:04:08Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "devise-r5zomb",
+        "comments": "AUTOLOAD AUTOUPLOAD",
+        "legacy_subtitle_id": 3585477,
+        "uploader": {
+          "uploader_id": 33153,
+          "name": "crudo",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Вітаємо у Зомбіленді",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/cs/subtitles/legacy/3585477",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/cs/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 77601,
+            "cd_number": 1,
+            "file_name": "devise-r5zomb"
+          }
+        ]
+      }
+    },
+    {
+      "id": "76425",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "76425",
+        "language": "fr",
+        "download_count": 20525,
+        "new_download_count": 29,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-21T20:54:39Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.R5.LiNE.XviD-DEViSE",
+        "comments": "Première fois, faites preuve d'indulgence =]",
+        "legacy_subtitle_id": 3596626,
+        "uploader": {
+          "uploader_id": 52517,
+          "name": "aokle",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/fr/subtitles/legacy/3596626",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/fr/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 79093,
+            "cd_number": 1,
+            "file_name": "Zombieland.R5.LiNE.XviD-DEViSE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "89865",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "89865",
+        "language": "bs",
+        "download_count": 19714,
+        "new_download_count": 4,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2014-07-15T14:34:40Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) 720p BRRiP 5.1 x264 AAC [Team Nanban]",
+        "comments": "",
+        "legacy_subtitle_id": 5755277,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/bs/subtitles/legacy/5755277",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/bs/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 92934,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009) 720p BRRiP 5.1 x264 AAC [Team Nanban]-hrv.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "81529",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "81529",
+        "language": "sr",
+        "download_count": 19216,
+        "new_download_count": 4,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-06T23:51:26Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland [2009]",
+        "comments": "",
+        "legacy_subtitle_id": 3619601,
+        "uploader": {
+          "uploader_id": 44502,
+          "name": "sr.janjic",
+          "rank": "Gold member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/sr/subtitles/legacy/3619601",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/sr/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 84171,
+            "cd_number": 1,
+            "file_name": "Zombieland.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "79003",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "79003",
+        "language": "fr",
+        "download_count": 19062,
+        "new_download_count": 36,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 1,
+        "ratings": 10,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-30T08:09:24Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.DVDRip.XviD-ARROW",
+        "comments": "1 CD - NTSC DVDRip XviD - ARROW release",
+        "legacy_subtitle_id": 3615504,
+        "uploader": {
+          "uploader_id": 40623,
+          "name": "k5KoKofd",
+          "rank": "Gold member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/fr/subtitles/legacy/3615504",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/fr/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 81730,
+            "cd_number": 1,
+            "file_name": "arw-zombieland"
+          }
+        ]
+      }
+    },
+    {
+      "id": "75868",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "75868",
+        "language": "zh-CN",
+        "download_count": 18794,
+        "new_download_count": 27,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-08T18:42:55Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.R5.LiNE.XviD-DEViSE",
+        "comments": "",
+        "legacy_subtitle_id": 3587764,
+        "uploader": {
+          "uploader_id": 41722,
+          "name": "hoodric",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - זומבילנד",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/zh-CN/subtitles/legacy/3587764",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/zh-CN/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78542,
+            "cd_number": 1,
+            "file_name": "Zombieland.cht.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "76983",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "76983",
+        "language": "id",
+        "download_count": 17913,
+        "new_download_count": 10,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-15T23:42:23Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) DVDRip XviD-MAX www.torentz.3xforum",
+        "comments": "",
+        "legacy_subtitle_id": 3609024,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/id/subtitles/legacy/3609024",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/id/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 79681,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009) DVDRip XviD-MAX www.torentz.3xforum.ro.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "76059",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "76059",
+        "language": "fa",
+        "download_count": 17207,
+        "new_download_count": 4,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-13T13:09:56Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.R5.LiNE.XviD-DEViSE",
+        "comments": "",
+        "legacy_subtitle_id": 3591125,
+        "uploader": {
+          "uploader_id": 51518,
+          "name": "soorena_asemooni",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/fa/subtitles/legacy/3591125",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/fa/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78742,
+            "cd_number": 1,
+            "file_name": "Zombieland.R5.LiNE.XviD-DEViSE.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "81656",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "81656",
+        "language": "ru",
+        "download_count": 17050,
+        "new_download_count": 18,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-08T14:11:14Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) DVDRip XviD-MAX www.torentz.3xforum",
+        "comments": "Zombieland (2009) DVDRip XviD-MAX www.torentz.3xforum.ro.avi",
+        "legacy_subtitle_id": 3620303,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/ru/subtitles/legacy/3620303",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/ru/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 84312,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009) DVDRip XviD-MAX www.torentz.3xforum.ro"
+          }
+        ]
+      }
+    },
+    {
+      "id": "81899",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "81899",
+        "language": "no",
+        "download_count": 17003,
+        "new_download_count": 19,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-08T23:37:32Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) 720p",
+        "comments": "",
+        "legacy_subtitle_id": 3620532,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/no/subtitles/legacy/3620532",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/no/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 84566,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009) 720p"
+          }
+        ]
+      }
+    },
+    {
+      "id": "89537",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "89537",
+        "language": "lt",
+        "download_count": 16857,
+        "new_download_count": 2,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2013-09-29T20:47:15Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "cb-zombielandr-720.Lithuanian",
+        "comments": "",
+        "legacy_subtitle_id": 5200158,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/lt/subtitles/legacy/5200158",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/lt/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 92585,
+            "cd_number": 1,
+            "file_name": "cb-zombielandr-720.Lithuanian.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "81704",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "81704",
+        "language": "he",
+        "download_count": 16817,
+        "new_download_count": 11,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-08T18:40:51Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.720p.BluRay.x264-CROSSBOW",
+        "comments": "",
+        "legacy_subtitle_id": 3620381,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/he/subtitles/legacy/3620381",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/he/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 84361,
+            "cd_number": 1,
+            "file_name": "Zombieland.720p.BluRay.x264-CROSSBOW"
+          }
+        ]
+      }
+    },
+    {
+      "id": "85354",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "85354",
+        "language": "tr",
+        "download_count": 16738,
+        "new_download_count": 12,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-08-04T21:38:00Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.DVDRip.XviD-ARROW",
+        "comments": "",
+        "legacy_subtitle_id": 3727158,
+        "uploader": {
+          "uploader_id": 63053,
+          "name": "HelloToTurkey",
+          "rank": "Platinum Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/tr/subtitles/legacy/3727158",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/tr/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 88180,
+            "cd_number": 1,
+            "file_name": "Zombieland.DVDRip.XviD-ARROW"
+          }
+        ]
+      }
+    },
+    {
+      "id": "89708",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "89708",
+        "language": "mk",
+        "download_count": 16641,
+        "new_download_count": 1,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2013-12-09T06:04:31Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "480p.BRRip.XviD.AC3-ViSiON",
+        "comments": "Zombieland (2009)",
+        "legacy_subtitle_id": 5430826,
+        "uploader": {
+          "uploader_id": 63209,
+          "name": "titlovic_",
+          "rank": "Bot Uploads"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/mk/subtitles/legacy/5430826",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/mk/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7282086,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.480p.BRRip.XviD.AC3-ViSiON.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "83143",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "83143",
+        "language": "is",
+        "download_count": 15999,
+        "new_download_count": 2,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2010-02-22T00:00:08Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.25fps.®ice!",
+        "comments": "Ripped by.®ice!",
+        "legacy_subtitle_id": 3644318,
+        "uploader": {
+          "uploader_id": 45223,
+          "name": "ice_kryztn",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/is/subtitles/legacy/3644318",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/is/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7280180,
+            "cd_number": 1,
+            "file_name": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "73728",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "73728",
+        "language": "hu",
+        "download_count": 15934,
+        "new_download_count": 2,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-03T11:09:10Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.R5.LiNE.XviD-DEViSE",
+        "comments": "Fordító:Darkerboy. Javítás:trogger. Tördelés, Időzítés:Zorro.",
+        "legacy_subtitle_id": 3585100,
+        "uploader": {
+          "uploader_id": 51430,
+          "name": "gyulabeviz",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/hu/subtitles/legacy/3585100",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/hu/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 76244,
+            "cd_number": 1,
+            "file_name": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "89424",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "89424",
+        "language": "th",
+        "download_count": 15574,
+        "new_download_count": 5,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2012-12-30T06:36:51Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland 2009 R5 LiNE XviD-ViSiON [En]",
+        "comments": "",
+        "legacy_subtitle_id": 4753108,
+        "uploader": {
+          "uploader_id": 60677,
+          "name": "thaisubtitles",
+          "rank": "Platinum Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/th/subtitles/legacy/4753108",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/th/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7282008,
+            "cd_number": 1,
+            "file_name": "Zombieland 2009 R5 LiNE XviD-ViSiON.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "89963",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "89963",
+        "language": "ze",
+        "download_count": 15545,
+        "new_download_count": 5,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2014-12-16T20:46:35Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.Chs&eng",
+        "comments": "来源: 转载/未知/其他",
+        "legacy_subtitle_id": 5959106,
+        "uploader": {
+          "uploader_id": 67003,
+          "name": "ZimukuChina",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/ze/subtitles/legacy/5959106",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/ze/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7282154,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.Chs&eng"
+          }
+        ]
+      }
+    },
+    {
+      "id": "77821",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "77821",
+        "language": "nl",
+        "download_count": 14317,
+        "new_download_count": 45,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-29T19:00:57Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.DVDRip.XviD-ARROW",
+        "comments": "Zombieland.DVDRip.XviD-ARROW",
+        "legacy_subtitle_id": 3615135,
+        "uploader": {
+          "uploader_id": 119465,
+          "name": "os_robot",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/3615135",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/nl/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 80523,
+            "cd_number": 1,
+            "file_name": "arw-zombieland"
+          }
+        ]
+      }
+    },
+    {
+      "id": "82741",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "82741",
+        "language": "en",
+        "download_count": 14273,
+        "new_download_count": 27,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2010-02-03T12:37:37Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.480p.BRRip.XviD.AC3-ViSiON",
+        "comments": "",
+        "legacy_subtitle_id": 3633946,
+        "uploader": {
+          "uploader_id": 47655,
+          "name": "anonim1979",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3633946",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 85456,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.480p.BRRip.XviD.AC3-ViSiON"
+          }
+        ]
+      }
+    },
+    {
+      "id": "85072",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "85072",
+        "language": "sl",
+        "download_count": 14272,
+        "new_download_count": 5,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-08-03T20:47:18Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.SLOSubs.DVDRip.XviD-DrSi",
+        "comments": "",
+        "legacy_subtitle_id": 3724455,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/sl/subtitles/legacy/3724455",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/sl/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 87887,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.SLOSubs.DVDRip.XviD-DrSi.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "77750",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "77750",
+        "language": "en",
+        "download_count": 14134,
+        "new_download_count": 7,
+        "hearing_impaired": true,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-29T18:10:17Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.DVDRip.XviD-ARROW",
+        "comments": "",
+        "legacy_subtitle_id": 3615110,
+        "uploader": {
+          "uploader_id": 41022,
+          "name": "gutoresquin",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/3615110",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 80459,
+            "cd_number": 1,
+            "file_name": "arw-zombieland.HI.en"
+          }
+        ]
+      }
+    },
+    {
+      "id": "81161",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "81161",
+        "language": "pt-PT",
+        "download_count": 13066,
+        "new_download_count": 28,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-06T04:26:39Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.DVDRip.XviD-ARROW",
+        "comments": "",
+        "legacy_subtitle_id": 3619103,
+        "uploader": {
+          "uploader_id": 41022,
+          "name": "gutoresquin",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Bem-vindo à Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/pt-PT/subtitles/legacy/3619103",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/pt-PT/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 83798,
+            "cd_number": 1,
+            "file_name": "arw-zombieland.pt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "73309",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "73309",
+        "language": "pl",
+        "download_count": 12590,
+        "new_download_count": 17,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-10-21T20:11:00Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.TS.XVID-IMAGiNE",
+        "comments": "AUTOLOAD AUTOUPLOAD",
+        "legacy_subtitle_id": 3579677,
+        "uploader": {
+          "uploader_id": 59015,
+          "name": "mniki2109",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/pl/subtitles/legacy/3579677",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/pl/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 75780,
+            "cd_number": 1,
+            "file_name": "Zombieland.TS.XVID-IMAGiNE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "87109",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "87109",
+        "language": "es",
+        "download_count": 12295,
+        "new_download_count": 51,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2010-10-03T20:21:51Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR - (Europeo)",
+        "comments": "Extraídos de DVD. Resincronizados para Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR. Español europeo.",
+        "legacy_subtitle_id": 3865201,
+        "uploader": {
+          "uploader_id": 35187,
+          "name": "ShooCat",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/es/subtitles/legacy/3865201",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/es/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 89984,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR.SPA"
+          }
+        ]
+      }
+    },
+    {
+      "id": "75385",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "75385",
+        "language": "nl",
+        "download_count": 12082,
+        "new_download_count": 10,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-04T19:29:53Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.R5.LiNE.XviD-ViSiON",
+        "comments": "Zombieland.2009.R5.LiNE.XviD-ViSiON",
+        "legacy_subtitle_id": 3585775,
+        "uploader": {
+          "uploader_id": 119465,
+          "name": "os_robot",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/3585775",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/nl/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78031,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.R5.LiNE.XviD-ViSiON.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "88113",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "88113",
+        "language": "en",
+        "download_count": 12027,
+        "new_download_count": 64,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0,
+        "votes": 1,
+        "ratings": 10,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2011-05-26T03:41:29Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.BluRay.1080p.H264",
+        "comments": "",
+        "legacy_subtitle_id": 4183905,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/4183905",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 91050,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.BluRay.1080p.H264.en.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "78075",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "78075",
+        "language": "pt-BR",
+        "download_count": 11817,
+        "new_download_count": 4,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-29T20:18:54Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.DVDRip.XviD-ARROW",
+        "comments": "Créditos Mantidos!",
+        "legacy_subtitle_id": 3615154,
+        "uploader": {
+          "uploader_id": 41022,
+          "name": "gutoresquin",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/pt-BR/subtitles/legacy/3615154",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/pt-BR/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 80768,
+            "cd_number": 1,
+            "file_name": "arw-zombieland.pb.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "90029",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "90029",
+        "language": "vi",
+        "download_count": 11705,
+        "new_download_count": 6,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2015-07-24T21:39:43Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.720p.BluRay.x264-CROSSBOW",
+        "comments": "",
+        "legacy_subtitle_id": 6246709,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/vi/subtitles/legacy/6246709",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/vi/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 93111,
+            "cd_number": 1,
+            "file_name": "Zombieland.720p.BluRay.x264-CROSSBOW"
+          }
+        ]
+      }
+    },
+    {
+      "id": "80673",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "80673",
+        "language": "ar",
+        "download_count": 11167,
+        "new_download_count": 7,
+        "hearing_impaired": true,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-03T12:40:19Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.DVDRip.XviD-ARROW",
+        "comments": "dza_007@skype.com\r\ndza_007@yahoo.com\r\ndza_007@hotmail.com\r\n00213778152948",
+        "legacy_subtitle_id": 3617588,
+        "uploader": {
+          "uploader_id": 44742,
+          "name": "baji1",
+          "rank": "Gold member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/ar/subtitles/legacy/3617588",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/ar/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 83302,
+            "cd_number": 1,
+            "file_name": "Zombieland.DVDRip.XviD-ARROW"
+          }
+        ]
+      }
+    },
+    {
+      "id": "89812",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "89812",
+        "language": "en",
+        "download_count": 11122,
+        "new_download_count": 17,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2014-04-15T07:48:20Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009).x264.800p-[1920, 800]@23.976fps.(DTS-6ch).(1h 27mn)",
+        "comments": "",
+        "legacy_subtitle_id": 5628310,
+        "uploader": {
+          "uploader_id": 62052,
+          "name": "tfonias74",
+          "rank": "Gold member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/5628310",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/en/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 92879,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009).x264.800p-[1920, 800]@23.976fps.(DTS-6ch).(1h 27mn).eng.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "82605",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "82605",
+        "language": "pt-BR",
+        "download_count": 10804,
+        "new_download_count": 6,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 2,
+        "ratings": 10,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2010-01-27T05:57:24Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) DVDRip XviD-MAXSPEED / MAX / TxR",
+        "comments": "Serve para os 3 Releases: \r\nZombieland (2009) DVDRip XviD-MAXSPEED, Zombieland (2009) DVDRip XviD-MAX & Zombieland[2009]DVDRip[Eng]-TxR/. Créditos Mantidos!",
+        "legacy_subtitle_id": 3630350,
+        "uploader": {
+          "uploader_id": 41022,
+          "name": "gutoresquin",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/pt-BR/subtitles/legacy/3630350",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/pt-BR/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 85314,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009) DVDRip XviD.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "76334",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "76334",
+        "language": "es",
+        "download_count": 10434,
+        "new_download_count": 40,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-20T00:03:45Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland (2009) DVDRip XviD-MAX",
+        "comments": "Buenos subtitulos",
+        "legacy_subtitle_id": 3594963,
+        "uploader": {
+          "uploader_id": 52416,
+          "name": "miguel_hcp",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/es/subtitles/legacy/3594963",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/es/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 79012,
+            "cd_number": 1,
+            "file_name": "Zombieland (2009) DVDRip XviD-MAX"
+          }
+        ]
+      }
+    },
+    {
+      "id": "75605",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "75605",
+        "language": "ro",
+        "download_count": 10309,
+        "new_download_count": 0,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 0,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-05T11:12:40Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland Rom",
+        "comments": "",
+        "legacy_subtitle_id": 3586020,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/ro/subtitles/legacy/3586020",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/ro/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78273,
+            "cd_number": 1,
+            "file_name": "Zombieland Rom.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "75679",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "75679",
+        "language": "da",
+        "download_count": 10179,
+        "new_download_count": 5,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 25,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-11-06T23:31:06Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.R5.LiNE.DVDR-FiCODVDR",
+        "comments": "Tak til DFG for teksterne",
+        "legacy_subtitle_id": 3586752,
+        "uploader": {
+          "uploader_id": 51914,
+          "name": "tilosalle",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/da/subtitles/legacy/3586752",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/da/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 78348,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.Custom.DKsubs.R5.LiNE.PAL.DVDR-DFG.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "72774",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "72774",
+        "language": "ro",
+        "download_count": 10113,
+        "new_download_count": 0,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 29.97,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-10-12T16:03:54Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "ZombieLand (2009) CAM [Xvid] {1337x}-X",
+        "comments": "",
+        "legacy_subtitle_id": 3574528,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Zombieland",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/ro/subtitles/legacy/3574528",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/ro/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 75201,
+            "cd_number": 1,
+            "file_name": "Zombieland.TS.XVID.STG.srt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "79693",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "79693",
+        "language": "bg",
+        "download_count": 9868,
+        "new_download_count": 1,
+        "hearing_impaired": false,
+        "hd": false,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2009-12-31T17:29:12Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Zombieland.2009.DVDRip.XviD.AC3-ViSiON",
+        "comments": "",
+        "legacy_subtitle_id": 3616143,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 555167,
+          "feature_type": "Movie",
+          "year": 2009,
+          "title": "Zombieland",
+          "movie_name": "2009 - Земя на зомбитата",
+          "imdb_id": 1156398,
+          "tmdb_id": 19908
+        },
+        "url": "https://www.opensubtitles.com/bg/subtitles/legacy/3616143",
+        "related_links": [
+          {
+            "label": "All subtitles for Zombieland",
+            "url": "https://www.opensubtitles.com/bg/movies/2009-zombieland",
+            "img_url": "https://s9.osdb.link/features/7/6/1/555167.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 82381,
+            "cd_number": 1,
+            "file_name": "Zombieland.2009.DVDRip.XviD.AC3-ViSiON.pl.srt"
+          }
+        ]
+      }
+    }
+  ]
+}

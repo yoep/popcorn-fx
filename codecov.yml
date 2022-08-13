@@ -1,2 +1,2 @@
 ignore:
-  - './application-platform/**/*'
+  - './popcorn-fx-platform/**/*'

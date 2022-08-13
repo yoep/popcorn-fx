@@ -1,0 +1,33 @@
+[package]
+name = "popcorn-fx-core"
+version = "0.4.0"
+edition = "2021"
+rust-version = "1.62"
+publish = false
+license-file = "../LICENSE"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1.58"
+chrono = "0.4.23"
+derive_more = "0.99.17"
+home = "0.5.4"
+itertools = "0.10.5"
+log = "0.4.16"
+regex = "1.6.0"
+serde = "1.0.147"
+serde_json = "1.0.88"
+serde_yaml = "0.9.14"
+log4rs = { version = "1.1.1", optional = true }
+
+[dev-dependencies]
+popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+mockall = "0.11.2"
+
+[features]
+testing = ["dep:log4rs"]

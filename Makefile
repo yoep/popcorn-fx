@@ -3,48 +3,33 @@
 ## Detect the OS
 ifeq ($(OS),Windows_NT)
 SYSTEM := Windows
+ARCH := $(PROCESSOR_ARCHITECTURE)
 else
 SYSTEM := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
+ARCH := $(shell uname -m)
 endif
 $(info Detected OS: $(SYSTEM))
+$(info Detected arch: $(ARCH))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
 EXTENSION := dll
-OS_RESOURCE_DIR := win32-x86-64
 PROFILE := windows
 else ifeq ($(SYSTEM),Darwin)
 EXTENSION := dylib
-OS_RESOURCE_DIR := darwin-x86-64
 PROFILE := macosx
 else
 EXTENSION := so
-OS_RESOURCE_DIR := debian-x86-64
 PROFILE := linux
 endif
 
 ## Define all rust libraries and resource directories
-LIBRARIES := application application-backend application-platform
-RESOURCE_DIRECTORIES := $(addsuffix /src/main/resources/$(OS_RESOURCE_DIR)/, $(LIBRARIES))
-
-## Create the resource directories if needed for java
-ifeq ($(SYSTEM),Windows)
-%/src/main/resources/$(OS_RESOURCE_DIR)/:
-	$(info Creating directory $@)
-	mkdir "$@"
-else
-%/src/main/resources/$(OS_RESOURCE_DIR)/:
-	$(info Creating directory $@)
-	mkdir -p $@
-endif
-
-tooling: ## Install additional plugins which can be used during development
-	$(info Installing tools)
-	@cargo install cargo-edit
+LIBRARIES := popcorn-fx popcorn-fx-core popcorn-fx-opensubtitles popcorn-fx-platform
 
 prerequisites: ## Install the requirements for the application
 	$(info Installing Cargo plugins)
 	@cargo install cbindgen
+	@cargo install cargo-nextest
 	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
 
 clean: prerequisites ## Clean the output
@@ -52,39 +37,40 @@ clean: prerequisites ## Clean the output
 	@cargo clean
 	@mvn -B clean
 
-test: ## Test the application code
+test-cargo: prerequisites ## The test cargo section of the application
 	$(info Running cargo tests)
-	@cargo test
+	@cargo nextest run
+
+test: prerequisites test-cargo ## Test the application code
 	$(info Running maven tests)
 	@mvn -B verify -P$(PROFILE)
 
-build-cargo: $(RESOURCE_DIRECTORIES) ## Build the rust part of the application
+build-cargo: ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
 	@cargo build
 
-build-cargo-release: $(RESOURCE_DIRECTORIES) ## Build the rust part of the application in release profile
+build-cargo-release: ## Build the rust part of the application in release profile
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
 	@cargo test && cargo build --release
 
 ## Copy the cargo libraries to the java resources
 ifeq ($(SYSTEM),Windows)
-cargo-lib-copy:
+lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),xcopy "target\\debug\\$(file).$(EXTENSION)" "$(file)\\src\\main\\resources\\$(OS_RESOURCE_DIR)\\" /f /y;)
-
+	@$(foreach file,$(LIBRARIES),xcopy ".\target\debug\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(PROFILE)\" /R /I /F /Y && ) echo.
 else
-cargo-lib-copy:
+lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),cp "target/debug/lib$(subst -,_,$(file)).$(EXTENSION)" "$(file)/src/main/resources/$(OS_RESOURCE_DIR)/";)
+	@$(foreach file,$(LIBRARIES),cp "target/debug/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(PROFILE)/";)
 endif
 
-build-java: cargo-lib-copy ## Build the java part of the application
+build-java: lib-copy ## Build the java part of the application
 	$(info Building java)
 	@mvn -B compile -P$(PROFILE)
 
-build: prerequisites build-cargo cargo-lib-copy build-java ## Build the application
+build: prerequisites build-cargo lib-copy build-java ## Build the application
 
 package: prerequisites build ## Package the application for distribution
 	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)

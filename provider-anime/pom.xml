@@ -12,7 +12,7 @@
     <artifactId>provider-anime</artifactId>
 
     <properties>
-        <jsoup.version>1.14.3</jsoup.version>
+        <jsoup.version>1.15.3</jsoup.version>
     </properties>
 
     <dependencies>

@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import java.awt.*;
 import java.io.File;
 
 @Slf4j
@@ -50,6 +51,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var viewManager = applicationContext.getBean(ViewManager.class);
 
         log.trace("Loading the main view of the application");
+        centerOnActiveScreen(stage);
         loader.show(stage, STAGE_VIEW, getViewProperties());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
     }
@@ -76,7 +78,8 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var properties = ViewProperties.builder()
                 .title(APPLICATION_TITLE)
                 .icon(ICON_NAME)
-                .background(getBackgroundColor(platformProvider));
+                .background(getBackgroundColor(platformProvider))
+                .centerOnScreen(false);
 
         // check if the big-picture or kiosk mode or maximized is enabled
         // if so, force the application to be maximized
@@ -103,6 +106,14 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     private Color getBackgroundColor(PlatformProvider platformProvider) {
         return platformProvider.isTransparentWindowSupported() ?
                 Color.TRANSPARENT : Color.BLACK;
+    }
+
+    private static void centerOnActiveScreen(Stage stage) {
+        var mouse = MouseInfo.getPointerInfo().getLocation();
+
+        stage.setX(mouse.getX());
+        stage.setY(mouse.getY());
+        stage.centerOnScreen();
     }
 
     public static String getLogDirectory() {

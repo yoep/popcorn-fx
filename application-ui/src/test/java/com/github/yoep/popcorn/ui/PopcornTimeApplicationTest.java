@@ -129,7 +129,7 @@ class PopcornTimeApplicationTest {
                 .title(PopcornTimeApplication.APPLICATION_TITLE)
                 .icon(PopcornTimeApplication.ICON_NAME)
                 .resizable(false)
-                .centerOnScreen(true)
+                .centerOnScreen(false)
                 .background(Color.BLACK)
                 .build();
         when(settingsService.getSettings()).thenReturn(settings);

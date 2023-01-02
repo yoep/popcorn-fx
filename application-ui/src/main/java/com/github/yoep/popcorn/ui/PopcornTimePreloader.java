@@ -17,6 +17,7 @@ import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 
+import java.awt.*;
 import java.io.File;
 
 @Slf4j
@@ -30,6 +31,7 @@ public class PopcornTimePreloader extends Preloader {
         var icon = new Image(getIconResource().getInputStream());
         var parent = new FXMLLoader(getPreloaderResource().getURL()).<Parent>load();
         var scene = new Scene(parent);
+        var mouse = MouseInfo.getPointerInfo().getLocation();
 
         this.stage = primaryStage;
 
@@ -37,6 +39,8 @@ public class PopcornTimePreloader extends Preloader {
         primaryStage.setScene(scene);
         primaryStage.setIconified(false);
         primaryStage.getIcons().add(icon);
+        primaryStage.setX(mouse.getX());
+        primaryStage.setY(mouse.getY());
 
         updateBackground(primaryStage, scene);
         processParameters(primaryStage, scene);

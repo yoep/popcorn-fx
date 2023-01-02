@@ -93,15 +93,6 @@ public class Subtitle extends Structure implements Serializable, Closeable {
     }
 
     /**
-     * Check if this subtitle is a custom subtitle.
-     *
-     * @return Returns true if this subtitle is a custom subtitle, else false.
-     */
-    public boolean isCustom() {
-        return getSubtitleInfo().isEmpty();
-    }
-
-    /**
      * Get the subtitle info of this subtitle.
      *
      * @return Returns the subtitle info if present, else {@link Optional#empty()}.

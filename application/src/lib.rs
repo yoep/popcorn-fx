@@ -8,7 +8,7 @@ use log::{debug, error, info};
 
 use popcorn_fx_core::{EpisodeC, from_c_string, into_c_owned, MovieC, ShowC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecSubtitleInfoC};
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
-use popcorn_fx_platform::platform_info_c::PlatformInfoC;
+use popcorn_fx_platform::PlatformInfoC;
 
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
 
@@ -39,8 +39,8 @@ pub extern "C" fn disable_screensaver(popcorn_fx: &mut PopcornFX) {
 
 /// Retrieve the platform information
 #[no_mangle]
-pub extern "C" fn platform_info(popcorn_fx: &mut PopcornFX) -> PlatformInfoC {
-    PlatformInfoC::from(popcorn_fx.platform_service().platform_info())
+pub extern "C" fn platform_info(popcorn_fx: &mut PopcornFX) -> *mut PlatformInfoC {
+    into_c_owned(PlatformInfoC::from(popcorn_fx.platform_service().platform_info()))
 }
 
 /// Retrieve the default options available for the subtitles.

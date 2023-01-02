@@ -1,6 +1,8 @@
 use std::ffi::CString;
 use std::os::raw::c_char;
 
+use log::trace;
+
 use crate::popcorn::fx::platform::platform_info::{PlatformInfo, PlatformType};
 
 #[repr(C)]
@@ -13,6 +15,7 @@ pub struct PlatformInfoC {
 
 impl PlatformInfoC {
     pub fn from(info: &PlatformInfo) -> PlatformInfoC {
+        trace!("Converting platform info to C for {}", info);
         PlatformInfoC {
             platform_type: info.platform_type.clone(),
             arch: match CString::new(info.arch.clone()) {

@@ -1,5 +1,5 @@
+use derive_more::Display;
 use log::trace;
-use safer_ffi::prelude::*;
 
 #[cfg(target_arch = "x86_64")]
 const X64: &str = "x86-64";
@@ -9,9 +9,8 @@ const ARM: &str = "arm";
 const ARCH64: &str = "aarch64";
 
 /// The platform type
-#[derive_ReprC]
-#[repr(u8)]
-#[derive(PartialEq, Clone)]
+#[repr(i32)]
+#[derive(Debug, PartialEq, Clone, Display)]
 pub enum PlatformType {
     /// The windows platform
     Windows = 0,
@@ -22,6 +21,8 @@ pub enum PlatformType {
 }
 
 /// PlatformInfo defines the info of the current platform
+#[derive(Debug, Clone, Display)]
+#[display(fmt = "platform_type: {}, arch: {}", platform_type, arch)]
 pub struct PlatformInfo {
     /// The platform type
     pub platform_type: PlatformType,

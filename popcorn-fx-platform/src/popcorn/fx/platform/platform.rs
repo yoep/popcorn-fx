@@ -1,3 +1,5 @@
+use log::trace;
+
 use crate::popcorn::fx::platform::platform_info::PlatformInfo;
 #[cfg(target_os = "linux")]
 use crate::popcorn::fx::platform::platform_linux::PlatformLinux;
@@ -67,6 +69,7 @@ impl Platform for PlatformServiceImpl {
 
 impl PlatformService for PlatformServiceImpl {
     fn platform_info(&self) -> &PlatformInfo {
+        trace!("Retrieving system information");
         &self.platform_info
     }
 }

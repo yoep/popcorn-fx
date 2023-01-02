@@ -5,7 +5,6 @@ import com.github.yoep.popcorn.PopcornFxManager;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleDelegate;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -23,8 +22,8 @@ import java.util.List;
 @Configuration
 public class SubtitleConfig {
     @Bean
-    public SubtitleService subtitleService(SettingsService settingsService) {
-        return new SubtitleServiceImpl(settingsService, new SubtitleDelegate() {
+    public SubtitleService subtitleService() {
+        return new SubtitleServiceImpl(new SubtitleDelegate() {
             static final Object mutex = new Object();
 
             @Override

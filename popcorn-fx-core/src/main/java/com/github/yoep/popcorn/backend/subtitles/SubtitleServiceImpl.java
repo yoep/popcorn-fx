@@ -3,9 +3,6 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
@@ -14,15 +11,11 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.List;
@@ -37,7 +30,6 @@ public class SubtitleServiceImpl implements SubtitleService {
     public static final String SUBTITLE_PROPERTY = "activeSubtitle";
 
     private final ObjectProperty<Subtitle> activeSubtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, null);
-    private final SettingsService settingsService;
     private final SubtitleDelegate delegate;
 
     //region Properties
@@ -113,61 +105,6 @@ public class SubtitleServiceImpl implements SubtitleService {
     public SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles) {
         Assert.notNull(subtitles, "subtitles cannot be null");
         return delegate.getDefaultOrInterfaceLanguage(subtitles);
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
-        initializeListeners();
-    }
-
-    private void initializeListeners() {
-        SubtitleSettings settings = getSubtitleSettings();
-
-        settings.addListener(evt -> {
-            if (SubtitleSettings.DIRECTORY_PROPERTY.equals(evt.getPropertyName())) {
-                // clean old directory
-                if (settings.isAutoCleaningEnabled())
-                    cleanCacheDirectory((File) evt.getOldValue());
-            }
-        });
-    }
-
-    //endregion
-
-    //region PreDestroy
-
-    @PreDestroy
-    private void destroy() {
-        var settings = getSubtitleSettings();
-
-        if (settings.isAutoCleaningEnabled() && settings.getDirectory().exists()) {
-            cleanCacheDirectory(settings.getDirectory());
-        }
-    }
-
-    //endregion
-
-    //region Functions
-
-    private SubtitleSettings getSubtitleSettings() {
-        return getSettings().getSubtitleSettings();
-    }
-
-    private ApplicationSettings getSettings() {
-        return settingsService.getSettings();
-    }
-
-    private void cleanCacheDirectory(File directory) {
-        try {
-            log.info("Cleaning subtitles directory {}", directory);
-            FileUtils.cleanDirectory(directory);
-        } catch (IOException ex) {
-            log.error(ex.getMessage(), ex);
-        }
     }
 
     //endregion

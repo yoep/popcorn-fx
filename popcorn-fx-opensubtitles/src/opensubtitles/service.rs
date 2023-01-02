@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::fs::File;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -418,6 +419,37 @@ impl SubtitleService for OpensubtitlesService {
                     Ok(e) => Ok(e)
                 }
             }
+        }
+    }
+}
+
+impl Drop for OpensubtitlesService {
+    fn drop(&mut self) {
+        let settings = self.settings.settings().subtitle();
+
+        if *settings.auto_cleaning_enabled() {
+            let path = settings.directory();
+            debug!("Cleaning subtitle directory {:?}", &path);
+
+            match fs::read_dir(&path) {
+                Ok(e) => {
+                    for file in e {
+                        let sub_path = file.expect("expected file entry to be valid").path();
+
+                        match fs::remove_file(&sub_path) {
+                            Ok(_) => {}
+                            Err(err) => {
+                                warn!("Failed to delete subtitle file {:?}, {}", &sub_path, err);
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    warn!("Failed to clean subtitle directory {:?}, {}", &path, err)
+                }
+            }
+        } else {
+            trace!("Skipping subtitle directory cleaning")
         }
     }
 }

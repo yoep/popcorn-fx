@@ -32,11 +32,11 @@ impl VttParser {
 }
 
 impl Parser for VttParser {
-    fn parse_file(&self, file: File) -> Vec<SubtitleCue> {
+    fn parse_file(&self, _file: File) -> Vec<SubtitleCue> {
         todo!()
     }
 
-    fn parse_string(&self, value: &String) -> Vec<SubtitleCue> {
+    fn parse_string(&self, _value: &String) -> Vec<SubtitleCue> {
         todo!()
     }
 

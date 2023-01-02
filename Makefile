@@ -30,6 +30,7 @@ prerequisites: ## Install the requirements for the application
 	$(info Installing Cargo plugins)
 	@cargo install cbindgen
 	@cargo install cargo-nextest
+	@cargo install grcov
 	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
 
 clean: prerequisites ## Clean the output

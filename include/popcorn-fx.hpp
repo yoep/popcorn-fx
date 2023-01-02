@@ -7,7 +7,7 @@
 
 
 /// The platform type
-enum class PlatformType : uint8_t {
+enum class PlatformType : int32_t {
   /// The windows platform
   Windows = 0,
   /// The macos platform
@@ -180,7 +180,7 @@ PopcornFX *new_popcorn_fx();
 SubtitleC *parse_subtitle(PopcornFX *popcorn_fx, const char *file_path);
 
 /// Retrieve the platform information
-PlatformInfoC platform_info(PopcornFX *popcorn_fx);
+PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);

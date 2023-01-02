@@ -17,7 +17,7 @@ public interface Application extends Library {
 
     PopcornFx new_popcorn_fx();
 
-    PlatformInfo.ByValue platform_info(PopcornFx instance);
+    PlatformInfo platform_info(PopcornFx instance);
 
     SubtitleInfoSet default_subtitle_options(PopcornFx instance);
 

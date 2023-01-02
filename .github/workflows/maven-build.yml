@@ -27,12 +27,15 @@ jobs:
         java-version: 17
         cache: 'maven'
     - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
     - name: Prepare build
       run: make prerequisites
     - name: Build
-      run: xvfb-run make test && make build
+      run: |
+        xvfb-run make test && make build
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./application/target/site/jacoco-aggregate/jacoco.xml

@@ -1,0 +1,27 @@
+[package]
+name = "popcorn-fx-platform"
+version = "0.4.0"
+edition = "2021"
+rust-version = "1.62"
+publish = false
+license-file = "../LICENSE"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4.17"
+safer-ffi = {version = "0.0.10", features = ["proc_macros", "alloc"]}
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.39.0", features = [
+    "Win32_System_Power",
+    "Win32_Foundation",
+    "Win32_System_Threading"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2.127"
+core-foundation = "0.9.3"

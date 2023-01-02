@@ -176,6 +176,10 @@ public class SubtitleManagerService {
             disableSubtitleTrack();
             return;
         }
+        // if the subtitle is the same, ignore this change
+        if (isSubtitleAlreadyActive(subtitleInfo)) {
+            return;
+        }
 
         final var imdbId = subtitleInfo.getImdbId();
         final var language = subtitleInfo.getLanguage();
@@ -183,7 +187,7 @@ public class SubtitleManagerService {
         // check if the subtitle is a custom subtitle and doesn't contain any files yet
         // if so, pause the playback and let the user pick a custom subtitle file
         // if the custom subtitle contains files, than the passed subtitle file is from the details components
-        if (subtitleInfo.isCustom() && subtitleInfo.getFiles().isEmpty()) {
+        if (subtitleInfo.isCustom()) {
             subtitleInfo = pickCustomSubtitleTrack();
 
             if (subtitleInfo == null)
@@ -225,6 +229,13 @@ public class SubtitleManagerService {
                 .ifPresent(VideoPlayback::resume);
 
         return subtitleInfo.get();
+    }
+
+    private boolean isSubtitleAlreadyActive(final SubtitleInfo subtitleInfo) {
+        return subtitleService.getActiveSubtitle()
+                .flatMap(Subtitle::getSubtitleInfo)
+                .filter(e -> e == subtitleInfo)
+                .isPresent();
     }
 
     private void disableSubtitleTrack() {

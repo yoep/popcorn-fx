@@ -32,7 +32,7 @@ after_includes = ""
 ############################ Code Style Options ################################
 
 braces = "SameLine"
-line_length = 100
+line_length = 160
 tab_width = 2
 documentation = true
 documentation_style = "auto"
@@ -137,11 +137,11 @@ bitflags = false
 ############## Options for How Your Rust library Should Be Parsed ##############
 
 [parse]
-parse_deps = false
-# include = []
+parse_deps = true
+include = ["popcorn-fx-core", "popcorn-fx-platform", "popcorn-fx-opensubtitles"]
 exclude = []
-clean = false
-extra_bindings = ["application-platform"]
+clean = true
+extra_bindings = []
 
 
 

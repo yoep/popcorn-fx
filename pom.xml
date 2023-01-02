@@ -16,14 +16,13 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>application-backend</module>
-        <module>application-media</module>
-        <module>application-platform</module>
-        <module>application-ui</module>
         <module>application</module>
+        <module>application-ui</module>
         <module>player-chromecast</module>
         <module>player-popcorn</module>
         <module>player-vlc</module>
+        <module>popcorn-fx-core</module>
+        <module>popcorn-fx-platform</module>
         <module>provider-anime</module>
         <module>shared-vlc</module>
         <module>torrent-frostwire</module>

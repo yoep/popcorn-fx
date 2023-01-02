@@ -51,7 +51,7 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
 
     @Override
     public boolean supports(String url) {
-        return !StringUtils.isEmpty(url);
+        return StringUtils.hasText(url);
     }
 
     @Override

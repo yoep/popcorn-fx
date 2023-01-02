@@ -1,0 +1,1516 @@
+{
+  "total_pages": 1,
+  "total_count": 29,
+  "per_page": 60,
+  "page": 1,
+  "data": [
+    {
+      "id": "6934706",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934706",
+        "language": "en",
+        "download_count": 28367,
+        "new_download_count": 727,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 1,
+        "ratings": 10.0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T14:23:13Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEBRip.x265-RARBG",
+        "comments": "✨\r\nNON-HI | Official subtitles, fully fixed and cleaned up | Works with all WEB/WEBRip/WEB-DL \r\nversions that run for Duration = 01:51:32 |\r\n\r\n------\r\nViolent.Night.2022.HDR.2160p.WEB.H265-SLOT\r\nViolent.Night.2022.1080p.WEBRip.x265-RARBG",
+        "legacy_subtitle_id": 9362144,
+        "uploader": {
+          "uploader_id": 82503,
+          "name": "scooby74",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/9362144",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/en/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888047,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.DV.2160p.WEB.H265-SLOT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934017",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934017",
+        "language": "en",
+        "download_count": 9823,
+        "new_download_count": 616,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T07:57:20Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "comments": "✨\r\nNON-HI | Official subtitles, fully fixed and cleaned up | Works with all HDRip/WEB/WEBRip/WEB-DL versions that run for Duration = 01:51:38 | Thanks to Vikram\r\n\r\n------\r\nViolent.Night.2022.720p.WEBRip.x264-GalaxyRG\r\nViolent.Night.2022.1080p.WEBRip.DD5.1.x264-GalaxyRG\r\nViolent.Night.2022.720p.WEBRip.x264-[YTS mx]\r\nViolent.Night.2022.1080p.WEBRip.x264-[YTS mx]\r\nViolent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX\r\nViolent.Night.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "legacy_subtitle_id": 9361692,
+        "uploader": {
+          "uploader_id": 82503,
+          "name": "scooby74",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/9361692",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/en/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888236,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6894271",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6894271",
+        "language": "ar",
+        "download_count": 4907,
+        "new_download_count": 35,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-11T20:31:39Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.720p.HDCAM-C1NEM4",
+        "comments": "",
+        "legacy_subtitle_id": 9350028,
+        "uploader": {
+          "uploader_id": 81918,
+          "name": "ghostwalker",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/ar/subtitles/legacy/9350028",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/ar/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7849956,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p.HDCAM-C1NEM4"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934705",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934705",
+        "language": "en",
+        "download_count": 4411,
+        "new_download_count": 77,
+        "hearing_impaired": true,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 1,
+        "ratings": 10.0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T14:22:55Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEBRip.x265-RARBG",
+        "comments": "✨\r\nHI | Official subtitles, fully fixed and cleaned up | Works with all WEB/WEBRip/WEB-DL \r\nversions that run for Duration = 01:51:32 |\r\n------\r\nViolent.Night.2022.HDR.2160p.WEB.H265-SLOT\r\nViolent.Night.2022.1080p.WEBRip.x265-RARBG",
+        "legacy_subtitle_id": 9362143,
+        "uploader": {
+          "uploader_id": 82503,
+          "name": "scooby74",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/9362143",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/en/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888048,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.DV.2160p.WEB.H265-SLOT-HI"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934289",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934289",
+        "language": "ar",
+        "download_count": 2908,
+        "new_download_count": 60,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T08:38:02Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.WEBRip.x264-YTS-YIFY",
+        "comments": "",
+        "legacy_subtitle_id": 9361725,
+        "uploader": {
+          "uploader_id": 81918,
+          "name": "ghostwalker",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/ar/subtitles/legacy/9361725",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/ar/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7887648,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.WEBRip.x264-YTS-YIFY"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934016",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934016",
+        "language": "en",
+        "download_count": 2636,
+        "new_download_count": 263,
+        "hearing_impaired": true,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T07:55:56Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "comments": "✨\r\nNON-HI | Official subtitles, fully fixed and cleaned up | Works with all HDRip/WEB/WEBRip/WEB-DL versions that run for Duration = 01:51:38 | Thanks to Vikram\r\n------\r\nViolent.Night.2022.720p.WEBRip.x264-GalaxyRG\r\nViolent.Night.2022.1080p.WEBRip.DD5.1.x264-GalaxyRG\r\nViolent.Night.2022.720p.WEBRip.x264-[YTS mx]\r\nViolent.Night.2022.1080p.WEBRip.x264-[YTS mx]\r\nViolent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX\r\nViolent.Night.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "legacy_subtitle_id": 9361690,
+        "uploader": {
+          "uploader_id": 82503,
+          "name": "scooby74",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/9361690",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/en/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888069,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX-HI"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934627",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934627",
+        "language": "es",
+        "download_count": 2390,
+        "new_download_count": 173,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T12:11:05Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent Night 2022 720p MA WEB-DL H264-FLUX",
+        "comments": "Violent Night 2022 720p MA WEB-DL H264-FLUX\r\nViolent.Night.2022.1080p.WEB-DL.DDP5.1.Atmos.H.264\r\nViolent.Night.2022.1080p.WEBRip.1400MB.DD5.1.x264-GalaxyRG\r\nViolent.Night.2022.720p.WEBRip.800MB.x264-GalaxyRG\r\nViolent.Night.2022.720p / 1080p WEBRip [YTS mx]",
+        "legacy_subtitle_id": 9362089,
+        "uploader": {
+          "uploader_id": 227813,
+          "name": "labed31445",
+          "rank": "Platinum Member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/es/subtitles/legacy/9362089",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/es/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7887970,
+            "cd_number": 1,
+            "file_name": "Violent Night 2022 720p MA WEB-DL H264-FLUX"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6940224",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6940224",
+        "language": "nl",
+        "download_count": 1794,
+        "new_download_count": 110,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-22T22:40:17Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.720p.WEBRip.x264.AAC-[YTS.MX].mp4",
+        "comments": "",
+        "legacy_subtitle_id": 9366548,
+        "uploader": {
+          "uploader_id": 227541,
+          "name": "piafini",
+          "rank": "Platinum Member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/9366548",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/nl/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7892857,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p.WEBRip.x264.AAC-[YTS.MX]"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6941529",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6941529",
+        "language": "nl",
+        "download_count": 1139,
+        "new_download_count": 94,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-23T13:46:03Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEBRip.x265-RARBG",
+        "comments": "",
+        "legacy_subtitle_id": 9367709,
+        "uploader": {
+          "uploader_id": null,
+          "name": "Anonymous",
+          "rank": "anonymous"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/9367709",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/nl/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7893996,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.1080p.WEBRip"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6935350",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6935350",
+        "language": "ro",
+        "download_count": 972,
+        "new_download_count": 47,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 2,
+        "ratings": 1.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T20:18:33Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.720p1080p.WEBRip.x264-[YTS.LT]",
+        "comments": "",
+        "legacy_subtitle_id": 9362586,
+        "uploader": {
+          "uploader_id": null,
+          "name": "Anonymous",
+          "rank": "anonymous"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/ro/subtitles/legacy/9362586",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/ro/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888508,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p1080p.WEBRip.x264-[YTS.LT]"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934768",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934768",
+        "language": "ar",
+        "download_count": 945,
+        "new_download_count": 26,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 25.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T15:58:52Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEBRip.mora.25r",
+        "comments": "متاح علي ريسيفرالاينيجما بلجين وموقع filmxy وعلي صفحات الويب باستخدام vpn https://www.filmxy.pw",
+        "legacy_subtitle_id": 9362214,
+        "uploader": {
+          "uploader_id": 105171,
+          "name": "morafbi",
+          "rank": "Platinum Member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/ar/subtitles/legacy/9362214",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/ar/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888113,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.1080p.WEBRip.mora.25r"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6940301",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6940301",
+        "language": "nl",
+        "download_count": 929,
+        "new_download_count": 130,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-22T23:51:41Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEBRip.x264.AAC5.1-[YTS.MX]",
+        "comments": "",
+        "legacy_subtitle_id": 9366586,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/9366586",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/nl/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7892935,
+            "cd_number": 1,
+            "file_name": "Violent Night 2022 Dutch"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6936376",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6936376",
+        "language": "hr",
+        "download_count": 816,
+        "new_download_count": 38,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-21T10:15:45Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent Night.1080p,720p.GalaxyRG+YIFY+RARGB",
+        "comments": "",
+        "legacy_subtitle_id": 9363423,
+        "uploader": {
+          "uploader_id": 229808,
+          "name": "gecmali",
+          "rank": "Bronze Member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/hr/subtitles/legacy/9363423",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/hr/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7889479,
+            "cd_number": 1,
+            "file_name": "Violent Night.1080p_720p"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6894651",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6894651",
+        "language": "el",
+        "download_count": 756,
+        "new_download_count": 108,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-12T02:33:06Z",
+        "ai_translated": false,
+        "machine_translated": true,
+        "release": "Violent Night",
+        "comments": "When a group of mercenaries attack the estate of a wealthy family, Santa Claus must step in to save the day (and Christmas).",
+        "legacy_subtitle_id": 9350201,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/el/subtitles/legacy/9350201",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/el/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7850277,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p.HDCAM-C1NEM4 (1)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934649",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934649",
+        "language": "sr",
+        "download_count": 527,
+        "new_download_count": 33,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T12:40:31Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.720p.WEBRip.800MB.x264-GalaxyRG",
+        "comments": "",
+        "legacy_subtitle_id": 9362101,
+        "uploader": {
+          "uploader_id": 227974,
+          "name": "bambula_",
+          "rank": "Subtitle Translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/sr/subtitles/legacy/9362101",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/sr/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7887994,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.WEBRip.lat"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6935349",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6935349",
+        "language": "ro",
+        "download_count": 475,
+        "new_download_count": 52,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 2,
+        "ratings": 1.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T20:16:15Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.2160p.WEB-DL.DDP5.1.Atmos.MKV.x265-SLOT",
+        "comments": "",
+        "legacy_subtitle_id": 9362583,
+        "uploader": {
+          "uploader_id": null,
+          "name": "Anonymous",
+          "rank": "anonymous"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/ro/subtitles/legacy/9362583",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/ro/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888507,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.2160p.WEB-DL.DDP5.1.Atmos.MKV"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6944261",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6944261",
+        "language": "nl",
+        "download_count": 426,
+        "new_download_count": 64,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-24T18:35:46Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "comments": "Originele vertaling: Icewind\r\nBewerking: Independent Releases",
+        "legacy_subtitle_id": 9368930,
+        "uploader": {
+          "uploader_id": 227552,
+          "name": "independent-releases",
+          "rank": "Gold member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/9368930",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/nl/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7895997,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.1080p.WEB-DL.DDP5.1.Atmos.H"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6940062",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6940062",
+        "language": "cs",
+        "download_count": 264,
+        "new_download_count": 24,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 1,
+        "ratings": 10.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-22T20:40:07Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent Night.cze",
+        "comments": "",
+        "legacy_subtitle_id": 9366412,
+        "uploader": {
+          "uploader_id": null,
+          "name": "Anonymous",
+          "rank": "anonymous"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/cs/subtitles/legacy/9366412",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/cs/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7892693,
+            "cd_number": 1,
+            "file_name": "Violent-Night"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6939962",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6939962",
+        "language": "de",
+        "download_count": 189,
+        "new_download_count": 46,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-22T18:33:06Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.MP4.x265-DVSUX_Hugi-CH",
+        "comments": "",
+        "legacy_subtitle_id": 9366350,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/de/subtitles/legacy/9366350",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/de/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7892610,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.MP4"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6936923",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6936923",
+        "language": "tr",
+        "download_count": 170,
+        "new_download_count": 27,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-21T14:51:53Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEBRip.x265-RARBG",
+        "comments": "Google çeviridir",
+        "legacy_subtitle_id": 9364100,
+        "uploader": {
+          "uploader_id": null,
+          "name": "Anonymous",
+          "rank": "anonymous"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/tr/subtitles/legacy/9364100",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/tr/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7889973,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.1080p.WEBRip.x265-RARBG"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934651",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934651",
+        "language": "sr",
+        "download_count": 161,
+        "new_download_count": 5,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T12:41:30Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.720p.WEBRip.800MB.x264-GalaxyRG",
+        "comments": "",
+        "legacy_subtitle_id": 9362103,
+        "uploader": {
+          "uploader_id": 227974,
+          "name": "bambula_",
+          "rank": "Subtitle Translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/sr/subtitles/legacy/9362103",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/sr/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7887995,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.WEBRip.cyr UTF-8"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6938220",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6938220",
+        "language": "sk",
+        "download_count": 150,
+        "new_download_count": 11,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-22T02:09:22Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "comments": "my own subtitles",
+        "legacy_subtitle_id": 9365001,
+        "uploader": {
+          "uploader_id": 379505,
+          "name": "misiaq88",
+          "rank": "Sub leecher"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/sk/subtitles/legacy/9365001",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/sk/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7891000,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX_SK"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6935531",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6935531",
+        "language": null,
+        "download_count": 148,
+        "new_download_count": 8,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T22:46:37Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "violent night 2022 720p / 1080p ma web-dl h264-flux\", 720p / 1080p webrip galaxyrg, 1080p webrip rar",
+        "comments": "tamabin te amo",
+        "legacy_subtitle_id": 9362732,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com//subtitles/legacy/9362732",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com//movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888689,
+            "cd_number": 1,
+            "file_name": "Violent Night 2022 720p MA WEB-DL H264-FLUX"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6944076",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6944076",
+        "language": "zh-CN",
+        "download_count": 107,
+        "new_download_count": 12,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 24.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-24T15:36:29Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.2160p.WEB-DL.DDP5.1.Atmos.H.265-FLUX.chs",
+        "comments": "",
+        "legacy_subtitle_id": 9368810,
+        "uploader": {
+          "uploader_id": null,
+          "name": "Anonymous",
+          "rank": "anonymous"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/zh-CN/subtitles/legacy/9368810",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/zh-CN/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7895830,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.2160p.WEB-DL.DDP5.1.Atmos.H.265-FLUX"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6934650",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6934650",
+        "language": "sr",
+        "download_count": 104,
+        "new_download_count": 4,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T12:41:01Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.720p.WEBRip.800MB.x264-GalaxyRG",
+        "comments": "",
+        "legacy_subtitle_id": 9362102,
+        "uploader": {
+          "uploader_id": 227974,
+          "name": "bambula_",
+          "rank": "Subtitle Translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/sr/subtitles/legacy/9362102",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/sr/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7887993,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.WEBRip.cyr"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6939369",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6939369",
+        "language": "th",
+        "download_count": 51,
+        "new_download_count": 5,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-22T11:03:16Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.1080p.WEBRip.1400MB.DD5.1.x264-GalaxyRG",
+        "comments": "Original Anan P. translation. Trans. December 2022. Suitable for Web-Rip copy. Enjoy.",
+        "legacy_subtitle_id": 9365928,
+        "uploader": {
+          "uploader_id": 228953,
+          "name": "restlesswest",
+          "rank": "Gold member"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/th/subtitles/legacy/9365928",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/th/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7892074,
+            "cd_number": 1,
+            "file_name": "Violent Night (2022)(1080p).th"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6942566",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6942566",
+        "language": "vi",
+        "download_count": 36,
+        "new_download_count": 7,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 0.0,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-23T20:19:49Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent Night",
+        "comments": "",
+        "legacy_subtitle_id": 9368048,
+        "uploader": {
+          "uploader_id": 3282,
+          "name": "os-auto",
+          "rank": "Application Developers"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/vi/subtitles/legacy/9368048",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/vi/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7894459,
+            "cd_number": 1,
+            "file_name": "[WTRANZ] Violent Night (2022) - WEB"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6935265",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6935265",
+        "language": "nl",
+        "download_count": 0,
+        "new_download_count": 196,
+        "hearing_impaired": true,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": null,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-20T18:05:19Z",
+        "ai_translated": true,
+        "machine_translated": false,
+        "release": "1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "comments": "✨\r\nNON-HI | Official subtitles, fully fixed and cleaned up | Works with all HDRip/WEB/WEBRip/WEB-DL versions that run for Duration = 01:51:38 | Thanks to Vikram\r\n------\r\nViolent.Night.2022.720p.WEBRip.x264-GalaxyRG\r\nViolent.Night.2022.1080p.WEBRip.DD5.1.x264-GalaxyRG\r\nViolent.Night.2022.720p.WEBRip.x264-[YTS mx]\r\nViolent.Night.2022.1080p.WEBRip.x264-[YTS mx]\r\nViolent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX\r\nViolent.Night.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX",
+        "legacy_subtitle_id": null,
+        "uploader": {
+          "uploader_id": 82503,
+          "name": "scooby74",
+          "rank": "translator"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/nl/subtitles/legacy/",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/nl/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7888423,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.720p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX-HI"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6942904",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6942904",
+        "language": "da",
+        "download_count": 0,
+        "new_download_count": 21,
+        "hearing_impaired": false,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0.0,
+        "from_trusted": false,
+        "foreign_parts_only": false,
+        "upload_date": "2022-12-24T01:21:32Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Violent.Night.2022.WEBRip.1080p.oliv2682.da",
+        "comments": "This is the correct version of the WEBRipped version of Violent Night translated to Danish",
+        "legacy_subtitle_id": 9368220,
+        "uploader": {
+          "uploader_id": null,
+          "name": "Anonymous",
+          "rank": "anonymous"
+        },
+        "feature_details": {
+          "feature_id": 1417697,
+          "feature_type": "Movie",
+          "year": 2022,
+          "title": "Violent Night",
+          "movie_name": "2022 - Violent Night",
+          "imdb_id": 12003946,
+          "tmdb_id": 899112
+        },
+        "url": "https://www.opensubtitles.com/da/subtitles/legacy/9368220",
+        "related_links": [
+          {
+            "label": "All subtitles for Violent Night",
+            "url": "https://www.opensubtitles.com/da/movies/2022-violent-night",
+            "img_url": "https://s9.osdb.link/features/7/9/6/1417697.jpg"
+          }
+        ],
+        "files": [
+          {
+            "file_id": 7894817,
+            "cd_number": 1,
+            "file_name": "Violent.Night.2022.WEBRip.1080p.oliv2682.da"
+          }
+        ]
+      }
+    }
+  ]
+}

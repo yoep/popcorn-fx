@@ -13,3 +13,8 @@ logging:
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
     org.springframework: INFO
+
+popcorn:
+  logging:
+    level:
+      root: Trace

@@ -36,11 +36,11 @@ public class TrackFlags {
     public static TrackFlags from(SubtitleText line) {
         int flags = 0;
 
-        if (line.italic())
+        if (line.isItalic())
             flags += 1;
-        if (line.bold())
+        if (line.isBold())
             flags += 2;
-        if (line.underline())
+        if (line.isUnderline())
             flags += 4;
 
         return new TrackFlags(flags);

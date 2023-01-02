@@ -10,5 +10,7 @@ which couldn't be relied upon with JNA.
 The following tools are recommended to be used within Cargo:
 
 - [cargo-edit](https://github.com/killercup/cargo-edit)
+- [cargo-nextest](https://github.com/nextest-rs/nextest)
+- [tarpaulin](https://github.com/xd009642/tarpaulin) (_only supported on linux_)
 
 _These plugins can also be installed through Make with `make tooling`_

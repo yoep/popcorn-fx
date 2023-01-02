@@ -51,8 +51,8 @@ import java.util.concurrent.TimeoutException;
 @Service
 @RequiredArgsConstructor
 public class LoadTorrentService extends AbstractListenerService<LoadTorrentListener> {
-    private static final int RETRIEVE_SUBTITLES_TIMEOUT = 10;
-    private static final int DOWNLOAD_SUBTITLE_TIMEOUT = 20;
+    private static final int RETRIEVE_SUBTITLES_TIMEOUT = 15;
+    private static final int DOWNLOAD_SUBTITLE_TIMEOUT = 30;
 
     private final TorrentService torrentService;
     private final TorrentStreamService torrentStreamService;
@@ -319,7 +319,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         try {
             var subtitle = subtitleService.downloadAndParse(subtitleInfo, SubtitleMatcher.from(filename, quality))
                     .exceptionally(throwable -> {
-                        log.warn("Failed to load torrent subtitle {}, {}", subtitleInfo, throwable.getMessage());
+                        log.warn("Failed to load torrent subtitle {}, {}", subtitleInfo, throwable.getMessage(), throwable);
                         return Subtitle.none();
                     })
                     .get(DOWNLOAD_SUBTITLE_TIMEOUT, TimeUnit.SECONDS);

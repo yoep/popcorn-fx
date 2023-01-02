@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleServiceImpl;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -74,6 +75,11 @@ public class SubtitleConfig {
             @Override
             public Subtitle parse(String filePath) {
                 return Application.INSTANCE.parse_subtitle(PopcornFxManager.INSTANCE.fxInstance(), filePath);
+            }
+
+            @Override
+            public String convert(Subtitle subtitle, SubtitleType type) {
+                return Application.INSTANCE.subtitle_to_raw(PopcornFxManager.INSTANCE.fxInstance(), subtitle, type);
             }
         });
     }

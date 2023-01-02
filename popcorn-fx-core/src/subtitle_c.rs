@@ -153,6 +153,23 @@ impl SubtitleC {
             cues_capacity,
         }
     }
+
+    pub fn to_subtitle(&self) -> Subtitle {
+        let info = self.info.clone().to_subtitle();
+        let cues = unsafe { Vec::from_raw_parts(self.cues, self.number_of_cues as usize, self.cues_capacity as usize) };
+        let mut file = None;
+
+        if !self.file.is_null() {
+            file = Some(from_c_string(self.file));
+        }
+
+        Subtitle::new(
+            cues.iter()
+                .map(|e| e.to_cue())
+                .collect(),
+            Some(info),
+            file)
+    }
 }
 
 #[repr(C)]
@@ -182,6 +199,21 @@ impl SubtitleCueC {
             capacity,
         }
     }
+
+    pub fn to_cue(&self) -> SubtitleCue {
+        let id = from_c_string(self.id);
+        let start_time = self.start_time.clone();
+        let end_time = self.end_time.clone();
+        let lines = unsafe { Vec::from_raw_parts(self.lines, self.number_of_lines as usize, self.capacity as usize) };
+
+        SubtitleCue::new(
+            id,
+            start_time,
+            end_time,
+            lines.iter()
+                .map(|e| e.to_line())
+                .collect())
+    }
 }
 
 #[repr(C)]
@@ -205,6 +237,14 @@ impl SubtitleLineC {
             cap: capacity,
         }
     }
+
+    pub fn to_line(&self) -> SubtitleLine {
+        let texts = unsafe { Vec::from_raw_parts(self.texts, self.len as usize, self.cap as usize) };
+
+        SubtitleLine::new(texts.iter()
+            .map(|e| e.to_text())
+            .collect())
+    }
 }
 
 #[repr(C)]
@@ -224,5 +264,13 @@ impl StyledTextC {
             bold: text.bold().clone(),
             underline: text.underline().clone(),
         }
+    }
+
+    pub fn to_text(&self) -> StyledText {
+        let italic = self.italic.clone();
+        let bold = self.bold.clone();
+        let underline = self.underline.clone();
+
+        StyledText::new(from_c_string(self.text), italic, bold, underline)
     }
 }

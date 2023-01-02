@@ -6,8 +6,8 @@ use std::path::Path;
 
 use log::{debug, error, info};
 
-use popcorn_fx_core::{EpisodeC, from_c_string, into_c_owned, MovieC, ShowC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, VecSubtitleInfoC};
-use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+use popcorn_fx_core::{EpisodeC, from_c_string, into_c_owned, MovieC, ShowC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecSubtitleInfoC};
+use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::platform_info_c::PlatformInfoC;
 
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
@@ -164,6 +164,19 @@ pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c
         Err(e) => {
             error!("File parsing failed, {}", e);
             ptr::null_mut()
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleC, output_type: &SubtitleType) -> *const c_char {
+    let sub = subtitle.to_subtitle();
+
+    match popcorn_fx.subtitle_service().convert(sub, output_type.clone()) {
+        Ok(e) => to_c_string(e),
+        Err(e) => {
+            error!("Failed to convert the subtitle, {}", e);
+            ptr::null()
         }
     }
 }

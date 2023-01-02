@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 
 import java.util.List;
 
@@ -22,4 +23,6 @@ public interface SubtitleDelegate {
     Subtitle download(SubtitleInfo subtitle, SubtitleMatcher matcher);
 
     Subtitle parse(String filePath);
+
+    String convert(Subtitle subtitle, SubtitleType type);
 }

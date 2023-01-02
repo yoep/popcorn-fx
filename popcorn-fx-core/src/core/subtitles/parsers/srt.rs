@@ -1,14 +1,15 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 
-use chrono::{NaiveDateTime, NaiveTime, Timelike};
+use chrono::NaiveTime;
 use derive_more::Display;
 use log::{trace, warn};
 use regex::Regex;
 
 use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
 use crate::core::subtitles::errors::SubtitleParseError;
-use crate::core::subtitles::parsers::{Parser, StyleParser};
+use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
+use crate::core::subtitles::parsers::utils::{time_from_millis, time_to_millis};
 
 const TIME_SEPARATOR: &str = "-->";
 const TIME_PATTERN: &str = "(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})";
@@ -91,7 +92,7 @@ impl SrtParser {
                     })
                     .map(|e| {
                         match e {
-                            Ok(time) => SrtParser::convert_to_millis(&time),
+                            Ok(time) => time_to_millis(&time),
                             Err(err) => {
                                 warn!("Start time is invalid for line {}, {}, value: {}", line_index, err, line);
                                 0
@@ -109,7 +110,7 @@ impl SrtParser {
                     })
                     .map(|e| {
                         match e {
-                            Ok(time) => Self::convert_to_millis(&time),
+                            Ok(time) => time_to_millis(&time),
                             Err(err) => {
                                 warn!("End time is invalid for line {}, {}, value: {}", line_index, err, line);
                                 0
@@ -127,25 +128,10 @@ impl SrtParser {
         };
     }
 
-    fn convert_to_millis(time: &NaiveTime) -> u64 {
-        let hour = time.hour() as u64;
-        let minutes = (hour * 60) + (time.minute() as u64);
-        let seconds = (minutes * 60) + (time.second() as u64);
-        let millis = time.nanosecond() as u64;
-
-        (seconds * 1000) + (millis / 1000000)
-    }
-
     fn convert_time_to_string(time: NaiveTime) -> String {
         time.format(TIME_FORMAT)
             .to_string()
             .replace(".", ",")
-    }
-
-    fn from_millis(time: u64) -> NaiveTime {
-        NaiveDateTime::from_timestamp_millis(time as i64)
-            .expect("Time went in the past")
-            .time()
     }
 }
 
@@ -161,22 +147,21 @@ impl Parser for SrtParser {
     }
 
     fn parse_raw(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
-        let newline = "\n";
         let mut output = String::new();
 
         for cue in cues {
             let id = cue.id().clone();
-            let start_time = Self::from_millis(cue.start_time().clone());
-            let end_time = Self::from_millis(cue.end_time().clone());
+            let start_time = time_from_millis(cue.start_time().clone());
+            let end_time = time_from_millis(cue.end_time().clone());
 
             output.push_str(id.as_str());
-            output.push_str(newline);
+            output.push_str(NEWLINE);
             output.push_str(format!("{} {} {}", Self::convert_time_to_string(start_time), TIME_SEPARATOR, Self::convert_time_to_string(end_time)).as_str());
-            output.push_str(newline);
+            output.push_str(NEWLINE);
 
             for line in cue.lines().iter() {
                 output.push_str(self.style_parser.to_line_string(line).as_str());
-                output.push_str(newline);
+                output.push_str(NEWLINE);
             }
         }
 

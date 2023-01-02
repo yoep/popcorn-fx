@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
+import com.sun.jna.FromNativeContext;
+import com.sun.jna.NativeMapped;
 import lombok.Getter;
 
 import java.util.Arrays;
@@ -8,7 +10,7 @@ import java.util.Arrays;
  * The subtitle format type from which it was parsed.
  */
 @Getter
-public enum SubtitleType {
+public enum SubtitleType implements NativeMapped {
     SRT("srt"),
     VTT("vtt");
 
@@ -30,5 +32,20 @@ public enum SubtitleType {
                 .filter(e -> e.getExtension().equals(extension))
                 .findFirst()
                 .orElseThrow(() -> new EnumConstantNotPresentException(SubtitleType.class, extension));
+    }
+
+    @Override
+    public Object fromNative(Object nativeValue, FromNativeContext context) {
+        return SubtitleType.values()[(Integer) nativeValue];
+    }
+
+    @Override
+    public Object toNative() {
+        return ordinal();
+    }
+
+    @Override
+    public Class<?> nativeType() {
+        return Integer.class;
     }
 }

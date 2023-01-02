@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::core::media::model::{Episode, Movie, Show};
 use crate::core::subtitles::errors::SubtitleError;
 use crate::core::subtitles::matcher::SubtitleMatcher;
-use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
+use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use crate::observer::Observer;
 
 /// The specialized subtitle result.
@@ -54,4 +54,8 @@ pub trait SubtitleService {
     /// Select one of the available subtitles.
     /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
     fn select_or_default(&self, subtitles: &Vec<SubtitleInfo>) -> SubtitleInfo;
+    
+    /// Convert the given [Subtitle] back to a raw format of [SubtitleType].
+    /// It returns the raw format string for the given type on success, else the error.
+    fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String>;
 }

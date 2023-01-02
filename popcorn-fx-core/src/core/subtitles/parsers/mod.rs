@@ -9,6 +9,9 @@ pub use crate::core::subtitles::parsers::vtt::VttParser;
 mod srt;
 mod vtt;
 mod style_parser;
+mod utils;
+
+const NEWLINE: &str = "\n";
 
 /// A subtitle parser which is able to convert a [File] into a [Subtitle] or visa-versa.
 pub trait Parser: Send + Sync {

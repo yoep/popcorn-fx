@@ -51,8 +51,8 @@ import java.util.concurrent.TimeoutException;
 @Service
 @RequiredArgsConstructor
 public class LoadTorrentService extends AbstractListenerService<LoadTorrentListener> {
-    private static final int RETRIEVE_SUBTITLES_TIMEOUT = 10;
-    private static final int DOWNLOAD_SUBTITLE_TIMEOUT = 20;
+    private static final int RETRIEVE_SUBTITLES_TIMEOUT = 15;
+    private static final int DOWNLOAD_SUBTITLE_TIMEOUT = 30;
 
     private final TorrentService torrentService;
     private final TorrentStreamService torrentStreamService;

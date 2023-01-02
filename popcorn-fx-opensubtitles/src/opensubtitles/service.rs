@@ -406,6 +406,20 @@ impl SubtitleService for OpensubtitlesService {
         debug!("Selected subtitle {:?}", &subtitle);
         subtitle
     }
+
+    fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String> {
+        trace!("Retrieving compatible parser for output type {}", &output_type);
+        match self.parsers.get(&output_type) {
+            None => Err(SubtitleError::TypeNotSupported(output_type)),
+            Some(parser) => {
+                debug!("Converting subtitle to raw format of {} for {}", &output_type, subtitle);
+                match parser.parse_raw(subtitle.cues()) {
+                    Err(err) => Err(SubtitleError::ConversionFailed(output_type.clone(), err.to_string())),
+                    Ok(e) => Ok(e)
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -416,6 +430,7 @@ mod test {
     use popcorn_fx_core::core::config::*;
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::{English, French};
+    use popcorn_fx_core::core::subtitles::model::SubtitleType::Vtt;
     use popcorn_fx_core::test::{copy_test_file, init_logger, read_test_file};
 
     use super::*;
@@ -544,9 +559,17 @@ mod test {
     #[tokio::test]
     async fn test_filename_subtitles() {
         init_logger();
-        let settings = Arc::new(Application::default());
+        let (server, settings) = start_mock_server();
         let filename = "House.of.the.Dragon.S01E01.HMAX.WEBRip.x264-XEN0N.mkv".to_string();
         let service = OpensubtitlesService::new(&settings);
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/subtitles")
+                .query_param(FILENAME_PARAM_KEY, filename.clone());
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_test_file("search_result_episode.json"));
+        });
 
         let result = service.file_subtitles(&filename)
             .await;
@@ -742,5 +765,33 @@ mod test {
         let result = OpensubtitlesService::subtitle_file_name(&file, &attributes);
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_convert_to_vtt() {
+        let subtitle = Subtitle::new(
+            vec![SubtitleCue::new(
+                "1".to_string(),
+                45000,
+                46890,
+                vec![SubtitleLine::new(vec![
+                    StyledText::new("lorem".to_string(), false, false, true)
+                ])],
+            )],
+            None,
+            None,
+        );
+        let settings = Arc::new(Application::default());
+        let service = OpensubtitlesService::new(&settings);
+        let expected_result = "WEBVTT
+
+1
+00:00:45.000 --> 00:00:46.890
+<u>lorem</u>
+".to_string();
+
+        let result = service.convert(subtitle, Vtt);
+
+        assert_eq!(expected_result, result.expect("Expected the conversion to have succeeded"))
     }
 }

@@ -9,9 +9,6 @@ import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
-import com.github.yoep.popcorn.backend.subtitles.parser.Parser;
-import com.github.yoep.popcorn.backend.subtitles.parser.SrtParser;
-import com.github.yoep.popcorn.backend.subtitles.parser.VttParser;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -23,18 +20,16 @@ import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
-
-import static java.util.Arrays.asList;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -42,7 +37,6 @@ public class SubtitleServiceImpl implements SubtitleService {
     public static final String SUBTITLE_PROPERTY = "activeSubtitle";
 
     private final ObjectProperty<Subtitle> activeSubtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, null);
-    private final Collection<Parser> parsers = asList(new SrtParser(), new VttParser());
     private final SettingsService settingsService;
     private final SubtitleDelegate delegate;
 
@@ -109,11 +103,10 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Override
     public InputStream convert(Subtitle subtitle, SubtitleType type) {
         Objects.requireNonNull(subtitle, "subtitle cannot be null");
-        return parsers.stream()
-                .filter(e -> e.support(type))
-                .findFirst()
-                .map(e -> e.parse(subtitle.getCues()))
-                .orElseThrow(() -> new SubtitleParsingException("No parser found for type " + type));
+        var output = delegate.convert(subtitle, type);
+        log.info("Convert to {}", output);
+
+        return new ByteArrayInputStream(output.getBytes());
     }
 
     @Override

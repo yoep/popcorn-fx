@@ -21,10 +21,11 @@ const SUBTITLE_TYPES: [SubtitleType; 2] = [
     SubtitleType::Vtt
 ];
 
+#[repr(i32)]
 #[derive(Debug, Display, PartialEq, Eq, Clone, Hash)]
 pub enum SubtitleType {
-    Srt,
-    Vtt,
+    Srt = 0,
+    Vtt = 1,
 }
 
 impl SubtitleType {

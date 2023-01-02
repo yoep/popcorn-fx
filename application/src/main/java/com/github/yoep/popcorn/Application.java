@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import com.github.yoep.popcorn.platform.PlatformInfo;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
@@ -31,6 +32,8 @@ public interface Application extends Library {
     Subtitle download_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
 
     Subtitle parse_subtitle(PopcornFx instance, String filePath);
+    
+    String subtitle_to_raw(PopcornFx instance, Subtitle subtitle, SubtitleType type);
 
     void disable_screensaver(PopcornFx instance);
 

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 
-use chrono::{NaiveTime, Timelike};
+use chrono::{NaiveDateTime, NaiveTime, Timelike};
 use derive_more::Display;
 use log::{trace, warn};
 use regex::Regex;
@@ -10,6 +10,7 @@ use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
 use crate::core::subtitles::errors::SubtitleParseError;
 use crate::core::subtitles::parsers::{Parser, StyleParser};
 
+const TIME_SEPARATOR: &str = "-->";
 const TIME_PATTERN: &str = "(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})";
 const TIME_FORMAT: &str = "%H:%M:%S.%3f";
 
@@ -90,7 +91,7 @@ impl SrtParser {
                     })
                     .map(|e| {
                         match e {
-                            Ok(time) => SrtParser::to_millis(&time),
+                            Ok(time) => SrtParser::convert_to_millis(&time),
                             Err(err) => {
                                 warn!("Start time is invalid for line {}, {}, value: {}", line_index, err, line);
                                 0
@@ -108,7 +109,7 @@ impl SrtParser {
                     })
                     .map(|e| {
                         match e {
-                            Ok(time) => Self::to_millis(&time),
+                            Ok(time) => Self::convert_to_millis(&time),
                             Err(err) => {
                                 warn!("End time is invalid for line {}, {}, value: {}", line_index, err, line);
                                 0
@@ -126,13 +127,25 @@ impl SrtParser {
         };
     }
 
-    //noinspection RsSelfConvention
-    fn to_millis(time: &NaiveTime) -> u32 {
-        let hour = time.hour();
-        let minutes = (hour * 60) + time.minute();
-        let seconds = (minutes * 60) + time.second();
+    fn convert_to_millis(time: &NaiveTime) -> u64 {
+        let hour = time.hour() as u64;
+        let minutes = (hour * 60) + (time.minute() as u64);
+        let seconds = (minutes * 60) + (time.second() as u64);
+        let millis = time.nanosecond() as u64;
 
-        (seconds * 1000) + (time.nanosecond() / 1000000)
+        (seconds * 1000) + (millis / 1000000)
+    }
+
+    fn convert_time_to_string(time: NaiveTime) -> String {
+        time.format(TIME_FORMAT)
+            .to_string()
+            .replace(".", ",")
+    }
+
+    fn from_millis(time: u64) -> NaiveTime {
+        NaiveDateTime::from_timestamp_millis(time as i64)
+            .expect("Time went in the past")
+            .time()
     }
 }
 
@@ -147,8 +160,27 @@ impl Parser for SrtParser {
         self.parse(&mut reader)
     }
 
-    fn parse_raw(&self, _cues: &Vec<SubtitleCue>) -> Result<BufReader<String>, SubtitleParseError> {
-        todo!()
+    fn parse_raw(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+        let newline = "\n";
+        let mut output = String::new();
+
+        for cue in cues {
+            let id = cue.id().clone();
+            let start_time = Self::from_millis(cue.start_time().clone());
+            let end_time = Self::from_millis(cue.end_time().clone());
+
+            output.push_str(id.as_str());
+            output.push_str(newline);
+            output.push_str(format!("{} {} {}", Self::convert_time_to_string(start_time), TIME_SEPARATOR, Self::convert_time_to_string(end_time)).as_str());
+            output.push_str(newline);
+
+            for line in cue.lines().iter() {
+                output.push_str(self.style_parser.to_line_string(line).as_str());
+                output.push_str(newline);
+            }
+        }
+
+        Ok(output)
     }
 }
 
@@ -262,5 +294,25 @@ The <i>Black Pearl</i> is yours.".as_bytes());
         let result = stage.next();
 
         assert_eq!(ParserStage::FINISH, result)
+    }
+
+    #[test]
+    fn test_parse_raw() {
+        init_logger();
+        let cues = vec![SubtitleCue::new(
+            "1".to_string(),
+            30000,
+            48100,
+            vec![SubtitleLine::new(
+                vec![StyledText::new("lorem".to_string(), true, false, false)])])];
+        let parser = SrtParser::new();
+        let expected_result = "1
+00:00:30,000 --> 00:00:48,100
+<i>lorem</i>
+".to_string();
+
+        let result = parser.parse_raw(&cues);
+
+        assert_eq!(expected_result, result.expect("Expected the parse_raw to succeed"))
     }
 }

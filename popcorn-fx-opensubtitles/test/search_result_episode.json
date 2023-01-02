@@ -1,0 +1,54 @@
+{
+  "total_pages": 1,
+  "total_count": 1,
+  "per_page": 10,
+  "page": 1,
+  "data": [
+    {
+      "id": "6089995",
+      "type": "subtitle",
+      "attributes": {
+        "subtitle_id": "6089995",
+        "language": "en",
+        "download_count": 1192,
+        "new_download_count": 5,
+        "hearing_impaired": true,
+        "hd": true,
+        "fps": 23.976,
+        "votes": 0,
+        "ratings": 0,
+        "from_trusted": true,
+        "foreign_parts_only": false,
+        "upload_date": "2021-10-12T16:11:33Z",
+        "ai_translated": false,
+        "machine_translated": false,
+        "release": "Rick.and.Morty.S05E00.The.Great.Yokai.Battle.of.Akihabara.1080p.WEBRip.x264-BAE",
+        "comments": "For hearing impaired only",
+        "legacy_subtitle_id": 8838280,
+        "uploader": {
+          "uploader_id": 216980,
+          "name": "oakislandtk",
+          "rank": "Trusted member"
+        },
+        "feature_details": {
+          "feature_id": 14104,
+          "feature_type": "Tvshow",
+          "year": 2013,
+          "title": "Rick and Morty",
+          "movie_name": "2013 - Rick and Morty",
+          "imdb_id": 2861424,
+          "tmdb_id": 60625
+        },
+        "url": "https://www.opensubtitles.com/en/subtitles/legacy/8838280",
+        "related_links": null,
+        "files": [
+          {
+            "file_id": 7039486,
+            "cd_number": 1,
+            "file_name": "Rick.and.Morty.S05E00.The.Great.Yokai.Battle.of.Akihabara.1080p.WEBRip.x264-BAE"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -23,11 +23,11 @@ public class SubtitleCue extends Structure implements Comparable<SubtitleCue>, C
     /**
      * The start time of the cue in millis.
      */
-    public int startTime;
+    public long startTime;
     /**
      * The end time of the cue in millis.
      */
-    public int endTime;
+    public long endTime;
 
     public SubtitleLine.ByReference lineRef;
     public int len;

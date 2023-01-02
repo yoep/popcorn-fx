@@ -15,8 +15,8 @@ use popcorn_fx_core::core::subtitles::errors::SubtitleError;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleFile, SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::subtitles::parsers::Parser;
-use popcorn_fx_core::core::subtitles::parsers::srt::SrtParser;
+use popcorn_fx_core::core::subtitles::parsers::{Parser, VttParser};
+use popcorn_fx_core::core::subtitles::parsers::SrtParser;
 use popcorn_fx_core::core::subtitles::service::{Result, SubtitleService};
 
 use crate::opensubtitles::model::*;
@@ -41,6 +41,7 @@ impl OpensubtitlesService {
     pub fn new(settings: &Arc<Application>) -> Self {
         let mut default_headers = HeaderMap::new();
         let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
+        let vtt_parser: Box<dyn Parser> = Box::new(VttParser::new());
         let api_token = settings.properties().subtitle().api_token();
         let user_agent = settings.properties().subtitle().user_agent();
 
@@ -55,7 +56,8 @@ impl OpensubtitlesService {
                 .unwrap(),
             active_subtitle: None,
             parsers: HashMap::from([
-                (SubtitleType::Srt, srt_parser)
+                (SubtitleType::Srt, srt_parser),
+                (SubtitleType::Vtt, vtt_parser)
             ]),
         }
     }
@@ -418,6 +420,19 @@ mod test {
 
     use super::*;
 
+    fn start_mock_server() -> (MockServer, Arc<Application>) {
+        let server = MockServer::start();
+        let settings = Arc::new(Application::new(
+            PopcornProperties::new(SubtitleProperties::new(
+                server.url(""),
+                String::new(),
+                String::new(),
+            )),
+            PopcornSettings::default()));
+
+        (server, settings)
+    }
+
     #[tokio::test]
     async fn test_update_active_subtitle_should_update_the_subtitle() {
         init_logger();
@@ -455,14 +470,7 @@ mod test {
     #[tokio::test]
     async fn test_movie_subtitles_search_2_subtitles() {
         init_logger();
-        let server = MockServer::start();
-        let settings = Arc::new(Application::new(
-            PopcornProperties::new(SubtitleProperties::new(
-                server.url(""),
-                String::new(),
-                String::new(),
-            )),
-            PopcornSettings::default()));
+        let (server, settings) = start_mock_server();
         let movie1 = Movie::new("tt1156398".to_string(), "lorem".to_string());
         let movie2 = Movie::new("tt12003946".to_string(), "ipsum".to_string());
         let service = OpensubtitlesService::new(&settings);
@@ -502,16 +510,31 @@ mod test {
     #[tokio::test]
     async fn test_episode_subtitles() {
         init_logger();
-        let settings = Arc::new(Application::default());
+        let (server, settings) = start_mock_server();
         let show = Show::new("tt2861424".to_string(), "275274".to_string(), "Rick and Morty".to_string());
         let episode = Episode::new("tt2169080".to_string(), "Pilot".to_string(), 1, 1);
         let service = OpensubtitlesService::new(&settings);
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/subtitles")
+                .query_param(IMDB_ID_PARAM_KEY, "2861424".to_string());
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_test_file("search_result_episode.json"));
+        });
+        let expected_result = SubtitleInfo::new(
+            "tt2861424".to_string(),
+            English,
+        );
 
         let result = service.episode_subtitles(show, episode)
             .await;
 
         match result {
-            Ok(subtitles) => assert!(subtitles.len() > 0, "Expected at least one subtitle to have been found"),
+            Ok(subtitles) => {
+                assert_eq!(1, subtitles.len(), "Expected 1 subtitle to have been returned");
+                assert_eq!(&expected_result, subtitles.get(0).unwrap(), "Expected 1 subtitle to have been returned");
+            }
             Err(err) => {
                 assert!(false, "{:?}", &err)
             }

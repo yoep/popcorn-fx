@@ -8,7 +8,6 @@ use log::{debug, error, info};
 
 use popcorn_fx_core::{EpisodeC, from_c_string, into_c_owned, MovieC, ShowC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, VecSubtitleInfoC};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
-use popcorn_fx_core::core::subtitles::service::SubtitleService;
 use popcorn_fx_platform::platform_info_c::PlatformInfoC;
 
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
@@ -145,7 +144,7 @@ pub extern "C" fn download_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &Subti
         }
         Err(e) => {
             error!("Failed to download subtitle, {}", e);
-            std::ptr::null_mut()
+            ptr::null_mut()
         }
     }
 }

@@ -7,13 +7,13 @@ use derive_more::Display;
 #[display(fmt = "id: {}, start_time: {}, end_time: {}, lines: {:?}", id, start_time, end_time, lines)]
 pub struct SubtitleCue {
     id: String,
-    start_time: u32,
-    end_time: u32,
+    start_time: u64,
+    end_time: u64,
     lines: Vec<SubtitleLine>,
 }
 
 impl SubtitleCue {
-    pub fn new(id: String, start_time: u32, end_time: u32, lines: Vec<SubtitleLine>) -> Self {
+    pub fn new(id: String, start_time: u64, end_time: u64, lines: Vec<SubtitleLine>) -> Self {
         Self {
             id,
             start_time,
@@ -26,11 +26,11 @@ impl SubtitleCue {
         &self.id
     }
 
-    pub fn start_time(&self) -> &u32 {
+    pub fn start_time(&self) -> &u64 {
         &self.start_time
     }
 
-    pub fn end_time(&self) -> &u32 {
+    pub fn end_time(&self) -> &u64 {
         &self.end_time
     }
 
@@ -54,8 +54,8 @@ impl Ord for SubtitleCue {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubtitleCueBuilder {
     id: String,
-    start_time: u32,
-    end_time: u32,
+    start_time: u64,
+    end_time: u64,
     lines: Vec<SubtitleLine>,
 }
 
@@ -78,12 +78,12 @@ impl SubtitleCueBuilder {
         self
     }
 
-    pub fn start_time(&mut self, start_time: u32) -> &mut Self {
+    pub fn start_time(&mut self, start_time: u64) -> &mut Self {
         self.start_time = start_time;
         self
     }
 
-    pub fn end_time(&mut self, end_time: u32) -> &mut Self {
+    pub fn end_time(&mut self, end_time: u64) -> &mut Self {
         self.end_time = end_time;
         self
     }

@@ -159,8 +159,8 @@ impl SubtitleC {
 #[derive(Debug, Clone)]
 pub struct SubtitleCueC {
     pub id: *const c_char,
-    pub start_time: u32,
-    pub end_time: u32,
+    pub start_time: u64,
+    pub end_time: u64,
     pub lines: *mut SubtitleLineC,
     pub number_of_lines: i32,
     pub capacity: i32,

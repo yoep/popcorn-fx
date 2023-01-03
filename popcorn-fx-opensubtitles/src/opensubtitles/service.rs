@@ -28,6 +28,7 @@ const IMDB_ID_PARAM_KEY: &str = "imdb_id";
 const SEASON_PARAM_KEY: &str = "season_number";
 const EPISODE_PARAM_KEY: &str = "episode_number";
 const FILENAME_PARAM_KEY: &str = "query";
+const PAGE_PARAM_KEY: &str = "page";
 const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 
 pub struct OpensubtitlesService {
@@ -63,27 +64,37 @@ impl OpensubtitlesService {
         }
     }
 
-    fn create_search_url(&self, media: Option<&dyn MediaIdentifier>, episode: Option<&Episode>, filename: Option<&String>) -> Result<Url> {
+    fn create_search_url(&self, media_id: Option<&String>, episode: Option<&Episode>, filename: Option<&String>, page: i32) -> Result<Url> {
         let mut query_params: Vec<(&str, &str)> = vec![];
         let imdb_id: String;
         let season: String;
         let episode_number: String;
+        let page_query_value = page.to_string();
         let url = format!("{}/subtitles", self.settings.properties().subtitle().url());
 
-        if media.is_some() {
-            trace!("Creating search url for media {:?}", media.unwrap());
-            imdb_id = media.unwrap().id().replace("tt", "");
-            query_params.push((IMDB_ID_PARAM_KEY, &imdb_id));
+        // only set the page if it's not the first one
+        // this is because the first one (with query param) isn't cached on cloudfront
+        // so the chance of receiving a 503 is much higher
+        if page > 1 {
+            query_params.push((PAGE_PARAM_KEY, page_query_value.as_str()));
+        }
 
-            if episode.is_some() {
-                let episode_instance = episode.unwrap();
-                trace!("Extending search url for episode {:?}", episode_instance);
-                season = episode_instance.season().to_string();
-                episode_number = episode_instance.episode().to_string();
+        match media_id {
+            Some(e) => {
+                imdb_id = e.replace("tt", "");
+                query_params.push((IMDB_ID_PARAM_KEY, &imdb_id));
 
-                query_params.push((SEASON_PARAM_KEY, season.as_str()));
-                query_params.push((EPISODE_PARAM_KEY, episode_number.as_str()));
+                if episode.is_some() {
+                    let episode_instance = episode.unwrap();
+                    trace!("Extending search url for episode {:?}", episode_instance);
+                    season = episode_instance.season().to_string();
+                    episode_number = episode_instance.episode().to_string();
+
+                    query_params.push((SEASON_PARAM_KEY, season.as_str()));
+                    query_params.push((EPISODE_PARAM_KEY, episode_number.as_str()));
+                }
             }
+            None => {}
         }
 
         if filename.is_some() {
@@ -105,13 +116,13 @@ impl OpensubtitlesService {
         }
     }
 
-    fn search_result_to_subtitles(result: OpenSubtitlesResponse<SearchResult>) -> Vec<SubtitleInfo> {
+    fn search_result_to_subtitles(data: &Vec<SearchResult>) -> Vec<SubtitleInfo> {
         let mut id: String = String::new();
         let mut imdb_id: String = String::new();
         let mut languages: HashMap<SubtitleLanguage, Vec<SubtitleFile>> = HashMap::new();
 
-        trace!("Mapping a total of {} subtitle search results", result.data().len());
-        for search_result in result.data() {
+        trace!("Mapping a total of {} subtitle search results", data.len());
+        for search_result in data {
             let attributes = search_result.attributes();
             let optional_language: Option<SubtitleLanguage>;
 
@@ -160,19 +171,12 @@ impl OpensubtitlesService {
             .collect()
     }
 
-    async fn handle_search_result(id: &String, response: Response) -> Result<Vec<SubtitleInfo>> {
+    async fn handle_search_result(id: &String, response: Response) -> Result<OpenSubtitlesResponse<SearchResult>> {
         match response.status() {
             StatusCode::OK => {
                 trace!("Received response from OpenSubtitles for {}, decoding JSON...", id);
-                let parser = response.json::<OpenSubtitlesResponse<SearchResult>>()
-                    .await
-                    .map(|e| Self::search_result_to_subtitles(e));
-
-                match parser {
-                    Ok(e) => {
-                        debug!("Found subtitles for IMDB ID {}: {:?}", id, &e);
-                        Ok(e)
-                    }
+                match response.json::<OpenSubtitlesResponse<SearchResult>>().await {
+                    Ok(e) => Ok(e),
                     Err(e) => Err(SubtitleError::SearchFailed(e.to_string()))
                 }
             }
@@ -186,13 +190,45 @@ impl OpensubtitlesService {
         }
     }
 
-    async fn execute_search_request(&self, id: &String, url: Url) -> Result<Vec<SubtitleInfo>> {
+    async fn start_search_request(&self, id: &String, media_id: Option<&String>, episode: Option<&Episode>, filename: Option<&String>) -> Result<Vec<SubtitleInfo>> {
+        let mut search_data: Vec<SearchResult> = vec![];
+
+        trace!("Fetching search result page 1");
+        match self.fetch_search_page(id, media_id, episode, filename, 1).await {
+            Err(e) => Err(e),
+            Ok(response) => {
+                let total_pages = response.total_pages();
+                response.data().iter()
+                    .for_each(|e| search_data.push(e.clone()));
+
+                debug!("Fetching a total of {} search pages", total_pages);
+                for fetch_page in 2..*total_pages {
+                    trace!("Fetching search result page {}", fetch_page);
+                    match self.fetch_search_page(id, media_id, episode, filename, fetch_page).await {
+                        Err(e) => warn!("Failed to fetch search page {}, {}", fetch_page, e.to_string()),
+                        Ok(page_response) => {
+                            page_response.data().iter()
+                                .for_each(|e| search_data.push(e.clone()));
+                        }
+                    }
+                }
+
+                let result = Self::search_result_to_subtitles(&search_data);
+                debug!("Found a total of {} for IMDB ID {}, {:?}", result.len(), id, &result);
+                Ok(result)
+            }
+        }
+    }
+
+    async fn fetch_search_page(&self, id: &String, media_id: Option<&String>, episode: Option<&Episode>, filename: Option<&String>, page: i32) -> Result<OpenSubtitlesResponse<SearchResult>> {
+        let url = self.create_search_url(media_id, episode, filename, page)?;
+
         debug!("Retrieving available subtitles from {}", &url);
         match self.client.clone().get(url)
             .send()
             .await {
             Err(err) => Err(SubtitleError::SearchFailed(format!("OpenSubtitles request failed, {}", err))),
-            Ok(e) => Self::handle_search_result(id, e).await
+            Ok(response) => Self::handle_search_result(id, response).await
         }
     }
 
@@ -345,27 +381,23 @@ impl SubtitleService for OpensubtitlesService {
 
     async fn movie_subtitles(&self, media: Movie) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.id();
-        let url = self.create_search_url(Some(&media), None, None)?;
 
         debug!("Searching movie subtitles for IMDB ID {}", &imdb_id);
-        self.execute_search_request(imdb_id, url)
+        self.start_search_request(imdb_id, Some(imdb_id), None, None)
             .await
     }
 
     async fn episode_subtitles(&self, media: Show, episode: Episode) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.id();
-        let url = self.create_search_url(Some(&media), Some(&episode), None)?;
 
         debug!("Searching episode subtitles for IMDB ID {}", &imdb_id);
-        self.execute_search_request(imdb_id, url)
+        self.start_search_request(imdb_id, Some(imdb_id), Some(&episode), None)
             .await
     }
 
     async fn file_subtitles(&self, filename: &String) -> Result<Vec<SubtitleInfo>> {
-        let url = self.create_search_url(None, None, Some(filename))?;
-
         debug!("Searching filename subtitles for {}", filename);
-        self.execute_search_request(filename, url)
+        self.start_search_request(filename, None, None, Some(filename))
             .await
     }
 

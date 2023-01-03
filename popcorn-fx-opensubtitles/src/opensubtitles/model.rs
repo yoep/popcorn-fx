@@ -27,7 +27,7 @@ impl<T> OpenSubtitlesResponse<T> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchResult {
     id: String,
     #[serde(alias = "type")]
@@ -45,7 +45,7 @@ impl SearchResult {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OpenSubtitlesAttributes {
     subtitle_id: String,
     language: Option<String>,
@@ -131,7 +131,7 @@ impl OpenSubtitlesAttributes {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OpenSubtitlesFile {
     file_id: i32,
     cd_number: Option<i32>,
@@ -167,7 +167,7 @@ impl OpenSubtitlesFile {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OpenSubtitlesFeatureDetails {
     feature_id: i32,
     feature_type: String,

@@ -24,7 +24,7 @@ PROFILE := linux
 endif
 
 ## Define all rust libraries and resource directories
-LIBRARIES := popcorn-fx popcorn-fx-core popcorn-fx-opensubtitles popcorn-fx-platform
+LIBRARIES := popcorn-fx
 
 prerequisites: ## Install the requirements for the application
 	$(info Installing Cargo plugins)

@@ -371,7 +371,6 @@ impl SubtitleService for OpensubtitlesService {
 
     async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> Result<Subtitle> {
         trace!("Starting subtitle download for {}", subtitle_info);
-        let url = self.create_download_url()?;
         let subtitle_file = subtitle_info.best_matching_file(matcher)?;
         let file_location = self.storage_file(&subtitle_file);
         let file_id = subtitle_file.file_id();
@@ -384,6 +383,7 @@ impl SubtitleService for OpensubtitlesService {
             return self.internal_parse(path, Some(subtitle_info));
         }
 
+        let url = self.create_download_url()?;
         debug!("Starting subtitle download of {} ({}) for IMDB ID {:?}", subtitle_file.name(), file_id, subtitle_info.imdb_id());
         trace!("Requesting subtitle file {}", &url);
         match self.client.post(url)
@@ -456,7 +456,7 @@ impl Drop for OpensubtitlesService {
 
 #[cfg(test)]
 mod test {
-    use httpmock::Method::GET;
+    use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
 
     use popcorn_fx_core::core::config::*;
@@ -469,13 +469,27 @@ mod test {
 
     fn start_mock_server() -> (MockServer, Arc<Application>) {
         let server = MockServer::start();
+        let temp_dir = tempfile::tempdir().unwrap();
         let settings = Arc::new(Application::new(
             PopcornProperties::new(SubtitleProperties::new(
                 server.url(""),
                 String::new(),
-                String::new(),
-            )),
-            PopcornSettings::default()));
+                String::new())),
+            PopcornSettings::new(
+                SubtitleSettings::new(
+                    temp_dir.into_path().into_os_string().into_string().unwrap(),
+                    false,
+                    English,
+                    SubtitleFamily::Arial,
+                ),
+                UiSettings::new(
+                    "en".to_string(),
+                    UiScale::new(1f32).expect("Expected ui scale to be valid"),
+                    StartScreen::Movies,
+                    false,
+                    false,
+                )),
+        ));
 
         (server, settings)
     }
@@ -617,35 +631,41 @@ mod test {
     #[tokio::test]
     async fn test_download_should_return_the_expected_subtitle() {
         init_logger();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let popcorn_settings = PopcornSettings::new(
-            SubtitleSettings::new(
-                temp_dir.into_path().into_os_string().into_string().unwrap(),
-                false,
-                English,
-                SubtitleFamily::Arial,
-            ),
-            UiSettings::new(
-                "en".to_string(),
-                UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                StartScreen::Movies,
-                false,
-                false,
-            ),
-        );
-        let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
+        let (server, settings) = start_mock_server();
+        let temp_dir = settings.settings().subtitle().directory().into_os_string().into_string().unwrap();
         let service = OpensubtitlesService::new(&settings);
-        let subtitle_info = SubtitleInfo::new_with_files("tt00001".to_string(), SubtitleLanguage::German, vec![
-            SubtitleFile::new(91135, "test-subtitle-file.srt".to_string(), String::new(), 0.0, 0)
+        let filename = "test-subtitle-file.srt".to_string();
+        let subtitle_info = SubtitleInfo::new_with_files("tt7405458".to_string(), SubtitleLanguage::German, vec![
+            SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
         ]);
         let matcher = SubtitleMatcher::new(Some(String::new()), Some(String::from("720")));
+        let response_body = read_test_file("download_response.json");
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/download");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(response_body
+                    .replace("[[host]]", server.host().as_str())
+                    .replace("[[port]]", server.port().to_string().as_str()));
+        });
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/download/example.srt");
+            then.status(200)
+                .header("content-type", "text")
+                .body(read_test_file("subtitle_example.srt"));
+        });
+        let expected_result = Subtitle::new(vec![SubtitleCue::new("1".to_string(), 30296, 34790, vec![
+            SubtitleLine::new(vec![
+                StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)
+            ])])], Some(subtitle_info.clone()), Some(format!("{}\\{}", temp_dir, filename)));
 
         let result = service.download(&subtitle_info, &matcher)
             .await
             .unwrap();
 
-        assert_eq!(&subtitle_info, result.info().unwrap());
-        assert!(result.file().is_some(), "Expected a file to have been downloaded and parsed")
+        assert_eq!(expected_result, result)
     }
 
     #[tokio::test]

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 
-use crate::core::media::model::{Episode, Movie, Show};
+use crate::core::media::{Episode, Movie, Show};
 use crate::core::subtitles::errors::SubtitleError;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};

@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.platform;
+package com.github.yoep.popcorn.backend.platform;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
 import com.sun.jna.Structure;

@@ -11,7 +11,7 @@ use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
 
 use popcorn_fx_core::core::config::Application;
-use popcorn_fx_core::core::media::model::*;
+use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::errors::SubtitleError;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
@@ -514,13 +514,9 @@ mod test {
                     English,
                     SubtitleFamily::Arial,
                 ),
-                UiSettings::new(
-                    "en".to_string(),
-                    UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                    StartScreen::Movies,
-                    false,
-                    false,
-                )),
+                UiSettings::default(),
+                ServerSettings::default(),
+            ),
         ));
 
         (server, settings)
@@ -688,10 +684,11 @@ mod test {
                 .header("content-type", "text")
                 .body(read_test_file("subtitle_example.srt"));
         });
+        let expected_file: PathBuf = [temp_dir, filename].iter().collect();
         let expected_result = Subtitle::new(vec![SubtitleCue::new("1".to_string(), 30296, 34790, vec![
             SubtitleLine::new(vec![
                 StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)
-            ])])], Some(subtitle_info.clone()), Some(format!("{}\\{}", temp_dir, filename)));
+            ])])], Some(subtitle_info.clone()), Some(expected_file.to_str().unwrap().to_string()));
 
         let result = service.download(&subtitle_info, &matcher)
             .await
@@ -717,7 +714,7 @@ mod test {
             StartScreen::Movies,
             false,
             false,
-        ));
+        ), ServerSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let destination = copy_test_file(temp_path.clone().as_str(), test_file);
         let service = OpensubtitlesService::new(&settings);
@@ -766,7 +763,7 @@ mod test {
             false,
             English,
             SubtitleFamily::Arial,
-        ), UiSettings::default());
+        ), UiSettings::default(), ServerSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let service = OpensubtitlesService::new(&settings);
         let subtitle_info = SubtitleInfo::new("lorem".to_string(), English);
@@ -792,7 +789,7 @@ mod test {
             StartScreen::Movies,
             false,
             false,
-        ));
+        ), ServerSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let service = OpensubtitlesService::new(&settings);
         let subtitle_info = SubtitleInfo::new("ipsum".to_string(), French);

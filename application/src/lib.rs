@@ -51,7 +51,10 @@ pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut V
         .collect()))
 }
 
-/// Retrieve the available subtitles for the given movie
+/// Retrieve the available subtitles for the given [MovieC].
+///
+/// It returns a reference to [VecSubtitleInfoC], else a [std::ptr::null_mut] on failure.
+/// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieC) -> *mut VecSubtitleInfoC {
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -68,7 +71,7 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieC) ->
         }
         Err(e) => {
             error!("Movie subtitle search failed, {}", e);
-            into_c_owned(VecSubtitleInfoC::from(vec![]))
+            ptr::null_mut()
         }
     }
 }

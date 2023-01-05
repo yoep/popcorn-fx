@@ -1,7 +1,7 @@
 use std::os::raw::c_char;
 
 use crate::{from_c_string, to_c_string};
-use crate::core::media::model::{Episode, MediaIdentifier, Movie, Show};
+use crate::core::media::{Episode, MediaIdentifier, Movie, Show};
 
 #[repr(C)]
 #[derive(Debug, Clone)]

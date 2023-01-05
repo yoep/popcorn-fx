@@ -167,7 +167,10 @@ VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowC *show, co
 /// Retrieve the available subtitles for the given filename
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
-/// Retrieve the available subtitles for the given movie
+/// Retrieve the available subtitles for the given [MovieC].
+///
+/// It returns a reference to [VecSubtitleInfoC], else a [std::ptr::null_mut] on failure.
+/// <i>The returned reference should be managed by the caller.</i>
 VecSubtitleInfoC *movie_subtitles(PopcornFX *popcorn_fx, const MovieC *movie);
 
 /// Create a new PopcornFX instance.

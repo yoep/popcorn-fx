@@ -1,19 +1,29 @@
-package com.github.yoep.popcorn;
+package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
-import com.github.yoep.popcorn.platform.PlatformInfo;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 
-public interface Application extends Library {
-    Application INSTANCE = Native.load("popcorn_fx", Application.class);
+/**
+ * The Popcorn FX native library interface.
+ * Use the {@link FxLib#INSTANCE} to communicate with the loaded library.
+ * <p>
+ * <i>Example:</i>
+ * <p>
+ * <code>
+ * var subtitles = FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), movie);
+ * </code>
+ */
+public interface FxLib extends Library {
+    FxLib INSTANCE = Native.load("popcorn_fx", FxLib.class);
 
     PopcornFx new_popcorn_fx();
 

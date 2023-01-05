@@ -2,12 +2,16 @@ use log::debug;
 
 pub use errors::*;
 pub use properties::*;
+pub use provider::*;
+pub use server_settings::*;
 pub use settings::*;
 pub use subtitle_settings::*;
 pub use ui_settings::*;
 
 mod errors;
 mod properties;
+mod provider;
+mod server_settings;
 mod settings;
 mod subtitle_settings;
 mod ui_settings;

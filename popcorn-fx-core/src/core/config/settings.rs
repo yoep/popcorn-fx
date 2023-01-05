@@ -5,11 +5,12 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::core::config::{DEFAULT_HOME_DIRECTORY, SubtitleSettings, UiSettings};
+use crate::core::config::{DEFAULT_HOME_DIRECTORY, ServerSettings, SubtitleSettings, UiSettings};
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
 const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = || SubtitleSettings::default();
 const DEFAULT_UI: fn() -> UiSettings = || UiSettings::default();
+const DEFAULT_SERVER: fn() -> ServerSettings = || ServerSettings::default();
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
 #[display(fmt = "subtitle_settings: {}, ui_settings: {}", subtitle_settings, ui_settings)]
@@ -18,13 +19,16 @@ pub struct PopcornSettings {
     subtitle_settings: SubtitleSettings,
     #[serde(default = "DEFAULT_UI")]
     ui_settings: UiSettings,
+    #[serde(default = "DEFAULT_SERVER")]
+    server_settings: ServerSettings,
 }
 
 impl PopcornSettings {
-    pub fn new(subtitle_settings: SubtitleSettings, ui_settings: UiSettings) -> Self {
+    pub fn new(subtitle_settings: SubtitleSettings, ui_settings: UiSettings, server_settings: ServerSettings) -> Self {
         Self {
             subtitle_settings,
             ui_settings,
+            server_settings,
         }
     }
 
@@ -71,28 +75,28 @@ impl PopcornSettings {
         }
     }
 
-    /// Create settings from the given values.
-    pub fn from(subtitle_settings: SubtitleSettings, ui_settings: UiSettings) -> Self {
-        Self {
-            subtitle_settings,
-            ui_settings,
-        }
-    }
-
     /// The default settings for the application.
     pub fn default() -> Self {
         Self {
             subtitle_settings: DEFAULT_SUBTITLES(),
             ui_settings: DEFAULT_UI(),
+            server_settings: DEFAULT_SERVER(),
         }
     }
 
+    /// Retrieve the subtitle settings of the application.
     pub fn subtitle(&self) -> &SubtitleSettings {
         &self.subtitle_settings
     }
 
+    /// Retrieve the UI settings of the application.
     pub fn ui(&self) -> &UiSettings {
         &self.ui_settings
+    }
+
+    /// Retrieve the server settings of the application.
+    pub fn server(&self) -> &ServerSettings {
+        &self.server_settings
     }
 }
 
@@ -101,6 +105,7 @@ impl Default for PopcornSettings {
         Self {
             subtitle_settings: SubtitleSettings::default(),
             ui_settings: UiSettings::default(),
+            server_settings: ServerSettings::default(),
         }
     }
 }
@@ -118,9 +123,10 @@ mod test {
     fn test_settings_from_str_when_valid_should_return_expected_result() {
         init_logger();
         let value = "{\"subtitle_settings\":{\"directory\":\"my-path/to-subtitles\",\"auto_cleaning_enabled\":false,\"default_subtitle\":\"ENGLISH\",\"font_family\":\"ARIAL\",\"font_size\":32,\"decoration\":\"OUTLINE\",\"bold\":false}}";
-        let expected_result = PopcornSettings::from(
+        let expected_result = PopcornSettings::new(
             SubtitleSettings::new("my-path/to-subtitles".to_string(), false, SubtitleLanguage::English, SubtitleFamily::Arial),
-            UiSettings::default());
+            UiSettings::default(),
+            ServerSettings::default());
 
         let result = PopcornSettings::from_str(value);
 

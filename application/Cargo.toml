@@ -20,7 +20,7 @@ popcorn-fx-opensubtitles = { path = "../popcorn-fx-opensubtitles" }
 async-trait = "0.1.58"
 log = "0.4.16"
 log4rs = "1.1.1"
-tokio = "1.22.0"
+tokio = "1.23.1"
 itertools = "0.10.5"
 
 [build-dependencies]

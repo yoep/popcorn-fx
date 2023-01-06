@@ -1,6 +1,6 @@
 use log::debug;
 
-pub use errors::*;
+pub use error::*;
 pub use properties::*;
 pub use provider::*;
 pub use server_settings::*;
@@ -8,7 +8,7 @@ pub use settings::*;
 pub use subtitle_settings::*;
 pub use ui_settings::*;
 
-mod errors;
+mod error;
 mod properties;
 mod provider;
 mod server_settings;

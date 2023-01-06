@@ -9,8 +9,8 @@ pub enum ConfigError {
 impl Display for ConfigError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConfigError::InvalidValue(value, field) => write!(f, "Invalid value {} given for {}", value, field),
-            ConfigError::UnknownProvider(name) => write!(f, "Provider with name \"{}\" is unknown", name),
+            ConfigError::InvalidValue(value, field) => write!(f, "invalid value {} given for {}", value, field),
+            ConfigError::UnknownProvider(name) => write!(f, "provider with name \"{}\" is unknown", name),
         }
     }
 }

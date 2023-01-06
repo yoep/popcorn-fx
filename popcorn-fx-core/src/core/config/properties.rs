@@ -17,10 +17,10 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
     let mut map: HashMap<String, ProviderProperties> = HashMap::new();
     map.insert("movies".to_string(), ProviderProperties::new(
         vec![
-            "https://movies-v2.api-fetch.sh".to_string(),
+            "https://popcorn-time.ga".to_string(),
             "https://movies-v2.api-fetch.am".to_string(),
             "https://movies-v2.api-fetch.website".to_string(),
-            "https://popcorn-time.ga".to_string()],
+            "https://movies-v2.api-fetch.sh".to_string()],
         vec![
             "all".to_string(),
             "action".to_string(),
@@ -81,6 +81,15 @@ impl PopcornProperties {
         Self {
             update_channel: DEFAULT_UPDATE_CHANNEL(),
             providers: DEFAULT_PROVIDERS(),
+            subtitle,
+        }
+    }
+
+    /// Create a new [PopcornProperties] with the given providers.
+    pub fn new_with_providers(subtitle: SubtitleProperties, providers: HashMap<String, ProviderProperties>) -> Self {
+        Self {
+            update_channel: DEFAULT_UPDATE_CHANNEL(),
+            providers,
             subtitle,
         }
     }

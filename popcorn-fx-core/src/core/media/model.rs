@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use derive_more::Display;
+use serde::Deserialize;
 
 /// The media type identifier.
 #[derive(Debug, Clone, PartialEq)]
@@ -12,12 +13,12 @@ pub enum MediaType {
 }
 
 /// Basic identification information about a [Media] item.
-pub trait MediaIdentifier : Debug {
+pub trait MediaIdentifier: Debug {
     /// Get the unique ID of the media.
     fn id(&self) -> &String;
 
     /// Get the type of the media.
-    fn media_type(&self) -> &MediaType;
+    fn media_type(&self) -> MediaType;
 
     /// The title of the media.
     fn title(&self) -> &String;
@@ -37,11 +38,14 @@ pub trait Favorable: MediaIdentifier {
 
 pub trait Media: MediaIdentifier + Watchable + Favorable {}
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Movie {
+    #[serde(rename(deserialize = "_id"))]
     id: String,
     title: String,
-    media_type: MediaType,
+    imdb_id: String,
+    tmdb_id: i32,
+    year: String,
 }
 
 impl Movie {
@@ -49,7 +53,9 @@ impl Movie {
         Self {
             id,
             title,
-            media_type: MediaType::Movie,
+            imdb_id: String::new(),
+            tmdb_id: -1,
+            year: String::new(),
         }
     }
 }
@@ -59,8 +65,8 @@ impl MediaIdentifier for Movie {
         &self.id
     }
 
-    fn media_type(&self) -> &MediaType {
-        &self.media_type
+    fn media_type(&self) -> MediaType {
+        MediaType::Movie
     }
 
     fn title(&self) -> &String {
@@ -87,7 +93,6 @@ pub struct Show {
     id: String,
     tvdb_id: String,
     title: String,
-    media_type: MediaType,
 }
 
 impl Show {
@@ -96,7 +101,6 @@ impl Show {
             id,
             tvdb_id,
             title,
-            media_type: MediaType::Show,
         }
     }
 }
@@ -106,8 +110,8 @@ impl MediaIdentifier for Show {
         &self.id
     }
 
-    fn media_type(&self) -> &MediaType {
-        &self.media_type
+    fn media_type(&self) -> MediaType {
+        MediaType::Show
     }
 
     fn title(&self) -> &String {
@@ -136,7 +140,6 @@ pub struct Episode {
     title: String,
     season: i32,
     episode: i32,
-    media_type: MediaType,
 }
 
 impl Episode {
@@ -146,7 +149,6 @@ impl Episode {
             title,
             season,
             episode,
-            media_type: MediaType::Episode,
         }
     }
 
@@ -164,8 +166,8 @@ impl MediaIdentifier for Episode {
         &self.id
     }
 
-    fn media_type(&self) -> &MediaType {
-        &self.media_type
+    fn media_type(&self) -> MediaType {
+        MediaType::Episode
     }
 
     fn title(&self) -> &String {

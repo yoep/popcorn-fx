@@ -19,4 +19,12 @@ impl Genre {
             text: "All".to_string()
         }
     }
+
+    pub fn key(&self) -> &String {
+        &self.key
+    }
+
+    pub fn text(&self) -> &String {
+        &self.text
+    }
 }

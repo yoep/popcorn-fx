@@ -12,6 +12,12 @@ pub struct ServerSettings {
 }
 
 impl ServerSettings {
+    pub fn new(api_server: String) -> Self {
+        Self {
+            api_server: Some(api_server)
+        }
+    }
+
     /// The configured API server to use for all [crate::core::media::Media] providers.
     pub fn api_server(&self) -> Option<&String> {
         match &self.api_server {

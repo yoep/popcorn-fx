@@ -11,6 +11,7 @@ import java.io.Closeable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Getter
 @ToString(callSuper = true, exclude = "torrents")
@@ -47,14 +48,16 @@ public class Movie extends AbstractMedia implements Closeable {
     public Map<String, Map<String, MediaTorrentInfo>> getTorrents() {
         if (torrents == null) {
             torrents = new HashMap<>();
-            var entries = (TorrentEntry[]) torrentEntry.toArray(torrentLen);
-            for (TorrentEntry entry : entries) {
-                var qualities = new HashMap<String, MediaTorrentInfo>();
-                torrents.put(entry.language, qualities);
-                for (TorrentQuality quality : entry.getQualities()) {
-                    qualities.put(quality.getQuality(), quality.getInfo());
+            Optional.ofNullable(torrentEntry).ifPresent(e -> {
+                var entries = (TorrentEntry[]) e.toArray(torrentLen);
+                for (TorrentEntry entry : entries) {
+                    var qualities = new HashMap<String, MediaTorrentInfo>();
+                    torrents.put(entry.language, qualities);
+                    for (TorrentQuality quality : entry.getQualities()) {
+                        qualities.put(quality.getQuality(), quality.getInfo());
+                    }
                 }
-            }
+            });
         }
 
         return torrents;

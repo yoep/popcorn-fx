@@ -314,14 +314,26 @@ pub struct Show {
     id: String,
     tvdb_id: String,
     title: String,
+    imdb_id: String,
+    year: String,
+    runtime: String,
+    rating: Option<Rating>,
+    images: Images,
+    synopsis: String
 }
 
 impl Show {
-    pub fn new(id: String, tvdb_id: String, title: String) -> Self {
+    pub fn new(id: String, tvdb_id: String, title: String, imdb_id: String) -> Self {
         Self {
             id,
             tvdb_id,
             title,
+            imdb_id,
+            year: String::new(),
+            runtime: String::new(),
+            rating: None,
+            images: Images::none(),
+            synopsis: "".to_string(),
         }
     }
 }

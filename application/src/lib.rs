@@ -4,7 +4,7 @@ use std::{ptr, slice};
 use std::os::raw::c_char;
 use std::path::Path;
 
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 
 use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecSubtitleInfoC};
 use popcorn_fx_core::core::media::Category;
@@ -80,7 +80,7 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieC) ->
 /// Retrieve the given subtitles for the given episode
 #[no_mangle]
 pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowC, episode: &EpisodeC) -> *mut VecSubtitleInfoC {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
     let show_instance = show.to_struct();
     let episode_instance = episode.to_struct();
 
@@ -103,8 +103,8 @@ pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowC, ep
 /// Retrieve the available subtitles for the given filename
 #[no_mangle]
 pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut c_char) -> *mut VecSubtitleInfoC {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
     let filename_rust = from_c_string(filename);
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
     match runtime.block_on(popcorn_fx.subtitle_service().file_subtitles(&filename_rust)) {
         Ok(e) => {
@@ -140,7 +140,7 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitl
 pub extern "C" fn download_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
     let subtitle_info = subtitle.clone().to_subtitle();
     let matcher = matcher.to_matcher();
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
     match runtime.block_on(popcorn_fx.subtitle_service().download(&subtitle_info, &matcher)) {
         Ok(e) => {
@@ -196,7 +196,7 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
     return match popcorn_fx.providers().get(Category::MOVIES) {
         None => {
@@ -224,6 +224,45 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
                 }
             }
         }
+    };
+}
+
+/// Retrieve the details of a given movie.
+/// It will query the api for the given IMDB ID.
+///
+/// It returns the [MovieC] on success, else [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MovieC {
+    let imdb_id = from_c_string(imdb_id);
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+
+    return match popcorn_fx.providers().get(Category::MOVIES) {
+        None => {
+            error!("No provider could be found for {}", Category::MOVIES);
+            ptr::null_mut()
+        }
+        Some(provider) => {
+            match runtime.block_on(provider.retrieve_details(&imdb_id)) {
+                Ok(e) => {
+                    trace!("Returning movie details {:?}", &e);
+                    into_c_owned(MovieC::from(e))
+                }
+                Err(e) => {
+                    error!("Failed to retrieve movies, {}", e);
+                    ptr::null_mut()
+                }
+            }
+        }
+    };
+}
+
+/// Reset all available api stats for the movie api.
+/// This will make all disabled api's available again.
+#[no_mangle]
+pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
+    return match popcorn_fx.providers().get(Category::MOVIES) {
+        None => error!("No provider could be found for {}", Category::MOVIES),
+        Some(provider) => provider.reset_api()
     };
 }
 

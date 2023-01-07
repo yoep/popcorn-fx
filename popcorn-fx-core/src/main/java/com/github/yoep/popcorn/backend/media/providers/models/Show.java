@@ -18,7 +18,7 @@ import java.util.Optional;
 @Getter
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
-@Structure.FieldOrder({"id", "tvdbId", "title"})
+@Structure.FieldOrder({"id", "tvdbId", "title", "imdbId", "year", "runtime", "rating", "images", "synopsis"})
 public class Show extends AbstractMedia implements Closeable {
     /**
      * The unique TVDB ID of the show.

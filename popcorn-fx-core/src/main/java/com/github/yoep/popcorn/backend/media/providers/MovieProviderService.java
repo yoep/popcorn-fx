@@ -2,37 +2,24 @@ package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
-public class MovieProviderService extends AbstractProviderService<Movie> {
+public class MovieProviderService implements ProviderService<Movie> {
     private static final Category CATEGORY = Category.MOVIES;
-
-    public MovieProviderService(RestTemplate restTemplate,
-                                PopcornProperties popcornConfig,
-                                SettingsService settingsService) {
-        super(restTemplate);
-
-        initializeUriProviders(settingsService.getSettings().getServerSettings(), popcornConfig.getProvider(CATEGORY.getProviderName()));
-    }
 
     @Override
     public boolean supports(Category category) {
@@ -51,20 +38,10 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
 
     @Override
     public CompletableFuture<Movie> getDetails(String imdbId) {
-        return invokeWithUriProvider(apiUri -> {
-            var uri = UriComponentsBuilder.fromUri(apiUri)
-                    .path("/movie/{id}")
-                    .build(imdbId);
+        var movie = FxLib.INSTANCE.retrieve_movie_details(PopcornFxInstance.INSTANCE.get(), imdbId);
+        log.debug("Retrieved movie details {}", movie);
 
-            log.debug("Retrieving movie details \"{}\"", uri);
-            var response = restTemplate.getForEntity(uri, Movie.class);
-
-            if (response.getBody() == null) {
-                return CompletableFuture.failedFuture(new MediaException(MessageFormat.format("Failed to retrieve the details of {0}", imdbId)));
-            }
-
-            return CompletableFuture.completedFuture(response.getBody());
-        });
+        return CompletableFuture.completedFuture(movie);
     }
 
     @Override
@@ -72,6 +49,11 @@ public class MovieProviderService extends AbstractProviderService<Movie> {
         // no additional details need to be loaded
         // so we'll return the media item directly
         return CompletableFuture.completedFuture(media);
+    }
+
+    @Override
+    public void resetApiAvailability() {
+        FxLib.INSTANCE.reset_movie_apis(PopcornFxInstance.INSTANCE.get());
     }
 
     public Page<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {

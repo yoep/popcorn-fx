@@ -20,7 +20,7 @@ import java.util.Map;
 @Getter
 @ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = true)
-@Structure.FieldOrder({"id", "title", "season", "episode"})
+@Structure.FieldOrder({"id", "title", "imdbId", "year", "runtime", "rating", "images", "synopsis", "season", "episode"})
 public class Episode extends AbstractMedia implements Comparable<Episode>, Closeable {
     /**
      * The available torrents for the episode.

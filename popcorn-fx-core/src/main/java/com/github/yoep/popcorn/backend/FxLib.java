@@ -49,6 +49,10 @@ public interface FxLib extends Library {
     String subtitle_to_raw(PopcornFx instance, Subtitle subtitle, SubtitleType type);
 
     MovieSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
+    
+    Movie retrieve_movie_details(PopcornFx instance, String imdbId);
+    
+    void reset_movie_apis(PopcornFx instance);
 
     void disable_screensaver(PopcornFx instance);
 

@@ -616,7 +616,11 @@ mod test {
     async fn test_episode_subtitles() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let show = Show::new("tt2861424".to_string(), "275274".to_string(), "Rick and Morty".to_string());
+        let show = Show::new(
+            "tt2861424".to_string(),
+            "275274".to_string(),
+            "Rick and Morty".to_string(),
+            String::new());
         let episode = Episode::new("tt2169080".to_string(), "Pilot".to_string(), 1, 1);
         let service = OpensubtitlesService::new(&settings);
         server.mock(|when, then| {

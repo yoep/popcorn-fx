@@ -65,7 +65,7 @@ impl MovieC {
             trailer: to_c_string(movie.trailer().clone()),
             torrents,
             torrents_len,
-            torrents_cap
+            torrents_cap,
         }
     }
 
@@ -86,6 +86,12 @@ pub struct ShowC {
     id: *const c_char,
     tvdb_id: *const c_char,
     title: *const c_char,
+    imdb_id: *const c_char,
+    year: *const c_char,
+    runtime: i32,
+    rating: *mut RatingC,
+    images: ImagesC,
+    synopsis: *const c_char,
 }
 
 impl ShowC {
@@ -95,6 +101,7 @@ impl ShowC {
             from_c_string(self.id),
             from_c_string(self.tvdb_id),
             from_c_string(self.title),
+            from_c_string(self.imdb_id),
         )
     }
 }
@@ -102,8 +109,14 @@ impl ShowC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct EpisodeC {
-    id: *mut c_char,
-    title: *mut c_char,
+    id: *const c_char,
+    title: *const c_char,
+    imdb_id: *const c_char,
+    year: *const c_char,
+    runtime: i32,
+    rating: *mut RatingC,
+    images: ImagesC,
+    synopsis: *const c_char,
     season: i32,
     episode: i32,
 }
@@ -200,7 +213,7 @@ pub struct TorrentEntryC {
     language: *const c_char,
     qualities: *mut TorrentQualityC,
     len: i32,
-    cap: i32
+    cap: i32,
 }
 
 impl TorrentEntryC {
@@ -213,7 +226,7 @@ impl TorrentEntryC {
             language: to_c_string(language.clone()),
             qualities,
             len,
-            cap
+            cap,
         }
     }
 }
@@ -229,7 +242,7 @@ impl TorrentQualityC {
     fn from(quality: &String, info: &TorrentInfo) -> Self {
         Self {
             quality: to_c_string(quality.clone()),
-            torrent: TorrentInfoC::from(info)
+            torrent: TorrentInfoC::from(info),
         }
     }
 }

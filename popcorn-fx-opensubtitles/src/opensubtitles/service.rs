@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::io::Cursor;
@@ -349,7 +350,7 @@ impl OpensubtitlesService {
             None => append_extension = true,
             Some(e) => {
                 trace!("Checking validity of extension {:?}", e);
-                if e.len() != 3 {
+                if e.len() != 3 || Self::is_invalid_extension(e) {
                     append_extension = true;
                 }
             }
@@ -361,6 +362,19 @@ impl OpensubtitlesService {
         }
 
         filename
+    }
+
+    /// Filters any extension that should not be accepted as valid.
+    fn is_invalid_extension(extension: &OsStr) -> bool {
+        let normalized_extension = extension.to_ascii_lowercase();
+        let extension = normalized_extension.to_str()
+            .expect("expected the extension to be a valid unicode");
+        let invalid_extensions :Vec<&str> = vec![
+            "en",
+            "lol"
+        ];
+
+        invalid_extensions.contains(&extension)
     }
 }
 
@@ -447,8 +461,14 @@ impl SubtitleService for OpensubtitlesService {
             Some(parser) => {
                 debug!("Converting subtitle to raw format of {} for {}", &output_type, subtitle);
                 match parser.parse_raw(subtitle.cues()) {
-                    Err(err) => Err(SubtitleError::ConversionFailed(output_type.clone(), err.to_string())),
-                    Ok(e) => Ok(e)
+                    Err(err) => {
+                        error!("Subtitle parsing to raw {} failed, {}", &output_type, err);
+                        Err(SubtitleError::ConversionFailed(output_type.clone(), err.to_string()))
+                    },
+                    Ok(e) => {
+                        debug!("Parsed subtitle to raw {}", &output_type);
+                        Ok(e)
+                    }
                 }
             }
         }

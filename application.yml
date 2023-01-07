@@ -2,7 +2,7 @@ logging:
   level:
     com.github.yoep.player.chromecast: DEBUG
     com.github.yoep.player.qt: INFO
-    com.github.yoep.popcorn.backend.subtitles: DEBUG
+    com.github.yoep.popcorn.backend.subtitles: TRACE
     com.github.yoep.popcorn.backend.media.providers: DEBUG
     com.github.yoep.popcorn.media: DEBUG
     com.github.yoep.popcorn.ui: DEBUG

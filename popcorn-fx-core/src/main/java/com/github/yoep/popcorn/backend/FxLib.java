@@ -11,7 +11,6 @@ import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 
@@ -46,7 +45,7 @@ public interface FxLib extends Library {
 
     Subtitle parse_subtitle(PopcornFx instance, String filePath);
     
-    String subtitle_to_raw(PopcornFx instance, Subtitle subtitle, SubtitleType type);
+    String subtitle_to_raw(PopcornFx instance, Subtitle subtitle, int type);
 
     MovieSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
     

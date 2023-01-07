@@ -114,7 +114,8 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Override
     public InputStream convert(Subtitle subtitle, SubtitleType type) {
         Objects.requireNonNull(subtitle, "subtitle cannot be null");
-        var output = FxLib.INSTANCE.subtitle_to_raw(PopcornFxInstance.INSTANCE.get(), subtitle, type);
+        var subtitleType = (int) type.toNative();
+        var output = FxLib.INSTANCE.subtitle_to_raw(PopcornFxInstance.INSTANCE.get(), subtitle, subtitleType);
 
         return new ByteArrayInputStream(output.getBytes());
     }

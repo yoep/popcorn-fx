@@ -41,6 +41,10 @@ impl SubtitleType {
         Err(SubtitleParseError::ExtensionNotSupported(extension.clone()))
     }
 
+    pub fn from_ordinal(ordinal: usize) -> Self {
+        SUBTITLE_TYPES[ordinal].clone()
+    }
+
     /// The file extension for this subtitle type.
     pub fn extension(&self) -> String {
         match self {

@@ -56,11 +56,6 @@ enum class SubtitleLanguage : int32_t {
   Vietnamese = 35,
 };
 
-enum class SubtitleType : int32_t {
-  Srt = 0,
-  Vtt = 1,
-};
-
 template<typename T = void>
 struct Box;
 
@@ -147,12 +142,6 @@ struct ShowC {
 struct EpisodeC {
   const char *id;
   const char *title;
-  const char *imdb_id;
-  const char *year;
-  int32_t runtime;
-  RatingC *rating;
-  ImagesC images;
-  const char *synopsis;
   int32_t season;
   int32_t episode;
 };
@@ -282,6 +271,6 @@ MovieC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id);
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);
 
-const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, const SubtitleType *output_type);
+const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
 
 } // extern "C"

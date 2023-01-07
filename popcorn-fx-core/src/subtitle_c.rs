@@ -155,6 +155,7 @@ impl SubtitleC {
     }
 
     pub fn to_subtitle(&self) -> Subtitle {
+        trace!("Converting subtitle from C for {:?}", self);
         let info = self.info.clone().to_subtitle();
         let cues = unsafe { Vec::from_raw_parts(self.cues, self.number_of_cues as usize, self.cues_capacity as usize) };
         let mut file = None;

@@ -1,6 +1,7 @@
 use std::fs::File;
 
 use chrono::NaiveTime;
+use log::{debug, trace};
 use regex::Regex;
 
 use crate::core::subtitles::cue::SubtitleCue;
@@ -41,6 +42,7 @@ impl Parser for VttParser {
     }
 
     fn parse_raw(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+        trace!("Starting conversion to VTT");
         let mut output = format!("{}\n\n", HEADER);
 
         for cue in cues.iter() {
@@ -57,8 +59,11 @@ impl Parser for VttParser {
                 output.push_str(self.style_parser.to_line_string(line).as_str());
                 output.push_str(NEWLINE);
             }
+
+            output.push_str(NEWLINE);
         }
 
+        debug!("Conversion to VTT completed");
         Ok(output)
     }
 }
@@ -78,7 +83,13 @@ mod test {
             vec![
                 SubtitleLine::new(vec![StyledText::new("lorem".to_string(), true, false, false)]),
                 SubtitleLine::new(vec![StyledText::new("ipsum".to_string(), false, false, false)]),
-            ])
+            ]), SubtitleCue::new(
+            "2".to_string(),
+            60000,
+            60500,
+            vec![
+                SubtitleLine::new(vec![StyledText::new("dolor".to_string(), false, false, false)]),
+            ]),
         ];
         let parser = VttParser::new();
         let expected_result = format!("{}
@@ -87,6 +98,11 @@ mod test {
 00:00:30.000 --> 00:00:48.100
 <i>lorem</i>
 ipsum
+
+2
+00:01:00.000 --> 00:01:00.500
+dolor
+
 ", HEADER);
 
         let result = parser.parse_raw(&cues);

@@ -176,10 +176,12 @@ pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c
 }
 
 #[no_mangle]
-pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleC, output_type: &SubtitleType) -> *const c_char {
-    let sub = subtitle.to_subtitle();
+pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleC, output_type: usize) -> *const c_char {
+    debug!("Converting to raw subtitle type {} for {:?}", output_type, subtitle);
+    let subtitle = subtitle.to_subtitle();
+    let subtitle_type = SubtitleType::from_ordinal(output_type);
 
-    match popcorn_fx.subtitle_service().convert(sub, output_type.clone()) {
+    match popcorn_fx.subtitle_service().convert(subtitle, subtitle_type) {
         Ok(e) => to_c_string(e),
         Err(e) => {
             error!("Failed to convert the subtitle, {}", e);

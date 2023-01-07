@@ -111,12 +111,6 @@ impl ShowC {
 pub struct EpisodeC {
     id: *const c_char,
     title: *const c_char,
-    imdb_id: *const c_char,
-    year: *const c_char,
-    runtime: i32,
-    rating: *mut RatingC,
-    images: ImagesC,
-    synopsis: *const c_char,
     season: i32,
     episode: i32,
 }

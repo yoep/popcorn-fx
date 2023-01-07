@@ -14,6 +14,7 @@ proc-macro = true
 
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
+
 async-trait = "0.1"
 derive-new = "0.5"
 futures = "0.3"
@@ -25,7 +26,7 @@ tokio = { version = "1" }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
-httpmock = "0.6.7"
-log4rs = "1.1.1"
+
+httpmock = "0.6"
 tempfile = "3"
 tokio = { version = "1", features = ["test-util", "macros"] }

@@ -20,7 +20,7 @@ home = "0.5"
 html-escape = "0.2"
 itertools = "0.10"
 log = "0.4"
-log4rs = { version = "1.1.1", optional = true }
+log4rs = { version = "1", features = ["console_writer"], optional = true }
 regex = "1.6"
 reqwest = { version = "0.11", features = ["serde_json", "json"] }
 serde = "1.0"
@@ -30,6 +30,7 @@ tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
 mockall = "0.11"
 tokio = { version = "1", features = ["test-util", "macros"] }
 

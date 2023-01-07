@@ -60,24 +60,24 @@ impl SubtitleInfoC {
 #[derive(Debug, Clone)]
 pub struct VecSubtitleInfoC {
     pub subtitles: *mut SubtitleInfoC,
-    pub number_of_subtitles: i32,
-    pub capacity: i32,
+    pub len: i32,
+    pub cap: i32,
 }
 
 impl VecSubtitleInfoC {
-    pub fn new(subtitles: *mut SubtitleInfoC, number_of_subtitles: i32, capacity: i32) -> Self {
+    pub fn new(subtitles: *mut SubtitleInfoC, len: i32, cap: i32) -> Self {
         Self {
             subtitles,
-            number_of_subtitles,
-            capacity,
+            len,
+            cap,
         }
     }
 
     pub fn from(mut subtitles: Vec<SubtitleInfoC>) -> Self {
         Self {
             subtitles: subtitles.as_mut_ptr(),
-            number_of_subtitles: subtitles.len() as i32,
-            capacity: subtitles.capacity() as i32,
+            len: subtitles.len() as i32,
+            cap: subtitles.capacity() as i32,
         }
     }
 }

@@ -1,5 +1,10 @@
+use derive_more::Display;
+
+/// The available categories of [crate::core::media::Media] items.
+/// These can be used as filter to retrieve data from the API.
 #[repr(i32)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
+#[display(fmt = "{}", (self.name()))]
 pub enum Category {
     MOVIES = 0,
     SERIES = 1,

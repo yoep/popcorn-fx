@@ -64,8 +64,13 @@ enum class SubtitleType : int32_t {
 template<typename T = void>
 struct Box;
 
+template<typename K = void, typename V = void, typename Hasher = void>
+struct HashMap;
+
 /// The [PopcornFX] application instance.
 struct PopcornFX;
+
+struct String;
 
 /// The subtitle info contains information about available subtitles for a certain [Media].
 /// This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
@@ -79,8 +84,8 @@ struct SubtitleInfoC {
 
 struct VecSubtitleInfoC {
   SubtitleInfoC *subtitles;
-  int32_t number_of_subtitles;
-  int32_t capacity;
+  int32_t len;
+  int32_t cap;
 };
 
 struct StyledTextC {
@@ -119,9 +124,9 @@ struct SubtitleMatcherC {
 };
 
 struct ShowC {
-  char *id;
-  char *tvdb_id;
-  char *title;
+  const char *id;
+  const char *tvdb_id;
+  const char *title;
 };
 
 struct EpisodeC {
@@ -131,9 +136,43 @@ struct EpisodeC {
   int32_t episode;
 };
 
+struct RatingC {
+  int32_t percentage;
+  int32_t watching;
+  int32_t votes;
+  int32_t loved;
+  int32_t hated;
+};
+
+struct ImagesC {
+  const char *poster;
+  const char *fanart;
+  const char *banner;
+};
+
+struct TorrentInfoC {
+  const char *url;
+  const char *provider;
+  const char *source;
+  const char *title;
+  const char *quality;
+  uint32_t seed;
+  uint32_t peer;
+  const char *size;
+  const char *filesize;
+};
+
 struct MovieC {
   const char *id;
   const char *title;
+  const char *imdb_id;
+  const char *year;
+  int32_t runtime;
+  RatingC *rating;
+  ImagesC images;
+  const char *synopsis;
+  const char *trailer;
+  HashMap<String, HashMap<String, TorrentInfoC>> torrents;
 };
 
 struct PlatformInfoC {
@@ -141,6 +180,22 @@ struct PlatformInfoC {
   PlatformType platform_type;
   /// The cpu architecture of the platform
   const char *arch;
+};
+
+struct VecMovieC {
+  MovieC *movies;
+  int32_t len;
+  int32_t cap;
+};
+
+struct GenreC {
+  const char *key;
+  const char *text;
+};
+
+struct SortByC {
+  const char *key;
+  const char *text;
 };
 
 
@@ -156,6 +211,8 @@ void disable_screensaver(PopcornFX *popcorn_fx);
 void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);
 
 /// Download and parse the given subtitle info.
+///
+/// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 SubtitleC *download_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
 /// Enable the screensaver on the current platform
@@ -169,7 +226,7 @@ VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
 /// Retrieve the available subtitles for the given [MovieC].
 ///
-/// It returns a reference to [VecSubtitleInfoC], else a [std::ptr::null_mut] on failure.
+/// It returns a reference to [VecSubtitleInfoC], else a [ptr::null_mut] on failure.
 /// <i>The returned reference should be managed by the caller.</i>
 VecSubtitleInfoC *movie_subtitles(PopcornFX *popcorn_fx, const MovieC *movie);
 
@@ -179,11 +236,17 @@ VecSubtitleInfoC *movie_subtitles(PopcornFX *popcorn_fx, const MovieC *movie);
 PopcornFX *new_popcorn_fx();
 
 /// Parse the given subtitle file.
-/// Returns the parsed subtitle on success, else null.
+///
+/// It returns the parsed subtitle on success, else null.
 SubtitleC *parse_subtitle(PopcornFX *popcorn_fx, const char *file_path);
 
 /// Retrieve the platform information
 PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
+
+/// Retrieve the available movies for the given criteria.
+///
+/// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
+VecMovieC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);

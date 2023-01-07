@@ -34,7 +34,7 @@ public abstract class AbstractMedia extends Structure implements Media {
     /**
      * The IMDB ID of the media.
      */
-    private String imdbId;
+    public String imdbId;
     /**
      * The title of the media.
      */
@@ -42,12 +42,12 @@ public abstract class AbstractMedia extends Structure implements Media {
     /**
      * The year that the media was published.
      */
-    private String year;
-    private Integer runtime;
+    public String year;
+    public Integer runtime;
     private List<String> genres;
-    private Rating rating;
-    private Images images;
-    private String synopsis;
+    public Rating.ByReference rating;
+    public Images images;
+    public String synopsis;
 
     //region Properties
 
@@ -106,4 +106,18 @@ public abstract class AbstractMedia extends Structure implements Media {
     }
 
     //endregion
+
+    protected static Rating.ByReference toRatingReference(Rating rating) {
+        if (rating == null) {
+            return null;
+        }
+
+        var reference = new Rating.ByReference();
+        reference.percentage = rating.percentage;
+        reference.watching = rating.watching;
+        reference.votes = rating.votes;
+        reference.loved = rating.loved;
+        reference.hated = rating.hated;
+        return reference;
+    }
 }

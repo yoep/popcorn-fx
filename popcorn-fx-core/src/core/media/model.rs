@@ -1,6 +1,8 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use derive_more::Display;
+use log::warn;
 use serde::Deserialize;
 
 /// The media type identifier.
@@ -20,8 +22,9 @@ pub trait MediaIdentifier: Debug {
     /// Get the type of the media.
     fn media_type(&self) -> MediaType;
 
-    /// The title of the media.
-    fn title(&self) -> &String;
+    /// The title of the media item.
+    /// The title is html decoded before it's returned.
+    fn title(&self) -> String;
 }
 
 /// Defines an object that can be watched.
@@ -38,7 +41,163 @@ pub trait Favorable: MediaIdentifier {
 
 pub trait Media: MediaIdentifier + Watchable + Favorable {}
 
+/// The rating information of a [Media] item.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Rating {
+    percentage: u16,
+    watching: u32,
+    votes: u32,
+    loved: u32,
+    hated: u32,
+}
+
+impl Rating {
+    pub fn new(percentage: u16) -> Self {
+        Self {
+            percentage,
+            watching: 0,
+            votes: 0,
+            loved: 0,
+            hated: 0,
+        }
+    }
+
+    pub fn new_with_metadata(percentage: u16, watching: u32, votes: u32, loved: u32, hated: u32) -> Self {
+        Self {
+            percentage,
+            watching,
+            votes,
+            loved,
+            hated,
+        }
+    }
+
+    pub fn percentage(&self) -> &u16 {
+        &self.percentage
+    }
+
+    pub fn watching(&self) -> &u32 {
+        &self.watching
+    }
+
+    pub fn votes(&self) -> &u32 {
+        &self.votes
+    }
+
+    pub fn loved(&self) -> &u32 {
+        &self.loved
+    }
+
+    pub fn hated(&self) -> &u32 {
+        &self.hated
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Images {
+    poster: String,
+    fanart: String,
+    banner: String,
+}
+
+impl Images {
+    pub fn new(poster: String, fanart: String, banner: String) -> Self {
+        Self {
+            poster,
+            fanart,
+            banner,
+        }
+    }
+
+    /// Retrieve an empty [Images] struct which contains all empty strings.
+    pub fn none() -> Self {
+        Self {
+            poster: String::new(),
+            fanart: String::new(),
+            banner: String::new(),
+        }
+    }
+
+    pub fn poster(&self) -> &String {
+        &self.poster
+    }
+
+    pub fn fanart(&self) -> &String {
+        &self.fanart
+    }
+
+    pub fn banner(&self) -> &String {
+        &self.banner
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct TorrentInfo {
+    url: String,
+    provider: String,
+    source: String,
+    title: String,
+    quality: String,
+    seed: u32,
+    peer: u32,
+    size: String,
+    filesize: String,
+}
+
+impl TorrentInfo {
+    pub fn new(url: String, title: String, quality: String) -> Self {
+        Self {
+            url,
+            provider: String::new(),
+            source: String::new(),
+            title,
+            quality,
+            seed: 0,
+            peer: 0,
+            size: String::new(),
+            filesize: String::new(),
+        }
+    }
+
+    pub fn url(&self) -> &String {
+        &self.url
+    }
+
+    pub fn provider(&self) -> &String {
+        &self.provider
+    }
+
+    pub fn source(&self) -> &String {
+        &self.source
+    }
+
+    pub fn title(&self) -> &String {
+        &self.title
+    }
+
+    pub fn quality(&self) -> &String {
+        &self.quality
+    }
+
+    pub fn seed(&self) -> &u32 {
+        &self.seed
+    }
+
+    pub fn peer(&self) -> &u32 {
+        &self.peer
+    }
+
+    pub fn size(&self) -> &String {
+        &self.size
+    }
+
+    pub fn filesize(&self) -> &String {
+        &self.filesize
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[display(fmt = "id: {}, title: {}, imdb_id: {}", id, title, imdb_id)]
 pub struct Movie {
     #[serde(rename(deserialize = "_id"))]
     id: String,
@@ -46,17 +205,79 @@ pub struct Movie {
     imdb_id: String,
     tmdb_id: i32,
     year: String,
+    original_language: String,
+    runtime: String,
+    genres: Vec<String>,
+    synopsis: String,
+    rating: Option<Rating>,
+    images: Images,
+    released: i32,
+    trailer: String,
+    torrents: HashMap<String, HashMap<String, TorrentInfo>>,
 }
 
 impl Movie {
-    pub fn new(id: String, title: String) -> Self {
+    pub fn new(id: String, title: String, imdb_id: String, year: String, runtime: i32) -> Self {
         Self {
             id,
             title,
-            imdb_id: String::new(),
+            imdb_id,
             tmdb_id: -1,
-            year: String::new(),
+            year,
+            original_language: "en".to_string(),
+            runtime: runtime.to_string(),
+            genres: vec![],
+            synopsis: String::new(),
+            rating: None,
+            images: Images::none(),
+            released: 0,
+            trailer: String::new(),
+            torrents: HashMap::new(),
         }
+    }
+
+    pub fn imdb_id(&self) -> &String {
+        &self.imdb_id
+    }
+
+    pub fn year(&self) -> &String {
+        &self.year
+    }
+
+    pub fn runtime(&self) -> i32 {
+        match self.runtime.parse::<i32>() {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("Runtime value {} is invalid, {}", &self.runtime, e);
+                0
+            }
+        }
+    }
+
+    /// The rating of the movie if available.
+    pub fn rating(&self) -> Option<&Rating> {
+        match &self.rating {
+            None => None,
+            Some(e) => Some(e)
+        }
+    }
+
+    pub fn images(&self) -> &Images {
+        &self.images
+    }
+
+    /// Retrieve the description of the [Media] item.
+    /// The description is html decoded before it's returned.
+    pub fn synopsis(&self) -> String {
+        html_escape::decode_html_entities(&self.synopsis).into_owned()
+    }
+
+    pub fn trailer(&self) -> &String {
+        &self.trailer
+    }
+
+    pub fn torrents(&self) -> &HashMap<String, HashMap<String, TorrentInfo>> {
+        &self.torrents
     }
 }
 
@@ -69,8 +290,8 @@ impl MediaIdentifier for Movie {
         MediaType::Movie
     }
 
-    fn title(&self) -> &String {
-        &self.title
+    fn title(&self) -> String {
+        html_escape::decode_html_entities(&self.title).into_owned()
     }
 }
 
@@ -114,8 +335,8 @@ impl MediaIdentifier for Show {
         MediaType::Show
     }
 
-    fn title(&self) -> &String {
-        &self.title
+    fn title(&self) -> String {
+        html_escape::decode_html_entities(&self.title).into_owned()
     }
 }
 
@@ -170,8 +391,8 @@ impl MediaIdentifier for Episode {
         MediaType::Episode
     }
 
-    fn title(&self) -> &String {
-        &self.title
+    fn title(&self) -> String {
+        html_escape::decode_html_entities(&self.title).into_owned()
     }
 }
 

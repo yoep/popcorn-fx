@@ -6,7 +6,8 @@ use std::path::Path;
 
 use log::{debug, error, info};
 
-use popcorn_fx_core::{EpisodeC, from_c_string, into_c_owned, MovieC, ShowC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecSubtitleInfoC};
+use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecSubtitleInfoC};
+use popcorn_fx_core::core::media::Category;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -53,11 +54,11 @@ pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut V
 
 /// Retrieve the available subtitles for the given [MovieC].
 ///
-/// It returns a reference to [VecSubtitleInfoC], else a [std::ptr::null_mut] on failure.
+/// It returns a reference to [VecSubtitleInfoC], else a [ptr::null_mut] on failure.
 /// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieC) -> *mut VecSubtitleInfoC {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
     let movie_instance = movie.to_struct();
 
     match runtime.block_on(popcorn_fx.subtitle_service().movie_subtitles(movie_instance)) {
@@ -133,6 +134,8 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitl
 }
 
 /// Download and parse the given subtitle info.
+///
+/// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 #[no_mangle]
 pub extern "C" fn download_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
     let subtitle_info = subtitle.clone().to_subtitle();
@@ -153,7 +156,8 @@ pub extern "C" fn download_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &Subti
 }
 
 /// Parse the given subtitle file.
-/// Returns the parsed subtitle on success, else null.
+///
+/// It returns the parsed subtitle on success, else null.
 #[no_mangle]
 pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c_char) -> *mut SubtitleC {
     let string_path = from_c_string(file_path);
@@ -182,6 +186,45 @@ pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &Subtitl
             ptr::null()
         }
     }
+}
+
+/// Retrieve the available movies for the given criteria.
+///
+/// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut VecMovieC {
+    let genre = genre.to_struct();
+    let sort_by = sort_by.to_struct();
+    let keywords = from_c_string(keywords);
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    return match popcorn_fx.providers().get(Category::MOVIES) {
+        None => {
+            error!("No provider could be found for {}", Category::MOVIES);
+            ptr::null_mut()
+        }
+        Some(e) => {
+            match runtime.block_on(e.retrieve(&genre, &sort_by, &keywords, page)) {
+                Ok(e) => {
+                    info!("Retrieved a total of {} movies, {}", e.size(), &e);
+                    let movies: Vec<MovieC> = e.into_content().into_iter()
+                        .map(|e| MovieC::from(e))
+                        .collect();
+
+                    if movies.len() > 0 {
+                        into_c_owned(VecMovieC::from(movies))
+                    } else {
+                        debug!("No movies have been found, returning ptr::null");
+                        ptr::null_mut()
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to retrieve movies, {}", e);
+                    ptr::null_mut()
+                }
+            }
+        }
+    };
 }
 
 /// Delete the PopcornFX instance in a safe way.

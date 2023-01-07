@@ -1,16 +1,19 @@
 package com.github.yoep.popcorn.backend.media.filters.model;
 
+import com.sun.jna.Structure;
 import lombok.Getter;
 
+import java.io.Closeable;
 import java.io.Serializable;
 
 @Getter
-public class Genre implements Comparable<Genre>, Serializable {
+@Structure.FieldOrder({"key", "text"})
+public class Genre extends Structure implements Comparable<Genre>, Serializable, Closeable {
     public static final String ALL_KEYWORD = "all";
     public static final String MOVIES_KEYWORD = "movies";
 
-    private final String key;
-    private final String text;
+    public String key;
+    public String text;
 
     public Genre(String key, String text) {
         this.key = key;
@@ -40,5 +43,10 @@ public class Genre implements Comparable<Genre>, Serializable {
             return 1;
 
         return this.getText().compareTo(o.getText());
+    }
+
+    @Override
+    public void close() {
+        setAutoSynch(false);
     }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Once};
@@ -9,6 +10,8 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
 use popcorn_fx_core::core::config::Application;
+use popcorn_fx_core::core::media::{Category, Movie};
+use popcorn_fx_core::core::media::providers::{MovieProvider, Provider, ProviderManager};
 use popcorn_fx_core::core::subtitles::service::SubtitleService;
 use popcorn_fx_opensubtitles::opensubtitles::service::OpensubtitlesService;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
@@ -25,6 +28,7 @@ pub struct PopcornFX {
     settings: Arc<Application>,
     subtitle_service: Box<dyn SubtitleService>,
     platform_service: Box<dyn PlatformService>,
+    providers: ProviderManager,
 }
 
 impl PopcornFX {
@@ -34,11 +38,16 @@ impl PopcornFX {
         let settings = Arc::new(Application::new_auto());
         let subtitle_service = Box::new(OpensubtitlesService::new(&settings));
         let platform_service = Box::new(PlatformServiceImpl::new());
+        let movie_provider: Box<dyn Provider<Movie>> = Box::new(MovieProvider::new(&settings));
+        let providers = ProviderManager::with_providers(HashMap::from([
+            (Category::MOVIES, movie_provider)
+        ]));
 
         Self {
             settings,
             subtitle_service,
             platform_service,
+            providers,
         }
     }
 
@@ -52,6 +61,11 @@ impl PopcornFX {
         &mut self.platform_service
     }
 
+    /// The available [popcorn_fx_core::core::media::Media] providers of the [PopcornFX].
+    pub fn providers(&mut self) -> &mut ProviderManager {
+        &mut self.providers
+    }
+
     /// Dispose the FX instance.
     pub fn dispose(&self) {
         self.settings.save();
@@ -61,7 +75,7 @@ impl PopcornFX {
         INIT.call_once(|| {
             let config: Config;
             let root_level = env::var("LOG_LEVEL").unwrap_or("Info".to_string());
-            let log_path = env::current_dir().unwrap()
+            let log_path = env::current_dir().expect("Home directory should exist")
                 .join(LOG_FILENAME);
 
             if log_path.exists() {

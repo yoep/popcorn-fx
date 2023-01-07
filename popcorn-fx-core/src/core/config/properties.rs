@@ -115,7 +115,7 @@ impl PopcornProperties {
                 data
             })
             .or_else(|| Some(String::new()))
-            .unwrap();
+            .expect("Properties should have been loaded");
 
         Self::from_str(config_value.as_str())
     }

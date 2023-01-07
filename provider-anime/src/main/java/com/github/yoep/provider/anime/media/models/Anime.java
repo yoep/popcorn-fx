@@ -24,7 +24,7 @@ public class Anime extends AbstractMedia {
     public Anime(String nyaaId, List<Episode> episodes, String imdbId, String title, String year,
                  Integer runtime, List<String> genres,
                  Rating rating, Images images, String synopsis) {
-        super(nyaaId, imdbId, title, year, runtime, genres, rating, images, synopsis);
+        super(nyaaId, imdbId, title, year, runtime, genres, toRatingReference(rating), images, synopsis);
         Objects.requireNonNull(nyaaId, "nyaaId cannot be null");
         this.nyaaId = nyaaId;
         this.episodes = episodes;

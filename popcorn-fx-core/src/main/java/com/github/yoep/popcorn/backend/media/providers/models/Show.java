@@ -45,7 +45,7 @@ public class Show extends AbstractMedia implements Closeable {
     @Builder
     public Show(String id, String imdbId, String title, String year, Integer runtime, List<String> genres, Rating rating, Images images, String synopsis,
                 String tvdbId, int numberOfSeasons, String status, List<Episode> episodes, long lastUpdated) {
-        super(id, imdbId, title, year, runtime, genres, rating, images, synopsis);
+        super(id, imdbId, title, year, runtime, genres, toRatingReference(rating), images, synopsis);
         this.tvdbId = tvdbId;
         this.numberOfSeasons = numberOfSeasons;
         this.status = status;
@@ -60,7 +60,7 @@ public class Show extends AbstractMedia implements Closeable {
      * @param show The show to copy.
      */
     public Show(@NotNull Show show) {
-        super(show.getId(), show.getImdbId(), show.getTitle(), show.getYear(), show.getRuntime(), show.getGenres(), show.getRating().orElse(null),
+        super(show.getId(), show.getImdbId(), show.getTitle(), show.getYear(), show.getRuntime(), show.getGenres(), toRatingReference(show.getRating().orElse(null)),
                 show.getImages(), show.getSynopsis());
         this.tvdbId = show.tvdbId;
         this.numberOfSeasons = show.getNumberOfSeasons();

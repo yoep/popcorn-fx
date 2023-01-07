@@ -2,6 +2,7 @@ use std::borrow::BorrowMut;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use itertools::*;
 use log::{error, info, warn};
 use tokio::sync::Mutex;
 
@@ -13,6 +14,7 @@ use crate::core::Page;
 const PROVIDER_NAME: &str = "movies";
 const RESOURCE_NAME: &str = "movies";
 
+#[derive(Debug)]
 pub struct MovieProvider {
     base: Arc<Mutex<BaseProvider>>,
 }
@@ -30,9 +32,11 @@ impl MovieProvider {
         let api_server = settings.settings().server().api_server();
         let mut uris: Vec<String> = vec![];
 
-        if api_server.is_some() {
-            uris.push(api_server.unwrap().clone());
+        match api_server {
+            None => {}
+            Some(e) => uris.push(e.clone())
         }
+
         match settings.properties().provider(PROVIDER_NAME.to_string()) {
             Ok(e) => {
                 for uri in e.uris() {
@@ -52,13 +56,16 @@ impl Provider<Movie> for MovieProvider {
         category == &Category::MOVIES
     }
 
-    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, page: i32) -> providers::Result<Page<Movie>> {
+    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> providers::Result<Page<Movie>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 
-        match base.borrow_mut().retrieve_provider_page::<Movie>(RESOURCE_NAME, genre, sort_by, &String::new(), page).await {
+        match base.borrow_mut().retrieve_provider_page::<Movie>(RESOURCE_NAME, genre, sort_by, &keywords, page).await {
             Ok(e) => {
-                info!("Retrieved movies {:?}", e);
+                info!("Retrieved a total of {} movies, [{{{}}}]", e.len(), e.iter()
+                .map(|e| e.to_string())
+                .join("}, {"));
+
                 Ok(Page::from_content(e))
             }
             Err(e) => {
@@ -130,9 +137,10 @@ mod test {
         let settings = Arc::new(Application::default());
         let provider = MovieProvider::new(&settings);
 
-        let result = provider.retrieve(&genre, &sort_by, 1).await;
+        let result = provider.retrieve(&genre, &sort_by, &String::new(), 1)
+            .await
+            .expect("expected media items to have been returned");
 
-        assert!(result.is_ok(), "Expected the media retrieve to succeed");
-        assert!(result.unwrap().total_elements() > 0, "Expected at least one item to have been found")
+        assert!(result.total_elements() > 0, "Expected at least one item to have been found")
     }
 }

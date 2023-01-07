@@ -1,5 +1,8 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.media.filters.model.Genre;
+import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
+import com.github.yoep.popcorn.backend.media.providers.MovieSet;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
@@ -44,6 +47,8 @@ public interface FxLib extends Library {
     Subtitle parse_subtitle(PopcornFx instance, String filePath);
     
     String subtitle_to_raw(PopcornFx instance, Subtitle subtitle, SubtitleType type);
+
+    MovieSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
     void disable_screensaver(PopcornFx instance);
 

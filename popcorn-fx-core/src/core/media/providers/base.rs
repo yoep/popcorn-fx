@@ -46,7 +46,7 @@ impl BaseProvider {
             client: Client::builder()
                 .redirect(Policy::limited(3))
                 .build()
-                .unwrap(),
+                .expect("Client should have been created"),
             uri_providers: uris.into_iter()
                 .map(|e| UriProvider::new(e))
                 .collect(),
@@ -60,7 +60,7 @@ impl BaseProvider {
         }
     }
 
-    pub async fn retrieve_provider_page<T>(&mut self, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: i32) -> providers::Result<Vec<T>>
+    pub async fn retrieve_provider_page<T>(&mut self, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: u32) -> providers::Result<Vec<T>>
         where T : DeserializeOwned {
         let available_providers: Vec<&mut UriProvider> = self.uri_providers.iter_mut()
             .filter(|e| !e.disabled)
@@ -103,7 +103,7 @@ impl BaseProvider {
         }
     }
 
-    fn create_uri(host: &String, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: i32) -> Url {
+    fn create_uri(host: &String, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: u32) -> Url {
         let uri = format!("{}/{}/{}", host, resource, page);
         let mut query_params: Vec<(&str, &str)> = vec![];
 

@@ -21,7 +21,7 @@ impl VttParser {
     /// Create a new vtt parser instance.
     pub fn new() -> Self {
         Self {
-            time_regex: Regex::new(TIME_FORMAT).unwrap(),
+            time_regex: Regex::new(TIME_FORMAT).expect("Time format should be valid"),
             style_parser: StyleParser::new(),
         }
     }

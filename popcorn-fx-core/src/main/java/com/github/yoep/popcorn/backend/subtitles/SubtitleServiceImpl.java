@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -67,6 +68,7 @@ public class SubtitleServiceImpl implements SubtitleService {
                 .map(SubtitleInfoSet::getSubtitles)
                 .orElse(Collections.emptyList());
 
+        log.debug("Retrieved movie subtitles {}", subtitles);
         return CompletableFuture.completedFuture(
                 Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
     }
@@ -78,6 +80,7 @@ public class SubtitleServiceImpl implements SubtitleService {
         Assert.notNull(episode, "episode cannot be null");
         var subtitles = FxLib.INSTANCE.episode_subtitles(PopcornFxInstance.INSTANCE.get(), media, episode).getSubtitles();
 
+        log.debug("Retrieved episode subtitle {}", subtitles);
         return CompletableFuture.completedFuture(
                 Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
     }
@@ -119,6 +122,10 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Override
     public SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles) {
         Assert.notNull(subtitles, "subtitles cannot be null");
+        subtitles = subtitles.stream()
+                .filter(e -> !e.isSpecial())
+                .collect(Collectors.toList());
+
         var count = subtitles.size();
         var array = (SubtitleInfo[]) new SubtitleInfo().toArray(count);
 

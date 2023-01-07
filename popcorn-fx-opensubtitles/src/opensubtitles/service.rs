@@ -540,7 +540,13 @@ mod test {
         init_logger();
         let settings = Arc::new(Application::default());
         let imdb_id = "tt1156398".to_string();
-        let movie = Movie::new(imdb_id.clone(), "lorem".to_string());
+        let movie = Movie::new(
+            imdb_id.clone(),
+            "lorem".to_string(),
+            imdb_id.clone(),
+            "2021".to_string(),
+            120,
+        );
         let service = OpensubtitlesService::new(&settings);
 
         let result = service.movie_subtitles(movie)
@@ -560,8 +566,18 @@ mod test {
     async fn test_movie_subtitles_search_2_subtitles() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let movie1 = Movie::new("tt1156398".to_string(), "lorem".to_string());
-        let movie2 = Movie::new("tt12003946".to_string(), "ipsum".to_string());
+        let movie1 = Movie::new(
+            "tt1156398".to_string(),
+            "lorem".to_string(),
+            "tt1156398".to_string(),
+            "2021".to_string(),
+            120);
+        let movie2 = Movie::new(
+            "tt12003946".to_string(),
+            "ipsum".to_string(),
+            "tt12003946".to_string(),
+            "2021".to_string(),
+            120);
         let service = OpensubtitlesService::new(&settings);
         server.mock(|when, then| {
             when.method(GET)

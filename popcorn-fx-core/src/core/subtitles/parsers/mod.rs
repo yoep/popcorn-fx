@@ -23,6 +23,11 @@ pub trait Parser: Send + Sync {
     /// Invalid lines within the given buffer will be ignored by the parser and logged as a warning.
     fn parse_string(&self, value: &String) -> Vec<SubtitleCue>;
 
-    /// Parse the given cues to the raw output of the extension.
-    fn parse_raw(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError>;
+    /// Convert the given [SubtitleCue]'s to the raw format of the extension.
+    /// This is always represented as a plain text value.
+    ///
+    /// * `cues` - The array of [SubtitleCue] consisting of at least one cue to prevent corruption of the output.
+    ///
+    /// It returns the plain text value on successful conversion, else the [SubtitleParseError].
+    fn convert(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError>;
 }

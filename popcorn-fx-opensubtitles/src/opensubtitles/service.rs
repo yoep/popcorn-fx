@@ -13,13 +13,13 @@ use reqwest::header::HeaderMap;
 
 use popcorn_fx_core::core::config::Application;
 use popcorn_fx_core::core::media::*;
+use popcorn_fx_core::core::subtitles::{Result, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::errors::SubtitleError;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleFile, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::subtitles::parsers::{Parser, VttParser};
 use popcorn_fx_core::core::subtitles::parsers::SrtParser;
-use popcorn_fx_core::core::subtitles::service::{Result, SubtitleService};
 
 use crate::opensubtitles::model::*;
 
@@ -32,14 +32,13 @@ const FILENAME_PARAM_KEY: &str = "query";
 const PAGE_PARAM_KEY: &str = "page";
 const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 
-pub struct OpensubtitlesService {
+pub struct OpensubtitlesProvider {
     settings: Arc<Application>,
     client: Client,
-    active_subtitle: Option<Subtitle>,
     parsers: HashMap<SubtitleType, Box<dyn Parser>>,
 }
 
-impl OpensubtitlesService {
+impl OpensubtitlesProvider {
     /// Create a new OpenSubtitles service instance.
     pub fn new(settings: &Arc<Application>) -> Self {
         let mut default_headers = HeaderMap::new();
@@ -57,7 +56,6 @@ impl OpensubtitlesService {
                 .default_headers(default_headers)
                 .build()
                 .unwrap(),
-            active_subtitle: None,
             parsers: HashMap::from([
                 (SubtitleType::Srt, srt_parser),
                 (SubtitleType::Vtt, vtt_parser)
@@ -369,9 +367,9 @@ impl OpensubtitlesService {
         let normalized_extension = extension.to_ascii_lowercase();
         let extension = normalized_extension.to_str()
             .expect("expected the extension to be a valid unicode");
-        let invalid_extensions :Vec<&str> = vec![
+        let invalid_extensions: Vec<&str> = vec![
             "en",
-            "lol"
+            "lol",
         ];
 
         invalid_extensions.contains(&extension)
@@ -379,20 +377,7 @@ impl OpensubtitlesService {
 }
 
 #[async_trait]
-impl SubtitleService for OpensubtitlesService {
-    fn active_subtitle(&self) -> Option<&Subtitle> {
-        match &self.active_subtitle {
-            None => None,
-            Some(x) => {
-                Some(x)
-            }
-        }
-    }
-
-    fn update_active_subtitle(&mut self, subtitle: Option<Subtitle>) {
-        self.active_subtitle = subtitle;
-    }
-
+impl SubtitleProvider for OpensubtitlesProvider {
     async fn movie_subtitles(&self, media: Movie) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.id();
 
@@ -460,13 +445,13 @@ impl SubtitleService for OpensubtitlesService {
             None => Err(SubtitleError::TypeNotSupported(output_type)),
             Some(parser) => {
                 debug!("Converting subtitle to raw format of {} for {}", &output_type, subtitle);
-                match parser.parse_raw(subtitle.cues()) {
+                match parser.convert(subtitle.cues()) {
                     Err(err) => {
                         error!("Subtitle parsing to raw {} failed, {}", &output_type, err);
                         Err(SubtitleError::ConversionFailed(output_type.clone(), err.to_string()))
-                    },
+                    }
                     Ok(e) => {
-                        debug!("Parsed subtitle to raw {}", &output_type);
+                        debug!("Converted subtitle {:?} to raw {}", &subtitle.file(), &output_type);
                         Ok(e)
                     }
                 }
@@ -475,7 +460,7 @@ impl SubtitleService for OpensubtitlesService {
     }
 }
 
-impl Drop for OpensubtitlesService {
+impl Drop for OpensubtitlesProvider {
     fn drop(&mut self) {
         let settings = self.settings.settings().subtitle();
 
@@ -543,19 +528,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_update_active_subtitle_should_update_the_subtitle() {
-        init_logger();
-        let settings = Arc::new(Application::default());
-        let subtitle = Subtitle::new(vec![], Some(SubtitleInfo::none()), None);
-        let mut service = OpensubtitlesService::new(&settings);
-
-        service.update_active_subtitle(Some(subtitle.clone()));
-        let result = service.active_subtitle();
-
-        assert_eq!(result.unwrap(), &subtitle);
-    }
-
-    #[tokio::test]
     async fn test_movie_subtitles() {
         init_logger();
         let settings = Arc::new(Application::default());
@@ -567,7 +539,7 @@ mod test {
             "2021".to_string(),
             120,
         );
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
 
         let result = service.movie_subtitles(movie)
             .await;
@@ -598,7 +570,7 @@ mod test {
             "tt12003946".to_string(),
             "2021".to_string(),
             120);
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         server.mock(|when, then| {
             when.method(GET)
                 .path("/subtitles")
@@ -642,7 +614,7 @@ mod test {
             "Rick and Morty".to_string(),
             String::new());
         let episode = Episode::new("tt2169080".to_string(), "Pilot".to_string(), 1, 1);
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         server.mock(|when, then| {
             when.method(GET)
                 .path("/subtitles")
@@ -675,7 +647,7 @@ mod test {
         init_logger();
         let (server, settings) = start_mock_server();
         let filename = "House.of.the.Dragon.S01E01.HMAX.WEBRip.x264-XEN0N.mkv".to_string();
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         server.mock(|when, then| {
             when.method(GET)
                 .path("/subtitles")
@@ -701,7 +673,7 @@ mod test {
         init_logger();
         let (server, settings) = start_mock_server();
         let temp_dir = settings.settings().subtitle().directory().into_os_string().into_string().unwrap();
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files("tt7405458".to_string(), SubtitleLanguage::German, vec![
             SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
@@ -757,7 +729,7 @@ mod test {
         ), ServerSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let destination = copy_test_file(temp_path.clone().as_str(), test_file);
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new_with_files("tt00001".to_string(), SubtitleLanguage::German, vec![
             SubtitleFile::new(10001111, "subtitle_existing.srt".to_string(), String::new(), 0.0, 0)
         ]);
@@ -783,7 +755,7 @@ mod test {
         let test_file = "subtitle_example.srt";
         let temp_dir = tempfile::tempdir().unwrap();
         let settings = Arc::new(Application::default());
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         let destination = copy_test_file(temp_dir.into_path().to_str().unwrap(), test_file);
         let expected_result = Subtitle::new(vec![
             SubtitleCue::new("1".to_string(), 0, 0, vec![SubtitleLine::new(vec![StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)])])
@@ -805,7 +777,7 @@ mod test {
             SubtitleFamily::Arial,
         ), UiSettings::default(), ServerSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new("lorem".to_string(), English);
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
 
@@ -831,7 +803,7 @@ mod test {
             false,
         ), ServerSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
-        let service = OpensubtitlesService::new(&settings);
+        let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new("ipsum".to_string(), French);
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
 
@@ -847,7 +819,7 @@ mod test {
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "".to_string());
         let expected_result = "my-filename.srt".to_string();
 
-        let result = OpensubtitlesService::subtitle_file_name(&file, &attributes);
+        let result = OpensubtitlesProvider::subtitle_file_name(&file, &attributes);
 
         assert_eq!(expected_result, result)
     }
@@ -859,7 +831,7 @@ mod test {
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "lorem".to_string());
         let expected_result = "lorem.srt".to_string();
 
-        let result = OpensubtitlesService::subtitle_file_name(&file, &attributes);
+        let result = OpensubtitlesProvider::subtitle_file_name(&file, &attributes);
 
         assert_eq!(expected_result, result)
     }
@@ -871,7 +843,7 @@ mod test {
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "".to_string());
         let expected_result = "lorem.XviD-DEViSE.srt".to_string();
 
-        let result = OpensubtitlesService::subtitle_file_name(&file, &attributes);
+        let result = OpensubtitlesProvider::subtitle_file_name(&file, &attributes);
 
         assert_eq!(expected_result, result)
     }
@@ -883,7 +855,7 @@ mod test {
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "".to_string());
         let expected_result = "lorem.en.srt".to_string();
 
-        let result = OpensubtitlesService::subtitle_file_name(&file, &attributes);
+        let result = OpensubtitlesProvider::subtitle_file_name(&file, &attributes);
 
         assert_eq!(expected_result, result)
     }
@@ -903,13 +875,8 @@ mod test {
             None,
         );
         let settings = Arc::new(Application::default());
-        let service = OpensubtitlesService::new(&settings);
-        let expected_result = "WEBVTT
-
-1
-00:00:45.000 --> 00:00:46.890
-<u>lorem</u>
-".to_string();
+        let service = OpensubtitlesProvider::new(&settings);
+        let expected_result = read_test_file("example-conversion.vtt");
 
         let result = service.convert(subtitle, Vtt);
 

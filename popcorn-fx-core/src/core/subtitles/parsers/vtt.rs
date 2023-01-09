@@ -22,7 +22,7 @@ impl VttParser {
     /// Create a new vtt parser instance.
     pub fn new() -> Self {
         Self {
-            time_regex: Regex::new(TIME_FORMAT).expect("Time format should be valid"),
+            time_regex: Regex::new(TIME_FORMAT).expect("VTT time format should be valid"),
             style_parser: StyleParser::new(),
         }
     }
@@ -41,7 +41,7 @@ impl Parser for VttParser {
         todo!()
     }
 
-    fn parse_raw(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+    fn convert(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
         trace!("Starting conversion to VTT");
         let mut output = format!("{}\n\n", HEADER);
 
@@ -71,6 +71,7 @@ impl Parser for VttParser {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleLine};
+    use crate::test::read_test_file;
 
     use super::*;
 
@@ -92,20 +93,9 @@ mod test {
             ]),
         ];
         let parser = VttParser::new();
-        let expected_result = format!("{}
+        let expected_result = read_test_file("conversion-example.vtt");
 
-1
-00:00:30.000 --> 00:00:48.100
-<i>lorem</i>
-ipsum
-
-2
-00:01:00.000 --> 00:01:00.500
-dolor
-
-", HEADER);
-
-        let result = parser.parse_raw(&cues);
+        let result = parser.convert(&cues);
 
         assert_eq!(expected_result, result.expect("Expected the parsing to have succeeded"))
     }

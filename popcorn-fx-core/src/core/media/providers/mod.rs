@@ -3,10 +3,12 @@ pub use error::*;
 pub use manager::*;
 pub use movie::*;
 pub use provider::*;
+pub use show::*;
 
 mod base;
-mod movie;
-mod provider;
-mod utils;
 mod error;
 mod manager;
+mod movie;
+mod provider;
+mod show;
+mod utils;

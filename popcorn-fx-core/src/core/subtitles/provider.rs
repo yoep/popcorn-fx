@@ -6,29 +6,14 @@ use crate::core::media::{Episode, Movie, Show};
 use crate::core::subtitles::errors::SubtitleError;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
-use crate::observer::Observer;
 
 /// The specialized subtitle result.
 pub type Result<T> = std::result::Result<T, SubtitleError>;
 
-/// The [Observer] for the [SubtitleService].
-pub trait SubtitleServiceObserver: Observer {
-    /// Invoked when the subtitle is changed.
-    fn on_subtitle_changed(&mut self, old_value: Option<&Subtitle>, new_value: Option<&Subtitle>);
-}
-
-/// The subtitle service is responsible for discovering & downloading of subtitle files for Media
+/// The subtitle provider is responsible for discovering & downloading of [Subtitle] files for [Media]
 /// items.
 #[async_trait]
-pub trait SubtitleService {
-    /// The active subtitle for the media playback.
-    fn active_subtitle(&self) -> Option<&Subtitle>;
-
-    /// The subtitle which should be activated for the media playback.
-    /// The [SubtitleService] will always take ownership of the [Subtitle] and
-    /// will return read-only references through [Self::active_subtitle()].
-    fn update_active_subtitle(&mut self, subtitle: Option<Subtitle>);
-
+pub trait SubtitleProvider {
     /// The available default subtitle options.
     fn default_subtitle_options(&self) -> Vec<SubtitleInfo> {
         vec![SubtitleInfo::none(), SubtitleInfo::custom()]
@@ -54,7 +39,7 @@ pub trait SubtitleService {
     /// Select one of the available subtitles.
     /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
     fn select_or_default(&self, subtitles: &Vec<SubtitleInfo>) -> SubtitleInfo;
-    
+
     /// Convert the given [Subtitle] back to a raw format of [SubtitleType].
     /// It returns the raw format string for the given type on success, else the error.
     fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String>;

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -15,7 +16,7 @@ pub enum MediaType {
 }
 
 /// Basic identification information about a [Media] item.
-pub trait MediaIdentifier: Debug {
+pub trait MediaIdentifier: Debug + Any {
     /// Get the unique ID of the media.
     fn id(&self) -> &String;
 
@@ -25,6 +26,8 @@ pub trait MediaIdentifier: Debug {
     /// The title of the media item.
     /// The title is html decoded before it's returned.
     fn title(&self) -> String;
+
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// Defines an object that can be watched.
@@ -39,7 +42,8 @@ pub trait Favorable: MediaIdentifier {
     fn is_liked(&self) -> bool;
 }
 
-pub trait Media: MediaIdentifier + Watchable + Favorable {}
+pub trait Media: MediaIdentifier + Watchable + Favorable {
+}
 
 /// The rating information of a [Media] item.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -293,6 +297,10 @@ impl MediaIdentifier for Movie {
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl Watchable for Movie {
@@ -350,6 +358,10 @@ impl MediaIdentifier for Show {
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl Watchable for Show {
@@ -405,6 +417,10 @@ impl MediaIdentifier for Episode {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

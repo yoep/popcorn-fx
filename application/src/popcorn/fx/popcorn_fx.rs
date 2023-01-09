@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Once};
@@ -10,9 +9,8 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
 use popcorn_fx_core::core::config::Application;
-use popcorn_fx_core::core::media::{Category, Movie};
-use popcorn_fx_core::core::media::providers::{MovieProvider, Provider, ProviderManager};
-use popcorn_fx_core::core::subtitles::service::SubtitleService;
+use popcorn_fx_core::core::media::providers::{MediaProvider, MovieProvider, ProviderManager};
+use popcorn_fx_core::core::subtitles::provider::SubtitleProvider;
 use popcorn_fx_opensubtitles::opensubtitles::service::OpensubtitlesService;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
 
@@ -26,7 +24,7 @@ const CONSOLE_APPENDER: &str = "stdout";
 #[repr(C)]
 pub struct PopcornFX {
     settings: Arc<Application>,
-    subtitle_service: Box<dyn SubtitleService>,
+    subtitle_service: Box<dyn SubtitleProvider>,
     platform_service: Box<dyn PlatformService>,
     providers: ProviderManager,
 }
@@ -38,10 +36,8 @@ impl PopcornFX {
         let settings = Arc::new(Application::new_auto());
         let subtitle_service = Box::new(OpensubtitlesService::new(&settings));
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let movie_provider: Box<dyn Provider<Movie>> = Box::new(MovieProvider::new(&settings));
-        let providers = ProviderManager::with_providers(HashMap::from([
-            (Category::MOVIES, movie_provider)
-        ]));
+        let movie_provider: Box<dyn MediaProvider> = Box::new(MovieProvider::new(&settings));
+        let providers = ProviderManager::with_providers(vec![movie_provider]);
 
         Self {
             settings,
@@ -52,7 +48,7 @@ impl PopcornFX {
     }
 
     /// The platform service of the popcorn FX instance.
-    pub fn subtitle_service(&mut self) -> &mut Box<dyn SubtitleService> {
+    pub fn subtitle_service(&mut self) -> &mut Box<dyn SubtitleProvider> {
         &mut self.subtitle_service
     }
 

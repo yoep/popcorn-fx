@@ -2,7 +2,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 
-use crate::core::media::{Episode, Movie, Show};
+use crate::core::media::{Episode, MovieDetails, ShowDetails};
 use crate::core::subtitles::errors::SubtitleError;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
@@ -20,10 +20,10 @@ pub trait SubtitleProvider {
     }
 
     /// Retrieve the available subtitles for the given movie.
-    async fn movie_subtitles(&self, media: Movie) -> Result<Vec<SubtitleInfo>>;
+    async fn movie_subtitles(&self, media: MovieDetails) -> Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given episode.
-    async fn episode_subtitles(&self, media: Show, episode: Episode) -> Result<Vec<SubtitleInfo>>;
+    async fn episode_subtitles(&self, media: ShowDetails, episode: Episode) -> Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given filename.
     async fn file_subtitles(&self, filename: &String) -> Result<Vec<SubtitleInfo>>;

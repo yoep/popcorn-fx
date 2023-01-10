@@ -7,7 +7,7 @@ use std::path::Path;
 use log::{debug, error, info, trace};
 
 use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecShowC, VecSubtitleInfoC};
-use popcorn_fx_core::core::media::{Category, Movie, Show};
+use popcorn_fx_core::core::media::{Category, MovieDetails, ShowDetails};
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -215,7 +215,7 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
                     let movies: Vec<MovieC> = e.into_content().into_iter()
                         .map(|e| e
                             .into_any()
-                            .downcast::<Movie>()
+                            .downcast::<MovieDetails>()
                             .expect("expected media to be a movie"))
                         .map(|e| MovieC::from(*e))
                         .collect();
@@ -256,7 +256,7 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
                     trace!("Returning movie details {:?}", &e);
                     into_c_owned(MovieC::from(*e
                         .into_any()
-                        .downcast::<Movie>()
+                        .downcast::<MovieDetails>()
                         .expect("expected media to be a movie")))
                 }
                 Err(e) => {
@@ -300,7 +300,7 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
                     let shows: Vec<ShowC> = e.into_content().into_iter()
                         .map(|e| e
                             .into_any()
-                            .downcast::<Show>()
+                            .downcast::<ShowDetails>()
                             .expect("expected media to be a show"))
                         .map(|e| ShowC::from(*e))
                         .collect();
@@ -337,7 +337,7 @@ pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *co
                     trace!("Returning show details {:?}", &e);
                     into_c_owned(ShowC::from(*e
                         .into_any()
-                        .downcast::<Show>()
+                        .downcast::<ShowDetails>()
                         .expect("expected media to be a show")))
                 }
                 Err(e) => {

@@ -378,7 +378,7 @@ impl OpensubtitlesProvider {
 
 #[async_trait]
 impl SubtitleProvider for OpensubtitlesProvider {
-    async fn movie_subtitles(&self, media: Movie) -> Result<Vec<SubtitleInfo>> {
+    async fn movie_subtitles(&self, media: MovieDetails) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.id();
 
         debug!("Searching movie subtitles for IMDB ID {}", &imdb_id);
@@ -386,7 +386,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
             .await
     }
 
-    async fn episode_subtitles(&self, media: Show, episode: Episode) -> Result<Vec<SubtitleInfo>> {
+    async fn episode_subtitles(&self, media: ShowDetails, episode: Episode) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.id();
 
         debug!("Searching episode subtitles for IMDB ID {}", &imdb_id);
@@ -532,12 +532,11 @@ mod test {
         init_logger();
         let settings = Arc::new(Application::default());
         let imdb_id = "tt1156398".to_string();
-        let movie = Movie::new(
+        let movie = MovieDetails::new(
             imdb_id.clone(),
             "lorem".to_string(),
             imdb_id.clone(),
             "2021".to_string(),
-            120,
         );
         let service = OpensubtitlesProvider::new(&settings);
 
@@ -558,18 +557,16 @@ mod test {
     async fn test_movie_subtitles_search_2_subtitles() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let movie1 = Movie::new(
+        let movie1 = MovieDetails::new(
             "tt1156398".to_string(),
             "lorem".to_string(),
             "tt1156398".to_string(),
-            "2021".to_string(),
-            120);
-        let movie2 = Movie::new(
+            "2021".to_string());
+        let movie2 = MovieDetails::new(
             "tt12003946".to_string(),
             "ipsum".to_string(),
             "tt12003946".to_string(),
-            "2021".to_string(),
-            120);
+            "2021".to_string());
         let service = OpensubtitlesProvider::new(&settings);
         server.mock(|when, then| {
             when.method(GET)
@@ -608,7 +605,7 @@ mod test {
     async fn test_episode_subtitles() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let show = Show::new(
+        let show = ShowDetails::new(
             "tt2861424".to_string(),
             "275274".to_string(),
             "Rick and Morty".to_string(),

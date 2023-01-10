@@ -11,7 +11,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use popcorn_fx_core::core::config::Application;
 use popcorn_fx_core::core::media::providers::{MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::subtitles::SubtitleProvider;
-use popcorn_fx_opensubtitles::opensubtitles::service::OpensubtitlesProvider;
+use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
 
 static INIT: Once = Once::new();

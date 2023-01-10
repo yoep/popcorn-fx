@@ -1,10 +1,22 @@
 pub use category::*;
 pub use genre::*;
+pub use images::*;
+pub use media::*;
 pub use model::*;
+pub use movie::*;
+pub use rating::*;
+pub use show::*;
 pub use sort_by::*;
+pub use torrent_info::*;
 
 pub mod providers;
 mod category;
 mod genre;
+mod images;
+mod media;
 mod model;
+mod movie;
+mod rating;
+mod show;
 mod sort_by;
+mod torrent_info;

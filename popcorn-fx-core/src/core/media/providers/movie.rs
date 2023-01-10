@@ -7,7 +7,7 @@ use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
 use crate::core::config::Application;
-use crate::core::media::{Category, Genre, Media, Movie, providers, SortBy};
+use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, MovieDetails, MovieOverview, providers, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
 use crate::core::Page;
@@ -45,17 +45,17 @@ impl MediaProvider for MovieProvider {
         base.reset_api_stats();
     }
 
-    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> providers::Result<Page<Box<dyn Media>>> {
+    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> providers::Result<Page<Box<dyn MediaOverview>>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 
-        match base.borrow_mut().retrieve_provider_page::<Movie>(SEARCH_RESOURCE_NAME, genre, sort_by, &keywords, page).await {
+        match base.borrow_mut().retrieve_provider_page::<MovieOverview>(SEARCH_RESOURCE_NAME, genre, sort_by, &keywords, page).await {
             Ok(e) => {
                 info!("Retrieved a total of {} movies, [{{{}}}]", e.len(), e.iter()
                 .map(|e| e.to_string())
                 .join("}, {"));
-                let movies: Vec<Box<dyn Media>> = e.into_iter()
-                    .map(|e| Box::new(e) as Box<dyn Media>)
+                let movies: Vec<Box<dyn MediaOverview>> = e.into_iter()
+                    .map(|e| Box::new(e) as Box<dyn MediaOverview>)
                     .collect();
 
                 Ok(Page::from_content(movies))
@@ -67,11 +67,11 @@ impl MediaProvider for MovieProvider {
         }
     }
 
-    async fn retrieve_details(&self, imdb_id: &String) -> providers::Result<Box<dyn Media>> {
+    async fn retrieve_details(&self, imdb_id: &String) -> providers::Result<Box<dyn MediaDetails>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 
-        match base.borrow_mut().retrieve_details::<Movie>(DETAILS_RESOURCE_NAME, imdb_id).await {
+        match base.borrow_mut().retrieve_details::<MovieDetails>(DETAILS_RESOURCE_NAME, imdb_id).await {
             Ok(e) => {
                 debug!("Retrieved movie details {}", &e);
                 Ok(Box::new(e))
@@ -86,17 +86,64 @@ impl MediaProvider for MovieProvider {
 
 #[cfg(test)]
 mod test {
-    use crate::test::init_logger;
+    use std::collections::HashMap;
+
+    use httpmock::Method::GET;
+    use httpmock::MockServer;
+
+    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
+    use crate::core::media::{Images, Rating};
+    use crate::test::{init_logger, read_test_file};
 
     use super::*;
+
+    fn start_mock_server() -> (MockServer, Arc<Application>) {
+        let server = MockServer::start();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let settings = Arc::new(Application::new(
+            PopcornProperties::new_with_providers(SubtitleProperties::default(), create_providers(&server)),
+            PopcornSettings::default(),
+        ));
+
+        (server, settings)
+    }
 
     #[tokio::test]
     async fn test_retrieve() {
         init_logger();
+        let (server, settings) = start_mock_server();
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
-        let settings = Arc::new(Application::default());
         let provider = MovieProvider::new(&settings);
+        let expected_result = MovieOverview::new_detailed(
+            "tt9764362".to_string(),
+            "Lorem Ipsum".to_string(),
+            "tt9764362".to_string(),
+            "2022".to_string(),
+            Some(Rating::new_with_metadata(
+                72,
+                18,
+                1270,
+                0,
+                0,
+            )),
+            Images::new(
+                "http://image.tmdb.org/t/p/w500/poster.jpg".to_string(),
+                "http://image.tmdb.org/t/p/w500/fanart.jpg".to_string(),
+                "http://image.tmdb.org/t/p/w500/banner.jpg".to_string(),
+            ),
+        );
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/movies/1")
+                .query_param("sort", "trending".to_string())
+                .query_param("order", "-1".to_string())
+                .query_param("genre", "all".to_string())
+                .query_param("keywords", "".to_string());
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_test_file("movie-search.json"));
+        });
 
         let result = provider.retrieve(&genre, &sort_by, &String::new(), 1)
             .await
@@ -116,9 +163,21 @@ mod test {
             .await
             .expect("expected the details to have been returned")
             .into_any()
-            .downcast::<Movie>()
+            .downcast::<MovieDetails>()
             .expect("expected media to be a movie");
 
         assert_eq!(&imdb_id, result.imdb_id())
+    }
+
+    fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {
+        let mut map: HashMap<String, ProviderProperties> = HashMap::new();
+        map.insert(PROVIDER_NAME.to_string(), ProviderProperties::new(
+            vec![
+                server.url("")
+            ],
+            vec![],
+            vec![],
+        ));
+        map
     }
 }

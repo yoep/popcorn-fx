@@ -5,7 +5,7 @@ use std::ptr;
 use log::trace;
 
 use crate::{from_c_string, into_c_owned, to_c_string, to_c_vec};
-use crate::core::media::{Episode, Genre, Images, MediaIdentifier, Movie, Rating, Show, SortBy, TorrentInfo};
+use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MovieDetails, Rating, ShowDetails, SortBy, TorrentInfo};
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -65,7 +65,7 @@ pub struct MovieC {
 }
 
 impl MovieC {
-    pub fn from(movie: Movie) -> Self {
+    pub fn from(movie: MovieDetails) -> Self {
         let (torrents, torrents_len, torrents_cap) = to_c_vec(movie.torrents().iter()
             .map(|(k, v)| TorrentEntryC::from(k, v))
             .collect());
@@ -89,13 +89,12 @@ impl MovieC {
         }
     }
 
-    pub fn to_struct(&self) -> Movie {
-        Movie::new(
+    pub fn to_struct(&self) -> MovieDetails {
+        MovieDetails::new(
             from_c_string(self.id),
             from_c_string(self.title),
             from_c_string(self.imdb_id),
             from_c_string(self.year),
-            self.runtime.clone(),
         )
     }
 }
@@ -116,7 +115,7 @@ pub struct ShowC {
 }
 
 impl ShowC {
-    pub fn from(show: Show) -> Self {
+    pub fn from(show: ShowDetails) -> Self {
         Self {
             id: to_c_string(show.id().clone()),
             imdb_id: to_c_string(show.imdb_id().clone()),
@@ -134,9 +133,9 @@ impl ShowC {
         }
     }
 
-    pub fn to_struct(&self) -> Show {
+    pub fn to_struct(&self) -> ShowDetails {
         trace!("Converting Show from C {:?}", self);
-        Show::new(
+        ShowDetails::new(
             from_c_string(self.id),
             from_c_string(self.tvdb_id),
             from_c_string(self.title),

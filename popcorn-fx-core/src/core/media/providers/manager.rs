@@ -1,4 +1,4 @@
-use crate::core::media::{Category, Media};
+use crate::core::media::Category;
 use crate::core::media::providers::MediaProvider;
 
 /// Manages available [MediaProvider]'s that can be used to retrieve [Media] items.

@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct Genre {
     key: String,
     text: String

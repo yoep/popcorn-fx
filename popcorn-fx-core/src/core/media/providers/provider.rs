@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-use crate::core::media::{Category, Genre, Media, SortBy};
+use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, SortBy};
 use crate::core::media::providers;
 use crate::core::Page;
 
@@ -16,13 +16,15 @@ pub trait MediaProvider: Debug {
     /// Reset the api statics and re-enable all disabled api's.
     fn reset_api(&self);
 
-    /// Retrieve a page of [Media] items based on the given criteria.
+    /// Retrieve a page of [MediaOverview] items based on the given criteria.
+    /// The media items only contain basic information to present as an overview.
     ///
     /// It returns the retrieves page on success, else the [providers::ProviderError].
-    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> providers::Result<Page<Box<dyn Media>>>;
+    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> providers::Result<Page<Box<dyn MediaOverview>>>;
 
-    /// Retrieve the details for the given IMDB ID item.
+    /// Retrieve the [MediaDetails] for the given IMDB ID item.
+    /// The media item will contain all information for a media description and playback.
     ///
     /// It returns the details on success, else the [providers::ProviderError].
-    async fn retrieve_details(&self, imdb_id: &String) -> providers::Result<Box<dyn Media>>;
+    async fn retrieve_details(&self, imdb_id: &String) -> providers::Result<Box<dyn MediaDetails>>;
 }

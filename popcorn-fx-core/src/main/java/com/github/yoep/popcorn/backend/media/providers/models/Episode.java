@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.jna.Structure;
 import javafx.beans.property.BooleanProperty;
@@ -21,6 +22,7 @@ import java.util.*;
 @Data
 @ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = false)
+@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"season", "episode", "firstAired", "title", "synopsis", "tvdbId", "torrentRef", "len", "cap"})
 public class Episode extends Structure implements Comparable<Episode>, Closeable, Media {
     public static class ByReference extends Episode implements Structure.ByReference {

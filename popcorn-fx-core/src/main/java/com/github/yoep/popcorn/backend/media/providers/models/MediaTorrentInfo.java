@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.sun.jna.Structure;
 import lombok.*;
@@ -17,6 +18,7 @@ import java.util.Optional;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"url","provider","source","title","quality","seed","peer","size","filesize"})
 public class MediaTorrentInfo extends Structure implements Serializable, Closeable {
     public String url;

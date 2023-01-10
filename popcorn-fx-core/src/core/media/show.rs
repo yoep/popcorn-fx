@@ -12,7 +12,6 @@ pub struct ShowOverview {
     tvdb_id: String,
     title: String,
     year: String,
-    slug: String,
     num_seasons: i32,
     images: Images,
     rating: Option<Rating>,
@@ -20,14 +19,13 @@ pub struct ShowOverview {
 
 impl ShowOverview {
     pub fn new(id: String, imdb_id: String, tvdb_id: String, title: String, year: String,
-               slug: String, num_seasons: i32, images: Images, rating: Option<Rating>) -> Self {
+               num_seasons: i32, images: Images, rating: Option<Rating>) -> Self {
         Self {
             id,
             imdb_id,
             tvdb_id,
             title,
             year,
-            slug,
             num_seasons,
             images,
             rating,
@@ -44,10 +42,6 @@ impl ShowOverview {
 
     pub fn year(&self) -> &String {
         &self.year
-    }
-
-    pub fn slug(&self) -> &String {
-        &self.slug
     }
 
     /// The currently known number of seasons for the show.
@@ -105,7 +99,6 @@ pub struct ShowDetails {
     tvdb_id: String,
     title: String,
     year: String,
-    slug: String,
     original_language: String,
     num_seasons: i32,
     images: Images,
@@ -127,7 +120,6 @@ impl ShowDetails {
             title,
             imdb_id,
             year,
-            slug: "".to_string(),
             original_language: "".to_string(),
             rating: None,
             context_locale: "".to_string(),
@@ -151,10 +143,6 @@ impl ShowDetails {
 
     pub fn year(&self) -> &String {
         &self.year
-    }
-
-    pub fn slug(&self) -> &String {
-        &self.slug
     }
 
     /// The currently known number of seasons for the show.

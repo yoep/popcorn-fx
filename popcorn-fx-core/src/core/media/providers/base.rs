@@ -244,7 +244,7 @@ mod test {
         let sort_by = SortBy::new("trending".to_string(), String::new());
         let keywords = "pirates".to_string();
         let page = 2;
-        let expected_result = "https://lorem.com/api/v1/movi es/2?order=-1&genre=all&sort=trending&keywords=pirates";
+        let expected_result = "https://lorem.com/api/v1/movies/2?order=-1&genre=all&sort=trending&keywords=pirates";
 
         let result = BaseProvider::create_search_uri(&host, resource, &genre, &sort_by, &keywords, page)
             .expect("Expected the created url to be valid");

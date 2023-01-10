@@ -9,7 +9,8 @@ import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.ui.events.ShowWatchlistEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.WatchlistMessage;
@@ -43,7 +44,7 @@ public class WatchlistSectionController implements Initializable {
     private final LocaleText localeText;
     private final TraktService traktService;
     private final ProviderService<Movie> movieProviderService;
-    private final ProviderService<Show> showProviderService;
+    private final ProviderService<ShowOverview> showProviderService;
     private final ImageService imageService;
 
     @FXML
@@ -122,7 +123,7 @@ public class WatchlistSectionController implements Initializable {
                         .whenComplete((movie, throwable) -> handleMovieDetailsResponse((Movie) movie, throwable));
             } else {
                 showProviderService.retrieveDetails(media)
-                        .whenComplete((show, throwable) -> handleShowDetailsResponse((Show) show, throwable));
+                        .whenComplete((show, throwable) -> handleShowDetailsResponse((ShowDetails) show, throwable));
             }
         };
     }
@@ -136,7 +137,7 @@ public class WatchlistSectionController implements Initializable {
         }
     }
 
-    private void handleShowDetailsResponse(Show show, Throwable throwable) {
+    private void handleShowDetailsResponse(ShowDetails show, Throwable throwable) {
         if (throwable == null) {
             eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, show));
         } else {

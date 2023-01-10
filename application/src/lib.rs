@@ -6,8 +6,8 @@ use std::path::Path;
 
 use log::{debug, error, info, trace};
 
-use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecShowC, VecSubtitleInfoC};
-use popcorn_fx_core::core::media::{Category, MovieDetails, ShowDetails};
+use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::core::media::{Category, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -79,7 +79,7 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieC) ->
 
 /// Retrieve the given subtitles for the given episode
 #[no_mangle]
-pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowC, episode: &EpisodeC) -> *mut VecSubtitleInfoC {
+pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetailsC, episode: &EpisodeC) -> *mut VecSubtitleInfoC {
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
     let show_instance = show.to_struct();
     let episode_instance = episode.to_struct();
@@ -215,9 +215,9 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
                     let movies: Vec<MovieC> = e.into_content().into_iter()
                         .map(|e| e
                             .into_any()
-                            .downcast::<MovieDetails>()
-                            .expect("expected media to be a movie"))
-                        .map(|e| MovieC::from(*e))
+                            .downcast::<MovieOverview>()
+                            .expect("expected media to be a movie overview"))
+                        .map(|e| MovieC::from_overview(*e))
                         .collect();
 
                     if movies.len() > 0 {
@@ -257,7 +257,7 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
                     into_c_owned(MovieC::from(*e
                         .into_any()
                         .downcast::<MovieDetails>()
-                        .expect("expected media to be a movie")))
+                        .expect("expected media to be movie details")))
                 }
                 Err(e) => {
                     error!("Failed to retrieve movie details, {}", e);
@@ -278,9 +278,9 @@ pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
     };
 }
 
-/// Retrieve the available [ShowC] items for the given criteria.
+/// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
-/// It returns an array of [ShowC] items on success, else a [ptr::null_mut].
+/// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
 #[no_mangle]
 pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut VecShowC {
     let genre = genre.to_struct();
@@ -297,12 +297,12 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
             match runtime.block_on(e.retrieve(&genre, &sort_by, &keywords, page)) {
                 Ok(e) => {
                     info!("Retrieved a total of {} shows, {}", e.size(), &e);
-                    let shows: Vec<ShowC> = e.into_content().into_iter()
+                    let shows: Vec<ShowOverviewC> = e.into_content().into_iter()
                         .map(|e| e
                             .into_any()
-                            .downcast::<ShowDetails>()
+                            .downcast::<ShowOverview>()
                             .expect("expected media to be a show"))
-                        .map(|e| ShowC::from(*e))
+                        .map(|e| ShowOverviewC::from(*e))
                         .collect();
 
                     if shows.len() > 0 {
@@ -322,7 +322,7 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
 }
 
 #[no_mangle]
-pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut ShowC {
+pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut ShowDetailsC {
     let imdb_id = from_c_string(imdb_id);
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
@@ -335,7 +335,7 @@ pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *co
             match runtime.block_on(provider.retrieve_details(&imdb_id)) {
                 Ok(e) => {
                     trace!("Returning show details {:?}", &e);
-                    into_c_owned(ShowC::from(*e
+                    into_c_owned(ShowDetailsC::from(*e
                         .into_any()
                         .downcast::<ShowDetails>()
                         .expect("expected media to be a show")))

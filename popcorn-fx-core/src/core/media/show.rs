@@ -1,7 +1,7 @@
 use derive_more::Display;
 use serde::Deserialize;
 
-use crate::core::media::{Favorable, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, Watchable};
+use crate::core::media::{Episode, Favorable, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, Watchable};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
 #[display(fmt = "id: {}, tvdb_id: {}, imdb_id: {}, title: {}", id, tvdb_id, imdb_id, title)]
@@ -13,17 +13,64 @@ pub struct ShowOverview {
     title: String,
     year: String,
     slug: String,
-    original_language: String,
     num_seasons: i32,
     images: Images,
     rating: Option<Rating>,
 }
 
-impl ShowOverview {}
+impl ShowOverview {
+    pub fn new(id: String, imdb_id: String, tvdb_id: String, title: String, year: String,
+               slug: String, num_seasons: i32, images: Images, rating: Option<Rating>) -> Self {
+        Self {
+            id,
+            imdb_id,
+            tvdb_id,
+            title,
+            year,
+            slug,
+            num_seasons,
+            images,
+            rating,
+        }
+    }
+
+    pub fn imdb_id(&self) -> &String {
+        &self.imdb_id
+    }
+
+    pub fn tvdb_id(&self) -> &String {
+        &self.tvdb_id
+    }
+
+    pub fn year(&self) -> &String {
+        &self.year
+    }
+
+    pub fn slug(&self) -> &String {
+        &self.slug
+    }
+
+    /// The currently known number of seasons for the show.
+    pub fn number_of_seasons(&self) -> &i32 {
+        &self.num_seasons
+    }
+
+    pub fn images(&self) -> &Images {
+        &self.images
+    }
+
+    /// The rating of the show if available.
+    pub fn rating(&self) -> Option<&Rating> {
+        match &self.rating {
+            None => None,
+            Some(e) => Some(e)
+        }
+    }
+}
 
 impl MediaIdentifier for ShowOverview {
-    fn id(&self) -> &String {
-        &self.id
+    fn id(&self) -> String {
+        self.id.clone()
     }
 
     fn media_type(&self) -> MediaType {
@@ -67,16 +114,19 @@ pub struct ShowDetails {
     context_locale: String,
     synopsis: String,
     runtime: String,
+    status: String,
+    genres: Vec<String>,
+    episodes: Vec<Episode>,
 }
 
 impl ShowDetails {
-    pub fn new(id: String, tvdb_id: String, title: String, imdb_id: String) -> Self {
+    pub fn new(id: String, tvdb_id: String, title: String, imdb_id: String, year: String) -> Self {
         Self {
             id,
             tvdb_id,
             title,
             imdb_id,
-            year: String::new(),
+            year,
             slug: "".to_string(),
             original_language: "".to_string(),
             rating: None,
@@ -85,6 +135,9 @@ impl ShowDetails {
             images: Images::none(),
             num_seasons: 0,
             runtime: "".to_string(),
+            status: "".to_string(),
+            genres: vec![],
+            episodes: vec![],
         }
     }
 
@@ -98,6 +151,10 @@ impl ShowDetails {
 
     pub fn year(&self) -> &String {
         &self.year
+    }
+
+    pub fn slug(&self) -> &String {
+        &self.slug
     }
 
     /// The currently known number of seasons for the show.
@@ -116,11 +173,27 @@ impl ShowDetails {
             Some(e) => Some(e)
         }
     }
+
+    pub fn status(&self) -> &String {
+        &self.status
+    }
+
+    pub fn genres(&self) -> &Vec<String> {
+        &self.genres
+    }
+
+    pub fn episodes(&self) -> &Vec<Episode> {
+        &self.episodes
+    }
+
+    pub fn runtime(&self) -> &String {
+        &self.runtime
+    }
 }
 
 impl MediaIdentifier for ShowDetails {
-    fn id(&self) -> &String {
-        &self.id
+    fn id(&self) -> String {
+        self.id.clone()
     }
 
     fn media_type(&self) -> MediaType {

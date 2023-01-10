@@ -12,7 +12,7 @@ import com.github.yoep.popcorn.backend.media.providers.MediaParsingException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
@@ -325,8 +325,8 @@ public abstract class AbstractListSectionController implements Initializable {
 
             if (media instanceof Movie) {
                 eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, (Movie) media));
-            } else if (media instanceof Show) {
-                eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, (Show) media));
+            } else if (media instanceof ShowDetails) {
+                eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, (ShowDetails) media));
             }
         } else {
             log.error(throwable.getMessage(), throwable);

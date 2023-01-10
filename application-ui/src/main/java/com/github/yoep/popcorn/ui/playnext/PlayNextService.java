@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.player.PlayerEventService;
@@ -52,7 +52,7 @@ public class PlayNextService {
     private final ReadOnlyObjectWrapper<NextEpisode> nextEpisode = new ReadOnlyObjectWrapper<>(this, NEXT_EPISODE_PROPERTY);
     private final ReadOnlyLongWrapper playingIn = new ReadOnlyLongWrapper(this, PLAYING_IN_PROPERTY, COUNTDOWN_FROM);
 
-    private Show show;
+    private ShowDetails show;
     private String quality;
     private long duration;
 
@@ -202,7 +202,7 @@ public class PlayNextService {
         }
 
         // remember the show item for later use
-        this.show = (Show) media;
+        this.show = (ShowDetails) media;
 
         var episode = event.getSubMediaItem()
                 .map(e -> (Episode) e)
@@ -266,7 +266,7 @@ public class PlayNextService {
     }
 
     private boolean isShow(Media media) {
-        return media instanceof Show;
+        return media instanceof ShowDetails;
     }
 
     private boolean isPlaybackInformationKnown(long time) {
@@ -278,7 +278,7 @@ public class PlayNextService {
     @Data
     @AllArgsConstructor
     public static class NextEpisode {
-        private final Show show;
+        private final ShowDetails show;
         private final Episode episode;
     }
 }

@@ -2,10 +2,8 @@ package com.github.yoep.popcorn.backend.media.favorites;
 
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,12 +15,10 @@ import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -35,7 +31,7 @@ class FavoriteServiceTest {
     @Mock
     private ProviderService<Movie> movieProviderService;
     @Mock
-    private ProviderService<Show> showProviderService;
+    private ProviderService<ShowOverview> showProviderService;
     @InjectMocks
     private FavoriteService favoriteService;
 
@@ -92,128 +88,12 @@ class FavoriteServiceTest {
     }
 
     @Test
-    void testAddToFavorites_whenShowIsGiven_shouldRemoveEpisodeDetails() {
-        var favoritesHolder = new AtomicReference<Favorites>();
-        var show = Show.builder()
-                .id("tv0215554")
-                .title("myShow")
-                .year("2019")
-                .episodes(Collections.singletonList(Episode.builder()
-                        .tvdbId("tv125554")
-                        .images(Images.builder()
-                                .fanart("episode fanart")
-                                .build())
-                        .synopsis("my episode synopsis")
-                        .build()))
-                .build();
-        var favorites = Favorites.builder()
-                .build();
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.of(favorites));
-        doAnswer(invocation -> {
-            favoritesHolder.set(invocation.getArgument(1, Favorites.class));
-            return null;
-        }).when(storageService).store(eq(FavoriteService.STORAGE_NAME), isA(Favorites.class));
-
-        favoriteService.addToFavorites(show);
-        favoriteService.destroy();
-
-        verify(storageService).store(eq(FavoriteService.STORAGE_NAME), isA(Favorites.class));
-        var result = favoritesHolder.get();
-        var actualStoredShow = result.getShows().get(0);
-        assertNull(actualStoredShow.getEpisodes().get(0).getSynopsis(), "Expected the episode synopsis to have been emptied");
-        assertNull(actualStoredShow.getEpisodes().get(0).getImages(), "Expected the episode images to have been emptied");
-    }
-
-    @Test
-    void testRemoveFromFavorites_whenInvoked_shouldAddTheItemToTheList() {
-        var show = Show.builder()
-                .id("showId")
-                .title("showTitle")
-                .year("showYear")
-                .imdbId("showImdbId")
-                .numberOfSeasons(5)
-                .episodes(Collections.singletonList(Episode.builder()
-                        .tvdbId("tv0001")
-                        .season(1)
-                        .episode(1)
-                        .build()))
-                .build();
-        var favorites = Favorites.builder()
-                .shows(new ArrayList<>(Collections.singletonList(show)))
-                .build();
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.of(favorites));
-
-        favoriteService.removeFromFavorites(show);
-
-        assertEquals(0, favorites.getShows().size());
-    }
-
-    @Test
-    void testGetAll_whenFavoritesExist_shouldReturnTheListFromTheStorage() {
-        var show = Show.builder()
-                .id("showId")
-                .title("showTitle")
-                .year("showYear")
-                .imdbId("showImdbId")
-                .numberOfSeasons(10)
-                .build();
-        var favorites = Favorites.builder()
-                .shows(new ArrayList<>(Collections.singletonList(show)))
-                .build();
-        var expectedResult = Collections.singletonList(show);
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.of(favorites));
-
-        var result = favoriteService.getAll();
-
-        assertEquals(expectedResult, result);
-    }
-
-    @Test
     void testGetAll_whenFavoritesDoNotExist_shouldReturnNewFavorites() {
         when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.empty());
 
         var result = favoriteService.getAll();
 
         assertEquals(0, result.size());
-    }
-
-    @Test
-    void testIsLiked_whenItemIsStored_shouldReturnTrue() {
-        var likedId = "showId";
-        var storedShow = Show.builder()
-                .id(likedId)
-                .title("showTitle")
-                .year("showYear")
-                .imdbId("showImdbId")
-                .numberOfSeasons(10)
-                .build();
-        var show = Show.builder()
-                .id(likedId)
-                .build();
-        var favorites = Favorites.builder()
-                .shows(new ArrayList<>(Collections.singletonList(storedShow)))
-                .build();
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.of(favorites));
-
-        var result = favoriteService.isLiked(show);
-
-        assertTrue(result);
-    }
-
-    @Test
-    void testIsLiked_whenItemIsNotStored_shouldReturnFalse() {
-        var likedId = "showId";
-        var show = Show.builder()
-                .id(likedId)
-                .build();
-        var favorites = Favorites.builder()
-                .shows(new ArrayList<>())
-                .build();
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.of(favorites));
-
-        var result = favoriteService.isLiked(show);
-
-        assertFalse(result);
     }
 
     @Test

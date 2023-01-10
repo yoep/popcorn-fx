@@ -38,17 +38,12 @@ public class MovieProviderService implements ProviderService<Movie> {
 
     @Override
     public CompletableFuture<Movie> getDetails(String imdbId) {
-        var movie = FxLib.INSTANCE.retrieve_movie_details(PopcornFxInstance.INSTANCE.get(), imdbId);
-        log.debug("Retrieved movie details {}", movie);
-
-        return CompletableFuture.completedFuture(movie);
+        return CompletableFuture.completedFuture(getInternalDetails(imdbId));
     }
 
     @Override
     public CompletableFuture<Media> retrieveDetails(Media media) {
-        // no additional details need to be loaded
-        // so we'll return the media item directly
-        return CompletableFuture.completedFuture(media);
+        return CompletableFuture.completedFuture(getInternalDetails(media.getId()));
     }
 
     @Override
@@ -63,5 +58,12 @@ public class MovieProviderService implements ProviderService<Movie> {
         log.debug("Retrieved movies {}", movies);
 
         return new PageImpl<>(movies);
+    }
+
+    private static Movie getInternalDetails(String imdbId) {
+        var movie = FxLib.INSTANCE.retrieve_movie_details(PopcornFxInstance.INSTANCE.get(), imdbId);
+        log.debug("Retrieved movie details {}", movie);
+
+        return movie;
     }
 }

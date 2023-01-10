@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::os::raw::c_char;
 use std::ptr;
 
-use log::trace;
+use log::{error, trace};
 
-use crate::{from_c_string, into_c_owned, to_c_string, to_c_vec};
-use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MovieDetails, Rating, ShowDetails, SortBy, TorrentInfo};
+use crate::{from_c_owned, from_c_string, into_c_owned, to_c_string, to_c_vec};
+use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -30,13 +30,13 @@ impl VecMovieC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct VecShowC {
-    pub shows: *mut ShowC,
+    pub shows: *mut ShowOverviewC,
     pub len: i32,
     pub cap: i32,
 }
 
 impl VecShowC {
-    pub fn from(shows: Vec<ShowC>) -> Self {
+    pub fn from(shows: Vec<ShowOverviewC>) -> Self {
         let (shows, len, cap) = to_c_vec(shows);
 
         Self {
@@ -65,13 +65,33 @@ pub struct MovieC {
 }
 
 impl MovieC {
+    pub fn from_overview(movie: MovieOverview) -> Self {
+        Self {
+            id: to_c_string(movie.id()),
+            title: to_c_string(movie.title()),
+            imdb_id: to_c_string(movie.imdb_id().clone()),
+            year: to_c_string(movie.year().clone()),
+            runtime: -1,
+            rating: match movie.rating() {
+                None => ptr::null_mut(),
+                Some(e) => into_c_owned(RatingC::from(e))
+            },
+            images: ImagesC::from(movie.images()),
+            synopsis: to_c_string(String::new()),
+            trailer: to_c_string(String::new()),
+            torrents: ptr::null_mut(),
+            torrents_len: 0,
+            torrents_cap: 0,
+        }
+    }
+
     pub fn from(movie: MovieDetails) -> Self {
         let (torrents, torrents_len, torrents_cap) = to_c_vec(movie.torrents().iter()
             .map(|(k, v)| TorrentEntryC::from(k, v))
             .collect());
 
         Self {
-            id: to_c_string(movie.id().clone()),
+            id: to_c_string(movie.id()),
             title: to_c_string(movie.title()),
             imdb_id: to_c_string(movie.imdb_id().clone()),
             year: to_c_string(movie.year().clone()),
@@ -101,45 +121,116 @@ impl MovieC {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct ShowC {
+pub struct ShowOverviewC {
     id: *const c_char,
     imdb_id: *const c_char,
     tvdb_id: *const c_char,
     title: *const c_char,
     year: *const c_char,
-    runtime: i32,
+    slug: *const c_char,
     num_seasons: i32,
     images: ImagesC,
     rating: *mut RatingC,
-    synopsis: *const c_char,
 }
 
-impl ShowC {
-    pub fn from(show: ShowDetails) -> Self {
+impl ShowOverviewC {
+    pub fn from(show: ShowOverview) -> Self {
         Self {
-            id: to_c_string(show.id().clone()),
+            id: to_c_string(show.id()),
             imdb_id: to_c_string(show.imdb_id().clone()),
             tvdb_id: to_c_string(show.tvdb_id().clone()),
             title: to_c_string(show.title()),
             year: to_c_string(show.year().clone()),
-            runtime: 0,
+            slug: to_c_string(show.slug().clone()),
             num_seasons: show.number_of_seasons().clone(),
             images: ImagesC::from(show.images()),
             rating: match show.rating() {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
             },
-            synopsis: to_c_string(String::new()),
+        }
+    }
+
+    pub fn to_struct(&self) -> ShowOverview {
+        trace!("Converting Show from C {:?}", self);
+        let mut rating: Option<Rating> = None;
+
+        if !self.rating.is_null() {
+            let rating_c = from_c_owned(self.rating);
+            rating = Some(rating_c.to_struct());
+        }
+
+        ShowOverview::new(
+            from_c_string(self.id),
+            from_c_string(self.imdb_id),
+            from_c_string(self.tvdb_id),
+            from_c_string(self.title),
+            from_c_string(self.year),
+            from_c_string(self.slug),
+            self.num_seasons.clone(),
+            self.images.to_struct(),
+            rating,
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct ShowDetailsC {
+    id: *const c_char,
+    imdb_id: *const c_char,
+    tvdb_id: *const c_char,
+    title: *const c_char,
+    year: *const c_char,
+    slug: *const c_char,
+    num_seasons: i32,
+    images: ImagesC,
+    rating: *mut RatingC,
+    synopsis: *const c_char,
+    runtime: *const c_char,
+    status: *const c_char,
+    episodes: *mut EpisodeC,
+    episodes_len: i32,
+    episodes_cap: i32,
+}
+
+impl ShowDetailsC {
+    pub fn from(show: ShowDetails) -> Self {
+        trace!("Converting ShowDetails to C {}", show);
+        let episodes = show.episodes().iter()
+            .map(|e| EpisodeC::from(e.clone()))
+            .collect();
+        let (episodes, episodes_len, episodes_cap) = to_c_vec(episodes);
+
+        Self {
+            id: to_c_string(show.id()),
+            imdb_id: to_c_string(show.imdb_id().clone()),
+            tvdb_id: to_c_string(show.tvdb_id().clone()),
+            title: to_c_string(show.title()),
+            year: to_c_string(show.year().clone()),
+            slug: to_c_string(show.slug().clone()),
+            num_seasons: show.number_of_seasons().clone(),
+            images: ImagesC::from(show.images()),
+            rating: match show.rating() {
+                None => ptr::null_mut(),
+                Some(e) => into_c_owned(RatingC::from(e))
+            },
+            synopsis: to_c_string(show.synopsis().clone()),
+            runtime: to_c_string(show.runtime().clone()),
+            status: to_c_string(show.status().clone()),
+            episodes,
+            episodes_len,
+            episodes_cap,
         }
     }
 
     pub fn to_struct(&self) -> ShowDetails {
-        trace!("Converting Show from C {:?}", self);
         ShowDetails::new(
             from_c_string(self.id),
+            from_c_string(self.imdb_id),
             from_c_string(self.tvdb_id),
             from_c_string(self.title),
-            from_c_string(self.imdb_id),
+            from_c_string(self.year),
         )
     }
 }
@@ -147,20 +238,55 @@ impl ShowC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct EpisodeC {
-    id: *const c_char,
-    title: *const c_char,
     season: i32,
     episode: i32,
+    first_aired: i64,
+    title: *const c_char,
+    synopsis: *const c_char,
+    tvdb_id: *const c_char,
+    torrents: *mut TorrentQualityC,
+    len: i32,
+    cap: i32,
 }
 
 impl EpisodeC {
+    pub fn from(episode: Episode) -> Self {
+        trace!("Converting Episode to C {}", episode);
+        let torrents = episode.torrents().iter()
+            .map(|(k, v)| TorrentQualityC::from(k, v))
+            .collect();
+        let (torrents, len, cap) = to_c_vec(torrents);
+
+        Self {
+            season: episode.season().clone() as i32,
+            episode: episode.episode().clone() as i32,
+            first_aired: episode.first_aired().clone() as i64,
+            title: to_c_string(episode.title().clone()),
+            synopsis: to_c_string(episode.synopsis()),
+            tvdb_id: to_c_string(episode.tvdb_id().clone()),
+            torrents,
+            len,
+            cap
+        }
+    }
+
     pub fn to_struct(&self) -> Episode {
         trace!("Converting Episode from C {:?}", self);
+        let tvdb_id = match from_c_string(self.tvdb_id).parse::<i32>() {
+            Ok(e) => e,
+            Err(e) => {
+                error!("Episode TVDB ID is invalid, {}", e);
+                -1
+            }
+        };
+
         Episode::new(
-            from_c_string(self.id),
+            self.season.clone() as u32,
+            self.episode.clone() as u32,
+            self.first_aired.clone() as u64,
             from_c_string(self.title),
-            self.season.clone(),
-            self.episode.clone(),
+            from_c_string(self.synopsis),
+            tvdb_id,
         )
     }
 }
@@ -219,6 +345,16 @@ impl RatingC {
             hated: rating.hated().clone() as i32,
         }
     }
+
+    fn to_struct(&self) -> Rating {
+        Rating::new_with_metadata(
+            self.percentage.clone() as u16,
+            self.watching.clone() as u32,
+            self.votes.clone() as u32,
+            self.loved.clone() as u32,
+            self.hated.clone() as u32,
+        )
+    }
 }
 
 #[repr(C)]
@@ -231,11 +367,21 @@ pub struct ImagesC {
 
 impl ImagesC {
     pub fn from(images: &Images) -> Self {
+        trace!("Converting Images to C {}", images);
         Self {
             poster: to_c_string(images.poster().clone()),
             fanart: to_c_string(images.fanart().clone()),
             banner: to_c_string(images.banner().clone()),
         }
+    }
+
+    fn to_struct(&self) -> Images {
+        trace!("Converting Images from C {:?}", self);
+        Images::new(
+            from_c_string(self.poster),
+            from_c_string(self.fanart),
+            from_c_string(self.banner),
+        )
     }
 }
 
@@ -303,8 +449,14 @@ impl TorrentInfoC {
             quality: to_c_string(info.quality().clone()),
             seed: info.seed().clone(),
             peer: info.peer().clone(),
-            size: to_c_string(info.size().clone()),
-            filesize: to_c_string(info.filesize().clone()),
+            size: match info.size() {
+                None => ptr::null(),
+                Some(e) => to_c_string(e.clone())
+            },
+            filesize: match info.filesize() {
+                None => ptr::null(),
+                Some(e) => to_c_string(e.clone())
+            },
         }
     }
 }

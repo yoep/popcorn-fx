@@ -8,14 +8,17 @@ pub struct TorrentInfo {
     source: String,
     title: String,
     quality: String,
+    #[serde(alias = "seeds")]
     seed: u32,
+    #[serde(alias = "peers")]
     peer: u32,
-    size: String,
-    filesize: String,
+    size: Option<String>,
+    filesize: Option<String>,
+    file: Option<String>,
 }
 
 impl TorrentInfo {
-    pub fn new(url: String, title: String, quality: String) -> Self {
+    pub fn new(url: String, title: String, quality: String, file: Option<String>) -> Self {
         Self {
             url,
             provider: String::new(),
@@ -24,8 +27,9 @@ impl TorrentInfo {
             quality,
             seed: 0,
             peer: 0,
-            size: String::new(),
-            filesize: String::new(),
+            size: None,
+            filesize: None,
+            file
         }
     }
 
@@ -57,11 +61,21 @@ impl TorrentInfo {
         &self.peer
     }
 
-    pub fn size(&self) -> &String {
-        &self.size
+    /// Retrieve the size in bytes of the torrent if known.
+    /// This is most of the time only known for movies, episodes will return [None] most of the time.
+    pub fn size(&self) -> Option<&String> {
+        match &self.size {
+            None => None,
+            Some(e) => Some(e)
+        }
     }
 
-    pub fn filesize(&self) -> &String {
-        &self.filesize
+    /// Retrieve the filesize in human readable format of the torrent if known.
+    /// This is most of the time only known for movies, episodes will return [None] most of the time.
+    pub fn filesize(&self) -> Option<&String> {
+        match &self.filesize {
+            None => None,
+            Some(e) => Some(e)
+        }
     }
 }

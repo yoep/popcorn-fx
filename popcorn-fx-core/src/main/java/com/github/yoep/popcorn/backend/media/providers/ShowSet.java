@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -14,12 +14,12 @@ import static java.util.Arrays.asList;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"shows", "len", "cap"})
 public class ShowSet extends Structure implements Closeable {
-    public Show.ByReference shows;
+    public ShowOverview.ByReference shows;
     public int len;
     public int cap;
 
-    public List<Show> getShows() {
-        return asList((Show[]) shows.toArray(len));
+    public List<ShowOverview> getShows() {
+        return asList((ShowOverview[]) shows.toArray(len));
     }
 
     @Override

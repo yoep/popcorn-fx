@@ -6,7 +6,8 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
@@ -19,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
-public class ShowProviderService implements ProviderService<Show> {
+public class ShowProviderService implements ProviderService<ShowOverview> {
     private static final Category CATEGORY = Category.SERIES;
 
     @Override
@@ -28,17 +29,17 @@ public class ShowProviderService implements ProviderService<Show> {
     }
 
     @Override
-    public CompletableFuture<Page<Show>> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Page<ShowOverview>> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, StringUtils.EMPTY, page));
     }
 
     @Override
-    public CompletableFuture<Page<Show>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Page<ShowOverview>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
     @Override
-    public CompletableFuture<Show> getDetails(String imdbId) {
+    public CompletableFuture<ShowOverview> getDetails(String imdbId) {
         return CompletableFuture.completedFuture(getDetailsInternal(imdbId));
     }
 
@@ -56,7 +57,7 @@ public class ShowProviderService implements ProviderService<Show> {
         FxLib.INSTANCE.reset_show_apis(PopcornFxInstance.INSTANCE.get());
     }
 
-    public Page<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
+    public Page<ShowOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         var shows = Optional.ofNullable(FxLib.INSTANCE.retrieve_available_shows(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
                 .map(ShowSet::getShows)
                 .orElse(Collections.emptyList());
@@ -65,7 +66,7 @@ public class ShowProviderService implements ProviderService<Show> {
         return new PageImpl<>(shows);
     }
 
-    private Show getDetailsInternal(String imdbId) {
+    private ShowDetails getDetailsInternal(String imdbId) {
         return FxLib.INSTANCE.retrieve_show_details(PopcornFxInstance.INSTANCE.get(), imdbId);
     }
 }

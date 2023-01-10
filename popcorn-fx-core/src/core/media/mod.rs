@@ -1,8 +1,8 @@
 pub use category::*;
+pub use episode::*;
 pub use genre::*;
 pub use images::*;
 pub use media::*;
-pub use model::*;
 pub use movie::*;
 pub use rating::*;
 pub use show::*;
@@ -14,7 +14,7 @@ mod category;
 mod genre;
 mod images;
 mod media;
-mod model;
+mod episode;
 mod movie;
 mod rating;
 mod show;

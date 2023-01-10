@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -74,7 +74,7 @@ public class FavoriteProviderService extends AbstractProviderService<Media> {
                 if (genre.getKey().equals(Genre.MOVIES_KEYWORD)) {
                     return e instanceof Movie;
                 } else {
-                    return e instanceof Show;
+                    return e instanceof ShowOverview;
                 }
             });
         }

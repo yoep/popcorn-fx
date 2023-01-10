@@ -16,38 +16,39 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Data
 @ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"id", "title", "season", "episode"})
+@Structure.FieldOrder({"season", "episode", "firstAired", "title", "synopsis", "tvdbId", "torrentRef", "len", "cap"})
 public class Episode extends Structure implements Comparable<Episode>, Closeable, Media {
+    public static class ByReference extends Episode implements Structure.ByReference {
+    }
+
     @JsonIgnore
     private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
     @JsonIgnore
     private final transient BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
-    public String id;
-    public String title;
     public int season;
     public int episode;
+    public long firstAired;
+    public String title;
+    public String synopsis;
+    public String tvdbId;
+    public TorrentQuality.ByReference torrentRef;
+    public int len;
+    public int cap;
 
-    /**
-     * The available torrents for the episode.
-     */
-    private final Map<String, MediaTorrentInfo> torrents;
-    /**
-     * The first air time of the episode
-     */
-    private final long firstAired;
-    private String synopsis;
+    private Map<String, MediaTorrentInfo> torrents;
+
     private Images images;
     // TODO: remove this should not exist for a property
     private List<String> genres;
+
+    public Episode() {
+    }
 
     @Builder
     public Episode(@JsonProperty("tvdb_id") String tvdbId,
@@ -58,7 +59,7 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
                    Images images,
                    int episode,
                    int season) {
-        this.id = tvdbId;
+        this.tvdbId = tvdbId;
         this.title = title;
         this.torrents = torrents;
         this.firstAired = firstAired;
@@ -74,7 +75,7 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
      * @param episode The episode to copy.
      */
     public Episode(@NotNull Episode episode) {
-        this.id = episode.getId();
+        this.tvdbId = episode.getId();
         this.title = episode.getTitle();
         this.synopsis = episode.getSynopsis();
         this.torrents = episode.getTorrents();
@@ -123,6 +124,27 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     //endregion
 
     //region Getters
+
+    public String getId() {
+        return tvdbId;
+    }
+
+    public Map<String, MediaTorrentInfo> getTorrents() {
+        if (torrents == null) {
+            torrents = new HashMap<>();
+            var list = Optional.ofNullable(torrentRef)
+                    .map(e -> e.toArray(len))
+                    .map(e -> (TorrentQuality[]) e)
+                    .map(Arrays::asList)
+                    .orElse(Collections.emptyList());
+
+            for (var torrent : list) {
+                torrents.put(torrent.getQuality(), torrent.getInfo());
+            }
+        }
+
+        return torrents;
+    }
 
     /**
      * Get the local date time of the air date from this episode.

@@ -9,7 +9,7 @@ use crate::core::media::{Favorable, Images, MediaDetails, MediaIdentifier, Media
 /// The simple version of a media item representing a movie.
 /// It contains only the basic information needed for search results.
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
-#[display(fmt = "id: {}, title: {}, imdb_id: {}", id, title, imdb_id)]
+#[display(fmt = "MovieOverview: {{id: {}, title: {}, imdb_id: {}}}", id, title, imdb_id)]
 pub struct MovieOverview {
     #[serde(rename(deserialize = "_id"))]
     id: String,
@@ -43,11 +43,31 @@ impl MovieOverview {
             images,
         }
     }
+
+    pub fn imdb_id(&self) -> &String {
+        &self.imdb_id
+    }
+
+    pub fn year(&self) -> &String {
+        &self.year
+    }
+
+    /// The rating of the movie if available.
+    pub fn rating(&self) -> Option<&Rating> {
+        match &self.rating {
+            None => None,
+            Some(e) => Some(e)
+        }
+    }
+
+    pub fn images(&self) -> &Images {
+        &self.images
+    }
 }
 
 impl MediaIdentifier for MovieOverview {
-    fn id(&self) -> &String {
-        &self.id
+    fn id(&self) -> String {
+        self.id.clone()
     }
 
     fn media_type(&self) -> MediaType {
@@ -76,7 +96,7 @@ impl MediaOverview for MovieOverview {}
 /// The detailed version of a media item representing a movie.
 /// It contains all information need for a movie description.
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
-#[display(fmt = "id: {}, title: {}, imdb_id: {}", id, title, imdb_id)]
+#[display(fmt = "MovieDetails: {{id: {}, title: {}, imdb_id: {}}}", id, title, imdb_id)]
 pub struct MovieDetails {
     #[serde(rename(deserialize = "_id"))]
     id: String,
@@ -153,8 +173,8 @@ impl MovieDetails {
 }
 
 impl MediaIdentifier for MovieDetails {
-    fn id(&self) -> &String {
-        &self.id
+    fn id(&self) -> String {
+        self.id.clone()
     }
 
     fn media_type(&self) -> MediaType {

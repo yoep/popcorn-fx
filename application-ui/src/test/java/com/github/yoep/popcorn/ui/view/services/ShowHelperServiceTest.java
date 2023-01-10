@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import org.junit.jupiter.api.Nested;
@@ -14,7 +14,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
-import java.util.List;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,21 +26,21 @@ class ShowHelperServiceTest {
     @Mock
     private WatchedService watchedService;
     @InjectMocks
-    private ShowHelperService showHelperService;
+    private ShowHelperService ShowHelperService;
 
     @Nested
     class GetSeasonsTest {
         @Test
         void testGetSeasons_whenMediaIsNull_shouldThrowIllegalArgumentException() {
-            assertThrows(IllegalArgumentException.class, () -> showHelperService.getSeasons(null), "media cannot be null");
+            assertThrows(IllegalArgumentException.class, () -> ShowHelperService.getSeasons(null), "media cannot be null");
         }
 
         @Test
         void testGetSeasons_whenMediaHas3Season_shouldReturn3Seasons() {
-            var media = mock(Show.class);
+            var media = mock(ShowDetails.class);
             when(media.getNumberOfSeasons()).thenReturn(3);
 
-            var result = showHelperService.getSeasons(media);
+            var result = ShowHelperService.getSeasons(media);
 
             assertNotNull(result);
             assertEquals(3, result.size());
@@ -49,10 +48,10 @@ class ShowHelperServiceTest {
 
         @Test
         void testGetSeasons_whenInvoked_shouldRequestLocaleTextToDisplay() {
-            var media = mock(Show.class);
+            var media = mock(ShowDetails.class);
             when(media.getNumberOfSeasons()).thenReturn(1);
 
-            showHelperService.getSeasons(media);
+            ShowHelperService.getSeasons(media);
 
             verify(localeText).get(DetailsMessage.SEASON, 1);
         }
@@ -64,9 +63,10 @@ class ShowHelperServiceTest {
         void testGetSeasonEpisodes_whenMediaHasNoEpisodes_shouldReturnAnEmptyList() {
             var seasonNumber = 1;
             var season = new Season(seasonNumber, "season-display-text");
-            var media = createShow(Collections.emptyList());
+            var media = mock(ShowDetails.class);
+            when(media.getEpisodes()).thenReturn(Collections.emptyList());
 
-            var result = showHelperService.getSeasonEpisodes(season, media);
+            var result = ShowHelperService.getSeasonEpisodes(season, media);
 
             assertNotNull(result);
             assertEquals(0, result.size());
@@ -82,9 +82,10 @@ class ShowHelperServiceTest {
             var episodeOfAnotherSeason = Episode.builder()
                     .season(2)
                     .build();
-            var media = createShow(asList(episodeFromSeason, episodeOfAnotherSeason));
+            var media = mock(ShowDetails.class);
+            when(media.getEpisodes()).thenReturn(asList(episodeFromSeason, episodeOfAnotherSeason));
 
-            var result = showHelperService.getSeasonEpisodes(season, media);
+            var result = ShowHelperService.getSeasonEpisodes(season, media);
 
             assertNotNull(result);
             assertEquals(1, result.size());
@@ -102,9 +103,10 @@ class ShowHelperServiceTest {
             var episode = Episode.builder()
                     .season(seasonNumber)
                     .build();
-            var show = createShow(Collections.singletonList(episode));
+            var media = mock(ShowDetails.class);
+            when(media.getEpisodes()).thenReturn(Collections.singletonList(episode));
 
-            showHelperService.getUnwatchedSeason(seasons, show);
+            ShowHelperService.getUnwatchedSeason(seasons, media);
 
             verify(watchedService).isWatched(episode);
         }
@@ -121,7 +123,8 @@ class ShowHelperServiceTest {
             var episodeFromSeason3 = Episode.builder()
                     .season(3)
                     .build();
-            var show = createShow(asList(episodeFromSeason2, episodeFromSeason3));
+            var media = mock(ShowDetails.class);
+            when(media.getEpisodes()).thenReturn(asList(episodeFromSeason2, episodeFromSeason3));
 
             episodeFromSeason2.setWatched(false);
             episodeFromSeason3.setWatched(true);
@@ -130,7 +133,7 @@ class ShowHelperServiceTest {
             season2.setWatched(false);
             season3.setWatched(true);
 
-            var result = showHelperService.getUnwatchedSeason(seasons, show);
+            var result = ShowHelperService.getUnwatchedSeason(seasons, media);
 
             assertEquals(season2, result);
         }
@@ -140,20 +143,15 @@ class ShowHelperServiceTest {
             var season1 = new Season(1, "season-1");
             var season2 = new Season(2, "season-2");
             var seasons = asList(season1, season2);
-            var show = createShow(Collections.emptyList());
+            var media = mock(ShowDetails.class);
+            when(media.getEpisodes()).thenReturn(Collections.emptyList());
 
             season1.setWatched(true);
             season2.setWatched(true);
 
-            var result = showHelperService.getUnwatchedSeason(seasons, show);
+            var result = ShowHelperService.getUnwatchedSeason(seasons, media);
 
             assertEquals(season2, result);
         }
-    }
-
-    private Show createShow(List<Episode> episodes) {
-        return Show.builder()
-                .episodes(episodes)
-                .build();
     }
 }

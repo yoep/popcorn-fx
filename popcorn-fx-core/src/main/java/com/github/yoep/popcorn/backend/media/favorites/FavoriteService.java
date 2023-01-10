@@ -4,7 +4,7 @@ import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.storage.StorageException;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import com.github.yoep.popcorn.backend.utils.IdleTimer;
@@ -34,7 +34,7 @@ public class FavoriteService {
     private final TaskExecutor taskExecutor;
     private final StorageService storageService;
     private final ProviderService<Movie> movieProviderService;
-    private final ProviderService<Show> showProviderService;
+    private final ProviderService<ShowOverview> showProviderService;
     private final Object cacheLock = new Object();
 
     /**
@@ -87,10 +87,6 @@ public class FavoriteService {
 
             // verify that the favorable doesn't already exist
             if (!isLiked(favorable)) {
-                if (favorable instanceof Show show) {
-                    favorable = pruneShowDetails(new Show(show));
-                }
-
                 cache.add(favorable);
             }
         }
@@ -224,7 +220,6 @@ public class FavoriteService {
         var newShowsCache = cache.getShows().stream()
                 .map(e -> showProviderService.getDetails(e.getImdbId()))
                 .map(CompletableFuture::join)
-                .map(this::pruneShowDetails)
                 .collect(Collectors.toList());
 
         synchronized (cacheLock) {
@@ -245,17 +240,6 @@ public class FavoriteService {
         }
 
         return shouldUpdate;
-    }
-
-    private Show pruneShowDetails(Show show) {
-        var showCopy = new Show(show);
-
-        showCopy.getEpisodes().forEach(episode -> {
-            episode.setSynopsis(null);
-            episode.setImages(null);
-        });
-
-        return showCopy;
     }
 
     private void onSave() {

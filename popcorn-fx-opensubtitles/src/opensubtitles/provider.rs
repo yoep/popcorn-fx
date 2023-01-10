@@ -382,7 +382,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
         let imdb_id = media.id();
 
         debug!("Searching movie subtitles for IMDB ID {}", &imdb_id);
-        self.start_search_request(imdb_id, Some(imdb_id), None, None)
+        self.start_search_request(&imdb_id, Some(&imdb_id), None, None)
             .await
     }
 
@@ -390,7 +390,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
         let imdb_id = media.id();
 
         debug!("Searching episode subtitles for IMDB ID {}", &imdb_id);
-        self.start_search_request(imdb_id, Some(imdb_id), Some(&episode), None)
+        self.start_search_request(&imdb_id, Some(&imdb_id), Some(&episode), None)
             .await
     }
 
@@ -609,8 +609,15 @@ mod test {
             "tt2861424".to_string(),
             "275274".to_string(),
             "Rick and Morty".to_string(),
-            String::new());
-        let episode = Episode::new("tt2169080".to_string(), "Pilot".to_string(), 1, 1);
+            String::new(),
+            "2022".to_string());
+        let episode = Episode::new(
+            1,
+            1,
+            1673136000,
+            "tt2169080".to_string(),
+            "Pilot".to_string(),
+            9238597);
         let service = OpensubtitlesProvider::new(&settings);
         server.mock(|when, then| {
             when.method(GET)

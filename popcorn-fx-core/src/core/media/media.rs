@@ -13,8 +13,8 @@ pub enum MediaType {
 
 /// Basic identification information about a media item.
 pub trait MediaIdentifier: Debug + Downcast {
-    /// Get the unique ID of the media.
-    fn id(&self) -> &String;
+    /// Get an owned unique ID of this media item.
+    fn id(&self) -> String;
 
     /// Get the type of the media.
     fn media_type(&self) -> MediaType;

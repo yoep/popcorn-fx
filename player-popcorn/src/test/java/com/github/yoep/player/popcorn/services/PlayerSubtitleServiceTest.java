@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -128,9 +128,7 @@ class PlayerSubtitleServiceTest {
         var episode = Episode.builder()
                 .episode(2)
                 .build();
-        var show = Show.builder()
-                .episodes(Collections.singletonList(episode))
-                .build();
+        var show = mock(ShowDetails.class);
         var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);
@@ -140,6 +138,7 @@ class PlayerSubtitleServiceTest {
                 .torrentStream(torrentStream)
                 .build();
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
+        when(show.getEpisodes()).thenReturn(Collections.singletonList(episode));
         when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
         when(subtitleService.retrieveSubtitles(show, episode)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
         when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));

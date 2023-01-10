@@ -127,24 +127,31 @@ struct RatingC {
   int32_t hated;
 };
 
-struct ShowC {
+struct EpisodeC {
+  int32_t season;
+  int32_t episode;
+  int64_t first_aired;
+  const char *title;
+  const char *synopsis;
+  const char *tvdb_id;
+};
+
+struct ShowDetailsC {
   const char *id;
   const char *imdb_id;
   const char *tvdb_id;
   const char *title;
   const char *year;
-  int32_t runtime;
+  const char *slug;
   int32_t num_seasons;
   ImagesC images;
   RatingC *rating;
   const char *synopsis;
-};
-
-struct EpisodeC {
-  const char *id;
-  const char *title;
-  int32_t season;
-  int32_t episode;
+  const char *runtime;
+  const char *status;
+  EpisodeC *episodes;
+  int32_t episodes_len;
+  int32_t episodes_cap;
 };
 
 struct TorrentInfoC {
@@ -209,8 +216,20 @@ struct SortByC {
   const char *text;
 };
 
+struct ShowOverviewC {
+  const char *id;
+  const char *imdb_id;
+  const char *tvdb_id;
+  const char *title;
+  const char *year;
+  const char *slug;
+  int32_t num_seasons;
+  ImagesC images;
+  RatingC *rating;
+};
+
 struct VecShowC {
-  ShowC *shows;
+  ShowOverviewC *shows;
   int32_t len;
   int32_t cap;
 };
@@ -236,7 +255,7 @@ SubtitleC *download_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitl
 void enable_screensaver(PopcornFX *popcorn_fx);
 
 /// Retrieve the given subtitles for the given episode
-VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowC *show, const EpisodeC *episode);
+VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *show, const EpisodeC *episode);
 
 /// Retrieve the available subtitles for the given filename
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
@@ -273,9 +292,9 @@ void reset_show_apis(PopcornFX *popcorn_fx);
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
 VecMovieC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
-/// Retrieve the available [ShowC] items for the given criteria.
+/// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
-/// It returns an array of [ShowC] items on success, else a [ptr::null_mut].
+/// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
 VecShowC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the details of a given movie.
@@ -284,7 +303,7 @@ VecShowC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, c
 /// It returns the [MovieC] on success, else [ptr::null_mut].
 MovieC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
-ShowC *retrieve_show_details(PopcornFX *popcorn_fx, const char *imdb_id);
+ShowDetailsC *retrieve_show_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);

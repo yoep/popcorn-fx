@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.media.providers.MovieSet;
 import com.github.yoep.popcorn.backend.media.providers.ShowSet;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -36,7 +36,7 @@ public interface FxLib extends Library {
 
     SubtitleInfoSet movie_subtitles(PopcornFx instance, Movie movie);
 
-    SubtitleInfoSet episode_subtitles(PopcornFx instance, Show show, Episode episode);
+    SubtitleInfoSet episode_subtitles(PopcornFx instance, ShowDetails show, Episode episode);
 
     SubtitleInfoSet filename_subtitles(PopcornFx instance, String filename);
 
@@ -45,18 +45,18 @@ public interface FxLib extends Library {
     Subtitle download_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
 
     Subtitle parse_subtitle(PopcornFx instance, String filePath);
-    
+
     String subtitle_to_raw(PopcornFx instance, Subtitle subtitle, int type);
 
     MovieSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
-    
+
     Movie retrieve_movie_details(PopcornFx instance, String imdbId);
 
     void reset_movie_apis(PopcornFx instance);
 
     ShowSet retrieve_available_shows(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
-    Show retrieve_show_details(PopcornFx instance, String imdbId);
+    ShowDetails retrieve_show_details(PopcornFx instance, String imdbId);
 
     void reset_show_apis(PopcornFx instance);
 

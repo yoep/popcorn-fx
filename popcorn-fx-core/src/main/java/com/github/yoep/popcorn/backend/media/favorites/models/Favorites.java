@@ -2,7 +2,8 @@ package com.github.yoep.popcorn.backend.media.favorites.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,7 +31,7 @@ public class Favorites implements Serializable {
      * The saved show favorites.
      */
     @Builder.Default
-    private List<Show> shows = new ArrayList<>();
+    private List<ShowOverview> shows = new ArrayList<>();
     /**
      * The last time the favorites cache has been updated.
      */
@@ -58,8 +59,8 @@ public class Favorites implements Serializable {
 
         if (favorable instanceof Movie) {
             movies.add((Movie) favorable);
-        } else if (favorable instanceof Show) {
-            shows.add((Show) favorable);
+        } else if (favorable instanceof ShowDetails) {
+            shows.add((ShowDetails) favorable);
         } else {
             log.warn("Unable to add favorable of type \"{}\"", favorable.getClass().getSimpleName());
         }
@@ -76,7 +77,7 @@ public class Favorites implements Serializable {
         if (favorable instanceof Movie) {
             log.trace("Removing movie favorite {}", favorable);
             movies.removeIf(e -> e.getId().equalsIgnoreCase(favorable.getId()));
-        } else if (favorable instanceof Show) {
+        } else if (favorable instanceof ShowDetails) {
             log.trace("Removing show favorite {}", favorable);
             shows.removeIf(e -> e.getId().equalsIgnoreCase(favorable.getId()));
         } else {

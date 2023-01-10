@@ -29,6 +29,7 @@ public class MediaTorrentInfo extends Structure implements Serializable, Closeab
     public String size;
     public String filesize;
 
+    // this is import for episodes!!!
     private String file;
 
     //region Getters & Setters
@@ -43,7 +44,7 @@ public class MediaTorrentInfo extends Structure implements Serializable, Closeab
      * @return Returns the file to download of the torrent if present.
      */
     public Optional<String> getFile() {
-        return Optional.empty();
+        return Optional.ofNullable(file);
     }
 
     /**

@@ -1,15 +1,20 @@
+use std::borrow::BorrowMut;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use itertools::*;
+use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
 use crate::core::config::Application;
-use crate::core::media::{Category, Genre, Media, SortBy};
+use crate::core::media::{Category, Genre, Media, Show, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
 use crate::core::Page;
 
 const PROVIDER_NAME: &str = "series";
+const SEARCH_RESOURCE_NAME: &str = "shows";
+const DETAILS_RESOURCE_NAME: &str = "show";
 
 #[derive(Debug)]
 pub struct ShowProvider {
@@ -41,21 +46,79 @@ impl MediaProvider for ShowProvider {
     }
 
     async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::providers::Result<Page<Box<dyn Media>>> {
-        todo!()
+        let base_arc = &self.base.clone();
+        let mut base = base_arc.lock().await;
+
+        match base.borrow_mut().retrieve_provider_page::<Show>(SEARCH_RESOURCE_NAME, genre, sort_by, keywords, page).await {
+            Ok(e) => {
+                info!("Retrieved a total of {} shows, [{{{}}}]", e.len(), e.iter()
+                .map(|e| e.to_string())
+                .join("}, {"));
+                let shows: Vec<Box<dyn Media>> = e.into_iter()
+                    .map(|e| Box::new(e) as Box<dyn Media>)
+                    .collect();
+
+                Ok(Page::from_content(shows))
+            }
+            Err(e) => {
+                warn!("Failed to retrieve show items, {}", e);
+                Err(e)
+            }
+        }
     }
 
     async fn retrieve_details(&self, imdb_id: &String) -> crate::core::media::providers::Result<Box<dyn Media>> {
-        todo!()
+        let base_arc = &self.base.clone();
+        let mut base = base_arc.lock().await;
+
+        match base.borrow_mut().retrieve_details::<Show>(DETAILS_RESOURCE_NAME, imdb_id).await {
+            Ok(e) => {
+                debug!("Retrieved show details {}", &e);
+                Ok(Box::new(e))
+            }
+            Err(e) => {
+                warn!("Failed to retrieve show details, {}", &e);
+                Err(e)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::test::init_logger;
+
     use super::*;
 
-    #[test]
-    fn test_retrieve() {
+    #[tokio::test]
+    async fn test_retrieve() {
+        init_logger();
+        let genre = Genre::all();
+        let sort_by = SortBy::new("trending".to_string(), "".to_string());
         let settings = Arc::new(Application::default());
         let provider = ShowProvider::new(&settings);
+
+        let result = provider.retrieve(&genre, &sort_by, &String::new(), 1)
+            .await
+            .expect("expected no error to have occurred");
+
+        assert!(result.total_elements() > 0, "Expected media items to have been found")
+    }
+
+    #[tokio::test]
+    async fn test_retrieve_details() {
+        init_logger();
+        let imdb_id = "tt2861424".to_string();
+        let settings = Arc::new(Application::default());
+        let provider = ShowProvider::new(&settings);
+
+        let result = provider.retrieve_details(&imdb_id)
+            .await
+            .expect("expected the details to have been returned")
+            .into_any()
+            .downcast::<Show>()
+            .expect("expected media to be a show");
+
+        assert_eq!(&imdb_id, result.imdb_id())
     }
 }

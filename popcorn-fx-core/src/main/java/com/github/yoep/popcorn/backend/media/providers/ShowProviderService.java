@@ -1,38 +1,26 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Show;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import java.text.MessageFormat;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
-public class ShowProviderService extends AbstractProviderService<Show> {
+public class ShowProviderService implements ProviderService<Show> {
     private static final Category CATEGORY = Category.SERIES;
-
-    public ShowProviderService(RestTemplate restTemplate,
-                               PopcornProperties popcornConfig,
-                               SettingsService settingsService) {
-        super(restTemplate);
-
-        initializeUriProviders(settingsService.getSettings().getServerSettings(), popcornConfig.getProvider(CATEGORY.getProviderName()));
-    }
 
     @Override
     public boolean supports(Category category) {
@@ -63,37 +51,21 @@ public class ShowProviderService extends AbstractProviderService<Show> {
         }
     }
 
+    @Override
+    public void resetApiAvailability() {
+        FxLib.INSTANCE.reset_show_apis(PopcornFxInstance.INSTANCE.get());
+    }
+
     public Page<Show> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        return invokeWithUriProvider(apiUri -> {
-            var uri = getUriFor(apiUri, "shows", genre, sortBy, keywords, page);
+        var shows = Optional.ofNullable(FxLib.INSTANCE.retrieve_available_shows(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
+                .map(ShowSet::getShows)
+                .orElse(Collections.emptyList());
+        log.debug("Retrieved shows {}", shows);
 
-            log.debug("Retrieving show provider page \"{}\"", uri);
-            ResponseEntity<Show[]> shows = restTemplate.getForEntity(uri, Show[].class);
-
-            return Optional.ofNullable(shows.getBody())
-                    .map(Arrays::asList)
-                    .map(PageImpl::new)
-                    .orElse(emptyPage());
-        });
+        return new PageImpl<>(shows);
     }
 
     private Show getDetailsInternal(String imdbId) {
-        return invokeWithUriProvider(apiUri -> {
-            var uri = UriComponentsBuilder.fromUri(apiUri)
-                    .path("show/{imdb_id}")
-                    .build(imdbId);
-
-            log.debug("Retrieving show details \"{}\"", uri);
-            var response = restTemplate.getForEntity(uri, Show.class);
-
-            if (response.getStatusCodeValue() < 200 || response.getStatusCodeValue() >= 300)
-                throw new MediaException(
-                        MessageFormat.format("Failed to retrieve the details of {0}, unexpected status code {1}", imdbId, response.getStatusCodeValue()));
-
-            if (response.getBody() == null)
-                throw new MediaException(MessageFormat.format("Failed to retrieve the details of {0}, response body is null", imdbId));
-
-            return response.getBody();
-        });
+        return FxLib.INSTANCE.retrieve_show_details(PopcornFxInstance.INSTANCE.get(), imdbId);
     }
 }

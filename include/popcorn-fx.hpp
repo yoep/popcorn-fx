@@ -113,6 +113,12 @@ struct SubtitleMatcherC {
   int32_t quality;
 };
 
+struct ImagesC {
+  const char *poster;
+  const char *fanart;
+  const char *banner;
+};
+
 struct RatingC {
   int32_t percentage;
   int32_t watching;
@@ -121,21 +127,16 @@ struct RatingC {
   int32_t hated;
 };
 
-struct ImagesC {
-  const char *poster;
-  const char *fanart;
-  const char *banner;
-};
-
 struct ShowC {
   const char *id;
+  const char *imdb_id;
   const char *tvdb_id;
   const char *title;
-  const char *imdb_id;
   const char *year;
   int32_t runtime;
-  RatingC *rating;
+  int32_t num_seasons;
   ImagesC images;
+  RatingC *rating;
   const char *synopsis;
 };
 
@@ -208,6 +209,12 @@ struct SortByC {
   const char *text;
 };
 
+struct VecShowC {
+  ShowC *shows;
+  int32_t len;
+  int32_t cap;
+};
+
 
 extern "C" {
 
@@ -257,16 +264,27 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 /// This will make all disabled api's available again.
 void reset_movie_apis(PopcornFX *popcorn_fx);
 
+/// Reset all available api stats for the movie api.
+/// This will make all disabled api's available again.
+void reset_show_apis(PopcornFX *popcorn_fx);
+
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
 VecMovieC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+
+/// Retrieve the available [ShowC] items for the given criteria.
+///
+/// It returns an array of [ShowC] items on success, else a [ptr::null_mut].
+VecShowC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the details of a given movie.
 /// It will query the api for the given IMDB ID.
 ///
 /// It returns the [MovieC] on success, else [ptr::null_mut].
 MovieC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id);
+
+ShowC *retrieve_show_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);

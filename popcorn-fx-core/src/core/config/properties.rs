@@ -45,8 +45,56 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
             "thriller".to_string(),
             "war".to_string(),
             "western".to_string()],
-        vec![],
+        vec![
+            "trending".to_string(),
+            "popularity".to_string(),
+            "last added".to_string(),
+            "year".to_string(),
+            "title".to_string(),
+            "rating".to_string(),
+        ],
     ));
+    map.insert("series".to_string(), ProviderProperties::new(
+        vec![
+            "https://popcorn-time.ga".to_string(),
+            "https://tv-v2.api-fetch.am".to_string(),
+            "https://tv-v2.api-fetch.website".to_string(),
+            "https://tv-v2.api-fetch.sh".to_string()],
+        vec![
+            "all".to_string(),
+            "action".to_string(),
+            "adventure".to_string(),
+            "animation".to_string(),
+            "children".to_string(),
+            "comedy".to_string(),
+            "crime".to_string(),
+            "documentary".to_string(),
+            "drama".to_string(),
+            "family".to_string(),
+            "fantasy".to_string(),
+            "horror".to_string(),
+            "mini Series".to_string(),
+            "mystery".to_string(),
+            "news".to_string(),
+            "reality".to_string(),
+            "romance".to_string(),
+            "science-fiction".to_string(),
+            "soap".to_string(),
+            "special Interest".to_string(),
+            "sport".to_string(),
+            "suspense".to_string(),
+            "talk Show".to_string(),
+            "thriller".to_string(),
+            "western".to_string(),
+        ],
+        vec![
+            "trending".to_string(),
+            "popularity".to_string(),
+            "updated".to_string(),
+            "year".to_string(),
+            "name".to_string(),
+            "rating".to_string(),
+        ]));
     map
 };
 

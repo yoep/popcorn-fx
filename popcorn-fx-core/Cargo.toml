@@ -16,6 +16,7 @@ proc-macro = true
 async-trait = "0.1"
 chrono = "0.4"
 derive_more = "0.99"
+downcast-rs = "1.2"
 home = "0.5"
 html-escape = "0.2"
 itertools = "0.10"

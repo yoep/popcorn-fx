@@ -29,6 +29,26 @@ impl VecMovieC {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
+pub struct VecShowC {
+    pub shows: *mut ShowC,
+    pub len: i32,
+    pub cap: i32,
+}
+
+impl VecShowC {
+    pub fn from(shows: Vec<ShowC>) -> Self {
+        let (shows, len, cap) = to_c_vec(shows);
+
+        Self {
+            shows,
+            len,
+            cap,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
 pub struct MovieC {
     id: *const c_char,
     title: *const c_char,
@@ -84,17 +104,36 @@ impl MovieC {
 #[derive(Debug, Clone)]
 pub struct ShowC {
     id: *const c_char,
+    imdb_id: *const c_char,
     tvdb_id: *const c_char,
     title: *const c_char,
-    imdb_id: *const c_char,
     year: *const c_char,
     runtime: i32,
-    rating: *mut RatingC,
+    num_seasons: i32,
     images: ImagesC,
+    rating: *mut RatingC,
     synopsis: *const c_char,
 }
 
 impl ShowC {
+    pub fn from(show: Show) -> Self {
+        Self {
+            id: to_c_string(show.id().clone()),
+            imdb_id: to_c_string(show.imdb_id().clone()),
+            tvdb_id: to_c_string(show.tvdb_id().clone()),
+            title: to_c_string(show.title()),
+            year: to_c_string(show.year().clone()),
+            runtime: 0,
+            num_seasons: show.number_of_seasons().clone(),
+            images: ImagesC::from(show.images()),
+            rating: match show.rating() {
+                None => ptr::null_mut(),
+                Some(e) => into_c_owned(RatingC::from(e))
+            },
+            synopsis: to_c_string(String::new()),
+        }
+    }
+
     pub fn to_struct(&self) -> Show {
         trace!("Converting Show from C {:?}", self);
         Show::new(

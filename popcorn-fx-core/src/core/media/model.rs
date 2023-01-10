@@ -1,8 +1,8 @@
-use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 use derive_more::Display;
+use downcast_rs::{Downcast, impl_downcast};
 use log::warn;
 use serde::Deserialize;
 
@@ -16,7 +16,7 @@ pub enum MediaType {
 }
 
 /// Basic identification information about a [Media] item.
-pub trait MediaIdentifier: Debug + Any {
+pub trait MediaIdentifier: Debug + Downcast {
     /// Get the unique ID of the media.
     fn id(&self) -> &String;
 
@@ -26,9 +26,8 @@ pub trait MediaIdentifier: Debug + Any {
     /// The title of the media item.
     /// The title is html decoded before it's returned.
     fn title(&self) -> String;
-
-    fn as_any(&self) -> &dyn Any;
 }
+impl_downcast!(MediaIdentifier);
 
 /// Defines an object that can be watched.
 pub trait Watchable: MediaIdentifier {
@@ -42,8 +41,7 @@ pub trait Favorable: MediaIdentifier {
     fn is_liked(&self) -> bool;
 }
 
-pub trait Media: MediaIdentifier + Watchable + Favorable {
-}
+pub trait Media: MediaIdentifier + Watchable + Favorable {}
 
 /// The rating information of a [Media] item.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -297,10 +295,6 @@ impl MediaIdentifier for Movie {
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl Watchable for Movie {
@@ -317,17 +311,20 @@ impl Favorable for Movie {
 
 impl Media for Movie {}
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[display(fmt = "id: {}, tvdb_id: {}, imdb_id: {}, title: {}", id, tvdb_id, imdb_id, title)]
 pub struct Show {
+    #[serde(rename(deserialize = "_id"))]
     id: String,
+    imdb_id: String,
     tvdb_id: String,
     title: String,
-    imdb_id: String,
     year: String,
-    runtime: String,
-    rating: Option<Rating>,
+    slug: String,
+    original_language: String,
+    num_seasons: i32,
     images: Images,
-    synopsis: String
+    rating: Option<Rating>,
 }
 
 impl Show {
@@ -338,10 +335,40 @@ impl Show {
             title,
             imdb_id,
             year: String::new(),
-            runtime: String::new(),
+            slug: "".to_string(),
+            original_language: "".to_string(),
             rating: None,
             images: Images::none(),
-            synopsis: "".to_string(),
+            num_seasons: 0,
+        }
+    }
+
+    pub fn imdb_id(&self) -> &String {
+        &self.imdb_id
+    }
+
+    pub fn tvdb_id(&self) -> &String {
+        &self.tvdb_id
+    }
+
+    pub fn year(&self) -> &String {
+        &self.year
+    }
+
+    /// The currently known number of seasons for the show.
+    pub fn number_of_seasons(&self) -> &i32 {
+        &self.num_seasons
+    }
+
+    pub fn images(&self) -> &Images {
+        &self.images
+    }
+
+    /// The rating of the show if available.
+    pub fn rating(&self) -> Option<&Rating> {
+        match &self.rating {
+            None => None,
+            Some(e) => Some(e)
         }
     }
 }
@@ -357,10 +384,6 @@ impl MediaIdentifier for Show {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -417,10 +440,6 @@ impl MediaIdentifier for Episode {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

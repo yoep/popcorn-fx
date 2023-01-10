@@ -112,12 +112,12 @@ mod test {
         let settings = Arc::new(Application::default());
         let provider = MovieProvider::new(&settings);
 
-        let media = provider.retrieve_details(&imdb_id)
+        let result = provider.retrieve_details(&imdb_id)
             .await
-            .expect("expected the details to have been returned");
-        let result = media.as_any()
-            .downcast_ref::<Movie>()
-            .expect("expected returned type to be a movie");
+            .expect("expected the details to have been returned")
+            .into_any()
+            .downcast::<Movie>()
+            .expect("expected media to be a movie");
 
         assert_eq!(&imdb_id, result.imdb_id())
     }

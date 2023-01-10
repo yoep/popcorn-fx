@@ -6,8 +6,8 @@ use std::path::Path;
 
 use log::{debug, error, info, trace};
 
-use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecSubtitleInfoC};
-use popcorn_fx_core::core::media::Category;
+use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::core::media::{Category, Movie, Show};
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -181,10 +181,13 @@ pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &Subtitl
     let subtitle = subtitle.to_subtitle();
     let subtitle_type = SubtitleType::from_ordinal(output_type);
 
-    match popcorn_fx.subtitle_service().convert(subtitle, subtitle_type) {
-        Ok(e) => to_c_string(e),
+    match popcorn_fx.subtitle_service().convert(subtitle, subtitle_type.clone()) {
+        Ok(e) => {
+            debug!("Returning subtitle format {} to C", subtitle_type);
+            to_c_string(e)
+        }
         Err(e) => {
-            error!("Failed to convert the subtitle, {}", e);
+            error!("Failed to convert subtitle to {}, {}", subtitle_type, e);
             ptr::null()
         }
     }
@@ -210,7 +213,11 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
                 Ok(e) => {
                     info!("Retrieved a total of {} movies, {}", e.size(), &e);
                     let movies: Vec<MovieC> = e.into_content().into_iter()
-                        .map(|e| MovieC::from(e))
+                        .map(|e| e
+                            .into_any()
+                            .downcast::<Movie>()
+                            .expect("expected media to be a movie"))
+                        .map(|e| MovieC::from(*e))
                         .collect();
 
                     if movies.len() > 0 {
@@ -247,10 +254,13 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
             match runtime.block_on(provider.retrieve_details(&imdb_id)) {
                 Ok(e) => {
                     trace!("Returning movie details {:?}", &e);
-                    into_c_owned(MovieC::from(e))
+                    into_c_owned(MovieC::from(*e
+                        .into_any()
+                        .downcast::<Movie>()
+                        .expect("expected media to be a movie")))
                 }
                 Err(e) => {
-                    error!("Failed to retrieve movies, {}", e);
+                    error!("Failed to retrieve movie details, {}", e);
                     ptr::null_mut()
                 }
             }
@@ -264,6 +274,87 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
 pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
     return match popcorn_fx.providers().get(Category::MOVIES) {
         None => error!("No provider could be found for {}", Category::MOVIES),
+        Some(provider) => provider.reset_api()
+    };
+}
+
+/// Retrieve the available [ShowC] items for the given criteria.
+///
+/// It returns an array of [ShowC] items on success, else a [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut VecShowC {
+    let genre = genre.to_struct();
+    let sort_by = sort_by.to_struct();
+    let keywords = from_c_string(keywords);
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+
+    return match popcorn_fx.providers().get(Category::SERIES) {
+        None => {
+            error!("No provider could be found for {}", Category::SERIES);
+            ptr::null_mut()
+        }
+        Some(e) => {
+            match runtime.block_on(e.retrieve(&genre, &sort_by, &keywords, page)) {
+                Ok(e) => {
+                    info!("Retrieved a total of {} shows, {}", e.size(), &e);
+                    let shows: Vec<ShowC> = e.into_content().into_iter()
+                        .map(|e| e
+                            .into_any()
+                            .downcast::<Show>()
+                            .expect("expected media to be a show"))
+                        .map(|e| ShowC::from(*e))
+                        .collect();
+
+                    if shows.len() > 0 {
+                        into_c_owned(VecShowC::from(shows))
+                    } else {
+                        debug!("No shows have been found, returning ptr::null");
+                        ptr::null_mut()
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to retrieve movies, {}", e);
+                    ptr::null_mut()
+                }
+            }
+        }
+    };
+}
+
+#[no_mangle]
+pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut ShowC {
+    let imdb_id = from_c_string(imdb_id);
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+
+    return match popcorn_fx.providers().get(Category::SERIES) {
+        None => {
+            error!("No provider could be found for {}", Category::SERIES);
+            ptr::null_mut()
+        }
+        Some(provider) => {
+            match runtime.block_on(provider.retrieve_details(&imdb_id)) {
+                Ok(e) => {
+                    trace!("Returning show details {:?}", &e);
+                    into_c_owned(ShowC::from(*e
+                        .into_any()
+                        .downcast::<Show>()
+                        .expect("expected media to be a show")))
+                }
+                Err(e) => {
+                    error!("Failed to retrieve show details, {}", e);
+                    ptr::null_mut()
+                }
+            }
+        }
+    };
+}
+
+/// Reset all available api stats for the movie api.
+/// This will make all disabled api's available again.
+#[no_mangle]
+pub extern "C" fn reset_show_apis(popcorn_fx: &mut PopcornFX) {
+    return match popcorn_fx.providers().get(Category::SERIES) {
+        None => error!("No provider could be found for {}", Category::SERIES),
         Some(provider) => provider.reset_api()
     };
 }

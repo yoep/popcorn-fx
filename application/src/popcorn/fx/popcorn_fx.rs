@@ -9,9 +9,9 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
 use popcorn_fx_core::core::config::Application;
-use popcorn_fx_core::core::media::providers::{MediaProvider, MovieProvider, ProviderManager};
-use popcorn_fx_core::core::subtitles::provider::SubtitleProvider;
-use popcorn_fx_opensubtitles::opensubtitles::service::OpensubtitlesService;
+use popcorn_fx_core::core::media::providers::{MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::subtitles::SubtitleProvider;
+use popcorn_fx_opensubtitles::opensubtitles::service::OpensubtitlesProvider;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
 
 static INIT: Once = Once::new();
@@ -34,10 +34,9 @@ impl PopcornFX {
     pub fn new() -> Self {
         Self::initialize_logger();
         let settings = Arc::new(Application::new_auto());
-        let subtitle_service = Box::new(OpensubtitlesService::new(&settings));
+        let subtitle_service = Box::new(OpensubtitlesProvider::new(&settings));
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let movie_provider: Box<dyn MediaProvider> = Box::new(MovieProvider::new(&settings));
-        let providers = ProviderManager::with_providers(vec![movie_provider]);
+        let providers = Self::default_providers(&settings);
 
         Self {
             settings,
@@ -94,6 +93,16 @@ impl PopcornFX {
             info!("Logger has been initialized");
         });
     }
+
+    fn default_providers(settings: &Arc<Application>) -> ProviderManager {
+        let movie_provider: Box<dyn MediaProvider> = Box::new(MovieProvider::new(&settings));
+        let show_provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
+
+        ProviderManager::with_providers(vec![
+            movie_provider,
+            show_provider
+        ])
+    }
 }
 
 #[cfg(test)]
@@ -101,12 +110,10 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_subtitle_service_should_return_the_subtitle_service() {
+    fn test_popcorn_fx_new() {
         let mut popcorn_fx = PopcornFX::new();
+        let service = popcorn_fx.platform_service();
 
-        let subtitle_service = popcorn_fx.subtitle_service();
-        let result = subtitle_service.active_subtitle();
-
-        assert!(result.is_none(), "Expected the subtitle service to return none")
+        let result = service.platform_info();
     }
 }

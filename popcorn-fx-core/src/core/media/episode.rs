@@ -76,6 +76,10 @@ impl MediaIdentifier for Episode {
         self.tvdb_id.to_string()
     }
 
+    fn imdb_id(&self) -> String {
+        self.tvdb_id.to_string()
+    }
+
     fn media_type(&self) -> MediaType {
         MediaType::Episode
     }
@@ -87,6 +91,47 @@ impl MediaIdentifier for Episode {
 
 impl Watchable for Episode {
     fn is_watched(&self) -> bool {
-        todo!()
+        false
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_id_should_return_tvdb_id() {
+        let tvdb = 244587996;
+        let episode = Episode::new(
+            1,
+            2,
+            1673136000,
+            "lorem".to_string(),
+            "ipsum dolor".to_string(),
+            tvdb.clone()
+        );
+        let expected_result = tvdb.to_string();
+
+        let result = episode.id();
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_imdb_id_should_return_tvdb_id() {
+        let tvdb = 878787985;
+        let episode = Episode::new(
+            1,
+            2,
+            1673136000,
+            "lorem".to_string(),
+            "ipsum dolor".to_string(),
+            tvdb.clone()
+        );
+        let expected_result = tvdb.to_string();
+
+        let result = episode.imdb_id();
+
+        assert_eq!(expected_result, result)
     }
 }

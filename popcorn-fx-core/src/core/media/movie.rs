@@ -9,10 +9,8 @@ use crate::core::media::{Favorable, Images, MediaDetails, MediaIdentifier, Media
 /// The simple version of a media item representing a movie.
 /// It contains only the basic information needed for search results.
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
-#[display(fmt = "MovieOverview: {{id: {}, title: {}, imdb_id: {}}}", id, title, imdb_id)]
+#[display(fmt = "MovieOverview: {{imdb_id: {}, title: {}, year: {}}}", imdb_id, title, year)]
 pub struct MovieOverview {
-    #[serde(rename(deserialize = "_id"))]
-    id: String,
     title: String,
     imdb_id: String,
     year: String,
@@ -21,9 +19,8 @@ pub struct MovieOverview {
 }
 
 impl MovieOverview {
-    pub fn new(id: String, title: String, imdb_id: String, year: String) -> Self {
+    pub fn new(title: String, imdb_id: String, year: String) -> Self {
         Self {
-            id,
             title,
             imdb_id,
             year,
@@ -32,31 +29,13 @@ impl MovieOverview {
         }
     }
 
-    pub fn new_detailed(id: String, title: String, imdb_id: String, year: String,
-                        rating: Option<Rating>, images: Images, ) -> Self {
+    pub fn new_detailed(title: String, imdb_id: String, year: String, rating: Option<Rating>, images: Images) -> Self {
         Self {
-            id,
             title,
             imdb_id,
             year,
             rating,
             images,
-        }
-    }
-
-    pub fn imdb_id(&self) -> &String {
-        &self.imdb_id
-    }
-
-    pub fn year(&self) -> &String {
-        &self.year
-    }
-
-    /// The rating of the movie if available.
-    pub fn rating(&self) -> Option<&Rating> {
-        match &self.rating {
-            None => None,
-            Some(e) => Some(e)
         }
     }
 
@@ -67,7 +46,11 @@ impl MovieOverview {
 
 impl MediaIdentifier for MovieOverview {
     fn id(&self) -> String {
-        self.id.clone()
+        self.imdb_id.clone()
+    }
+
+    fn imdb_id(&self) -> String {
+        self.imdb_id.clone()
     }
 
     fn media_type(&self) -> MediaType {
@@ -81,7 +64,7 @@ impl MediaIdentifier for MovieOverview {
 
 impl Watchable for MovieOverview {
     fn is_watched(&self) -> bool {
-        todo!()
+        false
     }
 }
 
@@ -91,7 +74,18 @@ impl Favorable for MovieOverview {
     }
 }
 
-impl MediaOverview for MovieOverview {}
+impl MediaOverview for MovieOverview {
+    fn rating(&self) -> Option<&Rating> {
+        match &self.rating {
+            None => None,
+            Some(e) => Some(e)
+        }
+    }
+
+    fn year(&self) -> &String {
+        &self.year
+    }
+}
 
 /// The detailed version of a media item representing a movie.
 /// It contains all information need for a movie description.
@@ -133,14 +127,6 @@ impl MovieDetails {
         }
     }
 
-    pub fn imdb_id(&self) -> &String {
-        &self.imdb_id
-    }
-
-    pub fn year(&self) -> &String {
-        &self.year
-    }
-
     pub fn runtime(&self) -> i32 {
         match self.runtime.parse::<i32>() {
             Ok(e) => e,
@@ -148,14 +134,6 @@ impl MovieDetails {
                 warn!("Runtime value {} is invalid, {}", &self.runtime, e);
                 0
             }
-        }
-    }
-
-    /// The rating of the movie if available.
-    pub fn rating(&self) -> Option<&Rating> {
-        match &self.rating {
-            None => None,
-            Some(e) => Some(e)
         }
     }
 
@@ -177,6 +155,10 @@ impl MediaIdentifier for MovieDetails {
         self.id.clone()
     }
 
+    fn imdb_id(&self) -> String {
+        self.imdb_id.clone()
+    }
+
     fn media_type(&self) -> MediaType {
         MediaType::Movie
     }
@@ -188,7 +170,7 @@ impl MediaIdentifier for MovieDetails {
 
 impl Watchable for MovieDetails {
     fn is_watched(&self) -> bool {
-        todo!()
+        false
     }
 }
 
@@ -198,7 +180,18 @@ impl Favorable for MovieDetails {
     }
 }
 
-impl MediaOverview for MovieDetails {}
+impl MediaOverview for MovieDetails {
+    fn rating(&self) -> Option<&Rating> {
+        match &self.rating {
+            None => None,
+            Some(e) => Some(e)
+        }
+    }
+
+    fn year(&self) -> &String {
+        &self.year
+    }
+}
 
 impl MediaDetails for MovieDetails {
     /// Retrieve the description of the [Media] item.

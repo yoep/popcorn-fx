@@ -5,7 +5,7 @@ use std::ptr;
 use log::{error, trace};
 
 use crate::{from_c_owned, from_c_string, into_c_owned, to_c_string, to_c_vec};
-use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
+use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -43,6 +43,33 @@ impl VecShowC {
             shows,
             len,
             cap,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct VecFavoritesC {
+    pub movies: *mut MovieC,
+    pub movies_len: i32,
+    pub movies_cap: i32,
+    pub shows: *mut ShowOverviewC,
+    pub shows_len: i32,
+    pub shows_cap: i32,
+}
+
+impl VecFavoritesC {
+    pub fn from(movies: Vec<MovieC>, shows: Vec<ShowOverviewC>) -> Self {
+        let (movies, movies_len, movies_cap) = to_c_vec(movies);
+        let (shows, shows_len, shows_cap) = to_c_vec(shows);
+
+        Self {
+            movies,
+            movies_len,
+            movies_cap,
+            shows,
+            shows_len,
+            shows_cap,
         }
     }
 }
@@ -122,7 +149,6 @@ impl MovieC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ShowOverviewC {
-    id: *const c_char,
     imdb_id: *const c_char,
     tvdb_id: *const c_char,
     title: *const c_char,
@@ -135,7 +161,6 @@ pub struct ShowOverviewC {
 impl ShowOverviewC {
     pub fn from(show: ShowOverview) -> Self {
         Self {
-            id: to_c_string(show.id()),
             imdb_id: to_c_string(show.imdb_id().clone()),
             tvdb_id: to_c_string(show.tvdb_id().clone()),
             title: to_c_string(show.title()),
@@ -159,7 +184,6 @@ impl ShowOverviewC {
         }
 
         ShowOverview::new(
-            from_c_string(self.id),
             from_c_string(self.imdb_id),
             from_c_string(self.tvdb_id),
             from_c_string(self.title),
@@ -174,7 +198,6 @@ impl ShowOverviewC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ShowDetailsC {
-    id: *const c_char,
     imdb_id: *const c_char,
     tvdb_id: *const c_char,
     title: *const c_char,
@@ -199,7 +222,6 @@ impl ShowDetailsC {
         let (episodes, episodes_len, episodes_cap) = to_c_vec(episodes);
 
         Self {
-            id: to_c_string(show.id()),
             imdb_id: to_c_string(show.imdb_id().clone()),
             tvdb_id: to_c_string(show.tvdb_id().clone()),
             title: to_c_string(show.title()),
@@ -220,12 +242,20 @@ impl ShowDetailsC {
     }
 
     pub fn to_struct(&self) -> ShowDetails {
+        let mut rating = None;
+
+        if !self.rating.is_null() {
+            rating = Some(from_c_owned(self.rating).to_struct());
+        }
+
         ShowDetails::new(
-            from_c_string(self.id),
             from_c_string(self.imdb_id),
             from_c_string(self.tvdb_id),
             from_c_string(self.title),
             from_c_string(self.year),
+            self.num_seasons.clone(),
+            self.images.to_struct(),
+            rating,
         )
     }
 }
@@ -261,7 +291,7 @@ impl EpisodeC {
             tvdb_id: to_c_string(episode.tvdb_id().clone()),
             torrents,
             len,
-            cap
+            cap,
         }
     }
 
@@ -283,6 +313,29 @@ impl EpisodeC {
             from_c_string(self.synopsis),
             tvdb_id,
         )
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct FavoriteC {
+    movie: *mut MovieC,
+    show: *mut ShowDetailsC,
+}
+
+impl FavoriteC {
+    pub fn from_movie(movie: MovieDetails) -> Self {
+        Self {
+            movie: into_c_owned(MovieC::from(movie)),
+            show: ptr::null_mut(),
+        }
+    }
+
+    pub fn from_show(show: ShowDetails) -> Self {
+        Self {
+            movie: ptr::null_mut(),
+            show: into_c_owned(ShowDetailsC::from(show)),
+        }
     }
 }
 

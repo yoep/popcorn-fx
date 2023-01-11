@@ -6,8 +6,8 @@ use std::path::Path;
 
 use log::{debug, error, info, trace};
 
-use popcorn_fx_core::{EpisodeC, from_c_string, GenreC, into_c_owned, MovieC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecMovieC, VecShowC, VecSubtitleInfoC};
-use popcorn_fx_core::core::media::{Category, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
+use popcorn_fx_core::{EpisodeC, FavoriteC, from_c_string, GenreC, into_c_owned, MovieC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::core::media::{Category, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -205,14 +205,14 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
 
     return match popcorn_fx.providers().get(Category::MOVIES) {
         None => {
-            error!("No provider could be found for {}", Category::MOVIES);
+            error!("No media provider could be found for {}", Category::MOVIES);
             ptr::null_mut()
         }
         Some(e) => {
             match runtime.block_on(e.retrieve(&genre, &sort_by, &keywords, page)) {
                 Ok(e) => {
-                    info!("Retrieved a total of {} movies, {}", e.size(), &e);
-                    let movies: Vec<MovieC> = e.into_content().into_iter()
+                    info!("Retrieved a total of {} movies, {:?}", e.len(), &e);
+                    let movies: Vec<MovieC> = e.into_iter()
                         .map(|e| e
                             .into_any()
                             .downcast::<MovieOverview>()
@@ -247,7 +247,7 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
 
     return match popcorn_fx.providers().get(Category::MOVIES) {
         None => {
-            error!("No provider could be found for {}", Category::MOVIES);
+            error!("No media provider could be found for {}", Category::MOVIES);
             ptr::null_mut()
         }
         Some(provider) => {
@@ -273,7 +273,7 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
 #[no_mangle]
 pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
     return match popcorn_fx.providers().get(Category::MOVIES) {
-        None => error!("No provider could be found for {}", Category::MOVIES),
+        None => error!("No media provider could be found for {}", Category::MOVIES),
         Some(provider) => provider.reset_api()
     };
 }
@@ -290,14 +290,14 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
 
     return match popcorn_fx.providers().get(Category::SERIES) {
         None => {
-            error!("No provider could be found for {}", Category::SERIES);
+            error!("No media provider could be found for {}", Category::SERIES);
             ptr::null_mut()
         }
         Some(e) => {
             match runtime.block_on(e.retrieve(&genre, &sort_by, &keywords, page)) {
                 Ok(e) => {
-                    info!("Retrieved a total of {} shows, {}", e.size(), &e);
-                    let shows: Vec<ShowOverviewC> = e.into_content().into_iter()
+                    info!("Retrieved a total of {} shows, {:?}", e.len(), &e);
+                    let shows: Vec<ShowOverviewC> = e.into_iter()
                         .map(|e| e
                             .into_any()
                             .downcast::<ShowOverview>()
@@ -332,7 +332,7 @@ pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *co
 
     return match popcorn_fx.providers().get(Category::SERIES) {
         None => {
-            error!("No provider could be found for {}", Category::SERIES);
+            error!("No media provider could be found for {}", Category::SERIES);
             ptr::null_mut()
         }
         Some(provider) => {
@@ -358,9 +358,100 @@ pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *co
 #[no_mangle]
 pub extern "C" fn reset_show_apis(popcorn_fx: &mut PopcornFX) {
     return match popcorn_fx.providers().get(Category::SERIES) {
-        None => error!("No provider could be found for {}", Category::SERIES),
+        None => error!("No media provider could be found for {}", Category::SERIES),
         Some(provider) => provider.reset_api()
     };
+}
+
+/// Retrieve all liked favorite media items.
+///
+/// It returns the [VecFavoritesC] holder for the array on success, else [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut VecFavoritesC {
+    let genre = genre.to_struct();
+    let sort_by = sort_by.to_struct();
+    let keywords = from_c_string(keywords);
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+
+    match popcorn_fx.providers().get(Category::FAVORITES) {
+        None => {
+            error!("No media provider could be found for {}", Category::FAVORITES);
+            ptr::null_mut()
+        }
+        Some(provider) => {
+            match runtime.block_on(provider.retrieve(&genre, &sort_by, &keywords, page)) {
+                Ok(e) => {
+                    info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);
+                    let mut movies: Vec<MovieC> = vec![];
+                    let mut shows: Vec<ShowOverviewC> = vec![];
+
+                    for media in e.into_iter() {
+                        if media.media_type() == MediaType::Movie {
+                            movies.push(MovieC::from_overview(*media
+                                .into_any()
+                                .downcast::<MovieOverview>()
+                                .expect("expected the media to be a movie overview")))
+                        } else if media.media_type() == MediaType::Show {
+                            shows.push(ShowOverviewC::from(*media
+                                .into_any()
+                                .downcast::<ShowOverview>()
+                                .expect("expected the media to be a show overview")));
+                        }
+                    }
+
+                    into_c_owned(VecFavoritesC::from(movies, shows))
+                }
+                Err(e) => {
+                    error!("Failed to retrieve favorites, {}", e);
+                    ptr::null_mut()
+                }
+            }
+        }
+    }
+}
+
+/// Retrieve the details of a favorite item on the given IMDB ID.
+/// The details contain all information about the media item.
+///
+/// It returns the [FavoriteC] on success, else a [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut FavoriteC {
+    let imdb_id = from_c_string(imdb_id);
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+
+    match popcorn_fx.providers().get(Category::FAVORITES) {
+        None => {
+            error!("No media provider could be found for {}", Category::FAVORITES);
+            ptr::null_mut()
+        }
+        Some(provider) => {
+            match runtime.block_on(provider.retrieve_details(&imdb_id)) {
+                Ok(e) => {
+                    trace!("Returning favorite details {:?}", &e);
+                    match e.media_type() {
+                        MediaType::Movie => {
+                            into_c_owned(FavoriteC::from_movie(*e.into_any()
+                                .downcast::<MovieDetails>()
+                                .expect("expected the favorite item to be a movie")))
+                        }
+                        MediaType::Show => {
+                            into_c_owned(FavoriteC::from_show(*e.into_any()
+                                .downcast::<ShowDetails>()
+                                .expect("expected the favorite item to be a show")))
+                        }
+                        _ => {
+                            error!("Media type {} is not supported to retrieve favorite details", e.media_type());
+                            ptr::null_mut()
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to retrieve favorite details, {}", e);
+                    ptr::null_mut()
+                }
+            }
+        }
+    }
 }
 
 /// Delete the PopcornFX instance in a safe way.
@@ -369,4 +460,18 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
     info!("Disposing Popcorn FX");
     popcorn_fx.dispose();
     drop(popcorn_fx)
+}
+
+#[cfg(test)]
+mod test {
+    use popcorn_fx_core::from_c_owned;
+
+    use super::*;
+
+    #[test]
+    fn test_create_and_dispose_popcorn_fx() {
+        let instance = from_c_owned(new_popcorn_fx());
+
+        dispose_popcorn_fx(Box::new(instance));
+    }
 }

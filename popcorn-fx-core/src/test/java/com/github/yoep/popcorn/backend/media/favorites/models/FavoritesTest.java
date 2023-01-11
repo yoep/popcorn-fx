@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class FavoritesTest {
     private Favorites favorites;
@@ -34,7 +36,8 @@ class FavoritesTest {
 
     @Test
     void testAdd_whenFavorableIsShow_shouldAddItemToTheShowsList() {
-        var media = new ShowOverview();
+        var media = mock(ShowOverview.class);
+        when(media.getId()).thenReturn("tt1000000");
 
         favorites.add(media);
         var result = favorites.getShows();

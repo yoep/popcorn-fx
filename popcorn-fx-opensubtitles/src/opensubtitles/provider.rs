@@ -379,7 +379,7 @@ impl OpensubtitlesProvider {
 #[async_trait]
 impl SubtitleProvider for OpensubtitlesProvider {
     async fn movie_subtitles(&self, media: MovieDetails) -> Result<Vec<SubtitleInfo>> {
-        let imdb_id = media.id();
+        let imdb_id = media.imdb_id();
 
         debug!("Searching movie subtitles for IMDB ID {}", &imdb_id);
         self.start_search_request(&imdb_id, Some(&imdb_id), None, None)
@@ -387,7 +387,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
     }
 
     async fn episode_subtitles(&self, media: ShowDetails, episode: Episode) -> Result<Vec<SubtitleInfo>> {
-        let imdb_id = media.id();
+        let imdb_id = media.imdb_id();
 
         debug!("Searching episode subtitles for IMDB ID {}", &imdb_id);
         self.start_search_request(&imdb_id, Some(&imdb_id), Some(&episode), None)
@@ -606,11 +606,13 @@ mod test {
         init_logger();
         let (server, settings) = start_mock_server();
         let show = ShowDetails::new(
-            "tt2861424".to_string(),
-            "275274".to_string(),
-            "Rick and Morty".to_string(),
-            String::new(),
-            "2022".to_string());
+            "tt4236770".to_string(),
+            "tt4236770".to_string(),
+            "lorem ipsum".to_string(),
+            "2022".to_string(),
+            1,
+            Images::none(),
+            None);
         let episode = Episode::new(
             1,
             1,
@@ -622,7 +624,7 @@ mod test {
         server.mock(|when, then| {
             when.method(GET)
                 .path("/subtitles")
-                .query_param(IMDB_ID_PARAM_KEY, "2861424".to_string());
+                .query_param(IMDB_ID_PARAM_KEY, "4236770".to_string());
             then.status(200)
                 .header("content-type", "application/json")
                 .body(read_test_file("search_result_episode.json"));

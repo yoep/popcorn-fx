@@ -137,6 +137,7 @@ struct TorrentInfoC {
   uint32_t peer;
   const char *size;
   const char *filesize;
+  const char *file;
 };
 
 struct TorrentQualityC {
@@ -157,7 +158,6 @@ struct EpisodeC {
 };
 
 struct ShowDetailsC {
-  const char *id;
   const char *imdb_id;
   const char *tvdb_id;
   const char *title;
@@ -202,10 +202,23 @@ struct PlatformInfoC {
   const char *arch;
 };
 
-struct VecMovieC {
+struct ShowOverviewC {
+  const char *imdb_id;
+  const char *tvdb_id;
+  const char *title;
+  const char *year;
+  int32_t num_seasons;
+  ImagesC images;
+  RatingC *rating;
+};
+
+struct VecFavoritesC {
   MovieC *movies;
-  int32_t len;
-  int32_t cap;
+  int32_t movies_len;
+  int32_t movies_cap;
+  ShowOverviewC *shows;
+  int32_t shows_len;
+  int32_t shows_cap;
 };
 
 struct GenreC {
@@ -218,21 +231,21 @@ struct SortByC {
   const char *text;
 };
 
-struct ShowOverviewC {
-  const char *id;
-  const char *imdb_id;
-  const char *tvdb_id;
-  const char *title;
-  const char *year;
-  int32_t num_seasons;
-  ImagesC images;
-  RatingC *rating;
+struct VecMovieC {
+  MovieC *movies;
+  int32_t len;
+  int32_t cap;
 };
 
 struct VecShowC {
   ShowOverviewC *shows;
   int32_t len;
   int32_t cap;
+};
+
+struct FavoriteC {
+  MovieC *movie;
+  ShowDetailsC *show;
 };
 
 
@@ -288,6 +301,11 @@ void reset_movie_apis(PopcornFX *popcorn_fx);
 /// This will make all disabled api's available again.
 void reset_show_apis(PopcornFX *popcorn_fx);
 
+/// Retrieve all liked favorite media items.
+///
+/// It returns the [VecFavoritesC] holder for the array on success, else [ptr::null_mut].
+VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
@@ -297,6 +315,12 @@ VecMovieC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre,
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
 VecShowC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+
+/// Retrieve the details of a favorite item on the given IMDB ID.
+/// The details contain all information about the media item.
+///
+/// It returns the [FavoriteC] on success, else a [ptr::null_mut].
+FavoriteC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Retrieve the details of a given movie.
 /// It will query the api for the given IMDB ID.

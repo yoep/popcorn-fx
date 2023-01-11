@@ -59,8 +59,8 @@ public class Favorites implements Serializable {
 
         if (favorable instanceof Movie) {
             movies.add((Movie) favorable);
-        } else if (favorable instanceof ShowDetails) {
-            shows.add((ShowDetails) favorable);
+        } else if (favorable instanceof ShowOverview) {
+            shows.add((ShowOverview) favorable);
         } else {
             log.warn("Unable to add favorable of type \"{}\"", favorable.getClass().getSimpleName());
         }

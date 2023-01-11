@@ -78,7 +78,9 @@ public class SubtitleServiceImpl implements SubtitleService {
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final ShowDetails media, final Episode episode) {
         Assert.notNull(media, "media cannot be null");
         Assert.notNull(episode, "episode cannot be null");
-        var subtitles = FxLib.INSTANCE.episode_subtitles(PopcornFxInstance.INSTANCE.get(), media, episode).getSubtitles();
+        var subtitles = Optional.ofNullable(FxLib.INSTANCE.episode_subtitles(PopcornFxInstance.INSTANCE.get(), media, episode))
+                .map(SubtitleInfoSet::getSubtitles)
+                .orElse(Collections.emptyList());
 
         log.debug("Retrieved episode subtitle {}", subtitles);
         return CompletableFuture.completedFuture(
@@ -89,7 +91,9 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final String filename) {
         Assert.hasText(filename, "filename cannot be empty");
-        var subtitles = FxLib.INSTANCE.filename_subtitles(PopcornFxInstance.INSTANCE.get(), filename).getSubtitles();
+        var subtitles = Optional.ofNullable(FxLib.INSTANCE.filename_subtitles(PopcornFxInstance.INSTANCE.get(), filename))
+                .map(SubtitleInfoSet::getSubtitles)
+                .orElse(Collections.emptyList());
 
         return CompletableFuture.completedFuture(
                 Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());

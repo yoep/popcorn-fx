@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.jna.Structure;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -20,7 +21,7 @@ import java.util.Optional;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
-@Structure.FieldOrder({"id", "imdbId", "tvdbId", "title", "year", "numberOfSeasons", "images", "rating"})
+@Structure.FieldOrder({"imdbId", "tvdbId", "title", "year", "numberOfSeasons", "images", "rating"})
 public class ShowOverview extends Structure implements Media, Closeable {
     public static class ByReference extends ShowOverview implements Structure.ByReference {
     }
@@ -30,11 +31,11 @@ public class ShowOverview extends Structure implements Media, Closeable {
     @JsonIgnore
     private final transient BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
-    public String id;
     public String imdbId;
     public String tvdbId;
     public String title;
     public String year;
+    @JsonProperty("num_seasons")
     public int numberOfSeasons;
     public Images images;
     public Rating.ByReference rating;
@@ -79,8 +80,7 @@ public class ShowOverview extends Structure implements Media, Closeable {
     //endregion
 
     public String getId() {
-        return Optional.ofNullable(id)
-                .orElse(imdbId);
+        return imdbId;
     }
 
     public Optional<Rating> getRating() {

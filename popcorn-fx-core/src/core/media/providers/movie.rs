@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -7,10 +8,9 @@ use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
 use crate::core::config::Application;
-use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, MovieDetails, MovieOverview, providers, SortBy};
+use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, MovieDetails, MovieOverview, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
-use crate::core::Page;
 
 const PROVIDER_NAME: &str = "movies";
 const SEARCH_RESOURCE_NAME: &str = "movies";
@@ -32,6 +32,12 @@ impl MovieProvider {
     }
 }
 
+impl Display for MovieProvider {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MovieProvider")
+    }
+}
+
 #[async_trait]
 impl MediaProvider for MovieProvider {
     fn supports(&self, category: &Category) -> bool {
@@ -46,7 +52,7 @@ impl MediaProvider for MovieProvider {
         base.reset_api_stats();
     }
 
-    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> providers::Result<Page<Box<dyn MediaOverview>>> {
+    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 
@@ -59,7 +65,7 @@ impl MediaProvider for MovieProvider {
                     .map(|e| Box::new(e) as Box<dyn MediaOverview>)
                     .collect();
 
-                Ok(Page::from_content(movies))
+                Ok(movies)
             }
             Err(e) => {
                 warn!("Failed to retrieve movie items, {}", e);
@@ -68,7 +74,7 @@ impl MediaProvider for MovieProvider {
         }
     }
 
-    async fn retrieve_details(&self, imdb_id: &String) -> providers::Result<Box<dyn MediaDetails>> {
+    async fn retrieve_details(&self, imdb_id: &String) -> crate::core::media::Result<Box<dyn MediaDetails>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 
@@ -93,7 +99,7 @@ mod test {
     use httpmock::MockServer;
 
     use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
-    use crate::core::media::{Images, Rating};
+    use crate::core::media::{Images, MediaIdentifier, Rating};
     use crate::test::{init_logger, read_test_file};
 
     use super::*;
@@ -116,7 +122,6 @@ mod test {
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
         let provider = MovieProvider::new(&settings);
         let expected_result = MovieOverview::new_detailed(
-            "tt9764362".to_string(),
             "Lorem Ipsum".to_string(),
             "tt9764362".to_string(),
             "2022".to_string(),
@@ -149,7 +154,7 @@ mod test {
             .await
             .expect("expected media items to have been returned");
 
-        assert!(result.total_elements() > 0, "Expected at least one item to have been found")
+        assert!(result.len() > 0, "Expected at least one item to have been found")
     }
 
     #[tokio::test]
@@ -166,7 +171,7 @@ mod test {
             .downcast::<MovieDetails>()
             .expect("expected media to be a movie");
 
-        assert_eq!(&imdb_id, result.imdb_id())
+        assert_eq!(imdb_id, result.imdb_id())
     }
 
     fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {

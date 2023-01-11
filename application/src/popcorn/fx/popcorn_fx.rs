@@ -9,7 +9,8 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
 use popcorn_fx_core::core::config::Application;
-use popcorn_fx_core::core::media::providers::{MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::favorites::FavoriteService;
+use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::SubtitleProvider;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
@@ -27,24 +28,27 @@ pub struct PopcornFX {
     settings: Arc<Application>,
     subtitle_service: Box<dyn SubtitleProvider>,
     platform_service: Box<dyn PlatformService>,
+    favorites_service: Arc<FavoriteService>,
     providers: ProviderManager,
-    storage: Storage,
+    storage: Arc<Storage>,
 }
 
 impl PopcornFX {
     /// Initialize a new popcorn FX instance.
     pub fn new() -> Self {
         Self::initialize_logger();
-        let storage = Storage::new();
+        let storage = Arc::new(Storage::new());
         let settings = Arc::new(Application::new_auto(&storage));
         let subtitle_service = Box::new(OpensubtitlesProvider::new(&settings));
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let providers = Self::default_providers(&settings);
+        let favorites_service = Arc::new(FavoriteService::new(&settings, &storage));
+        let providers = Self::default_providers(&settings, &favorites_service);
 
         Self {
             settings,
             subtitle_service,
             platform_service,
+            favorites_service,
             providers,
             storage,
         }
@@ -98,13 +102,18 @@ impl PopcornFX {
         });
     }
 
-    fn default_providers(settings: &Arc<Application>) -> ProviderManager {
-        let movie_provider: Box<dyn MediaProvider> = Box::new(MovieProvider::new(&settings));
-        let show_provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
+    fn default_providers(settings: &Arc<Application>, favorites: &Arc<FavoriteService>) -> ProviderManager {
+        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(&settings)));
+        let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(&settings)));
+        let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(&favorites, vec![
+            &movie_provider,
+            &show_provider,
+        ])));
 
         ProviderManager::with_providers(vec![
             movie_provider,
             show_provider,
+            favorites,
         ])
     }
 }

@@ -1,5 +1,6 @@
 pub use category::*;
 pub use episode::*;
+pub use error::*;
 pub use genre::*;
 pub use images::*;
 pub use media::*;
@@ -11,6 +12,7 @@ pub use torrent_info::*;
 
 mod category;
 mod episode;
+mod error;
 mod genre;
 mod images;
 mod media;

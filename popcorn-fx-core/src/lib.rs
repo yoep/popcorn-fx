@@ -1,5 +1,5 @@
+use std::{mem, ptr};
 use std::ffi::{CStr, CString};
-use std::mem;
 use std::os::raw::c_char;
 
 use log::error;
@@ -53,12 +53,18 @@ pub fn from_c_owned<T>(ptr: *mut T) -> T {
 /// Convert the given [Vec] into a C array tuple which is owned by the caller.
 /// The return tuple is as follows: `(pointer, length, capacity)`
 pub fn to_c_vec<T>(mut vec: Vec<T>) -> (*mut T, i32, i32) {
-    let ptr = vec.as_mut_ptr();
-    let len = vec.len() as i32;
-    let capacity = vec.capacity() as i32;
-    mem::forget(vec);
+    // check if the vec contains items
+    // if not, we return a ptr::null as ABI can't handle empty arrays
+    if vec.len() > 0 {
+        let ptr = vec.as_mut_ptr();
+        let len = vec.len() as i32;
+        let capacity = vec.capacity() as i32;
+        mem::forget(vec);
 
-    (ptr, len, capacity)
+        (ptr, len, capacity)
+    } else {
+        (ptr::null_mut(), 0, 0)
+    }
 }
 
 #[cfg(feature = "testing")]

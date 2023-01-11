@@ -4,9 +4,7 @@ use reqwest::{Client, Response, Url};
 use reqwest::redirect::Policy;
 use serde::de::DeserializeOwned;
 
-use crate::core::media::{Genre, providers, SortBy};
-use crate::core::media::providers::error::ProviderError;
-use crate::core::media::providers::error::ProviderError::NoAvailableProviders;
+use crate::core::media::{Genre, MediaError, SortBy};
 
 const SORT_QUERY: &str = "sort";
 const ORDER_QUERY: &str = "order";
@@ -21,7 +19,7 @@ const ORDER_QUERY_VALUE: &str = "-1";
 /// use popcorn_fx_core::core::media::providers::BaseProvider;
 ///
 /// struct MyProvider {
-///   base: BaseProvider
+///   base: BaseProvider,
 /// }
 ///
 /// impl MyProvider {
@@ -66,14 +64,14 @@ impl BaseProvider {
     /// * [T] - The data model being returned.
     ///
     /// It returns an array of [T] items on success, else the [providers::ProviderError].
-    pub async fn retrieve_provider_page<T>(&mut self, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: u32) -> providers::Result<Vec<T>>
+    pub async fn retrieve_provider_page<T>(&mut self, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<T>>
         where T: DeserializeOwned {
         let client = self.client.clone();
         let available_providers: Vec<&mut UriProvider> = self.available_providers();
 
         if available_providers.is_empty() {
             warn!("No available uri providers found for resource {}", resource);
-            return Err(NoAvailableProviders);
+            return Err(MediaError::NoAvailableProviders);
         }
 
         for provider in available_providers {
@@ -96,17 +94,17 @@ impl BaseProvider {
             }
         }
 
-        Err(NoAvailableProviders)
+        Err(MediaError::NoAvailableProviders)
     }
 
-    pub async fn retrieve_details<T>(&mut self, resource: &str, id: &String) -> providers::Result<T>
+    pub async fn retrieve_details<T>(&mut self, resource: &str, id: &String) -> crate::core::media::Result<T>
         where T: DeserializeOwned {
         let client = self.client.clone();
         let available_providers: Vec<&mut UriProvider> = self.available_providers();
 
         if available_providers.is_empty() {
             warn!("No available uri providers found for resource {}", resource);
-            return Err(NoAvailableProviders);
+            return Err(MediaError::NoAvailableProviders);
         }
 
         for provider in available_providers {
@@ -129,21 +127,21 @@ impl BaseProvider {
             }
         }
 
-        Err(NoAvailableProviders)
+        Err(MediaError::NoAvailableProviders)
     }
 
-    async fn handle_response<T>(response: Response) -> providers::Result<T>
+    async fn handle_response<T>(response: Response) -> crate::core::media::Result<T>
         where T: DeserializeOwned {
         let status_code = &response.status();
 
         if status_code.is_success() {
             match response.json::<T>().await {
                 Ok(e) => Ok(e),
-                Err(e) => Err(ProviderError::ParsingFailed(e.to_string()))
+                Err(e) => Err(MediaError::ProviderParsingFailed(e.to_string()))
             }
         } else {
             warn!("Request failed with {}, {}", response.status(), response.text().await.expect("expected the response body to be returned"));
-            Err(ProviderError::RequestFailed(status_code.as_u16()))
+            Err(MediaError::ProviderRequestFailed(status_code.as_u16()))
         }
     }
 

@@ -19,6 +19,7 @@ import javax.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -56,7 +57,8 @@ public class FavoriteService {
 
         synchronized (cacheLock) {
             return cache.getAll().stream()
-                    .anyMatch(e -> e.getId().equals(favorable.getId()));
+                    .filter(Objects::nonNull)
+                    .anyMatch(e -> Objects.equals(e.getId(), favorable.getId()));
         }
     }
 

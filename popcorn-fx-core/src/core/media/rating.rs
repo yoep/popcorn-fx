@@ -1,7 +1,9 @@
+use std::cmp::Ordering;
+
 use serde::Deserialize;
 
 /// The rating information of a media item.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Deserialize)]
 pub struct Rating {
     percentage: u16,
     watching: u32,
@@ -49,5 +51,11 @@ impl Rating {
 
     pub fn hated(&self) -> &u32 {
         &self.hated
+    }
+}
+
+impl Ord for Rating {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.percentage.cmp(other.percentage())
     }
 }

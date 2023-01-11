@@ -24,4 +24,6 @@ log4rs = {version = "1", features = ["console_writer"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [build-dependencies]
+popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
 cbindgen = "0.24"

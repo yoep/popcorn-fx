@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::core::media::Category;
 use crate::core::media::providers::MediaProvider;
 
@@ -5,7 +7,7 @@ use crate::core::media::providers::MediaProvider;
 /// Multiple providers for the same [Category] can be registered to overrule an existing one.
 #[derive(Debug)]
 pub struct ProviderManager {
-    providers: Vec<Box<dyn MediaProvider>>,
+    providers: Vec<Arc<Box<dyn MediaProvider>>>,
 }
 
 impl ProviderManager {
@@ -20,7 +22,8 @@ impl ProviderManager {
     }
 
     /// Create a new manager which the given [MediaProvider]'s.
-    pub fn with_providers(providers: Vec<Box<dyn MediaProvider>>) -> Self {
+    /// The [Arc] reference counter is owned by this manager.
+    pub fn with_providers(providers: Vec<Arc<Box<dyn MediaProvider>>>) -> Self {
         Self {
             providers
         }
@@ -53,7 +56,7 @@ mod test {
     fn test_get_supported_category() {
         let settings = Arc::new(Application::default());
         let provider: Box<dyn MediaProvider> = Box::new(MovieProvider::new(&settings));
-        let manager = ProviderManager::with_providers(vec![provider]);
+        let manager = ProviderManager::with_providers(vec![Arc::new(provider)]);
 
         let result = manager.get(Category::MOVIES);
 

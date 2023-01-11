@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,7 +11,6 @@ use crate::core::config::Application;
 use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, ShowDetails, ShowOverview, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
-use crate::core::Page;
 
 const PROVIDER_NAME: &str = "series";
 const SEARCH_RESOURCE_NAME: &str = "shows";
@@ -32,6 +32,12 @@ impl ShowProvider {
     }
 }
 
+impl Display for ShowProvider {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ShowProvider")
+    }
+}
+
 #[async_trait]
 impl MediaProvider for ShowProvider {
     fn supports(&self, category: &Category) -> bool {
@@ -46,7 +52,7 @@ impl MediaProvider for ShowProvider {
         base.reset_api_stats();
     }
 
-    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::providers::Result<Page<Box<dyn MediaOverview>>> {
+    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 
@@ -59,7 +65,7 @@ impl MediaProvider for ShowProvider {
                     .map(|e| Box::new(e) as Box<dyn MediaOverview>)
                     .collect();
 
-                Ok(Page::from_content(shows))
+                Ok(shows)
             }
             Err(e) => {
                 warn!("Failed to retrieve show items, {}", e);
@@ -68,7 +74,7 @@ impl MediaProvider for ShowProvider {
         }
     }
 
-    async fn retrieve_details(&self, imdb_id: &String) -> crate::core::media::providers::Result<Box<dyn MediaDetails>> {
+    async fn retrieve_details(&self, imdb_id: &String) -> crate::core::media::Result<Box<dyn MediaDetails>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 
@@ -87,6 +93,7 @@ impl MediaProvider for ShowProvider {
 
 #[cfg(test)]
 mod test {
+    use crate::core::media::MediaIdentifier;
     use crate::test::init_logger;
 
     use super::*;
@@ -103,7 +110,7 @@ mod test {
             .await
             .expect("expected no error to have occurred");
 
-        assert!(result.total_elements() > 0, "Expected media items to have been found")
+        assert!(result.len() > 0, "Expected media items to have been found")
     }
 
     #[tokio::test]
@@ -120,6 +127,6 @@ mod test {
             .downcast::<ShowDetails>()
             .expect("expected media to be a show");
 
-        assert_eq!(&imdb_id, result.imdb_id())
+        assert_eq!(imdb_id, result.imdb_id())
     }
 }

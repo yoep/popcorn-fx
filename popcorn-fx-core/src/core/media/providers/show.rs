@@ -16,6 +16,7 @@ const PROVIDER_NAME: &str = "series";
 const SEARCH_RESOURCE_NAME: &str = "shows";
 const DETAILS_RESOURCE_NAME: &str = "show";
 
+/// The [MediaProvider] for show media items.
 #[derive(Debug)]
 pub struct ShowProvider {
     base: Arc<Mutex<BaseProvider>>,

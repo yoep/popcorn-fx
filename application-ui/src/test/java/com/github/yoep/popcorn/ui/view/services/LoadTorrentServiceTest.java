@@ -126,11 +126,7 @@ class LoadTorrentServiceTest {
                 .title(episodeTitle)
                 .tvdbId("tv-id-001254")
                 .build();
-        var media = Show.builder()
-                .title("my show title")
-                .episodes(Collections.singletonList(episode))
-                .images(Images.builder().build())
-                .build();
+        var media = mock(ShowDetails.class);
         var event = LoadMediaTorrentEvent.builder()
                 .source(this)
                 .torrent(MediaTorrentInfo.builder()
@@ -147,6 +143,9 @@ class LoadTorrentServiceTest {
                 .build();
         var subtitle = mock(Subtitle.class);
         var subtitleMatcher = SubtitleMatcher.from(torrentFilename, quality);
+        when(media.getTitle()).thenReturn("my show title");
+        when(media.getEpisodes()).thenReturn(Collections.singletonList(episode));
+        when(media.getImages()).thenReturn(Images.builder().build());
         when(torrentInfo.getByFilename(episodeTitle)).thenReturn(Optional.of(torrentFileInfo));
         when(torrent.getFilename()).thenReturn(torrentFilename);
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);

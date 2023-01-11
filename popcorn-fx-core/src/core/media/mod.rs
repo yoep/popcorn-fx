@@ -9,14 +9,15 @@ pub use show::*;
 pub use sort_by::*;
 pub use torrent_info::*;
 
-pub mod providers;
 mod category;
+mod episode;
 mod genre;
 mod images;
 mod media;
-mod episode;
 mod movie;
 mod rating;
 mod show;
 mod sort_by;
 mod torrent_info;
+pub mod favorites;
+pub mod providers;

@@ -10,6 +10,7 @@ use log4rs::encode::pattern::PatternEncoder;
 
 use popcorn_fx_core::core::config::Application;
 use popcorn_fx_core::core::media::providers::{MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::SubtitleProvider;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
@@ -27,13 +28,15 @@ pub struct PopcornFX {
     subtitle_service: Box<dyn SubtitleProvider>,
     platform_service: Box<dyn PlatformService>,
     providers: ProviderManager,
+    storage: Storage,
 }
 
 impl PopcornFX {
     /// Initialize a new popcorn FX instance.
     pub fn new() -> Self {
         Self::initialize_logger();
-        let settings = Arc::new(Application::new_auto());
+        let storage = Storage::new();
+        let settings = Arc::new(Application::new_auto(&storage));
         let subtitle_service = Box::new(OpensubtitlesProvider::new(&settings));
         let platform_service = Box::new(PlatformServiceImpl::new());
         let providers = Self::default_providers(&settings);
@@ -43,6 +46,7 @@ impl PopcornFX {
             subtitle_service,
             platform_service,
             providers,
+            storage,
         }
     }
 
@@ -100,7 +104,7 @@ impl PopcornFX {
 
         ProviderManager::with_providers(vec![
             movie_provider,
-            show_provider
+            show_provider,
         ])
     }
 }

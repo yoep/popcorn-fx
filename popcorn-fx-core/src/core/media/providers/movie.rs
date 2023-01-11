@@ -16,6 +16,7 @@ const PROVIDER_NAME: &str = "movies";
 const SEARCH_RESOURCE_NAME: &str = "movies";
 const DETAILS_RESOURCE_NAME: &str = "movie";
 
+/// The [MediaProvider] for movie media items.
 #[derive(Debug)]
 pub struct MovieProvider {
     base: Arc<Mutex<BaseProvider>>,
@@ -99,7 +100,6 @@ mod test {
 
     fn start_mock_server() -> (MockServer, Arc<Application>) {
         let server = MockServer::start();
-        let temp_dir = tempfile::tempdir().unwrap();
         let settings = Arc::new(Application::new(
             PopcornProperties::new_with_providers(SubtitleProperties::default(), create_providers(&server)),
             PopcornSettings::default(),

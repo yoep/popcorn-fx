@@ -1,11 +1,9 @@
-use std::fs::File;
-use std::io::Read;
-
 use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::core::config::{DEFAULT_HOME_DIRECTORY, ServerSettings, SubtitleSettings, UiSettings};
+use crate::core::config::{ServerSettings, SubtitleSettings, UiSettings};
+use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
 const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = || SubtitleSettings::default();
@@ -34,26 +32,17 @@ impl PopcornSettings {
 
     /// Create new settings which will search for the [DEFAULT_SETTINGS_FILENAME].
     /// It will be parsed if found and valid, else the defaults will be returned.
-    pub fn new_auto() -> Self {
-        Self::from_filename(DEFAULT_SETTINGS_FILENAME)
+    pub fn new_auto(storage: &Storage) -> Self {
+        Self::from_filename(DEFAULT_SETTINGS_FILENAME, storage)
     }
 
     /// Create new settings from the given filename.
     /// This file will be searched within the home directory of the user.
-    pub fn from_filename(filename: &str) -> Self {
-        let mut data = String::new();
-        let path = home::home_dir().unwrap()
-            .join(DEFAULT_HOME_DIRECTORY)
-            .join(filename);
-
-
-        match File::open(&path) {
-            Ok(mut file) => {
-                file.read_to_string(&mut data).expect("Unable to read the settings file");
-                Self::from_str(data.as_str())
-            }
-            Err(err) => {
-                warn!("Failed to read settings file {}, {}, using defaults instead", path.to_str().unwrap(), err.to_string());
+    pub fn from_filename(filename: &str, storage: &Storage) -> Self {
+        match storage.read::<Self>(filename) {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("Failed to read settings file {}, using defaults instead", e);
                 Self::default()
             }
         }
@@ -118,6 +107,14 @@ mod test {
     use crate::test::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_new_auto_should_always_return_settings() {
+        init_logger();
+        let storage = Storage::new();
+
+        PopcornSettings::new_auto(&storage);
+    }
 
     #[test]
     fn test_settings_from_str_when_valid_should_return_expected_result() {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use derive_more::Display;
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 
 use crate::core::media::{MediaIdentifier, MediaType, TorrentInfo, Watchable};
 

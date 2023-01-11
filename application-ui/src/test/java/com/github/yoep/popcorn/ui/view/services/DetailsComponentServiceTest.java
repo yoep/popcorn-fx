@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import javafx.beans.property.BooleanProperty;
@@ -101,15 +101,14 @@ class DetailsComponentServiceTest {
 
     @Test
     void testListeners_whenShowWatchedStateIsChanged_shouldInvokedOnWatchedChanged() {
-        var show = Show.builder()
-                .episodes(Collections.singletonList(Episode.builder().build()))
-                .build();
+        var show = mock(ShowDetails.class);
         var event = ShowSerieDetailsEvent.builder()
                 .source(this)
                 .media(show)
                 .build();
         var listener = mock(DetailsComponentListener.class);
         var expectedResult = true;
+        when(show.getEpisodes()).thenReturn(Collections.singletonList(Episode.builder().build()));
         service.onShowDetails(event);
         service.addListener(listener);
 
@@ -188,13 +187,12 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsUnliked_shouldAddToFavorites() {
-        var show = Show.builder()
-                .build();
+        var show = mock(ShowDetails.class);
         var event = ShowSerieDetailsEvent.builder()
                 .source(this)
                 .media(show)
                 .build();
-        show.setLiked(false);
+        when(show.isLiked()).thenReturn(false);
         service.onShowDetails(event);
 
         service.toggleLikedState();
@@ -204,13 +202,12 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsLiked_shouldRemoveFromFavorites() {
-        var show = Show.builder()
-                .build();
+        var show = mock(ShowDetails.class);
         var event = ShowSerieDetailsEvent.builder()
                 .source(this)
                 .media(show)
                 .build();
-        show.setLiked(true);
+        when(show.isLiked()).thenReturn(true);
         service.onShowDetails(event);
 
         service.toggleLikedState();

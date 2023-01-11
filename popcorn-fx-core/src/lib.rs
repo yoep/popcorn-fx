@@ -97,12 +97,32 @@ pub mod test {
         destination.as_path().to_str().unwrap().to_string()
     }
 
-    pub fn read_test_file(filename: &str) -> String {
+    /// Retrieve the path to the testing resource directory.
+    ///
+    /// It returns the [PathBuf] to the testing resources directory.
+    pub fn test_resource_directory() -> PathBuf {
         let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
         let mut source = PathBuf::from(root_dir);
         source.push("test");
+
+        source
+    }
+
+    /// Retrieve the filepath of a testing resource file.
+    /// These are files located within the "test" directory of the crate.
+    ///
+    /// It returns the created [PathBuf] for the given filename.
+    pub fn test_resource_filepath(filename: &str) -> PathBuf {
+        let mut source = test_resource_directory();
         source.push(filename);
 
-        fs::read_to_string(&source).unwrap()
+        source
+    }
+
+    /// Read a test resource file as a [String].
+    pub fn read_test_file(filename: &str) -> String {
+        let source = test_resource_filepath(filename);
+
+        fs::read_to_string(&source).expect("expected the testing file to be readable")
     }
 }

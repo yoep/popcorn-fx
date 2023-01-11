@@ -78,4 +78,14 @@ impl TorrentInfo {
             Some(e) => Some(e)
         }
     }
+
+    /// Retrieve the file to use from within a torrent collection.
+    /// This field is present when the torrent is a collection, otherwise, the only available media file
+    /// should be used from the torrent info.
+    pub fn file(&self) -> Option<&String> {
+        match &self.file {
+            None => None,
+            Some(e) => Some(e)
+        }
+    }
 }

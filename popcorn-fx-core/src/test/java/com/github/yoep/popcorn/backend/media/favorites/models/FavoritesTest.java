@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.backend.media.favorites.models;
 
 import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import javafx.beans.property.BooleanProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ class FavoritesTest {
 
     @Test
     void testAdd_whenFavorableIsShow_shouldAddItemToTheShowsList() {
-        var media = Show.builder().build();
+        var media = new ShowOverview();
 
         favorites.add(media);
         var result = favorites.getShows();

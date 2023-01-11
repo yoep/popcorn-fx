@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sun.jna.Structure;
 import lombok.Getter;
 import lombok.ToString;
@@ -8,6 +9,7 @@ import java.io.Closeable;
 
 @Getter
 @ToString
+@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"quality", "info"})
 public class TorrentQuality extends Structure implements Closeable {
     public static class ByReference extends TorrentQuality implements Structure.ByReference {

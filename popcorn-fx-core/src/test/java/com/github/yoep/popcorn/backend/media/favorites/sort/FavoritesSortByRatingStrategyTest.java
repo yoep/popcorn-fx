@@ -4,7 +4,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,7 +57,7 @@ class FavoritesSortByRatingStrategyTest {
 
     @Test
     void testSort_whenMediaTypeIsDifferent_shouldReturnMoviesBeforeShows() {
-        var show = Show.builder().build();
+        var show = new ShowOverview();
         var movie = Movie.builder().build();
         var stream = Stream.<Media>of(show, movie);
         var expectedResult = asList(movie, show);

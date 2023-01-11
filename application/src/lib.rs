@@ -321,6 +321,10 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
     };
 }
 
+/// Retrieve the details of a show based on the given IMDB ID.
+/// The details contain all information about the show such as episodes and descriptions.
+///
+/// It returns the [ShowDetailsC] on success, else a [ptr::null_mut].
 #[no_mangle]
 pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut ShowDetailsC {
     let imdb_id = from_c_string(imdb_id);

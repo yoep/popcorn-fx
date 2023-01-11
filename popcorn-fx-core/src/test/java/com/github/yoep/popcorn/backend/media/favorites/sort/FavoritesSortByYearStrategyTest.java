@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.backend.media.favorites.sort;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -85,7 +85,7 @@ class FavoritesSortByYearStrategyTest {
 
     @Test
     void testSort_whenMedia2IsMovie_shouldReturnMedia2BeforeMedia1() {
-        var media1 = Show.builder().build();
+        var media1 = new ShowOverview();
         var media2 = Movie.builder().build();
         var stream = Stream.<Media>of(media1, media2);
         var expectedResult = asList(media2, media1);

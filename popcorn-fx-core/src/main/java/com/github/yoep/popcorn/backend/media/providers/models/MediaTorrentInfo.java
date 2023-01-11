@@ -19,7 +19,7 @@ import java.util.Optional;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
-@Structure.FieldOrder({"url","provider","source","title","quality","seed","peer","size","filesize"})
+@Structure.FieldOrder({"url","provider","source","title","quality","seed","peer","size","filesize", "file"})
 public class MediaTorrentInfo extends Structure implements Serializable, Closeable {
     public String url;
     public String provider;
@@ -30,9 +30,7 @@ public class MediaTorrentInfo extends Structure implements Serializable, Closeab
     public int peer;
     public String size;
     public String filesize;
-
-    // this is import for episodes!!!
-    private String file;
+    public String file;
 
     //region Getters & Setters
 

@@ -432,6 +432,7 @@ pub struct TorrentInfoC {
     peer: u32,
     size: *const c_char,
     filesize: *const c_char,
+    file: *const c_char,
 }
 
 impl TorrentInfoC {
@@ -449,6 +450,10 @@ impl TorrentInfoC {
                 Some(e) => to_c_string(e.clone())
             },
             filesize: match info.filesize() {
+                None => ptr::null(),
+                Some(e) => to_c_string(e.clone())
+            },
+            file: match info.file() {
                 None => ptr::null(),
                 Some(e) => to_c_string(e.clone())
             },

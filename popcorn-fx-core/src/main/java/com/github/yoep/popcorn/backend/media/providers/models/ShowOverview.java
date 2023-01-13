@@ -102,12 +102,9 @@ public class ShowOverview extends Structure implements Media, Closeable {
     }
 
     @Override
+    @JsonIgnore
     public List<String> getGenres() {
         return new ArrayList<>();
-    }
-
-    public void setGenres(List<String> genres) {
-        // no-op
     }
 
     @Override

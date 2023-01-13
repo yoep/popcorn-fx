@@ -29,9 +29,6 @@ impl Ord for MediaType {
 
 /// Basic identification information about a media item.
 pub trait MediaIdentifier: Debug + Downcast + Send + Sync + Display {
-    /// Retrieve an owned instance of the unique ID of this [MediaIdentifier] item.
-    fn id(&self) -> String;
-
     /// Retrieve an owned instance of the IMDB id.
     fn imdb_id(&self) -> String;
 

@@ -1,26 +1,36 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.*;
 
 import java.io.Closeable;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Getter
-@ToString(callSuper = true, exclude = "torrents")
+@ToString(callSuper = true, exclude = {"torrents"})
 @EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
-@Structure.FieldOrder({"trailer", "torrentEntry", "torrentLen", "torrentCap"})
+@Structure.FieldOrder({"synopsis", "runtime", "trailer", "genresRef", "genresLen", "genresCap", "torrentEntry", "torrentLen", "torrentCap"})
 public class MovieDetails extends MovieOverview implements Closeable {
     public static class ByReference extends MovieDetails implements Structure.ByReference {
     }
 
+    public String synopsis;
+    public Integer runtime;
     public String trailer;
+    @JsonIgnore
+    public Pointer genresRef;
+    @JsonIgnore
+    public int genresLen;
+    @JsonIgnore
+    public int genresCap;
+    @JsonIgnore
     public TorrentEntry.ByReference torrentEntry;
+    @JsonIgnore
     public int torrentLen;
+    @JsonIgnore
     public int torrentCap;
 
     private Map<String, Map<String, MediaTorrentInfo>> torrents;
@@ -37,6 +47,14 @@ public class MovieDetails extends MovieOverview implements Closeable {
     @JsonIgnore
     public MediaType getType() {
         return MediaType.MOVIE;
+    }
+
+    @Override
+    public List<String> getGenres() {
+        return Optional.ofNullable(genresRef)
+                .map(e -> genresRef.getStringArray(0, genresLen))
+                .map(Arrays::asList)
+                .orElse(Collections.emptyList());
     }
 
     public Map<String, Map<String, MediaTorrentInfo>> getTorrents() {

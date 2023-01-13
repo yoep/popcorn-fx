@@ -72,10 +72,6 @@ impl Episode {
 }
 
 impl MediaIdentifier for Episode {
-    fn id(&self) -> String {
-        self.tvdb_id.to_string()
-    }
-
     fn imdb_id(&self) -> String {
         self.tvdb_id.to_string()
     }
@@ -112,7 +108,7 @@ mod test {
         );
         let expected_result = tvdb.to_string();
 
-        let result = episode.id();
+        let result = episode.imdb_id();
 
         assert_eq!(expected_result, result)
     }

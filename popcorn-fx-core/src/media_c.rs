@@ -120,15 +120,17 @@ impl MovieOverviewC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MovieDetailsC {
-    id: *const c_char,
     title: *const c_char,
     imdb_id: *const c_char,
     year: *const c_char,
-    runtime: i32,
     rating: *mut RatingC,
     images: ImagesC,
     synopsis: *const c_char,
+    runtime: i32,
     trailer: *const c_char,
+    genres: *mut *const c_char,
+    genres_len: i32,
+    genres_cap: i32,
     torrents: *mut TorrentEntryC,
     torrents_len: i32,
     torrents_cap: i32,
@@ -136,12 +138,15 @@ pub struct MovieDetailsC {
 
 impl MovieDetailsC {
     pub fn from(movie: MovieDetails) -> Self {
+        trace!("Converting MovieDetails to C for {{{}}}", movie);
+        let (genres, genres_len, genres_cap) = to_c_vec(movie.genres().iter()
+            .map(|e| to_c_string(e.clone()))
+            .collect());
         let (torrents, torrents_len, torrents_cap) = to_c_vec(movie.torrents().iter()
             .map(|(k, v)| TorrentEntryC::from(k, v))
             .collect());
 
         Self {
-            id: to_c_string(movie.id()),
             title: to_c_string(movie.title()),
             imdb_id: to_c_string(movie.imdb_id().clone()),
             year: to_c_string(movie.year().clone()),
@@ -153,6 +158,9 @@ impl MovieDetailsC {
             images: ImagesC::from(movie.images()),
             synopsis: to_c_string(movie.synopsis().clone()),
             trailer: to_c_string(movie.trailer().clone()),
+            genres,
+            genres_len,
+            genres_cap,
             torrents,
             torrents_len,
             torrents_cap,
@@ -162,7 +170,6 @@ impl MovieDetailsC {
     pub fn to_struct(&self) -> MovieDetails {
         trace!("Converting MovieDetails from C {:?}", self);
         MovieDetails::new(
-            from_c_string(self.id),
             from_c_string(self.title),
             from_c_string(self.imdb_id),
             from_c_string(self.year),
@@ -232,6 +239,9 @@ pub struct ShowDetailsC {
     synopsis: *const c_char,
     runtime: *const c_char,
     status: *const c_char,
+    genres: *mut *const c_char,
+    genres_len: i32,
+    genres_cap: i32,
     episodes: *mut EpisodeC,
     episodes_len: i32,
     episodes_cap: i32,
@@ -240,6 +250,9 @@ pub struct ShowDetailsC {
 impl ShowDetailsC {
     pub fn from(show: ShowDetails) -> Self {
         trace!("Converting ShowDetails to C {}", show);
+        let (genres, genres_len, genres_cap) = to_c_vec(show.genres().iter()
+            .map(|e| to_c_string(e.clone()))
+            .collect());
         let episodes = show.episodes().iter()
             .map(|e| EpisodeC::from(e.clone()))
             .collect();
@@ -259,6 +272,9 @@ impl ShowDetailsC {
             synopsis: to_c_string(show.synopsis().clone()),
             runtime: to_c_string(show.runtime().clone()),
             status: to_c_string(show.status().clone()),
+            genres,
+            genres_len,
+            genres_cap,
             episodes,
             episodes_len,
             episodes_cap,
@@ -454,7 +470,7 @@ pub struct ImagesC {
 
 impl ImagesC {
     pub fn from(images: &Images) -> Self {
-        trace!("Converting Images to C {}", images);
+        trace!("Converting Images to C {{{}}}", images);
         Self {
             poster: to_c_string(images.poster().clone()),
             fanart: to_c_string(images.fanart().clone()),

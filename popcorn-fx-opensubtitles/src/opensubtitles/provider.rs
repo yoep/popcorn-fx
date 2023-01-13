@@ -533,7 +533,6 @@ mod test {
         let settings = Arc::new(Application::default());
         let imdb_id = "tt1156398".to_string();
         let movie = MovieDetails::new(
-            imdb_id.clone(),
             "lorem".to_string(),
             imdb_id.clone(),
             "2021".to_string(),
@@ -558,12 +557,10 @@ mod test {
         init_logger();
         let (server, settings) = start_mock_server();
         let movie1 = MovieDetails::new(
-            "tt1156398".to_string(),
             "lorem".to_string(),
             "tt1156398".to_string(),
             "2021".to_string());
         let movie2 = MovieDetails::new(
-            "tt12003946".to_string(),
             "ipsum".to_string(),
             "tt12003946".to_string(),
             "2021".to_string());

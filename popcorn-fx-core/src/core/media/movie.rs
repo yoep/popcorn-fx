@@ -45,10 +45,6 @@ impl MovieOverview {
 }
 
 impl MediaIdentifier for MovieOverview {
-    fn id(&self) -> String {
-        self.imdb_id.clone()
-    }
-
     fn imdb_id(&self) -> String {
         self.imdb_id.clone()
     }
@@ -90,10 +86,8 @@ impl MediaOverview for MovieOverview {
 /// The detailed version of a media item representing a movie.
 /// It contains all information need for a movie description.
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
-#[display(fmt = "MovieDetails: {{id: {}, title: {}, imdb_id: {}}}", id, title, imdb_id)]
+#[display(fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}}}", imdb_id, title, year, runtime)]
 pub struct MovieDetails {
-    #[serde(rename(deserialize = "_id"))]
-    id: String,
     title: String,
     imdb_id: String,
     year: String,
@@ -109,9 +103,8 @@ pub struct MovieDetails {
 }
 
 impl MovieDetails {
-    pub fn new(id: String, title: String, imdb_id: String, year: String) -> Self {
+    pub fn new(title: String, imdb_id: String, year: String) -> Self {
         Self {
-            id,
             title,
             imdb_id,
             year,
@@ -144,6 +137,10 @@ impl MovieDetails {
     pub fn trailer(&self) -> &String {
         &self.trailer
     }
+    
+    pub fn genres(&self) -> &Vec<String> {
+        &self.genres
+    }
 
     pub fn torrents(&self) -> &HashMap<String, HashMap<String, TorrentInfo>> {
         &self.torrents
@@ -151,10 +148,6 @@ impl MovieDetails {
 }
 
 impl MediaIdentifier for MovieDetails {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn imdb_id(&self) -> String {
         self.imdb_id.clone()
     }

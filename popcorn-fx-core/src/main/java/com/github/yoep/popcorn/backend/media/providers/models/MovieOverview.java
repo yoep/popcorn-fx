@@ -5,10 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sun.jna.Structure;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.io.Closeable;
 import java.util.Collections;
@@ -16,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Data
+@ToString(exclude = {"watched", "liked"})
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
@@ -91,6 +89,7 @@ public class MovieOverview extends Structure implements Media, Closeable {
     }
 
     @Override
+    @JsonIgnore
     public List<String> getGenres() {
         return Collections.emptyList();
     }

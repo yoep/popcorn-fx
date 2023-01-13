@@ -114,15 +114,17 @@ struct TorrentEntryC {
 };
 
 struct MovieDetailsC {
-  const char *id;
   const char *title;
   const char *imdb_id;
   const char *year;
-  int32_t runtime;
   RatingC *rating;
   ImagesC images;
   const char *synopsis;
+  int32_t runtime;
   const char *trailer;
+  const char **genres;
+  int32_t genres_len;
+  int32_t genres_cap;
   TorrentEntryC *torrents;
   int32_t torrents_len;
   int32_t torrents_cap;
@@ -151,6 +153,9 @@ struct ShowDetailsC {
   const char *synopsis;
   const char *runtime;
   const char *status;
+  const char **genres;
+  int32_t genres_len;
+  int32_t genres_cap;
   EpisodeC *episodes;
   int32_t episodes_len;
   int32_t episodes_cap;

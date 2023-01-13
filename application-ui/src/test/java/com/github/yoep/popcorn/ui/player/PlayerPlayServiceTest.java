@@ -109,7 +109,6 @@ class PlayerPlayServiceTest {
         var timestamp = 18000L;
         var player = mock(Player.class);
         var media = MovieDetails.builder()
-                .id(id)
                 .images(Images.builder().build())
                 .build();
         var torrent = mock(Torrent.class);

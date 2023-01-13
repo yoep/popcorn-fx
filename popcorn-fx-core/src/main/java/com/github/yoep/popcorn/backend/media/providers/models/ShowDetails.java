@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,14 +10,17 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.io.Closeable;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 @Getter
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
-@Structure.FieldOrder({"synopsis", "runtime", "status", "episodesRef", "len", "cap"})
+@Structure.FieldOrder({"synopsis", "runtime", "status", "genresRef", "genresLen", "genresCap", "episodesRef", "len", "cap"})
 public class ShowDetails extends ShowOverview implements Media, Closeable {
     public static class ByReference extends ShowDetails implements Structure.ByReference {
     }
@@ -24,6 +28,12 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
     public String synopsis;
     public String runtime;
     public String status;
+    @JsonIgnore
+    public Pointer genresRef;
+    @JsonIgnore
+    public int genresLen;
+    @JsonIgnore
+    public int genresCap;
     @JsonIgnore
     public Episode.ByReference episodesRef;
     @JsonIgnore
@@ -33,7 +43,6 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
 
     @JsonIgnore
     private List<Episode> cache;
-    private List<String> genres = new ArrayList<>();
 
     public List<Episode> getEpisodes() {
         if (cache == null) {
@@ -59,7 +68,10 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
 
     @Override
     public List<String> getGenres() {
-        return genres;
+        return Optional.ofNullable(genresRef)
+                .map(e -> genresRef.getStringArray(0, genresLen))
+                .map(Arrays::asList)
+                .orElse(Collections.emptyList());
     }
 
     @Override

@@ -10,13 +10,13 @@ use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, 
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct VecMovieC {
-    pub movies: *mut MovieC,
+    pub movies: *mut MovieOverviewC,
     pub len: i32,
     pub cap: i32,
 }
 
 impl VecMovieC {
-    pub fn from(movies: Vec<MovieC>) -> Self {
+    pub fn from(movies: Vec<MovieOverviewC>) -> Self {
         let (movies, len, cap) = to_c_vec(movies);
 
         Self {
@@ -50,7 +50,7 @@ impl VecShowC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct VecFavoritesC {
-    pub movies: *mut MovieC,
+    pub movies: *mut MovieOverviewC,
     pub movies_len: i32,
     pub movies_cap: i32,
     pub shows: *mut ShowOverviewC,
@@ -59,7 +59,7 @@ pub struct VecFavoritesC {
 }
 
 impl VecFavoritesC {
-    pub fn from(movies: Vec<MovieC>, shows: Vec<ShowOverviewC>) -> Self {
+    pub fn from(movies: Vec<MovieOverviewC>, shows: Vec<ShowOverviewC>) -> Self {
         let (movies, movies_len, movies_cap) = to_c_vec(movies);
         let (shows, shows_len, shows_cap) = to_c_vec(shows);
 
@@ -76,7 +76,50 @@ impl VecFavoritesC {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct MovieC {
+pub struct MovieOverviewC {
+    title: *const c_char,
+    imdb_id: *const c_char,
+    year: *const c_char,
+    rating: *mut RatingC,
+    images: ImagesC,
+}
+
+impl MovieOverviewC {
+    pub fn from(movie: MovieOverview) -> Self {
+        Self {
+            title: to_c_string(movie.title()),
+            imdb_id: to_c_string(movie.imdb_id().clone()),
+            year: to_c_string(movie.year().clone()),
+            rating: match movie.rating() {
+                None => ptr::null_mut(),
+                Some(e) => into_c_owned(RatingC::from(e))
+            },
+            images: ImagesC::from(movie.images()),
+        }
+    }
+
+    pub fn to_struct(&self) -> MovieOverview {
+        trace!("Converting MovieOverview from C {:?}", self);
+        let mut rating = None;
+
+        if !self.rating.is_null() {
+            let c = from_c_owned(self.rating);
+            rating = Some(c.to_struct());
+        }
+
+        MovieOverview::new_detailed(
+            from_c_string(self.title),
+            from_c_string(self.imdb_id),
+            from_c_string(self.year),
+            rating,
+            self.images.to_struct(),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct MovieDetailsC {
     id: *const c_char,
     title: *const c_char,
     imdb_id: *const c_char,
@@ -91,27 +134,7 @@ pub struct MovieC {
     torrents_cap: i32,
 }
 
-impl MovieC {
-    pub fn from_overview(movie: MovieOverview) -> Self {
-        Self {
-            id: to_c_string(movie.id()),
-            title: to_c_string(movie.title()),
-            imdb_id: to_c_string(movie.imdb_id().clone()),
-            year: to_c_string(movie.year().clone()),
-            runtime: -1,
-            rating: match movie.rating() {
-                None => ptr::null_mut(),
-                Some(e) => into_c_owned(RatingC::from(e))
-            },
-            images: ImagesC::from(movie.images()),
-            synopsis: to_c_string(String::new()),
-            trailer: to_c_string(String::new()),
-            torrents: ptr::null_mut(),
-            torrents_len: 0,
-            torrents_cap: 0,
-        }
-    }
-
+impl MovieDetailsC {
     pub fn from(movie: MovieDetails) -> Self {
         let (torrents, torrents_len, torrents_cap) = to_c_vec(movie.torrents().iter()
             .map(|(k, v)| TorrentEntryC::from(k, v))
@@ -320,25 +343,37 @@ impl EpisodeC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct FavoriteC {
-    pub movie: *mut MovieC,
+    pub movie_overview: *mut MovieOverviewC,
+    pub movie_details: *mut MovieDetailsC,
     pub show_overview: *mut ShowDetailsC,
     pub show_details: *mut ShowDetailsC,
 }
 
 impl FavoriteC {
-    pub fn from_movie(movie: MovieDetails) -> Self {
+    pub fn from_movie(media: MovieOverview) -> Self {
         Self {
-            movie: into_c_owned(MovieC::from(movie)),
+            movie_overview: into_c_owned(MovieOverviewC::from(media)),
+            movie_details: ptr::null_mut(),
             show_overview: ptr::null_mut(),
             show_details: ptr::null_mut(),
         }
     }
 
-    pub fn from_show_details(show: ShowDetails) -> Self {
+    pub fn from_movie_details(media: MovieDetails) -> Self {
         Self {
-            movie: ptr::null_mut(),
+            movie_overview: ptr::null_mut(),
+            movie_details: into_c_owned(MovieDetailsC::from(media)),
             show_overview: ptr::null_mut(),
-            show_details: into_c_owned(ShowDetailsC::from(show)),
+            show_details: ptr::null_mut(),
+        }
+    }
+
+    pub fn from_show_details(media: ShowDetails) -> Self {
+        Self {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: into_c_owned(ShowDetailsC::from(media)),
         }
     }
 }

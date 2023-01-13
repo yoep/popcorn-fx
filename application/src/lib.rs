@@ -6,8 +6,8 @@ use std::path::Path;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{EpisodeC, FavoriteC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MovieC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
-use popcorn_fx_core::core::media::{Category, Favorable, MediaOverview, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
+use popcorn_fx_core::{EpisodeC, FavoriteC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -52,12 +52,12 @@ pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut V
         .collect()))
 }
 
-/// Retrieve the available subtitles for the given [MovieC].
+/// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
 /// It returns a reference to [VecSubtitleInfoC], else a [ptr::null_mut] on failure.
 /// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
-pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieC) -> *mut VecSubtitleInfoC {
+pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetailsC) -> *mut VecSubtitleInfoC {
     let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
     let movie_instance = movie.to_struct();
 
@@ -206,12 +206,12 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
     match runtime.block_on(popcorn_fx.providers().retrieve(&Category::MOVIES, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} movies, {:?}", e.len(), &e);
-            let movies: Vec<MovieC> = e.into_iter()
+            let movies: Vec<MovieOverviewC> = e.into_iter()
                 .map(|e| e
                     .into_any()
                     .downcast::<MovieOverview>()
                     .expect("expected media to be a movie overview"))
-                .map(|e| MovieC::from_overview(*e))
+                .map(|e| MovieOverviewC::from(*e))
                 .collect();
 
             if movies.len() > 0 {
@@ -231,16 +231,16 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
 /// Retrieve the details of a given movie.
 /// It will query the api for the given IMDB ID.
 ///
-/// It returns the [MovieC] on success, else [ptr::null_mut].
+/// It returns the [MovieDetailsC] on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MovieC {
+pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MovieDetailsC {
     let imdb_id = from_c_string(imdb_id);
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
     match runtime.block_on(popcorn_fx.providers().retrieve_details(&Category::MOVIES, &imdb_id)) {
         Ok(e) => {
             trace!("Returning movie details {:?}", &e);
-            into_c_owned(MovieC::from(*e
+            into_c_owned(MovieDetailsC::from(*e
                 .into_any()
                 .downcast::<MovieDetails>()
                 .expect("expected media to be movie details")))
@@ -361,7 +361,7 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
             trace!("Returning favorite details {:?}", &e);
             match e.media_type() {
                 MediaType::Movie => {
-                    into_c_owned(FavoriteC::from_movie(*e.into_any()
+                    into_c_owned(FavoriteC::from_movie_details(*e.into_any()
                         .downcast::<MovieDetails>()
                         .expect("expected the favorite item to be a movie")))
                 }
@@ -390,26 +390,13 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
 #[no_mangle]
 pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) -> bool {
     trace!("Verifying if media is liked for {:?}", favorite);
-    let media: Box<dyn Favorable>;
-
-    if !favorite.movie.is_null() {
-        let boxed = from_c_into_boxed(favorite.movie);
-        media = Box::new(boxed.to_struct());
-        mem::forget(boxed);
-    } else if !favorite.show_overview.is_null() {
-        let boxed = from_c_into_boxed(favorite.show_overview);
-        media = Box::new(boxed.to_struct());
-        mem::forget(boxed);
-    } else if !favorite.show_details.is_null() {
-        let boxed = from_c_into_boxed(favorite.show_details);
-        media = Box::new(boxed.to_struct());
-        mem::forget(boxed);
-    } else {
-        warn!("Unable to verify if media is liked, all fields are null");
-        return false;
+    match from_favorable(favorite) {
+        None => {
+            warn!("Unable to verify if media is liked, all FavoriteC fields are null");
+            false
+        }
+        Some(media) => popcorn_fx.favorite_service().is_liked_boxed(&media)
     }
-
-    popcorn_fx.favorite_service().is_liked_boxed(&media)
 }
 
 /// Retrieve all favorites of the user.
@@ -428,6 +415,15 @@ pub extern "C" fn retrieve_all_favorites(popcorn_fx: &mut PopcornFX) -> *mut Vec
     }
 }
 
+/// Add the media item to the favorites.
+#[no_mangle]
+pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) {
+    match from_favorable(favorite) {
+        None => error!("Unable to add favorite, all FavoriteC fields are null"),
+        Some(e) => popcorn_fx.favorite_service().add(e)
+    }
+}
+
 /// Delete the PopcornFX instance in a safe way.
 #[no_mangle]
 pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
@@ -438,12 +434,12 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
 
 fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavoritesC {
     trace!("Mapping favorites to VecFavoritesC for {:?}", favorites);
-    let mut movies: Vec<MovieC> = vec![];
+    let mut movies: Vec<MovieOverviewC> = vec![];
     let mut shows: Vec<ShowOverviewC> = vec![];
 
     for media in favorites.into_iter() {
         if media.media_type() == MediaType::Movie {
-            movies.push(MovieC::from_overview(*media
+            movies.push(MovieOverviewC::from(*media
                 .into_any()
                 .downcast::<MovieOverview>()
                 .expect("expected the media to be a movie overview")))
@@ -456,6 +452,32 @@ fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavoritesC 
     }
 
     into_c_owned(VecFavoritesC::from(movies, shows))
+}
+
+fn from_favorable(favorite: &FavoriteC) -> Option<Box<dyn Favorable>> {
+    let media: Box<dyn Favorable>;
+
+    if !favorite.movie_overview.is_null() {
+        let boxed = from_c_into_boxed(favorite.movie_overview);
+        media = Box::new(boxed.to_struct());
+        mem::forget(boxed);
+    } else if !favorite.movie_details.is_null() {
+        let boxed = from_c_into_boxed(favorite.movie_details);
+        media = Box::new(boxed.to_struct());
+        mem::forget(boxed);
+    } else if !favorite.show_overview.is_null() {
+        let boxed = from_c_into_boxed(favorite.show_overview);
+        media = Box::new(boxed.to_struct());
+        mem::forget(boxed);
+    } else if !favorite.show_details.is_null() {
+        let boxed = from_c_into_boxed(favorite.show_details);
+        media = Box::new(boxed.to_struct());
+        mem::forget(boxed);
+    } else {
+        return None;
+    }
+
+    Some(media)
 }
 
 #[cfg(test)]

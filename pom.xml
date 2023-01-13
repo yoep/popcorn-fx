@@ -23,7 +23,6 @@
         <module>player-vlc</module>
         <module>popcorn-fx-core</module>
         <module>popcorn-fx-platform</module>
-        <module>provider-anime</module>
         <module>shared-vlc</module>
         <module>torrent-frostwire</module>
         <module>torrent-stream</module>

@@ -12,7 +12,7 @@ import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.ui.player.PlayerEventService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import org.junit.jupiter.api.BeforeEach;
@@ -201,7 +201,7 @@ class PlayerExternalComponentServiceTest {
     @Test
     void testOnPlayerTorrent_whenEventIsMediaEvent_shouldUpdateMedia() {
         var title = "Lorem ipsum";
-        var media = Movie.builder()
+        var media = MovieDetails.builder()
                 .images(Images.builder().build())
                 .build();
         var event = PlayMediaEvent.mediaBuilder()

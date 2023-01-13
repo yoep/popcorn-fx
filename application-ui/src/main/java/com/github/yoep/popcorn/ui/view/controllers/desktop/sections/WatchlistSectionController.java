@@ -7,10 +7,7 @@ import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.github.yoep.popcorn.ui.events.ShowWatchlistEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.WatchlistMessage;
@@ -43,7 +40,7 @@ public class WatchlistSectionController implements Initializable {
     private final ViewLoader viewLoader;
     private final LocaleText localeText;
     private final TraktService traktService;
-    private final ProviderService<Movie> movieProviderService;
+    private final ProviderService<MovieOverview> movieProviderService;
     private final ProviderService<ShowOverview> showProviderService;
     private final ImageService imageService;
 
@@ -118,9 +115,9 @@ public class WatchlistSectionController implements Initializable {
 
     private SimpleItemListener createListener() {
         return media -> {
-            if (media instanceof Movie) {
+            if (media instanceof MovieDetails) {
                 movieProviderService.retrieveDetails(media)
-                        .whenComplete((movie, throwable) -> handleMovieDetailsResponse((Movie) movie, throwable));
+                        .whenComplete((movie, throwable) -> handleMovieDetailsResponse((MovieDetails) movie, throwable));
             } else {
                 showProviderService.retrieveDetails(media)
                         .whenComplete((show, throwable) -> handleShowDetailsResponse((ShowDetails) show, throwable));
@@ -128,7 +125,7 @@ public class WatchlistSectionController implements Initializable {
         };
     }
 
-    private void handleMovieDetailsResponse(Movie movie, Throwable throwable) {
+    private void handleMovieDetailsResponse(MovieDetails movie, Throwable throwable) {
         if (throwable == null) {
             eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, movie));
         } else {

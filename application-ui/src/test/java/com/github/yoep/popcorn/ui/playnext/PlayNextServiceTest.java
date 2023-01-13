@@ -73,7 +73,7 @@ class PlayNextServiceTest {
     @Test
     void testOnPlayMedia_whenMediaIsMovie_shouldNotUpdateNextEpisode() {
         var activity = mock(PlayMediaEvent.class);
-        when(activity.getMedia()).thenReturn(mock(Movie.class));
+        when(activity.getMedia()).thenReturn(mock(MovieDetails.class));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
         playNextService.onPlayVideo(activity);

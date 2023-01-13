@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.providers.MovieSet;
 import com.github.yoep.popcorn.backend.media.providers.ShowSet;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -36,7 +36,7 @@ public interface FxLib extends Library {
 
     SubtitleInfoSet default_subtitle_options(PopcornFx instance);
 
-    SubtitleInfoSet movie_subtitles(PopcornFx instance, Movie movie);
+    SubtitleInfoSet movie_subtitles(PopcornFx instance, MovieDetails movie);
 
     SubtitleInfoSet episode_subtitles(PopcornFx instance, ShowDetails show, Episode episode);
 
@@ -52,7 +52,7 @@ public interface FxLib extends Library {
 
     MovieSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
-    Movie retrieve_movie_details(PopcornFx instance, String imdbId);
+    MovieDetails retrieve_movie_details(PopcornFx instance, String imdbId);
 
     void reset_movie_apis(PopcornFx instance);
 
@@ -69,6 +69,8 @@ public interface FxLib extends Library {
     boolean is_media_liked(PopcornFx instance, Favorite media);
 
     FavoritesSet retrieve_all_favorites(PopcornFx instance);
+
+    void add_to_favorites(PopcornFx instance, Favorite media);
 
     void disable_screensaver(PopcornFx instance);
 

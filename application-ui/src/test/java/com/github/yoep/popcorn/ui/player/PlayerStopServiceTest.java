@@ -11,7 +11,7 @@ import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import org.junit.jupiter.api.Test;
@@ -66,7 +66,7 @@ class PlayerStopServiceTest {
                 .title("my-title-url")
                 .torrent(mock(Torrent.class))
                 .torrentStream(mock(TorrentStream.class))
-                .media(Movie.builder()
+                .media(MovieDetails.builder()
                         .images(new Images())
                         .build())
                 .build());
@@ -98,7 +98,7 @@ class PlayerStopServiceTest {
                 .title("my-title-url")
                 .torrent(mock(Torrent.class))
                 .torrentStream(mock(TorrentStream.class))
-                .media(Movie.builder()
+                .media(MovieDetails.builder()
                         .images(new Images())
                         .build())
                 .build());

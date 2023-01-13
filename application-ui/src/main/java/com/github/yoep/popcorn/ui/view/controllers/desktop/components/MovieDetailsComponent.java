@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
@@ -42,7 +42,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @ViewController
-public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie> {
+public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<MovieDetails> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
 
     @FXML
@@ -101,7 +101,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     //region AbstractDetailsComponent
 
     @Override
-    protected void load(Movie media) {
+    protected void load(MovieDetails media) {
         super.load(media);
 
         loadText();

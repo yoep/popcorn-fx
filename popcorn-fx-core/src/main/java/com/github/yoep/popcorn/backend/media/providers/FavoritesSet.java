@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.sun.jna.Structure;
 import lombok.ToString;
@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 @ToString
 @Structure.FieldOrder({"movies", "moviesLen", "moviesCap", "shows", "showsLen", "showsCap"})
 public class FavoritesSet extends Structure implements Closeable {
-    public Movie.ByReference movies;
+    public MovieOverview.ByReference movies;
     public int moviesLen;
     public int moviesCap;
     public ShowOverview.ByReference shows;

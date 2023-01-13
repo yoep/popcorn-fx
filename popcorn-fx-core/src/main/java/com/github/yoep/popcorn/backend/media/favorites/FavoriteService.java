@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
 import com.github.yoep.popcorn.backend.media.providers.Favorite;
 import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.storage.StorageException;
 import com.github.yoep.popcorn.backend.storage.StorageService;
@@ -39,7 +39,7 @@ public class FavoriteService {
     private final IdleTimer idleTimer = new IdleTimer(Duration.ofSeconds(IDLE_TIME));
     private final TaskExecutor taskExecutor;
     private final StorageService storageService;
-    private final ProviderService<Movie> movieProviderService;
+    private final ProviderService<MovieOverview> movieProviderService;
     private final ProviderService<ShowOverview> showProviderService;
     private final Object cacheLock = new Object();
 
@@ -79,16 +79,8 @@ public class FavoriteService {
      */
     public void addToFavorites(Favorable favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
-        loadFavorites();
-
-        synchronized (cacheLock) {
-            favorable.setLiked(true);
-
-            // verify that the favorable doesn't already exist
-            if (!isLiked(favorable)) {
-                cache.add(favorable);
-            }
-        }
+        var favorite = Favorite.from(favorable);
+        FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), favorite);
     }
 
     /**

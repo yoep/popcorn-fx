@@ -78,7 +78,7 @@ class LoadTorrentServiceTest {
                         .url(torrentMagnet)
                         .build())
                 .quality("720p")
-                .media(Movie.builder().build())
+                .media(MovieDetails.builder().build())
                 .build();
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(future);
@@ -102,7 +102,7 @@ class LoadTorrentServiceTest {
                         .url(torrentMagnet)
                         .build())
                 .quality("720p")
-                .media(Movie.builder().build())
+                .media(MovieDetails.builder().build())
                 .build();
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(new CompletableFuture<>());
@@ -171,7 +171,7 @@ class LoadTorrentServiceTest {
         var title = "my-movie-title";
         var torrentMagnet = "magnet://my-torrent";
         var torrentFile = "my-file";
-        var media = Movie.builder()
+        var media = MovieDetails.builder()
                 .title(title)
                 .images(Images.builder().build())
                 .build();

@@ -5,7 +5,7 @@ import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
@@ -104,7 +104,7 @@ class PlayerSubtitleServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsMoviePlayRequest_shouldInvokeListenersWithAvailableSubtitles() {
-        var movie = Movie.builder().build();
+        var movie = MovieDetails.builder().build();
         var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import javafx.scene.image.Image;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,8 +78,8 @@ class ImageServiceTest {
         verify(restTemplate).getForEntity(url, byte[].class);
     }
 
-    private Movie createMovie(Images images) {
-        return Movie.builder()
+    private MovieDetails createMovie(Images images) {
+        return MovieDetails.builder()
                 .images(images)
                 .build();
     }

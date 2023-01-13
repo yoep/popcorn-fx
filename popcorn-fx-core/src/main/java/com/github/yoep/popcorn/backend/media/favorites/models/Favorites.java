@@ -1,7 +1,8 @@
 package com.github.yoep.popcorn.backend.media.favorites.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import lombok.AllArgsConstructor;
@@ -26,7 +27,7 @@ public class Favorites implements Serializable {
      * The saved movie favorites.
      */
     @Builder.Default
-    private List<Movie> movies = new ArrayList<>();
+    private List<MovieOverview> movies = new ArrayList<>();
     /**
      * The saved show favorites.
      */
@@ -57,8 +58,8 @@ public class Favorites implements Serializable {
     public void add(Favorable favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
 
-        if (favorable instanceof Movie) {
-            movies.add((Movie) favorable);
+        if (favorable instanceof MovieDetails) {
+            movies.add((MovieDetails) favorable);
         } else if (favorable instanceof ShowOverview) {
             shows.add((ShowOverview) favorable);
         } else {
@@ -74,7 +75,7 @@ public class Favorites implements Serializable {
     public void remove(Favorable favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
 
-        if (favorable instanceof Movie) {
+        if (favorable instanceof MovieDetails) {
             log.trace("Removing movie favorite {}", favorable);
             movies.removeIf(e -> e.getId().equalsIgnoreCase(favorable.getId()));
         } else if (favorable instanceof ShowDetails) {

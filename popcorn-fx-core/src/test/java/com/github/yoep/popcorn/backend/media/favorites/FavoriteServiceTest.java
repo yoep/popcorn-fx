@@ -1,9 +1,6 @@
 package com.github.yoep.popcorn.backend.media.favorites;
 
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
-import com.github.yoep.popcorn.backend.media.providers.ProviderService;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,10 +12,8 @@ import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -28,10 +23,6 @@ class FavoriteServiceTest {
     private TaskExecutor taskExecutor = new SyncTaskExecutor();
     @Mock
     private StorageService storageService;
-    @Mock
-    private ProviderService<Movie> movieProviderService;
-    @Mock
-    private ProviderService<ShowOverview> showProviderService;
     @InjectMocks
     private FavoriteService favoriteService;
 
@@ -68,48 +59,5 @@ class FavoriteServiceTest {
         favoriteService.init();
 
         verify(taskExecutor).execute(isA(Runnable.class));
-    }
-
-    @Test
-    void testAddToFavorites_whenInvoked_shouldAddTheItemToTheList() {
-        var movie = Movie.builder()
-                .id("movieId")
-                .title("movieTitle")
-                .year("movieYear")
-                .build();
-        var favorites = Favorites.builder()
-                .build();
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.of(favorites));
-
-        favoriteService.addToFavorites(movie);
-
-        assertEquals(1, favorites.getMovies().size());
-        assertEquals(movie, favorites.getMovies().get(0));
-    }
-
-    @Test
-    void testGetAll_whenFavoritesDoNotExist_shouldReturnNewFavorites() {
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.empty());
-
-        var result = favoriteService.getAll();
-
-        assertEquals(0, result.size());
-    }
-
-    @Test
-    void testDestroy_whenCacheContainsItems_shouldStoreTheItemsToTheStorage() {
-        var movieId = "myMovieId";
-        var movie = Movie.builder()
-                .id(movieId)
-                .build();
-        var expectedFavoritesToStore = Favorites.builder()
-                .movies(Collections.singletonList(movie))
-                .build();
-        when(storageService.read(FavoriteService.STORAGE_NAME, Favorites.class)).thenReturn(Optional.empty());
-
-        favoriteService.addToFavorites(movie);
-        favoriteService.destroy();
-
-        verify(storageService).store(FavoriteService.STORAGE_NAME, expectedFavoritesToStore);
     }
 }

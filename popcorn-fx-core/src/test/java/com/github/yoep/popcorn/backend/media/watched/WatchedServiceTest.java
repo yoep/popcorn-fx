@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.watched.models.Watched;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import org.junit.jupiter.api.Test;
@@ -28,7 +28,7 @@ class WatchedServiceTest {
     @Test
     void testIsWatched_whenItemHasBeenWatched_shouldReturnTrue() {
         var id = "myMovieId";
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .id(id)
                 .build();
         var watchedItems = Watched.builder()
@@ -70,7 +70,7 @@ class WatchedServiceTest {
     @Test
     void testOnDestroy_whenInvoked_shouldSaveCache() {
         var id = "movieId";
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .id(id)
                 .build();
         var expectedStorageItem = Watched.builder()

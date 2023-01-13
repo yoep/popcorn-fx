@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.media.favorites.models;
 
 import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import javafx.beans.property.BooleanProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +26,7 @@ class FavoritesTest {
 
     @Test
     void testAdd_whenFavorableIsMovie_shouldAddItemToTheMoviesList() {
-        var media = Movie.builder().build();
+        var media = MovieDetails.builder().build();
 
         favorites.add(media);
         var result = favorites.getMovies();

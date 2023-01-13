@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
@@ -33,7 +33,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsWatched_whenInvoked_shouldPassMediaItemToWatchedService() {
-        var media = Movie.builder().build();
+        var media = MovieDetails.builder().build();
         var expectedResult = true;
         when(watchedService.isWatched(media)).thenReturn(expectedResult);
 
@@ -45,7 +45,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsLiked_whenInvoked_shouldPassMediaItemToFavoriteService() {
-        var media = Movie.builder().build();
+        var media = MovieDetails.builder().build();
         var expectedResult = false;
         when(favoriteService.isLiked(media)).thenReturn(expectedResult);
 
@@ -59,8 +59,8 @@ class DetailsComponentServiceTest {
     void testOnShowDetails_whenLastMediaItemIsKnown_shouldUnsubscribeFromLastMediaItem() {
         var watchedProperty = mock(BooleanProperty.class);
         var likedProperty = mock(BooleanProperty.class);
-        var lastItem = mock(Movie.class);
-        var newItem = Movie.builder()
+        var lastItem = mock(MovieDetails.class);
+        var newItem = MovieDetails.builder()
                 .title("My new movie playback")
                 .build();
         var previousEvent = ShowMovieDetailsEvent.builder()
@@ -83,7 +83,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testListeners_whenMovieWatchedStateIsChanged_shouldInvokedOnWatchedChanged() {
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)
@@ -119,7 +119,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testListeners_whenMovieLikedStateIsChanged_shouldInvokedOnLikedChanged() {
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)
@@ -155,7 +155,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleWatchedState_whenLastItemIsKnownAndStateIsWatched_shouldRemoveFromWatchlist() {
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)
@@ -171,7 +171,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist() {
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)

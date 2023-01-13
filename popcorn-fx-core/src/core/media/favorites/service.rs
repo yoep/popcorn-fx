@@ -4,7 +4,7 @@ use log::{error, trace, warn};
 
 use crate::core::config::Application;
 use crate::core::media;
-use crate::core::media::{Favorable, MediaError, MediaIdentifier, MediaOverview, MediaType};
+use crate::core::media::{Favorable, MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
 use crate::core::media::favorites::model::Favorites;
 use crate::core::storage::{Storage, StorageError};
 
@@ -73,6 +73,28 @@ impl FavoriteService {
                     .find(|e| e.imdb_id().eq(imdb_id))
             }
             Err(_) => None
+        }
+    }
+
+    /// Add the given [Favorable] media item to the favorites.
+    pub fn add(&self, favorite: Box<dyn Favorable>) {
+        match self.load_favorites() {
+            Ok(mut e) => {
+                match favorite.media_type() {
+                    MediaType::Movie => {
+                        e.add_movie(*favorite.into_any()
+                            .downcast::<MovieOverview>()
+                            .expect("expected the favorite to be a movie overview"));
+                    }
+                    MediaType::Show => {
+                        e.add_show(*favorite.into_any()
+                            .downcast::<ShowOverview>()
+                            .expect("expected the favorite to be a show overview"));
+                    }
+                    _ => error!("Unable to add media to favorites, media type {} is not supported", favorite.media_type())
+                }
+            }
+            Err(e) => error!("Failed to add {} as favorite, {}", favorite, e)
         }
     }
 

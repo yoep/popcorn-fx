@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use derive_more::Display;
 use downcast_rs::{Downcast, impl_downcast};
@@ -28,7 +28,7 @@ impl Ord for MediaType {
 }
 
 /// Basic identification information about a media item.
-pub trait MediaIdentifier: Debug + Downcast + Send + Sync {
+pub trait MediaIdentifier: Debug + Downcast + Send + Sync + Display {
     /// Retrieve an owned instance of the unique ID of this [MediaIdentifier] item.
     fn id(&self) -> String;
 

@@ -2,23 +2,20 @@ package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sun.jna.Structure;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
+import lombok.*;
 
 import java.io.Closeable;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Getter
 @ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = true)
-@Structure.FieldOrder({"id", "title", "imdbId", "year", "runtime", "rating", "images", "synopsis", "trailer", "torrentEntry", "torrentLen", "torrentCap"})
-public class Movie extends AbstractMedia implements Closeable {
-    public static class ByReference extends Movie implements Structure.ByReference {
+@NoArgsConstructor
+@Structure.FieldOrder({"trailer", "torrentEntry", "torrentLen", "torrentCap"})
+public class MovieDetails extends MovieOverview implements Closeable {
+    public static class ByReference extends MovieDetails implements Structure.ByReference {
     }
 
     public String trailer;
@@ -28,13 +25,10 @@ public class Movie extends AbstractMedia implements Closeable {
 
     private Map<String, Map<String, MediaTorrentInfo>> torrents;
 
-    public Movie() {
-    }
-
     @Builder
-    public Movie(String id, String imdbId, String title, String year, Integer runtime, List<String> genres, Rating rating, Images images, String synopsis,
-                 String trailer, Map<String, Map<String, MediaTorrentInfo>> torrents) {
-        super(id, imdbId, title, year, runtime, genres, toRatingReference(rating), images, synopsis);
+    public MovieDetails(String title, String imdbId, String year, Rating.ByReference rating, Images images, String trailer, Map<String, Map<String,
+            MediaTorrentInfo>> torrents) {
+        super(title, imdbId, year, rating, images);
         this.trailer = trailer;
         this.torrents = torrents;
     }

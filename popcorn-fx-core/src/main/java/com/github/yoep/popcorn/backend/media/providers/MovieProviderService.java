@@ -6,7 +6,8 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -18,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
-public class MovieProviderService implements ProviderService<Movie> {
+public class MovieProviderService implements ProviderService<MovieOverview> {
     private static final Category CATEGORY = Category.MOVIES;
 
     @Override
@@ -27,17 +28,17 @@ public class MovieProviderService implements ProviderService<Movie> {
     }
 
     @Override
-    public CompletableFuture<Page<Movie>> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<Page<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, "", page));
     }
 
     @Override
-    public CompletableFuture<Page<Movie>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<Page<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
     @Override
-    public CompletableFuture<Movie> getDetails(String imdbId) {
+    public CompletableFuture<MovieOverview> getDetails(String imdbId) {
         return CompletableFuture.completedFuture(getInternalDetails(imdbId));
     }
 
@@ -51,7 +52,7 @@ public class MovieProviderService implements ProviderService<Movie> {
         FxLib.INSTANCE.reset_movie_apis(PopcornFxInstance.INSTANCE.get());
     }
 
-    public Page<Movie> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
+    public Page<MovieOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         var movies = Optional.ofNullable(FxLib.INSTANCE.retrieve_available_movies(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
                 .map(MovieSet::getMovies)
                 .orElse(Collections.emptyList());
@@ -60,7 +61,7 @@ public class MovieProviderService implements ProviderService<Movie> {
         return new PageImpl<>(movies);
     }
 
-    private static Movie getInternalDetails(String imdbId) {
+    private static MovieDetails getInternalDetails(String imdbId) {
         var movie = FxLib.INSTANCE.retrieve_movie_details(PopcornFxInstance.INSTANCE.get(), imdbId);
         log.debug("Retrieved movie details {}", movie);
 

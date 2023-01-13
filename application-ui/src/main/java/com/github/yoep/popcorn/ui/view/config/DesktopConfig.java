@@ -5,7 +5,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
@@ -92,7 +92,7 @@ public class DesktopConfig {
                                                                  ViewLoader viewLoader,
                                                                  LocaleText localeText,
                                                                  TraktService traktService,
-                                                                 ProviderService<Movie> movieProviderService,
+                                                                 ProviderService<MovieOverview> movieProviderService,
                                                                  ProviderService<ShowOverview> showProviderService,
                                                                  ImageService imageService) {
         return new WatchlistSectionController(eventPublisher, viewLoader, localeText, traktService, movieProviderService, showProviderService, imageService);

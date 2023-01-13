@@ -79,13 +79,6 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Popcorn Providers -->
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>provider-anime</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
         <!-- Testing -->
         <dependency>
             <groupId>org.hamcrest</groupId>

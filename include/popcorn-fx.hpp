@@ -66,6 +66,103 @@ struct PopcornFX;
 /// This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
 struct SubtitleInfo;
 
+struct RatingC {
+  int32_t percentage;
+  int32_t watching;
+  int32_t votes;
+  int32_t loved;
+  int32_t hated;
+};
+
+struct ImagesC {
+  const char *poster;
+  const char *fanart;
+  const char *banner;
+};
+
+struct MovieOverviewC {
+  const char *title;
+  const char *imdb_id;
+  const char *year;
+  RatingC *rating;
+  ImagesC images;
+};
+
+struct TorrentInfoC {
+  const char *url;
+  const char *provider;
+  const char *source;
+  const char *title;
+  const char *quality;
+  uint32_t seed;
+  uint32_t peer;
+  const char *size;
+  const char *filesize;
+  const char *file;
+};
+
+struct TorrentQualityC {
+  const char *quality;
+  TorrentInfoC torrent;
+};
+
+struct TorrentEntryC {
+  const char *language;
+  TorrentQualityC *qualities;
+  int32_t len;
+  int32_t cap;
+};
+
+struct MovieDetailsC {
+  const char *id;
+  const char *title;
+  const char *imdb_id;
+  const char *year;
+  int32_t runtime;
+  RatingC *rating;
+  ImagesC images;
+  const char *synopsis;
+  const char *trailer;
+  TorrentEntryC *torrents;
+  int32_t torrents_len;
+  int32_t torrents_cap;
+};
+
+struct EpisodeC {
+  int32_t season;
+  int32_t episode;
+  int64_t first_aired;
+  const char *title;
+  const char *synopsis;
+  const char *tvdb_id;
+  TorrentQualityC *torrents;
+  int32_t len;
+  int32_t cap;
+};
+
+struct ShowDetailsC {
+  const char *imdb_id;
+  const char *tvdb_id;
+  const char *title;
+  const char *year;
+  int32_t num_seasons;
+  ImagesC images;
+  RatingC *rating;
+  const char *synopsis;
+  const char *runtime;
+  const char *status;
+  EpisodeC *episodes;
+  int32_t episodes_len;
+  int32_t episodes_cap;
+};
+
+struct FavoriteC {
+  MovieOverviewC *movie_overview;
+  MovieDetailsC *movie_details;
+  ShowDetailsC *show_overview;
+  ShowDetailsC *show_details;
+};
+
 struct SubtitleInfoC {
   const char *imdb_id;
   SubtitleLanguage language;
@@ -113,94 +210,6 @@ struct SubtitleMatcherC {
   int32_t quality;
 };
 
-struct ImagesC {
-  const char *poster;
-  const char *fanart;
-  const char *banner;
-};
-
-struct RatingC {
-  int32_t percentage;
-  int32_t watching;
-  int32_t votes;
-  int32_t loved;
-  int32_t hated;
-};
-
-struct TorrentInfoC {
-  const char *url;
-  const char *provider;
-  const char *source;
-  const char *title;
-  const char *quality;
-  uint32_t seed;
-  uint32_t peer;
-  const char *size;
-  const char *filesize;
-  const char *file;
-};
-
-struct TorrentQualityC {
-  const char *quality;
-  TorrentInfoC torrent;
-};
-
-struct EpisodeC {
-  int32_t season;
-  int32_t episode;
-  int64_t first_aired;
-  const char *title;
-  const char *synopsis;
-  const char *tvdb_id;
-  TorrentQualityC *torrents;
-  int32_t len;
-  int32_t cap;
-};
-
-struct ShowDetailsC {
-  const char *imdb_id;
-  const char *tvdb_id;
-  const char *title;
-  const char *year;
-  int32_t num_seasons;
-  ImagesC images;
-  RatingC *rating;
-  const char *synopsis;
-  const char *runtime;
-  const char *status;
-  EpisodeC *episodes;
-  int32_t episodes_len;
-  int32_t episodes_cap;
-};
-
-struct TorrentEntryC {
-  const char *language;
-  TorrentQualityC *qualities;
-  int32_t len;
-  int32_t cap;
-};
-
-struct MovieC {
-  const char *id;
-  const char *title;
-  const char *imdb_id;
-  const char *year;
-  int32_t runtime;
-  RatingC *rating;
-  ImagesC images;
-  const char *synopsis;
-  const char *trailer;
-  TorrentEntryC *torrents;
-  int32_t torrents_len;
-  int32_t torrents_cap;
-};
-
-struct FavoriteC {
-  MovieC *movie;
-  ShowDetailsC *show_overview;
-  ShowDetailsC *show_details;
-};
-
 struct PlatformInfoC {
   /// The platform type
   PlatformType platform_type;
@@ -219,7 +228,7 @@ struct ShowOverviewC {
 };
 
 struct VecFavoritesC {
-  MovieC *movies;
+  MovieOverviewC *movies;
   int32_t movies_len;
   int32_t movies_cap;
   ShowOverviewC *shows;
@@ -238,7 +247,7 @@ struct SortByC {
 };
 
 struct VecMovieC {
-  MovieC *movies;
+  MovieOverviewC *movies;
   int32_t len;
   int32_t cap;
 };
@@ -251,6 +260,9 @@ struct VecShowC {
 
 
 extern "C" {
+
+/// Add the media item to the favorites.
+void add_to_favorites(PopcornFX *popcorn_fx, const FavoriteC *favorite);
 
 /// Retrieve the default options available for the subtitles.
 VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
@@ -281,11 +293,11 @@ VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 /// It will return false if all fields in the [FavoriteC] are [ptr::null_mut].
 bool is_media_liked(PopcornFX *popcorn_fx, const FavoriteC *favorite);
 
-/// Retrieve the available subtitles for the given [MovieC].
+/// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
 /// It returns a reference to [VecSubtitleInfoC], else a [ptr::null_mut] on failure.
 /// <i>The returned reference should be managed by the caller.</i>
-VecSubtitleInfoC *movie_subtitles(PopcornFX *popcorn_fx, const MovieC *movie);
+VecSubtitleInfoC *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *movie);
 
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
@@ -337,8 +349,8 @@ FavoriteC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id)
 /// Retrieve the details of a given movie.
 /// It will query the api for the given IMDB ID.
 ///
-/// It returns the [MovieC] on success, else [ptr::null_mut].
-MovieC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id);
+/// It returns the [MovieDetailsC] on success, else [ptr::null_mut].
+MovieDetailsC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Retrieve the details of a show based on the given IMDB ID.
 /// The details contain all information about the show such as episodes and descriptions.

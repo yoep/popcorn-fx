@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
@@ -62,7 +62,7 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     @Override
     @Async
-    public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final Movie media) {
+    public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final MovieDetails media) {
         Assert.notNull(media, "media cannot be null");
         var subtitles = Optional.ofNullable(FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), media))
                 .map(SubtitleInfoSet::getSubtitles)

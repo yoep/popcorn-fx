@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
 import com.github.yoep.popcorn.backend.media.providers.Favorite;
+import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
@@ -21,7 +22,9 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -64,11 +67,9 @@ public class FavoriteService {
      * @return Returns the list of liked items by the user.
      */
     public List<Favorable> getAll() {
-        loadFavorites();
-
-        synchronized (cacheLock) {
-            return cache.getAll();
-        }
+        return Optional.ofNullable(FxLib.INSTANCE.retrieve_all_favorites(PopcornFxInstance.INSTANCE.get()))
+                .map(FavoritesSet::<Favorable>getAll)
+                .orElse(Collections.emptyList());
     }
 
     /**

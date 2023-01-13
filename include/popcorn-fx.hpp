@@ -276,6 +276,9 @@ VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *s
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
 /// Verify if the given media item is liked/favorite of the user.
+/// It will use the first non [ptr::null_mut] field from the [FavoriteC] struct.
+///
+/// It will return false if all fields in the [FavoriteC] are [ptr::null_mut].
 bool is_media_liked(PopcornFX *popcorn_fx, const FavoriteC *favorite);
 
 /// Retrieve the available subtitles for the given [MovieC].
@@ -304,6 +307,11 @@ void reset_movie_apis(PopcornFX *popcorn_fx);
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.
 void reset_show_apis(PopcornFX *popcorn_fx);
+
+/// Retrieve all favorites of the user.
+///
+/// It will return an array of favorites on success, else [ptr::null_mut].
+VecFavoritesC *retrieve_all_favorites(PopcornFX *popcorn_fx);
 
 /// Retrieve all liked favorite media items.
 ///

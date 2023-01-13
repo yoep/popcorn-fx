@@ -4,10 +4,10 @@ use std::{mem, ptr, slice};
 use std::os::raw::c_char;
 use std::path::Path;
 
-use log::{debug, error, info, trace};
+use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{EpisodeC, FavoriteC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MovieC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
-use popcorn_fx_core::core::media::{Category, Favorable, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
+use popcorn_fx_core::{EpisodeC, FavoriteC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MovieC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::core::media::{Category, Favorable, MediaOverview, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -338,24 +338,7 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
     match runtime.block_on(popcorn_fx.providers().retrieve(&Category::FAVORITES, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);
-            let mut movies: Vec<MovieC> = vec![];
-            let mut shows: Vec<ShowOverviewC> = vec![];
-
-            for media in e.into_iter() {
-                if media.media_type() == MediaType::Movie {
-                    movies.push(MovieC::from_overview(*media
-                        .into_any()
-                        .downcast::<MovieOverview>()
-                        .expect("expected the media to be a movie overview")))
-                } else if media.media_type() == MediaType::Show {
-                    shows.push(ShowOverviewC::from(*media
-                        .into_any()
-                        .downcast::<ShowOverview>()
-                        .expect("expected the media to be a show overview")));
-                }
-            }
-
-            into_c_owned(VecFavoritesC::from(movies, shows))
+            favorites_to_c(e)
         }
         Err(e) => {
             error!("Failed to retrieve favorites, {}", e);
@@ -401,6 +384,9 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
 }
 
 /// Verify if the given media item is liked/favorite of the user.
+/// It will use the first non [ptr::null_mut] field from the [FavoriteC] struct.
+///
+/// It will return false if all fields in the [FavoriteC] are [ptr::null_mut].
 #[no_mangle]
 pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) -> bool {
     trace!("Verifying if media is liked for {:?}", favorite);
@@ -414,13 +400,32 @@ pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &Favorite
         let boxed = from_c_into_boxed(favorite.show_overview);
         media = Box::new(boxed.to_struct());
         mem::forget(boxed);
-    } else {
+    } else if !favorite.show_details.is_null() {
         let boxed = from_c_into_boxed(favorite.show_details);
         media = Box::new(boxed.to_struct());
         mem::forget(boxed);
+    } else {
+        warn!("Unable to verify if media is liked, all fields are null");
+        return false;
     }
 
     popcorn_fx.favorite_service().is_liked_boxed(&media)
+}
+
+/// Retrieve all favorites of the user.
+///
+/// It will return an array of favorites on success, else [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn retrieve_all_favorites(popcorn_fx: &mut PopcornFX) -> *mut VecFavoritesC {
+    match popcorn_fx.favorite_service().all() {
+        Ok(e) => {
+            favorites_to_c(e)
+        }
+        Err(e) => {
+            error!("Failed to retrieve favorites, {}", e);
+            ptr::null_mut()
+        }
+    }
 }
 
 /// Delete the PopcornFX instance in a safe way.
@@ -429,6 +434,28 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
     info!("Disposing Popcorn FX");
     popcorn_fx.dispose();
     drop(popcorn_fx)
+}
+
+fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavoritesC {
+    trace!("Mapping favorites to VecFavoritesC for {:?}", favorites);
+    let mut movies: Vec<MovieC> = vec![];
+    let mut shows: Vec<ShowOverviewC> = vec![];
+
+    for media in favorites.into_iter() {
+        if media.media_type() == MediaType::Movie {
+            movies.push(MovieC::from_overview(*media
+                .into_any()
+                .downcast::<MovieOverview>()
+                .expect("expected the media to be a movie overview")))
+        } else if media.media_type() == MediaType::Show {
+            shows.push(ShowOverviewC::from(*media
+                .into_any()
+                .downcast::<ShowOverview>()
+                .expect("expected the media to be a show overview")));
+        }
+    }
+
+    into_c_owned(VecFavoritesC::from(movies, shows))
 }
 
 #[cfg(test)]

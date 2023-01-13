@@ -53,7 +53,7 @@ public class FavoriteProviderService implements ProviderService<Media> {
 
     private List<Media> doInternalPageRetrieval(Genre genre, SortBy sortBy, String keywords, int page) {
         return Optional.ofNullable(FxLib.INSTANCE.retrieve_available_favorites(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
-                .map(FavoritesSet::getAll)
+                .map(FavoritesSet::<Media>getAll)
                 .orElse(Collections.emptyList());
     }
 }

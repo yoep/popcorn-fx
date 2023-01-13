@@ -68,6 +68,8 @@ public interface FxLib extends Library {
 
     boolean is_media_liked(PopcornFx instance, Favorite media);
 
+    FavoritesSet retrieve_all_favorites(PopcornFx instance);
+
     void disable_screensaver(PopcornFx instance);
 
     void enable_screensaver(PopcornFx instance);

@@ -24,8 +24,9 @@ public class FavoritesSet extends Structure implements Closeable {
     public int showsLen;
     public int showsCap;
 
-    public List<Media> getAll() {
+    public <T> List<T> getAll() {
         return Stream.concat(getMovies().stream(), getShows().stream())
+                .map(e -> (T) e)
                 .collect(Collectors.toList());
     }
 

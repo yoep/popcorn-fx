@@ -14,6 +14,7 @@ pub enum MediaError {
     ProviderRequestFailed(u16),
     ProviderParsingFailed(String),
     ProviderAlreadyExists(String),
+    /// No provider could be found for the requested category.
     ProviderNotFound(String),
 }
 

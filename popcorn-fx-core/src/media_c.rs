@@ -137,6 +137,7 @@ impl MovieC {
     }
 
     pub fn to_struct(&self) -> MovieDetails {
+        trace!("Converting MovieDetails from C {:?}", self);
         MovieDetails::new(
             from_c_string(self.id),
             from_c_string(self.title),
@@ -319,22 +320,25 @@ impl EpisodeC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct FavoriteC {
-    movie: *mut MovieC,
-    show: *mut ShowDetailsC,
+    pub movie: *mut MovieC,
+    pub show_overview: *mut ShowDetailsC,
+    pub show_details: *mut ShowDetailsC,
 }
 
 impl FavoriteC {
     pub fn from_movie(movie: MovieDetails) -> Self {
         Self {
             movie: into_c_owned(MovieC::from(movie)),
-            show: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
         }
     }
 
-    pub fn from_show(show: ShowDetails) -> Self {
+    pub fn from_show_details(show: ShowDetails) -> Self {
         Self {
             movie: ptr::null_mut(),
-            show: into_c_owned(ShowDetailsC::from(show)),
+            show_overview: ptr::null_mut(),
+            show_details: into_c_owned(ShowDetailsC::from(show)),
         }
     }
 }

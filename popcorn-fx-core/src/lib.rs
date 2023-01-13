@@ -43,11 +43,21 @@ pub fn into_c_owned<T>(value: T) -> *mut T {
 }
 
 /// Retrieve a C owned value as an owned value.
+/// The `ptr`
 /// For more info, see [Box::from_raw].
+///
 /// * `ptr` - The pointer value to convert
 pub fn from_c_owned<T>(ptr: *mut T) -> T {
-    let value = unsafe { Box::from_raw(ptr) };
+    let value = from_c_into_boxed(ptr);
     *value
+}
+
+/// Retrieve a C value as an [Box]] value.
+/// For more info, see [Box::from_raw].
+///
+/// * `ptr` - The pointer value to convert
+pub fn from_c_into_boxed<T>(ptr: *mut T) -> Box<T> {
+    unsafe { Box::from_raw(ptr) }
 }
 
 /// Convert the given [Vec] into a C array tuple which is owned by the caller.

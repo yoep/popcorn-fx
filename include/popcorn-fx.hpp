@@ -195,6 +195,12 @@ struct MovieC {
   int32_t torrents_cap;
 };
 
+struct FavoriteC {
+  MovieC *movie;
+  ShowDetailsC *show_overview;
+  ShowDetailsC *show_details;
+};
+
 struct PlatformInfoC {
   /// The platform type
   PlatformType platform_type;
@@ -243,11 +249,6 @@ struct VecShowC {
   int32_t cap;
 };
 
-struct FavoriteC {
-  MovieC *movie;
-  ShowDetailsC *show;
-};
-
 
 extern "C" {
 
@@ -273,6 +274,9 @@ VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *s
 
 /// Retrieve the available subtitles for the given filename
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
+
+/// Verify if the given media item is liked/favorite of the user.
+bool is_media_liked(PopcornFX *popcorn_fx, const FavoriteC *favorite);
 
 /// Retrieve the available subtitles for the given [MovieC].
 ///

@@ -69,6 +69,11 @@ impl PopcornFX {
         &mut self.providers
     }
 
+    /// The available [popcorn_fx_core::core::media::Media] providers of the [PopcornFX].
+    pub fn favorite_service(&mut self) -> &Arc<FavoriteService> {
+        &self.favorites_service
+    }
+
     /// Dispose the FX instance.
     pub fn dispose(&self) {
         self.settings.save();

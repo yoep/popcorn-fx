@@ -29,30 +29,15 @@ impl FavoriteService {
     pub fn is_liked(&self, favorable: &impl Favorable) -> bool {
         let imdb_id = favorable.imdb_id();
 
-        match self.load_favorites() {
-            Ok(favorites) => {
-                match favorable.media_type() {
-                    MediaType::Movie => {
-                        favorites.movies()
-                            .iter()
-                            .any(|e| e.imdb_id().eq(&imdb_id))
-                    }
-                    MediaType::Show => {
-                        favorites.shows()
-                            .iter()
-                            .any(|e| e.imdb_id().eq(&imdb_id))
-                    }
-                    _ => {
-                        warn!("Media type {} is not supported as favorite", favorable.media_type());
-                        false
-                    }
-                }
-            }
-            Err(e) => {
-                warn!("Unable to load {}, {}", FILENAME, e);
-                false
-            }
-        }
+        self.internal_is_liked(&imdb_id, &favorable.media_type())
+    }
+
+    /// Verify if the given [Favorable] media items is liked by the user.
+    pub fn is_liked_boxed(&self, favorable: &Box<dyn Favorable>) -> bool {
+        let imdb_id = favorable.imdb_id();
+        let media_type = favorable.media_type();
+
+        self.internal_is_liked(&imdb_id, &media_type)
     }
 
     /// Retrieve an array of owned liked [MediaOverview] items.
@@ -88,6 +73,34 @@ impl FavoriteService {
                     .find(|e| e.imdb_id().eq(imdb_id))
             }
             Err(_) => None
+        }
+    }
+
+    fn internal_is_liked(&self, imdb_id: &String, media_type: &MediaType) -> bool {
+        trace!("Verifying if {} {} is liked", media_type, imdb_id);
+        match self.load_favorites() {
+            Ok(favorites) => {
+                match media_type {
+                    MediaType::Movie => {
+                        favorites.movies()
+                            .iter()
+                            .any(|e| e.imdb_id().eq(imdb_id))
+                    }
+                    MediaType::Show => {
+                        favorites.shows()
+                            .iter()
+                            .any(|e| e.imdb_id().eq(imdb_id))
+                    }
+                    _ => {
+                        warn!("Media type {} is not supported as favorite", media_type);
+                        false
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Unable to load {}, {}", FILENAME, e);
+                false
+            }
         }
     }
 

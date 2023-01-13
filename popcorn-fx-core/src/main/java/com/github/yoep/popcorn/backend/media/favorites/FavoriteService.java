@@ -1,7 +1,10 @@
 package com.github.yoep.popcorn.backend.media.favorites;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorites;
+import com.github.yoep.popcorn.backend.media.providers.Favorite;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Movie;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
@@ -19,7 +22,6 @@ import javax.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -53,13 +55,7 @@ public class FavoriteService {
      */
     public boolean isLiked(Favorable favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
-        loadFavorites();
-
-        synchronized (cacheLock) {
-            return cache.getAll().stream()
-                    .filter(Objects::nonNull)
-                    .anyMatch(e -> Objects.equals(e.getId(), favorable.getId()));
-        }
+        return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
     }
 
     /**

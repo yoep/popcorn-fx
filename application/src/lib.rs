@@ -416,11 +416,21 @@ pub extern "C" fn retrieve_all_favorites(popcorn_fx: &mut PopcornFX) -> *mut Vec
 }
 
 /// Add the media item to the favorites.
+/// Duplicate favorite media items are ignored.
 #[no_mangle]
 pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) {
     match from_favorable(favorite) {
         None => error!("Unable to add favorite, all FavoriteC fields are null"),
         Some(e) => popcorn_fx.favorite_service().add(e)
+    }
+}
+
+/// Remove the media item from favorites.
+#[no_mangle]
+pub extern "C" fn remove_from_favorites(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) {
+    match from_favorable(favorite) {
+        None => error!("Unable to remove favorite, all FavoriteC fields are null"),
+        Some(e) => popcorn_fx.favorite_service().remove(e)
     }
 }
 

@@ -1,13 +1,13 @@
 use chrono::Local;
-use log::trace;
-use serde::Deserialize;
+use log::{debug, trace};
+use serde::{Deserialize, Serialize};
 
 use crate::core::media::{MediaIdentifier, MovieOverview, ShowOverview};
 
 const DATETIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S.%f";
 
 /// The favorites/liked media items of the user.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Favorites {
     movies: Vec<MovieOverview>,
     shows: Vec<ShowOverview>,
@@ -78,6 +78,30 @@ impl Favorites {
             || self.shows.iter().any(|e| e.imdb_id().eq(imdb_id))
     }
 
+    /// Remove the media item from the favorites based on the given ID.
+    pub fn remove_id(&mut self, imdb_id: &String) {
+        let movie = self.movies.iter()
+            .position(|e| e.imdb_id().eq(imdb_id));
+        let show = self.shows.iter()
+            .position(|e| e.imdb_id().eq(imdb_id));
+
+        match movie {
+            None => {}
+            Some(e) => {
+                debug!("Removing movie {} from favorites", imdb_id);
+                self.movies.remove(e);
+            }
+        }
+
+        match show {
+            None => {}
+            Some(e) => {
+                debug!("Removing show {} from favorites", imdb_id);
+                self.shows.remove(e);
+            }
+        }
+    }
+
     fn current_datetime() -> String {
         let now = Local::now();
         now.format(DATETIME_FORMAT).to_string()
@@ -125,7 +149,7 @@ mod test {
         );
         let mut favorites = Favorites::new(
             vec![movie.clone()],
-            vec![]
+            vec![],
         );
 
         favorites.add_movie(movie.clone());
@@ -143,7 +167,7 @@ mod test {
             String::new(),
             1,
             Images::none(),
-            None
+            None,
         );
         let mut favorites = Favorites::empty();
 
@@ -162,11 +186,11 @@ mod test {
             String::new(),
             1,
             Images::none(),
-            None
+            None,
         );
         let mut favorites = Favorites::new(
             vec![],
-            vec![show.clone()]
+            vec![show.clone()],
         );
 
         favorites.add_show(show.clone());

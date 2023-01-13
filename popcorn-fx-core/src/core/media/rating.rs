@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// The rating information of a media item.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Serialize, Deserialize)]
 pub struct Rating {
     percentage: u16,
     watching: u32,

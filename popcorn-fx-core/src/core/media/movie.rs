@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use derive_more::Display;
 use log::warn;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::core::media::{Favorable, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, TorrentInfo, Watchable};
 
 /// The simple version of a media item representing a movie.
 /// It contains only the basic information needed for search results.
-#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "MovieOverview: {{imdb_id: {}, title: {}, year: {}}}", imdb_id, title, year)]
 pub struct MovieOverview {
     title: String,

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use log::{error, trace, warn};
+use log::{error, info, trace, warn};
+use tokio::runtime::Handle;
+use tokio::sync::Mutex;
 
 use crate::core::config::Application;
 use crate::core::media;
@@ -15,6 +17,7 @@ const FILENAME: &str = "favorites.json";
 pub struct FavoriteService {
     settings: Arc<Application>,
     storage: Arc<Storage>,
+    mutex: Arc<Mutex<Option<()>>>,
 }
 
 impl FavoriteService {
@@ -22,6 +25,7 @@ impl FavoriteService {
         Self {
             settings: settings.clone(),
             storage: storage.clone(),
+            mutex: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -93,6 +97,23 @@ impl FavoriteService {
                     }
                     _ => error!("Unable to add media to favorites, media type {} is not supported", favorite.media_type())
                 }
+
+                self.save(&mut e);
+            }
+            Err(e) => error!("Failed to add {} as favorite, {}", favorite, e)
+        }
+    }
+
+    /// Remove the media item from the favorites.
+    pub fn remove(&self, favorite: Box<dyn Favorable>) {
+        match self.load_favorites() {
+            Ok(mut e) => {
+                let handle = Handle::current();
+                let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+                let _ = runtime.block_on(self.mutex.lock());
+
+                e.remove_id(&favorite.imdb_id());
+                self.save(&e);
             }
             Err(e) => error!("Failed to add {} as favorite, {}", favorite, e)
         }
@@ -126,7 +147,22 @@ impl FavoriteService {
         }
     }
 
+    fn save(&self, favorites: &Favorites) {
+        let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+        match runtime.block_on(self.storage.write(FILENAME, &favorites)) {
+            Ok(_) => info!("Favorites have been saved"),
+            Err(e) => error!("Failed to save favorites, {}", e)
+        }
+    }
+
     fn load_favorites(&self) -> media::Result<Favorites> {
+        let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+        let _ = runtime.block_on(self.mutex.lock());
+
+        self.load_favorites_from_storage()
+    }
+
+    fn load_favorites_from_storage(&self) -> Result<Favorites, MediaError> {
         match self.storage.read::<Favorites>(FILENAME) {
             Ok(e) => Ok(e),
             Err(e) => {
@@ -135,9 +171,13 @@ impl FavoriteService {
                         trace!("Favorites file {} not found, using new favorites instead", file);
                         Ok(Favorites::empty())
                     }
-                    StorageError::CorruptData(_, error) => {
+                    StorageError::CorruptRead(_, error) => {
                         error!("Failed to load favorites, {}", error);
                         Err(MediaError::FavoritesLoadingFailed(error))
+                    }
+                    _ => {
+                        warn!("Unexpected error returned from storage, {}", e);
+                        Ok(Favorites::empty())
                     }
                 }
             }
@@ -147,6 +187,8 @@ impl FavoriteService {
 
 #[cfg(test)]
 mod test {
+    use tempfile::tempdir;
+
     use crate::core::media::MovieOverview;
     use crate::test::{init_logger, test_resource_directory};
 
@@ -205,5 +247,29 @@ mod test {
         assert_eq!("tt1156398".to_string(), result.imdb_id());
         assert_eq!("Zombieland".to_string(), result.title());
         assert_eq!(MediaType::Movie, result.media_type());
+    }
+
+    #[test]
+    fn test_add_not_favorite_media() {
+        init_logger();
+        let imdb_id = "tt12345678";
+        let title = "lorem ipsum";
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let settings = Arc::new(Application::default());
+        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
+        let service = FavoriteService::new(&settings, &storage);
+        let movie = Box::new(MovieOverview::new(
+            String::from(title),
+            String::from(imdb_id),
+            String::new(),
+        )) as Box<dyn Favorable>;
+
+        service.add(movie);
+        let result = service.all()
+            .expect("expected the favorites to have been loaded");
+
+        assert_eq!(1, result.len());
+        assert_eq!(imdb_id.to_string(), result.get(0).expect("expected 1 item").imdb_id());
+        assert_eq!(title.to_string(), result.get(0).expect("expected 1 item").title());
     }
 }

@@ -72,6 +72,8 @@ public interface FxLib extends Library {
 
     void add_to_favorites(PopcornFx instance, Favorite media);
 
+    void remove_from_favorites(PopcornFx instance, Favorite media);
+
     void disable_screensaver(PopcornFx instance);
 
     void enable_screensaver(PopcornFx instance);

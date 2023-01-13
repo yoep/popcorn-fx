@@ -4,6 +4,8 @@ use std::path::PathBuf;
 
 use log::{debug, trace};
 use serde::de::DeserializeOwned;
+use serde::Serialize;
+use tokio::io::AsyncWriteExt;
 
 use crate::core::storage;
 use crate::core::storage::StorageError;
@@ -64,7 +66,7 @@ impl Storage {
                     }
                     Err(e) => {
                         debug!("Application file {} is invalid, {}", filename, &e);
-                        Err(StorageError::CorruptData(filename.to_string(), e.to_string()))
+                        Err(StorageError::CorruptRead(filename.to_string(), e.to_string()))
                     }
                 }
             }
@@ -72,6 +74,44 @@ impl Storage {
                 trace!("Application file {} does not exist, {}", filename, e);
                 Err(StorageError::FileNotFound(filename.to_string()))
             }
+        }
+    }
+
+    /// Write the value to the given storage filename.
+    ///
+    /// It returns an error when the file failed to be written.
+    pub async fn write<T: Serialize>(&self, filename: &str, value: &T) -> storage::Result<()> {
+        let path = self.directory.clone()
+            .join(filename);
+        let path_string = path.to_str().expect("expected path to be valid").to_string();
+
+        match tokio::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(path).await {
+            Ok(mut file) => {
+                Self::write_to(&mut file, value, &path_string).await
+            }
+            Err(e) => {
+                Err(StorageError::WritingFailed(path_string, e.to_string()))
+            }
+        }
+    }
+
+    async fn write_to<T: Serialize>(file: &mut tokio::fs::File, value: &T, path_string: &String) -> storage::Result<()> {
+        trace!("Serializing the data to write");
+        match serde_json::to_string(value) {
+            Ok(e) => {
+                trace!("Writing to storage {:?}, {}", &path_string, &e);
+                match file.write(e.as_bytes()).await {
+                    Ok(_) => {
+                        debug!("Storage file {} has been saved", path_string);
+                        Ok(())
+                    }
+                    Err(e) => Err(StorageError::WritingFailed(path_string.clone(), e.to_string()))
+                }
+            }
+            Err(e) => Err(StorageError::CorruptWrite(e.to_string()))
         }
     }
 }

@@ -267,6 +267,7 @@ struct VecShowC {
 extern "C" {
 
 /// Add the media item to the favorites.
+/// Duplicate favorite media items are ignored.
 void add_to_favorites(PopcornFX *popcorn_fx, const FavoriteC *favorite);
 
 /// Retrieve the default options available for the subtitles.
@@ -316,6 +317,9 @@ SubtitleC *parse_subtitle(PopcornFX *popcorn_fx, const char *file_path);
 
 /// Retrieve the platform information
 PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
+
+/// Remove the media item from favorites.
+void remove_from_favorites(PopcornFX *popcorn_fx, const FavoriteC *favorite);
 
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.

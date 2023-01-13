@@ -1,9 +1,9 @@
 use derive_more::Display;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::core::media::{Episode, Favorable, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, Watchable};
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "imdb_id: {}, tvdb_id: {}, title: {}", imdb_id, tvdb_id, imdb_id)]
 pub struct ShowOverview {
     imdb_id: String,

@@ -1,8 +1,8 @@
 use derive_more::Display;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// The available images for a media item.
-#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "poster: {}, fanart: {}, banner: {}", poster, fanart, banner)]
 pub struct Images {
     poster: String,

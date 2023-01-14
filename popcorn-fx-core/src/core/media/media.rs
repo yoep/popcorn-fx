@@ -68,5 +68,8 @@ pub trait MediaDetails: MediaOverview {
     /// Retrieve the description of the media item.
     /// The description should always be html decoded.
     fn synopsis(&self) -> String;
+
+    /// Retrieve the runtime of the media item.
+    fn runtime(&self) -> i32;
 }
 

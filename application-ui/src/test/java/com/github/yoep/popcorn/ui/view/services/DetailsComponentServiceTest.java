@@ -72,7 +72,6 @@ class DetailsComponentServiceTest {
                 .media(newItem)
                 .build();
         when(lastItem.watchedProperty()).thenReturn(watchedProperty);
-        when(lastItem.likedProperty()).thenReturn(likedProperty);
         service.onShowDetails(previousEvent);
 
         service.onShowDetails(newEvent);
@@ -115,24 +114,6 @@ class DetailsComponentServiceTest {
         show.setWatched(expectedResult);
 
         verify(listener).onWatchChanged(expectedResult);
-    }
-
-    @Test
-    void testListeners_whenMovieLikedStateIsChanged_shouldInvokedOnLikedChanged() {
-        var movie = MovieDetails.builder()
-                .build();
-        var event = ShowMovieDetailsEvent.builder()
-                .source(this)
-                .media(movie)
-                .build();
-        var listener = mock(DetailsComponentListener.class);
-        var expectedResult = true;
-        service.onShowDetails(event);
-        service.addListener(listener);
-
-        movie.setLiked(expectedResult);
-
-        verify(listener).onLikedChanged(expectedResult);
     }
 
     @Test
@@ -192,7 +173,6 @@ class DetailsComponentServiceTest {
                 .source(this)
                 .media(show)
                 .build();
-        when(show.isLiked()).thenReturn(false);
         service.onShowDetails(event);
 
         service.toggleLikedState();
@@ -207,7 +187,6 @@ class DetailsComponentServiceTest {
                 .source(this)
                 .media(show)
                 .build();
-        when(show.isLiked()).thenReturn(true);
         service.onShowDetails(event);
 
         service.toggleLikedState();

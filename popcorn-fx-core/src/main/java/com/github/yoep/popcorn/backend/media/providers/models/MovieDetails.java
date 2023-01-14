@@ -4,10 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
 import java.util.*;
 
+@Slf4j
 @Getter
 @ToString(callSuper = true, exclude = {"torrents"})
 @EqualsAndHashCode(callSuper = true)

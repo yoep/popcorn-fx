@@ -395,7 +395,12 @@ pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &Favorite
             warn!("Unable to verify if media is liked, all FavoriteC fields are null");
             false
         }
-        Some(media) => popcorn_fx.favorite_service().is_liked_boxed(&media)
+        Some(media) => {
+            let liked = popcorn_fx.favorite_service().is_liked_boxed(&media);
+            trace!("Liked state is {} for {} {}", &liked, media.media_type(), media.imdb_id());
+            mem::forget(media);
+            liked
+        }
     }
 }
 
@@ -470,22 +475,22 @@ fn from_favorable(favorite: &FavoriteC) -> Option<Box<dyn MediaIdentifier>> {
     if !favorite.movie_overview.is_null() {
         let boxed = from_c_into_boxed(favorite.movie_overview);
         media = Box::new(boxed.to_struct());
-        trace!("Create media struct {:?}", media);
+        trace!("Created media struct {:?}", media);
         mem::forget(boxed);
     } else if !favorite.movie_details.is_null() {
         let boxed = from_c_into_boxed(favorite.movie_details);
         media = Box::new(boxed.to_struct());
-        trace!("Create media struct {:?}", media);
+        trace!("Created media struct {:?}", media);
         mem::forget(boxed);
     } else if !favorite.show_overview.is_null() {
         let boxed = from_c_into_boxed(favorite.show_overview);
         media = Box::new(boxed.to_struct());
-        trace!("Create media struct {:?}", media);
+        trace!("Created media struct {:?}", media);
         mem::forget(boxed);
     } else if !favorite.show_details.is_null() {
         let boxed = from_c_into_boxed(favorite.show_details);
         media = Box::new(boxed.to_struct());
-        trace!("Create media struct {:?}", media);
+        trace!("Created media struct {:?}", media);
         mem::forget(boxed);
     } else {
         return None;

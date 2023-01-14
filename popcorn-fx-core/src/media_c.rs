@@ -4,7 +4,7 @@ use std::ptr;
 
 use log::{error, trace};
 
-use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
+use crate::{from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 
 #[repr(C)]
@@ -103,8 +103,9 @@ impl MovieOverviewC {
         let mut rating = None;
 
         if !self.rating.is_null() {
-            let c = from_c_owned(self.rating);
-            rating = Some(c.to_struct());
+            // let owned = from_c_owned(self.rating);
+            // rating = Some(owned.to_struct());
+            // mem::forget(owned);
         }
 
         MovieOverview::new_detailed(
@@ -175,8 +176,9 @@ impl MovieDetailsC {
             .collect();
 
         if !self.rating.is_null() {
-            let owned = from_c_owned(self.rating);
-            rating = Some(owned.to_struct());
+            // let owned = from_c_owned(self.rating);
+            // rating = Some(owned.to_struct());
+            // mem::forget(owned);
         }
 
         MovieDetails::new_detailed(
@@ -207,6 +209,7 @@ pub struct ShowOverviewC {
 
 impl ShowOverviewC {
     pub fn from(show: ShowOverview) -> Self {
+        trace!("Converting Show to C {}", show);
         Self {
             imdb_id: to_c_string(show.imdb_id().clone()),
             tvdb_id: to_c_string(show.tvdb_id().clone()),
@@ -226,8 +229,12 @@ impl ShowOverviewC {
         let mut rating: Option<Rating> = None;
 
         if !self.rating.is_null() {
-            let rating_c = from_c_owned(self.rating);
-            rating = Some(rating_c.to_struct());
+            // trace!("Reading RatingC as owned from {:?}", self.rating);
+            // let owned = from_c_owned(self.rating);
+            // trace!("Owning RatingC, creating rust struct");
+            // rating = Some(owned.to_struct());
+            // trace!("Converted RatingC to struct");
+            // mem::forget(owned);
         }
 
         ShowOverview::new(
@@ -253,7 +260,7 @@ pub struct ShowDetailsC {
     images: ImagesC,
     rating: *mut RatingC,
     synopsis: *const c_char,
-    runtime: *const c_char,
+    runtime: i32,
     status: *const c_char,
     genres: *mut *const c_char,
     genres_len: i32,
@@ -286,7 +293,7 @@ impl ShowDetailsC {
                 Some(e) => into_c_owned(RatingC::from(e))
             },
             synopsis: to_c_string(show.synopsis().clone()),
-            runtime: to_c_string(show.runtime().clone()),
+            runtime: show.runtime().clone(),
             status: to_c_string(show.status().clone()),
             genres,
             genres_len,
@@ -298,10 +305,13 @@ impl ShowDetailsC {
     }
 
     pub fn to_struct(&self) -> ShowDetails {
+        trace!("Converting ShowDetails from C {:?}", self);
         let mut rating = None;
 
         if !self.rating.is_null() {
-            rating = Some(from_c_owned(self.rating).to_struct());
+            // let owned = from_c_owned(self.rating);
+            // rating = Some(owned.to_struct());
+            // mem::forget(owned);
         }
 
         ShowDetails::new(

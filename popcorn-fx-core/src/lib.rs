@@ -1,5 +1,6 @@
 use std::{mem, ptr};
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 use log::error;
 

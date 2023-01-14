@@ -120,16 +120,6 @@ impl MovieDetails {
         }
     }
 
-    pub fn runtime(&self) -> i32 {
-        match self.runtime.parse::<i32>() {
-            Ok(e) => e,
-            Err(e) => {
-                warn!("Runtime value {} is invalid, {}", &self.runtime, e);
-                0
-            }
-        }
-    }
-
     pub fn images(&self) -> &Images {
         &self.images
     }
@@ -179,5 +169,15 @@ impl MediaDetails for MovieDetails {
     /// The description is html decoded before it's returned.
     fn synopsis(&self) -> String {
         html_escape::decode_html_entities(&self.synopsis).into_owned()
+    }
+
+    fn runtime(&self) -> i32 {
+        match self.runtime.parse::<i32>() {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("Runtime value {} is invalid, {}", &self.runtime, e);
+                0
+            }
+        }
     }
 }

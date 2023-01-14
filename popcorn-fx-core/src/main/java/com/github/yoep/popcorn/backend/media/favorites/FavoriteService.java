@@ -27,8 +27,7 @@ public class FavoriteService {
     public boolean isLiked(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-//            return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
-            return false;
+            return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
         }
     }
 

@@ -161,7 +161,7 @@ struct ShowDetailsC {
   ImagesC images;
   RatingC *rating;
   const char *synopsis;
-  const char *runtime;
+  int32_t runtime;
   const char *status;
   const char **genres;
   int32_t genres_len;

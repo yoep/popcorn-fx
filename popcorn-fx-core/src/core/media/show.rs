@@ -1,4 +1,5 @@
 use derive_more::Display;
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 use crate::core::media::{Episode, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating};
@@ -136,10 +137,6 @@ impl ShowDetails {
     pub fn episodes(&self) -> &Vec<Episode> {
         &self.episodes
     }
-
-    pub fn runtime(&self) -> &String {
-        &self.runtime
-    }
 }
 
 impl MediaIdentifier for ShowDetails {
@@ -172,5 +169,15 @@ impl MediaOverview for ShowDetails {
 impl MediaDetails for ShowDetails {
     fn synopsis(&self) -> String {
         html_escape::decode_html_entities(&self.synopsis).into_owned()
+    }
+
+    fn runtime(&self) -> i32 {
+        match self.runtime.parse::<i32>() {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("Runtime value {} is invalid, {}", &self.runtime, e);
+                0
+            }
+        }
     }
 }

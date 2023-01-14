@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
 import java.util.Arrays;
@@ -15,18 +16,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Getter
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
-@Structure.FieldOrder({"synopsis", "runtime", "status", "genresRef", "genresLen", "genresCap", "episodesRef", "len", "cap"})
+@Structure.FieldOrder({"synopsis", "runtime", "status", "genresRef", "genresLen", "genresCap", "episodesRef", "episodesLen", "episodesCap"})
 public class ShowDetails extends ShowOverview implements Media, Closeable {
     public static class ByReference extends ShowDetails implements Structure.ByReference {
     }
 
     public String synopsis;
-    public String runtime;
+    public Integer runtime;
     public String status;
     @JsonIgnore
     public Pointer genresRef;
@@ -37,9 +39,9 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
     @JsonIgnore
     public Episode.ByReference episodesRef;
     @JsonIgnore
-    public int len;
+    public int episodesLen;
     @JsonIgnore
-    public int cap;
+    public int episodesCap;
 
     @JsonIgnore
     private List<Episode> cache;
@@ -47,7 +49,7 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
     public List<Episode> getEpisodes() {
         if (cache == null) {
             cache = Optional.ofNullable(episodesRef)
-                    .map(e -> e.toArray(len))
+                    .map(e -> e.toArray(episodesLen))
                     .map(e -> (Episode[]) e)
                     .map(Arrays::asList)
                     .orElse(Collections.emptyList());
@@ -59,11 +61,6 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
     @Override
     public String getSynopsis() {
         return synopsis;
-    }
-
-    @Override
-    public Integer getRuntime() {
-        return Integer.parseInt(runtime);
     }
 
     @Override

@@ -56,19 +56,19 @@ impl Favorites {
 
     /// Add the given movie to the favorites.
     /// Duplicates will be automatically ignored.
-    pub fn add_movie(&mut self, media: MovieOverview) {
+    pub fn add_movie(&mut self, media: &MovieOverview) {
         if !self.contains(&media.imdb_id()) {
             trace!("Adding media {} to favorites", &media);
-            self.movies.push(media)
+            self.movies.push(media.clone())
         }
     }
 
     /// Add the given show to the favorites.
     /// Duplicates will be automatically ignored.
-    pub fn add_show(&mut self, media: ShowOverview) {
+    pub fn add_show(&mut self, media: &ShowOverview) {
         if !self.contains(&media.imdb_id()) {
             trace!("Adding media {} to favorites", &media);
-            self.shows.push(media)
+            self.shows.push(media.clone())
         }
     }
 
@@ -134,7 +134,7 @@ mod test {
         );
         let mut favorites = Favorites::empty();
 
-        favorites.add_movie(movie.clone());
+        favorites.add_movie(&movie);
         let result = favorites.movies();
 
         assert!(result.contains(&movie))
@@ -152,7 +152,7 @@ mod test {
             vec![],
         );
 
-        favorites.add_movie(movie.clone());
+        favorites.add_movie(&movie);
         let result = favorites.movies();
 
         assert_eq!(1, result.len())
@@ -171,7 +171,7 @@ mod test {
         );
         let mut favorites = Favorites::empty();
 
-        favorites.add_show(show.clone());
+        favorites.add_show(&show);
         let result = favorites.shows();
 
         assert!(result.contains(&show))
@@ -193,7 +193,7 @@ mod test {
             vec![show.clone()],
         );
 
-        favorites.add_show(show.clone());
+        favorites.add_show(&show);
         let result = favorites.shows();
 
         assert_eq!(1, result.len())

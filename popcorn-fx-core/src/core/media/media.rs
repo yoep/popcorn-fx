@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 
 use derive_more::Display;
-use downcast_rs::{Downcast, impl_downcast};
+use downcast_rs::{DowncastSync, impl_downcast};
 
 use crate::core::media::Rating;
 
@@ -23,12 +23,12 @@ impl Ord for MediaType {
             Ordering::Less
         } else {
             Ordering::Greater
-        }
+        };
     }
 }
 
 /// Basic identification information about a media item.
-pub trait MediaIdentifier: Debug + Downcast + Send + Sync + Display {
+pub trait MediaIdentifier: Debug + DowncastSync + Display {
     /// Retrieve an owned instance of the IMDB id.
     fn imdb_id(&self) -> String;
 
@@ -39,7 +39,7 @@ pub trait MediaIdentifier: Debug + Downcast + Send + Sync + Display {
     /// The title should always be html decoded.
     fn title(&self) -> String;
 }
-impl_downcast!(MediaIdentifier);
+impl_downcast!(sync MediaIdentifier);
 
 /// Defines an object that can be watched.
 pub trait Watchable: MediaIdentifier {

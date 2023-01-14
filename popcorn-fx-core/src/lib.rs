@@ -24,14 +24,19 @@ pub fn to_c_string(value: String) -> *const c_char {
 
 /// Convert the given C string to an owned rust [String].
 pub fn from_c_string(ptr: *const c_char) -> String {
-    let slice = unsafe { CStr::from_ptr(ptr).to_bytes() };
+    if !ptr.is_null() {
+        let slice = unsafe { CStr::from_ptr(ptr).to_bytes() };
 
-    match std::str::from_utf8(slice) {
-        Ok(e) => e.to_string(),
-        Err(e) => {
-            error!("Failed to read C string, using empty string instead ({})", e);
-            String::new()
+        match std::str::from_utf8(slice) {
+            Ok(e) => e.to_string(),
+            Err(e) => {
+                error!("Failed to read C string, using empty string instead ({})", e);
+                String::new()
+            }
         }
+    } else {
+        error!("Unable to read C string, pointer is null");
+        String::new()
     }
 }
 
@@ -57,7 +62,11 @@ pub fn from_c_owned<T>(ptr: *mut T) -> T {
 ///
 /// * `ptr` - The pointer value to convert
 pub fn from_c_into_boxed<T>(ptr: *mut T) -> Box<T> {
-    unsafe { Box::from_raw(ptr) }
+    if !ptr.is_null() {
+        unsafe { Box::from_raw(ptr) }
+    } else {
+        panic!("Unable to read C instance, pointer is null")
+    }
 }
 
 /// Convert the given [Vec] into a C array tuple which is owned by the caller.

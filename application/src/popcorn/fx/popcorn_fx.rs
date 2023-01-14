@@ -41,7 +41,7 @@ impl PopcornFX {
         let settings = Arc::new(Application::new_auto(&storage));
         let subtitle_service = Box::new(OpensubtitlesProvider::new(&settings));
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let favorites_service = Arc::new(FavoriteService::new(&settings, &storage));
+        let favorites_service = Arc::new(FavoriteService::new( &storage));
         let providers = Self::default_providers(&settings, &favorites_service);
 
         Self {
@@ -132,6 +132,6 @@ mod test {
         let mut popcorn_fx = PopcornFX::new();
         let service = popcorn_fx.platform_service();
 
-        let result = service.platform_info();
+        let _ = service.platform_info();
     }
 }

@@ -130,6 +130,16 @@ struct MovieDetailsC {
   int32_t torrents_cap;
 };
 
+struct ShowOverviewC {
+  const char *imdb_id;
+  const char *tvdb_id;
+  const char *title;
+  const char *year;
+  int32_t num_seasons;
+  ImagesC images;
+  RatingC *rating;
+};
+
 struct EpisodeC {
   int32_t season;
   int32_t episode;
@@ -164,7 +174,7 @@ struct ShowDetailsC {
 struct FavoriteC {
   MovieOverviewC *movie_overview;
   MovieDetailsC *movie_details;
-  ShowDetailsC *show_overview;
+  ShowOverviewC *show_overview;
   ShowDetailsC *show_details;
 };
 
@@ -220,16 +230,6 @@ struct PlatformInfoC {
   PlatformType platform_type;
   /// The cpu architecture of the platform
   const char *arch;
-};
-
-struct ShowOverviewC {
-  const char *imdb_id;
-  const char *tvdb_id;
-  const char *title;
-  const char *year;
-  int32_t num_seasons;
-  ImagesC images;
-  RatingC *rating;
 };
 
 struct VecFavoritesC {

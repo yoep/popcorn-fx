@@ -194,9 +194,8 @@ mod test {
         let genre = Genre::all();
         let sort_by = SortBy::new("watched".to_string(), String::new());
         let keywords = "".to_string();
-        let settings = Arc::new(Application::default());
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let favorites = Arc::new(FavoriteService::new(&settings, &storage));
+        let favorites = Arc::new(FavoriteService::new(&storage));
         let provider = FavoritesProvider::new(&favorites, vec![]);
 
         let result = provider.retrieve(&genre, &sort_by, &keywords, 1)
@@ -213,7 +212,7 @@ mod test {
         let resource_directory = test_resource_directory();
         let settings = Arc::new(Application::default());
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let favorites = Arc::new(FavoriteService::new(&settings, &storage));
+        let favorites = Arc::new(FavoriteService::new( &storage));
         let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
         let provider = FavoritesProvider::new(&favorites, vec![&movie_provider]);
 

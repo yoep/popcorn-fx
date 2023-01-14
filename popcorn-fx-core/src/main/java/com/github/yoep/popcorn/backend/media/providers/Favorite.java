@@ -36,8 +36,24 @@ public class Favorite extends Structure implements Closeable {
     public static Favorite from(Favorable media) {
         var favorite = new Favorite();
 
-        if (media instanceof MovieDetails) {
-            favorite.movieDetails = (MovieDetails.ByReference) media;
+        if (media instanceof MovieDetails.ByReference movie) {
+            favorite.movieDetails = movie;
+        } else if (media instanceof MovieDetails movie) {
+            favorite.movieDetails = new MovieDetails.ByReference();
+            favorite.movieDetails.title = movie.title;
+            favorite.movieDetails.imdbId = movie.imdbId;
+            favorite.movieDetails.year = movie.year;
+            favorite.movieDetails.rating = movie.rating;
+            favorite.movieDetails.images = movie.images;
+            favorite.movieDetails.synopsis = movie.synopsis;
+            favorite.movieDetails.runtime = movie.runtime;
+            favorite.movieDetails.trailer = movie.trailer;
+            favorite.movieDetails.genresRef = movie.genresRef;
+            favorite.movieDetails.genresLen = movie.genresLen;
+            favorite.movieDetails.genresCap = movie.genresCap;
+            favorite.movieDetails.torrentEntry = movie.torrentEntry;
+            favorite.movieDetails.torrentLen = movie.torrentLen;
+            favorite.movieDetails.torrentCap = movie.torrentCap;
         } else if (media instanceof MovieOverview) {
             favorite.movieOverview = (MovieOverview.ByReference) media;
         } else if (media instanceof ShowDetails) {

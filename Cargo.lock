@@ -1464,6 +1464,7 @@ version = "0.4.0"
 dependencies = [
  "async-trait",
  "cbindgen",
+ "futures",
  "itertools",
  "log",
  "log4rs",
@@ -1481,6 +1482,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "downcast-rs",
+ "futures",
  "home",
  "html-escape",
  "httpmock",

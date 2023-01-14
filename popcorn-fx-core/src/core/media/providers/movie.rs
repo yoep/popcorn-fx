@@ -95,6 +95,7 @@ impl MediaProvider for MovieProvider {
 mod test {
     use std::collections::HashMap;
 
+    use downcast_rs::Downcast;
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
@@ -154,7 +155,10 @@ mod test {
             .await
             .expect("expected media items to have been returned");
 
-        assert!(result.len() > 0, "Expected at least one item to have been found")
+        assert!(result.len() > 0, "Expected at least one item to have been found");
+        let movie_result = result.get(0).unwrap();
+        assert_eq!(expected_result.imdb_id(), movie_result.imdb_id());
+        assert_eq!(expected_result.title(), movie_result.title());
     }
 
     #[tokio::test]

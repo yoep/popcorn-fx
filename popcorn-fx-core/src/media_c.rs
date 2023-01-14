@@ -361,7 +361,7 @@ impl EpisodeC {
 pub struct FavoriteC {
     pub movie_overview: *mut MovieOverviewC,
     pub movie_details: *mut MovieDetailsC,
-    pub show_overview: *mut ShowDetailsC,
+    pub show_overview: *mut ShowOverviewC,
     pub show_details: *mut ShowDetailsC,
 }
 
@@ -440,6 +440,7 @@ pub struct RatingC {
 
 impl RatingC {
     pub fn from(rating: &Rating) -> Self {
+        trace!("Converting Rating to C {:?}", rating);
         Self {
             percentage: rating.percentage().clone() as i32,
             watching: rating.watching().clone() as i32,
@@ -450,6 +451,7 @@ impl RatingC {
     }
 
     fn to_struct(&self) -> Rating {
+        trace!("Converting Rating from C {:?}", self);
         Rating::new_with_metadata(
             self.percentage.clone() as u16,
             self.watching.clone() as u32,

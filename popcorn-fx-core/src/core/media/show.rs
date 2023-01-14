@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::media::{Episode, Favorable, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, Watchable};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "imdb_id: {}, tvdb_id: {}, title: {}", imdb_id, tvdb_id, imdb_id)]
+#[display(fmt = "{{ShowOverview: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
 pub struct ShowOverview {
     imdb_id: String,
     tvdb_id: String,
@@ -83,7 +83,7 @@ impl MediaOverview for ShowOverview {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
-#[display(fmt = "imdb_id: {}, tvdb_id: {}, title: {}", imdb_id, tvdb_id, title)]
+#[display(fmt = "{{ShowDetails: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
 pub struct ShowDetails {
     imdb_id: String,
     tvdb_id: String,

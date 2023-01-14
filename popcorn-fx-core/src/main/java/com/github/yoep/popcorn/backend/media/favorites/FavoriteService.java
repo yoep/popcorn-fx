@@ -5,7 +5,6 @@ import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.backend.media.providers.Favorite;
 import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -16,7 +15,6 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FavoriteService {
     /**
      * Check if the given {@link Favorable} is liked by the user.
@@ -47,8 +45,7 @@ public class FavoriteService {
      */
     public void addToFavorites(Favorable favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
-        var favorite = Favorite.from(favorable);
-        FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), favorite);
+        FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
     }
 
     /**
@@ -58,7 +55,6 @@ public class FavoriteService {
      */
     public void removeFromFavorites(Favorable favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
-        var favorite = Favorite.from(favorable);
-        FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), favorite);
+        FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
     }
 }

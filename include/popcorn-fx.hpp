@@ -140,6 +140,7 @@ struct ShowOverviewC {
   int32_t num_seasons;
   ImagesC images;
   RatingC *rating;
+  bool liked;
 };
 
 struct EpisodeC {
@@ -162,6 +163,7 @@ struct ShowDetailsC {
   int32_t num_seasons;
   ImagesC images;
   RatingC *rating;
+  bool liked;
   const char *synopsis;
   const char *runtime;
   const char *status;

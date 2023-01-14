@@ -207,6 +207,7 @@ pub struct ShowOverviewC {
     num_seasons: i32,
     images: ImagesC,
     rating: *mut RatingC,
+    liked: bool,
 }
 
 impl ShowOverviewC {
@@ -222,6 +223,7 @@ impl ShowOverviewC {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
             },
+            liked: show.is_liked().clone(),
         }
     }
 
@@ -256,6 +258,7 @@ pub struct ShowDetailsC {
     num_seasons: i32,
     images: ImagesC,
     rating: *mut RatingC,
+    liked: bool,
     synopsis: *const c_char,
     runtime: *const c_char,
     status: *const c_char,
@@ -289,6 +292,7 @@ impl ShowDetailsC {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
             },
+            liked: show.is_liked().clone(),
             synopsis: to_c_string(show.synopsis().clone()),
             runtime: to_c_string(show.runtime().clone()),
             status: to_c_string(show.status().clone()),

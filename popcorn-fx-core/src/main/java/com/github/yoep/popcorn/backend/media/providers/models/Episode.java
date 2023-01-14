@@ -30,8 +30,6 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
 
     @JsonIgnore
     private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
-    @JsonIgnore
-    private final transient BooleanProperty liked = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
     public int season;
     public int episode;
@@ -106,21 +104,6 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     @Override
     public MediaType getType() {
         return MediaType.SHOW;
-    }
-
-    @Override
-    public boolean isLiked() {
-        return liked.get();
-    }
-
-    @Override
-    public BooleanProperty likedProperty() {
-        return liked;
-    }
-
-    @Override
-    public void setLiked(boolean liked) {
-        this.liked.set(liked);
     }
 
     //endregion

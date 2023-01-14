@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
-import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
 import lombok.ToString;
@@ -33,7 +32,7 @@ public class Favorite extends Structure implements Closeable {
         setAutoSynch(false);
     }
 
-    public static Favorite from(Favorable media) {
+    public static Favorite from(Media media) {
         var favorite = new Favorite();
 
         if (media instanceof MovieDetails.ByReference movie) {

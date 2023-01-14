@@ -25,7 +25,6 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     private final WatchedService watchedService;
 
     private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> onWatchedChanged(newValue);
-    private final ChangeListener<Boolean> likedListener = (observable, oldValue, newValue) -> onLikedChanged(newValue);
 
     private Media lastShownMediaItem;
 
@@ -76,7 +75,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
             return;
         }
 
-        if (lastShownMediaItem.isLiked()) {
+        if (favoriteService.isLiked(lastShownMediaItem)) {
             favoriteService.removeFromFavorites(lastShownMediaItem);
         } else {
             favoriteService.addToFavorites(lastShownMediaItem);
@@ -89,18 +88,12 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         Optional.ofNullable(lastShownMediaItem)
                 .ifPresent(e -> {
                     e.watchedProperty().removeListener(watchedListener);
-                    e.likedProperty().removeListener(likedListener);
                 });
 
         media.watchedProperty().addListener(watchedListener);
-        media.likedProperty().addListener(likedListener);
     }
 
     private void onWatchedChanged(boolean newValue) {
         invokeListeners(e -> e.onWatchChanged(newValue));
-    }
-
-    private void onLikedChanged(boolean newValue) {
-        invokeListeners(e -> e.onLikedChanged(newValue));
     }
 }

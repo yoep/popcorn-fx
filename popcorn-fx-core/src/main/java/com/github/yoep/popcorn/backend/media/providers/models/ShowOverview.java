@@ -17,19 +17,17 @@ import java.util.List;
 import java.util.Optional;
 
 @Getter
-@ToString(exclude = {"watched", "likedProp"})
+@ToString(exclude = {"watched"})
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
-@Structure.FieldOrder({"imdbId", "tvdbId", "title", "year", "numberOfSeasons", "images", "rating", "liked"})
+@Structure.FieldOrder({"imdbId", "tvdbId", "title", "year", "numberOfSeasons", "images", "rating"})
 public class ShowOverview extends Structure implements Media, Closeable {
     public static class ByReference extends ShowOverview implements Structure.ByReference {
     }
 
     @JsonIgnore
     private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
-    @JsonIgnore
-    private final transient BooleanProperty likedProp = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
     public String imdbId;
     public String tvdbId;
@@ -39,7 +37,6 @@ public class ShowOverview extends Structure implements Media, Closeable {
     public int numberOfSeasons;
     public Images images;
     public Rating.ByReference rating;
-    public byte liked;
 
     //region Properties
 
@@ -61,21 +58,6 @@ public class ShowOverview extends Structure implements Media, Closeable {
     @Override
     public MediaType getType() {
         return MediaType.SHOW;
-    }
-
-    @Override
-    public boolean isLiked() {
-        return liked == 1;
-    }
-
-    @Override
-    public BooleanProperty likedProperty() {
-        return likedProp;
-    }
-
-    @Override
-    public void setLiked(boolean liked) {
-        this.likedProp.set(liked);
     }
 
     //endregion

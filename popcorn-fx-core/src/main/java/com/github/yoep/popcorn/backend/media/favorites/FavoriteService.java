@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.backend.media.favorites;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
-import com.github.yoep.popcorn.backend.media.favorites.models.Favorable;
 import com.github.yoep.popcorn.backend.media.providers.Favorite;
 import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -17,33 +17,33 @@ import java.util.Optional;
 @Service
 public class FavoriteService {
     /**
-     * Check if the given {@link Favorable} is liked by the user.
+     * Check if the given {@link com.github.yoep.popcorn.backend.media.providers.models.Media} is liked by the user.
      *
      * @param favorable The favorable to check.
      * @return Returns true if the favorable is liked, else false.
      */
-    public boolean isLiked(Favorable favorable) {
+    public boolean isLiked(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
     }
 
     /**
-     * Get all the {@link Favorable} items that are liked by the user.
+     * Get all the {@link Media} items that are liked by the user.
      *
      * @return Returns the list of liked items by the user.
      */
-    public List<Favorable> getAll() {
+    public List<Media> getAll() {
         return Optional.ofNullable(FxLib.INSTANCE.retrieve_all_favorites(PopcornFxInstance.INSTANCE.get()))
-                .map(FavoritesSet::<Favorable>getAll)
+                .map(FavoritesSet::<Media>getAll)
                 .orElse(Collections.emptyList());
     }
 
     /**
-     * Add the given {@link Favorable} to the favorites.
+     * Add the given {@link Media} to the favorites.
      *
      * @param favorable The favorable to add.
      */
-    public void addToFavorites(Favorable favorable) {
+    public void addToFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
     }
@@ -53,7 +53,7 @@ public class FavoriteService {
      *
      * @param favorable The favorable to remove.
      */
-    public void removeFromFavorites(Favorable favorable) {
+    public void removeFromFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
     }

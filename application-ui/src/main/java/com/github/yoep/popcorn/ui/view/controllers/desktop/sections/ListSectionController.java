@@ -50,10 +50,9 @@ public class ListSectionController extends AbstractListSectionController impleme
     protected Node creatItemNode(Media item) {
         // update the watched & liked states of the media item with the latest information
         item.setWatched(watchedService.isWatched(item));
-//        item.setLiked(favoriteService.isLiked(item));
 
         // load a new media card controller and inject it into the view
-        var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, imageService, createItemListener());
+        var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, imageService, favoriteService, createItemListener());
 
         return viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
     }

@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Data
-@ToString(exclude = {"watched", "likedProp"})
+@ToString(exclude = {"watched"})
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,8 +25,6 @@ public class MovieOverview extends Structure implements Media, Closeable {
 
     @JsonIgnore
     private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
-    @JsonIgnore
-    private final transient BooleanProperty likedProp = new SimpleBooleanProperty(this, LIKED_PROPERTY);
 
     public String title;
     public String imdbId;
@@ -54,21 +52,6 @@ public class MovieOverview extends Structure implements Media, Closeable {
     @Override
     public MediaType getType() {
         return MediaType.SHOW;
-    }
-
-    @Override
-    public boolean isLiked() {
-        return false;
-    }
-
-    @Override
-    public BooleanProperty likedProperty() {
-        return likedProp;
-    }
-
-    @Override
-    public void setLiked(boolean liked) {
-        this.likedProp.set(liked);
     }
 
     //endregion

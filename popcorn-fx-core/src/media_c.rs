@@ -1,10 +1,10 @@
+use std::{mem, ptr};
 use std::collections::HashMap;
 use std::os::raw::c_char;
-use std::ptr;
 
 use log::{error, trace};
 
-use crate::{from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
+use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 
 #[repr(C)]
@@ -103,9 +103,9 @@ impl MovieOverviewC {
         let mut rating = None;
 
         if !self.rating.is_null() {
-            // let owned = from_c_owned(self.rating);
-            // rating = Some(owned.to_struct());
-            // mem::forget(owned);
+            let owned = from_c_into_boxed(self.rating);
+            rating = Some(owned.to_struct());
+            mem::forget(owned);
         }
 
         MovieOverview::new_detailed(
@@ -176,9 +176,9 @@ impl MovieDetailsC {
             .collect();
 
         if !self.rating.is_null() {
-            // let owned = from_c_owned(self.rating);
-            // rating = Some(owned.to_struct());
-            // mem::forget(owned);
+            let owned = from_c_into_boxed(self.rating);
+            rating = Some(owned.to_struct());
+            mem::forget(owned);
         }
 
         MovieDetails::new_detailed(
@@ -229,12 +229,9 @@ impl ShowOverviewC {
         let mut rating: Option<Rating> = None;
 
         if !self.rating.is_null() {
-            // trace!("Reading RatingC as owned from {:?}", self.rating);
-            // let owned = from_c_owned(self.rating);
-            // trace!("Owning RatingC, creating rust struct");
-            // rating = Some(owned.to_struct());
-            // trace!("Converted RatingC to struct");
-            // mem::forget(owned);
+            let owned = from_c_into_boxed(self.rating);
+            rating = Some(owned.to_struct());
+            mem::forget(owned);
         }
 
         ShowOverview::new(
@@ -457,33 +454,33 @@ impl SortByC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct RatingC {
-    percentage: i32,
-    watching: i32,
-    votes: i32,
-    loved: i32,
-    hated: i32,
+    percentage: u16,
+    watching: u32,
+    votes: u32,
+    loved: u32,
+    hated: u32,
 }
 
 impl RatingC {
     pub fn from(rating: &Rating) -> Self {
         trace!("Converting Rating to C {:?}", rating);
         Self {
-            percentage: rating.percentage().clone() as i32,
-            watching: rating.watching().clone() as i32,
-            votes: rating.votes().clone() as i32,
-            loved: rating.loved().clone() as i32,
-            hated: rating.hated().clone() as i32,
+            percentage: rating.percentage().clone(),
+            watching: rating.watching().clone(),
+            votes: rating.votes().clone(),
+            loved: rating.loved().clone(),
+            hated: rating.hated().clone(),
         }
     }
 
     fn to_struct(&self) -> Rating {
         trace!("Converting Rating from C {:?}", self);
         Rating::new_with_metadata(
-            self.percentage.clone() as u16,
-            self.watching.clone() as u32,
-            self.votes.clone() as u32,
-            self.loved.clone() as u32,
-            self.hated.clone() as u32,
+            self.percentage.clone(),
+            self.watching.clone(),
+            self.votes.clone(),
+            self.loved.clone(),
+            self.hated.clone(),
         )
     }
 }

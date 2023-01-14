@@ -19,7 +19,7 @@ public class Rating extends Structure implements Serializable, Closeable {
     public static class ByReference extends Rating implements Structure.ByReference {
     }
 
-    public int percentage;
+    public short percentage;
     public int watching;
     public int votes;
     public int loved;

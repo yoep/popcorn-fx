@@ -67,11 +67,11 @@ struct PopcornFX;
 struct SubtitleInfo;
 
 struct RatingC {
-  int32_t percentage;
-  int32_t watching;
-  int32_t votes;
-  int32_t loved;
-  int32_t hated;
+  uint16_t percentage;
+  uint32_t watching;
+  uint32_t votes;
+  uint32_t loved;
+  uint32_t hated;
 };
 
 struct ImagesC {

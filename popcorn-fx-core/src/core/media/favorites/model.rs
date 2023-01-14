@@ -6,6 +6,10 @@ use crate::core::media::{MediaIdentifier, MovieOverview, ShowOverview};
 
 const DATETIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S.%f";
 
+pub enum FavoriteEvent {
+
+}
+
 /// The favorites/liked media items of the user.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Favorites {

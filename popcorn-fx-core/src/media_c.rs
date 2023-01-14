@@ -4,7 +4,7 @@ use std::ptr;
 
 use log::{error, trace};
 
-use crate::{from_c_owned, from_c_string, into_c_owned, to_c_string, to_c_vec};
+use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 
 #[repr(C)]
@@ -169,10 +169,26 @@ impl MovieDetailsC {
 
     pub fn to_struct(&self) -> MovieDetails {
         trace!("Converting MovieDetails from C {:?}", self);
-        MovieDetails::new(
+        let mut rating = None;
+        let genres = from_c_vec(self.genres, self.genres_len, self.genres_cap).into_iter()
+            .map(|e| from_c_string(e))
+            .collect();
+
+        if !self.rating.is_null() {
+            let owned = from_c_owned(self.rating);
+            rating = Some(owned.to_struct());
+        }
+
+        MovieDetails::new_detailed(
             from_c_string(self.title),
             from_c_string(self.imdb_id),
             from_c_string(self.year),
+            self.runtime.to_string(),
+            genres,
+            from_c_string(self.synopsis),
+            rating,
+            self.images.to_struct(),
+            from_c_string(self.trailer),
         )
     }
 }

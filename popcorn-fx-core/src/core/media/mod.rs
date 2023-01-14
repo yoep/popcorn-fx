@@ -23,3 +23,4 @@ mod sort_by;
 mod torrent_info;
 pub mod favorites;
 pub mod providers;
+pub mod watched;

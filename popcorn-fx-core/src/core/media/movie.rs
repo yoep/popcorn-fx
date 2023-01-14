@@ -16,6 +16,8 @@ pub struct MovieOverview {
     year: String,
     rating: Option<Rating>,
     images: Images,
+    #[serde(skip)]
+    liked: Option<bool>,
 }
 
 impl MovieOverview {
@@ -26,6 +28,7 @@ impl MovieOverview {
             year,
             rating: None,
             images: Images::none(),
+            liked: None,
         }
     }
 
@@ -36,6 +39,7 @@ impl MovieOverview {
             year,
             rating,
             images,
+            liked: None,
         }
     }
 
@@ -59,14 +63,17 @@ impl MediaIdentifier for MovieOverview {
 }
 
 impl Watchable for MovieOverview {
-    fn is_watched(&self) -> bool {
-        false
+    fn is_watched(&self) -> &bool {
+        &false
     }
 }
 
 impl Favorable for MovieOverview {
-    fn is_liked(&self) -> bool {
-        todo!()
+    fn is_liked(&self) -> &bool {
+        match &self.liked {
+            None => &false,
+            Some(e) => e
+        }
     }
 }
 
@@ -91,15 +98,15 @@ pub struct MovieDetails {
     title: String,
     imdb_id: String,
     year: String,
-    original_language: String,
     runtime: String,
     genres: Vec<String>,
     synopsis: String,
     rating: Option<Rating>,
     images: Images,
-    released: i32,
     trailer: String,
     torrents: HashMap<String, HashMap<String, TorrentInfo>>,
+    #[serde(skip)]
+    liked: Option<bool>,
 }
 
 impl MovieDetails {
@@ -108,15 +115,31 @@ impl MovieDetails {
             title,
             imdb_id,
             year,
-            original_language: "en".to_string(),
             runtime: String::new(),
             genres: vec![],
             synopsis: String::new(),
             rating: None,
             images: Images::none(),
-            released: 0,
             trailer: String::new(),
             torrents: HashMap::new(),
+            liked: None,
+        }
+    }
+
+    pub fn new_detailed(title: String, imdb_id: String, year: String, runtime: String, genres: Vec<String>,
+                        synopsis: String, rating: Option<Rating>, images: Images, trailer: String) -> Self {
+        Self {
+            title,
+            imdb_id,
+            year,
+            runtime,
+            genres,
+            synopsis,
+            rating,
+            images,
+            trailer,
+            torrents: HashMap::new(),
+            liked: None,
         }
     }
 
@@ -137,7 +160,7 @@ impl MovieDetails {
     pub fn trailer(&self) -> &String {
         &self.trailer
     }
-    
+
     pub fn genres(&self) -> &Vec<String> {
         &self.genres
     }
@@ -162,14 +185,17 @@ impl MediaIdentifier for MovieDetails {
 }
 
 impl Watchable for MovieDetails {
-    fn is_watched(&self) -> bool {
-        false
+    fn is_watched(&self) -> &bool {
+        &false
     }
 }
 
 impl Favorable for MovieDetails {
-    fn is_liked(&self) -> bool {
-        todo!()
+    fn is_liked(&self) -> &bool {
+        match &self.liked {
+            None => &false,
+            Some(e) => e
+        }
     }
 }
 

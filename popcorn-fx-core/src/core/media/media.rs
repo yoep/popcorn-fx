@@ -44,13 +44,13 @@ impl_downcast!(sync MediaIdentifier);
 /// Defines an object that can be watched.
 pub trait Watchable: MediaIdentifier {
     /// Verify if the current object is watched.
-    fn is_watched(&self) -> bool;
+    fn is_watched(&self) -> &bool;
 }
 
 /// Defines an object that can be liked.
 pub trait Favorable: MediaIdentifier {
     /// Verify if the object is liked.
-    fn is_liked(&self) -> bool;
+    fn is_liked(&self) -> &bool;
 }
 
 /// The most basic information of a media item.

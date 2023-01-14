@@ -86,6 +86,19 @@ pub fn to_c_vec<T>(mut vec: Vec<T>) -> (*mut T, i32, i32) {
     }
 }
 
+/// Convert the given C array into an owned [Vec].
+/// For more info, see [Vec::from_raw_parts].
+///
+/// It returns the [Vec] on success, else an empty vec if the `ptr` is `null`.
+pub fn from_c_vec<T>(ptr: *mut T, len: i32, cap: i32) -> Vec<T> {
+    if !ptr.is_null() {
+        unsafe { Vec::from_raw_parts(ptr, len as usize, cap as usize) }
+    } else {
+        error!("Unable to read C array, array pointer is null");
+        vec![]
+    }
+}
+
 #[cfg(feature = "testing")]
 pub mod test {
     use std::{env, fs};

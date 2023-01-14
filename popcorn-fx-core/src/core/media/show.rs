@@ -13,6 +13,8 @@ pub struct ShowOverview {
     num_seasons: i32,
     images: Images,
     rating: Option<Rating>,
+    #[serde(skip)]
+    liked: Option<bool>
 }
 
 impl ShowOverview {
@@ -26,6 +28,7 @@ impl ShowOverview {
             num_seasons,
             images,
             rating,
+            liked: None,
         }
     }
 
@@ -58,14 +61,17 @@ impl MediaIdentifier for ShowOverview {
 }
 
 impl Watchable for ShowOverview {
-    fn is_watched(&self) -> bool {
-        false
+    fn is_watched(&self) -> &bool {
+        &false
     }
 }
 
 impl Favorable for ShowOverview {
-    fn is_liked(&self) -> bool {
-        todo!()
+    fn is_liked(&self) -> &bool {
+        match &self.liked {
+            None => &false,
+            Some(e) => e
+        }
     }
 }
 
@@ -99,6 +105,8 @@ pub struct ShowDetails {
     status: String,
     genres: Vec<String>,
     episodes: Vec<Episode>,
+    #[serde(skip)]
+    liked: Option<bool>
 }
 
 impl ShowDetails {
@@ -118,6 +126,7 @@ impl ShowDetails {
             status: "".to_string(),
             genres: vec![],
             episodes: vec![],
+            liked: None
         }
     }
 
@@ -166,14 +175,17 @@ impl MediaIdentifier for ShowDetails {
 }
 
 impl Watchable for ShowDetails {
-    fn is_watched(&self) -> bool {
-        false
+    fn is_watched(&self) -> &bool {
+        &false
     }
 }
 
 impl Favorable for ShowDetails {
-    fn is_liked(&self) -> bool {
-        todo!()
+    fn is_liked(&self) -> &bool {
+        match &self.liked {
+            None => &false,
+            Some(e) => e
+        }
     }
 }
 

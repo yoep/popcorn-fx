@@ -86,8 +86,8 @@ impl MediaIdentifier for Episode {
 }
 
 impl Watchable for Episode {
-    fn is_watched(&self) -> bool {
-        false
+    fn is_watched(&self) -> &bool {
+        &false
     }
 }
 

@@ -70,7 +70,7 @@ impl FavoritesProvider {
     fn sort_by_watched(a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
         if a.is_watched() == b.is_watched() {
             Ordering::Equal
-        } else if a.is_watched() {
+        } else if *a.is_watched() {
             Ordering::Less
         } else {
             Ordering::Greater

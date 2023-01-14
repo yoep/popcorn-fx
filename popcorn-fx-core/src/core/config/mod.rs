@@ -77,7 +77,7 @@ impl Application {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

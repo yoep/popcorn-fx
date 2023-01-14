@@ -100,7 +100,7 @@ pub fn from_c_vec<T>(ptr: *mut T, len: i32, cap: i32) -> Vec<T> {
 }
 
 #[cfg(feature = "testing")]
-pub mod test {
+pub mod testing {
     use std::{env, fs};
     use std::path::PathBuf;
     use std::sync::Once;
@@ -162,5 +162,49 @@ pub mod test {
         let source = test_resource_filepath(filename);
 
         fs::read_to_string(&source).expect("expected the testing file to be readable")
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct Example {
+        a: i32,
+    }
+
+    #[test]
+    fn test_c_string() {
+        let value = "lorem".to_string();
+
+        let c = to_c_string(value.clone());
+        let result = from_c_string(c);
+
+        assert_eq!(value, result)
+    }
+
+    #[test]
+    fn test_owned() {
+        let value = Example {
+            a: 13
+        };
+
+        let c = into_c_owned(value.clone());
+        let result = from_c_owned(c);
+
+        assert_eq!(value, result)
+    }
+
+    #[test]
+    fn test_owned_boxed() {
+        let value = Example {
+            a: 54
+        };
+
+        let c = into_c_owned(value.clone());
+        let result = from_c_into_boxed(c);
+
+        assert_eq!(Box::new(value), result)
     }
 }

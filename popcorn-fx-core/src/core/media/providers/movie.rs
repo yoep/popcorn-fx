@@ -101,7 +101,7 @@ mod test {
 
     use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
     use crate::core::media::{Images, MediaIdentifier, Rating};
-    use crate::test::{init_logger, read_test_file};
+    use crate::testing::{init_logger, read_test_file};
 
     use super::*;
 

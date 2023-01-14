@@ -31,7 +31,7 @@ mod test {
     use std::collections::HashMap;
 
     use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings, SubtitleProperties, SubtitleSettings, UiSettings};
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

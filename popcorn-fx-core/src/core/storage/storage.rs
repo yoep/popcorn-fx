@@ -119,7 +119,7 @@ impl Storage {
 #[cfg(test)]
 mod test {
     use crate::core::config::PopcornSettings;
-    use crate::test::{init_logger, test_resource_directory};
+    use crate::testing::{init_logger, test_resource_directory};
 
     use super::*;
 

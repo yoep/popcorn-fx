@@ -191,7 +191,7 @@ impl ParserStage {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleLine};
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

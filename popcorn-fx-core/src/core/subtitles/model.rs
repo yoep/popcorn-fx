@@ -372,7 +372,7 @@ impl PartialEq for Subtitle {
 
 #[cfg(test)]
 mod test {
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

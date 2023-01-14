@@ -500,7 +500,7 @@ mod test {
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::{English, French};
     use popcorn_fx_core::core::subtitles::model::SubtitleType::Vtt;
-    use popcorn_fx_core::test::{copy_test_file, init_logger, read_test_file};
+    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
 
     use super::*;
 

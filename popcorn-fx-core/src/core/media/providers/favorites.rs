@@ -183,7 +183,7 @@ mod test {
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::core::media::providers::MovieProvider;
     use crate::core::storage::Storage;
-    use crate::test::{init_logger, test_resource_directory};
+    use crate::testing::{init_logger, test_resource_directory};
 
     use super::*;
 

@@ -71,7 +71,7 @@ impl Parser for VttParser {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleLine};
-    use crate::test::read_test_file;
+    use crate::testing::read_test_file;
 
     use super::*;
 

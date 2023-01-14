@@ -288,7 +288,7 @@ impl SubtitleProperties {
 mod test {
     use std::path::MAIN_SEPARATOR;
 
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

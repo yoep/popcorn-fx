@@ -104,7 +104,7 @@ impl Default for PopcornSettings {
 mod test {
     use crate::core::config::SubtitleFamily;
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

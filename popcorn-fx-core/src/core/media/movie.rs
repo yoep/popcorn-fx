@@ -75,6 +75,10 @@ impl Favorable for MovieOverview {
             Some(e) => e
         }
     }
+
+    fn update_liked(&mut self, new_state: bool) {
+        self.liked = Some(new_state)
+    }
 }
 
 impl MediaOverview for MovieOverview {
@@ -196,6 +200,10 @@ impl Favorable for MovieDetails {
             None => &false,
             Some(e) => e
         }
+    }
+
+    fn update_liked(&mut self, new_state: bool) {
+        self.liked = Some(new_state);
     }
 }
 

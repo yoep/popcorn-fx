@@ -86,6 +86,7 @@ struct MovieOverviewC {
   const char *year;
   RatingC *rating;
   ImagesC images;
+  bool liked;
 };
 
 struct TorrentInfoC {
@@ -119,6 +120,7 @@ struct MovieDetailsC {
   const char *year;
   RatingC *rating;
   ImagesC images;
+  bool liked;
   const char *synopsis;
   int32_t runtime;
   const char *trailer;

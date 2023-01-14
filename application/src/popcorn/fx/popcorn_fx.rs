@@ -108,7 +108,7 @@ impl PopcornFX {
     }
 
     fn default_providers(settings: &Arc<Application>, favorites: &Arc<FavoriteService>) -> ProviderManager {
-        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(&settings)));
+        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(&settings, &favorites)));
         let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(&settings)));
         let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(&favorites, vec![
             &movie_provider,

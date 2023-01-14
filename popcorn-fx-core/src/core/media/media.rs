@@ -1,8 +1,12 @@
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
+#[cfg(test)]
+use std::fmt::Formatter;
 
 use derive_more::Display;
 use downcast_rs::{DowncastSync, impl_downcast};
+#[cfg(test)]
+use mockall::automock;
 
 use crate::core::media::Rating;
 
@@ -28,6 +32,7 @@ impl Ord for MediaType {
 }
 
 /// Basic identification information about a media item.
+#[cfg_attr(test, automock)]
 pub trait MediaIdentifier: Debug + DowncastSync + Display {
     /// Retrieve an owned instance of the IMDB id.
     fn imdb_id(&self) -> String;
@@ -41,6 +46,13 @@ pub trait MediaIdentifier: Debug + DowncastSync + Display {
 }
 impl_downcast!(sync MediaIdentifier);
 
+#[cfg(test)]
+impl Display for MockMediaIdentifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MockMediaIdentifier")
+    }
+}
+
 /// Defines an object that can be watched.
 pub trait Watchable: MediaIdentifier {
     /// Verify if the current object is watched.
@@ -51,6 +63,12 @@ pub trait Watchable: MediaIdentifier {
 pub trait Favorable: MediaIdentifier {
     /// Verify if the object is liked.
     fn is_liked(&self) -> &bool;
+
+    /// Update the liked state of this favorable media item.
+    /// This state won't be persisted, use [crate::core::media::favorites::FavoriteService] instead for persisting the state.
+    ///
+    /// * `new_state`   The new liked state of this favorable media item.
+    fn update_liked(&mut self, new_state: bool);
 }
 
 /// The most basic information of a media item.

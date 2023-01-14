@@ -89,7 +89,7 @@ mod test {
     use std::sync::Arc;
 
     use crate::core::config::Application;
-    use crate::core::media::providers::MovieProvider;
+    use crate::core::media::providers::ShowProvider;
 
     use super::*;
 
@@ -111,10 +111,10 @@ mod test {
     #[test]
     fn test_get_supported_category() {
         let settings = Arc::new(Application::default());
-        let provider: Box<dyn MediaProvider> = Box::new(MovieProvider::new(&settings));
+        let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
         let manager = ProviderManager::with_providers(vec![Arc::new(provider)]);
 
-        let result = manager.provider(&Category::MOVIES);
+        let result = manager.provider(&Category::SERIES);
 
         assert!(result.is_some(), "Expected a supported provider to have been found")
     }

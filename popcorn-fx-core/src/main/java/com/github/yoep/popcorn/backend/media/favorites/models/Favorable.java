@@ -22,6 +22,7 @@ public interface Favorable {
      *
      * @return Returns the liked property.
      */
+    @Deprecated
     BooleanProperty likedProperty();
 
     /**
@@ -29,6 +30,7 @@ public interface Favorable {
      *
      * @param liked The liked value.
      */
+    @Deprecated
     void setLiked(boolean liked);
 
     /**

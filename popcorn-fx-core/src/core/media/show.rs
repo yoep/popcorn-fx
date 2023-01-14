@@ -14,7 +14,7 @@ pub struct ShowOverview {
     images: Images,
     rating: Option<Rating>,
     #[serde(skip)]
-    liked: Option<bool>
+    liked: Option<bool>,
 }
 
 impl ShowOverview {
@@ -73,6 +73,10 @@ impl Favorable for ShowOverview {
             Some(e) => e
         }
     }
+
+    fn update_liked(&mut self, new_state: bool) {
+        self.liked = Some(new_state);
+    }
 }
 
 impl MediaOverview for ShowOverview {
@@ -106,7 +110,7 @@ pub struct ShowDetails {
     genres: Vec<String>,
     episodes: Vec<Episode>,
     #[serde(skip)]
-    liked: Option<bool>
+    liked: Option<bool>,
 }
 
 impl ShowDetails {
@@ -126,7 +130,7 @@ impl ShowDetails {
             status: "".to_string(),
             genres: vec![],
             episodes: vec![],
-            liked: None
+            liked: None,
         }
     }
 
@@ -186,6 +190,10 @@ impl Favorable for ShowDetails {
             None => &false,
             Some(e) => e
         }
+    }
+
+    fn update_liked(&mut self, new_state: bool) {
+        self.liked = Some(new_state);
     }
 }
 

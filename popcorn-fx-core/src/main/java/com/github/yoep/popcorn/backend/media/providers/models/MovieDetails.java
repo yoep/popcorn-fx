@@ -36,10 +36,19 @@ public class MovieDetails extends MovieOverview implements Closeable {
     private Map<String, Map<String, MediaTorrentInfo>> torrents;
 
     @Builder
-    public MovieDetails(String title, String imdbId, String year, Rating.ByReference rating, Images images, String trailer, Map<String, Map<String,
-            MediaTorrentInfo>> torrents) {
-        super(title, imdbId, year, rating, images);
+    public MovieDetails(String title, String imdbId, String year, Rating.ByReference rating, Images images, byte liked, String synopsis, Integer runtime,
+                        String trailer, Pointer genresRef, int genresLen, int genresCap, TorrentEntry.ByReference torrentEntry, int torrentLen,
+                        int torrentCap, Map<String, Map<String, MediaTorrentInfo>> torrents) {
+        super(title, imdbId, year, rating, images, liked);
+        this.synopsis = synopsis;
+        this.runtime = runtime;
         this.trailer = trailer;
+        this.genresRef = genresRef;
+        this.genresLen = genresLen;
+        this.genresCap = genresCap;
+        this.torrentEntry = torrentEntry;
+        this.torrentLen = torrentLen;
+        this.torrentCap = torrentCap;
         this.torrents = torrents;
     }
 

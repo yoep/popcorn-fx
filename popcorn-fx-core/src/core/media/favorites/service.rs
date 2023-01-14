@@ -51,14 +51,21 @@ impl FavoriteService {
                 let favorites = guard.as_ref().expect("cache should have been present");
                 let mut all: Vec<Box<dyn MediaOverview>> = vec![];
                 let mut movies: Vec<Box<dyn MediaOverview>> = favorites.movies().iter()
-                    .map(|e| Box::new(e.clone()) as Box<dyn MediaOverview>)
+                    .map(|e| e.clone())
+                    .map(|e| Box::new(e) as Box<dyn MediaOverview>)
                     .collect();
                 let mut shows: Vec<Box<dyn MediaOverview>> = favorites.shows().iter()
-                    .map(|e| Box::new(e.clone()) as Box<dyn MediaOverview>)
+                    .map(|e| e.clone())
+                    .map(|e| Box::new(e) as Box<dyn MediaOverview>)
                     .collect();
 
                 all.append(&mut movies);
                 all.append(&mut shows);
+
+                // update the liked state of all items
+                for e in all.iter_mut() {
+                    e.update_liked(true);
+                }
 
                 Ok(all)
             }
@@ -80,10 +87,12 @@ impl FavoriteService {
     }
 
     /// Add the given [Favorable] media item to the favorites.
-    pub fn add(&self, favorite: Box<dyn Favorable>) {
+    pub fn add(&self, mut favorite: Box<dyn Favorable>) {
         match self.load_favorites() {
             Ok(mut guard) => {
                 let mut e = guard.as_mut().expect("cache should have been present");
+                favorite.update_liked(true);
+
                 match favorite.media_type() {
                     MediaType::Movie => {
                         e.add_movie(&favorite.into_any()
@@ -176,7 +185,7 @@ impl FavoriteService {
                     Ok(cache)
                 }
                 Err(e) => Err(e)
-            }
+            };
         }
 
         Ok(cache)
@@ -285,8 +294,10 @@ mod test {
             .expect("expected the favorites to have been loaded");
 
         assert_eq!(1, result.len());
-        assert_eq!(imdb_id.to_string(), result.get(0).expect("expected 1 item").imdb_id());
-        assert_eq!(title.to_string(), result.get(0).expect("expected 1 item").title());
+        let media = result.get(0).unwrap();
+        assert_eq!(imdb_id.to_string(), media.imdb_id());
+        assert_eq!(title.to_string(), media.title());
+        assert_eq!(&true, media.is_liked());
     }
 
     #[test]

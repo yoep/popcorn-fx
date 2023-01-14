@@ -5,7 +5,7 @@ use std::ptr;
 use log::{error, trace};
 
 use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
-use crate::core::media::{Episode, Favorable, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
+use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -82,7 +82,6 @@ pub struct MovieOverviewC {
     year: *const c_char,
     rating: *mut RatingC,
     images: ImagesC,
-    liked: bool,
 }
 
 impl MovieOverviewC {
@@ -96,7 +95,6 @@ impl MovieOverviewC {
                 Some(e) => into_c_owned(RatingC::from(e))
             },
             images: ImagesC::from(movie.images()),
-            liked: movie.is_liked().clone(),
         }
     }
 
@@ -127,7 +125,6 @@ pub struct MovieDetailsC {
     year: *const c_char,
     rating: *mut RatingC,
     images: ImagesC,
-    liked: bool,
     synopsis: *const c_char,
     runtime: i32,
     trailer: *const c_char,
@@ -159,7 +156,6 @@ impl MovieDetailsC {
                 Some(e) => into_c_owned(RatingC::from(e))
             },
             images: ImagesC::from(movie.images()),
-            liked: movie.is_liked().clone(),
             synopsis: to_c_string(movie.synopsis().clone()),
             trailer: to_c_string(movie.trailer().clone()),
             genres,
@@ -207,7 +203,6 @@ pub struct ShowOverviewC {
     num_seasons: i32,
     images: ImagesC,
     rating: *mut RatingC,
-    liked: bool,
 }
 
 impl ShowOverviewC {
@@ -223,7 +218,6 @@ impl ShowOverviewC {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
             },
-            liked: show.is_liked().clone(),
         }
     }
 
@@ -258,7 +252,6 @@ pub struct ShowDetailsC {
     num_seasons: i32,
     images: ImagesC,
     rating: *mut RatingC,
-    liked: bool,
     synopsis: *const c_char,
     runtime: *const c_char,
     status: *const c_char,
@@ -292,7 +285,6 @@ impl ShowDetailsC {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
             },
-            liked: show.is_liked().clone(),
             synopsis: to_c_string(show.synopsis().clone()),
             runtime: to_c_string(show.runtime().clone()),
             status: to_c_string(show.status().clone()),

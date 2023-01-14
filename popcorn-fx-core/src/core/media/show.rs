@@ -1,7 +1,7 @@
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
-use crate::core::media::{Episode, Favorable, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, Watchable};
+use crate::core::media::{Episode, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "{{ShowOverview: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
@@ -13,8 +13,6 @@ pub struct ShowOverview {
     num_seasons: i32,
     images: Images,
     rating: Option<Rating>,
-    #[serde(skip)]
-    liked: Option<bool>,
 }
 
 impl ShowOverview {
@@ -28,7 +26,6 @@ impl ShowOverview {
             num_seasons,
             images,
             rating,
-            liked: None,
         }
     }
 
@@ -57,25 +54,6 @@ impl MediaIdentifier for ShowOverview {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
-    }
-}
-
-impl Watchable for ShowOverview {
-    fn is_watched(&self) -> &bool {
-        &false
-    }
-}
-
-impl Favorable for ShowOverview {
-    fn is_liked(&self) -> &bool {
-        match &self.liked {
-            None => &false,
-            Some(e) => e
-        }
-    }
-
-    fn update_liked(&mut self, new_state: bool) {
-        self.liked = Some(new_state);
     }
 }
 
@@ -175,25 +153,6 @@ impl MediaIdentifier for ShowDetails {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
-    }
-}
-
-impl Watchable for ShowDetails {
-    fn is_watched(&self) -> &bool {
-        &false
-    }
-}
-
-impl Favorable for ShowDetails {
-    fn is_liked(&self) -> &bool {
-        match &self.liked {
-            None => &false,
-            Some(e) => e
-        }
-    }
-
-    fn update_liked(&mut self, new_state: bool) {
-        self.liked = Some(new_state);
     }
 }
 

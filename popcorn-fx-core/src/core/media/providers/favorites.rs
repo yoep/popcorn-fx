@@ -68,13 +68,16 @@ impl FavoritesProvider {
     }
 
     fn sort_by_watched(a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
-        if a.is_watched() == b.is_watched() {
-            Ordering::Equal
-        } else if *a.is_watched() {
-            Ordering::Less
-        } else {
-            Ordering::Greater
-        }
+        // TODO: add watched service
+        // if a.is_watched() == b.is_watched() {
+        //     Ordering::Equal
+        // } else if *a.is_watched() {
+        //     Ordering::Less
+        // } else {
+        //     Ordering::Greater
+        // }
+
+        Ordering::Equal
     }
 
     fn sort_by_year(a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
@@ -213,7 +216,7 @@ mod test {
         let settings = Arc::new(Application::default());
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
         let favorites = Arc::new(FavoriteService::new(&storage));
-        let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings, &favorites)) as Box<dyn MediaProvider>);
+        let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
         let provider = FavoritesProvider::new(&favorites, vec![&movie_provider]);
 
         let result = provider.retrieve_details(&imdb_id.to_string())

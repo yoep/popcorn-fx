@@ -86,7 +86,6 @@ struct MovieOverviewC {
   const char *year;
   RatingC *rating;
   ImagesC images;
-  bool liked;
 };
 
 struct TorrentInfoC {
@@ -120,7 +119,6 @@ struct MovieDetailsC {
   const char *year;
   RatingC *rating;
   ImagesC images;
-  bool liked;
   const char *synopsis;
   int32_t runtime;
   const char *trailer;
@@ -140,7 +138,6 @@ struct ShowOverviewC {
   int32_t num_seasons;
   ImagesC images;
   RatingC *rating;
-  bool liked;
 };
 
 struct EpisodeC {
@@ -163,7 +160,6 @@ struct ShowDetailsC {
   int32_t num_seasons;
   ImagesC images;
   RatingC *rating;
-  bool liked;
   const char *synopsis;
   const char *runtime;
   const char *status;

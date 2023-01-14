@@ -18,7 +18,7 @@ import java.util.Optional;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
-@Structure.FieldOrder({"title", "imdbId", "year", "rating", "images", "liked"})
+@Structure.FieldOrder({"title", "imdbId", "year", "rating", "images"})
 public class MovieOverview extends Structure implements Media, Closeable {
     public static class ByReference extends MovieOverview implements Structure.ByReference {
     }
@@ -33,7 +33,6 @@ public class MovieOverview extends Structure implements Media, Closeable {
     public String year;
     public Rating.ByReference rating;
     public Images images;
-    public byte liked;
 
     //region Properties
 
@@ -59,7 +58,7 @@ public class MovieOverview extends Structure implements Media, Closeable {
 
     @Override
     public boolean isLiked() {
-        return liked == 1;
+        return false;
     }
 
     @Override

@@ -8,8 +8,7 @@ use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
 use crate::core::config::Application;
-use crate::core::media::{Category, Favorable, Genre, MediaDetails, MediaOverview, MovieDetails, MovieOverview, SortBy};
-use crate::core::media::favorites::FavoriteService;
+use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, MovieDetails, MovieOverview, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
 
@@ -21,16 +20,14 @@ const DETAILS_RESOURCE_NAME: &str = "movie";
 #[derive(Debug)]
 pub struct MovieProvider {
     base: Arc<Mutex<BaseProvider>>,
-    favorite_service: Arc<FavoriteService>,
 }
 
 impl MovieProvider {
-    pub fn new(settings: &Arc<Application>, favorite_service: &Arc<FavoriteService>) -> Self {
+    pub fn new(settings: &Arc<Application>) -> Self {
         let uris = available_uris(settings, PROVIDER_NAME);
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris))),
-            favorite_service: favorite_service.clone(),
         }
     }
 }
@@ -57,7 +54,6 @@ impl MediaProvider for MovieProvider {
 
     async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
         let base_arc = &self.base.clone();
-        let favorite_service = self.favorite_service.clone();
         let mut base = base_arc.lock().await;
 
         match base.borrow_mut().retrieve_provider_page::<MovieOverview>(SEARCH_RESOURCE_NAME, genre, sort_by, &keywords, page).await {
@@ -66,10 +62,6 @@ impl MediaProvider for MovieProvider {
                 .map(|e| e.to_string())
                 .join("}, {"));
                 let movies: Vec<Box<dyn MediaOverview>> = e.into_iter()
-                    .map(|mut e| {
-                        e.update_liked(favorite_service.is_liked(&e));
-                        e
-                    })
                     .map(|e| Box::new(e) as Box<dyn MediaOverview>)
                     .collect();
 
@@ -102,14 +94,12 @@ impl MediaProvider for MovieProvider {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-    use std::env::temp_dir;
 
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
     use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
     use crate::core::media::{Images, MediaIdentifier, Rating};
-    use crate::core::storage::Storage;
     use crate::testing::{init_logger, read_test_file};
 
     use super::*;
@@ -128,12 +118,9 @@ mod test {
     async fn test_retrieve() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let temp_dir = temp_dir();
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
-        let storage = Arc::new(Storage::from_directory(temp_dir.as_path().to_str().unwrap()));
-        let favorites = Arc::new(FavoriteService::new(&storage));
-        let provider = MovieProvider::new(&settings, &favorites);
+        let provider = MovieProvider::new(&settings);
         let expected_result = MovieOverview::new_detailed(
             "Lorem Ipsum".to_string(),
             "tt9764362".to_string(),
@@ -172,23 +159,23 @@ mod test {
         assert_eq!(expected_result.imdb_id(), movie_result.imdb_id());
         assert_eq!(expected_result.title(), movie_result.title());
     }
-    //
-    // #[tokio::test]
-    // async fn test_retrieve_details() {
-    //     init_logger();
-    //     let imdb_id = "tt14138650".to_string();
-    //     let settings = Arc::new(Application::default());
-    //     let provider = MovieProvider::new(&settings);
-    //
-    //     let result = provider.retrieve_details(&imdb_id)
-    //         .await
-    //         .expect("expected the details to have been returned")
-    //         .into_any()
-    //         .downcast::<MovieDetails>()
-    //         .expect("expected media to be a movie");
-    //
-    //     assert_eq!(imdb_id, result.imdb_id())
-    // }
+
+    #[tokio::test]
+    async fn test_retrieve_details() {
+        init_logger();
+        let imdb_id = "tt14138650".to_string();
+        let settings = Arc::new(Application::default());
+        let provider = MovieProvider::new(&settings);
+
+        let result = provider.retrieve_details(&imdb_id)
+            .await
+            .expect("expected the details to have been returned")
+            .into_any()
+            .downcast::<MovieDetails>()
+            .expect("expected media to be a movie");
+
+        assert_eq!(imdb_id, result.imdb_id())
+    }
 
     fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {
         let mut map: HashMap<String, ProviderProperties> = HashMap::new();

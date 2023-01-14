@@ -5,7 +5,7 @@ use tokio::runtime::Handle;
 use tokio::sync::{Mutex, MutexGuard};
 
 use crate::core::media;
-use crate::core::media::{Favorable, MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
+use crate::core::media::{MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
 use crate::core::media::favorites::model::Favorites;
 use crate::core::storage::{Storage, StorageError};
 
@@ -27,14 +27,14 @@ impl FavoriteService {
     }
 
     /// Verify if the given [Favorable] media items is liked by the user.
-    pub fn is_liked(&self, favorable: &impl Favorable) -> bool {
+    pub fn is_liked(&self, favorable: &impl MediaIdentifier) -> bool {
         let imdb_id = favorable.imdb_id();
 
         self.internal_is_liked(&imdb_id, &favorable.media_type())
     }
 
     /// Verify if the given [Favorable] media items is liked by the user.
-    pub fn is_liked_boxed(&self, favorable: &Box<dyn Favorable>) -> bool {
+    pub fn is_liked_boxed(&self, favorable: &Box<dyn MediaIdentifier>) -> bool {
         let imdb_id = favorable.imdb_id();
         let media_type = favorable.media_type();
 
@@ -62,11 +62,6 @@ impl FavoriteService {
                 all.append(&mut movies);
                 all.append(&mut shows);
 
-                // update the liked state of all items
-                for e in all.iter_mut() {
-                    e.update_liked(true);
-                }
-
                 Ok(all)
             }
             Err(e) => Err(MediaError::FavoritesLoadingFailed(e.to_string()))
@@ -87,12 +82,10 @@ impl FavoriteService {
     }
 
     /// Add the given [Favorable] media item to the favorites.
-    pub fn add(&self, mut favorite: Box<dyn Favorable>) {
+    pub fn add(&self, mut favorite: Box<dyn MediaIdentifier>) {
         match self.load_favorites() {
             Ok(mut guard) => {
                 let mut e = guard.as_mut().expect("cache should have been present");
-                favorite.update_liked(true);
-
                 match favorite.media_type() {
                     MediaType::Movie => {
                         e.add_movie(&favorite.into_any()
@@ -116,7 +109,7 @@ impl FavoriteService {
     }
 
     /// Remove the media item from the favorites.
-    pub fn remove(&self, favorite: Box<dyn Favorable>) {
+    pub fn remove(&self, favorite: Box<dyn MediaIdentifier>) {
         trace!("Removing media item {} from favorites", &favorite);
         match self.load_favorites() {
             Ok(mut guard) => {
@@ -287,7 +280,7 @@ mod test {
             String::from(title),
             String::from(imdb_id),
             String::new(),
-        )) as Box<dyn Favorable>;
+        )) as Box<dyn MediaIdentifier>;
 
         service.add(movie);
         let result = service.all()
@@ -297,7 +290,6 @@ mod test {
         let media = result.get(0).unwrap();
         assert_eq!(imdb_id.to_string(), media.imdb_id());
         assert_eq!(title.to_string(), media.title());
-        assert_eq!(&true, media.is_liked());
     }
 
     #[test]

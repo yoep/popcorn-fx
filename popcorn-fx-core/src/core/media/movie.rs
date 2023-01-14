@@ -4,7 +4,7 @@ use derive_more::Display;
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::core::media::{Favorable, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, TorrentInfo, Watchable};
+use crate::core::media::{Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, TorrentInfo};
 
 /// The simple version of a media item representing a movie.
 /// It contains only the basic information needed for search results.
@@ -16,8 +16,6 @@ pub struct MovieOverview {
     year: String,
     rating: Option<Rating>,
     images: Images,
-    #[serde(skip)]
-    liked: Option<bool>,
 }
 
 impl MovieOverview {
@@ -28,7 +26,6 @@ impl MovieOverview {
             year,
             rating: None,
             images: Images::none(),
-            liked: None,
         }
     }
 
@@ -39,7 +36,6 @@ impl MovieOverview {
             year,
             rating,
             images,
-            liked: None,
         }
     }
 
@@ -59,25 +55,6 @@ impl MediaIdentifier for MovieOverview {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
-    }
-}
-
-impl Watchable for MovieOverview {
-    fn is_watched(&self) -> &bool {
-        &false
-    }
-}
-
-impl Favorable for MovieOverview {
-    fn is_liked(&self) -> &bool {
-        match &self.liked {
-            None => &false,
-            Some(e) => e
-        }
-    }
-
-    fn update_liked(&mut self, new_state: bool) {
-        self.liked = Some(new_state)
     }
 }
 
@@ -109,8 +86,6 @@ pub struct MovieDetails {
     images: Images,
     trailer: String,
     torrents: HashMap<String, HashMap<String, TorrentInfo>>,
-    #[serde(skip)]
-    liked: Option<bool>,
 }
 
 impl MovieDetails {
@@ -126,7 +101,6 @@ impl MovieDetails {
             images: Images::none(),
             trailer: String::new(),
             torrents: HashMap::new(),
-            liked: None,
         }
     }
 
@@ -143,7 +117,6 @@ impl MovieDetails {
             images,
             trailer,
             torrents: HashMap::new(),
-            liked: None,
         }
     }
 
@@ -185,25 +158,6 @@ impl MediaIdentifier for MovieDetails {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
-    }
-}
-
-impl Watchable for MovieDetails {
-    fn is_watched(&self) -> &bool {
-        &false
-    }
-}
-
-impl Favorable for MovieDetails {
-    fn is_liked(&self) -> &bool {
-        match &self.liked {
-            None => &false,
-            Some(e) => e
-        }
-    }
-
-    fn update_liked(&mut self, new_state: bool) {
-        self.liked = Some(new_state);
     }
 }
 

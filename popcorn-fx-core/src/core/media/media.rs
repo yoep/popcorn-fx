@@ -53,27 +53,9 @@ impl Display for MockMediaIdentifier {
     }
 }
 
-/// Defines an object that can be watched.
-pub trait Watchable: MediaIdentifier {
-    /// Verify if the current object is watched.
-    fn is_watched(&self) -> &bool;
-}
-
-/// Defines an object that can be liked.
-pub trait Favorable: MediaIdentifier {
-    /// Verify if the object is liked.
-    fn is_liked(&self) -> &bool;
-
-    /// Update the liked state of this favorable media item.
-    /// This state won't be persisted, use [crate::core::media::favorites::FavoriteService] instead for persisting the state.
-    ///
-    /// * `new_state`   The new liked state of this favorable media item.
-    fn update_liked(&mut self, new_state: bool);
-}
-
 /// The most basic information of a media item.
 /// It can be used for an overview information but won't contain any details.
-pub trait MediaOverview: MediaIdentifier + Watchable + Favorable {
+pub trait MediaOverview: MediaIdentifier {
     /// Retrieve the rating of the media item if available.
     fn rating(&self) -> Option<&Rating>;
 

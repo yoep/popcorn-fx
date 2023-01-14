@@ -464,8 +464,8 @@ fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavoritesC 
     into_c_owned(VecFavoritesC::from(movies, shows))
 }
 
-fn from_favorable(favorite: &FavoriteC) -> Option<Box<dyn Favorable>> {
-    let media: Box<dyn Favorable>;
+fn from_favorable(favorite: &FavoriteC) -> Option<Box<dyn MediaIdentifier>> {
+    let media: Box<dyn MediaIdentifier>;
 
     if !favorite.movie_overview.is_null() {
         let boxed = from_c_into_boxed(favorite.movie_overview);

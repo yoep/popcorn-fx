@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use derive_more::Display;
 use serde::Deserialize;
 
-use crate::core::media::{MediaIdentifier, MediaType, TorrentInfo, Watchable};
+use crate::core::media::{MediaIdentifier, MediaType, TorrentInfo};
 
 /// The episode of a show media item.
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
@@ -82,12 +82,6 @@ impl MediaIdentifier for Episode {
 
     fn title(&self) -> String {
         html_escape::decode_html_entities(&self.title).into_owned()
-    }
-}
-
-impl Watchable for Episode {
-    fn is_watched(&self) -> &bool {
-        &false
     }
 }
 

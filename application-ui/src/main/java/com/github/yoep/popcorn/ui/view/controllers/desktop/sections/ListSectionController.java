@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractListSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayMediaCardComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;
@@ -22,6 +23,7 @@ import java.util.List;
 
 @Slf4j
 public class ListSectionController extends AbstractListSectionController implements Initializable {
+    private final OverlayItemMetadataProvider metadataProvider = metadataProvider();
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
     private final ImageService imageService;
@@ -52,7 +54,7 @@ public class ListSectionController extends AbstractListSectionController impleme
         item.setWatched(watchedService.isWatched(item));
 
         // load a new media card controller and inject it into the view
-        var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, imageService, favoriteService, createItemListener());
+        var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, imageService, metadataProvider, createItemListener());
 
         return viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
     }
@@ -94,6 +96,25 @@ public class ListSectionController extends AbstractListSectionController impleme
     void onRetryListLoading(MouseEvent event) {
         event.consume();
         onRetryMediaLoading();
+    }
+
+    private OverlayItemMetadataProvider metadataProvider() {
+        return new OverlayItemMetadataProvider() {
+
+            @Override
+            public boolean isLiked(Media media) {
+                return favoriteService.isLiked(media);
+            }
+
+            @Override
+            public void updateLikedState(Media media, boolean newState) {
+                if (newState) {
+                    favoriteService.addToFavorites(media);
+                } else {
+                    favoriteService.removeFromFavorites(media);
+                }
+            }
+        };
     }
 
     //endregion

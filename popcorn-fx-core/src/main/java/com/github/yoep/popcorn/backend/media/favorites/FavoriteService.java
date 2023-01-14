@@ -16,6 +16,8 @@ import java.util.Optional;
 @Slf4j
 @Service
 public class FavoriteService {
+    private final Object lock = new Object();
+
     /**
      * Check if the given {@link com.github.yoep.popcorn.backend.media.providers.models.Media} is liked by the user.
      *
@@ -24,7 +26,10 @@ public class FavoriteService {
      */
     public boolean isLiked(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
-        return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+        synchronized (lock) {
+//            return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+            return false;
+        }
     }
 
     /**
@@ -33,9 +38,11 @@ public class FavoriteService {
      * @return Returns the list of liked items by the user.
      */
     public List<Media> getAll() {
-        return Optional.ofNullable(FxLib.INSTANCE.retrieve_all_favorites(PopcornFxInstance.INSTANCE.get()))
-                .map(FavoritesSet::<Media>getAll)
-                .orElse(Collections.emptyList());
+        synchronized (lock) {
+            return Optional.ofNullable(FxLib.INSTANCE.retrieve_all_favorites(PopcornFxInstance.INSTANCE.get()))
+                    .map(FavoritesSet::<Media>getAll)
+                    .orElse(Collections.emptyList());
+        }
     }
 
     /**
@@ -45,7 +52,9 @@ public class FavoriteService {
      */
     public void addToFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
-        FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+        synchronized (lock) {
+            FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+        }
     }
 
     /**
@@ -55,6 +64,8 @@ public class FavoriteService {
      */
     public void removeFromFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
-        FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+        synchronized (lock) {
+            FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+        }
     }
 }

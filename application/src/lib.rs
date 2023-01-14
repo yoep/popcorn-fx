@@ -470,18 +470,22 @@ fn from_favorable(favorite: &FavoriteC) -> Option<Box<dyn MediaIdentifier>> {
     if !favorite.movie_overview.is_null() {
         let boxed = from_c_into_boxed(favorite.movie_overview);
         media = Box::new(boxed.to_struct());
+        trace!("Create media struct {:?}", media);
         mem::forget(boxed);
     } else if !favorite.movie_details.is_null() {
         let boxed = from_c_into_boxed(favorite.movie_details);
         media = Box::new(boxed.to_struct());
+        trace!("Create media struct {:?}", media);
         mem::forget(boxed);
     } else if !favorite.show_overview.is_null() {
         let boxed = from_c_into_boxed(favorite.show_overview);
         media = Box::new(boxed.to_struct());
+        trace!("Create media struct {:?}", media);
         mem::forget(boxed);
     } else if !favorite.show_details.is_null() {
         let boxed = from_c_into_boxed(favorite.show_details);
         media = Box::new(boxed.to_struct());
+        trace!("Create media struct {:?}", media);
         mem::forget(boxed);
     } else {
         return None;

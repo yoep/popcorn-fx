@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -100,19 +101,14 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     private OverlayItemMetadataProvider metadataProvider() {
         return new OverlayItemMetadataProvider() {
-
             @Override
             public boolean isLiked(Media media) {
                 return favoriteService.isLiked(media);
             }
 
             @Override
-            public void updateLikedState(Media media, boolean newState) {
-                if (newState) {
-                    favoriteService.addToFavorites(media);
-                } else {
-                    favoriteService.removeFromFavorites(media);
-                }
+            public void addListener(FavoriteEventCallback callback) {
+                favoriteService.registerListener(callback);
             }
         };
     }

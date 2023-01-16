@@ -514,7 +514,7 @@ mod test {
                 String::new())),
             PopcornSettings::new(
                 SubtitleSettings::new(
-                    temp_dir.into_path().into_os_string().into_string().unwrap(),
+                    format!("{:?}", temp_dir.into_path()),
                     false,
                     English,
                     SubtitleFamily::Arial,
@@ -717,7 +717,7 @@ mod test {
         init_logger();
         let test_file = "subtitle_existing.srt";
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.into_path().into_os_string().into_string().unwrap();
+        let temp_path = format!("{:?}", temp_dir.into_path());
         let popcorn_settings = PopcornSettings::new(SubtitleSettings::new(
             temp_path.clone(),
             false,

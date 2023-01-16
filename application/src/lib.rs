@@ -6,8 +6,9 @@ use std::path::Path;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{EpisodeC, FavoriteC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::{EpisodeC, FavoriteC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
 use popcorn_fx_core::core::media::*;
+use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -437,6 +438,17 @@ pub extern "C" fn remove_from_favorites(popcorn_fx: &mut PopcornFX, favorite: &F
         None => error!("Unable to remove favorite, all FavoriteC fields are null"),
         Some(e) => popcorn_fx.favorite_service().remove(e)
     }
+}
+
+/// Register a new callback listener for favorite events.
+#[no_mangle]
+pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut PopcornFX, callback: extern "C" fn(FavoriteEventC)) {
+    trace!("Wrapping C callback for FavoriteCallback");
+    let wrapper: FavoriteCallback = Box::new(move |event| {
+        callback(FavoriteEventC::from(event));
+    });
+
+    popcorn_fx.favorite_service().register(wrapper)
 }
 
 /// Delete the PopcornFX instance in a safe way.

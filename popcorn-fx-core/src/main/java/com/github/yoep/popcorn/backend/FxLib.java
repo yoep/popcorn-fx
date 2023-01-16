@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.Favorite;
@@ -73,6 +74,8 @@ public interface FxLib extends Library {
     void add_to_favorites(PopcornFx instance, Favorite media);
 
     void remove_from_favorites(PopcornFx instance, Favorite media);
+
+    void register_favorites_event_callback(PopcornFx instance, FavoriteEventCallback callback);
 
     void disable_screensaver(PopcornFx instance);
 

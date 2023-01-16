@@ -88,6 +88,7 @@ impl Storage {
         match tokio::fs::OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(path).await {
             Ok(mut file) => {
                 Self::write_to(&mut file, value, &path_string).await
@@ -103,7 +104,7 @@ impl Storage {
         match serde_json::to_string(value) {
             Ok(e) => {
                 trace!("Writing to storage {:?}, {}", &path_string, &e);
-                match file.write(e.as_bytes()).await {
+                match file.write_all(e.as_bytes()).await {
                     Ok(_) => {
                         debug!("Storage file {} has been saved", path_string);
                         Ok(())
@@ -118,8 +119,8 @@ impl Storage {
 
 #[cfg(test)]
 mod test {
-    use crate::core::config::PopcornSettings;
-    use crate::testing::{init_logger, test_resource_directory};
+    use crate::core::config::{PopcornSettings, UiSettings};
+    use crate::testing::{init_logger, read_temp_dir_file, test_resource_directory};
 
     use super::*;
 
@@ -145,5 +146,24 @@ mod test {
         let result = storage.read::<PopcornSettings>("simple-settings.json");
 
         assert!(result.is_ok(), "Expected the storage reading to have succeeded")
+    }
+
+    #[tokio::test]
+    async fn test_write() {
+        init_logger();
+        let filename = "test";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.into_path();
+        let storage = Storage {
+            directory: temp_path.clone(),
+        };
+        let settings = UiSettings::default();
+        let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
+
+        let result = storage.write(filename.clone(), &settings).await;
+        assert!(result.is_ok(), "expected no error to have occurred");
+        let contents = read_temp_dir_file(temp_path, filename);
+
+        assert_eq!(expected_result, contents)
     }
 }

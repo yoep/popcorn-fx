@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -25,6 +27,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     private final WatchedService watchedService;
 
     private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> onWatchedChanged(newValue);
+    private final FavoriteEventCallback callback = createCallback();
 
     private Media lastShownMediaItem;
 
@@ -82,6 +85,11 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         }
     }
 
+    @PostConstruct
+    private void init() {
+        favoriteService.registerListener(callback);
+    }
+
     private void subscribeToPropertyChanges(Media media) {
         // remove the listeners from the old item
         // if one is present before registering to the new one
@@ -95,5 +103,16 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
 
     private void onWatchedChanged(boolean newValue) {
         invokeListeners(e -> e.onWatchChanged(newValue));
+    }
+
+    private FavoriteEventCallback createCallback() {
+        return event -> {
+            switch (event.tag) {
+                case LikedStateChanged -> {
+                    var stateChanged = event.getUnion().getLiked_state_changed();
+                    invokeListeners(e -> e.onLikedChanged(stateChanged.getNewState()));
+                }
+            }
+        };
     }
 }

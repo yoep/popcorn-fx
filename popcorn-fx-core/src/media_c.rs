@@ -6,6 +6,7 @@ use log::{error, trace};
 
 use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
+use crate::core::media::favorites::FavoriteEvent;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -306,9 +307,9 @@ impl ShowDetailsC {
         let mut rating = None;
 
         if !self.rating.is_null() {
-            // let owned = from_c_owned(self.rating);
-            // rating = Some(owned.to_struct());
-            // mem::forget(owned);
+            let owned = from_c_into_boxed(self.rating);
+            rating = Some(owned.to_struct());
+            mem::forget(owned);
         }
 
         ShowDetails::new(
@@ -590,6 +591,25 @@ impl TorrentInfoC {
                 None => ptr::null(),
                 Some(e) => to_c_string(e.clone())
             },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub enum FavoriteEventC {
+    /// Event indicating that the like state of a media item changed.
+    ///
+    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `bool`            - The new like state of the media item.
+    LikedStateChanged(*const c_char, bool)
+}
+
+impl FavoriteEventC {
+    pub fn from(event: FavoriteEvent) -> Self {
+        trace!("Converting FavoriteEvent to C {}", &event);
+        match event {
+            FavoriteEvent::LikedStateChanged(id, state) => Self::LikedStateChanged(to_c_string(id.clone()), state.clone()),
         }
     }
 }

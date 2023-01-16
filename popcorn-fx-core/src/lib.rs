@@ -161,7 +161,15 @@ pub mod testing {
     pub fn read_test_file(filename: &str) -> String {
         let source = test_resource_filepath(filename);
 
-        fs::read_to_string(&source).expect("expected the testing file to be readable")
+        fs::read_to_string(&source).unwrap()
+    }
+
+    /// Read a file from the temp directory.
+    pub fn read_temp_dir_file(temp_dir: PathBuf, filename: &str) -> String {
+        let mut path = temp_dir.clone();
+        path.push(filename);
+
+        fs::read_to_string(&path).unwrap()
     }
 }
 

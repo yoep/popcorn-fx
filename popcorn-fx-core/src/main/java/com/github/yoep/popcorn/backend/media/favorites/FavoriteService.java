@@ -12,11 +12,18 @@ import org.springframework.util.Assert;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Slf4j
 @Service
 public class FavoriteService {
     private final Object lock = new Object();
+    private final FavoriteEventCallback callback = createCallback();
+    private final ConcurrentLinkedDeque<FavoriteEventCallback> listeners = new ConcurrentLinkedDeque<>();
+
+    public FavoriteService() {
+        init();
+    }
 
     /**
      * Check if the given {@link com.github.yoep.popcorn.backend.media.providers.models.Media} is liked by the user.
@@ -66,5 +73,29 @@ public class FavoriteService {
         synchronized (lock) {
             FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
         }
+    }
+
+    public void registerListener(FavoriteEventCallback callback) {
+        Assert.notNull(callback, "callback cannot be null");
+        listeners.add(callback);
+    }
+
+    public void removeListener(FavoriteEventCallback callback) {
+        listeners.remove(callback);
+    }
+
+    private void init() {
+        synchronized (lock) {
+            FxLib.INSTANCE.register_favorites_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
+        }
+    }
+
+    private FavoriteEventCallback createCallback() {
+        return event -> {
+            log.debug("Received favorite event callback {}", event);
+            for (var listener : listeners) {
+                listener.callback(event);
+            }
+        };
     }
 }

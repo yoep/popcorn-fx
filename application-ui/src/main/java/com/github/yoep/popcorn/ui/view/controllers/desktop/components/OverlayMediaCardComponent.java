@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
@@ -18,6 +19,7 @@ import org.springframework.util.Assert;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 import static java.util.Arrays.asList;
@@ -30,6 +32,7 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     private final List<OverlayItemListener> listeners = new ArrayList<>();
     private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
     private final OverlayItemMetadataProvider metadataProvider;
+    private final FavoriteEventCallback listener = createListener(media);
 
     @FXML
     private Pane posterItem;
@@ -48,6 +51,7 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         super(media, localeText, imageService);
         this.metadataProvider = metadataProvider;
         this.listeners.addAll(asList(listeners));
+        metadataProvider.addListener(listener);
     }
 
     @Override
@@ -108,6 +112,20 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         }
     }
 
+    private FavoriteEventCallback createListener(Media media) {
+        return event -> {
+            switch (event.getTag()) {
+                case LikedStateChanged -> {
+                    var stateChange = event.getUnion().getLiked_state_changed();
+
+                    if (Objects.equals(stateChange.getImdbId(), media.getId())) {
+                        switchFavorite(stateChange.getNewState());
+                    }
+                }
+            }
+        };
+    }
+
     @FXML
     private void onWatchedClicked(MouseEvent event) {
         event.consume();
@@ -122,7 +140,6 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     private void onFavoriteClicked(MouseEvent event) {
         event.consume();
         boolean newState = !metadataProvider.isLiked(media);
-        metadataProvider.updateLikedState(media, newState);
 
         synchronized (listeners) {
             listeners.forEach(e -> e.onFavoriteChanged(media, newState));

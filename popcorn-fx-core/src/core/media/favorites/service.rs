@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
@@ -11,11 +12,32 @@ use crate::core::storage::{Storage, StorageError};
 
 const FILENAME: &str = "favorites.json";
 
+/// The callback to listen on events of the favorite service.
+pub type FavoriteCallback = Box<dyn Fn(FavoriteEvent) + Send>;
+
+#[derive(Debug, Clone)]
+pub enum FavoriteEvent {
+    /// Invoked when a media item's liked state has changed.
+    ///
+    /// - The IMDB ID of the media item for which the state changed.
+    /// - The new state.
+    LikedStateChanged(String, bool)
+}
+
+impl Display for FavoriteEvent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FavoriteEvent::LikedStateChanged(id, new_state) => write!(f, "Like state changed of {} to {}", id, new_state),
+        }
+    }
+}
+
 /// The favorite service is stores & retrieves liked media items based on the ID.
 #[derive(Debug)]
 pub struct FavoriteService {
     storage: Arc<Storage>,
     mutex: Arc<Mutex<Option<Favorites>>>,
+    callbacks: FavoriteCallbacks,
 }
 
 impl FavoriteService {
@@ -23,6 +45,7 @@ impl FavoriteService {
         Self {
             storage: storage.clone(),
             mutex: Arc::new(Mutex::new(None)),
+            callbacks: FavoriteCallbacks::new(),
         }
     }
 
@@ -83,26 +106,34 @@ impl FavoriteService {
         }
     }
 
-    /// Add the given [Favorable] media item to the favorites.
+    /// Add the given media item to the favorites.
+    /// Only overview items of type [MovieOverview] or [ShowOverview] are supported.
     pub fn add(&self, favorite: Box<dyn MediaIdentifier>) {
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
                 let mutex = self.mutex.clone();
                 let mut cache = futures::executor::block_on(mutex.lock());
                 let mut e = cache.as_mut().expect("cache should have been present");
+                let imdb_id = favorite.imdb_id();
+
                 match favorite.media_type() {
                     MediaType::Movie => {
-                        e.add_movie(&favorite.into_any()
-                            .downcast::<MovieOverview>()
-                            .expect("expected the favorite to be a movie overview"));
+                        match favorite.into_any().downcast::<MovieOverview>() {
+                            Ok(media) => e.add_movie(&media),
+                            Err(e) => error!("Failed to add favorite, type {:?} not supported", e.type_id())
+                        }
                     }
                     MediaType::Show => {
-                        e.add_show(&favorite.into_any()
-                            .downcast::<ShowOverview>()
-                            .expect("expected the favorite to be a show overview"));
+                        match favorite.into_any().downcast::<ShowOverview>() {
+                            Ok(media) => e.add_show(&media),
+                            Err(e) => error!("Failed to add favorite, type {:?} not supported", e.type_id())
+                        }
                     }
                     _ => error!("Unable to add media to favorites, media type {} is not supported", favorite.media_type())
                 }
+
+                // invoke callbacks
+                self.callbacks.invoke(FavoriteEvent::LikedStateChanged(imdb_id, true));
 
                 self.save(&mut e);
             }
@@ -117,15 +148,26 @@ impl FavoriteService {
         trace!("Removing media item {} from favorites", &favorite);
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
+                let imdb_id = favorite.imdb_id();
                 let mutex = self.mutex.clone();
                 let mut cache = futures::executor::block_on(mutex.lock());
                 let mut e = cache.as_mut().expect("cache should have been present");
 
-                e.remove_id(&favorite.imdb_id());
+                e.remove_id(&imdb_id);
+
+                // invoke callbacks
+                self.callbacks.invoke(FavoriteEvent::LikedStateChanged(imdb_id, false));
+
                 self.save(&mut e);
             }
             Err(e) => error!("Failed to add {} as favorite, {}", favorite, e)
         }
+    }
+
+    /// Register the given callback to the favorite events.
+    /// The callback will be invoked when an event happens within this service.
+    pub fn register(&self, callback: FavoriteCallback) {
+        self.callbacks.add(callback)
     }
 
     fn internal_is_liked(&self, imdb_id: &String, media_type: &MediaType) -> bool {
@@ -133,9 +175,7 @@ impl FavoriteService {
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
                 let mutex = self.mutex.clone();
-                trace!("Acquiring favorites cache lock");
                 let cache = futures::executor::block_on(mutex.lock());
-                trace!("Acquired favorites cache lock");
                 let favorites = cache.as_ref().expect("cache should have been present");
                 trace!("Checking is liked for media type {}", media_type);
                 match media_type {
@@ -181,10 +221,8 @@ impl FavoriteService {
 
     async fn load_favorites_cache(&self) -> media::Result<()> {
         let mutex = self.mutex.clone();
-        trace!("Acquiring favorites cache lock");
         let mut cache = mutex.lock().await;
 
-        trace!("Acquired cache lock, checking cache state");
         if cache.is_none() {
             trace!("Loading favorites cache");
             return match self.load_favorites_from_storage() {
@@ -220,6 +258,73 @@ impl FavoriteService {
                 }
             }
         }
+    }
+}
+
+impl Drop for FavoriteService {
+    fn drop(&mut self) {
+        let mutex = self.mutex.clone();
+        let favorites = futures::executor::block_on(mutex.lock());
+
+        if favorites.is_some() {
+            debug!("Saving favorites on exit");
+            let e = favorites.as_ref().expect("Expected the favorites to be present");
+            self.save(e)
+        }
+    }
+}
+
+struct FavoriteCallbacks {
+    callbacks: Arc<Mutex<Vec<FavoriteCallback>>>,
+}
+
+impl FavoriteCallbacks {
+    fn new() -> Self {
+        Self {
+            callbacks: Arc::new(Mutex::new(vec![])),
+        }
+    }
+
+    fn add(&self, callback: FavoriteCallback) {
+        trace!("Registering new callback for favorite events");
+        match Handle::try_current() {
+            Ok(e) => {
+                e.block_on(self.add_async(callback));
+            }
+            Err(_) => {
+                // let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to be created");
+                futures::executor::block_on(self.add_async(callback));
+            }
+        }
+    }
+
+    async fn add_async(&self, callback: FavoriteCallback) {
+        let callbacks = self.callbacks.clone();
+        let mut mutex = callbacks.lock().await;
+
+        mutex.push(callback);
+        debug!("Added new callback for FavoriteEvent events, new total callbacks {}", mutex.len());
+    }
+
+    fn invoke(&self, event: FavoriteEvent) {
+        let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to be created");
+        let callbacks = self.callbacks.clone();
+
+        runtime.spawn(async move {
+            let mutex = callbacks.lock().await;
+
+            debug!("Calling a total of {} callbacks for: {}", mutex.len(), &event);
+            for callback in mutex.iter() {
+                callback(event.clone());
+            }
+        });
+    }
+}
+
+impl Debug for FavoriteCallbacks {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mutex = futures::executor::block_on(self.callbacks.lock());
+        write!(f, "FavoriteCallbacks {{callbacks: {}}}", mutex.len())
     }
 }
 

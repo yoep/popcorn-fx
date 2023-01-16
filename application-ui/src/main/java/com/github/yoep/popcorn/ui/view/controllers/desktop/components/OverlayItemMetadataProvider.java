@@ -7,4 +7,6 @@ public interface OverlayItemMetadataProvider {
     boolean isLiked(Media media);
 
     void addListener(FavoriteEventCallback callback);
+
+    void removeListener(FavoriteEventCallback callback);
 }

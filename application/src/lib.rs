@@ -425,9 +425,38 @@ pub extern "C" fn retrieve_all_favorites(popcorn_fx: &mut PopcornFX) -> *mut Vec
 /// Duplicate favorite media items are ignored.
 #[no_mangle]
 pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) {
-    match from_favorable(favorite) {
-        None => error!("Unable to add favorite, all FavoriteC fields are null"),
-        Some(e) => popcorn_fx.favorite_service().add(e)
+    let media: Box<dyn MediaIdentifier>;
+
+    if !favorite.movie_overview.is_null() {
+        let boxed = from_c_into_boxed(favorite.movie_overview);
+        media = Box::new(boxed.to_struct());
+        trace!("Created media struct {:?}", media);
+        mem::forget(boxed);
+    } else if !favorite.movie_details.is_null() {
+        let boxed = from_c_into_boxed(favorite.movie_details);
+        let details = boxed.to_struct();
+        media = Box::new(details.to_overview());
+        trace!("Created media struct {:?}", media);
+        mem::forget(details);
+    } else if !favorite.show_overview.is_null() {
+        let boxed = from_c_into_boxed(favorite.show_overview);
+        media = Box::new(boxed.to_struct());
+        trace!("Created media struct {:?}", media);
+        mem::forget(boxed);
+    } else if !favorite.show_details.is_null() {
+        let boxed = from_c_into_boxed(favorite.show_details);
+        let details = Box::new(boxed.to_struct());
+        media = Box::new(details.to_overview());
+        trace!("Created media struct {:?}", media);
+        mem::forget(boxed);
+    } else {
+        error!("Unable to add favorite, all FavoriteC fields are null");
+        return;
+    }
+
+    match popcorn_fx.favorite_service().add(media) {
+        Ok(_) => {}
+        Err(e) => error!("{}", e)
     }
 }
 

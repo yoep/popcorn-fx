@@ -93,8 +93,13 @@ public class FavoriteService {
     private FavoriteEventCallback createCallback() {
         return event -> {
             log.debug("Received favorite event callback {}", event);
-            for (var listener : listeners) {
-                listener.callback(event);
+
+            try {
+                for (var listener : listeners) {
+                    listener.callback(event);
+                }
+            } catch (Exception ex) {
+                log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
             }
         };
     }

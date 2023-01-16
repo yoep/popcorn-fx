@@ -110,6 +110,11 @@ public class ListSectionController extends AbstractListSectionController impleme
             public void addListener(FavoriteEventCallback callback) {
                 favoriteService.registerListener(callback);
             }
+
+            @Override
+            public void removeListener(FavoriteEventCallback callback) {
+                favoriteService.removeListener(callback);
+            }
         };
     }
 

@@ -108,37 +108,45 @@ impl FavoriteService {
 
     /// Add the given media item to the favorites.
     /// Only overview items of type [MovieOverview] or [ShowOverview] are supported.
-    pub fn add(&self, favorite: Box<dyn MediaIdentifier>) {
+    pub fn add(&self, favorite: Box<dyn MediaIdentifier>) -> media::Result<()> {
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
                 let mutex = self.mutex.clone();
                 let mut cache = futures::executor::block_on(mutex.lock());
                 let mut e = cache.as_mut().expect("cache should have been present");
                 let imdb_id = favorite.imdb_id();
+                let media_type = favorite.media_type();
 
-                match favorite.media_type() {
+                match media_type {
                     MediaType::Movie => {
                         match favorite.into_any().downcast::<MovieOverview>() {
                             Ok(media) => e.add_movie(&media),
-                            Err(e) => error!("Failed to add favorite, type {:?} not supported", e.type_id())
+                            Err(_) => {
+                                return Err(MediaError::FavoriteAddFailed(imdb_id, format!("media type {} is not supported", media_type)));
+                            }
                         }
                     }
                     MediaType::Show => {
                         match favorite.into_any().downcast::<ShowOverview>() {
                             Ok(media) => e.add_show(&media),
-                            Err(e) => error!("Failed to add favorite, type {:?} not supported", e.type_id())
+                            Err(_) => {
+                                return Err(MediaError::FavoriteAddFailed(imdb_id, format!("media type {} is not supported", media_type)));
+                            }
                         }
                     }
-                    _ => error!("Unable to add media to favorites, media type {} is not supported", favorite.media_type())
+                    _ => {
+                        return Err(MediaError::FavoriteAddFailed(imdb_id, format!("media type {} is not supported", media_type)));
+                    }
                 }
 
                 // invoke callbacks
                 self.callbacks.invoke(FavoriteEvent::LikedStateChanged(imdb_id, true));
 
                 self.save(&mut e);
+                Ok(())
             }
             Err(e) => {
-                error!("Failed to add {} as favorite, {}", favorite, e);
+                Err(MediaError::FavoriteAddFailed(favorite.imdb_id(), e.to_string()))
             }
         }
     }

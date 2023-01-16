@@ -137,6 +137,18 @@ impl ShowDetails {
     pub fn episodes(&self) -> &Vec<Episode> {
         &self.episodes
     }
+
+    pub fn to_overview(&self) -> ShowOverview {
+        ShowOverview::new(
+            self.imdb_id.clone(),
+            self.tvdb_id.clone(),
+            self.title.clone(),
+            self.year.clone(),
+            self.num_seasons.clone(),
+            self.images.clone(),
+            self.rating.clone(),
+        )
+    }
 }
 
 impl MediaIdentifier for ShowDetails {

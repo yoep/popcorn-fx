@@ -9,6 +9,9 @@ pub enum MediaError {
     FavoritesLoadingFailed(String),
     /// The requested favorite item couldn't be found
     FavoriteNotFound(String),
+    FavoriteAddFailed(String, String),
+    /// The given media item is not supported
+    MediaTypeNotSupported(String),
     /// There are no media providers available to query
     NoAvailableProviders,
     ProviderRequestFailed(u16),
@@ -28,6 +31,8 @@ impl Display for MediaError {
             MediaError::ProviderParsingFailed(error) => write!(f, "failed to parse response, {}", error),
             MediaError::ProviderAlreadyExists(category) => write!(f, "a provider for {} is already registered", category),
             MediaError::ProviderNotFound(category) => write!(f, "no provider could be found for {}", category),
+            MediaError::MediaTypeNotSupported(imdb_id) => write!(f, "media type of {} is unsupported", imdb_id),
+            MediaError::FavoriteAddFailed(imdb_id, message) => write!(f, "failed to ad favorite for {}, {}", imdb_id, message),
         }
     }
 }

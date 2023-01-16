@@ -61,6 +61,7 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         initializeStars();
         initializeFavorite();
         initializeWatched();
+        initializeParentListener();
     }
 
     /**
@@ -94,6 +95,14 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     private void initializeWatched() {
         switchWatched(media.isWatched());
         media.watchedProperty().addListener(watchedListener);
+    }
+
+    private void initializeParentListener() {
+        posterItem.parentProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue == null) {
+                metadataProvider.removeListener(listener);
+            }
+        });
     }
 
     private void switchFavorite(boolean isFavorite) {

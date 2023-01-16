@@ -135,6 +135,16 @@ impl MovieDetails {
     pub fn torrents(&self) -> &HashMap<String, HashMap<String, TorrentInfo>> {
         &self.torrents
     }
+
+    pub fn to_overview(&self) -> MovieOverview {
+        MovieOverview::new_detailed(
+            self.title.clone(),
+            self.imdb_id.clone(),
+            self.year.clone(),
+            self.rating.clone(),
+            self.images.clone(),
+        )
+    }
 }
 
 impl MediaIdentifier for MovieDetails {

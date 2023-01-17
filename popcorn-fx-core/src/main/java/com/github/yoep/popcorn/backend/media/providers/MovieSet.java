@@ -12,11 +12,10 @@ import static java.util.Arrays.asList;
 
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"movies", "len", "cap"})
+@Structure.FieldOrder({"movies", "len"})
 public class MovieSet extends Structure implements Closeable {
     public MovieOverview.ByReference movies;
     public int len;
-    public int cap;
 
     public List<MovieOverview> getMovies() {
         return asList((MovieOverview[]) movies.toArray(len));

@@ -12,11 +12,10 @@ import static java.util.Arrays.asList;
 
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"shows", "len", "cap"})
+@Structure.FieldOrder({"shows", "len"})
 public class ShowSet extends Structure implements Closeable {
     public ShowOverview.ByReference shows;
     public int len;
-    public int cap;
 
     public List<ShowOverview> getShows() {
         return asList((ShowOverview[]) shows.toArray(len));

@@ -15,14 +15,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @ToString
-@Structure.FieldOrder({"movies", "moviesLen", "moviesCap", "shows", "showsLen", "showsCap"})
+@Structure.FieldOrder({"movies", "moviesLen", "shows", "showsLen"})
 public class FavoritesSet extends Structure implements Closeable {
     public MovieOverview.ByReference movies;
     public int moviesLen;
-    public int moviesCap;
     public ShowOverview.ByReference shows;
     public int showsLen;
-    public int showsCap;
 
     public <T> List<T> getAll() {
         return Stream.concat(getMovies().stream(), getShows().stream())

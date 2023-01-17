@@ -20,7 +20,7 @@ import java.util.*;
 @Getter
 @ToString(exclude = {"cached"})
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"file", "subtitleInfo", "cueRef", "len", "cap"})
+@Structure.FieldOrder({"file", "subtitleInfo", "cueRef", "len"})
 public class Subtitle extends Structure implements Serializable, Closeable {
 
     private static final Subtitle NONE = new Subtitle(SubtitleInfo.none());
@@ -29,7 +29,6 @@ public class Subtitle extends Structure implements Serializable, Closeable {
     public SubtitleInfo subtitleInfo;
     public SubtitleCue.ByReference cueRef;
     public int len;
-    public int cap;
 
     private List<SubtitleCue> cached;
 

@@ -14,14 +14,13 @@ import java.util.Optional;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"cached"})
-@Structure.FieldOrder({"textRef", "len", "cap"})
+@Structure.FieldOrder({"textRef", "len"})
 public class SubtitleLine extends Structure implements Closeable {
     public static class ByReference extends SubtitleLine implements Structure.ByReference {
     }
 
     public SubtitleText.ByReference textRef;
     public int len;
-    public int cap;
 
     private List<SubtitleText> cached;
 

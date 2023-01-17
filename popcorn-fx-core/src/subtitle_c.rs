@@ -2,7 +2,7 @@ use std::os::raw::c_char;
 
 use log::trace;
 
-use crate::{from_c_owned, from_c_string, into_c_owned, to_c_string, to_c_vec};
+use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
 use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
@@ -129,13 +129,12 @@ pub struct SubtitleC {
     pub info: SubtitleInfoC,
     pub cues: *mut SubtitleCueC,
     pub number_of_cues: i32,
-    pub cues_capacity: i32,
 }
 
 impl SubtitleC {
     pub fn from(subtitle: Subtitle) -> Self {
         trace!("Converting subtitle to C for {}", subtitle);
-        let (cues_ptr, number_of_cues, cues_capacity) = to_c_vec(subtitle.cues().iter()
+        let (cues_ptr, number_of_cues) = to_c_vec(subtitle.cues().iter()
             .map(|e| SubtitleCueC::from(e))
             .collect());
 
@@ -150,14 +149,13 @@ impl SubtitleC {
                 .unwrap()),
             cues: cues_ptr,
             number_of_cues,
-            cues_capacity,
         }
     }
 
     pub fn to_subtitle(&self) -> Subtitle {
         trace!("Converting subtitle from C for {:?}", self);
         let info = self.info.clone().to_subtitle();
-        let cues = unsafe { Vec::from_raw_parts(self.cues, self.number_of_cues as usize, self.cues_capacity as usize) };
+        let cues = from_c_vec(self.cues, self.number_of_cues);
         let mut file = None;
 
         if !self.file.is_null() {
@@ -181,13 +179,12 @@ pub struct SubtitleCueC {
     pub end_time: u64,
     pub lines: *mut SubtitleLineC,
     pub number_of_lines: i32,
-    pub capacity: i32,
 }
 
 impl SubtitleCueC {
     pub fn from(cue: &SubtitleCue) -> Self {
         trace!("Converting cue to C for {}", cue);
-        let (lines, number_of_lines, capacity) = to_c_vec(cue.lines().iter()
+        let (lines, number_of_lines) = to_c_vec(cue.lines().iter()
             .map(|e| SubtitleLineC::from(e))
             .collect());
 
@@ -197,7 +194,6 @@ impl SubtitleCueC {
             end_time: cue.end_time().clone(),
             lines,
             number_of_lines,
-            capacity,
         }
     }
 
@@ -205,7 +201,7 @@ impl SubtitleCueC {
         let id = from_c_string(self.id);
         let start_time = self.start_time.clone();
         let end_time = self.end_time.clone();
-        let lines = unsafe { Vec::from_raw_parts(self.lines, self.number_of_lines as usize, self.capacity as usize) };
+        let lines = from_c_vec(self.lines, self.number_of_lines);
 
         SubtitleCue::new(
             id,
@@ -222,25 +218,23 @@ impl SubtitleCueC {
 pub struct SubtitleLineC {
     pub texts: *mut StyledTextC,
     pub len: i32,
-    pub cap: i32,
 }
 
 impl SubtitleLineC {
     pub fn from(line: &SubtitleLine) -> Self {
         trace!("Converting subtitle line to C for {}", line);
-        let (texts, number_of_texts, capacity) = to_c_vec(line.texts().iter()
+        let (texts, number_of_texts) = to_c_vec(line.texts().iter()
             .map(|e| StyledTextC::from(e))
             .collect());
 
         Self {
             texts,
             len: number_of_texts,
-            cap: capacity,
         }
     }
 
     pub fn to_line(&self) -> SubtitleLine {
-        let texts = unsafe { Vec::from_raw_parts(self.texts, self.len as usize, self.cap as usize) };
+        let texts = from_c_vec(self.texts, self.len);
 
         SubtitleLine::new(texts.iter()
             .map(|e| e.to_text())

@@ -13,17 +13,15 @@ use crate::core::media::favorites::FavoriteEvent;
 pub struct VecMovieC {
     pub movies: *mut MovieOverviewC,
     pub len: i32,
-    pub cap: i32,
 }
 
 impl VecMovieC {
     pub fn from(movies: Vec<MovieOverviewC>) -> Self {
-        let (movies, len, cap) = to_c_vec(movies);
+        let (movies, len) = to_c_vec(movies);
 
         Self {
             movies,
             len,
-            cap,
         }
     }
 }
@@ -33,17 +31,15 @@ impl VecMovieC {
 pub struct VecShowC {
     pub shows: *mut ShowOverviewC,
     pub len: i32,
-    pub cap: i32,
 }
 
 impl VecShowC {
     pub fn from(shows: Vec<ShowOverviewC>) -> Self {
-        let (shows, len, cap) = to_c_vec(shows);
+        let (shows, len) = to_c_vec(shows);
 
         Self {
             shows,
             len,
-            cap,
         }
     }
 }
@@ -53,24 +49,20 @@ impl VecShowC {
 pub struct VecFavoritesC {
     pub movies: *mut MovieOverviewC,
     pub movies_len: i32,
-    pub movies_cap: i32,
     pub shows: *mut ShowOverviewC,
     pub shows_len: i32,
-    pub shows_cap: i32,
 }
 
 impl VecFavoritesC {
     pub fn from(movies: Vec<MovieOverviewC>, shows: Vec<ShowOverviewC>) -> Self {
-        let (movies, movies_len, movies_cap) = to_c_vec(movies);
-        let (shows, shows_len, shows_cap) = to_c_vec(shows);
+        let (movies, movies_len) = to_c_vec(movies);
+        let (shows, shows_len) = to_c_vec(shows);
 
         Self {
             movies,
             movies_len,
-            movies_cap,
             shows,
             shows_len,
-            shows_cap,
         }
     }
 }
@@ -132,19 +124,17 @@ pub struct MovieDetailsC {
     trailer: *const c_char,
     genres: *mut *const c_char,
     genres_len: i32,
-    genres_cap: i32,
     torrents: *mut TorrentEntryC,
     torrents_len: i32,
-    torrents_cap: i32,
 }
 
 impl MovieDetailsC {
     pub fn from(movie: MovieDetails) -> Self {
         trace!("Converting MovieDetails to C for {{{}}}", movie);
-        let (genres, genres_len, genres_cap) = to_c_vec(movie.genres().iter()
+        let (genres, genres_len) = to_c_vec(movie.genres().iter()
             .map(|e| to_c_string(e.clone()))
             .collect());
-        let (torrents, torrents_len, torrents_cap) = to_c_vec(movie.torrents().iter()
+        let (torrents, torrents_len) = to_c_vec(movie.torrents().iter()
             .map(|(k, v)| TorrentEntryC::from(k, v))
             .collect());
 
@@ -162,21 +152,21 @@ impl MovieDetailsC {
             trailer: to_c_string(movie.trailer().clone()),
             genres,
             genres_len,
-            genres_cap,
             torrents,
             torrents_len,
-            torrents_cap,
         }
     }
 
     pub fn to_struct(&self) -> MovieDetails {
         trace!("Converting MovieDetails from C {:?}", self);
         let mut rating = None;
-        let genres = from_c_vec(self.genres, self.genres_len, self.genres_cap).into_iter()
+        trace!("Converting MovieDetails genres");
+        let genres = from_c_vec(self.genres, self.genres_len).into_iter()
             .map(|e| from_c_string(e))
             .collect();
 
         if !self.rating.is_null() {
+            trace!("Converting MovieDetails rating");
             let owned = from_c_into_boxed(self.rating);
             rating = Some(owned.to_struct());
             mem::forget(owned);
@@ -262,22 +252,20 @@ pub struct ShowDetailsC {
     status: *const c_char,
     genres: *mut *const c_char,
     genres_len: i32,
-    genres_cap: i32,
     episodes: *mut EpisodeC,
     episodes_len: i32,
-    episodes_cap: i32,
 }
 
 impl ShowDetailsC {
     pub fn from(show: ShowDetails) -> Self {
         trace!("Converting ShowDetails to C {}", show);
-        let (genres, genres_len, genres_cap) = to_c_vec(show.genres().iter()
+        let (genres, genres_len) = to_c_vec(show.genres().iter()
             .map(|e| to_c_string(e.clone()))
             .collect());
         let episodes = show.episodes().iter()
             .map(|e| EpisodeC::from(e.clone()))
             .collect();
-        let (episodes, episodes_len, episodes_cap) = to_c_vec(episodes);
+        let (episodes, episodes_len) = to_c_vec(episodes);
 
         Self {
             imdb_id: to_c_string(show.imdb_id().clone()),
@@ -295,10 +283,8 @@ impl ShowDetailsC {
             status: to_c_string(show.status().clone()),
             genres,
             genres_len,
-            genres_cap,
             episodes,
             episodes_len,
-            episodes_cap,
         }
     }
 
@@ -335,7 +321,6 @@ pub struct EpisodeC {
     tvdb_id: *const c_char,
     torrents: *mut TorrentQualityC,
     len: i32,
-    cap: i32,
 }
 
 impl EpisodeC {
@@ -344,7 +329,7 @@ impl EpisodeC {
         let torrents = episode.torrents().iter()
             .map(|(k, v)| TorrentQualityC::from(k, v))
             .collect();
-        let (torrents, len, cap) = to_c_vec(torrents);
+        let (torrents, len) = to_c_vec(torrents);
 
         Self {
             season: episode.season().clone() as i32,
@@ -355,7 +340,6 @@ impl EpisodeC {
             tvdb_id: to_c_string(episode.tvdb_id().clone()),
             torrents,
             len,
-            cap,
         }
     }
 
@@ -520,12 +504,11 @@ pub struct TorrentEntryC {
     language: *const c_char,
     qualities: *mut TorrentQualityC,
     len: i32,
-    cap: i32,
 }
 
 impl TorrentEntryC {
     fn from(language: &String, qualities: &HashMap<String, TorrentInfo>) -> Self {
-        let (qualities, len, cap) = to_c_vec(qualities.iter()
+        let (qualities, len) = to_c_vec(qualities.iter()
             .map(|(k, v)| TorrentQualityC::from(k, v))
             .collect());
 
@@ -533,7 +516,6 @@ impl TorrentEntryC {
             language: to_c_string(language.clone()),
             qualities,
             len,
-            cap,
         }
     }
 }

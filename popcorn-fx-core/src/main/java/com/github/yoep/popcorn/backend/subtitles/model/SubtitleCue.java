@@ -11,7 +11,7 @@ import java.util.*;
 @Getter
 @ToString(exclude = {"cached"})
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"id", "startTime", "endTime", "lineRef", "len", "cap"})
+@Structure.FieldOrder({"id", "startTime", "endTime", "lineRef", "len"})
 public class SubtitleCue extends Structure implements Comparable<SubtitleCue>, Closeable {
     public static class ByReference extends SubtitleCue implements Structure.ByReference {
     }
@@ -31,7 +31,6 @@ public class SubtitleCue extends Structure implements Comparable<SubtitleCue>, C
 
     public SubtitleLine.ByReference lineRef;
     public int len;
-    public int cap;
 
     private List<SubtitleLine> cached;
 

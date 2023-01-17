@@ -70,19 +70,19 @@ pub fn from_c_into_boxed<T>(ptr: *mut T) -> Box<T> {
 }
 
 /// Convert the given [Vec] into a C array tuple which is owned by the caller.
-/// The return tuple is as follows: `(pointer, length, capacity)`
-pub fn to_c_vec<T>(mut vec: Vec<T>) -> (*mut T, i32, i32) {
+/// The return tuple is as follows: `(pointer, length)`
+pub fn to_c_vec<T>(vec: Vec<T>) -> (*mut T, i32) {
     // check if the vec contains items
     // if not, we return a ptr::null as ABI can't handle empty arrays
     if vec.len() > 0 {
-        let ptr = vec.as_mut_ptr();
-        let len = vec.len() as i32;
-        let capacity = vec.capacity() as i32;
-        mem::forget(vec);
+        let mut boxed = vec.into_boxed_slice();
+        let ptr = boxed.as_mut_ptr();
+        let len = boxed.len() as i32;
+        mem::forget(boxed);
 
-        (ptr, len, capacity)
+        (ptr, len)
     } else {
-        (ptr::null_mut(), 0, 0)
+        (ptr::null_mut(), 0)
     }
 }
 
@@ -90,9 +90,10 @@ pub fn to_c_vec<T>(mut vec: Vec<T>) -> (*mut T, i32, i32) {
 /// For more info, see [Vec::from_raw_parts].
 ///
 /// It returns the [Vec] on success, else an empty vec if the `ptr` is `null`.
-pub fn from_c_vec<T>(ptr: *mut T, len: i32, cap: i32) -> Vec<T> {
+pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
     if !ptr.is_null() {
-        unsafe { Vec::from_raw_parts(ptr, len as usize, cap as usize) }
+        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len as usize) };
+        slice.into()
     } else {
         error!("Unable to read C array, array pointer is null");
         vec![]
@@ -214,5 +215,15 @@ mod test {
         let result = from_c_into_boxed(c);
 
         assert_eq!(Box::new(value), result)
+    }
+
+    #[test]
+    fn test_c_array() {
+        let example = vec![0, 13, 5];
+
+        let (ptr, len) = to_c_vec(example.clone());
+        let result = from_c_vec(ptr, len);
+
+        assert_eq!(example, result)
     }
 }

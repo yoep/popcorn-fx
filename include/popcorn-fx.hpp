@@ -110,7 +110,6 @@ struct TorrentEntryC {
   const char *language;
   TorrentQualityC *qualities;
   int32_t len;
-  int32_t cap;
 };
 
 struct MovieDetailsC {
@@ -124,10 +123,8 @@ struct MovieDetailsC {
   const char *trailer;
   const char **genres;
   int32_t genres_len;
-  int32_t genres_cap;
   TorrentEntryC *torrents;
   int32_t torrents_len;
-  int32_t torrents_cap;
 };
 
 struct ShowOverviewC {
@@ -149,7 +146,6 @@ struct EpisodeC {
   const char *tvdb_id;
   TorrentQualityC *torrents;
   int32_t len;
-  int32_t cap;
 };
 
 struct ShowDetailsC {
@@ -165,10 +161,8 @@ struct ShowDetailsC {
   const char *status;
   const char **genres;
   int32_t genres_len;
-  int32_t genres_cap;
   EpisodeC *episodes;
   int32_t episodes_len;
-  int32_t episodes_cap;
 };
 
 struct FavoriteC {
@@ -200,7 +194,6 @@ struct StyledTextC {
 struct SubtitleLineC {
   StyledTextC *texts;
   int32_t len;
-  int32_t cap;
 };
 
 struct SubtitleCueC {
@@ -209,7 +202,6 @@ struct SubtitleCueC {
   uint64_t end_time;
   SubtitleLineC *lines;
   int32_t number_of_lines;
-  int32_t capacity;
 };
 
 struct SubtitleC {
@@ -217,7 +209,6 @@ struct SubtitleC {
   SubtitleInfoC info;
   SubtitleCueC *cues;
   int32_t number_of_cues;
-  int32_t cues_capacity;
 };
 
 struct SubtitleMatcherC {
@@ -255,10 +246,8 @@ struct FavoriteEventC {
 struct VecFavoritesC {
   MovieOverviewC *movies;
   int32_t movies_len;
-  int32_t movies_cap;
   ShowOverviewC *shows;
   int32_t shows_len;
-  int32_t shows_cap;
 };
 
 struct GenreC {
@@ -274,13 +263,11 @@ struct SortByC {
 struct VecMovieC {
   MovieOverviewC *movies;
   int32_t len;
-  int32_t cap;
 };
 
 struct VecShowC {
   ShowOverviewC *shows;
   int32_t len;
-  int32_t cap;
 };
 
 

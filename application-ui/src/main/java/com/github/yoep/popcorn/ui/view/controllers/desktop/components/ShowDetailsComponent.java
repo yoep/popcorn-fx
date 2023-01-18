@@ -10,7 +10,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -51,7 +51,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @ViewController
-public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> {
+public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
 
     private static final double POSTER_WIDTH = 198.0;
     private static final double POSTER_HEIGHT = 215.0;
@@ -120,7 +120,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<Show> 
     //region AbstractDetailsComponent
 
     @Override
-    protected void load(Show media) {
+    protected void load(ShowDetails media) {
         super.load(media);
 
         loadText();

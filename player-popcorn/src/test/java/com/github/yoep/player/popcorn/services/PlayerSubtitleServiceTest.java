@@ -5,8 +5,8 @@ import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -21,7 +21,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -104,7 +103,7 @@ class PlayerSubtitleServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsMoviePlayRequest_shouldInvokeListenersWithAvailableSubtitles() {
-        var movie = Movie.builder().build();
+        var movie = MovieDetails.builder().build();
         var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);
@@ -128,9 +127,7 @@ class PlayerSubtitleServiceTest {
         var episode = Episode.builder()
                 .episode(2)
                 .build();
-        var show = Show.builder()
-                .episodes(Collections.singletonList(episode))
-                .build();
+        var show = mock(ShowDetails.class);
         var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);

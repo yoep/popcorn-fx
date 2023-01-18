@@ -18,8 +18,8 @@ import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
@@ -283,14 +283,14 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     private List<SubtitleInfo> retrieveAvailableMediaSubtitles(Media media, @Nullable Media subMediaItem) {
         invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.RETRIEVING_SUBTITLES));
         try {
-            if (media instanceof Movie movie) {
+            if (media instanceof MovieDetails movie) {
                 return subtitleService.retrieveSubtitles(movie)
                         .exceptionally(throwable -> {
                             log.error("Failed to retrieve subtitles for movie {}, {}", movie, throwable.getMessage());
                             return Collections.emptyList();
                         })
                         .get(RETRIEVE_SUBTITLES_TIMEOUT, TimeUnit.SECONDS);
-            } else if (media instanceof Show show && subMediaItem instanceof Episode episode) {
+            } else if (media instanceof ShowDetails show && subMediaItem instanceof Episode episode) {
                 return subtitleService.retrieveSubtitles(show, episode)
                         .exceptionally(throwable -> {
                             log.error("Failed to retrieve subtitles for episode {}, {}", episode, throwable.getMessage());

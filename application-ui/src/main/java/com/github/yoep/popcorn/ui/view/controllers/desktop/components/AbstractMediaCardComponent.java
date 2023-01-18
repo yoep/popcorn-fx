@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractCardComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -65,9 +65,9 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
         title.setText(media.getTitle());
         year.setText(media.getYear());
 
-        if (media instanceof Show) {
-            Show show = (Show) media;
-            String text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
+        if (media instanceof ShowOverview) {
+            var show = (ShowOverview) media;
+            var text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
 
             if (show.getNumberOfSeasons() > 1) {
                 text += localeText.get(MediaMessage.PLURAL);

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -46,7 +46,7 @@ public interface SubtitleService {
      * @return Returns the list of available subtitles for the media.
      */
     @Async
-    CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(Movie media);
+    CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(MovieDetails media);
 
     /**
      * Retrieve the available subtitles for the given media.
@@ -56,7 +56,7 @@ public interface SubtitleService {
      * @return Returns the list of available subtitles for the media.
      */
     @Async
-    CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(Show media, Episode episode);
+    CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(ShowDetails media, Episode episode);
 
     /**
      * Retrieve the available subtitles for the given filename.

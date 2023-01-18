@@ -7,27 +7,36 @@ publish = false
 license-file = "../LICENSE"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 proc-macro = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.58"
-chrono = "0.4.23"
-derive_more = "0.99.17"
-home = "0.5.4"
-itertools = "0.10.5"
-log = "0.4.16"
-regex = "1.6.0"
-serde = "1.0.147"
-serde_json = "1.0.88"
-serde_yaml = "0.9.14"
-log4rs = { version = "1.1.1", optional = true }
+async-trait = "0.1"
+chrono = "0.4"
+derive_more = "0.99"
+downcast-rs = "1.2"
+futures = { version = "0.3" }
+home = "0.5"
+html-escape = "0.2"
+itertools = "0.10"
+log = "0.4"
+log4rs = { version = "1", features = ["console_writer"], optional = true }
+regex = "1.6"
+reqwest = { version = "0.11", features = ["serde_json", "json"] }
+serde = "1.0"
+serde_json = "1.0"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
-mockall = "0.11.2"
+
+mockall = "0.11"
+httpmock = "0.6"
+tempfile = "3"
+tokio = { version = "1", features = ["test-util", "macros"] }
 
 [features]
 testing = ["dep:log4rs"]

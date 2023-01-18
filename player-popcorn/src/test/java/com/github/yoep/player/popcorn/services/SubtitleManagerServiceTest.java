@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
@@ -156,7 +156,7 @@ class SubtitleManagerServiceTest {
                 .title(title)
                 .url(url)
                 .quality(quality)
-                .media(Movie.builder()
+                .media(MovieDetails.builder()
                         .images(Images.builder().build())
                         .build())
                 .torrent(mock(Torrent.class))

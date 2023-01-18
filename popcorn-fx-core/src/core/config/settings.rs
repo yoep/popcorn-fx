@@ -1,15 +1,14 @@
-use std::fs::File;
-use std::io::Read;
-
 use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::core::config::{DEFAULT_HOME_DIRECTORY, SubtitleSettings, UiSettings};
+use crate::core::config::{ServerSettings, SubtitleSettings, UiSettings};
+use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
 const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = || SubtitleSettings::default();
 const DEFAULT_UI: fn() -> UiSettings = || UiSettings::default();
+const DEFAULT_SERVER: fn() -> ServerSettings = || ServerSettings::default();
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
 #[display(fmt = "subtitle_settings: {}, ui_settings: {}", subtitle_settings, ui_settings)]
@@ -18,38 +17,32 @@ pub struct PopcornSettings {
     subtitle_settings: SubtitleSettings,
     #[serde(default = "DEFAULT_UI")]
     ui_settings: UiSettings,
+    #[serde(default = "DEFAULT_SERVER")]
+    server_settings: ServerSettings,
 }
 
 impl PopcornSettings {
-    pub fn new(subtitle_settings: SubtitleSettings, ui_settings: UiSettings) -> Self {
+    pub fn new(subtitle_settings: SubtitleSettings, ui_settings: UiSettings, server_settings: ServerSettings) -> Self {
         Self {
             subtitle_settings,
             ui_settings,
+            server_settings,
         }
     }
 
     /// Create new settings which will search for the [DEFAULT_SETTINGS_FILENAME].
     /// It will be parsed if found and valid, else the defaults will be returned.
-    pub fn new_auto() -> Self {
-        Self::from_filename(DEFAULT_SETTINGS_FILENAME)
+    pub fn new_auto(storage: &Storage) -> Self {
+        Self::from_filename(DEFAULT_SETTINGS_FILENAME, storage)
     }
 
     /// Create new settings from the given filename.
     /// This file will be searched within the home directory of the user.
-    pub fn from_filename(filename: &str) -> Self {
-        let mut data = String::new();
-        let path = home::home_dir().unwrap()
-            .join(DEFAULT_HOME_DIRECTORY)
-            .join(filename);
-
-
-        match File::open(&path) {
-            Ok(mut file) => {
-                file.read_to_string(&mut data).expect("Unable to read the settings file");
-                Self::from_str(data.as_str())
-            }
-            Err(err) => {
-                warn!("Failed to read settings file {}, {}, using defaults instead", path.to_str().unwrap(), err.to_string());
+    pub fn from_filename(filename: &str, storage: &Storage) -> Self {
+        match storage.read::<Self>(filename) {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("Failed to read settings file {}, using defaults instead", e);
                 Self::default()
             }
         }
@@ -71,28 +64,28 @@ impl PopcornSettings {
         }
     }
 
-    /// Create settings from the given values.
-    pub fn from(subtitle_settings: SubtitleSettings, ui_settings: UiSettings) -> Self {
-        Self {
-            subtitle_settings,
-            ui_settings,
-        }
-    }
-
     /// The default settings for the application.
     pub fn default() -> Self {
         Self {
             subtitle_settings: DEFAULT_SUBTITLES(),
             ui_settings: DEFAULT_UI(),
+            server_settings: DEFAULT_SERVER(),
         }
     }
 
+    /// Retrieve the subtitle settings of the application.
     pub fn subtitle(&self) -> &SubtitleSettings {
         &self.subtitle_settings
     }
 
+    /// Retrieve the UI settings of the application.
     pub fn ui(&self) -> &UiSettings {
         &self.ui_settings
+    }
+
+    /// Retrieve the server settings of the application.
+    pub fn server(&self) -> &ServerSettings {
+        &self.server_settings
     }
 }
 
@@ -101,6 +94,7 @@ impl Default for PopcornSettings {
         Self {
             subtitle_settings: SubtitleSettings::default(),
             ui_settings: UiSettings::default(),
+            server_settings: ServerSettings::default(),
         }
     }
 }
@@ -110,17 +104,26 @@ impl Default for PopcornSettings {
 mod test {
     use crate::core::config::SubtitleFamily;
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_new_auto_should_always_return_settings() {
+        init_logger();
+        let storage = Storage::new();
+
+        PopcornSettings::new_auto(&storage);
+    }
 
     #[test]
     fn test_settings_from_str_when_valid_should_return_expected_result() {
         init_logger();
         let value = "{\"subtitle_settings\":{\"directory\":\"my-path/to-subtitles\",\"auto_cleaning_enabled\":false,\"default_subtitle\":\"ENGLISH\",\"font_family\":\"ARIAL\",\"font_size\":32,\"decoration\":\"OUTLINE\",\"bold\":false}}";
-        let expected_result = PopcornSettings::from(
+        let expected_result = PopcornSettings::new(
             SubtitleSettings::new("my-path/to-subtitles".to_string(), false, SubtitleLanguage::English, SubtitleFamily::Arial),
-            UiSettings::default());
+            UiSettings::default(),
+            ServerSettings::default());
 
         let result = PopcornSettings::from_str(value);
 

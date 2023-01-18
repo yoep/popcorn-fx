@@ -1,10 +1,13 @@
 package com.github.yoep.popcorn.platform;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.PreDestroy;
 import java.io.IOException;
@@ -12,13 +15,8 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 @Slf4j
+@Service
 public class PlatformFX implements PlatformProvider {
-    private final NativePlatform instance;
-
-    public PlatformFX(NativePlatform instance) {
-        this.instance = instance;
-    }
-
     @Override
     public boolean isTransparentWindowSupported() {
         return Platform.isSupported(ConditionalFeature.TRANSPARENT_WINDOW);
@@ -26,7 +24,7 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public PlatformInfo platformInfo() {
-        try (var info = instance.platformInfo()) {
+        try (var info = FxLib.INSTANCE.platform_info(PopcornFxInstance.INSTANCE.get())) {
             return info;
         }
     }
@@ -43,7 +41,7 @@ public class PlatformFX implements PlatformProvider {
     @Override
     public void disableScreensaver() {
         log.debug("Disabling screensaver");
-        instance.disableScreensaver();
+        FxLib.INSTANCE.disable_screensaver(PopcornFxInstance.INSTANCE.get());
     }
 
     @Override
@@ -71,6 +69,6 @@ public class PlatformFX implements PlatformProvider {
 
     @PreDestroy
     private void onDestroy() {
-        instance.enableScreensaver();
+        FxLib.INSTANCE.enable_screensaver(PopcornFxInstance.INSTANCE.get());
     }
 }

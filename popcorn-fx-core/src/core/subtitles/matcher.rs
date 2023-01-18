@@ -14,7 +14,7 @@ impl SubtitleMatcher {
         let parsed_quality = match quality {
             None => None,
             Some(x) => {
-                let quality_regex = Regex::new("([0-9]{3,4})p").unwrap();
+                let quality_regex = Regex::new("([0-9]{3,4})p").expect("Quality regex should be valid");
                 match quality_regex.captures(x.as_str()) {
                     None => None,
                     Some(matcher) => {
@@ -46,7 +46,7 @@ impl SubtitleMatcher {
 
     /// Parse the given quality matcher to an integer.
     fn parse_quality_matcher(matcher: Captures) -> Option<i32> {
-        let quality_text = matcher.get(0).unwrap().as_str();
+        let quality_text = matcher.get(0).expect("Quality text should have matched").as_str();
 
         match quality_text.parse::<i32>() {
             Ok(quality) => Some(quality),

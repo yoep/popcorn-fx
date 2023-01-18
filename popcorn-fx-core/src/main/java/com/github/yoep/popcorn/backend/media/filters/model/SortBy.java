@@ -1,11 +1,15 @@
 package com.github.yoep.popcorn.backend.media.filters.model;
 
+import com.sun.jna.Structure;
 import lombok.Getter;
 
+import java.io.Closeable;
+
 @Getter
-public class SortBy {
-    private final String key;
-    private final String text;
+@Structure.FieldOrder({"key", "text"})
+public class SortBy extends Structure implements Closeable {
+    public String key;
+    public String text;
 
     public SortBy(String key, String text) {
         this.key = key;
@@ -15,5 +19,10 @@ public class SortBy {
     @Override
     public String toString() {
         return text;
+    }
+
+    @Override
+    public void close() {
+        setAutoSynch(false);
     }
 }

@@ -1,1 +1,26 @@
-pub mod model;
+pub use category::*;
+pub use episode::*;
+pub use error::*;
+pub use genre::*;
+pub use images::*;
+pub use media::*;
+pub use movie::*;
+pub use rating::*;
+pub use show::*;
+pub use sort_by::*;
+pub use torrent_info::*;
+
+mod category;
+mod episode;
+mod error;
+mod genre;
+mod images;
+mod media;
+mod movie;
+mod rating;
+mod show;
+mod sort_by;
+mod torrent_info;
+pub mod favorites;
+pub mod providers;
+pub mod watched;

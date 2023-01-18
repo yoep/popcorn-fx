@@ -143,7 +143,6 @@ public abstract class AbstractFilterSectionController {
         // categories
         moviesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         seriesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
-        animeCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
         favoritesCategory.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE_CLASS));
     }
 

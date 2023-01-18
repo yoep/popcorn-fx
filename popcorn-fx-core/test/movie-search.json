@@ -1,0 +1,77 @@
+[
+  {
+    "_id": "tt9764362",
+    "imdb_id": "tt9764362",
+    "tmdb_id": 593643,
+    "title": "Lorem Ipsum",
+    "year": "2022",
+    "original_language": "en",
+    "exist_translations": [
+      "en",
+      "es",
+      "it",
+      "pt",
+      "ru"
+    ],
+    "contextLocale": "en",
+    "synopsis": "A couple travels to a coastal island to eat at an exclusive restaurant where the chef has prepared a lavish menu, with some shocking surprises.",
+    "runtime": "107",
+    "released": 1668643200,
+    "certification": "R",
+    "torrents": {
+      "en": {
+        "2160p": {
+          "url": "",
+          "provider": "TorrentGalaxy",
+          "source": "my-source",
+          "title": "The.Menu.2022.2160p.WEBRip.3500MB.DDP5.1.x264-GalaxyRG",
+          "quality": "2160p",
+          "seed": 707,
+          "peer": 1046,
+          "size": "3768834695",
+          "filesize": "3.51 GB"
+        },
+        "720p": {
+          "url": "",
+          "provider": "T1337x",
+          "source": "https://1337x.to/torrent/5505477/The-Menu-2022-720p-WEBRip-800MB-x264-GalaxyRG/",
+          "title": "The.Menu.2022.720p.WEBRip.800MB.x264-GalaxyRG",
+          "quality": "720p",
+          "seed": 1643,
+          "peer": 2451,
+          "size": "835401419",
+          "filesize": "796.7 MB"
+        },
+        "1080p": {
+          "url": "",
+          "provider": "TorrentGalaxy",
+          "source": "https://torrentgalaxy.to/torrent/15177517/The-Menu-2022-1080p-MA-WEBRip-OPUS5-1-AV1-NASH",
+          "title": "The.Menu.2022.1080p.MA.WEBRip.OPUS5.1.AV1-NASH",
+          "quality": "1080p",
+          "seed": 83,
+          "peer": 101,
+          "size": "1181116006",
+          "filesize": "1.1 GB"
+        }
+      }
+    },
+    "trailer": "http://www.youtube.com/watch?v=C_uTkUGcHv4",
+    "genres": [
+      "comedy",
+      "horror",
+      "thriller"
+    ],
+    "images": {
+      "poster": "http://image.tmdb.org/t/p/w500/poster.jpg",
+      "fanart": "http://image.tmdb.org/t/p/w500/fanart.jpg",
+      "banner": "http://image.tmdb.org/t/p/w500/banner.jpg"
+    },
+    "rating": {
+      "percentage": 72,
+      "watching": 18,
+      "votes": 1270,
+      "loved": 0,
+      "hated": 0
+    }
+  }
+]

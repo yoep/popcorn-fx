@@ -36,8 +36,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * Abstract definition of a details component for showing {@link Media} information.
@@ -229,16 +227,10 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         Platform.runLater(() -> languageSelection.setLoading(false));
 
         if (throwable == null) {
-            // filter out all the subtitles that don't have a flag
-            final List<SubtitleInfo> filteredSubtitles = subtitles.stream()
-                    .filter(e -> e.isNone() || e.isCustom() || Objects.equals(e.getImdbId(), media.getId()))
-                    .sorted()
-                    .collect(Collectors.toList());
-
             Platform.runLater(() -> {
                 languageSelection.getItems().clear();
-                languageSelection.getItems().addAll(filteredSubtitles);
-                languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(filteredSubtitles));
+                languageSelection.getItems().addAll(subtitles);
+                languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(subtitles));
             });
         } else {
             log.error(throwable.getMessage(), throwable);

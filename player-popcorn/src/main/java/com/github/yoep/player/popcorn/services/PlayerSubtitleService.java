@@ -6,8 +6,8 @@ import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -75,12 +75,12 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private void onMediaPlayRequest(MediaPlayRequest request) {
         var media = request.getMedia();
 
-        if (media instanceof Movie) {
-            var movie = (Movie) request.getMedia();
+        if (media instanceof MovieDetails) {
+            var movie = (MovieDetails) request.getMedia();
             log.trace("Retrieving movie subtitles for {}", movie);
             subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
-        } else if (media instanceof Show) {
-            var show = (Show) request.getMedia();
+        } else if (media instanceof ShowDetails) {
+            var show = (ShowDetails) request.getMedia();
             var episode = request.getSubMediaItem()
                     .map(e -> (Episode) e)
                     .orElseThrow(() -> new MediaException("Unable to play request, episode item is unknown"));

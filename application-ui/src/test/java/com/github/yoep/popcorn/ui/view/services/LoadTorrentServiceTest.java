@@ -78,7 +78,7 @@ class LoadTorrentServiceTest {
                         .url(torrentMagnet)
                         .build())
                 .quality("720p")
-                .media(Movie.builder().build())
+                .media(MovieDetails.builder().build())
                 .build();
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(future);
@@ -102,7 +102,7 @@ class LoadTorrentServiceTest {
                         .url(torrentMagnet)
                         .build())
                 .quality("720p")
-                .media(Movie.builder().build())
+                .media(MovieDetails.builder().build())
                 .build();
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(new CompletableFuture<>());
@@ -126,11 +126,7 @@ class LoadTorrentServiceTest {
                 .title(episodeTitle)
                 .tvdbId("tv-id-001254")
                 .build();
-        var media = Show.builder()
-                .title("my show title")
-                .episodes(Collections.singletonList(episode))
-                .images(Images.builder().build())
-                .build();
+        var media = mock(ShowDetails.class);
         var event = LoadMediaTorrentEvent.builder()
                 .source(this)
                 .torrent(MediaTorrentInfo.builder()
@@ -147,6 +143,7 @@ class LoadTorrentServiceTest {
                 .build();
         var subtitle = mock(Subtitle.class);
         var subtitleMatcher = SubtitleMatcher.from(torrentFilename, quality);
+        when(media.getTitle()).thenReturn("my show title");
         when(torrentInfo.getByFilename(episodeTitle)).thenReturn(Optional.of(torrentFileInfo));
         when(torrent.getFilename()).thenReturn(torrentFilename);
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
@@ -172,7 +169,7 @@ class LoadTorrentServiceTest {
         var title = "my-movie-title";
         var torrentMagnet = "magnet://my-torrent";
         var torrentFile = "my-file";
-        var media = Movie.builder()
+        var media = MovieDetails.builder()
                 .title(title)
                 .images(Images.builder().build())
                 .build();

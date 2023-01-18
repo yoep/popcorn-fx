@@ -1,6 +1,7 @@
 use std::fs::File;
 
 use chrono::NaiveTime;
+use log::{debug, trace};
 use regex::Regex;
 
 use crate::core::subtitles::cue::SubtitleCue;
@@ -21,7 +22,7 @@ impl VttParser {
     /// Create a new vtt parser instance.
     pub fn new() -> Self {
         Self {
-            time_regex: Regex::new(TIME_FORMAT).unwrap(),
+            time_regex: Regex::new(TIME_FORMAT).expect("VTT time format should be valid"),
             style_parser: StyleParser::new(),
         }
     }
@@ -40,7 +41,8 @@ impl Parser for VttParser {
         todo!()
     }
 
-    fn parse_raw(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+    fn convert(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+        trace!("Starting conversion to VTT");
         let mut output = format!("{}\n\n", HEADER);
 
         for cue in cues.iter() {
@@ -57,8 +59,11 @@ impl Parser for VttParser {
                 output.push_str(self.style_parser.to_line_string(line).as_str());
                 output.push_str(NEWLINE);
             }
+
+            output.push_str(NEWLINE);
         }
 
+        debug!("Conversion to VTT completed");
         Ok(output)
     }
 }
@@ -66,6 +71,7 @@ impl Parser for VttParser {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleLine};
+    use crate::testing::read_test_file;
 
     use super::*;
 
@@ -78,18 +84,18 @@ mod test {
             vec![
                 SubtitleLine::new(vec![StyledText::new("lorem".to_string(), true, false, false)]),
                 SubtitleLine::new(vec![StyledText::new("ipsum".to_string(), false, false, false)]),
-            ])
+            ]), SubtitleCue::new(
+            "2".to_string(),
+            60000,
+            60500,
+            vec![
+                SubtitleLine::new(vec![StyledText::new("dolor".to_string(), false, false, false)]),
+            ]),
         ];
         let parser = VttParser::new();
-        let expected_result = format!("{}
+        let expected_result = read_test_file("conversion-example.vtt");
 
-1
-00:00:30.000 --> 00:00:48.100
-<i>lorem</i>
-ipsum
-", HEADER);
-
-        let result = parser.parse_raw(&cues);
+        let result = parser.convert(&cues);
 
         assert_eq!(expected_result, result.expect("Expected the parsing to have succeeded"))
     }

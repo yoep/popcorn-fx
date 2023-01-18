@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class ShowHelperService {
      * @param media The media to retrieve the seasons of.
      * @return Returns the list of season for the media.
      */
-    public List<Season> getSeasons(Show media) {
+    public List<Season> getSeasons(ShowDetails media) {
         Assert.notNull(media, "media cannot be null");
         var seasons = new ArrayList<Season>();
 
@@ -54,7 +54,7 @@ public class ShowHelperService {
      * @param media  The media that contains the episodes.
      * @return Returns the list of episodes for the season.
      */
-    public List<Episode> getSeasonEpisodes(Season season, Show media) {
+    public List<Episode> getSeasonEpisodes(Season season, ShowDetails media) {
         Assert.notNull(season, "season cannot be null");
         Assert.notNull(media, "media cannot be null");
 
@@ -72,7 +72,7 @@ public class ShowHelperService {
      * @param media   The media of the seasons.
      * @return Returns the unwatched season or last season if all seasons have been watched.
      */
-    public Season getUnwatchedSeason(List<Season> seasons, Show media) {
+    public Season getUnwatchedSeason(List<Season> seasons, ShowDetails media) {
         Assert.notNull(seasons, "seasons cannot be null");
         Assert.notNull(media, "media cannot be null");
 
@@ -102,7 +102,7 @@ public class ShowHelperService {
 
     //region Functions
 
-    private boolean isSeasonWatched(Season season, Show media) {
+    private boolean isSeasonWatched(Season season, ShowDetails media) {
         return getSeasonEpisodes(season, media).stream()
                 .allMatch(watchedService::isWatched);
     }

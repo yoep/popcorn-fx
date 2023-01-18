@@ -17,11 +17,14 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 popcorn-fx-platform = { path = "../popcorn-fx-platform" }
 popcorn-fx-opensubtitles = { path = "../popcorn-fx-opensubtitles" }
 
-async-trait = "0.1.58"
-log = "0.4.16"
-log4rs = "1.1.1"
-tokio = "1.22.0"
-itertools = "0.10.5"
+async-trait = "0.1"
+futures = { version = "0.3" }
+itertools = "0.10"
+log = "0.4"
+log4rs = {version = "1", features = ["console_writer"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [build-dependencies]
-cbindgen = "0.24.3"
+popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
+cbindgen = "0.24"

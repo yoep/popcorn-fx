@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -25,7 +27,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     private final WatchedService watchedService;
 
     private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> onWatchedChanged(newValue);
-    private final ChangeListener<Boolean> likedListener = (observable, oldValue, newValue) -> onLikedChanged(newValue);
+    private final FavoriteEventCallback callback = createCallback();
 
     private Media lastShownMediaItem;
 
@@ -76,11 +78,16 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
             return;
         }
 
-        if (lastShownMediaItem.isLiked()) {
+        if (favoriteService.isLiked(lastShownMediaItem)) {
             favoriteService.removeFromFavorites(lastShownMediaItem);
         } else {
             favoriteService.addToFavorites(lastShownMediaItem);
         }
+    }
+
+    @PostConstruct
+    private void init() {
+        favoriteService.registerListener(callback);
     }
 
     private void subscribeToPropertyChanges(Media media) {
@@ -89,18 +96,23 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         Optional.ofNullable(lastShownMediaItem)
                 .ifPresent(e -> {
                     e.watchedProperty().removeListener(watchedListener);
-                    e.likedProperty().removeListener(likedListener);
                 });
 
         media.watchedProperty().addListener(watchedListener);
-        media.likedProperty().addListener(likedListener);
     }
 
     private void onWatchedChanged(boolean newValue) {
         invokeListeners(e -> e.onWatchChanged(newValue));
     }
 
-    private void onLikedChanged(boolean newValue) {
-        invokeListeners(e -> e.onLikedChanged(newValue));
+    private FavoriteEventCallback createCallback() {
+        return event -> {
+            switch (event.tag) {
+                case LikedStateChanged -> {
+                    var stateChanged = event.getUnion().getLiked_state_changed();
+                    invokeListeners(e -> e.onLikedChanged(stateChanged.getNewState()));
+                }
+            }
+        };
     }
 }

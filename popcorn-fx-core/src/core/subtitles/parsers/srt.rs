@@ -146,7 +146,7 @@ impl Parser for SrtParser {
         self.parse(&mut reader)
     }
 
-    fn parse_raw(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
+    fn convert(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
         let mut output = String::new();
 
         for cue in cues {
@@ -191,7 +191,7 @@ impl ParserStage {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleLine};
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 
@@ -296,7 +296,7 @@ The <i>Black Pearl</i> is yours.".as_bytes());
 <i>lorem</i>
 ".to_string();
 
-        let result = parser.parse_raw(&cues);
+        let result = parser.convert(&cues);
 
         assert_eq!(expected_result, result.expect("Expected the parse_raw to succeed"))
     }

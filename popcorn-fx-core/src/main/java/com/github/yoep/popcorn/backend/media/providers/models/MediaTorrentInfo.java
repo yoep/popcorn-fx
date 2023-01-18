@@ -1,10 +1,11 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import com.sun.jna.Structure;
+import lombok.*;
 
+import java.io.Closeable;
 import java.io.Serializable;
 import java.util.Optional;
 
@@ -12,32 +13,26 @@ import java.util.Optional;
  * Information about a torrent that can be used to instantiate a {@link Torrent}.
  * This model is primarily used for displaying media details.
  */
+@EqualsAndHashCode(callSuper = false)
 @Data
 @Builder
+@NoArgsConstructor
 @AllArgsConstructor
-public class MediaTorrentInfo implements Serializable {
-    private final String provider;
-    private final String filesize;
-    private final String file;
-    private final String url;
-    private long size;
-    private int peer;
-    private int seed;
+@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
+@Structure.FieldOrder({"url","provider","source","title","quality","seed","peer","size","filesize", "file"})
+public class MediaTorrentInfo extends Structure implements Serializable, Closeable {
+    public String url;
+    public String provider;
+    public String source;
+    public String title;
+    public String quality;
+    public int seed;
+    public int peer;
+    public String size;
+    public String filesize;
+    public String file;
 
     //region Getters & Setters
-
-    /**
-     * Get the file size of the torrent.
-     * This field is only present when the torrent contains one media file.
-     *
-     * <i>Note:</i>
-     * If {@link #getFile()} is present, then this field will be {@link Optional#empty()}.
-     *
-     * @return Returns the file size of the torrent if present.
-     */
-    public Optional<String> getFilesize() {
-        return Optional.ofNullable(filesize);
-    }
 
     /**
      * Get the file name of the torrent to download.
@@ -73,4 +68,9 @@ public class MediaTorrentInfo implements Serializable {
     }
 
     //endregion
+
+    @Override
+    public void close() {
+        setAutoSynch(false);
+    }
 }

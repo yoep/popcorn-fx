@@ -1,13 +1,19 @@
 use log::debug;
 
-pub use errors::*;
+pub use error::*;
 pub use properties::*;
+pub use provider::*;
+pub use server_settings::*;
 pub use settings::*;
 pub use subtitle_settings::*;
 pub use ui_settings::*;
 
-mod errors;
+use crate::core::storage::Storage;
+
+mod error;
 mod properties;
+mod provider;
+mod server_settings;
 mod settings;
 mod subtitle_settings;
 mod ui_settings;
@@ -33,10 +39,10 @@ impl Application {
 
     /// Create new [Settings] which will look for the [DEFAULT_CONFIG_FILENAME] config file.
     /// It will parse the config file if found, else uses the defaults instead.
-    pub fn new_auto() -> Self {
+    pub fn new_auto(storage: &Storage) -> Self {
         Self {
             properties: PopcornProperties::new_auto(),
-            settings: PopcornSettings::new_auto(),
+            settings: PopcornSettings::new_auto(storage),
         }
     }
 
@@ -71,14 +77,15 @@ impl Application {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 
     #[test]
     fn test_new_should_return_valid_instance() {
         init_logger();
-        let result = Application::new_auto();
+        let storage = Storage::new();
+        let result = Application::new_auto(&storage);
         let expected_result = "https://api.opensubtitles.com/api/v1".to_string();
 
         assert_eq!(&expected_result, result.properties.subtitle().url())

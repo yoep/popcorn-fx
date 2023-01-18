@@ -13,7 +13,7 @@ const DEFAULT_DIRECTORY: fn() -> String = || {
             .join(DEFAULT_HOME_DIRECTORY)
             .join(DEFAULT_SUBTITLE_DIRECTORY_NAME))
         .map(|e| e.into_os_string().into_string().unwrap())
-        .unwrap()
+        .expect("Home directory should exist")
 };
 const DEFAULT_AUTO_CLEANING: fn() -> bool = || true;
 const DEFAULT_SUBTITLE_LANGUAGE: fn() -> SubtitleLanguage = || SubtitleLanguage::None;

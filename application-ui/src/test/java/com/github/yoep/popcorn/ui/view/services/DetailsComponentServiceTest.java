@@ -3,21 +3,19 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.Movie;
-import com.github.yoep.popcorn.backend.media.providers.models.Show;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -33,7 +31,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsWatched_whenInvoked_shouldPassMediaItemToWatchedService() {
-        var media = Movie.builder().build();
+        var media = MovieDetails.builder().build();
         var expectedResult = true;
         when(watchedService.isWatched(media)).thenReturn(expectedResult);
 
@@ -45,7 +43,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsLiked_whenInvoked_shouldPassMediaItemToFavoriteService() {
-        var media = Movie.builder().build();
+        var media = MovieDetails.builder().build();
         var expectedResult = false;
         when(favoriteService.isLiked(media)).thenReturn(expectedResult);
 
@@ -59,8 +57,8 @@ class DetailsComponentServiceTest {
     void testOnShowDetails_whenLastMediaItemIsKnown_shouldUnsubscribeFromLastMediaItem() {
         var watchedProperty = mock(BooleanProperty.class);
         var likedProperty = mock(BooleanProperty.class);
-        var lastItem = mock(Movie.class);
-        var newItem = Movie.builder()
+        var lastItem = mock(MovieDetails.class);
+        var newItem = MovieDetails.builder()
                 .title("My new movie playback")
                 .build();
         var previousEvent = ShowMovieDetailsEvent.builder()
@@ -72,18 +70,16 @@ class DetailsComponentServiceTest {
                 .media(newItem)
                 .build();
         when(lastItem.watchedProperty()).thenReturn(watchedProperty);
-        when(lastItem.likedProperty()).thenReturn(likedProperty);
         service.onShowDetails(previousEvent);
 
         service.onShowDetails(newEvent);
 
         verify(watchedProperty).removeListener(isA(ChangeListener.class));
-        verify(likedProperty).removeListener(isA(ChangeListener.class));
     }
 
     @Test
     void testListeners_whenMovieWatchedStateIsChanged_shouldInvokedOnWatchedChanged() {
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)
@@ -101,39 +97,21 @@ class DetailsComponentServiceTest {
 
     @Test
     void testListeners_whenShowWatchedStateIsChanged_shouldInvokedOnWatchedChanged() {
-        var show = Show.builder()
-                .episodes(Collections.singletonList(Episode.builder().build()))
-                .build();
+        var show = mock(ShowDetails.class);
+        var property = new SimpleBooleanProperty();
         var event = ShowSerieDetailsEvent.builder()
                 .source(this)
                 .media(show)
                 .build();
         var listener = mock(DetailsComponentListener.class);
         var expectedResult = true;
+        when(show.watchedProperty()).thenReturn(property);
         service.onShowDetails(event);
         service.addListener(listener);
 
-        show.setWatched(expectedResult);
+        property.set(true);
 
         verify(listener).onWatchChanged(expectedResult);
-    }
-
-    @Test
-    void testListeners_whenMovieLikedStateIsChanged_shouldInvokedOnLikedChanged() {
-        var movie = Movie.builder()
-                .build();
-        var event = ShowMovieDetailsEvent.builder()
-                .source(this)
-                .media(movie)
-                .build();
-        var listener = mock(DetailsComponentListener.class);
-        var expectedResult = true;
-        service.onShowDetails(event);
-        service.addListener(listener);
-
-        movie.setLiked(expectedResult);
-
-        verify(listener).onLikedChanged(expectedResult);
     }
 
     @Test
@@ -156,7 +134,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleWatchedState_whenLastItemIsKnownAndStateIsWatched_shouldRemoveFromWatchlist() {
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)
@@ -172,7 +150,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist() {
-        var movie = Movie.builder()
+        var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)
@@ -188,13 +166,13 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsUnliked_shouldAddToFavorites() {
-        var show = Show.builder()
-                .build();
+        var show = mock(ShowDetails.class);
         var event = ShowSerieDetailsEvent.builder()
                 .source(this)
                 .media(show)
                 .build();
-        show.setLiked(false);
+        when(favoriteService.isLiked(show)).thenReturn(false);
+        when(show.watchedProperty()).thenReturn(new SimpleBooleanProperty());
         service.onShowDetails(event);
 
         service.toggleLikedState();
@@ -204,13 +182,13 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsLiked_shouldRemoveFromFavorites() {
-        var show = Show.builder()
-                .build();
+        var show = mock(ShowDetails.class);
         var event = ShowSerieDetailsEvent.builder()
                 .source(this)
                 .media(show)
                 .build();
-        show.setLiked(true);
+        when(favoriteService.isLiked(show)).thenReturn(true);
+        when(show.watchedProperty()).thenReturn(new SimpleBooleanProperty());
         service.onShowDetails(event);
 
         service.toggleLikedState();

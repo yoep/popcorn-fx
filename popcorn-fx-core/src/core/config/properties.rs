@@ -1,15 +1,102 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::string::ToString;
 
 use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::Deserialize;
 
-const DEFAULT_URL: fn() -> String = || { "https://api.opensubtitles.com/api/v1".to_string() };
-const DEFAULT_USER_AGENT: fn() -> String = || { "Popcorn Time v1".to_string() };
-const DEFAULT_API_TOKEN: fn() -> String = || { "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string() };
+use crate::core::config::{ConfigError, ProviderProperties};
+
+const DEFAULT_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
+const DEFAULT_USER_AGENT: fn() -> String = || "Popcorn Time v1".to_string();
+const DEFAULT_API_TOKEN: fn() -> String = || "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string();
+const DEFAULT_UPDATE_CHANNEL: fn() -> String = || "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string();
+const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
+    let mut map: HashMap<String, ProviderProperties> = HashMap::new();
+    map.insert("movies".to_string(), ProviderProperties::new(
+        vec![
+            "https://popcorn-time.ga".to_string(),
+            "https://movies-v2.api-fetch.am".to_string(),
+            "https://movies-v2.api-fetch.website".to_string(),
+            "https://movies-v2.api-fetch.sh".to_string()],
+        vec![
+            "all".to_string(),
+            "action".to_string(),
+            "adventure".to_string(),
+            "animation".to_string(),
+            "comedy".to_string(),
+            "crime".to_string(),
+            "disaster".to_string(),
+            "documentary".to_string(),
+            "drama".to_string(),
+            "family".to_string(),
+            "fantasy".to_string(),
+            "history".to_string(),
+            "holiday".to_string(),
+            "horror".to_string(),
+            "music".to_string(),
+            "mystery".to_string(),
+            "romance".to_string(),
+            "science-fiction".to_string(),
+            "short".to_string(),
+            "suspense".to_string(),
+            "thriller".to_string(),
+            "war".to_string(),
+            "western".to_string()],
+        vec![
+            "trending".to_string(),
+            "popularity".to_string(),
+            "last added".to_string(),
+            "year".to_string(),
+            "title".to_string(),
+            "rating".to_string(),
+        ],
+    ));
+    map.insert("series".to_string(), ProviderProperties::new(
+        vec![
+            "https://popcorn-time.ga".to_string(),
+            "https://tv-v2.api-fetch.am".to_string(),
+            "https://tv-v2.api-fetch.website".to_string(),
+            "https://tv-v2.api-fetch.sh".to_string()],
+        vec![
+            "all".to_string(),
+            "action".to_string(),
+            "adventure".to_string(),
+            "animation".to_string(),
+            "children".to_string(),
+            "comedy".to_string(),
+            "crime".to_string(),
+            "documentary".to_string(),
+            "drama".to_string(),
+            "family".to_string(),
+            "fantasy".to_string(),
+            "horror".to_string(),
+            "mini Series".to_string(),
+            "mystery".to_string(),
+            "news".to_string(),
+            "reality".to_string(),
+            "romance".to_string(),
+            "science-fiction".to_string(),
+            "soap".to_string(),
+            "special Interest".to_string(),
+            "sport".to_string(),
+            "suspense".to_string(),
+            "talk Show".to_string(),
+            "thriller".to_string(),
+            "western".to_string(),
+        ],
+        vec![
+            "trending".to_string(),
+            "popularity".to_string(),
+            "updated".to_string(),
+            "year".to_string(),
+            "name".to_string(),
+            "rating".to_string(),
+        ]));
+    map
+};
 
 const DEFAULT_CONFIG_FILENAME: &str = "application";
 const CONFIG_EXTENSIONS: [&str; 2] = [
@@ -26,8 +113,12 @@ struct PropertiesWrapper {
 }
 
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
-#[display(fmt = "subtitle: {:?}", subtitle)]
+#[display(fmt = "update_channel: {}, subtitle: {:?}", update_channel, subtitle)]
 pub struct PopcornProperties {
+    #[serde(default = "DEFAULT_UPDATE_CHANNEL")]
+    update_channel: String,
+    #[serde(default = "DEFAULT_PROVIDERS")]
+    providers: HashMap<String, ProviderProperties>,
     #[serde(default)]
     subtitle: SubtitleProperties,
 }
@@ -36,7 +127,18 @@ impl PopcornProperties {
     /// Create a new [PopcornProperties] with the given properties.
     pub fn new(subtitle: SubtitleProperties) -> Self {
         Self {
-            subtitle
+            update_channel: DEFAULT_UPDATE_CHANNEL(),
+            providers: DEFAULT_PROVIDERS(),
+            subtitle,
+        }
+    }
+
+    /// Create a new [PopcornProperties] with the given providers.
+    pub fn new_with_providers(subtitle: SubtitleProperties, providers: HashMap<String, ProviderProperties>) -> Self {
+        Self {
+            update_channel: DEFAULT_UPDATE_CHANNEL(),
+            providers,
+            subtitle,
         }
     }
 
@@ -61,7 +163,7 @@ impl PopcornProperties {
                 data
             })
             .or_else(|| Some(String::new()))
-            .unwrap();
+            .expect("Properties should have been loaded");
 
         Self::from_str(config_value.as_str())
     }
@@ -80,8 +182,17 @@ impl PopcornProperties {
         data.popcorn
     }
 
+    pub fn update_channel(&self) -> &String {
+        &self.update_channel
+    }
+
     pub fn subtitle(&self) -> &SubtitleProperties {
         &self.subtitle
+    }
+
+    pub fn provider(&self, name: String) -> crate::core::config::Result<&ProviderProperties> {
+        self.providers.get(&name)
+            .ok_or_else(|| ConfigError::UnknownProvider(name))
     }
 
     fn find_existing_file(filename: &str) -> Option<File> {
@@ -114,7 +225,9 @@ impl PopcornProperties {
 impl Default for PopcornProperties {
     fn default() -> Self {
         Self {
-            subtitle: SubtitleProperties::default()
+            update_channel: DEFAULT_UPDATE_CHANNEL(),
+            providers: DEFAULT_PROVIDERS(),
+            subtitle: SubtitleProperties::default(),
         }
     }
 }
@@ -175,7 +288,7 @@ impl SubtitleProperties {
 mod test {
     use std::path::MAIN_SEPARATOR;
 
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

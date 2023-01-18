@@ -41,6 +41,10 @@ impl SubtitleType {
         Err(SubtitleParseError::ExtensionNotSupported(extension.clone()))
     }
 
+    pub fn from_ordinal(ordinal: usize) -> Self {
+        SUBTITLE_TYPES[ordinal].clone()
+    }
+
     /// The file extension for this subtitle type.
     pub fn extension(&self) -> String {
         match self {
@@ -368,7 +372,7 @@ impl PartialEq for Subtitle {
 
 #[cfg(test)]
 mod test {
-    use crate::test::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

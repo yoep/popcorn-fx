@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @Data
 @ToString(exclude = {"watched"})
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(callSuper = false, exclude = {"watched", "rating"})
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})

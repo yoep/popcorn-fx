@@ -21,7 +21,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -138,7 +137,6 @@ class PlayerSubtitleServiceTest {
                 .torrentStream(torrentStream)
                 .build();
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(show.getEpisodes()).thenReturn(Collections.singletonList(episode));
         when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
         when(subtitleService.retrieveSubtitles(show, episode)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
         when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));

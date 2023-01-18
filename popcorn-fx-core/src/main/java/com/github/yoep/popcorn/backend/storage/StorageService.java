@@ -1,8 +1,5 @@
 package com.github.yoep.popcorn.backend.storage;
 
-import org.springframework.core.io.buffer.DataBuffer;
-import reactor.core.publisher.Flux;
-
 import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.nio.file.Path;
@@ -50,14 +47,6 @@ public interface StorageService {
      * @throws StorageException Is thrown when storing of the contents failed within the storage.
      */
     void store(@NotNull String name, Object contents);
-
-    /**
-     * Store the given data buffer flux within the storage.
-     *
-     * @param name   The name within the storage to write to.
-     * @param buffer The data flux which needs to be written.
-     */
-    void store(@NotNull String name, Flux<DataBuffer> buffer);
 
     /**
      * Clean/remove the given name from within the storage.

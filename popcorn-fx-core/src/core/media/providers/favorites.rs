@@ -190,8 +190,8 @@ mod test {
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_retrieve_return_stored_favorites() {
+    #[test]
+    fn test_retrieve_return_stored_favorites() {
         init_logger();
         let resource_directory = test_resource_directory();
         let genre = Genre::all();
@@ -200,16 +200,16 @@ mod test {
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
         let favorites = Arc::new(FavoriteService::new(&storage));
         let provider = FavoritesProvider::new(&favorites, vec![]);
+        let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
-        let result = provider.retrieve(&genre, &sort_by, &keywords, 1)
-            .await
+        let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
             .expect("expected the favorites to have been returned");
 
         assert_eq!(1, result.len())
     }
 
-    #[tokio::test]
-    async fn test_retrieve_details() {
+    #[test]
+    fn test_retrieve_details() {
         init_logger();
         let imdb_id = "tt1156398";
         let resource_directory = test_resource_directory();
@@ -218,9 +218,9 @@ mod test {
         let favorites = Arc::new(FavoriteService::new(&storage));
         let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
         let provider = FavoritesProvider::new(&favorites, vec![&movie_provider]);
+        let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
-        let result = provider.retrieve_details(&imdb_id.to_string())
-            .await
+        let result = runtime.block_on(provider.retrieve_details(&imdb_id.to_string()))
             .expect("expected the details to have been retrieved");
 
         assert_eq!(imdb_id.to_string(), result.imdb_id())

@@ -29,7 +29,7 @@ class WatchedServiceTest {
     void testIsWatched_whenItemHasBeenWatched_shouldReturnTrue() {
         var id = "myMovieId";
         var movie = MovieDetails.builder()
-                .id(id)
+                .imdbId(id)
                 .build();
         var watchedItems = Watched.builder()
                 .movies(Collections.singletonList(id))
@@ -71,7 +71,7 @@ class WatchedServiceTest {
     void testOnDestroy_whenInvoked_shouldSaveCache() {
         var id = "movieId";
         var movie = MovieDetails.builder()
-                .id(id)
+                .imdbId(id)
                 .build();
         var expectedStorageItem = Watched.builder()
                 .movies(Collections.singletonList(id))

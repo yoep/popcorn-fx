@@ -272,12 +272,25 @@ impl FavoriteService {
 impl Drop for FavoriteService {
     fn drop(&mut self) {
         let mutex = self.mutex.clone();
-        let favorites = futures::executor::block_on(mutex.lock());
+        let execute = async move {
+            let favorites = mutex.lock().await;
 
-        if favorites.is_some() {
-            debug!("Saving favorites on exit");
-            let e = favorites.as_ref().expect("Expected the favorites to be present");
-            self.save(e)
+            if favorites.is_some() {
+                debug!("Saving favorites on exit");
+                let e = favorites.as_ref().expect("Expected the favorites to be present");
+                self.save_async(e).await
+            }
+        };
+
+        match Handle::try_current() {
+            Ok(e) => {
+                trace!("Using handle on exit");
+                e.block_on(execute)
+            },
+            Err(_) => {
+                let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
+                runtime.block_on(execute)
+            }
         }
     }
 }
@@ -315,17 +328,23 @@ impl FavoriteCallbacks {
     }
 
     fn invoke(&self, event: FavoriteEvent) {
-        let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to be created");
         let callbacks = self.callbacks.clone();
-
-        runtime.spawn(async move {
+        let execute = async move {
             let mutex = callbacks.lock().await;
 
             debug!("Calling a total of {} callbacks for: {}", mutex.len(), &event);
             for callback in mutex.iter() {
                 callback(event.clone());
             }
-        });
+        };
+
+        match Handle::try_current() {
+            Ok(e) => e.block_on(execute),
+            Err(_) => {
+                let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
+                runtime.block_on(execute)
+            }
+        }
     }
 }
 
@@ -411,7 +430,8 @@ mod test {
             String::new(),
         )) as Box<dyn MediaIdentifier>;
 
-        service.add(movie);
+        service.add(movie)
+            .expect("expected the favorite media item add to have succeeded");
         let result = service.all()
             .expect("expected the favorites to have been loaded");
 

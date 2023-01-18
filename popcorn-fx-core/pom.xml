@@ -90,13 +90,6 @@
             <artifactId>javax.annotation-api</artifactId>
         </dependency>
 
-        <!-- OpenSubtitles -->
-        <dependency>
-            <groupId>de.timroes</groupId>
-            <artifactId>aXMLRPC</artifactId>
-            <version>1.8.0</version>
-        </dependency>
-
         <!-- JNA -->
         <dependency>
             <groupId>net.java.dev.jna</groupId>

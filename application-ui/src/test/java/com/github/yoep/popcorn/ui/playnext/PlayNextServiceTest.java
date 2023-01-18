@@ -100,6 +100,8 @@ class PlayNextServiceTest {
                 .episode(6)
                 .build();
         var show = mock(ShowDetails.class);
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(Collections.singletonList(episode));
         var activity = PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-url")
@@ -112,8 +114,6 @@ class PlayNextServiceTest {
                         .build())
                 .build();
         var expectedResult = new PlayNextService.NextEpisode(show, episode);
-        when(show.getImages()).thenReturn(Images.builder().build());
-        when(show.getEpisodes()).thenReturn(Collections.singletonList(episode));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
         playNextService.onPlayVideo(activity);
@@ -128,6 +128,8 @@ class PlayNextServiceTest {
         var episode1 = createEpisode(1);
         var episode2 = createEpisode(2);
         var show = mock(ShowDetails.class);
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(asList(episode1, episode2));
         var activity = PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-url")
@@ -137,8 +139,6 @@ class PlayNextServiceTest {
                 .media(show)
                 .subMediaItem(episode2)
                 .build();
-        when(show.getImages()).thenReturn(Images.builder().build());
-        when(show.getEpisodes()).thenReturn(asList(episode1, episode2));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
         playNextService.onPlayVideo(activity);
@@ -154,6 +154,8 @@ class PlayNextServiceTest {
         var episode3 = createEpisode(3);
         var episode4 = createEpisode(4);
         var show = mock(ShowDetails.class);
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(asList(episode1, episode2, episode3, episode4));
         var activity = PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-url")
@@ -163,8 +165,6 @@ class PlayNextServiceTest {
                 .media(show)
                 .subMediaItem(episode2)
                 .build();
-        when(show.getImages()).thenReturn(Images.builder().build());
-        when(show.getEpisodes()).thenReturn(asList(episode1, episode2, episode3, episode4));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
 
         playNextService.onPlayVideo(activity);
@@ -182,6 +182,8 @@ class PlayNextServiceTest {
         var episode = createEpisode(1);
         var nextEpisode = createEpisode(2);
         var show = mock(ShowDetails.class);
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(asList(episode, nextEpisode));
         var activity = PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-url")
@@ -191,8 +193,6 @@ class PlayNextServiceTest {
                 .media(show)
                 .subMediaItem(episode)
                 .build();
-        when(show.getImages()).thenReturn(Images.builder().build());
-        when(show.getEpisodes()).thenReturn(asList(episode, nextEpisode));
         playNextService.init();
 
         // update the next episode
@@ -213,6 +213,8 @@ class PlayNextServiceTest {
         var nextEpisode = createEpisode(2);
         var show = mock(ShowDetails.class);
         var expectedResult = 20;
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(asList(episode, nextEpisode));
         var activity = PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-url")
@@ -222,8 +224,6 @@ class PlayNextServiceTest {
                 .media(show)
                 .subMediaItem(episode)
                 .build();
-        when(show.getImages()).thenReturn(Images.builder().build());
-        when(show.getEpisodes()).thenReturn(asList(episode, nextEpisode));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.init();
 
@@ -240,6 +240,8 @@ class PlayNextServiceTest {
         var episode1 = createEpisode(1);
         var episode2 = createEpisode(2);
         var show = mock(ShowDetails.class);
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(asList(episode1, episode2));
         var activity = PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-url")
@@ -251,8 +253,6 @@ class PlayNextServiceTest {
                 .quality("480p")
                 .build();
         var videoLength = 90000;
-        when(show.getImages()).thenReturn(Images.builder().build());
-        when(show.getEpisodes()).thenReturn(asList(episode1, episode2));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.init();
 
@@ -268,6 +268,8 @@ class PlayNextServiceTest {
         var episode1 = createEpisode(1);
         var episode2 = createEpisode(2);
         var show = mock(ShowDetails.class);
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(asList(episode1, episode2));
         var activity = PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-url")
@@ -279,8 +281,6 @@ class PlayNextServiceTest {
                 .quality("480p")
                 .build();
         var videoLength = 0;
-        when(show.getImages()).thenReturn(Images.builder().build());
-        when(show.getEpisodes()).thenReturn(asList(episode1, episode2));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.init();
 

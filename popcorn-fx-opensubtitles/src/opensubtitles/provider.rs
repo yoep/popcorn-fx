@@ -514,7 +514,7 @@ mod test {
                 String::new())),
             PopcornSettings::new(
                 SubtitleSettings::new(
-                    format!("{:?}", temp_dir.into_path()),
+                    temp_dir.into_path().to_str().unwrap().to_string(),
                     false,
                     English,
                     SubtitleFamily::Arial,
@@ -675,7 +675,7 @@ mod test {
     async fn test_download_should_return_the_expected_subtitle() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let temp_dir = settings.settings().subtitle().directory().into_os_string().into_string().unwrap();
+        let temp_dir =settings.settings().subtitle().directory().to_str().unwrap().to_string();
         let service = OpensubtitlesProvider::new(&settings);
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files("tt7405458".to_string(), SubtitleLanguage::German, vec![
@@ -717,7 +717,7 @@ mod test {
         init_logger();
         let test_file = "subtitle_existing.srt";
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = format!("{:?}", temp_dir.into_path());
+        let temp_path = temp_dir.into_path().to_str().unwrap().to_string();
         let popcorn_settings = PopcornSettings::new(SubtitleSettings::new(
             temp_path.clone(),
             false,

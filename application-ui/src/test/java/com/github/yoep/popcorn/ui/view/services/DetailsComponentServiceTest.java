@@ -3,21 +3,19 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -77,7 +75,6 @@ class DetailsComponentServiceTest {
         service.onShowDetails(newEvent);
 
         verify(watchedProperty).removeListener(isA(ChangeListener.class));
-        verify(likedProperty).removeListener(isA(ChangeListener.class));
     }
 
     @Test
@@ -101,17 +98,18 @@ class DetailsComponentServiceTest {
     @Test
     void testListeners_whenShowWatchedStateIsChanged_shouldInvokedOnWatchedChanged() {
         var show = mock(ShowDetails.class);
+        var property = new SimpleBooleanProperty();
         var event = ShowSerieDetailsEvent.builder()
                 .source(this)
                 .media(show)
                 .build();
         var listener = mock(DetailsComponentListener.class);
         var expectedResult = true;
-        when(show.getEpisodes()).thenReturn(Collections.singletonList(Episode.builder().build()));
+        when(show.watchedProperty()).thenReturn(property);
         service.onShowDetails(event);
         service.addListener(listener);
 
-        show.setWatched(expectedResult);
+        property.set(true);
 
         verify(listener).onWatchChanged(expectedResult);
     }
@@ -173,6 +171,8 @@ class DetailsComponentServiceTest {
                 .source(this)
                 .media(show)
                 .build();
+        when(favoriteService.isLiked(show)).thenReturn(false);
+        when(show.watchedProperty()).thenReturn(new SimpleBooleanProperty());
         service.onShowDetails(event);
 
         service.toggleLikedState();
@@ -187,6 +187,8 @@ class DetailsComponentServiceTest {
                 .source(this)
                 .media(show)
                 .build();
+        when(favoriteService.isLiked(show)).thenReturn(true);
+        when(show.watchedProperty()).thenReturn(new SimpleBooleanProperty());
         service.onShowDetails(event);
 
         service.toggleLikedState();

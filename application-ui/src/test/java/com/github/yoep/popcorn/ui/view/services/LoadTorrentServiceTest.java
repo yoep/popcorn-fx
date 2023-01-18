@@ -144,8 +144,6 @@ class LoadTorrentServiceTest {
         var subtitle = mock(Subtitle.class);
         var subtitleMatcher = SubtitleMatcher.from(torrentFilename, quality);
         when(media.getTitle()).thenReturn("my show title");
-        when(media.getEpisodes()).thenReturn(Collections.singletonList(episode));
-        when(media.getImages()).thenReturn(Images.builder().build());
         when(torrentInfo.getByFilename(episodeTitle)).thenReturn(Optional.of(torrentFileInfo));
         when(torrent.getFilename()).thenReturn(torrentFilename);
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);

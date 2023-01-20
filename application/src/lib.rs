@@ -6,7 +6,7 @@ use std::path::Path;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{EpisodeC, FavoriteC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MediaSetC, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::{EpisodeC, FavoriteC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MediaSetC, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
@@ -263,7 +263,7 @@ pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut VecShowC {
+pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut MediaSetC {
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
@@ -272,16 +272,15 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
     match runtime.block_on(popcorn_fx.providers().retrieve(&Category::SERIES, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} shows, {:?}", e.len(), &e);
-            let shows: Vec<ShowOverviewC> = e.into_iter()
-                .map(|e| e
+            let shows: Vec<ShowOverview> = e.into_iter()
+                .map(|e| *e
                     .into_any()
                     .downcast::<ShowOverview>()
                     .expect("expected media to be a show"))
-                .map(|e| ShowOverviewC::from(*e))
                 .collect();
 
             if shows.len() > 0 {
-                into_c_owned(VecShowC::from(shows))
+                into_c_owned(MediaSetC::from_shows(shows))
             } else {
                 debug!("No shows have been found, returning ptr::null");
                 ptr::null_mut()
@@ -502,6 +501,7 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
 /// Dispose all given media items from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {
+    trace!("Disposing media items of {:?}", media);
     let _ = media.movies();
     let _ = media.shows();
 }

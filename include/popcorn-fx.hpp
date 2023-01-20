@@ -271,11 +271,6 @@ struct SortByC {
   const char *text;
 };
 
-struct VecShowC {
-  ShowOverviewC *shows;
-  int32_t len;
-};
-
 
 extern "C" {
 
@@ -366,7 +361,7 @@ MediaSetC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre,
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
-VecShowC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+MediaSetC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the details of a favorite item on the given IMDB ID.
 /// The details contain all information about the media item.

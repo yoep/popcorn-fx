@@ -6,7 +6,6 @@ import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.Favorite;
 import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.providers.MediaSet;
-import com.github.yoep.popcorn.backend.media.providers.ShowSet;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
@@ -57,7 +56,7 @@ public interface FxLib extends Library {
 
     void reset_movie_apis(PopcornFx instance);
 
-    ShowSet retrieve_available_shows(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
+    MediaSet retrieve_available_shows(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
     ShowDetails retrieve_show_details(PopcornFx instance, String imdbId);
 
@@ -76,7 +75,7 @@ public interface FxLib extends Library {
     void remove_from_favorites(PopcornFx instance, Favorite media);
 
     void register_favorites_event_callback(PopcornFx instance, FavoriteEventCallback callback);
-    
+
     String serve_subtitle(PopcornFx instance, Subtitle subtitle, int type);
 
     void disable_screensaver(PopcornFx instance);

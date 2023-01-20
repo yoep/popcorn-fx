@@ -8,24 +8,6 @@ use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, to_c_str
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use crate::core::media::favorites::FavoriteEvent;
 
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct VecShowC {
-    pub shows: *mut ShowOverviewC,
-    pub len: i32,
-}
-
-impl VecShowC {
-    pub fn from(shows: Vec<ShowOverviewC>) -> Self {
-        let (shows, len) = to_c_vec(shows);
-
-        Self {
-            shows,
-            len,
-        }
-    }
-}
-
 /// Structure defining a set of media items.
 /// Each media items is separated in a specific implementation array.
 #[repr(C)]
@@ -50,6 +32,19 @@ impl MediaSetC {
             movies_len,
             shows: ptr::null_mut(),
             shows_len: 0,
+        }
+    }
+
+    pub fn from_shows(shows: Vec<ShowOverview>) -> Self {
+        let (shows,shows_len) = to_c_vec(shows.into_iter()
+            .map(|e| ShowOverviewC::from(e))
+            .collect());
+
+        Self {
+            movies: ptr::null_mut(),
+            movies_len: 0,
+            shows,
+            shows_len
         }
     }
 

@@ -26,11 +26,15 @@ impl VecShowC {
     }
 }
 
+/// Structure defining a set of media items.
+/// Each media items is separated in a specific implementation array.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MediaSetC {
+    /// The movie media items array.
     pub movies: *mut MovieOverviewC,
     pub movies_len: i32,
+    /// The show media items array.
     pub shows: *mut ShowOverviewC,
     pub shows_len: i32,
 }

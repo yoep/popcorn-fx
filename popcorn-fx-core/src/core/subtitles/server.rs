@@ -8,7 +8,7 @@ use log::{debug, info, trace};
 use tokio::sync::{Mutex, MutexGuard};
 use warp::{Filter, Rejection};
 use warp::http::{HeaderValue, Response};
-use warp::http::header::CONTENT_TYPE;
+use warp::http::header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_DISPOSITION, CONTENT_TYPE};
 
 use crate::core::subtitles;
 use crate::core::subtitles::{SubtitleError, SubtitleProvider};
@@ -44,6 +44,7 @@ impl SubtitleServer {
     ///
     /// It returns the served url on success, else the error.
     pub fn serve(&self, subtitle: Subtitle, serving_type: SubtitleType) -> subtitles::Result<String> {
+        trace!("Trying to service subtitle type {} for {}", &serving_type, &subtitle);
         let filename = Path::new(subtitle.file()).file_stem()
             .and_then(|e| e.to_str())
             .map(|e| e.to_string());
@@ -63,6 +64,7 @@ impl SubtitleServer {
             let routes = warp::get()
                 .and(warp::path!("subtitle" / String))
                 .and_then(move |subtitle: String| {
+                    trace!("Handling request for subtitle filename {}", &subtitle);
                     let subtitles = subtitles.clone();
                     async move {
                         let subtitles = subtitles.lock().await;
@@ -114,10 +116,17 @@ impl SubtitleServer {
             None => Err(warp::reject()),
             Some(e) => {
                 let content_type = format!("{}; charset=utf-8", e.data_type.content_type());
-                let header_value = HeaderValue::from_bytes( content_type.as_bytes()).expect("expected a valid header value");
+                let header_value = HeaderValue::from_bytes(content_type.as_bytes()).expect("expected a valid header value");
                 let mut response = Response::new(e.data());
+                let headers = response.headers_mut();
 
-                response.headers_mut().insert(CONTENT_TYPE, header_value);
+                headers.insert(CONTENT_TYPE, header_value);
+                headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+                headers.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET,HEAD"));
+                headers.insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static(CONTENT_TYPE.as_str()));
+                headers.insert(CONTENT_DISPOSITION, HeaderValue::from_static(""));
+
+                debug!("Handled subtitle request for {}", filename);
                 Ok(response)
             }
         }

@@ -76,6 +76,8 @@ public interface FxLib extends Library {
     void remove_from_favorites(PopcornFx instance, Favorite media);
 
     void register_favorites_event_callback(PopcornFx instance, FavoriteEventCallback callback);
+    
+    String serve_subtitle(PopcornFx instance, Subtitle subtitle, int type);
 
     void disable_screensaver(PopcornFx instance);
 

@@ -479,6 +479,26 @@ pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut Popcorn
     popcorn_fx.favorite_service().register(wrapper)
 }
 
+/// Serve the given subtitle as [SubtitleType] format.
+///
+/// It returns the url which hosts the [Subtitle].
+#[no_mangle]
+pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC, output_type: usize) -> *const c_char {
+    let subtitle = subtitle.to_subtitle();
+    let subtitle_type = SubtitleType::from_ordinal(output_type);
+
+    match popcorn_fx.subtitle_server().serve(subtitle, subtitle_type) {
+        Ok(e) => {
+            info!("Serving subtitle at {}", &e);
+            to_c_string(e)
+        }
+        Err(e) => {
+            error!("Failed to serve subtitle, {}", e);
+            ptr::null()
+        }
+    }
+}
+
 /// Dispose all given media items from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {

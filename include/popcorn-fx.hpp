@@ -184,9 +184,13 @@ struct VecSubtitleInfoC {
   int32_t cap;
 };
 
-struct VecMediaC {
+/// Structure defining a set of media items.
+/// Each media items is separated in a specific implementation array.
+struct MediaSetC {
+  /// The movie media items array.
   MovieOverviewC *movies;
   int32_t movies_len;
+  /// The show media items array.
   ShowOverviewC *shows;
   int32_t shows_len;
 };
@@ -286,7 +290,7 @@ VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 void disable_screensaver(PopcornFX *popcorn_fx);
 
 /// Dispose all given media items from memory.
-void dispose_media_items(Box<VecMediaC> media);
+void dispose_media_items(Box<MediaSetC> media);
 
 /// Delete the PopcornFX instance in a safe way.
 void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);
@@ -357,7 +361,7 @@ VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC 
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
-VecMediaC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+MediaSetC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
@@ -384,6 +388,11 @@ ShowDetailsC *retrieve_show_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);
+
+/// Serve the given subtitle as [SubtitleType] format.
+///
+/// It returns the url which hosts the [Subtitle].
+const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
 
 const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
 

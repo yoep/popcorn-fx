@@ -54,7 +54,7 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
 
     public Page<MovieOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         var movies = Optional.ofNullable(FxLib.INSTANCE.retrieve_available_movies(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
-                .map(MovieSet::getMovies)
+                .map(MediaSet::getMovies)
                 .orElse(Collections.emptyList());
         log.debug("Retrieved movies {}", movies);
 

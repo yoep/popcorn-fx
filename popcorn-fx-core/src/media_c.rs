@@ -10,24 +10,6 @@ use crate::core::media::favorites::FavoriteEvent;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct VecMovieC {
-    pub movies: *mut MovieOverviewC,
-    pub len: i32,
-}
-
-impl VecMovieC {
-    pub fn from(movies: Vec<MovieOverviewC>) -> Self {
-        let (movies, len) = to_c_vec(movies);
-
-        Self {
-            movies,
-            len,
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Clone)]
 pub struct VecShowC {
     pub shows: *mut ShowOverviewC,
     pub len: i32,
@@ -46,17 +28,30 @@ impl VecShowC {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct VecMediaC {
+pub struct MediaSetC {
     pub movies: *mut MovieOverviewC,
     pub movies_len: i32,
     pub shows: *mut ShowOverviewC,
     pub shows_len: i32,
 }
 
-impl VecMediaC {
+impl MediaSetC {
+    pub fn from_movies(movies: Vec<MovieOverview>) -> Self {
+        let (movies, movies_len) = to_c_vec(movies.into_iter()
+            .map(|e| MovieOverviewC::from(e))
+            .collect());
+
+        Self {
+            movies,
+            movies_len,
+            shows: ptr::null_mut(),
+            shows_len: 0,
+        }
+    }
+
     pub fn movies(&self) -> Vec<MovieOverview> {
         if self.movies.is_null() {
-            return vec![]
+            return vec![];
         }
 
         let movies: Vec<MovieOverviewC> = from_c_vec(self.movies, self.movies_len);
@@ -68,7 +63,7 @@ impl VecMediaC {
 
     pub fn shows(&self) -> Vec<ShowOverview> {
         if self.shows.is_null() {
-            return vec![]
+            return vec![];
         }
 
         let shows: Vec<ShowOverviewC> = from_c_vec(self.shows, self.movies_len);

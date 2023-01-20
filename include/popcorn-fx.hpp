@@ -267,11 +267,6 @@ struct SortByC {
   const char *text;
 };
 
-struct VecMovieC {
-  MovieOverviewC *movies;
-  int32_t len;
-};
-
 struct VecShowC {
   ShowOverviewC *shows;
   int32_t len;
@@ -362,7 +357,7 @@ VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC 
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
-VecMovieC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+VecMediaC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///

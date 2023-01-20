@@ -184,6 +184,13 @@ struct VecSubtitleInfoC {
   int32_t cap;
 };
 
+struct VecMediaC {
+  MovieOverviewC *movies;
+  int32_t movies_len;
+  ShowOverviewC *shows;
+  int32_t shows_len;
+};
+
 struct StyledTextC {
   const char *text;
   bool italic;
@@ -282,6 +289,9 @@ VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 
 /// Disable the screensaver on the current platform
 void disable_screensaver(PopcornFX *popcorn_fx);
+
+/// Dispose all given media items from memory.
+void dispose_media_items(Box<VecMediaC> media);
 
 /// Delete the PopcornFX instance in a safe way.
 void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);

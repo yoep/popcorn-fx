@@ -139,10 +139,7 @@ impl SubtitleC {
             .collect());
 
         Self {
-            file: to_c_string(subtitle.file()
-                .map(|e| e.clone())
-                .or_else(|| Some(String::new()))
-                .unwrap()),
+            file: to_c_string(subtitle.file().clone()),
             info: SubtitleInfoC::from(subtitle.info()
                 .map(|e| e.clone())
                 .or_else(|| Some(SubtitleInfo::none()))
@@ -156,18 +153,13 @@ impl SubtitleC {
         trace!("Converting subtitle from C for {:?}", self);
         let info = self.info.clone().to_subtitle();
         let cues = from_c_vec(self.cues, self.number_of_cues);
-        let mut file = None;
-
-        if !self.file.is_null() {
-            file = Some(from_c_string(self.file));
-        }
 
         Subtitle::new(
             cues.iter()
                 .map(|e| e.to_cue())
                 .collect(),
             Some(info),
-            file)
+            from_c_string(self.file))
     }
 }
 

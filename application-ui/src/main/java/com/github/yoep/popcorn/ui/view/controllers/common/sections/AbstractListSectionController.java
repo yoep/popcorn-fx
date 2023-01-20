@@ -154,7 +154,7 @@ public abstract class AbstractListSectionController implements Initializable {
 
             @Override
             public Node createCell(Media item) {
-                return creatItemNode(item);
+                return createItemNode(item);
             }
         });
     }
@@ -177,7 +177,7 @@ public abstract class AbstractListSectionController implements Initializable {
      * @param item The item to create a node for.
      * @return Returns the node for the given item.
      */
-    protected abstract Node creatItemNode(Media item);
+    protected abstract Node createItemNode(Media item);
 
     /**
      * Load the items for the given page.
@@ -229,6 +229,7 @@ public abstract class AbstractListSectionController implements Initializable {
             currentLoadRequest.cancel(true);
 
         numberOfPageFailures = 0;
+        scrollPane.all();
         scrollPane.reset();
     }
 

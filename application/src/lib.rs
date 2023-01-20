@@ -6,7 +6,7 @@ use std::path::Path;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{EpisodeC, FavoriteC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMovieC, VecShowC, VecSubtitleInfoC};
+use popcorn_fx_core::{EpisodeC, FavoriteC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecMediaC, VecMovieC, VecShowC, VecSubtitleInfoC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
@@ -478,6 +478,13 @@ pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut Popcorn
     });
 
     popcorn_fx.favorite_service().register(wrapper)
+}
+
+/// Dispose all given media items from memory.
+#[no_mangle]
+pub extern "C" fn dispose_media_items(media: Box<VecMediaC>) {
+    let _ = media.movies();
+    let _ = media.shows();
 }
 
 /// Delete the PopcornFX instance in a safe way.

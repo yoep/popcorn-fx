@@ -46,6 +46,41 @@ impl VecShowC {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
+pub struct VecMediaC {
+    pub movies: *mut MovieOverviewC,
+    pub movies_len: i32,
+    pub shows: *mut ShowOverviewC,
+    pub shows_len: i32,
+}
+
+impl VecMediaC {
+    pub fn movies(&self) -> Vec<MovieOverview> {
+        if self.movies.is_null() {
+            return vec![]
+        }
+
+        let movies: Vec<MovieOverviewC> = from_c_vec(self.movies, self.movies_len);
+
+        movies.into_iter()
+            .map(|e| e.to_struct())
+            .collect()
+    }
+
+    pub fn shows(&self) -> Vec<ShowOverview> {
+        if self.shows.is_null() {
+            return vec![]
+        }
+
+        let shows: Vec<ShowOverviewC> = from_c_vec(self.shows, self.movies_len);
+
+        shows.into_iter()
+            .map(|e| e.to_struct())
+            .collect()
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
 pub struct VecFavoritesC {
     pub movies: *mut MovieOverviewC,
     pub movies_len: i32,

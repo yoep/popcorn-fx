@@ -7,7 +7,7 @@ use log::{trace, warn};
 use regex::Regex;
 
 use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
-use crate::core::subtitles::errors::SubtitleParseError;
+use crate::core::subtitles::error::SubtitleParseError;
 use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
 use crate::core::subtitles::parsers::utils::{time_from_millis, time_to_millis};
 
@@ -291,9 +291,9 @@ The <i>Black Pearl</i> is yours.".as_bytes());
             vec![SubtitleLine::new(
                 vec![StyledText::new("lorem".to_string(), true, false, false)])])];
         let parser = SrtParser::new();
-        let expected_result = "1
-00:00:30,000 --> 00:00:48,100
-<i>lorem</i>
+        let expected_result = "1\r
+00:00:30,000 --> 00:00:48,100\r
+<i>lorem</i>\r
 ".to_string();
 
         let result = parser.convert(&cues);

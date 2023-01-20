@@ -5,7 +5,7 @@ use log::{debug, trace};
 use regex::Regex;
 
 use crate::core::subtitles::cue::SubtitleCue;
-use crate::core::subtitles::errors::SubtitleParseError;
+use crate::core::subtitles::error::SubtitleParseError;
 use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
 use crate::core::subtitles::parsers::utils::time_from_millis;
 
@@ -43,7 +43,7 @@ impl Parser for VttParser {
 
     fn convert(&self, cues: &Vec<SubtitleCue>) -> Result<String, SubtitleParseError> {
         trace!("Starting conversion to VTT");
-        let mut output = format!("{}\n\n", HEADER);
+        let mut output = format!("{}{}{}", HEADER, NEWLINE, NEWLINE);
 
         for cue in cues.iter() {
             let id = cue.id().clone();

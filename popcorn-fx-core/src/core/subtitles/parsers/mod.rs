@@ -1,7 +1,7 @@
 use std::fs::File;
 
 use crate::core::subtitles::cue::SubtitleCue;
-use crate::core::subtitles::errors::SubtitleParseError;
+use crate::core::subtitles::error::SubtitleParseError;
 pub use crate::core::subtitles::parsers::srt::SrtParser;
 pub use crate::core::subtitles::parsers::style_parser::StyleParser;
 pub use crate::core::subtitles::parsers::vtt::VttParser;
@@ -11,7 +11,7 @@ mod vtt;
 mod style_parser;
 mod utils;
 
-const NEWLINE: &str = "\n";
+const NEWLINE: &str = "\r\n";
 
 /// A subtitle parser which is able to convert a [File] into a [Subtitle] or visa-versa.
 pub trait Parser: Send + Sync {

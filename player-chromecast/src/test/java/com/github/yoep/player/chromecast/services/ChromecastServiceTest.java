@@ -27,9 +27,7 @@ import su.litvak.chromecast.api.v2.Media;
 
 import java.io.File;
 import java.io.InputStream;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.text.MessageFormat;
 import java.util.*;
 
@@ -75,31 +73,6 @@ class ChromecastServiceTest {
         var result = service.resolveMetadata(uri);
 
         assertEquals(expectedResult, result);
-    }
-
-    @Test
-    void testRetrieveVttSubtitleUri_whenTheActiveSubtitleIsNone_shouldReturnEmpty() {
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(Subtitle.none()));
-
-        var result = service.retrieveVttSubtitleUri();
-
-        assertTrue(result.isEmpty(), "Expected no subtitle uri to have been returned");
-    }
-
-    @Test
-    void testRetrieveVttSubtitleUri_whenSubtitleIsActive_shouldReturnExpectedSubtitleUri() throws UnknownHostException {
-        var port = 9998;
-        var file = new File("my-subtitle.srt");
-        var subtitle = new Subtitle(file, Collections.emptyList());
-        var host = InetAddress.getLocalHost().getHostAddress();
-        var expectedSubtitle = MessageFormat.format("http://{0}:{1}/subtitle/my-subtitle.vtt", host, String.valueOf(port));
-        when(serverProperties.getPort()).thenReturn(port);
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
-
-        var result = service.retrieveVttSubtitleUri();
-
-        assertTrue(result.isPresent(), "Expected subtitle uri to be present");
-        assertEquals(expectedSubtitle, result.get().toString());
     }
 
     @Test

@@ -291,9 +291,9 @@ The <i>Black Pearl</i> is yours.".as_bytes());
             vec![SubtitleLine::new(
                 vec![StyledText::new("lorem".to_string(), true, false, false)])])];
         let parser = SrtParser::new();
-        let expected_result = "1\r
-00:00:30,000 --> 00:00:48,100\r
-<i>lorem</i>\r
+        let expected_result = "1
+00:00:30,000 --> 00:00:48,100
+<i>lorem</i>
 ".to_string();
 
         let result = parser.convert(&cues);

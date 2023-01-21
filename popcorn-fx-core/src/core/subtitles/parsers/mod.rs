@@ -11,7 +11,7 @@ mod vtt;
 mod style_parser;
 mod utils;
 
-const NEWLINE: &str = "\r\n";
+const NEWLINE: &str = "\n";
 
 /// A subtitle parser which is able to convert a [File] into a [Subtitle] or visa-versa.
 pub trait Parser: Send + Sync {

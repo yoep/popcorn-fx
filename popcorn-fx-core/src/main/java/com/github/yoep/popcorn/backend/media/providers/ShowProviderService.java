@@ -59,7 +59,7 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
 
     public Page<ShowOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         var shows = Optional.ofNullable(FxLib.INSTANCE.retrieve_available_shows(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
-                .map(ShowSet::getShows)
+                .map(MediaSet::getShows)
                 .orElse(Collections.emptyList());
         log.debug("Retrieved shows {}", shows);
 

@@ -17,7 +17,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class InfiniteScrollPane<T> extends ManageableScrollPane {
@@ -219,6 +221,17 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
         }
 
         increasePage();
+    }
+
+    /**
+     * Retrieve all items known in the scroller.
+     *
+     * @return Returns all items.
+     */
+    public List<T> all() {
+        return items.stream()
+                .map(ItemWrapper::getItem)
+                .collect(Collectors.toList());
     }
 
     //endregion

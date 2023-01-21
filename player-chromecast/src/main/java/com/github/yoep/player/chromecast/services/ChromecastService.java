@@ -14,16 +14,12 @@ import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
-import com.github.yoep.popcorn.backend.utils.HostUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponentsBuilder;
 import su.litvak.chromecast.api.v2.Media;
 
-import java.io.File;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
@@ -44,7 +40,6 @@ public class ChromecastService {
     private final MetaDataService contentTypeService;
     private final SubtitleService subtitleService;
     private final TranscodeService transcodeService;
-    private final ServerProperties serverProperties;
     private final FFprobe ffprobe;
 
     //region Methods
@@ -59,27 +54,6 @@ public class ChromecastService {
     public VideoMetadata resolveMetadata(URI uri) {
         Objects.requireNonNull(uri, "uri cannot be null");
         return contentTypeService.resolveMetadata(uri);
-    }
-
-    /**
-     * Retrieve the uri on which the subtitle can be found.
-     * This uri is based on the currently active subtitle.
-     *
-     * @return Returns the uri of the subtitle if one is available, else {@link Optional#empty()}.
-     */
-    public Optional<URI> retrieveVttSubtitleUri() {
-        return subtitleService.getActiveSubtitle()
-                .filter(this::isSubtitleNotDisabled)
-                .flatMap(Subtitle::getFile)
-                .map(File::getName)
-                .map(FilenameUtils::getBaseName)
-                .map(e -> e + "." + SubtitleType.VTT.getExtension())
-                .map(e -> UriComponentsBuilder.newInstance()
-                        .scheme("http")
-                        .host(HostUtils.hostAddress())
-                        .port(serverProperties.getPort())
-                        .path("/subtitle/{subtitle}")
-                        .build(Collections.singletonMap("subtitle", e)));
     }
 
     /**
@@ -220,13 +194,12 @@ public class ChromecastService {
                 .map(SubtitleInfo::getLanguage)
                 .map(SubtitleLanguage::getNativeName)
                 .orElse(SubtitleLanguage.ENGLISH.getNativeName());
+        var uri = subtitleService.serve(subtitle, SubtitleType.VTT);
 
         return Collections.singletonList(Track.builder()
                 .trackId(0)
                 .type(su.litvak.chromecast.api.v2.Track.TrackType.TEXT)
-                .trackContentId(retrieveVttSubtitleUri()
-                        .map(URI::toString)
-                        .orElse(null))
+                .trackContentId(uri)
                 .trackContentType(SUBTITLE_CONTENT_TYPE)
                 .subtype(TextTrackType.SUBTITLES)
                 .language(languageCode)

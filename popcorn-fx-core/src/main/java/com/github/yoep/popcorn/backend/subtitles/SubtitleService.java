@@ -107,4 +107,6 @@ public interface SubtitleService {
      * @return Returns the subtitle that needs to be selected by default.
      */
     SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles);
+
+    String serve(Subtitle subtitle, SubtitleType type);
 }

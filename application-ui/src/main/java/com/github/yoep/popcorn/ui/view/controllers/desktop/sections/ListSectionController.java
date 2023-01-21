@@ -50,7 +50,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     //region Functions
 
     @Override
-    protected Node creatItemNode(Media item) {
+    protected Node createItemNode(Media item) {
         // update the watched & liked states of the media item with the latest information
         item.setWatched(watchedService.isWatched(item));
 

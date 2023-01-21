@@ -76,7 +76,7 @@ build: prerequisites build-cargo lib-copy build-java ## Build the application
 package: prerequisites build ## Package the application for distribution
 	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
 
-release: prerequisites build-cargo-release cargo-lib-copy ## Release a new version of the application
+release: prerequisites build-cargo-release lib-copy ## Release a new version of the application
 	$(info Starting maven gitflow release)
 	@mvn -B -P$(PROFILE) gitflow:release
 

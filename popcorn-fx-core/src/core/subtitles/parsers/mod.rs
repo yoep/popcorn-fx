@@ -1,7 +1,7 @@
 use std::fs::File;
 
 use crate::core::subtitles::cue::SubtitleCue;
-use crate::core::subtitles::errors::SubtitleParseError;
+use crate::core::subtitles::error::SubtitleParseError;
 pub use crate::core::subtitles::parsers::srt::SrtParser;
 pub use crate::core::subtitles::parsers::style_parser::StyleParser;
 pub use crate::core::subtitles::parsers::vtt::VttParser;

@@ -144,6 +144,12 @@ public class SubtitleServiceImpl implements SubtitleService {
         return FxLib.INSTANCE.select_or_default_subtitle(PopcornFxInstance.INSTANCE.get(), array, count);
     }
 
+    @Override
+    public String serve(Subtitle subtitle, SubtitleType type) {
+        Assert.notNull(subtitle, "subtitle cannot be null");
+        return FxLib.INSTANCE.serve_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle, type.ordinal());
+    }
+
     //endregion
 
     private static List<SubtitleInfo> defaultOptions() {

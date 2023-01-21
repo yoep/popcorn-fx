@@ -8,39 +8,68 @@ use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, to_c_str
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use crate::core::media::favorites::FavoriteEvent;
 
+/// Structure defining a set of media items.
+/// Each media items is separated in a specific implementation array.
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct VecMovieC {
+pub struct MediaSetC {
+    /// The movie media items array.
     pub movies: *mut MovieOverviewC,
-    pub len: i32,
+    pub movies_len: i32,
+    /// The show media items array.
+    pub shows: *mut ShowOverviewC,
+    pub shows_len: i32,
 }
 
-impl VecMovieC {
-    pub fn from(movies: Vec<MovieOverviewC>) -> Self {
-        let (movies, len) = to_c_vec(movies);
+impl MediaSetC {
+    pub fn from_movies(movies: Vec<MovieOverview>) -> Self {
+        let (movies, movies_len) = to_c_vec(movies.into_iter()
+            .map(|e| MovieOverviewC::from(e))
+            .collect());
 
         Self {
             movies,
-            len,
+            movies_len,
+            shows: ptr::null_mut(),
+            shows_len: 0,
         }
     }
-}
 
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct VecShowC {
-    pub shows: *mut ShowOverviewC,
-    pub len: i32,
-}
-
-impl VecShowC {
-    pub fn from(shows: Vec<ShowOverviewC>) -> Self {
-        let (shows, len) = to_c_vec(shows);
+    pub fn from_shows(shows: Vec<ShowOverview>) -> Self {
+        let (shows,shows_len) = to_c_vec(shows.into_iter()
+            .map(|e| ShowOverviewC::from(e))
+            .collect());
 
         Self {
+            movies: ptr::null_mut(),
+            movies_len: 0,
             shows,
-            len,
+            shows_len
         }
+    }
+
+    pub fn movies(&self) -> Vec<MovieOverview> {
+        if self.movies.is_null() {
+            return vec![];
+        }
+
+        let movies: Vec<MovieOverviewC> = from_c_vec(self.movies, self.movies_len);
+
+        movies.into_iter()
+            .map(|e| e.to_struct())
+            .collect()
+    }
+
+    pub fn shows(&self) -> Vec<ShowOverview> {
+        if self.shows.is_null() {
+            return vec![];
+        }
+
+        let shows: Vec<ShowOverviewC> = from_c_vec(self.shows, self.movies_len);
+
+        shows.into_iter()
+            .map(|e| e.to_struct())
+            .collect()
     }
 }
 

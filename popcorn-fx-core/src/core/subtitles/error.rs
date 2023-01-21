@@ -2,7 +2,10 @@ use std::fmt::{Display, Formatter};
 
 use crate::core::subtitles::model::SubtitleType;
 
-#[derive(PartialEq, Debug)]
+/// The specialized subtitle result.
+pub type Result<T> = std::result::Result<T, SubtitleError>;
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum SubtitleError {
     InvalidUrl(String),
     SearchFailed(String),
@@ -11,6 +14,7 @@ pub enum SubtitleError {
     ConversionFailed(SubtitleType, String),
     TypeNotSupported(SubtitleType),
     NoFilesFound(),
+    InvalidFile(String, String),
 }
 
 impl Display for SubtitleError {
@@ -23,6 +27,7 @@ impl Display for SubtitleError {
             SubtitleError::ConversionFailed(output_type, message) => write!(f, "Subtitle conversion to {} failed, {}", output_type, message),
             SubtitleError::TypeNotSupported(subtitle_type) => write!(f, "Subtitle type {} is not supported", subtitle_type),
             SubtitleError::NoFilesFound() => write!(f, "No available subtitle files found"),
+            SubtitleError::InvalidFile(filename, message) => write!(f, "File {} is invalid, {}", filename, message),
         }
     }
 }

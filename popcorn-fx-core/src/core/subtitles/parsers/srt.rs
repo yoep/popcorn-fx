@@ -7,7 +7,7 @@ use log::{trace, warn};
 use regex::Regex;
 
 use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
-use crate::core::subtitles::errors::SubtitleParseError;
+use crate::core::subtitles::error::SubtitleParseError;
 use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
 use crate::core::subtitles::parsers::utils::{time_from_millis, time_to_millis};
 

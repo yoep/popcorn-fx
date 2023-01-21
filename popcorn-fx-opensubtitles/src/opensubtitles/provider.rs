@@ -13,8 +13,7 @@ use reqwest::header::HeaderMap;
 
 use popcorn_fx_core::core::config::Application;
 use popcorn_fx_core::core::media::*;
-use popcorn_fx_core::core::subtitles::{Result, SubtitleProvider};
-use popcorn_fx_core::core::subtitles::errors::SubtitleError;
+use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleFile, SubtitleInfo, SubtitleType};
@@ -308,7 +307,7 @@ impl OpensubtitlesProvider {
             .map(|file| parser.parse_file(file))
             .map(|e| {
                 info!("Parsed subtitle file {:?}", &file_path);
-                Subtitle::new(e, info.map(|e| e.clone()), Some(path.clone()))
+                Subtitle::new(e, info.map(|e| e.clone()), path.clone())
             })
             .map_err(|err| SubtitleError::ParsingFailed(path.clone(), err.to_string()))
     }
@@ -675,7 +674,7 @@ mod test {
     async fn test_download_should_return_the_expected_subtitle() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let temp_dir =settings.settings().subtitle().directory().to_str().unwrap().to_string();
+        let temp_dir = settings.settings().subtitle().directory().to_str().unwrap().to_string();
         let service = OpensubtitlesProvider::new(&settings);
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files("tt7405458".to_string(), SubtitleLanguage::German, vec![
@@ -703,7 +702,7 @@ mod test {
         let expected_result = Subtitle::new(vec![SubtitleCue::new("1".to_string(), 30296, 34790, vec![
             SubtitleLine::new(vec![
                 StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)
-            ])])], Some(subtitle_info.clone()), Some(expected_file.to_str().unwrap().to_string()));
+            ])])], Some(subtitle_info.clone()), expected_file.to_str().unwrap().to_string());
 
         let result = service.download(&subtitle_info, &matcher)
             .await
@@ -742,7 +741,7 @@ mod test {
                 SubtitleLine::new(vec![StyledText::new("Okay, if no one else will say it, I will.".to_string(), false, false, false)])
             ])
         ];
-        let expected_result = Subtitle::new(expected_cues.clone(), Some(subtitle_info.clone()), Some(destination.clone()));
+        let expected_result = Subtitle::new(expected_cues.clone(), Some(subtitle_info.clone()), destination.clone());
 
         let result = service.download(&subtitle_info, &matcher)
             .await
@@ -760,9 +759,13 @@ mod test {
         let settings = Arc::new(Application::default());
         let service = OpensubtitlesProvider::new(&settings);
         let destination = copy_test_file(temp_dir.into_path().to_str().unwrap(), test_file);
-        let expected_result = Subtitle::new(vec![
-            SubtitleCue::new("1".to_string(), 0, 0, vec![SubtitleLine::new(vec![StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)])])
-        ], None, Some(destination.clone()));
+        let expected_result = Subtitle::new(
+            vec![
+                SubtitleCue::new("1".to_string(), 0, 0, vec![SubtitleLine::new(vec![StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)])])
+            ],
+            None,
+            destination.clone(),
+        );
 
         let result = service.parse(Path::new(&destination)).unwrap();
 
@@ -875,7 +878,7 @@ mod test {
                 ])],
             )],
             None,
-            None,
+            String::new(),
         );
         let settings = Arc::new(Application::default());
         let service = OpensubtitlesProvider::new(&settings);

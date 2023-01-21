@@ -8,7 +8,7 @@ use log::{trace, warn};
 use regex::Regex;
 
 use crate::core::subtitles::cue::SubtitleCue;
-use crate::core::subtitles::errors::{SubtitleError, SubtitleParseError};
+use crate::core::subtitles::error::{SubtitleError, SubtitleParseError};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 
@@ -50,6 +50,15 @@ impl SubtitleType {
         match self {
             SubtitleType::Srt => SRT_EXTENSION.to_string(),
             SubtitleType::Vtt => VTT_EXTENSION.to_string()
+        }
+    }
+    
+    /// Retrieve the content type of the subtitle type.
+    /// This represents a valid HTTP content type.
+    pub fn content_type(&self) -> &str {
+        match self {
+            SubtitleType::Srt => "text/srt",
+            SubtitleType::Vtt => "text/vtt"
         }
     }
 }
@@ -329,11 +338,11 @@ pub struct Subtitle {
     /// The original subtitle info that was used to create this subtitle.
     info: Option<SubtitleInfo>,
     /// The subtitle file path which was used to parse the subtitle file.
-    file: Option<String>,
+    file: String,
 }
 
 impl Subtitle {
-    pub fn new(cues: Vec<SubtitleCue>, info: Option<SubtitleInfo>, file: Option<String>) -> Self {
+    pub fn new(cues: Vec<SubtitleCue>, info: Option<SubtitleInfo>, file: String) -> Self {
         Self {
             cues,
             info,
@@ -352,11 +361,8 @@ impl Subtitle {
         }
     }
 
-    pub fn file(&self) -> Option<&String> {
-        match &self.file {
-            Some(e) => Some(e),
-            None => None
-        }
+    pub fn file(&self) -> &String {
+        &self.file
     }
 }
 

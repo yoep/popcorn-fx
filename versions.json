@@ -1,15 +1,27 @@
 {
-  "version": "0.3.1",
+  "version": "0.4.0",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.1/popcorn-time_0.3.1.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.1/popcorn-time_0.3.1_arm64.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.1/popcorn-time_0.3.1.dmg",
-    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.3.1/popcorn-time_0.3.1.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.0/popcorn-time_0.4.0.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.0/popcorn-time_0.4.0_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.0/popcorn-time_0.4.0.dmg",
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.0/popcorn-time_0.4.0.exe"
   },
   "changelog": {
-    "features": [],
+    "features": [
+      "Application starts on active screen instead of always the main screen",
+      "Using OpenSubtitles REST api",
+      "VTT endpoint using rust backend",
+      "Reworked media providers within rust",
+      "Added media playback shortcuts to external player view"
+    ],
     "bugfixes": [
-      "Fixed player view going out of window bounds"
+      "MacOS compilation",
+      "MacOS icons not always visible",
+      "MacOS install package not working",
+      "Application not launching on MacOS",
+      "Favorite button not working within serie details",
+      "Screensaver activating during media playback",
+      "Player going outside of the window"
     ]
   }
 }

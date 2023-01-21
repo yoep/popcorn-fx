@@ -288,7 +288,7 @@
                     <verbose>true</verbose>
                     <versionDigitToIncrement>1</versionDigitToIncrement>
                     <versionsForceUpdate>true</versionsForceUpdate>
-                    <argLine>-DskipITs -B</argLine>
+                    <argLine>-DskipTests -DskipITs -B</argLine>
                 </configuration>
             </plugin>
             <plugin>

@@ -51,10 +51,10 @@ build-cargo: ## Build the rust part of the application
 	$(info Building cargo packages)
 	@cargo build
 
-build-cargo-release: ## Build the rust part of the application in release profile
+build-cargo-release: test-cargo ## Build the rust part of the application in release profile
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
-	@cargo test && cargo build --release
+	@cargo build --release
 
 ## Copy the cargo libraries to the java resources
 ifeq ($(SYSTEM),Windows)

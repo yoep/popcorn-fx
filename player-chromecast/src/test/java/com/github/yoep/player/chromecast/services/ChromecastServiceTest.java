@@ -15,20 +15,17 @@ import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
-import com.github.yoep.popcorn.backend.utils.HostUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.autoconfigure.web.ServerProperties;
 import su.litvak.chromecast.api.v2.Media;
 
 import java.io.File;
 import java.io.InputStream;
 import java.net.URI;
-import java.text.MessageFormat;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,8 +38,6 @@ class ChromecastServiceTest {
     private MetaDataService contentTypeService;
     @Mock
     private SubtitleService subtitleService;
-    @Mock
-    private ServerProperties serverProperties;
     @Mock
     private TranscodeService transcodeService;
     @Mock
@@ -104,6 +99,7 @@ class ChromecastServiceTest {
     @Test
     void testToLoadRequest_whenFormatIsSupported_shouldUseOriginalUrl() {
         var url = "http://localhost:9976/my-video-url.mp4";
+        var subtitleUri = "http://localhost:8754/lorem.vtt";
         var sessionId = "mySessionId";
         var contentType = "video/mp4";
         var duration = 20000L;
@@ -115,7 +111,6 @@ class ChromecastServiceTest {
                 .autoResumeTimestamp(20000L)
                 .thumb("https://thumbs.com/my-thumb.jpg")
                 .build();
-        var subtitleUri = MessageFormat.format("http://{0}:{1}/subtitle/my-subtitle.vtt", HostUtils.hostAddress(), String.valueOf(port));
         var metadata = createMetadata(request);
         var tracks = Collections.singletonList(Track.builder()
                 .trackId(0)
@@ -141,11 +136,11 @@ class ChromecastServiceTest {
                         .build())
                 .activeTrackIds(Collections.singletonList(0))
                 .build();
+        when(subtitleService.serve(subtitle, SubtitleType.VTT)).thenReturn(subtitleUri);
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
                 .build());
-        when(serverProperties.getPort()).thenReturn(port);
         when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
         when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
         when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);

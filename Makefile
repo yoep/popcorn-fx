@@ -15,12 +15,15 @@ $(info Detected arch: $(ARCH))
 ifeq ($(SYSTEM),Windows)
 EXTENSION := dll
 PROFILE := windows
+ASSETS := windows
 else ifeq ($(SYSTEM),Darwin)
 EXTENSION := dylib
 PROFILE := macosx
+ASSETS := mac
 else
 EXTENSION := so
 PROFILE := linux
+ASSETS := linux
 endif
 
 ## Define all rust libraries and resource directories
@@ -60,11 +63,11 @@ build-cargo-release: test-cargo ## Build the rust part of the application in rel
 ifeq ($(SYSTEM),Windows)
 lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),xcopy ".\target\debug\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(PROFILE)\" /R /I /F /Y && ) echo.
+	@$(foreach file,$(LIBRARIES),xcopy ".\target\debug\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(ASSETS)\" /R /I /F /Y && ) echo.
 else
 lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),cp "target/debug/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(PROFILE)/";)
+	@$(foreach file,$(LIBRARIES),cp "target/debug/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(ASSETS)/";)
 endif
 
 build-java: lib-copy ## Build the java part of the application

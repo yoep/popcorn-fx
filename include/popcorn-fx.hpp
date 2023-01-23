@@ -165,7 +165,7 @@ struct ShowDetailsC {
   int32_t episodes_len;
 };
 
-struct FavoriteC {
+struct MediaItemC {
   MovieOverviewC *movie_overview;
   MovieDetailsC *movie_details;
   ShowOverviewC *show_overview;
@@ -276,7 +276,7 @@ extern "C" {
 
 /// Add the media item to the favorites.
 /// Duplicate favorite media items are ignored.
-void add_to_favorites(PopcornFX *popcorn_fx, const FavoriteC *favorite);
+void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 
 /// Retrieve the default options available for the subtitles.
 VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
@@ -305,10 +305,15 @@ VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *s
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
 /// Verify if the given media item is liked/favorite of the user.
-/// It will use the first non [ptr::null_mut] field from the [FavoriteC] struct.
+/// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
 ///
-/// It will return false if all fields in the [FavoriteC] are [ptr::null_mut].
-bool is_media_liked(PopcornFX *popcorn_fx, const FavoriteC *favorite);
+/// It will return false if all fields in the [MediaItemC] are [ptr::null_mut].
+bool is_media_liked(PopcornFX *popcorn_fx, const MediaItemC *favorite);
+
+/// Verify if the given media item is watched by the user.
+///
+/// It returns true when the item is watched, else false.
+bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
@@ -333,7 +338,7 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
 /// Remove the media item from favorites.
-void remove_from_favorites(PopcornFX *popcorn_fx, const FavoriteC *favorite);
+void remove_from_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.
@@ -366,8 +371,8 @@ MediaSetC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, 
 /// Retrieve the details of a favorite item on the given IMDB ID.
 /// The details contain all information about the media item.
 ///
-/// It returns the [FavoriteC] on success, else a [ptr::null_mut].
-FavoriteC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id);
+/// It returns the [MediaItemC] on success, else a [ptr::null_mut].
+MediaItemC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Retrieve the details of a given movie.
 /// It will query the api for the given IMDB ID.

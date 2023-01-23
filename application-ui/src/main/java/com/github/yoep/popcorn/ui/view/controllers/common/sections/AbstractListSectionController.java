@@ -229,7 +229,6 @@ public abstract class AbstractListSectionController implements Initializable {
             currentLoadRequest.cancel(true);
 
         numberOfPageFailures = 0;
-        scrollPane.all();
         scrollPane.reset();
     }
 

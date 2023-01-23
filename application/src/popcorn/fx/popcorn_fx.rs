@@ -11,6 +11,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use popcorn_fx_core::core::config::Application;
 use popcorn_fx_core::core::media::favorites::FavoriteService;
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::watched::WatchedService;
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{SubtitleProvider, SubtitleServer};
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
@@ -29,6 +30,7 @@ pub struct PopcornFX {
     subtitle_service: Arc<Box<dyn SubtitleProvider>>,
     platform_service: Box<dyn PlatformService>,
     favorites_service: Arc<FavoriteService>,
+    watched_service: Arc<WatchedService>,
     providers: ProviderManager,
     subtitle_server: Arc<SubtitleServer>,
     storage: Arc<Storage>,
@@ -44,6 +46,7 @@ impl PopcornFX {
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let platform_service = Box::new(PlatformServiceImpl::new());
         let favorites_service = Arc::new(FavoriteService::new(&storage));
+        let watched_service = Arc::new(WatchedService::new(&storage));
         let providers = Self::default_providers(&settings, &favorites_service);
 
         Self {
@@ -51,6 +54,7 @@ impl PopcornFX {
             subtitle_service,
             platform_service,
             favorites_service,
+            watched_service,
             providers,
             subtitle_server,
             storage,
@@ -77,9 +81,14 @@ impl PopcornFX {
         &mut self.providers
     }
 
-    /// The available [popcorn_fx_core::core::media::Media] providers of the [PopcornFX].
+    /// The favorite service of [PopcornFX] which handles all liked items and actions.
     pub fn favorite_service(&mut self) -> &Arc<FavoriteService> {
         &self.favorites_service
+    }
+
+    /// The watched service of [PopcornFX] which handles all watched items and actions.
+    pub fn watched_service(&mut self) -> &Arc<WatchedService> {
+        &self.watched_service
     }
 
     /// Dispose the FX instance.

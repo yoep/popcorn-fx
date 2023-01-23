@@ -395,14 +395,14 @@ impl EpisodeC {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct FavoriteC {
+pub struct MediaItemC {
     pub movie_overview: *mut MovieOverviewC,
     pub movie_details: *mut MovieDetailsC,
     pub show_overview: *mut ShowOverviewC,
     pub show_details: *mut ShowDetailsC,
 }
 
-impl FavoriteC {
+impl MediaItemC {
     pub fn from_movie(media: MovieOverview) -> Self {
         Self {
             movie_overview: into_c_owned(MovieOverviewC::from(media)),

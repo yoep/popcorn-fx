@@ -1,6 +1,9 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
@@ -51,11 +54,9 @@ public class WatchedService {
      * @param watchable The watchable to check the watched state for.
      * @return Returns true if the watchable has already been watched, else false.
      */
-    public boolean isWatched(Watchable watchable) {
+    public boolean isWatched(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
-        String key = watchable.getId();
-
-        return isWatched(key);
+        return FxLib.INSTANCE.is_media_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
     }
 
     /**

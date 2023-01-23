@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.providers;
+package com.github.yoep.popcorn.backend.media;
 
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
@@ -8,7 +8,7 @@ import java.io.Closeable;
 
 @ToString
 @Structure.FieldOrder({"movieOverview", "movieDetails", "showOverview", "showDetails"})
-public class Favorite extends Structure implements Closeable {
+public class MediaItem extends Structure implements Closeable {
     public MovieOverview.ByReference movieOverview;
     public MovieDetails.ByReference movieDetails;
     public ShowOverview.ByReference showOverview;
@@ -32,8 +32,8 @@ public class Favorite extends Structure implements Closeable {
         setAutoSynch(false);
     }
 
-    public static Favorite from(Media media) {
-        var favorite = new Favorite();
+    public static MediaItem from(Media media) {
+        var favorite = new MediaItem();
 
         if (media instanceof MovieDetails.ByReference movie) {
             favorite.movieDetails = movie;

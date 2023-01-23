@@ -36,7 +36,7 @@ impl Display for FavoriteEvent {
 #[derive(Debug)]
 pub struct FavoriteService {
     storage: Arc<Storage>,
-    mutex: Arc<Mutex<Option<Favorites>>>,
+    cache: Arc<Mutex<Option<Favorites>>>,
     callbacks: FavoriteCallbacks,
 }
 
@@ -44,7 +44,7 @@ impl FavoriteService {
     pub fn new(storage: &Arc<Storage>) -> Self {
         Self {
             storage: storage.clone(),
-            mutex: Arc::new(Mutex::new(None)),
+            cache: Arc::new(Mutex::new(None)),
             callbacks: FavoriteCallbacks::new(),
         }
     }
@@ -71,7 +71,7 @@ impl FavoriteService {
         trace!("Retrieving all favorite media items");
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
-                let mutex = self.mutex.clone();
+                let mutex = self.cache.clone();
                 let cache = futures::executor::block_on(mutex.lock());
                 let favorites = cache.as_ref().expect("cache should have been present");
                 let mut all: Vec<Box<dyn MediaOverview>> = vec![];
@@ -111,7 +111,7 @@ impl FavoriteService {
     pub fn add(&self, favorite: Box<dyn MediaIdentifier>) -> media::Result<()> {
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
-                let mutex = self.mutex.clone();
+                let mutex = self.cache.clone();
                 let mut cache = futures::executor::block_on(mutex.lock());
                 let mut e = cache.as_mut().expect("cache should have been present");
                 let imdb_id = favorite.imdb_id();
@@ -157,7 +157,7 @@ impl FavoriteService {
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
                 let imdb_id = favorite.imdb_id();
-                let mutex = self.mutex.clone();
+                let mutex = self.cache.clone();
                 let mut cache = futures::executor::block_on(mutex.lock());
                 let mut e = cache.as_mut().expect("cache should have been present");
 
@@ -182,7 +182,7 @@ impl FavoriteService {
         trace!("Internally verifying if {} {} is liked", media_type, imdb_id);
         match futures::executor::block_on(self.load_favorites_cache()) {
             Ok(_) => {
-                let mutex = self.mutex.clone();
+                let mutex = self.cache.clone();
                 let cache = futures::executor::block_on(mutex.lock());
                 let favorites = cache.as_ref().expect("cache should have been present");
                 trace!("Checking is liked for media type {}", media_type);
@@ -228,7 +228,7 @@ impl FavoriteService {
     }
 
     async fn load_favorites_cache(&self) -> media::Result<()> {
-        let mutex = self.mutex.clone();
+        let mutex = self.cache.clone();
         let mut cache = mutex.lock().await;
 
         if cache.is_none() {
@@ -246,7 +246,7 @@ impl FavoriteService {
         Ok(())
     }
 
-    fn load_favorites_from_storage(&self) -> Result<Favorites, MediaError> {
+    fn load_favorites_from_storage(&self) -> media::Result<Favorites> {
         match self.storage.read::<Favorites>(FILENAME) {
             Ok(e) => Ok(e),
             Err(e) => {
@@ -271,7 +271,7 @@ impl FavoriteService {
 
 impl Drop for FavoriteService {
     fn drop(&mut self) {
-        let mutex = self.mutex.clone();
+        let mutex = self.cache.clone();
         let execute = async move {
             let favorites = mutex.lock().await;
 

@@ -9,6 +9,7 @@ import lombok.ToString;
 
 import java.io.Closeable;
 import java.util.Arrays;
+import java.util.Objects;
 
 @Getter
 @ToString
@@ -23,8 +24,8 @@ public class FavoriteEvent extends Structure implements Closeable {
     @Override
     public void read() {
         super.read();
-        switch (tag) {
-            case LikedStateChanged -> union.setType(LikedStateChangedBody.class);
+        if (Objects.requireNonNull(tag) == Tag.LikedStateChanged) {
+            union.setType(LikedStateChangedBody.class);
         }
         union.read();
     }
@@ -57,7 +58,7 @@ public class FavoriteEvent extends Structure implements Closeable {
     @Getter
     @ToString
     public static class FavoriteEventCUnion extends Union {
-        public static class ByValue extends FavoriteEventCUnion implements Union.ByValue {};
+        public static class ByValue extends FavoriteEventCUnion implements Union.ByValue {}
 
         public LikedStateChangedBody liked_state_changed;
     }

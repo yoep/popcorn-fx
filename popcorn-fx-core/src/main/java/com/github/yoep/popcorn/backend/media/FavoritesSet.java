@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.providers;
+package com.github.yoep.popcorn.backend.media;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;

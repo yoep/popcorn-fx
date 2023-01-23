@@ -6,7 +6,8 @@ use std::path::Path;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{EpisodeC, FavoriteC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MediaSetC, MovieDetailsC, MovieOverviewC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC};
+use media_mappers::*;
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
@@ -15,6 +16,7 @@ use popcorn_fx_platform::PlatformInfoC;
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
 
 pub mod popcorn;
+mod media_mappers;
 
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
@@ -349,9 +351,9 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
 /// Retrieve the details of a favorite item on the given IMDB ID.
 /// The details contain all information about the media item.
 ///
-/// It returns the [FavoriteC] on success, else a [ptr::null_mut].
+/// It returns the [MediaItemC] on success, else a [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut FavoriteC {
+pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MediaItemC {
     let imdb_id = from_c_string(imdb_id);
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
@@ -360,12 +362,12 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
             trace!("Returning favorite details {:?}", &e);
             match e.media_type() {
                 MediaType::Movie => {
-                    into_c_owned(FavoriteC::from_movie_details(*e.into_any()
+                    into_c_owned(MediaItemC::from_movie_details(*e.into_any()
                         .downcast::<MovieDetails>()
                         .expect("expected the favorite item to be a movie")))
                 }
                 MediaType::Show => {
-                    into_c_owned(FavoriteC::from_show_details(*e.into_any()
+                    into_c_owned(MediaItemC::from_show_details(*e.into_any()
                         .downcast::<ShowDetails>()
                         .expect("expected the favorite item to be a show")))
                 }
@@ -383,13 +385,13 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
 }
 
 /// Verify if the given media item is liked/favorite of the user.
-/// It will use the first non [ptr::null_mut] field from the [FavoriteC] struct.
+/// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
 ///
-/// It will return false if all fields in the [FavoriteC] are [ptr::null_mut].
+/// It will return false if all fields in the [MediaItemC] are [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) -> bool {
+pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) -> bool {
     trace!("Verifying if media is liked for {:?}", favorite);
-    match from_favorable(favorite) {
+    match from_media_item(favorite) {
         None => {
             warn!("Unable to verify if media is liked, all FavoriteC fields are null");
             false
@@ -422,7 +424,7 @@ pub extern "C" fn retrieve_all_favorites(popcorn_fx: &mut PopcornFX) -> *mut Vec
 /// Add the media item to the favorites.
 /// Duplicate favorite media items are ignored.
 #[no_mangle]
-pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) {
+pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) {
     let media: Box<dyn MediaIdentifier>;
 
     if !favorite.movie_overview.is_null() {
@@ -460,8 +462,8 @@ pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &Favori
 
 /// Remove the media item from favorites.
 #[no_mangle]
-pub extern "C" fn remove_from_favorites(popcorn_fx: &mut PopcornFX, favorite: &FavoriteC) {
-    match from_favorable(favorite) {
+pub extern "C" fn remove_from_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) {
+    match from_media_item(favorite) {
         None => error!("Unable to remove favorite, all FavoriteC fields are null"),
         Some(e) => popcorn_fx.favorite_service().remove(e)
     }
@@ -498,6 +500,25 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
     }
 }
 
+/// Verify if the given media item is watched by the user.
+///
+/// It returns true when the item is watched, else false.
+#[no_mangle]
+pub extern "C" fn is_media_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) -> bool {
+    match from_media_item(watchable) {
+        Some(media) => {
+            trace!("Verifying if media item is watched for {}", &media);
+            let watched = popcorn_fx.watched_service().is_watched_boxed(&media);
+            mem::forget(media);
+            watched
+        },
+        None => {
+            error!("Failed to verify the watched state, no watchable item given");
+            false
+        }
+    }
+}
+
 /// Dispose all given media items from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {
@@ -512,58 +533,6 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
     info!("Disposing Popcorn FX");
     popcorn_fx.dispose();
     drop(popcorn_fx)
-}
-
-fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavoritesC {
-    trace!("Mapping favorites to VecFavoritesC for {:?}", favorites);
-    let mut movies: Vec<MovieOverviewC> = vec![];
-    let mut shows: Vec<ShowOverviewC> = vec![];
-
-    for media in favorites.into_iter() {
-        if media.media_type() == MediaType::Movie {
-            movies.push(MovieOverviewC::from(*media
-                .into_any()
-                .downcast::<MovieOverview>()
-                .expect("expected the media to be a movie overview")))
-        } else if media.media_type() == MediaType::Show {
-            shows.push(ShowOverviewC::from(*media
-                .into_any()
-                .downcast::<ShowOverview>()
-                .expect("expected the media to be a show overview")));
-        }
-    }
-
-    into_c_owned(VecFavoritesC::from(movies, shows))
-}
-
-fn from_favorable(favorite: &FavoriteC) -> Option<Box<dyn MediaIdentifier>> {
-    let media: Box<dyn MediaIdentifier>;
-
-    if !favorite.movie_overview.is_null() {
-        let boxed = from_c_into_boxed(favorite.movie_overview);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else if !favorite.movie_details.is_null() {
-        let boxed = from_c_into_boxed(favorite.movie_details);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else if !favorite.show_overview.is_null() {
-        let boxed = from_c_into_boxed(favorite.show_overview);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else if !favorite.show_details.is_null() {
-        let boxed = from_c_into_boxed(favorite.show_details);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else {
-        return None;
-    }
-
-    Some(media)
 }
 
 #[cfg(test)]

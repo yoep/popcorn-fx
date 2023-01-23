@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.backend.media.favorites;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
-import com.github.yoep.popcorn.backend.media.providers.Favorite;
-import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
+import com.github.yoep.popcorn.backend.media.FavoritesSet;
+import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,7 +34,7 @@ public class FavoriteService {
     public boolean isLiked(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+            return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
         }
     }
 
@@ -59,7 +59,7 @@ public class FavoriteService {
     public void addToFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+            FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
         }
     }
 
@@ -71,7 +71,7 @@ public class FavoriteService {
     public void removeFromFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), Favorite.from(favorable));
+            FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
         }
     }
 

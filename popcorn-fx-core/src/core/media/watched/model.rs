@@ -1,3 +1,4 @@
+use log::trace;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +33,28 @@ impl Watched {
 
     pub fn shows(&self) -> &Vec<String> {
         &self.shows
+    }
+
+    /// Add the given movie ID as watched.
+    /// Duplicate items will be automatically ignored.
+    ///
+    /// * `id`  - The movie ID to mark as watched
+    pub fn add_movie(&mut self, id: String) {
+        if !self.movies.contains(&id) {
+            trace!("Adding movie ID {} as watched", &id);
+            self.movies.push(id);
+        }
+    }
+
+    /// Add the given show/episode ID as watched.
+    /// Duplicate items will be automatically ignored.
+    ///
+    /// * `id`  - The show/episode ID to mark as watched
+    pub fn add_show(&mut self, id: String) {
+        if !self.shows.contains(&id) {
+            trace!("Adding show ID {} as watched", &id);
+            self.shows.push(id);
+        }
     }
 }
 

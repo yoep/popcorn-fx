@@ -47,7 +47,7 @@ impl PopcornFX {
         let platform_service = Box::new(PlatformServiceImpl::new());
         let favorites_service = Arc::new(FavoriteService::new(&storage));
         let watched_service = Arc::new(WatchedService::new(&storage));
-        let providers = Self::default_providers(&settings, &favorites_service);
+        let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
 
         Self {
             settings,
@@ -124,10 +124,10 @@ impl PopcornFX {
         });
     }
 
-    fn default_providers(settings: &Arc<Application>, favorites: &Arc<FavoriteService>) -> ProviderManager {
+    fn default_providers(settings: &Arc<Application>, favorites: &Arc<FavoriteService>, watched: &Arc<WatchedService>) -> ProviderManager {
         let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(&settings)));
         let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(&settings)));
-        let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(&favorites, vec![
+        let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(&favorites, &watched, vec![
             &movie_provider,
             &show_provider,
         ])));

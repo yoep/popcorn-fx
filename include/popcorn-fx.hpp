@@ -170,6 +170,7 @@ struct MediaItemC {
   MovieDetailsC *movie_details;
   ShowOverviewC *show_overview;
   ShowDetailsC *show_details;
+  EpisodeC *episode;
 };
 
 struct SubtitleInfoC {

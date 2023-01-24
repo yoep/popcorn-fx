@@ -400,6 +400,7 @@ pub struct MediaItemC {
     pub movie_details: *mut MovieDetailsC,
     pub show_overview: *mut ShowOverviewC,
     pub show_details: *mut ShowDetailsC,
+    pub episode: *mut EpisodeC,
 }
 
 impl MediaItemC {
@@ -409,6 +410,7 @@ impl MediaItemC {
             movie_details: ptr::null_mut(),
             show_overview: ptr::null_mut(),
             show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
         }
     }
 
@@ -418,6 +420,7 @@ impl MediaItemC {
             movie_details: into_c_owned(MovieDetailsC::from(media)),
             show_overview: ptr::null_mut(),
             show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
         }
     }
 
@@ -427,6 +430,7 @@ impl MediaItemC {
             movie_details: ptr::null_mut(),
             show_overview: ptr::null_mut(),
             show_details: into_c_owned(ShowDetailsC::from(media)),
+            episode: ptr::null_mut(),
         }
     }
 }

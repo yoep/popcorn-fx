@@ -17,12 +17,14 @@ const FILENAME: &str = "watched.json";
 pub trait WatchedService: Debug + Send + Sync + 'static {
     /// Verify if the given ID has been seen.
     ///
-    /// It returns true when the ID has been seen, else false.
-    fn is_watched(&self, watchable: &str) -> bool;
+    /// * `id`  - The ID of the watchable to verify.
+    ///
+    /// It returns `true` when the ID has been seen, else `false`.
+    fn is_watched(&self, id: &str) -> bool;
 
     /// Verify if the given identifier item has been seen.
     ///
-    /// It returns true when the media item has been seen, else false.
+    /// It returns `true` when the media item has been seen, else `false`.
     fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool;
 
     /// Retrieve an array of owned watched media item ids.
@@ -41,7 +43,7 @@ pub trait WatchedService: Debug + Send + Sync + 'static {
     fn watched_shows(&self) -> media::Result<Vec<String>>;
 }
 
-/// The watch service is responsible for tracking watched media items.
+/// The standard Popcorn FX watched service.
 #[derive(Debug)]
 pub struct WatchedServiceFx {
     storage: Arc<Storage>,

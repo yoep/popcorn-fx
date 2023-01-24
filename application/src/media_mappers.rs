@@ -50,6 +50,11 @@ pub fn from_media_item(favorite: &MediaItemC) -> Option<Box<dyn MediaIdentifier>
         media = Box::new(boxed.to_struct());
         trace!("Created media struct {:?}", media);
         mem::forget(boxed);
+    } else if !favorite.episode.is_null() {
+        let boxed = from_c_into_boxed(favorite.episode);
+        media = Box::new(boxed.to_struct());
+        trace!("Created media struct {:?}", media);
+        mem::forget(boxed);
     } else {
         return None;
     }

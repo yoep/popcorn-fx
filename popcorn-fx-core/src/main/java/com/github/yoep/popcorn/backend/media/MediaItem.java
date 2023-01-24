@@ -8,12 +8,13 @@ import lombok.ToString;
 import java.io.Closeable;
 
 @ToString
-@Structure.FieldOrder({"movieOverview", "movieDetails", "showOverview", "showDetails"})
+@Structure.FieldOrder({"movieOverview", "movieDetails", "showOverview", "showDetails", "episode"})
 public class MediaItem extends Structure implements Closeable {
     public MovieOverview.ByReference movieOverview;
     public MovieDetails.ByReference movieDetails;
     public ShowOverview.ByReference showOverview;
     public ShowDetails.ByReference showDetails;
+    public Episode.ByReference episode;
 
     public Media getMedia() {
         if (movieOverview != null) {
@@ -25,7 +26,11 @@ public class MediaItem extends Structure implements Closeable {
         if (showOverview != null) {
             return showOverview;
         }
-        return showDetails;
+        if (showDetails != null) {
+            return showDetails;
+        }
+
+        return episode;
     }
 
     @Override
@@ -47,8 +52,10 @@ public class MediaItem extends Structure implements Closeable {
             favorite.showDetails = show;
         } else if (media instanceof ShowDetails show) {
             fromShowDetails(favorite, show);
+        } else if (media instanceof ShowOverview.ByReference show) {
+            favorite.showOverview = show;
         } else {
-            favorite.showOverview = (ShowOverview.ByReference) media;
+            favorite.episode = (Episode.ByReference) media;
         }
 
         return favorite;

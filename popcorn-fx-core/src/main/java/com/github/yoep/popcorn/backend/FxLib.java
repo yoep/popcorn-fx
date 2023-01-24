@@ -85,8 +85,6 @@ public interface FxLib extends Library {
 
     boolean is_media_watched(PopcornFx instance, MediaItem media);
 
-    StringArray retrieve_all_watched(PopcornFx instance);
-
     StringArray retrieve_watched_movies(PopcornFx instance);
 
     StringArray retrieve_watched_shows(PopcornFx instance);

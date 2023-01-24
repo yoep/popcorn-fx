@@ -290,6 +290,7 @@ VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 /// Disable the screensaver on the current platform
 void disable_screensaver(PopcornFX *popcorn_fx);
 
+/// Dispose the given media item from memory.
 void dispose_media_item(Box<MediaItemC> media);
 
 /// Dispose all given media items from memory.
@@ -361,6 +362,9 @@ void reset_show_apis(PopcornFX *popcorn_fx);
 /// It will return an array of favorites on success, else [ptr::null_mut].
 VecFavoritesC *retrieve_all_favorites(PopcornFX *popcorn_fx);
 
+/// Retrieve all watched media item id's.
+///
+/// It returns an array of watched id's.
 StringArray retrieve_all_watched(PopcornFX *popcorn_fx);
 
 /// Retrieve all liked favorite media items.
@@ -395,6 +399,16 @@ MovieDetailsC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id
 ///
 /// It returns the [ShowDetailsC] on success, else a [ptr::null_mut].
 ShowDetailsC *retrieve_show_details(PopcornFX *popcorn_fx, const char *imdb_id);
+
+/// Retrieve all watched movie id's.
+///
+/// It returns an array of watched movie id's.
+StringArray retrieve_watched_movies(PopcornFX *popcorn_fx);
+
+/// Retrieve all watched show media id's.
+///
+/// It returns  an array of watched show id's.
+StringArray retrieve_watched_shows(PopcornFX *popcorn_fx);
 
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);

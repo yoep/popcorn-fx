@@ -14,7 +14,6 @@ import java.util.Optional;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,35 +23,6 @@ class WatchedServiceTest {
     private StorageService storageService;
     @InjectMocks
     private WatchedService watchedService;
-
-    @Test
-    void testIsWatched_whenItemHasBeenWatched_shouldReturnTrue() {
-        var id = "myMovieId";
-        var movie = MovieDetails.builder()
-                .imdbId(id)
-                .build();
-        var watchedItems = Watched.builder()
-                .movies(Collections.singletonList(id))
-                .build();
-        when(storageService.read(WatchedService.STORAGE_NAME, Watched.class)).thenReturn(Optional.of(watchedItems));
-
-        var result = watchedService.isWatched(movie);
-
-        assertTrue(result, "Expected the watchable to have been watched");
-    }
-
-    @Test
-    void testGetWatchedMovies_whenInvoked_shouldReturnTheWatchedItems() {
-        var expectedResult = asList("lorem", "ipsum", "dolor");
-        var watchedItems = Watched.builder()
-                .movies(expectedResult)
-                .build();
-        when(storageService.read(WatchedService.STORAGE_NAME, Watched.class)).thenReturn(Optional.of(watchedItems));
-
-        var result = watchedService.getWatchedMovies();
-
-        assertEquals(expectedResult, result);
-    }
 
     @Test
     void testGetWatchedShows_whenInvoked_shouldReturnTheWatchedItems() {

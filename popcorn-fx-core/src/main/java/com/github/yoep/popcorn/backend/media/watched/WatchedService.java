@@ -20,7 +20,6 @@ import org.springframework.util.Assert;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -70,7 +69,10 @@ public class WatchedService {
      */
     public List<String> getWatchedMovies() {
         synchronized (lock) {
-            return FxLib.INSTANCE.retrieve_all_watched(PopcornFxInstance.INSTANCE.get()).values();
+            try (var watched = FxLib.INSTANCE.retrieve_watched_movies(PopcornFxInstance.INSTANCE.get())) {
+                log.debug("Retrieved watched movies {}", watched);
+                return watched.values();
+            }
         }
     }
 
@@ -80,14 +82,12 @@ public class WatchedService {
      * @return Returns a list of show ID's that have been watched.
      */
     public List<String> getWatchedShows() {
-        loadWatchedFileToCache();
-        List<String> movies;
-
-        synchronized (cacheLock) {
-            movies = new ArrayList<>(cache.getShows());
+        synchronized (lock) {
+            try (var watched = FxLib.INSTANCE.retrieve_watched_shows(PopcornFxInstance.INSTANCE.get())) {
+                log.debug("Retrieved watched shows {}", watched);
+                return watched.values();
+            }
         }
-
-        return movies;
     }
 
     /**

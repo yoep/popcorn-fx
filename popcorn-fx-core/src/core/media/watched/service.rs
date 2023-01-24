@@ -41,7 +41,7 @@ impl WatchedService {
 
     /// Retrieve an array of owned watched media item ids.
     ///
-    /// It returns the watched ids when loaded, else the [MediaError].
+    /// It returns the watched id's when loaded, else the [MediaError].
     pub fn all(&self) -> media::Result<Vec<String>> {
         match futures::executor::block_on(self.load_watched_cache()) {
             Ok(_) => {
@@ -56,6 +56,38 @@ impl WatchedService {
                 all.append(&mut shows);
 
                 Ok(all)
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    /// Retrieve an array of watched movie id's.
+    ///
+    /// It returns the watched id's when loaded, else the [MediaError].
+    pub fn watched_movies(&self) -> media::Result<Vec<String>> {
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_ref().expect("cache should have been present");
+
+                Ok(watched.movies().clone())
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    /// Retrieve an array of watched show id's.
+    ///
+    /// It returns the watched id's when loaded, else the [MediaError].
+    pub fn watched_shows(&self) -> media::Result<Vec<String>> {
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_ref().expect("cache should have been present");
+
+                Ok(watched.shows().clone())
             }
             Err(e) => Err(e)
         }

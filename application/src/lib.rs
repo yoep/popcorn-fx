@@ -521,8 +521,12 @@ pub extern "C" fn is_media_watched(popcorn_fx: &mut PopcornFX, watchable: &Media
     }
 }
 
+/// Retrieve all watched media item id's.
+///
+/// It returns an array of watched id's.
 #[no_mangle]
 pub extern "C" fn retrieve_all_watched(popcorn_fx: &mut PopcornFX) -> StringArray {
+    trace!("Retrieving all watched media id's");
     match popcorn_fx.watched_service().all() {
         Ok(e) => {
             debug!("Retrieved watched items {:?}", &e);
@@ -535,6 +539,41 @@ pub extern "C" fn retrieve_all_watched(popcorn_fx: &mut PopcornFX) -> StringArra
     }
 }
 
+/// Retrieve all watched movie id's.
+///
+/// It returns an array of watched movie id's.
+#[no_mangle]
+pub extern "C" fn retrieve_watched_movies(popcorn_fx: &mut PopcornFX) -> StringArray {
+    match popcorn_fx.watched_service().watched_movies() {
+        Ok(e) => {
+            debug!("Retrieved watched items {:?}", &e);
+            StringArray::from(e)
+        }
+        Err(e) => {
+            error!("Failed to retrieve watched items, {}", e);
+            StringArray::from(vec![])
+        }
+    }
+}
+
+/// Retrieve all watched show media id's.
+///
+/// It returns  an array of watched show id's.
+#[no_mangle]
+pub extern "C" fn retrieve_watched_shows(popcorn_fx: &mut PopcornFX) -> StringArray {
+    match popcorn_fx.watched_service().watched_shows() {
+        Ok(e) => {
+            debug!("Retrieved watched items {:?}", &e);
+            StringArray::from(e)
+        }
+        Err(e) => {
+            error!("Failed to retrieve watched items, {}", e);
+            StringArray::from(vec![])
+        }
+    }
+}
+
+/// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
     if !media.show_overview.is_null() {

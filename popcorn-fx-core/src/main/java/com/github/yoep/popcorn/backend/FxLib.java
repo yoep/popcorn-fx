@@ -2,11 +2,11 @@ package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.MediaSet;
 import com.github.yoep.popcorn.backend.media.StringArray;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
-import com.github.yoep.popcorn.backend.media.providers.MediaSet;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
@@ -86,6 +86,10 @@ public interface FxLib extends Library {
     boolean is_media_watched(PopcornFx instance, MediaItem media);
 
     StringArray retrieve_all_watched(PopcornFx instance);
+
+    StringArray retrieve_watched_movies(PopcornFx instance);
+
+    StringArray retrieve_watched_shows(PopcornFx instance);
 
     void dispose_media_item(MediaItem media);
 

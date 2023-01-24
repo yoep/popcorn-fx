@@ -455,7 +455,8 @@ mod test {
             String::new(),
         );
 
-        service.add(Box::new(movie.clone()));
+        service.add(Box::new(movie.clone()))
+            .expect("expected the media to have been added to liked items");
         service.remove(Box::new(movie));
         let result = service.all()
             .expect("expected the favorites to have been loaded");

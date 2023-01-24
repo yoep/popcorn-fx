@@ -39,6 +39,28 @@ impl WatchedService {
         self.internal_is_watched(imdb_id.as_str())
     }
 
+    /// Retrieve an array of owned watched media item ids.
+    ///
+    /// It returns the watched ids when loaded, else the [MediaError].
+    pub fn all(&self) -> media::Result<Vec<String>> {
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_ref().expect("cache should have been present");
+                let mut movies = watched.movies().clone();
+                let mut shows = watched.shows().clone();
+                let mut all: Vec<String> = vec![];
+
+                all.append(&mut movies);
+                all.append(&mut shows);
+
+                Ok(all)
+            }
+            Err(e) => Err(e)
+        }
+    }
+
     fn internal_is_watched(&self, imdb_id: &str) -> bool {
         trace!("Verifying if ID {} is watched", imdb_id);
         match futures::executor::block_on(self.load_watched_cache()) {
@@ -46,7 +68,6 @@ impl WatchedService {
                 let mutex = self.cache.clone();
                 let cache = futures::executor::block_on(mutex.lock());
                 let watched = cache.as_ref().expect("cache should have been present");
-
 
                 watched.contains(imdb_id)
             }
@@ -145,5 +166,41 @@ mod test {
         let result = service.is_watched(&movie);
 
         assert!(!result, "expected the media to not have been watched")
+    }
+
+    #[test]
+    fn test_is_watched_boxed() {
+        init_logger();
+        let imdb_id = "tt541345".to_string();
+        let resource_directory = test_resource_directory();
+        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let service = WatchedService::new(&storage);
+        let movie = MovieOverview::new(
+            String::new(),
+            imdb_id,
+            String::new(),
+        );
+
+        let result = service.is_watched_boxed(&(Box::new(movie) as Box<dyn MediaIdentifier>));
+
+        assert!(result, "expected the media to have been watched")
+    }
+
+    #[test]
+    fn test_all() {
+        init_logger();
+        let resource_directory = test_resource_directory();
+        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let service = WatchedService::new(&storage);
+        let expected_result = vec![
+            "tt548723",
+            "tt541345",
+            "tt3915174",
+        ];
+
+        let result = service.all()
+            .expect("expected the watched ids to have been returned");
+
+        assert_eq!(expected_result, result)
     }
 }

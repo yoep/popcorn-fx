@@ -439,6 +439,13 @@ pub struct GenreC {
 }
 
 impl GenreC {
+    pub fn from(genre: Genre) -> Self {
+        Self {
+            key: to_c_string(genre.key().clone()),
+            text: to_c_string(genre.text().clone()),
+        }
+    }
+
     pub fn to_struct(&self) -> Genre {
         trace!("Converting Genre from C {:?}", self);
         Genre::new(
@@ -456,6 +463,13 @@ pub struct SortByC {
 }
 
 impl SortByC {
+    pub fn from(sort_by: SortBy) -> Self {
+        Self {
+            key: to_c_string(sort_by.key().clone()),
+            text: to_c_string(sort_by.text().clone()),
+        }
+    }
+
     pub fn to_struct(&self) -> SortBy {
         trace!("Converting SortBy from C {:?}", self);
         SortBy::new(

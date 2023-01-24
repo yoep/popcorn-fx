@@ -25,6 +25,14 @@ impl Watched {
         self.movies.iter().any(|e| e.eq(id))
             || self.shows.iter().any(|e| e.eq(id))
     }
+
+    pub fn movies(&self) -> &Vec<String> {
+        &self.movies
+    }
+
+    pub fn shows(&self) -> &Vec<String> {
+        &self.shows
+    }
 }
 
 #[cfg(test)]

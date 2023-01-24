@@ -39,6 +39,8 @@ public class WatchedService {
     private final StorageService storageService;
     private final Object cacheLock = new Object();
 
+    private final Object lock = new Object();
+
     /**
      * The currently loaded watched cache.
      * This cache is saved and unloaded after {@link #IDLE_TIME} seconds to free up memory.
@@ -56,7 +58,9 @@ public class WatchedService {
      */
     public boolean isWatched(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
-        return FxLib.INSTANCE.is_media_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
+        synchronized (lock) {
+            return FxLib.INSTANCE.is_media_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
+        }
     }
 
     /**
@@ -65,14 +69,9 @@ public class WatchedService {
      * @return Returns a list of movie ID's that have been watched.
      */
     public List<String> getWatchedMovies() {
-        loadWatchedFileToCache();
-        List<String> movies;
-
-        synchronized (cacheLock) {
-            movies = new ArrayList<>(cache.getMovies());
+        synchronized (lock) {
+            return FxLib.INSTANCE.retrieve_all_watched(PopcornFxInstance.INSTANCE.get()).values();
         }
-
-        return movies;
     }
 
     /**
@@ -186,14 +185,6 @@ public class WatchedService {
             } else {
                 cache.addShow(key);
             }
-        }
-    }
-
-    private boolean isWatched(String key) {
-        loadWatchedFileToCache();
-
-        synchronized (cacheLock) {
-            return cache.contains(key);
         }
     }
 

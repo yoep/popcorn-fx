@@ -7,15 +7,17 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, ShowOverviewC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
+use crate::arrays::StringArray;
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
 
 pub mod popcorn;
+mod arrays;
 mod media_mappers;
 
 /// Create a new PopcornFX instance.
@@ -511,11 +513,34 @@ pub extern "C" fn is_media_watched(popcorn_fx: &mut PopcornFX, watchable: &Media
             let watched = popcorn_fx.watched_service().is_watched_boxed(&media);
             mem::forget(media);
             watched
-        },
+        }
         None => {
             error!("Failed to verify the watched state, no watchable item given");
             false
         }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn retrieve_all_watched(popcorn_fx: &mut PopcornFX) -> StringArray {
+    match popcorn_fx.watched_service().all() {
+        Ok(e) => {
+            debug!("Retrieved watched items {:?}", &e);
+            StringArray::from(e)
+        }
+        Err(e) => {
+            error!("Failed to retrieve watched items, {}", e);
+            StringArray::from(vec![])
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
+    if !media.show_overview.is_null() {
+        let _ = from_c_owned(media.show_overview).to_struct();
+    } else if !media.movie_overview.is_null() {
+        let _ = from_c_owned(media.movie_overview).to_struct();
     }
 }
 
@@ -546,5 +571,29 @@ mod test {
         let instance = from_c_owned(new_popcorn_fx());
 
         dispose_popcorn_fx(Box::new(instance));
+    }
+
+    #[test]
+    fn test_dispose_media_item() {
+        let movie = MovieOverview::new(
+          String::new(),
+          String::from("tt54698542"),
+          String::new(),
+        );
+        let media = MediaItemC::from_movie(movie);
+
+        dispose_media_item(Box::new(media));
+    }
+
+    #[test]
+    fn test_dispose_media_items() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let genre = GenreC::from(Genre::all());
+        let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
+        let keywords = to_c_string(String::new());
+
+        let media_items = retrieve_available_movies(&mut instance, &genre, &sort_by, keywords, 1);
+
+        dispose_media_items(Box::new(from_c_owned(media_items)))
     }
 }

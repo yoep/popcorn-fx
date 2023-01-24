@@ -261,6 +261,12 @@ struct VecFavoritesC {
   int32_t shows_len;
 };
 
+/// Structure holding the values of a string array.
+struct StringArray {
+  const char **values;
+  int32_t len;
+};
+
 struct GenreC {
   const char *key;
   const char *text;
@@ -283,6 +289,8 @@ VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 
 /// Disable the screensaver on the current platform
 void disable_screensaver(PopcornFX *popcorn_fx);
+
+void dispose_media_item(Box<MediaItemC> media);
 
 /// Dispose all given media items from memory.
 void dispose_media_items(Box<MediaSetC> media);
@@ -352,6 +360,8 @@ void reset_show_apis(PopcornFX *popcorn_fx);
 ///
 /// It will return an array of favorites on success, else [ptr::null_mut].
 VecFavoritesC *retrieve_all_favorites(PopcornFX *popcorn_fx);
+
+StringArray retrieve_all_watched(PopcornFX *popcorn_fx);
 
 /// Retrieve all liked favorite media items.
 ///

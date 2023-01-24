@@ -22,12 +22,12 @@ const SORT_RATING_KEY: &str = "rating";
 #[derive(Debug)]
 pub struct FavoritesProvider {
     favorites: Arc<FavoriteService>,
-    watched_service: Arc<WatchedService>,
+    watched_service: Arc<Box<dyn WatchedService>>,
     providers: Mutex<Vec<Arc<Box<dyn MediaProvider>>>>,
 }
 
 impl FavoritesProvider {
-    pub fn new(favorites: &Arc<FavoriteService>, watched_service: &Arc<WatchedService>, providers: Vec<&Arc<Box<dyn MediaProvider>>>) -> Self {
+    pub fn new(favorites: &Arc<FavoriteService>, watched_service: &Arc<Box<dyn WatchedService>>, providers: Vec<&Arc<Box<dyn MediaProvider>>>) -> Self {
         Self {
             favorites: favorites.clone(),
             watched_service: watched_service.clone(),
@@ -74,8 +74,8 @@ impl FavoritesProvider {
     /// Items not seen will be put in front of the list, items seen at the back of the list.
     fn sort_by_watched(&self, a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
         trace!("Sorting media item based on watched state for {} & {}", a, b);
-        let a_watched = self.watched_service.is_watched_id(a.imdb_id().as_str());
-        let b_watched = self.watched_service.is_watched_id(b.imdb_id().as_str());
+        let a_watched = self.watched_service.is_watched(a.imdb_id().as_str());
+        let b_watched = self.watched_service.is_watched(b.imdb_id().as_str());
 
         if a_watched == b_watched {
             Ordering::Equal
@@ -189,8 +189,10 @@ impl MediaProvider for FavoritesProvider {
 #[cfg(test)]
 mod test {
     use crate::core::config::Application;
-    use crate::core::media::{Images, MovieOverview, ShowOverview};
+    use crate::core::media::{Images, MediaIdentifier, MovieOverview, ShowOverview};
     use crate::core::media::providers::MovieProvider;
+    use crate::core::media::watched::MockWatchedService;
+    use crate::core::media::watched::WatchedServiceFx;
     use crate::core::storage::Storage;
     use crate::testing::{init_logger, test_resource_directory};
 
@@ -205,7 +207,7 @@ mod test {
         let keywords = "".to_string();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
         let favorites = Arc::new(FavoriteService::new(&storage));
-        let watched = Arc::new(WatchedService::new(&storage));
+        let watched: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(WatchedServiceFx::new(&storage)));
         let provider = FavoritesProvider::new(&favorites, &watched, vec![]);
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
@@ -223,7 +225,7 @@ mod test {
         let settings = Arc::new(Application::default());
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
         let favorites = Arc::new(FavoriteService::new(&storage));
-        let watched = Arc::new(WatchedService::new(&storage));
+        let watched: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(WatchedServiceFx::new(&storage)));
         let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
         let provider = FavoritesProvider::new(&favorites, &watched, vec![&movie_provider]);
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
@@ -314,7 +316,7 @@ mod test {
         let resource_directory = tempfile::tempdir().expect("expected a temp directory");
         let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
         let favorites = Arc::new(FavoriteService::new(&storage));
-        let watched = Arc::new(WatchedService::new(&storage));
+        let watched: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(WatchedServiceFx::new(&storage)));
         let service = FavoritesProvider::new(&favorites, &watched, vec![]);
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
         let movie = Box::new(MovieOverview::new(
@@ -340,15 +342,10 @@ mod test {
     #[test]
     fn test_sort_by_should_order_unwatched_before_watched() {
         init_logger();
-        let resource_directory = tempfile::tempdir().expect("expected a temp directory");
-        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let favorites = Arc::new(FavoriteService::new(&storage));
-        let watched = Arc::new(WatchedService::new(&storage));
-        let service = FavoritesProvider::new(&favorites, &watched, vec![]);
-        let sort_by = SortBy::new("watched".to_string(), String::new());
+        let watched_id = "tt0000001".to_string();
         let movie_watched = Box::new(MovieOverview::new(
             String::new(),
-            "tt0000001".to_string(),
+            watched_id.clone(),
             String::new(),
         )) as Box<dyn MediaOverview>;
         let movie_unwatched = Box::new(MovieOverview::new(
@@ -356,9 +353,20 @@ mod test {
             "tt0000002".to_string(),
             String::new(),
         )) as Box<dyn MediaOverview>;
+        let resource_directory = tempfile::tempdir().expect("expected a temp directory");
+        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let favorites = Arc::new(FavoriteService::new(&storage));
+        let mut watched = MockWatchedService::new();
+        watched.expect_is_watched()
+            .returning(move |id: &str| -> bool {
+                id == watched_id
+            });
+        let watched_service = Arc::new(Box::new(watched) as Box<dyn WatchedService>);
+        let service = FavoritesProvider::new(&favorites, &watched_service, vec![]);
+        let sort_by = SortBy::new("watched".to_string(), String::new());
 
         let result = service.sort_by(&sort_by, &movie_watched, &movie_unwatched);
 
-        assert_eq!(Ordering::Less, result)
+        assert_eq!(Ordering::Greater, result)
     }
 }

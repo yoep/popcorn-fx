@@ -510,7 +510,7 @@ pub extern "C" fn is_media_watched(popcorn_fx: &mut PopcornFX, watchable: &Media
     match from_media_item(watchable) {
         Some(media) => {
             trace!("Verifying if media item is watched for {}", &media);
-            let watched = popcorn_fx.watched_service().is_watched_boxed(&media);
+            let watched = popcorn_fx.watched_service().is_watched_dyn(&media);
             mem::forget(media);
             watched
         }

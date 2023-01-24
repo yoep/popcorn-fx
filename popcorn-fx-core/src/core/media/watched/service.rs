@@ -1,6 +1,8 @@
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use log::{debug, error, trace, warn};
+use mockall::automock;
 use tokio::sync::Mutex;
 
 use crate::core::media;
@@ -10,110 +12,47 @@ use crate::core::storage::{Storage, StorageError};
 
 const FILENAME: &str = "watched.json";
 
-/// The watch service is responsible for tracking watched media items.
-#[derive(Debug)]
-pub struct WatchedService {
-    storage: Arc<Storage>,
-    cache: Arc<Mutex<Option<Watched>>>,
-}
-
-impl WatchedService {
-    pub fn new(storage: &Arc<Storage>) -> Self {
-        Self {
-            storage: storage.clone(),
-            cache: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    /// Verify if the watchable has been seen or not.
+/// The watched service is responsible for tracking seen/unseen media items.
+#[automock]
+pub trait WatchedService: Debug + Send + Sync + 'static {
+    /// Verify if the given ID has been seen.
     ///
-    /// It returns true if the watchable has been watched.
-    pub fn is_watched(&self, watchable: &impl MediaIdentifier) -> bool {
-        let imdb_id = watchable.imdb_id();
+    /// It returns true when the ID has been seen, else false.
+    fn is_watched(&self, watchable: &str) -> bool;
 
-        self.is_watched_id(imdb_id.as_str())
-    }
-
-    /// Verify if the watchable has been seen or not.
+    /// Verify if the given identifier item has been seen.
     ///
-    /// It returns true if the watchable has been watched.
-    pub fn is_watched_boxed(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
-        let imdb_id = watchable.imdb_id();
-
-        self.is_watched_id(imdb_id.as_str())
-    }
-    
-    /// Verify if the given ID is seen or not.
-    /// 
-    /// It returns true if the ID has been watched.
-    pub fn is_watched_id(&self, imdb_id: &str) -> bool {
-        trace!("Verifying if ID {} is watched", imdb_id);
-        match futures::executor::block_on(self.load_watched_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let cache = futures::executor::block_on(mutex.lock());
-                let watched = cache.as_ref().expect("cache should have been present");
-
-                watched.contains(imdb_id)
-            }
-            Err(e) => {
-                warn!("Unable to load {}, {}", FILENAME, e);
-                false
-            }
-        }
-    }
+    /// It returns true when the media item has been seen, else false.
+    fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool;
 
     /// Retrieve an array of owned watched media item ids.
     ///
     /// It returns the watched id's when loaded, else the [MediaError].
-    pub fn all(&self) -> media::Result<Vec<String>> {
-        match futures::executor::block_on(self.load_watched_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let cache = futures::executor::block_on(mutex.lock());
-                let watched = cache.as_ref().expect("cache should have been present");
-                let mut movies = watched.movies().clone();
-                let mut shows = watched.shows().clone();
-                let mut all: Vec<String> = vec![];
-
-                all.append(&mut movies);
-                all.append(&mut shows);
-
-                Ok(all)
-            }
-            Err(e) => Err(e)
-        }
-    }
+    fn all(&self) -> media::Result<Vec<String>>;
 
     /// Retrieve an array of watched movie id's.
     ///
     /// It returns the watched id's when loaded, else the [MediaError].
-    pub fn watched_movies(&self) -> media::Result<Vec<String>> {
-        match futures::executor::block_on(self.load_watched_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let cache = futures::executor::block_on(mutex.lock());
-                let watched = cache.as_ref().expect("cache should have been present");
-
-                Ok(watched.movies().clone())
-            }
-            Err(e) => Err(e)
-        }
-    }
+    fn watched_movies(&self) -> media::Result<Vec<String>>;
 
     /// Retrieve an array of watched show id's.
     ///
     /// It returns the watched id's when loaded, else the [MediaError].
-    pub fn watched_shows(&self) -> media::Result<Vec<String>> {
-        match futures::executor::block_on(self.load_watched_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let cache = futures::executor::block_on(mutex.lock());
-                let watched = cache.as_ref().expect("cache should have been present");
+    fn watched_shows(&self) -> media::Result<Vec<String>>;
+}
 
-                Ok(watched.shows().clone())
-            }
-            Err(e) => Err(e)
+/// The watch service is responsible for tracking watched media items.
+#[derive(Debug)]
+pub struct WatchedServiceFx {
+    storage: Arc<Storage>,
+    cache: Arc<Mutex<Option<Watched>>>,
+}
+
+impl WatchedServiceFx {
+    pub fn new(storage: &Arc<Storage>) -> Self {
+        Self {
+            storage: storage.clone(),
+            cache: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -184,7 +123,77 @@ impl WatchedService {
     }
 }
 
-impl Drop for WatchedService {
+impl WatchedService for WatchedServiceFx {
+    fn is_watched(&self, imdb_id: &str) -> bool {
+        trace!("Verifying if ID {} is watched", imdb_id);
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_ref().expect("cache should have been present");
+
+                watched.contains(imdb_id)
+            }
+            Err(e) => {
+                warn!("Unable to load {}, {}", FILENAME, e);
+                false
+            }
+        }
+    }
+
+    fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
+        let imdb_id = watchable.imdb_id();
+
+        self.is_watched(imdb_id.as_str())
+    }
+
+    fn all(&self) -> media::Result<Vec<String>> {
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_ref().expect("cache should have been present");
+                let mut movies = watched.movies().clone();
+                let mut shows = watched.shows().clone();
+                let mut all: Vec<String> = vec![];
+
+                all.append(&mut movies);
+                all.append(&mut shows);
+
+                Ok(all)
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    fn watched_movies(&self) -> media::Result<Vec<String>> {
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_ref().expect("cache should have been present");
+
+                Ok(watched.movies().clone())
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    fn watched_shows(&self) -> media::Result<Vec<String>> {
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_ref().expect("cache should have been present");
+
+                Ok(watched.shows().clone())
+            }
+            Err(e) => Err(e)
+        }
+    }
+}
+
+impl Drop for WatchedServiceFx {
     fn drop(&mut self) {}
 }
 
@@ -201,14 +210,14 @@ mod test {
         let imdb_id = "tt548723".to_string();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedService::new(&storage);
+        let service = WatchedServiceFx::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
             String::new(),
         );
 
-        let result = service.is_watched(&movie);
+        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
         assert!(result, "expected the media to have been watched")
     }
@@ -219,14 +228,14 @@ mod test {
         let imdb_id = "tt548766".to_string();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedService::new(&storage);
+        let service = WatchedServiceFx::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
             String::new(),
         );
 
-        let result = service.is_watched(&movie);
+        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
         assert!(!result, "expected the media to not have been watched")
     }
@@ -237,14 +246,14 @@ mod test {
         let imdb_id = "tt541345".to_string();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedService::new(&storage);
+        let service = WatchedServiceFx::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
             String::new(),
         );
 
-        let result = service.is_watched_boxed(&(Box::new(movie) as Box<dyn MediaIdentifier>));
+        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
         assert!(result, "expected the media to have been watched")
     }
@@ -254,7 +263,7 @@ mod test {
         init_logger();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedService::new(&storage);
+        let service = WatchedServiceFx::new(&storage);
         let expected_result = vec![
             "tt548723",
             "tt541345",
@@ -273,7 +282,7 @@ mod test {
         let imdb_id = "tt548795".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
         let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = WatchedService::new(&storage);
+        let service = WatchedServiceFx::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id.clone(),
@@ -282,7 +291,7 @@ mod test {
 
         service.add(Box::new(movie.clone()) as Box<dyn MediaIdentifier>)
             .expect("add should have succeeded");
-        let result = service.is_watched(&movie);
+        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
         assert!(result, "expected the media item to have been watched")
     }
@@ -293,7 +302,7 @@ mod test {
         let imdb_id = "tt88877554".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
         let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = WatchedService::new(&storage);
+        let service = WatchedServiceFx::new(&storage);
         let show = ShowOverview::new(
             imdb_id.clone(),
             String::new(),
@@ -306,7 +315,7 @@ mod test {
 
         service.add(Box::new(show.clone()) as Box<dyn MediaIdentifier>)
             .expect("add should have succeeded");
-        let result = service.is_watched(&show);
+        let result = service.is_watched_dyn(&(Box::new(show) as Box<dyn MediaIdentifier>));
 
         assert!(result, "expected the media item to have been watched")
     }

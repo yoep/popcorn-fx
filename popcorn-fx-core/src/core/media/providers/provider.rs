@@ -11,8 +11,8 @@ use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, SortBy};
 
 /// A common definition of a [Media] item provider.
 /// It will provide details about certain [Media] items based on the [Category] it supports.
-#[async_trait]
 #[cfg_attr(test, automock)]
+#[async_trait]
 pub trait MediaProvider: Debug + Display + Send + Sync {
     /// Verify if the provider supports the given [Category].
     fn supports(&self, category: &Category) -> bool;

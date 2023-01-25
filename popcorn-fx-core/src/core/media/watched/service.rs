@@ -58,12 +58,12 @@ pub trait WatchedService: Debug + Send + Sync {
 
 /// The standard Popcorn FX watched service.
 #[derive(Debug)]
-pub struct WatchedServiceFx {
+pub struct DefaultWatchedService {
     storage: Arc<Storage>,
     cache: Arc<Mutex<Option<Watched>>>,
 }
 
-impl WatchedServiceFx {
+impl DefaultWatchedService {
     pub fn new(storage: &Arc<Storage>) -> Self {
         Self {
             storage: storage.clone(),
@@ -131,7 +131,7 @@ impl WatchedServiceFx {
     }
 }
 
-impl WatchedService for WatchedServiceFx {
+impl WatchedService for DefaultWatchedService {
     fn is_watched(&self, imdb_id: &str) -> bool {
         trace!("Verifying if ID {} is watched", imdb_id);
         match futures::executor::block_on(self.load_watched_cache()) {
@@ -238,7 +238,7 @@ impl WatchedService for WatchedServiceFx {
     }
 }
 
-impl Drop for WatchedServiceFx {
+impl Drop for DefaultWatchedService {
     fn drop(&mut self) {}
 }
 
@@ -255,7 +255,7 @@ mod test {
         let imdb_id = "tt548723".to_string();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedServiceFx::new(&storage);
+        let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -273,7 +273,7 @@ mod test {
         let imdb_id = "tt548766".to_string();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedServiceFx::new(&storage);
+        let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -291,7 +291,7 @@ mod test {
         let imdb_id = "tt541345".to_string();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedServiceFx::new(&storage);
+        let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -308,7 +308,7 @@ mod test {
         init_logger();
         let resource_directory = test_resource_directory();
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = WatchedServiceFx::new(&storage);
+        let service = DefaultWatchedService::new(&storage);
         let expected_result = vec![
             "tt548723",
             "tt541345",
@@ -327,7 +327,7 @@ mod test {
         let imdb_id = "tt548795".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
         let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = WatchedServiceFx::new(&storage);
+        let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id.clone(),
@@ -347,7 +347,7 @@ mod test {
         let imdb_id = "tt88877554".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
         let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = WatchedServiceFx::new(&storage);
+        let service = DefaultWatchedService::new(&storage);
         let show = ShowOverview::new(
             imdb_id.clone(),
             String::new(),

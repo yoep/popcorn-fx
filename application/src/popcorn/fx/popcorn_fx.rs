@@ -9,9 +9,9 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
 use popcorn_fx_core::core::config::Application;
-use popcorn_fx_core::core::media::favorites::FavoriteService;
+use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
-use popcorn_fx_core::core::media::watched::{WatchedService, WatchedServiceFx};
+use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{SubtitleProvider, SubtitleServer};
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
@@ -29,7 +29,7 @@ pub struct PopcornFX {
     settings: Arc<Application>,
     subtitle_service: Arc<Box<dyn SubtitleProvider>>,
     platform_service: Box<dyn PlatformService>,
-    favorites_service: Arc<FavoriteService>,
+    favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
     providers: ProviderManager,
     subtitle_server: Arc<SubtitleServer>,
@@ -45,8 +45,8 @@ impl PopcornFX {
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let favorites_service = Arc::new(FavoriteService::new(&storage));
-        let watched_service : Arc<Box<dyn WatchedService>> = Arc::new(Box::new(WatchedServiceFx::new(&storage)));
+        let favorites_service: Arc<Box<dyn FavoriteService>> = Arc::new(Box::new(DefaultFavoriteService::new(&storage)));
+        let watched_service: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(DefaultWatchedService::new(&storage)));
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
 
         Self {
@@ -82,7 +82,7 @@ impl PopcornFX {
     }
 
     /// The favorite service of [PopcornFX] which handles all liked items and actions.
-    pub fn favorite_service(&mut self) -> &Arc<FavoriteService> {
+    pub fn favorite_service(&mut self) -> &Arc<Box<dyn FavoriteService>> {
         &self.favorites_service
     }
 
@@ -124,10 +124,10 @@ impl PopcornFX {
         });
     }
 
-    fn default_providers(settings: &Arc<Application>, favorites: &Arc<FavoriteService>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
+    fn default_providers(settings: &Arc<Application>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
         let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(&settings)));
         let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(&settings)));
-        let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(&favorites, &watched, vec![
+        let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![
             &movie_provider,
             &show_provider,
         ])));

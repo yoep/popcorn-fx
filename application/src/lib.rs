@@ -399,7 +399,7 @@ pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &MediaIte
             false
         }
         Some(media) => {
-            let liked = popcorn_fx.favorite_service().is_liked_boxed(&media);
+            let liked = popcorn_fx.favorite_service().is_liked_dyn(&media);
             trace!("Liked state is {} for {} {}", &liked, media.media_type(), media.imdb_id());
             mem::forget(media);
             liked

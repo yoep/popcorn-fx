@@ -72,10 +72,11 @@ impl Favorites {
         }
     }
 
-    /// Verify if the favorites contain the given ID.
-    pub fn contains(&self, imdb_id: &String) -> bool {
-        self.movies.iter().any(|e| e.imdb_id().eq(imdb_id))
-            || self.shows.iter().any(|e| e.imdb_id().eq(imdb_id))
+    /// Verify if the favorites contain the given media item ID.
+    /// It returns `true` when the id is liked, else `false`.
+    pub fn contains(&self, imdb_id: &str) -> bool {
+        self.movies.iter().any(|e| e.imdb_id() == imdb_id)
+            || self.shows.iter().any(|e| e.imdb_id() == imdb_id)
     }
 
     /// Remove the media item from the favorites based on the given ID.

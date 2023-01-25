@@ -21,16 +21,31 @@ const SORT_RATING_KEY: &str = "rating";
 /// The [MediaProvider] for liked media items.
 #[derive(Debug)]
 pub struct FavoritesProvider {
-    favorites: Arc<FavoriteService>,
+    favorites: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
     providers: Mutex<Vec<Arc<Box<dyn MediaProvider>>>>,
 }
 
 impl FavoritesProvider {
-    pub fn new(favorites: &Arc<FavoriteService>, watched_service: &Arc<Box<dyn WatchedService>>, providers: Vec<&Arc<Box<dyn MediaProvider>>>) -> Self {
+    /// Create a new favorites provider instance.
+    /// It takes ownership of the shared favorites & watched services.
+    /// _Make sure of them are cloned if used somewhere else_
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use popcorn_fx_core::core::media::providers::FavoritesProvider;
+    ///
+    /// fn example() -> FavoritesProvider {
+    ///     let favorites = Arc::new(XXX);
+    ///     let watched = Arc::new(XXX);
+    ///
+    ///     FavoritesProvider::new(favorites.clone(), watched.clone(), vec![])
+    /// }
+    /// ```
+    pub fn new(favorites: Arc<Box<dyn FavoriteService>>, watched_service: Arc<Box<dyn WatchedService>>, providers: Vec<&Arc<Box<dyn MediaProvider>>>) -> Self {
         Self {
-            favorites: favorites.clone(),
-            watched_service: watched_service.clone(),
+            favorites,
+            watched_service,
             providers: Mutex::new(providers.into_iter()
                 .map(|e| e.clone())
                 .collect()),
@@ -189,10 +204,12 @@ impl MediaProvider for FavoritesProvider {
 #[cfg(test)]
 mod test {
     use crate::core::config::Application;
-    use crate::core::media::{Images, MediaIdentifier, MovieOverview, ShowOverview};
+    use crate::core::media;
+    use crate::core::media::{Images, MovieOverview, ShowOverview};
+    use crate::core::media::favorites::MockFavoriteService;
     use crate::core::media::providers::MovieProvider;
+    use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
-    use crate::core::media::watched::WatchedServiceFx;
     use crate::core::storage::Storage;
     use crate::testing::{init_logger, test_resource_directory};
 
@@ -202,13 +219,25 @@ mod test {
     fn test_retrieve_return_stored_favorites() {
         init_logger();
         let resource_directory = test_resource_directory();
+        let imdb_id = "tt21215466";
         let genre = Genre::all();
         let sort_by = SortBy::new("watched".to_string(), String::new());
         let keywords = "".to_string();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let favorites = Arc::new(FavoriteService::new(&storage));
-        let watched: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(WatchedServiceFx::new(&storage)));
-        let provider = FavoritesProvider::new(&favorites, &watched, vec![]);
+        let mut favorites = MockFavoriteService::new();
+        favorites.expect_all()
+            .returning(|| -> media::Result<Vec<Box<dyn MediaOverview>>> {
+                Ok(vec![Box::new(
+                    MovieOverview::new(
+                        String::new(),
+                        imdb_id.to_string(),
+                        String::new(),
+                    )
+                )])
+            });
+        let provider = FavoritesProvider::new(
+            Arc::new(Box::new(favorites)),
+            Arc::new(Box::new(MockWatchedService::new())),
+            vec![]);
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
         let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
@@ -224,10 +253,20 @@ mod test {
         let resource_directory = test_resource_directory();
         let settings = Arc::new(Application::default());
         let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
-        let favorites = Arc::new(FavoriteService::new(&storage));
-        let watched: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(WatchedServiceFx::new(&storage)));
+        let mut favorites = MockFavoriteService::new();
+        favorites.expect_find_id()
+            .returning(|_id: &str| -> Option<Box<dyn MediaOverview>> {
+                Some(Box::new(MovieOverview::new(
+                    String::new(),
+                    imdb_id.to_string(),
+                    String::new(),
+                )))
+            });
         let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
-        let provider = FavoritesProvider::new(&favorites, &watched, vec![&movie_provider]);
+        let provider = FavoritesProvider::new(
+            Arc::new(Box::new(favorites)),
+            Arc::new(Box::new(DefaultWatchedService::new(&storage))),
+            vec![&movie_provider]);
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
         let result = runtime.block_on(provider.retrieve_details(&imdb_id.to_string()))
@@ -315,9 +354,11 @@ mod test {
         init_logger();
         let resource_directory = tempfile::tempdir().expect("expected a temp directory");
         let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let favorites = Arc::new(FavoriteService::new(&storage));
-        let watched: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(WatchedServiceFx::new(&storage)));
-        let service = FavoritesProvider::new(&favorites, &watched, vec![]);
+        let favorites = MockFavoriteService::new();
+        let service = FavoritesProvider::new(
+            Arc::new(Box::new(favorites)),
+            Arc::new(Box::new(DefaultWatchedService::new(&storage))),
+            vec![]);
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
         let movie = Box::new(MovieOverview::new(
             String::new(),
@@ -353,16 +394,16 @@ mod test {
             "tt0000002".to_string(),
             String::new(),
         )) as Box<dyn MediaOverview>;
-        let resource_directory = tempfile::tempdir().expect("expected a temp directory");
-        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let favorites = Arc::new(FavoriteService::new(&storage));
+        let favorites = MockFavoriteService::new();
         let mut watched = MockWatchedService::new();
         watched.expect_is_watched()
             .returning(move |id: &str| -> bool {
                 id == watched_id
             });
-        let watched_service = Arc::new(Box::new(watched) as Box<dyn WatchedService>);
-        let service = FavoritesProvider::new(&favorites, &watched_service, vec![]);
+        let service = FavoritesProvider::new(
+            Arc::new(Box::new(favorites)),
+            Arc::new(Box::new(watched)),
+            vec![]);
         let sort_by = SortBy::new("watched".to_string(), String::new());
 
         let result = service.sort_by(&sort_by, &movie_watched, &movie_unwatched);

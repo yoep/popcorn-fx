@@ -179,7 +179,7 @@ mod test {
         );
         let client = Client::builder().build().expect("Client should have been created");
         provider.expect_convert()
-            .returning(|subtitle: Subtitle, output_type: SubtitleType| -> subtitles::Result<String> {
+            .returning(|_: Subtitle, _: SubtitleType| -> subtitles::Result<String> {
                 Ok("lorem ipsum".to_string())
             });
         let arc = Arc::new(provider as Box<dyn SubtitleProvider>);

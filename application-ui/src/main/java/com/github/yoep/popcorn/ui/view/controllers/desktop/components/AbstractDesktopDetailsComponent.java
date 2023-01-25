@@ -4,8 +4,10 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -54,6 +56,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected final DetailsComponentService service;
     protected final PlayerManagerService playerService;
     protected final PlatformProvider platformProvider;
+    protected final WatchedService watchedService;
+    protected final FavoriteService favoriteService;
 
     protected SubtitleInfo subtitle;
     protected String quality;
@@ -86,7 +90,9 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               SettingsService settingsService,
                                               DetailsComponentService service,
                                               PlayerManagerService playerService,
-                                              PlatformProvider platformProvider) {
+                                              PlatformProvider platformProvider,
+                                              WatchedService watchedService,
+                                              FavoriteService favoriteService) {
         super(localeText, imageService, healthService, settingsService);
         this.eventPublisher = eventPublisher;
         this.subtitleService = subtitleService;
@@ -94,6 +100,8 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         this.service = service;
         this.playerService = playerService;
         this.platformProvider = platformProvider;
+        this.watchedService = watchedService;
+        this.favoriteService = favoriteService;
     }
 
     //endregion

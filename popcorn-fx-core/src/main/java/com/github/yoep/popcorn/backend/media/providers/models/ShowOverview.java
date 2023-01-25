@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.jna.Structure;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Getter
-@ToString(exclude = {"watched"})
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
@@ -25,9 +23,6 @@ import java.util.Optional;
 public class ShowOverview extends Structure implements Media, Closeable {
     public static class ByReference extends ShowOverview implements Structure.ByReference {
     }
-
-    @JsonIgnore
-    private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
 
     public String imdbId;
     public String tvdbId;
@@ -39,21 +34,6 @@ public class ShowOverview extends Structure implements Media, Closeable {
     public Rating.ByReference rating;
 
     //region Properties
-
-    @Override
-    public boolean isWatched() {
-        return watched.get();
-    }
-
-    @Override
-    public BooleanProperty watchedProperty() {
-        return watched;
-    }
-
-    @Override
-    public void setWatched(boolean watched) {
-        this.watched.set(watched);
-    }
 
     @Override
     public MediaType getType() {

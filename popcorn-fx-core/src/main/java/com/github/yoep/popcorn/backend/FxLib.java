@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -92,6 +93,8 @@ public interface FxLib extends Library {
     void add_to_watched(PopcornFx instance, MediaItem media);
 
     void remove_from_watched(PopcornFx instance, MediaItem media);
+
+    void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
     void dispose_media_item(MediaItem media);
 

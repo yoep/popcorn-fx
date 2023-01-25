@@ -7,6 +7,7 @@ use log::{error, trace};
 use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use crate::core::media::favorites::FavoriteEvent;
+use crate::core::media::watched::WatchedEvent;
 
 /// Structure defining a set of media items.
 /// Each media items is separated in a specific implementation array.
@@ -674,6 +675,25 @@ impl FavoriteEventC {
         trace!("Converting FavoriteEvent to C {}", &event);
         match event {
             FavoriteEvent::LikedStateChanged(id, state) => Self::LikedStateChanged(to_c_string(id.clone()), state.clone()),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub enum WatchedEventC {
+    /// Event indicating that the watched state of a media item changed.
+    ///
+    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `bool`            - The new watched state of the media item.
+    WatchedStateChanged(*const c_char, bool)
+}
+
+impl WatchedEventC {
+    pub fn from(event: WatchedEvent) -> Self {
+        trace!("Converting WatchedEvent to C {}", &event);
+        match event {
+            WatchedEvent::WatchedStateChanged(id, state) => Self::WatchedStateChanged(to_c_string(id), state)
         }
     }
 }

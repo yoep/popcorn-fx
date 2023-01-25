@@ -255,6 +255,26 @@ struct FavoriteEventC {
   };
 };
 
+struct WatchedEventC {
+  enum class Tag {
+    /// Event indicating that the watched state of a media item changed.
+    ///
+    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `bool`            - The new watched state of the media item.
+    WatchedStateChanged,
+  };
+
+  struct WatchedStateChanged_Body {
+    const char *_0;
+    bool _1;
+  };
+
+  Tag tag;
+  union {
+    WatchedStateChanged_Body watched_state_changed;
+  };
+};
+
 struct VecFavoritesC {
   MovieOverviewC *movies;
   int32_t movies_len;
@@ -349,6 +369,9 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
+
+/// Register a new callback listener for watched events.
+void register_watched_event_callback(PopcornFX *popcorn_fx, void (*callback)(WatchedEventC));
 
 /// Remove the media item from favorites.
 void remove_from_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);

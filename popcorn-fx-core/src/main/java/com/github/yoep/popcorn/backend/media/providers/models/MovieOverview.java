@@ -3,8 +3,6 @@ package com.github.yoep.popcorn.backend.media.providers.models;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sun.jna.Structure;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import lombok.*;
 
 import java.io.Closeable;
@@ -13,8 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Data
-@ToString(exclude = {"watched"})
-@EqualsAndHashCode(callSuper = false, exclude = {"watched", "rating"})
+@ToString
+@EqualsAndHashCode(callSuper = false, exclude = {"rating"})
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
@@ -22,9 +20,6 @@ import java.util.Optional;
 public class MovieOverview extends Structure implements Media, Closeable {
     public static class ByReference extends MovieOverview implements Structure.ByReference {
     }
-
-    @JsonIgnore
-    private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
 
     public String title;
     public String imdbId;
@@ -35,23 +30,8 @@ public class MovieOverview extends Structure implements Media, Closeable {
     //region Properties
 
     @Override
-    public boolean isWatched() {
-        return watched.get();
-    }
-
-    @Override
-    public BooleanProperty watchedProperty() {
-        return watched;
-    }
-
-    @Override
-    public void setWatched(boolean watched) {
-        this.watched.set(watched);
-    }
-
-    @Override
     public MediaType getType() {
-        return MediaType.SHOW;
+        return MediaType.MOVIE;
     }
 
     //endregion

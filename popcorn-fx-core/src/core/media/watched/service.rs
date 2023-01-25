@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
@@ -8,10 +8,31 @@ use tokio::sync::Mutex;
 
 use crate::core::media;
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
+use crate::core::media::callbacks::MediaCallbacks;
 use crate::core::media::watched::Watched;
 use crate::core::storage::{Storage, StorageError};
 
 const FILENAME: &str = "watched.json";
+
+/// The callback to listen on events of the watched service.
+pub type WatchedCallback = Box<dyn Fn(WatchedEvent) + Send>;
+
+#[derive(Debug, Clone)]
+pub enum WatchedEvent {
+    /// Invoked when a media item's watched state has changed.
+    ///
+    /// - The IMDB ID of the media item for which the state changed.
+    /// - The new state.
+    WatchedStateChanged(String, bool)
+}
+
+impl Display for WatchedEvent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WatchedEvent::WatchedStateChanged(id, state) => write!(f, "Watched state changed of {} to {}", id, state),
+        }
+    }
+}
 
 /// The watched service is responsible for tracking seen/unseen media items.
 #[automock]
@@ -54,6 +75,10 @@ pub trait WatchedService: Debug + Send + Sync {
     ///
     /// * `watchable`   - The media item to remove from the watched list.
     fn remove(&self, watchable: Box<dyn MediaIdentifier>);
+
+    /// Register the given callback to the watched events.
+    /// The callback will be invoked when an event happens within this service.
+    fn register(&self, callback: WatchedCallback);
 }
 
 /// The standard Popcorn FX watched service.
@@ -61,6 +86,7 @@ pub trait WatchedService: Debug + Send + Sync {
 pub struct DefaultWatchedService {
     storage: Arc<Storage>,
     cache: Arc<Mutex<Option<Watched>>>,
+    callbacks: MediaCallbacks<WatchedEvent>,
 }
 
 impl DefaultWatchedService {
@@ -68,6 +94,7 @@ impl DefaultWatchedService {
         Self {
             storage: storage.clone(),
             cache: Arc::new(Mutex::new(None)),
+            callbacks: MediaCallbacks::default(),
         }
     }
 
@@ -201,7 +228,7 @@ impl WatchedService for DefaultWatchedService {
     }
 
     fn add(&self, watchable: Box<dyn MediaIdentifier>) -> media::Result<()> {
-        let _ = futures::executor::block_on(self.load_watched_cache())?;
+        futures::executor::block_on(self.load_watched_cache())?;
         let mutex = self.cache.clone();
         let mut cache = futures::executor::block_on(mutex.lock());
         let watched = cache.as_mut().expect("expected the cache to have been loaded");
@@ -217,6 +244,7 @@ impl WatchedService for DefaultWatchedService {
         }
 
         self.save(watched);
+        self.callbacks.invoke(WatchedEvent::WatchedStateChanged(watchable.imdb_id(), true));
         Ok(())
     }
 
@@ -228,22 +256,52 @@ impl WatchedService for DefaultWatchedService {
                 let watched = cache.as_mut().expect("expected the cache to have been loaded");
                 let id = watchable.imdb_id();
 
-                watched.remove(id);
+                watched.remove(id.clone());
                 self.save(watched);
+                self.callbacks.invoke(WatchedEvent::WatchedStateChanged(id, false));
             }
             Err(e) => {
                 error!("Failed to remove watched item, {}", e)
             }
         }
     }
+
+    fn register(&self, callback: WatchedCallback) {
+        self.callbacks.add(callback)
+    }
 }
 
 impl Drop for DefaultWatchedService {
-    fn drop(&mut self) {}
+    fn drop(&mut self) {
+        let mutex = self.cache.clone();
+        let execute = async move {
+            let watched = mutex.lock().await;
+
+            if watched.is_some() {
+                debug!("Saving watched items on exit");
+                let e = watched.as_ref().expect("Expected the watched items to be present");
+                self.save_async(e).await
+            }
+        };
+
+        match Handle::try_current() {
+            Ok(e) => {
+                trace!("Using handle on exit");
+                e.block_on(execute)
+            }
+            Err(_) => {
+                let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
+                runtime.block_on(execute)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::testing::{init_logger, test_resource_directory};
 
@@ -363,5 +421,62 @@ mod test {
         let result = service.is_watched_dyn(&(Box::new(show) as Box<dyn MediaIdentifier>));
 
         assert!(result, "expected the media item to have been watched")
+    }
+
+    #[test]
+    fn test_register_when_add_is_called_should_invoke_callbacks() {
+        init_logger();
+        let id = "tt8744557";
+        let resource_directory = tempfile::tempdir().unwrap();
+        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let service = DefaultWatchedService::new(&storage);
+        let (tx, rx) = channel();
+        let callback: WatchedCallback = Box::new(move |e| {
+            tx.send(e).unwrap();
+        });
+        let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(
+            String::new(),
+            id.to_string(),
+            String::new(),
+        ));
+
+        service.register(callback);
+        service.add(movie).expect("expected the movie to be added to watched");
+
+        let result = rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        match result {
+            WatchedEvent::WatchedStateChanged(imdb_id, state) => {
+                assert_eq!(id.to_string(), imdb_id);
+                assert_eq!(true, state)
+            }
+        }
+    }
+
+    #[test]
+    fn test_register_when_remove_is_called_should_invoke_callbacks() {
+        init_logger();
+        let id = "tt8744557";
+        let resource_directory = tempfile::tempdir().unwrap();
+        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let service = DefaultWatchedService::new(&storage);
+        let (tx, rx) = channel();
+        let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(
+            String::new(),
+            id.to_string(),
+            String::new(),
+        ));
+
+        service.register(Box::new(move |e| {
+            tx.send(e).unwrap();
+        }));
+        service.remove(movie);
+
+        let result = rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        match result {
+            WatchedEvent::WatchedStateChanged(imdb_id, state) => {
+                assert_eq!(id.to_string(), imdb_id);
+                assert_eq!(false, state)
+            }
+        }
     }
 }

@@ -6,13 +6,13 @@ import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * The watched service maintains all the watched {@link Media} items of the application.
@@ -20,10 +20,15 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WatchedService {
     private static final int WATCHED_PERCENTAGE_THRESHOLD = 85;
     private final Object lock = new Object();
+    private final WatchedEventCallback callback = createCallback();
+    private final ConcurrentLinkedDeque<WatchedEventCallback> listeners = new ConcurrentLinkedDeque<>();
+
+    public WatchedService() {
+        init();
+    }
 
     //region Methods
 
@@ -92,6 +97,15 @@ public class WatchedService {
         }
     }
 
+    public void registerListener(WatchedEventCallback callback) {
+        Assert.notNull(callback, "callback cannot be null");
+        listeners.add(callback);
+    }
+
+    public void removeListener(WatchedEventCallback callback) {
+        listeners.remove(callback);
+    }
+
     @EventListener
     public void onPlayerStopped(PlayerStoppedEvent event) {
         // check if the media is present
@@ -120,4 +134,24 @@ public class WatchedService {
     }
 
     //endregion
+
+    private void init() {
+        synchronized (lock) {
+            FxLib.INSTANCE.register_watched_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
+        }
+    }
+
+    private WatchedEventCallback createCallback() {
+        return event -> {
+            log.debug("Received watched event callback {}", event);
+
+            try {
+                for (var listener : listeners) {
+                    listener.callback(event);
+                }
+            } catch (Exception ex) {
+                log.error("Failed to invoke watched callback, {}", ex.getMessage(), ex);
+            }
+        };
+    }
 }

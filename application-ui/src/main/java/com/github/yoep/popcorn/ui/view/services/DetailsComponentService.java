@@ -6,10 +6,10 @@ import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
-import javafx.beans.value.ChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -26,21 +25,17 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
 
-    private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> onWatchedChanged(newValue);
-    private final FavoriteEventCallback callback = createCallback();
+    private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback();
+    private final WatchedEventCallback watchedEventCallback = createWatchedCallback();
 
     private Media lastShownMediaItem;
 
     @EventListener
     public void onShowDetails(ShowDetailsEvent event) {
         if (event instanceof ShowMovieDetailsEvent movieEvent) {
-            var media = movieEvent.getMedia();
-            subscribeToPropertyChanges(media);
-            lastShownMediaItem = media;
+            lastShownMediaItem = movieEvent.getMedia();
         } else if (event instanceof ShowSerieDetailsEvent serieEvent) {
-            var media = serieEvent.getMedia();
-            subscribeToPropertyChanges(media);
-            lastShownMediaItem = media;
+            lastShownMediaItem = serieEvent.getMedia();
         } else {
             log.warn("Unknown details events received, event: {}", event.getClass().getSimpleName());
         }
@@ -69,7 +64,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
             return;
         }
 
-        updateWatchedStated(lastShownMediaItem, !lastShownMediaItem.isWatched());
+        updateWatchedStated(lastShownMediaItem, !watchedService.isWatched(lastShownMediaItem));
     }
 
     public void toggleLikedState() {
@@ -87,30 +82,27 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
 
     @PostConstruct
     private void init() {
-        favoriteService.registerListener(callback);
+        favoriteService.registerListener(favoriteEventCallback);
+        watchedService.registerListener(watchedEventCallback);
     }
 
-    private void subscribeToPropertyChanges(Media media) {
-        // remove the listeners from the old item
-        // if one is present before registering to the new one
-        Optional.ofNullable(lastShownMediaItem)
-                .ifPresent(e -> {
-                    e.watchedProperty().removeListener(watchedListener);
-                });
-
-        media.watchedProperty().addListener(watchedListener);
-    }
-
-    private void onWatchedChanged(boolean newValue) {
-        invokeListeners(e -> e.onWatchChanged(newValue));
-    }
-
-    private FavoriteEventCallback createCallback() {
+    private FavoriteEventCallback createFavoriteCallback() {
         return event -> {
             switch (event.tag) {
                 case LikedStateChanged -> {
                     var stateChanged = event.getUnion().getLiked_state_changed();
                     invokeListeners(e -> e.onLikedChanged(stateChanged.getNewState()));
+                }
+            }
+        };
+    }
+
+    private WatchedEventCallback createWatchedCallback() {
+        return event -> {
+            switch (event.tag) {
+                case WatchedStateChanged -> {
+                    var stateChanged = event.getUnion().getWatched_state_changed();
+                    invokeListeners(e -> e.onWatchChanged(stateChanged.getNewState()));
                 }
             }
         };

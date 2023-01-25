@@ -1,45 +1,62 @@
 package com.github.yoep.popcorn.backend.media.filters.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
-import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
 @Data
 @AllArgsConstructor
-public class Season implements Watchable {
-    @JsonIgnore
-    private final BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
-
+public class Season implements Media {
     private final int season;
     private final String text;
-
-    //region Properties
-
-    @Override
-    public boolean isWatched() {
-        return watched.get();
-    }
-
-    @Override
-    public BooleanProperty watchedProperty() {
-        return watched;
-    }
-
-    @Override
-    public void setWatched(boolean watched) {
-        this.watched.set(watched);
-    }
-
-    //endregion
 
     //region Getters
 
     @Override
     public String getId() {
+        return null;
+    }
+
+    @Override
+    public String getTitle() {
+        return text;
+    }
+
+    @Override
+    public String getSynopsis() {
+        return null;
+    }
+
+    @Override
+    public String getYear() {
+        return null;
+    }
+
+    @Override
+    public Integer getRuntime() {
+        return null;
+    }
+
+    @Override
+    public List<String> getGenres() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Optional<Rating> getRating() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Images getImages() {
         return null;
     }
 

@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractListSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
@@ -51,9 +52,6 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     @Override
     protected Node createItemNode(Media item) {
-        // update the watched & liked states of the media item with the latest information
-        item.setWatched(watchedService.isWatched(item));
-
         // load a new media card controller and inject it into the view
         var mediaCardComponent = new OverlayMediaCardComponent(item, localeText, imageService, metadataProvider, createItemListener());
 
@@ -114,6 +112,21 @@ public class ListSectionController extends AbstractListSectionController impleme
             @Override
             public void removeListener(FavoriteEventCallback callback) {
                 favoriteService.removeListener(callback);
+            }
+
+            @Override
+            public boolean isWatched(Media media) {
+                return watchedService.isWatched(media);
+            }
+
+            @Override
+            public void addListener(WatchedEventCallback callback) {
+                watchedService.registerListener(callback);
+            }
+
+            @Override
+            public void removeListener(WatchedEventCallback callback) {
+                watchedService.removeListener(callback);
             }
         };
     }

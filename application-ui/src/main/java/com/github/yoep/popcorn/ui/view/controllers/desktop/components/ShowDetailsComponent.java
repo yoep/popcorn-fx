@@ -6,17 +6,21 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.controls.WatchedCell;
+import com.github.yoep.popcorn.ui.controls.WatchedCellCallbacks;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -57,6 +61,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private static final double POSTER_HEIGHT = 215.0;
 
     private final ShowHelperService showHelperService;
+    private final WatchedEventCallback watchedEventCallback = createCallback();
 
     private Episode episode;
     private boolean batchUpdating;
@@ -100,10 +105,24 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
                                 PlayerManagerService playerService,
-                                PlatformProvider platformProvider) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService,
-                platformProvider);
+                                PlatformProvider platformProvider,
+                                WatchedService watchedService,
+                                FavoriteService favoriteService) {
+        super(eventPublisher,
+                localeText,
+                healthService,
+                subtitleService,
+                subtitlePickerService,
+                imageService,
+                settingsService,
+                service,
+                playerService,
+                platformProvider,
+                watchedService,
+                favoriteService);
+
         this.showHelperService = showHelperService;
+        watchedService.registerListener(watchedEventCallback);
     }
 
     //endregion
@@ -175,21 +194,25 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializeSeasons() {
-        seasons.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
-        seasons.setWatchedFactory(() -> new WatchedCell<>() {
+        var seasonsCallback = new WatchedCellCallbacks() {
             @Override
-            protected void onItemChanged(Season oldItem, Season newItem) {
-                super.onItemChanged(oldItem, newItem);
+            public void updateWatchedState(Media media, boolean newState, Icon icon) {
+                onSeasonWatchedChanged(newState, (Season) media, icon);
+            }
+        };
+
+        seasons.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
+        seasons.setWatchedFactory(() -> new WatchedCell<>(seasonsCallback) {
+            @Override
+            protected void onItemChanged(Season newItem) {
+                super.onItemChanged(newItem);
 
                 if (newItem != null) {
                     if (!isSeasonEmpty(newItem)) {
                         boolean watched = isSeasonWatched(getWatchableItem());
 
-                        setWatched(watched);
                         updateIcon(watched);
                         Tooltip.install(getIcon(), instantTooltip(getWatchedTooltip(watched)));
-
-                        registerWatchedListener((observable, oldValue, newValue) -> onSeasonWatchedChanged(newValue, getWatchableItem(), getIcon()), newItem);
                     } else {
                         setGraphic(null);
                     }
@@ -199,20 +222,30 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializeEpisodes() {
-        episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
-        episodes.setWatchedFactory(() -> new WatchedCell<>() {
+        var cellCallbacks = new WatchedCellCallbacks() {
             @Override
-            protected void onItemChanged(Episode oldItem, Episode newItem) {
-                super.onItemChanged(oldItem, newItem);
+            public void updateWatchedState(Media media, boolean newState, Icon icon) {
+                if (newState) {
+                    watchedService.addToWatchList(media);
+                } else {
+                    watchedService.removeFromWatchList(media);
+                }
+
+                onEpisodeWatchedChanged(newState, (Episode) media, icon);
+            }
+        };
+
+        episodes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
+        episodes.setWatchedFactory(() -> new WatchedCell<>(cellCallbacks) {
+            @Override
+            protected void onItemChanged(Episode newItem) {
+                super.onItemChanged(newItem);
 
                 if (newItem != null) {
                     boolean watched = service.isWatched(getWatchableItem());
 
-                    setWatched(watched);
                     updateIcon(watched);
                     Tooltip.install(getIcon(), instantTooltip(getWatchedTooltip(watched)));
-
-                    registerWatchedListener((observable, oldValue, newValue) -> onEpisodeWatchedChanged(newValue, getWatchableItem(), getIcon()), newItem);
                 }
             }
         });
@@ -312,13 +345,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void markSeasonAsWatched(Season season) {
         batchUpdating = true;
-        showHelperService.getSeasonEpisodes(season, media).forEach(e -> e.setWatched(true));
+        showHelperService.getSeasonEpisodes(season, media).forEach(watchedService::addToWatchList);
         batchUpdating = false;
     }
 
     private void unmarkSeasonAsWatched(Season season) {
         batchUpdating = true;
-        showHelperService.getSeasonEpisodes(season, media).forEach(e -> e.setWatched(false));
+        showHelperService.getSeasonEpisodes(season, media).forEach(watchedService::removeFromWatchList);
         batchUpdating = false;
     }
 
@@ -359,6 +392,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         }
 
         // navigate to the next unwatched season
+        seasons.updateWatchedState(season, newValue);
         selectUnwatchedSeason();
     }
 
@@ -375,8 +409,21 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void updateSeasonIfNeeded(Season season) {
-        if (isSeasonWatched(season))
-            season.setWatched(true);
+        seasons.updateWatchedState(season, isSeasonWatched(season));
+    }
+
+    private WatchedEventCallback createCallback() {
+        return event -> {
+            switch (event.getTag()) {
+                case WatchedStateChanged -> {
+                    var stateChanged = event.getUnion().getWatched_state_changed();
+                    episodes.getItems().stream()
+                            .filter(e -> e.getId().equals(stateChanged.getImdbId()))
+                            .findFirst()
+                            .ifPresent(e -> episodes.updateWatchedState(e, stateChanged.getNewState()));
+                }
+            }
+        };
     }
 
     @FXML

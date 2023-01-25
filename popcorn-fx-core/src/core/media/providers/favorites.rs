@@ -28,6 +28,7 @@ pub struct FavoritesProvider {
 
 impl FavoritesProvider {
     /// Create a new favorites provider instance.
+    ///
     /// It takes ownership of the shared favorites & watched services.
     /// _Make sure of them are cloned if used somewhere else_
     ///
@@ -218,7 +219,6 @@ mod test {
     #[test]
     fn test_retrieve_return_stored_favorites() {
         init_logger();
-        let resource_directory = test_resource_directory();
         let imdb_id = "tt21215466";
         let genre = Genre::all();
         let sort_by = SortBy::new("watched".to_string(), String::new());

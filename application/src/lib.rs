@@ -7,9 +7,10 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
+use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -599,6 +600,17 @@ pub extern "C" fn remove_from_watched(popcorn_fx: &mut PopcornFX, watchable: &Me
             error!("Unable to add watchable, no media item given")
         }
     }
+}
+
+/// Register a new callback listener for watched events.
+#[no_mangle]
+pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX, callback: extern "C" fn(WatchedEventC)) {
+    trace!("Wrapping C callback for WatchedCallback");
+    let wrapper: WatchedCallback = Box::new(move |event| {
+        callback(WatchedEventC::from(event));
+    });
+
+    popcorn_fx.watched_service().register(wrapper)
 }
 
 /// Dispose the given media item from memory.

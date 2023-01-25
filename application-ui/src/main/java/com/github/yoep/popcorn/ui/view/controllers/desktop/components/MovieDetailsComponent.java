@@ -6,8 +6,10 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
@@ -69,9 +71,21 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                                  SettingsService settingsService,
                                  DetailsComponentService service,
                                  PlayerManagerService playerService,
-                                 PlatformProvider platformProvider) {
-        super(eventPublisher, localeText, healthService, subtitleService, subtitlePickerService, imageService, settingsService, service, playerService,
-                platformProvider);
+                                 PlatformProvider platformProvider,
+                                 WatchedService watchedService,
+                                 FavoriteService favoriteService) {
+        super(eventPublisher,
+                localeText,
+                healthService,
+                subtitleService,
+                subtitlePickerService,
+                imageService,
+                settingsService,
+                service,
+                playerService,
+                platformProvider,
+                watchedService,
+                favoriteService);
 
     }
 

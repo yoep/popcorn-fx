@@ -285,6 +285,9 @@ extern "C" {
 /// Duplicate favorite media items are ignored.
 void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 
+/// Add the given media item to the watched list.
+void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
+
 /// Retrieve the default options available for the subtitles.
 VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 
@@ -349,6 +352,9 @@ void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(F
 
 /// Remove the media item from favorites.
 void remove_from_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
+
+/// Remove the given media item from the watched list.
+void remove_from_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.

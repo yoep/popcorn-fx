@@ -89,6 +89,10 @@ public interface FxLib extends Library {
 
     StringArray retrieve_watched_shows(PopcornFx instance);
 
+    void add_to_watched(PopcornFx instance, MediaItem media);
+
+    void remove_from_watched(PopcornFx instance, MediaItem media);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);

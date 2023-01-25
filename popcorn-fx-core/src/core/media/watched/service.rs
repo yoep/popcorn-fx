@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use mockall::automock;
+use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
 use crate::core::media;
@@ -14,7 +15,7 @@ const FILENAME: &str = "watched.json";
 
 /// The watched service is responsible for tracking seen/unseen media items.
 #[automock]
-pub trait WatchedService: Debug + Send + Sync + 'static {
+pub trait WatchedService: Debug + Send + Sync {
     /// Verify if the given ID has been seen.
     ///
     /// * `id`  - The ID of the watchable to verify.
@@ -41,6 +42,18 @@ pub trait WatchedService: Debug + Send + Sync + 'static {
     ///
     /// It returns the watched id's when loaded, else the [MediaError].
     fn watched_shows(&self) -> media::Result<Vec<String>>;
+
+    /// Add the given media item to the watched list.
+    /// Duplicate media items will be ignored and not result in a [MediaError].
+    ///
+    /// * `watchable`   - The media item to add to the watched list.
+    fn add(&self, watchable: Box<dyn MediaIdentifier>) -> media::Result<()>;
+
+    /// Remove the given media item from the watched list.
+    /// Unseen media items will be ignored and not result in an error.
+    ///
+    /// * `watchable`   - The media item to remove from the watched list.
+    fn remove(&self, watchable: Box<dyn MediaIdentifier>);
 }
 
 /// The standard Popcorn FX watched service.
@@ -55,30 +68,6 @@ impl WatchedServiceFx {
         Self {
             storage: storage.clone(),
             cache: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    /// Add the given media item to the watched list.
-    pub fn add(&self, watchable: Box<dyn MediaIdentifier>) -> media::Result<()> {
-        match futures::executor::block_on(self.load_watched_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let mut cache = futures::executor::block_on(mutex.lock());
-                let watched = cache.as_mut().expect("expected the cache to have been loaded");
-                let id = watchable.imdb_id();
-
-                match watchable.media_type() {
-                    MediaType::Movie => watched.add_movie(id),
-                    MediaType::Show => watched.add_show(id),
-                    MediaType::Episode => watched.add_show(id),
-                    _ => {
-                        error!("Media type {} is not supported", watchable.media_type());
-                    }
-                }
-
-                Ok(())
-            }
-            Err(e) => Err(e)
         }
     }
 
@@ -121,6 +110,23 @@ impl WatchedServiceFx {
                     }
                 }
             }
+        }
+    }
+
+    fn save(&self, watchable: &Watched) {
+        match Handle::try_current() {
+            Ok(e) => e.block_on(self.save_async(watchable)),
+            Err(_) => {
+                let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+                runtime.block_on(self.save_async(watchable));
+            }
+        }
+    }
+
+    async fn save_async(&self, watchable: &Watched) {
+        match self.storage.write(FILENAME, &watchable).await {
+            Ok(_) => info!("Watched items have been saved"),
+            Err(e) => error!("Failed to save watched items, {}", e)
         }
     }
 }
@@ -191,6 +197,43 @@ impl WatchedService for WatchedServiceFx {
                 Ok(watched.shows().clone())
             }
             Err(e) => Err(e)
+        }
+    }
+
+    fn add(&self, watchable: Box<dyn MediaIdentifier>) -> media::Result<()> {
+        let _ = futures::executor::block_on(self.load_watched_cache())?;
+        let mutex = self.cache.clone();
+        let mut cache = futures::executor::block_on(mutex.lock());
+        let watched = cache.as_mut().expect("expected the cache to have been loaded");
+        let id = watchable.imdb_id();
+
+        match watchable.media_type() {
+            MediaType::Movie => watched.add_movie(id),
+            MediaType::Show => watched.add_show(id),
+            MediaType::Episode => watched.add_show(id),
+            _ => {
+                error!("Media type {} is not supported", watchable.media_type());
+            }
+        }
+
+        self.save(watched);
+        Ok(())
+    }
+
+    fn remove(&self, watchable: Box<dyn MediaIdentifier>) {
+        match futures::executor::block_on(self.load_watched_cache()) {
+            Ok(_) => {
+                let mutex = self.cache.clone();
+                let mut cache = futures::executor::block_on(mutex.lock());
+                let watched = cache.as_mut().expect("expected the cache to have been loaded");
+                let id = watchable.imdb_id();
+
+                watched.remove(id);
+                self.save(watched);
+            }
+            Err(e) => {
+                error!("Failed to remove watched item, {}", e)
+            }
         }
     }
 }

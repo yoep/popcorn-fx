@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.ui.trakt;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
@@ -175,6 +177,14 @@ public class TraktService {
             log.trace("Synchronizing {} trakt.tv movies to local DB", movies.size());
             movies.stream()
                     .map(WatchedMovie::getMovie)
+                    .map(e -> {
+                        var movie = new MovieOverview();
+                        movie.imdbId = e.getId();
+                        movie.title = e.getTitle();
+                        movie.year = "" + e.getYear();
+                        movie.images = new Images();
+                        return movie;
+                    })
                     .forEach(watchedService::addToWatchList);
             log.debug("Trakt.tv movies to local DB sync completed");
         } catch (Exception ex) {

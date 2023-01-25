@@ -1,9 +1,7 @@
-use std::mem;
-
 use log::trace;
 
-use popcorn_fx_core::{from_c_into_boxed, into_c_owned, MediaItemC, MovieOverviewC, ShowOverviewC, VecFavoritesC};
-use popcorn_fx_core::core::media::{MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
+use popcorn_fx_core::{into_c_owned, MovieOverviewC, ShowOverviewC, VecFavoritesC};
+use popcorn_fx_core::core::media::{MediaOverview, MediaType, MovieOverview, ShowOverview};
 
 pub fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavoritesC {
     trace!("Mapping favorites to VecFavoritesC for {:?}", favorites);
@@ -25,39 +23,4 @@ pub fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavorit
     }
 
     into_c_owned(VecFavoritesC::from(movies, shows))
-}
-
-pub fn from_media_item(favorite: &MediaItemC) -> Option<Box<dyn MediaIdentifier>> {
-    let media: Box<dyn MediaIdentifier>;
-
-    if !favorite.movie_overview.is_null() {
-        let boxed = from_c_into_boxed(favorite.movie_overview);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else if !favorite.movie_details.is_null() {
-        let boxed = from_c_into_boxed(favorite.movie_details);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else if !favorite.show_overview.is_null() {
-        let boxed = from_c_into_boxed(favorite.show_overview);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else if !favorite.show_details.is_null() {
-        let boxed = from_c_into_boxed(favorite.show_details);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else if !favorite.episode.is_null() {
-        let boxed = from_c_into_boxed(favorite.episode);
-        media = Box::new(boxed.to_struct());
-        trace!("Created media struct {:?}", media);
-        mem::forget(boxed);
-    } else {
-        return None;
-    }
-
-    Some(media)
 }

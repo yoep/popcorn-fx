@@ -36,7 +36,7 @@ impl MediaSetC {
     }
 
     pub fn from_shows(shows: Vec<ShowOverview>) -> Self {
-        let (shows,shows_len) = to_c_vec(shows.into_iter()
+        let (shows, shows_len) = to_c_vec(shows.into_iter()
             .map(|e| ShowOverviewC::from(e))
             .collect());
 
@@ -44,7 +44,7 @@ impl MediaSetC {
             movies: ptr::null_mut(),
             movies_len: 0,
             shows,
-            shows_len
+            shows_len,
         }
     }
 
@@ -432,6 +432,41 @@ impl MediaItemC {
             show_details: into_c_owned(ShowDetailsC::from(media)),
             episode: ptr::null_mut(),
         }
+    }
+
+    pub fn to_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
+        let media: Box<dyn MediaIdentifier>;
+
+        if !self.movie_overview.is_null() {
+            let boxed = from_c_into_boxed(self.movie_overview);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.movie_details.is_null() {
+            let boxed = from_c_into_boxed(self.movie_details);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.show_overview.is_null() {
+            let boxed = from_c_into_boxed(self.show_overview);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.show_details.is_null() {
+            let boxed = from_c_into_boxed(self.show_details);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.episode.is_null() {
+            let boxed = from_c_into_boxed(self.episode);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else {
+            return None;
+        }
+
+        Some(media)
     }
 }
 

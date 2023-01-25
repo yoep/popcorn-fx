@@ -393,7 +393,7 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
 #[no_mangle]
 pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) -> bool {
     trace!("Verifying if media is liked for {:?}", favorite);
-    match from_media_item(favorite) {
+    match favorite.to_identifier() {
         None => {
             warn!("Unable to verify if media is liked, all FavoriteC fields are null");
             false
@@ -465,7 +465,7 @@ pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaI
 /// Remove the media item from favorites.
 #[no_mangle]
 pub extern "C" fn remove_from_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) {
-    match from_media_item(favorite) {
+    match favorite.to_identifier() {
         None => error!("Unable to remove favorite, all FavoriteC fields are null"),
         Some(e) => popcorn_fx.favorite_service().remove(e)
     }
@@ -507,7 +507,7 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
 /// It returns true when the item is watched, else false.
 #[no_mangle]
 pub extern "C" fn is_media_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) -> bool {
-    match from_media_item(watchable) {
+    match watchable.to_identifier() {
         Some(media) => {
             trace!("Verifying if media item is watched for {}", &media);
             let watched = popcorn_fx.watched_service().is_watched_dyn(&media);
@@ -573,6 +573,34 @@ pub extern "C" fn retrieve_watched_shows(popcorn_fx: &mut PopcornFX) -> StringAr
     }
 }
 
+/// Add the given media item to the watched list.
+#[no_mangle]
+pub extern "C" fn add_to_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) {
+    match watchable.to_identifier() {
+        Some(e) => {
+            let id = e.imdb_id();
+            match popcorn_fx.watched_service().add(e) {
+                Ok(_) => info!("Media item {} as been added as seen", id),
+                Err(e) => error!("Failed to add media item {} as watched, {}", id, e)
+            };
+        }
+        None => {
+            error!("Unable to add watchable, no media item given")
+        }
+    }
+}
+
+/// Remove the given media item from the watched list.
+#[no_mangle]
+pub extern "C" fn remove_from_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) {
+    match watchable.to_identifier() {
+        Some(e) => popcorn_fx.watched_service().remove(e),
+        None => {
+            error!("Unable to add watchable, no media item given")
+        }
+    }
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -615,9 +643,9 @@ mod test {
     #[test]
     fn test_dispose_media_item() {
         let movie = MovieOverview::new(
-          String::new(),
-          String::from("tt54698542"),
-          String::new(),
+            String::new(),
+            String::from("tt54698542"),
+            String::new(),
         );
         let media = MediaItemC::from_movie(movie);
 

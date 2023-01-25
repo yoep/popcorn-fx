@@ -56,6 +56,24 @@ impl Watched {
             self.shows.push(id);
         }
     }
+
+    /// Remove the given watched item ID from the list.
+    /// Unknown ID's which are not within the watched items are auto ignored.
+    pub fn remove(&mut self, id: String) {
+        let movie_index = self.movies.iter()
+            .position(|e| e == &id);
+        let show_index = self.shows.iter()
+            .position(|e| e == &id);
+
+        if movie_index.is_some() {
+            trace!("Removing movie {} from the watched items", &id);
+            self.movies.remove(movie_index.unwrap());
+        }
+        if show_index.is_some() {
+            trace!("Removing show {} from the watched items", &id);
+            self.shows.remove(show_index.unwrap());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -67,7 +85,7 @@ mod test {
         let id = "tt457896".to_string();
         let watched = Watched::new(
             vec![id.clone()],
-            vec![]
+            vec![],
         );
 
         let result = watched.contains(id.as_str());

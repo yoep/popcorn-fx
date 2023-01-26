@@ -12,9 +12,9 @@ use crate::core::subtitles::error::{SubtitleError, SubtitleParseError};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 
-const SRT_EXTENSION: &'static str = "srt";
-const VTT_EXTENSION: &'static str = "vtt";
-const QUALITY_PATTERN: &'static str = "([0-9]{3,4})p";
+const SRT_EXTENSION: &str = "srt";
+const VTT_EXTENSION: &str = "vtt";
+const QUALITY_PATTERN: &str = "([0-9]{3,4})p";
 
 const SUBTITLE_TYPES: [SubtitleType; 2] = [
     SubtitleType::Srt,
@@ -34,7 +34,7 @@ impl SubtitleType {
     pub fn from_extension(extension: &String) -> Result<SubtitleType, SubtitleParseError> {
         for subtitle in SUBTITLE_TYPES {
             if extension == &subtitle.extension() {
-                return Ok(subtitle.clone());
+                return Ok(subtitle);
             }
         }
 
@@ -181,16 +181,16 @@ impl SubtitleInfo {
         }
     }
 
-    fn find_by_filename(&self, name: &String) -> Result<Option<&SubtitleFile>, SubtitleError> {
+    fn find_by_filename(&self, name: &str) -> Result<Option<&SubtitleFile>, SubtitleError> {
         match &self.files {
-            None => Err(SubtitleError::NoFilesFound()),
+            None => Err(SubtitleError::NoFilesFound),
             Some(files) => Ok(Self::find_within_files_by_name(name, files))
         }
     }
 
     fn find_by_quality(&self, quality: &i32) -> Result<&SubtitleFile, SubtitleError> {
         match &self.files {
-            None => Err(SubtitleError::NoFilesFound()),
+            None => Err(SubtitleError::NoFilesFound),
             Some(files) => Ok(files.iter()
                 .filter(|e| e.quality().is_none() || e.quality().unwrap() == quality)
                 .sorted()
@@ -201,7 +201,7 @@ impl SubtitleInfo {
 
     fn find_by_best_score(&self) -> Result<&SubtitleFile, SubtitleError> {
         match &self.files {
-            None => Err(SubtitleError::NoFilesFound()),
+            None => Err(SubtitleError::NoFilesFound),
             Some(files) => Ok(files.iter()
                 .sorted()
                 .next()
@@ -209,7 +209,7 @@ impl SubtitleInfo {
         }
     }
 
-    fn find_within_files_by_name<'a, 'b>(name: &'a String, files: &'b Vec<SubtitleFile>) -> Option<&'b SubtitleFile> {
+    fn find_within_files_by_name<'a, 'b>(name: &'a str, files: &'b Vec<SubtitleFile>) -> Option<&'b SubtitleFile> {
         match files.iter()
             .filter(|e| Self::normalize(e.name()) == Self::normalize(name))
             .sorted()
@@ -219,7 +219,7 @@ impl SubtitleInfo {
         }
     }
 
-    fn normalize(name: &String) -> String {
+    fn normalize(name: &str) -> String {
         name
             .to_lowercase()
             .replace("[\\[\\]\\(\\)_-\\.]", "")
@@ -234,10 +234,6 @@ impl PartialEq for SubtitleInfo {
                     e == file
                 })
             })
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
     }
 }
 
@@ -309,9 +305,9 @@ impl SubtitleFile {
     }
 
     /// Try to parse the quality for the subtitle file based on the filename.
-    fn try_parse_subtitle_quality(name: &String) -> Option<i32> {
+    fn try_parse_subtitle_quality(name: &str) -> Option<i32> {
         let regex = Regex::new(QUALITY_PATTERN).unwrap();
-        regex.captures(name.as_str())
+        regex.captures(name)
             .map(|e| e.get(1).unwrap())
             .map(|e| String::from(e.as_str()))
             .map(|e| e.parse::<i32>().unwrap())
@@ -384,10 +380,6 @@ impl Subtitle {
 impl PartialEq for Subtitle {
     fn eq(&self, other: &Self) -> bool {
         self.info == other.info && self.file == other.file
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
     }
 }
 

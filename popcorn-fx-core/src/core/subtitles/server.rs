@@ -213,6 +213,18 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_state() {
+        init_logger();
+        let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
+        let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
+        let server = SubtitleServer::new(&arc);
+
+        let result = server.state();
+
+        assert_eq!(ServerState::Stopped, result)
+    }
+
+    #[test]
     fn test_subtitle_is_served() {
         init_logger();
         let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -230,8 +242,11 @@ mod test {
         let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
         let server = SubtitleServer::new(&arc);
 
+        wait_for_server(&server);
+        info!("Subtitle server has state {:?}", server.state());
         let serving_url = server.serve(subtitle, SubtitleType::Vtt)
             .expect("expected the subtitle to be served");
+
         let (content_type, body) = runtime.block_on(async {
             let response = client.get(Url::parse(serving_url.as_str()).unwrap())
                 .send()
@@ -256,18 +271,6 @@ mod test {
     }
 
     #[test]
-    fn test_state() {
-        init_logger();
-        let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
-        let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
-        let server = SubtitleServer::new(&arc);
-
-        let result = server.state();
-
-        assert_eq!(ServerState::Stopped, result)
-    }
-
-    #[test]
     fn test_subtitle_not_being_served() {
         init_logger();
         let filename = "lorem.srt";
@@ -277,11 +280,7 @@ mod test {
         let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
         let server = SubtitleServer::new(&arc);
 
-        while server.state() == ServerState::Stopped {
-            info!("Waiting for subtitle server to be started");
-            thread::sleep(Duration::from_millis(50))
-        }
-
+        wait_for_server(&server);
         info!("Subtitle server has state {:?}", server.state());
         let serving_url = server.build_url(filename);
 
@@ -294,5 +293,12 @@ mod test {
         });
 
         assert_eq!(404, status_code.as_u16(), "expected the subtitle to not have been found")
+    }
+
+    fn wait_for_server(server: &SubtitleServer) {
+        while server.state() == ServerState::Stopped {
+            info!("Waiting for subtitle server to be started");
+            thread::sleep(Duration::from_millis(50))
+        }
     }
 }

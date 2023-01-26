@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 
 use derive_more::Display;
 use itertools::Itertools;
-use log::{trace, warn};
+use log::{debug, trace, warn};
 use regex::Regex;
 
 use crate::core::subtitles::cue::SubtitleCue;
@@ -52,7 +52,7 @@ impl SubtitleType {
             SubtitleType::Vtt => VTT_EXTENSION.to_string()
         }
     }
-    
+
     /// Retrieve the content type of the subtitle type.
     /// This represents a valid HTTP content type.
     pub fn content_type(&self) -> &str {
@@ -147,16 +147,21 @@ impl SubtitleInfo {
     /// retrieve the best matching file from this [SubtitleInfo] based on the given data.
     pub fn best_matching_file(&self, matcher: &SubtitleMatcher) -> Result<SubtitleFile, SubtitleError> {
         let name = matcher.name();
+        trace!("Searching matching subtitle for name: {:?}, quality: {:?} within files: {:?}", &name, &matcher.quality(), &self.files);
 
         // verify if a name is present to match
         // this will try to find a file matching the name in a normalized way
-        if name.is_some() {
-            let file_by_name = self.find_by_filename(name.unwrap());
+        if let Some(name) = name {
+            trace!("Searching subtitle file based on filename {}", name);
+            let file_by_name = self.find_by_filename(name);
 
             match file_by_name {
                 Ok(e) => match e {
                     None => {}
-                    Some(file) => return Ok(file.clone())
+                    Some(file) => {
+                        debug!("Using matching subtitle file {} for matching filename {}", &file, name);
+                        return Ok(file.clone());
+                    }
                 },
                 Err(err) => warn!("{}", err)
             }
@@ -236,7 +241,8 @@ impl PartialEq for SubtitleInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Display)]
+#[display(fmt = "name: {}, url: {}, quality: {:?}, downloads: {}", name, url, quality, downloads)]
 pub struct SubtitleFile {
     file_id: i32,
     name: String,
@@ -314,18 +320,27 @@ impl SubtitleFile {
 
 impl Eq for SubtitleFile {}
 
-impl Ord for SubtitleFile {
-    fn cmp(&self, other: &Self) -> Ordering {
+impl PartialOrd<Self> for SubtitleFile {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.score() > other.score() ||
             (self.score() == other.score() && self.downloads() > other.downloads()) {
-            return Ordering::Less;
+            return Some(Ordering::Less);
         }
 
         if self.score() == other.score() && self.downloads() == other.downloads() {
-            return Ordering::Equal;
+            return Some(Ordering::Equal);
         }
 
-        return Ordering::Greater;
+        Some(Ordering::Greater)
+    }
+}
+
+impl Ord for SubtitleFile {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.partial_cmp(other) {
+            None => Ordering::Equal,
+            Some(e) => e
+        }
     }
 }
 

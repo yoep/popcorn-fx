@@ -47,7 +47,7 @@ test-cargo: prerequisites ## The test cargo section of the application
 
 test: prerequisites test-cargo ## Test the application code
 	$(info Running maven tests)
-	@mvn -B verify -P$(PROFILE)
+	@mvn -B clean verify -P$(PROFILE)
 
 build-cargo: ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))

@@ -5,9 +5,9 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -30,9 +30,9 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     private static final String WATCHED_STYLE_CLASS = "watched";
 
     private final List<OverlayItemListener> listeners = new ArrayList<>();
-    private final ChangeListener<Boolean> watchedListener = (observable, oldValue, newValue) -> switchWatched(newValue);
     private final OverlayItemMetadataProvider metadataProvider;
-    private final FavoriteEventCallback listener = createListener(media);
+    private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback(media);
+    private final WatchedEventCallback watchedEventCallback = createWatchedCallback(media);
 
     @FXML
     private Pane posterItem;
@@ -51,7 +51,9 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         super(media, localeText, imageService);
         this.metadataProvider = metadataProvider;
         this.listeners.addAll(asList(listeners));
-        metadataProvider.addListener(listener);
+
+        metadataProvider.addListener(favoriteEventCallback);
+        metadataProvider.addListener(watchedEventCallback);
     }
 
     @Override
@@ -59,8 +61,7 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         super.initialize(location, resources);
         initializeRating();
         initializeStars();
-        initializeFavorite();
-        initializeWatched();
+        initializeMetadata();
         initializeParentListener();
     }
 
@@ -88,19 +89,16 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         media.getRating().ifPresent(ratingStars::setRating);
     }
 
-    private void initializeFavorite() {
+    private void initializeMetadata() {
         switchFavorite(metadataProvider.isLiked(media));
-    }
-
-    private void initializeWatched() {
-        switchWatched(media.isWatched());
-        media.watchedProperty().addListener(watchedListener);
+        switchWatched(metadataProvider.isWatched(media));
     }
 
     private void initializeParentListener() {
         posterItem.parentProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue == null) {
-                metadataProvider.removeListener(listener);
+                metadataProvider.removeListener(favoriteEventCallback);
+                metadataProvider.removeListener(watchedEventCallback);
             }
         });
     }
@@ -121,7 +119,7 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         }
     }
 
-    private FavoriteEventCallback createListener(Media media) {
+    private FavoriteEventCallback createFavoriteCallback(Media media) {
         return event -> {
             switch (event.getTag()) {
                 case LikedStateChanged -> {
@@ -135,10 +133,24 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         };
     }
 
+    private WatchedEventCallback createWatchedCallback(Media media) {
+        return event -> {
+            switch (event.getTag()) {
+                case WatchedStateChanged -> {
+                    var stateChange = event.getUnion().getWatched_state_changed();
+
+                    if (Objects.equals(stateChange.getImdbId(), media.getId())) {
+                        switchWatched(stateChange.getNewState());
+                    }
+                }
+            }
+        };
+    }
+
     @FXML
     private void onWatchedClicked(MouseEvent event) {
         event.consume();
-        boolean newValue = !media.isWatched();
+        boolean newValue = !metadataProvider.isWatched(media);
 
         synchronized (listeners) {
             listeners.forEach(e -> e.onWatchedChanged(media, newValue));

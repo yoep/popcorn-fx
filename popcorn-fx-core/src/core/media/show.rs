@@ -19,6 +19,10 @@ pub struct ShowOverview {
 impl ShowOverview {
     pub fn new(imdb_id: String, tvdb_id: String, title: String, year: String,
                num_seasons: i32, images: Images, rating: Option<Rating>) -> Self {
+        if imdb_id.is_empty() {
+            panic!("Show IMDB ID cannot be empty")
+        }
+
         Self {
             imdb_id,
             tvdb_id,

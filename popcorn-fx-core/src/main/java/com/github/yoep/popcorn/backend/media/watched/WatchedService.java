@@ -1,47 +1,34 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
-import com.github.yoep.popcorn.backend.media.watched.models.Watched;
-import com.github.yoep.popcorn.backend.storage.StorageException;
-import com.github.yoep.popcorn.backend.storage.StorageService;
-import com.github.yoep.popcorn.backend.utils.IdleTimer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * The watched service maintains all the watched {@link Media} items of the application.
- * This is done through the {@link Watchable} items that are received from events and marking them as watched in the {@link #STORAGE_NAME} file.
+ * This is done through the {@link Watchable} items that are received from events and marking them as watched.
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WatchedService {
-    static final String STORAGE_NAME = "watched.json";
     private static final int WATCHED_PERCENTAGE_THRESHOLD = 85;
-    private static final int IDLE_TIME = 10;
+    private final Object lock = new Object();
+    private final WatchedEventCallback callback = createCallback();
+    private final ConcurrentLinkedDeque<WatchedEventCallback> listeners = new ConcurrentLinkedDeque<>();
 
-    private final IdleTimer idleTimer = new IdleTimer(Duration.ofSeconds(IDLE_TIME));
-    private final StorageService storageService;
-    private final Object cacheLock = new Object();
-
-    /**
-     * The currently loaded watched cache.
-     * This cache is saved and unloaded after {@link #IDLE_TIME} seconds to free up memory.
-     */
-    private Watched cache;
-    private int cacheHash;
+    public WatchedService() {
+        init();
+    }
 
     //region Methods
 
@@ -51,11 +38,11 @@ public class WatchedService {
      * @param watchable The watchable to check the watched state for.
      * @return Returns true if the watchable has already been watched, else false.
      */
-    public boolean isWatched(Watchable watchable) {
+    public boolean isWatched(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
-        String key = watchable.getId();
-
-        return isWatched(key);
+        synchronized (lock) {
+            return FxLib.INSTANCE.is_media_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
+        }
     }
 
     /**
@@ -64,14 +51,12 @@ public class WatchedService {
      * @return Returns a list of movie ID's that have been watched.
      */
     public List<String> getWatchedMovies() {
-        loadWatchedFileToCache();
-        List<String> movies;
-
-        synchronized (cacheLock) {
-            movies = new ArrayList<>(cache.getMovies());
+        synchronized (lock) {
+            try (var watched = FxLib.INSTANCE.retrieve_watched_movies(PopcornFxInstance.INSTANCE.get())) {
+                log.debug("Retrieved watched movies {}", watched);
+                return watched.values();
+            }
         }
-
-        return movies;
     }
 
     /**
@@ -80,14 +65,12 @@ public class WatchedService {
      * @return Returns a list of show ID's that have been watched.
      */
     public List<String> getWatchedShows() {
-        loadWatchedFileToCache();
-        List<String> movies;
-
-        synchronized (cacheLock) {
-            movies = new ArrayList<>(cache.getShows());
+        synchronized (lock) {
+            try (var watched = FxLib.INSTANCE.retrieve_watched_shows(PopcornFxInstance.INSTANCE.get())) {
+                log.debug("Retrieved watched shows {}", watched);
+                return watched.values();
+            }
         }
-
-        return movies;
     }
 
     /**
@@ -95,12 +78,11 @@ public class WatchedService {
      *
      * @param watchable the watchable item to add.
      */
-    public void addToWatchList(Watchable watchable) {
+    public void addToWatchList(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
-        String key = watchable.getId();
-
-        addToWatchList(key, watchable.getType());
-        watchable.setWatched(true);
+        synchronized (lock) {
+            FxLib.INSTANCE.add_to_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
+        }
     }
 
     /**
@@ -108,15 +90,20 @@ public class WatchedService {
      *
      * @param watchable The watchable item to remove.
      */
-    public void removeFromWatchList(Watchable watchable) {
+    public void removeFromWatchList(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
-        String key = watchable.getId();
-        loadWatchedFileToCache();
-
-        synchronized (cacheLock) {
-            cache.remove(key);
-            watchable.setWatched(false);
+        synchronized (lock) {
+            FxLib.INSTANCE.remove_from_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
         }
+    }
+
+    public void registerListener(WatchedEventCallback callback) {
+        Assert.notNull(callback, "callback cannot be null");
+        listeners.add(callback);
+    }
+
+    public void removeListener(WatchedEventCallback callback) {
+        listeners.remove(callback);
     }
 
     @EventListener
@@ -148,108 +135,23 @@ public class WatchedService {
 
     //endregion
 
-    //region PostConstruct
-
-    @PostConstruct
-    void init() {
-        initializeIdleTimer();
+    private void init() {
+        synchronized (lock) {
+            FxLib.INSTANCE.register_watched_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
+        }
     }
 
-    private void initializeIdleTimer() {
-        idleTimer.setOnTimeout(this::onSave);
-    }
+    private WatchedEventCallback createCallback() {
+        return event -> {
+            log.debug("Received watched event callback {}", event);
 
-    //endregion
-
-    //region PreDestroy
-
-    @PreDestroy
-    void destroy() {
-        onSave();
-    }
-
-    //endregion
-
-    //region Functions
-
-    private void addToWatchList(String key, MediaType type) {
-        loadWatchedFileToCache();
-
-        synchronized (cacheLock) {
-            // prevent keys from being added twice
-            if (cache.contains(key))
-                return;
-
-            if (type == MediaType.MOVIE) {
-                cache.addMovie(key);
-            } else {
-                cache.addShow(key);
+            try {
+                for (var listener : listeners) {
+                    listener.callback(event);
+                }
+            } catch (Exception ex) {
+                log.error("Failed to invoke watched callback, {}", ex.getMessage(), ex);
             }
-        }
+        };
     }
-
-    private boolean isWatched(String key) {
-        loadWatchedFileToCache();
-
-        synchronized (cacheLock) {
-            return cache.contains(key);
-        }
-    }
-
-    private void save(Watched watched) {
-        try {
-            log.debug("Saving watched items to storage");
-            storageService.store(STORAGE_NAME, watched);
-        } catch (StorageException ex) {
-            log.error("Failed to save the watched items with error " + ex.getMessage(), ex);
-        }
-    }
-
-    private void loadWatchedFileToCache() {
-        idleTimer.runFromStart();
-
-        // check if cache is still present
-        // if so, return the cache
-        if (cache != null) {
-            log.trace("Not updating cache as it's already present");
-            return;
-        }
-
-        log.debug("Loading watched items from storage");
-        try {
-            storageService.read(STORAGE_NAME, Watched.class)
-                    .ifPresentOrElse(this::handleStoredWatchedItems, this::createNewWatchedItems);
-        } catch (StorageException ex) {
-            log.error("Failed to read watched items, {}", ex.getMessage(), ex);
-        }
-    }
-
-    private void handleStoredWatchedItems(Watched e) {
-        synchronized (cacheLock) {
-            cache = e;
-            cacheHash = cache.hashCode();
-        }
-    }
-
-    private void createNewWatchedItems() {
-        synchronized (cacheLock) {
-            cache = Watched.builder().build();
-        }
-    }
-
-    private void onSave() {
-        if (cache == null)
-            return;
-
-        synchronized (cacheLock) {
-            // check if the cache was modified
-            // if not, the cache will only be removed from memory but not saved again
-            if (cache.hashCode() != cacheHash)
-                save(cache);
-
-            cache = null;
-        }
-    }
-
-    //endregion
 }

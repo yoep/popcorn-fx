@@ -5,19 +5,25 @@ import com.github.yoep.popcorn.ui.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.controls.WatchedCellFactory;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import org.springframework.util.Assert;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Seasons extends TableView<Season> {
     private static final String WATCHED_FACTORY_PROPERTY = "watchedFactory";
 
     private final ObjectProperty<WatchedCellFactory<Season>> watchedFactory =
-            new SimpleObjectProperty<>(this, WATCHED_FACTORY_PROPERTY, WatchedCell::new);
+            new SimpleObjectProperty<>(this, WATCHED_FACTORY_PROPERTY, () -> new WatchedCell<>((media, newState, icon) -> {
+            }));
 
     private final TableColumn<Season, String> seasonColumn = new TableColumn<>();
     private final TableColumn<Season, String> watchedColumn = new TableColumn<>();
+    private final List<WatchedCell<Season>> watchedCells = new ArrayList<>();
 
     //region Constructors
 
@@ -39,15 +45,6 @@ public class Seasons extends TableView<Season> {
     }
 
     /**
-     * Get the watched cell factory property.
-     *
-     * @return Returns the watched cell factory property.
-     */
-    public ObjectProperty<WatchedCellFactory<Season>> watchedFactoryProperty() {
-        return watchedFactory;
-    }
-
-    /**
      * Set the new factory for creating watched cells.
      *
      * @param watchedFactory The new factory for creating watched cells (non-null).
@@ -60,11 +57,19 @@ public class Seasons extends TableView<Season> {
 
     //endregion
 
+    public void updateWatchedState(Season season, boolean newState) {
+        watchedCells.stream()
+                .filter(e -> e.getWatchableItem() == season)
+                .findFirst()
+                .ifPresent(e -> e.updateWatchedState(newState));
+    }
+
     //region Functions
 
     private void init() {
         initializeColumns();
         initializeListeners();
+        initializeCleanup();
     }
 
     private void initializeColumns() {
@@ -84,7 +89,11 @@ public class Seasons extends TableView<Season> {
                 }
             }
         });
-        watchedColumn.setCellFactory(param -> getWatchedFactory().get());
+        watchedColumn.setCellFactory(param -> {
+            var cell = getWatchedFactory().get();
+            watchedCells.add(cell);
+            return cell;
+        });
 
         getColumns().add(seasonColumn);
         getColumns().add(watchedColumn);
@@ -92,8 +101,22 @@ public class Seasons extends TableView<Season> {
 
     private void initializeListeners() {
         watchedFactory.addListener((observable, oldValue, newValue) -> {
-            watchedColumn.setCellFactory(param -> newValue.get());
+            watchedColumn.setCellFactory(param -> {
+                var cell = newValue.get();
+                watchedCells.add(cell);
+                return cell;
+            });
             refresh();
+        });
+    }
+
+    private void initializeCleanup() {
+        getItems().addListener((ListChangeListener<? super Season>) change -> {
+            while (change.next()) {
+                for (var season : change.getRemoved()) {
+                    watchedCells.removeIf(e -> e.getWatchableItem() == season);
+                }
+            }
         });
     }
 

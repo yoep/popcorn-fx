@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.favorites;
+package com.github.yoep.popcorn.backend.media.watched;
 
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
@@ -14,18 +14,18 @@ import java.util.Objects;
 @Getter
 @ToString
 @Structure.FieldOrder({"tag", "union"})
-public class FavoriteEvent extends Structure implements Closeable {
-    public static class ByValue extends FavoriteEvent implements Structure.ByValue {
+public class WatchedEvent extends Structure implements Closeable {
+    public static class ByValue extends WatchedEvent implements Structure.ByValue {
     }
 
     public Tag tag;
-    public FavoriteEventCUnion.ByValue union;
+    public WatchedEventCUnion.ByValue union;
 
     @Override
     public void read() {
         super.read();
-        if (Objects.requireNonNull(tag) == Tag.LikedStateChanged) {
-            union.setType(LikedStateChangedBody.class);
+        if (Objects.requireNonNull(tag) == Tag.WatchedStateChanged) {
+            union.setType(WatchedStateChangedBody.class);
         }
         union.read();
     }
@@ -38,8 +38,8 @@ public class FavoriteEvent extends Structure implements Closeable {
     @Getter
     @ToString
     @FieldOrder({"imdbId", "newState"})
-    public static class LikedStateChangedBody extends Structure implements Closeable {
-        public static class ByReference extends LikedStateChangedBody implements Structure.ByReference {
+    public static class WatchedStateChangedBody extends Structure implements Closeable {
+        public static class ByReference extends WatchedStateChangedBody implements Structure.ByReference {
         }
 
         public String imdbId;
@@ -57,14 +57,14 @@ public class FavoriteEvent extends Structure implements Closeable {
 
     @Getter
     @ToString
-    public static class FavoriteEventCUnion extends Union {
-        public static class ByValue extends FavoriteEventCUnion implements Union.ByValue {}
+    public static class WatchedEventCUnion extends Union {
+        public static class ByValue extends WatchedEventCUnion implements Union.ByValue {}
 
-        public LikedStateChangedBody liked_state_changed;
+        public WatchedStateChangedBody watched_state_changed;
     }
 
     public enum Tag implements NativeMapped {
-        LikedStateChanged;
+        WatchedStateChanged;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

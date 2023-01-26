@@ -1,9 +1,9 @@
-package com.github.yoep.popcorn.backend.media.providers;
+package com.github.yoep.popcorn.backend.media;
 
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.sun.jna.Structure;
-import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.io.Closeable;
@@ -11,26 +11,35 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @ToString
-@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"movies", "moviesLen", "shows", "showsLen"})
-public class MediaSet extends Structure implements Closeable {
+public class FavoritesSet extends Structure implements Closeable {
     public MovieOverview.ByReference movies;
     public int moviesLen;
     public ShowOverview.ByReference shows;
     public int showsLen;
 
-    public List<MovieOverview> getMovies() {
+    public <T> List<T> getAll() {
+        return Stream.concat(getMovies().stream(), getShows().stream())
+                .map(e -> (T) e)
+                .collect(Collectors.toList());
+    }
+
+    public List<Media> getMovies() {
         return Optional.ofNullable(movies)
-                .map(e -> (MovieOverview[]) e.toArray(moviesLen))
+                .map(e -> e.toArray(moviesLen))
+                .map(e -> (Media[]) e)
                 .map(Arrays::asList)
                 .orElse(Collections.emptyList());
     }
 
-    public List<ShowOverview> getShows() {
+    public List<Media> getShows() {
         return Optional.ofNullable(shows)
-                .map(e -> (ShowOverview[]) e.toArray(showsLen))
+                .map(e -> e.toArray(showsLen))
+                .map(e -> (Media[]) e)
                 .map(Arrays::asList)
                 .orElse(Collections.emptyList());
     }

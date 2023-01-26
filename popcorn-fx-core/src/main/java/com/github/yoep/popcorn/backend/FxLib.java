@@ -1,14 +1,16 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.media.FavoritesSet;
+import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.MediaSet;
+import com.github.yoep.popcorn.backend.media.StringArray;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
-import com.github.yoep.popcorn.backend.media.providers.Favorite;
-import com.github.yoep.popcorn.backend.media.providers.FavoritesSet;
-import com.github.yoep.popcorn.backend.media.providers.MediaSet;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -64,15 +66,15 @@ public interface FxLib extends Library {
 
     FavoritesSet retrieve_available_favorites(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
-    Favorite retrieve_favorite_details(PopcornFx instance, String imdbId);
+    MediaItem retrieve_favorite_details(PopcornFx instance, String imdbId);
 
-    boolean is_media_liked(PopcornFx instance, Favorite media);
+    boolean is_media_liked(PopcornFx instance, MediaItem media);
 
     FavoritesSet retrieve_all_favorites(PopcornFx instance);
 
-    void add_to_favorites(PopcornFx instance, Favorite media);
+    void add_to_favorites(PopcornFx instance, MediaItem media);
 
-    void remove_from_favorites(PopcornFx instance, Favorite media);
+    void remove_from_favorites(PopcornFx instance, MediaItem media);
 
     void register_favorites_event_callback(PopcornFx instance, FavoriteEventCallback callback);
 
@@ -81,6 +83,22 @@ public interface FxLib extends Library {
     void disable_screensaver(PopcornFx instance);
 
     void enable_screensaver(PopcornFx instance);
+
+    boolean is_media_watched(PopcornFx instance, MediaItem media);
+
+    StringArray retrieve_watched_movies(PopcornFx instance);
+
+    StringArray retrieve_watched_shows(PopcornFx instance);
+
+    void add_to_watched(PopcornFx instance, MediaItem media);
+
+    void remove_from_watched(PopcornFx instance, MediaItem media);
+
+    void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
+
+    void dispose_media_item(MediaItem media);
+
+    void dispose_media_items(MediaSet media);
 
     void dispose_popcorn_fx(PopcornFx instance);
 }

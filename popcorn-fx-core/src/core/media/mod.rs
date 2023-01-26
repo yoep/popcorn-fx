@@ -10,6 +10,7 @@ pub use show::*;
 pub use sort_by::*;
 pub use torrent_info::*;
 
+mod callbacks;
 mod category;
 mod episode;
 mod error;

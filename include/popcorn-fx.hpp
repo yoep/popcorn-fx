@@ -165,11 +165,12 @@ struct ShowDetailsC {
   int32_t episodes_len;
 };
 
-struct FavoriteC {
+struct MediaItemC {
   MovieOverviewC *movie_overview;
   MovieDetailsC *movie_details;
   ShowOverviewC *show_overview;
   ShowDetailsC *show_details;
+  EpisodeC *episode;
 };
 
 struct SubtitleInfoC {
@@ -254,11 +255,37 @@ struct FavoriteEventC {
   };
 };
 
+struct WatchedEventC {
+  enum class Tag {
+    /// Event indicating that the watched state of a media item changed.
+    ///
+    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `bool`            - The new watched state of the media item.
+    WatchedStateChanged,
+  };
+
+  struct WatchedStateChanged_Body {
+    const char *_0;
+    bool _1;
+  };
+
+  Tag tag;
+  union {
+    WatchedStateChanged_Body watched_state_changed;
+  };
+};
+
 struct VecFavoritesC {
   MovieOverviewC *movies;
   int32_t movies_len;
   ShowOverviewC *shows;
   int32_t shows_len;
+};
+
+/// Structure holding the values of a string array.
+struct StringArray {
+  const char **values;
+  int32_t len;
 };
 
 struct GenreC {
@@ -276,13 +303,19 @@ extern "C" {
 
 /// Add the media item to the favorites.
 /// Duplicate favorite media items are ignored.
-void add_to_favorites(PopcornFX *popcorn_fx, const FavoriteC *favorite);
+void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
+
+/// Add the given media item to the watched list.
+void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
 /// Retrieve the default options available for the subtitles.
 VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 
 /// Disable the screensaver on the current platform
 void disable_screensaver(PopcornFX *popcorn_fx);
+
+/// Dispose the given media item from memory.
+void dispose_media_item(Box<MediaItemC> media);
 
 /// Dispose all given media items from memory.
 void dispose_media_items(Box<MediaSetC> media);
@@ -305,10 +338,15 @@ VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *s
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
 /// Verify if the given media item is liked/favorite of the user.
-/// It will use the first non [ptr::null_mut] field from the [FavoriteC] struct.
+/// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
 ///
-/// It will return false if all fields in the [FavoriteC] are [ptr::null_mut].
-bool is_media_liked(PopcornFX *popcorn_fx, const FavoriteC *favorite);
+/// It will return false if all fields in the [MediaItemC] are [ptr::null_mut].
+bool is_media_liked(PopcornFX *popcorn_fx, const MediaItemC *favorite);
+
+/// Verify if the given media item is watched by the user.
+///
+/// It returns true when the item is watched, else false.
+bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
@@ -332,8 +370,14 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
+/// Register a new callback listener for watched events.
+void register_watched_event_callback(PopcornFX *popcorn_fx, void (*callback)(WatchedEventC));
+
 /// Remove the media item from favorites.
-void remove_from_favorites(PopcornFX *popcorn_fx, const FavoriteC *favorite);
+void remove_from_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
+
+/// Remove the given media item from the watched list.
+void remove_from_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.
@@ -347,6 +391,11 @@ void reset_show_apis(PopcornFX *popcorn_fx);
 ///
 /// It will return an array of favorites on success, else [ptr::null_mut].
 VecFavoritesC *retrieve_all_favorites(PopcornFX *popcorn_fx);
+
+/// Retrieve all watched media item id's.
+///
+/// It returns an array of watched id's.
+StringArray retrieve_all_watched(PopcornFX *popcorn_fx);
 
 /// Retrieve all liked favorite media items.
 ///
@@ -366,8 +415,8 @@ MediaSetC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, 
 /// Retrieve the details of a favorite item on the given IMDB ID.
 /// The details contain all information about the media item.
 ///
-/// It returns the [FavoriteC] on success, else a [ptr::null_mut].
-FavoriteC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id);
+/// It returns the [MediaItemC] on success, else a [ptr::null_mut].
+MediaItemC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Retrieve the details of a given movie.
 /// It will query the api for the given IMDB ID.
@@ -380,6 +429,16 @@ MovieDetailsC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id
 ///
 /// It returns the [ShowDetailsC] on success, else a [ptr::null_mut].
 ShowDetailsC *retrieve_show_details(PopcornFX *popcorn_fx, const char *imdb_id);
+
+/// Retrieve all watched movie id's.
+///
+/// It returns an array of watched movie id's.
+StringArray retrieve_watched_movies(PopcornFX *popcorn_fx);
+
+/// Retrieve all watched show media id's.
+///
+/// It returns  an array of watched show id's.
+StringArray retrieve_watched_shows(PopcornFX *popcorn_fx);
 
 /// Select a default subtitle language based on the settings or user interface language.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);

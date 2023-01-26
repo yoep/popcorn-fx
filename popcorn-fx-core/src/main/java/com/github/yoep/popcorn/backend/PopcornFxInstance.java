@@ -8,7 +8,7 @@ public class PopcornFxInstance {
 
     private final PopcornFx NATIVE_INSTANCE = FxLib.INSTANCE.new_popcorn_fx();
 
-    private boolean valid;
+    private final boolean valid;
 
     private PopcornFxInstance() {
         valid = true;

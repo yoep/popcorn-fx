@@ -1,11 +1,8 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.jna.Structure;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -27,9 +24,6 @@ import java.util.*;
 public class Episode extends Structure implements Comparable<Episode>, Closeable, Media {
     public static class ByReference extends Episode implements Structure.ByReference {
     }
-
-    @JsonIgnore
-    private final transient BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
 
     public int season;
     public int episode;
@@ -85,21 +79,6 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     }
 
     //region Properties
-
-    @Override
-    public boolean isWatched() {
-        return watched.get();
-    }
-
-    @Override
-    public BooleanProperty watchedProperty() {
-        return watched;
-    }
-
-    @Override
-    public void setWatched(boolean watched) {
-        this.watched.set(watched);
-    }
 
     @Override
     public MediaType getType() {

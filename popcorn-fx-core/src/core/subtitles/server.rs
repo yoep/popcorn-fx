@@ -1,10 +1,11 @@
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener};
 use std::path::Path;
 use std::sync::Arc;
 
 use local_ip_address::local_ip;
-use log::{debug, info, trace};
+use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 use warp::{Filter, Rejection};
 use warp::http::{HeaderValue, Response};
@@ -14,11 +15,21 @@ use crate::core::subtitles;
 use crate::core::subtitles::{SubtitleError, SubtitleProvider};
 use crate::core::subtitles::model::{Subtitle, SubtitleType};
 
+/// The subtitle server state.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum ServerState {
+    Stopped,
+    Running,
+    Error,
+}
+
+/// The subtitle server which is responsible for serving [Subtitle]'s over http.
 pub struct SubtitleServer {
     runtime: tokio::runtime::Runtime,
     socket: Arc<SocketAddr>,
     subtitles: Arc<Mutex<HashMap<String, DataHolder>>>,
     provider: Arc<Box<dyn SubtitleProvider>>,
+    state: Arc<Mutex<Option<ServerState>>>,
 }
 
 impl SubtitleServer {
@@ -34,6 +45,7 @@ impl SubtitleServer {
             socket: Arc::new(SocketAddr::new(ip, port)),
             subtitles: Arc::new(Mutex::new(HashMap::new())),
             provider: provider.clone(),
+            state: Arc::new(Mutex::new(Some(ServerState::Stopped))),
         };
 
         instance.start_subtitle_server();
@@ -55,10 +67,26 @@ impl SubtitleServer {
         }
     }
 
+    /// Retrieve the current state of the subtitle server.
+    ///
+    /// It returns the state of the server.
+    pub fn state(&self) -> ServerState {
+        let state = self.state.clone();
+        let state_lock = futures::executor::block_on(state.lock());
+
+        match state_lock.as_ref() {
+            None => {
+                warn!("Server state couldn't be retrieved, subtitle server state should always be present");
+                ServerState::Stopped
+            },
+            Some(e) => e.clone()
+        }
+    }
+
     fn start_subtitle_server(&self) {
-        debug!("Starting subtitle server");
         let subtitles = self.subtitles.clone();
         let socket = self.socket.clone();
+        let state = self.state.clone();
 
         self.runtime.spawn(async move {
             let routes = warp::get()
@@ -73,8 +101,22 @@ impl SubtitleServer {
                 });
             let socket = socket.clone();
 
-            trace!("Serving subtitle server on {}:{}", socket.ip(), socket.port());
-            warp::serve(routes).bind((socket.ip(), socket.port())).await;
+            trace!("Starting subtitle server on {}:{}", socket.ip(), socket.port());
+            let server = warp::serve(routes);
+            let mut state_lock = state.lock().await;
+
+            match server.try_bind_ephemeral((socket.ip(), socket.port())) {
+                Ok((_, e)) => {
+                    debug!("Subtitle server is running on {}:{}", socket.ip(), socket.port());
+                    let _ = state_lock.borrow_mut().insert(ServerState::Running);
+                    drop(state_lock);
+                    e.await
+                }
+                Err(e) => {
+                    error!("Failed to start subtitle server, {}", e);
+                    let _ = state_lock.borrow_mut().insert(ServerState::Error);
+                }
+            }
         });
     }
 
@@ -159,6 +201,9 @@ impl DataHolder {
 
 #[cfg(test)]
 mod test {
+    use std::thread;
+    use std::time::Duration;
+
     use reqwest::{Client, Url};
     use reqwest::header::CONTENT_TYPE;
 
@@ -179,7 +224,7 @@ mod test {
         );
         let client = Client::builder().build().expect("Client should have been created");
         provider.expect_convert()
-            .returning(|subtitle: Subtitle, output_type: SubtitleType| -> subtitles::Result<String> {
+            .returning(|_: Subtitle, _: SubtitleType| -> subtitles::Result<String> {
                 Ok("lorem ipsum".to_string())
             });
         let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
@@ -211,6 +256,18 @@ mod test {
     }
 
     #[test]
+    fn test_state() {
+        init_logger();
+        let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
+        let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
+        let server = SubtitleServer::new(&arc);
+
+        let result = server.state();
+
+        assert_eq!(ServerState::Stopped, result)
+    }
+
+    #[test]
     fn test_subtitle_not_being_served() {
         init_logger();
         let filename = "lorem.srt";
@@ -220,6 +277,11 @@ mod test {
         let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
         let server = SubtitleServer::new(&arc);
         let serving_url = server.build_url(filename);
+
+        while server.state() == ServerState::Stopped {
+            info!("Waiting for subtitle server to be started");
+            thread::sleep(Duration::from_millis(50))
+        }
 
         let status_code = runtime.block_on(async move {
             client.get(Url::parse(serving_url.as_str()).expect("expected a valid url"))

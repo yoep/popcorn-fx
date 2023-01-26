@@ -14,21 +14,22 @@ const TIME_INDICATOR: &str = "-->";
 const TIME_FORMAT: &str = "%H:%M:%S.%3f";
 
 pub struct VttParser {
-    time_regex: Regex,
+    _time_regex: Regex,
     style_parser: StyleParser,
 }
 
 impl VttParser {
-    /// Create a new vtt parser instance.
-    pub fn new() -> Self {
-        Self {
-            time_regex: Regex::new(TIME_FORMAT).expect("VTT time format should be valid"),
-            style_parser: StyleParser::new(),
-        }
-    }
-
     fn convert_time_to_string(time: NaiveTime) -> String {
         time.format(TIME_FORMAT).to_string()
+    }
+}
+
+impl Default for VttParser {
+    fn default() -> Self {
+        Self {
+            _time_regex: Regex::new(TIME_FORMAT).expect("VTT time format should be valid"),
+            style_parser: StyleParser::new(),
+        }
     }
 }
 
@@ -92,7 +93,7 @@ mod test {
                 SubtitleLine::new(vec![StyledText::new("dolor".to_string(), false, false, false)]),
             ]),
         ];
-        let parser = VttParser::new();
+        let parser = VttParser::default();
         let expected_result = read_test_file("conversion-example.vtt");
 
         let result = parser.convert(&cues);

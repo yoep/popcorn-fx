@@ -42,7 +42,7 @@ impl OpensubtitlesProvider {
     pub fn new(settings: &Arc<Application>) -> Self {
         let mut default_headers = HeaderMap::new();
         let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
-        let vtt_parser: Box<dyn Parser> = Box::new(VttParser::new());
+        let vtt_parser: Box<dyn Parser> = Box::new(VttParser::default());
         let api_token = settings.properties().subtitle().api_token();
         let user_agent = settings.properties().subtitle().user_agent();
 

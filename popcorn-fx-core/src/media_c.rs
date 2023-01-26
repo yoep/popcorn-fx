@@ -7,6 +7,7 @@ use log::{error, trace};
 use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use crate::core::media::favorites::FavoriteEvent;
+use crate::core::media::watched::WatchedEvent;
 
 /// Structure defining a set of media items.
 /// Each media items is separated in a specific implementation array.
@@ -36,7 +37,7 @@ impl MediaSetC {
     }
 
     pub fn from_shows(shows: Vec<ShowOverview>) -> Self {
-        let (shows,shows_len) = to_c_vec(shows.into_iter()
+        let (shows, shows_len) = to_c_vec(shows.into_iter()
             .map(|e| ShowOverviewC::from(e))
             .collect());
 
@@ -44,7 +45,7 @@ impl MediaSetC {
             movies: ptr::null_mut(),
             movies_len: 0,
             shows,
-            shows_len
+            shows_len,
         }
     }
 
@@ -395,20 +396,22 @@ impl EpisodeC {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct FavoriteC {
+pub struct MediaItemC {
     pub movie_overview: *mut MovieOverviewC,
     pub movie_details: *mut MovieDetailsC,
     pub show_overview: *mut ShowOverviewC,
     pub show_details: *mut ShowDetailsC,
+    pub episode: *mut EpisodeC,
 }
 
-impl FavoriteC {
+impl MediaItemC {
     pub fn from_movie(media: MovieOverview) -> Self {
         Self {
             movie_overview: into_c_owned(MovieOverviewC::from(media)),
             movie_details: ptr::null_mut(),
             show_overview: ptr::null_mut(),
             show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
         }
     }
 
@@ -418,6 +421,7 @@ impl FavoriteC {
             movie_details: into_c_owned(MovieDetailsC::from(media)),
             show_overview: ptr::null_mut(),
             show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
         }
     }
 
@@ -427,7 +431,43 @@ impl FavoriteC {
             movie_details: ptr::null_mut(),
             show_overview: ptr::null_mut(),
             show_details: into_c_owned(ShowDetailsC::from(media)),
+            episode: ptr::null_mut(),
         }
+    }
+
+    pub fn to_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
+        let media: Box<dyn MediaIdentifier>;
+
+        if !self.movie_overview.is_null() {
+            let boxed = from_c_into_boxed(self.movie_overview);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.movie_details.is_null() {
+            let boxed = from_c_into_boxed(self.movie_details);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.show_overview.is_null() {
+            let boxed = from_c_into_boxed(self.show_overview);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.show_details.is_null() {
+            let boxed = from_c_into_boxed(self.show_details);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.episode.is_null() {
+            let boxed = from_c_into_boxed(self.episode);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else {
+            return None;
+        }
+
+        Some(media)
     }
 }
 
@@ -439,6 +479,13 @@ pub struct GenreC {
 }
 
 impl GenreC {
+    pub fn from(genre: Genre) -> Self {
+        Self {
+            key: to_c_string(genre.key().clone()),
+            text: to_c_string(genre.text().clone()),
+        }
+    }
+
     pub fn to_struct(&self) -> Genre {
         trace!("Converting Genre from C {:?}", self);
         Genre::new(
@@ -456,6 +503,13 @@ pub struct SortByC {
 }
 
 impl SortByC {
+    pub fn from(sort_by: SortBy) -> Self {
+        Self {
+            key: to_c_string(sort_by.key().clone()),
+            text: to_c_string(sort_by.text().clone()),
+        }
+    }
+
     pub fn to_struct(&self) -> SortBy {
         trace!("Converting SortBy from C {:?}", self);
         SortBy::new(
@@ -621,6 +675,25 @@ impl FavoriteEventC {
         trace!("Converting FavoriteEvent to C {}", &event);
         match event {
             FavoriteEvent::LikedStateChanged(id, state) => Self::LikedStateChanged(to_c_string(id.clone()), state.clone()),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub enum WatchedEventC {
+    /// Event indicating that the watched state of a media item changed.
+    ///
+    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `bool`            - The new watched state of the media item.
+    WatchedStateChanged(*const c_char, bool)
+}
+
+impl WatchedEventC {
+    pub fn from(event: WatchedEvent) -> Self {
+        trace!("Converting WatchedEvent to C {}", &event);
+        match event {
+            WatchedEvent::WatchedStateChanged(id, state) => Self::WatchedStateChanged(to_c_string(id), state)
         }
     }
 }

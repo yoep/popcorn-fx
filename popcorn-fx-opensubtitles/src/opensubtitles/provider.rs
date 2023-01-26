@@ -297,9 +297,9 @@ impl OpensubtitlesProvider {
         let extension = file_path
             .extension()
             .map(|e| String::from(e.to_str().unwrap()))
-            .ok_or_else(|| SubtitleError::ParsingFailed(path.clone(), "file has no extension".to_string()))?;
+            .ok_or_else(|| SubtitleError::ParseFileError(path.clone(), "file has no extension".to_string()))?;
         let subtitle_type = SubtitleType::from_extension(&extension)
-            .map_err(|err| SubtitleError::ParsingFailed(path.clone(), err.to_string()))?;
+            .map_err(|err| SubtitleError::ParseFileError(path.clone(), err.to_string()))?;
         let parser = self.parsers.get(&subtitle_type)
             .ok_or_else(|| SubtitleError::TypeNotSupported(subtitle_type))?;
 
@@ -309,7 +309,7 @@ impl OpensubtitlesProvider {
                 info!("Parsed subtitle file {:?}", &file_path);
                 Subtitle::new(e, info.map(|e| e.clone()), path.clone())
             })
-            .map_err(|err| SubtitleError::ParsingFailed(path.clone(), err.to_string()))
+            .map_err(|err| SubtitleError::ParseFileError(path.clone(), err.to_string()))
     }
 
     /// Find the subtitle for the default configured subtitle language.

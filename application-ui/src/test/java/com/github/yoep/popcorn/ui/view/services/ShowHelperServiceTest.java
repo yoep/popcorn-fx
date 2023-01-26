@@ -126,13 +126,6 @@ class ShowHelperServiceTest {
             var media = mock(ShowDetails.class);
             when(media.getEpisodes()).thenReturn(asList(episodeFromSeason2, episodeFromSeason3));
 
-            episodeFromSeason2.setWatched(false);
-            episodeFromSeason3.setWatched(true);
-
-            season1.setWatched(true);
-            season2.setWatched(false);
-            season3.setWatched(true);
-
             var result = ShowHelperService.getUnwatchedSeason(seasons, media);
 
             assertEquals(season2, result);
@@ -145,9 +138,6 @@ class ShowHelperServiceTest {
             var seasons = asList(season1, season2);
             var media = mock(ShowDetails.class);
             when(media.getEpisodes()).thenReturn(Collections.emptyList());
-
-            season1.setWatched(true);
-            season2.setWatched(true);
 
             var result = ShowHelperService.getUnwatchedSeason(seasons, media);
 

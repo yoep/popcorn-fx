@@ -96,8 +96,13 @@ impl SubtitleServer {
             let routes = warp::get()
                 .and(warp::path!("subtitle" / String))
                 .and_then(move |subtitle: String| {
-                    trace!("Handling request for subtitle filename {}", &subtitle);
+                    let subtitle = percent_encoding::percent_decode(subtitle.as_bytes())
+                        .decode_utf8()
+                        .expect("expected a valid utf8 value")
+                        .to_string();
                     let subtitles = subtitles.clone();
+                    trace!("Handling request for subtitle filename {}", &subtitle);
+
                     async move {
                         let subtitles = subtitles.lock().await;
                         Self::handle_subtitle_request(subtitles, subtitle)
@@ -155,7 +160,7 @@ impl SubtitleServer {
     fn build_url(&self, filename_full: &str) -> Result<Url, url::ParseError> {
         let host = format!("{}://{}", SERVER_PROTOCOL, self.socket);
         let path = format!("{}/{}", SERVER_SUBTITLE_PATH, filename_full);
-        let mut url = Url::parse(host.as_str())?;
+        let url = Url::parse(host.as_str())?;
 
         url.join(path.as_str())
     }
@@ -246,7 +251,7 @@ mod test {
         let subtitle = Subtitle::new(
             vec![],
             None,
-            "my-subtitle.srt".to_string(),
+            "my-subtitle - heavy.srt".to_string(),
         );
         let client = Client::builder().build().expect("Client should have been created");
         provider.expect_convert()

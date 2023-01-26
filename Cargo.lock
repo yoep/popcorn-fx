@@ -1696,6 +1696,7 @@ dependencies = [
  "log",
  "log4rs",
  "mockall",
+ "percent-encoding",
  "popcorn-fx-core",
  "regex",
  "reqwest",

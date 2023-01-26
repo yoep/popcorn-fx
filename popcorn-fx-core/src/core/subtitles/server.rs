@@ -279,6 +279,7 @@ mod test {
         let serving_url = server.build_url(filename);
 
         while server.state() == ServerState::Stopped {
+            info!("Waiting for subtitle server to be started");
             thread::sleep(Duration::from_millis(50))
         }
 

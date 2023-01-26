@@ -7,7 +7,7 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
@@ -132,11 +132,21 @@ pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut 
 #[no_mangle]
 pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitles_ptr: *const SubtitleInfoC, len: usize) -> *mut SubtitleInfoC {
     let c_vec = unsafe { slice::from_raw_parts(subtitles_ptr, len).to_vec() };
-    let subtitles: Vec<SubtitleInfo> = c_vec.into_iter()
+    let subtitles: Vec<SubtitleInfo> = c_vec.iter()
         .map(|e| e.to_subtitle())
         .collect();
 
-    into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_service().select_or_default(&subtitles)))
+    let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_service().select_or_default(&subtitles)));
+
+    // make sure rust doesn't start cleaning the subtitles as they might be switched later on
+    // the pointer can also not be cleaned
+    let (vec, _) = to_c_vec(subtitles.into_iter()
+        .map(|e| SubtitleInfoC::from(e))
+        .collect());
+    mem::forget(vec);
+    mem::forget(subtitles_ptr);
+
+    subtitle
 }
 
 /// Download and parse the given subtitle info.

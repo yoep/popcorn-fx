@@ -276,12 +276,14 @@ mod test {
         let client = Client::builder().build().expect("Client should have been created");
         let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
         let server = SubtitleServer::new(&arc);
-        let serving_url = server.build_url(filename);
 
         while server.state() == ServerState::Stopped {
             info!("Waiting for subtitle server to be started");
             thread::sleep(Duration::from_millis(50))
         }
+
+        info!("Subtitle server has state {:?}", server.state());
+        let serving_url = server.build_url(filename);
 
         let status_code = runtime.block_on(async move {
             client.get(Url::parse(serving_url.as_str()).expect("expected a valid url"))
@@ -291,6 +293,6 @@ mod test {
                 .status()
         });
 
-        assert_eq!(404, status_code.as_u16())
+        assert_eq!(404, status_code.as_u16(), "expected the subtitle to not have been found")
     }
 }

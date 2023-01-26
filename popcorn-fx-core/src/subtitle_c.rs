@@ -51,7 +51,7 @@ impl SubtitleInfoC {
         }
     }
 
-    pub fn to_subtitle(self) -> SubtitleInfo {
+    pub fn to_subtitle(&self) -> SubtitleInfo {
         from_c_owned(self.subtitle_info)
     }
 }

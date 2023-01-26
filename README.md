@@ -5,8 +5,8 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![codecov](https://codecov.io/gh/yoep/popcorn-fx/branch/master/graph/badge.svg?token=A801IOOZAH)](https://codecov.io/gh/yoep/popcorn-fx)
 
-Popcorn FX was based on the original Popcorn Desktop and Popcorn Android versions. Popcorn FX uses **Java**
-and **OpenJFX**. This version was created to work with embedded devices such as the Raspberry PI, but it also works
+Popcorn FX was based on the original Popcorn Desktop and Popcorn Android versions. Popcorn FX uses **OpenJFX** as UI and **Rust**
+as backend. This version was created to work with embedded devices such as the Raspberry PI, but it also works
 on desktop environments such as **Linux, Windows & Mac**.
 
 Popcorn FX has been tested with **Raspberry Pi 3B+ and 4**.

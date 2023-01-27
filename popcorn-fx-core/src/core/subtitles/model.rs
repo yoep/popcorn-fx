@@ -1,20 +1,18 @@
 extern crate derive_more;
 
-use std::cmp::Ordering;
-
 use derive_more::Display;
 use itertools::Itertools;
-use log::{debug, trace, warn};
-use regex::Regex;
+use log::{trace, warn};
 
+use crate::core::subtitles;
 use crate::core::subtitles::cue::SubtitleCue;
 use crate::core::subtitles::error::{SubtitleError, SubtitleParseError};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
+use crate::core::subtitles::SubtitleFile;
 
 const SRT_EXTENSION: &str = "srt";
 const VTT_EXTENSION: &str = "vtt";
-const QUALITY_PATTERN: &str = "([0-9]{3,4})p";
 
 const SUBTITLE_TYPES: [SubtitleType; 2] = [
     SubtitleType::Srt,
@@ -145,57 +143,52 @@ impl SubtitleInfo {
     }
 
     /// retrieve the best matching file from this [SubtitleInfo] based on the given data.
-    pub fn best_matching_file(&self, matcher: &SubtitleMatcher) -> Result<SubtitleFile, SubtitleError> {
+    pub fn best_matching_file(&self, matcher: &SubtitleMatcher) -> subtitles::Result<SubtitleFile> {
         let name = matcher.name();
+        let mut files = self.filter_and_sort_by_quality(matcher.quality())?;
         trace!("Searching matching subtitle for name: {:?}, quality: {:?} within files: {:?}", &name, &matcher.quality(), &self.files);
 
         // verify if a name is present to match
         // this will try to find a file matching the name in a normalized way
         if let Some(name) = name {
             trace!("Searching subtitle file based on filename {}", name);
-            let file_by_name = self.find_by_filename(name);
+            files = Self::filter_by_filename(name, files);
 
-            match file_by_name {
-                Ok(e) => match e {
-                    None => {}
-                    Some(file) => {
-                        debug!("Using matching subtitle file {} for matching filename {}", &file, name);
-                        return Ok(file.clone());
+            return match files.into_iter().next() {
+                None => {
+                    warn!("No subtitle file found matching the given name, using best matching item instead");
+                    match self.files().unwrap().iter()
+                        .sorted()
+                        .next() {
+                        None => Err(SubtitleError::NoFilesFound),
+                        Some(e) => Ok(e.clone())
                     }
-                },
-                Err(err) => warn!("{}", err)
+                }
+                Some(e) => Ok(e)
             }
         }
 
-        match matcher.quality() {
-            Some(quality) => {
-                match self.find_by_quality(quality) {
-                    Ok(e) => Ok(e.clone()),
-                    Err(err) => Err(err)
+        match files.into_iter().next() {
+            None => Err(SubtitleError::NoFilesFound),
+            Some(e) => Ok(e)
+        }
+    }
+
+    fn filter_and_sort_by_quality(&self, quality: Option<&i32>) -> subtitles::Result<Vec<SubtitleFile>> {
+        match &self.files {
+            None => Err(SubtitleError::NoFilesFound),
+            Some(files) => {
+                match quality {
+                    None => Ok(files.clone()),
+                    Some(quality) => {
+                        Ok(files.iter()
+                            .filter(|e| Self::matches_quality(quality, e))
+                            .map(|e| e.clone())
+                            .sorted()
+                            .collect())
+                    }
                 }
             }
-            None => match self.find_by_best_score() {
-                Ok(e) => Ok(e.clone()),
-                Err(err) => Err(err)
-            }
-        }
-    }
-
-    fn find_by_filename(&self, name: &str) -> Result<Option<&SubtitleFile>, SubtitleError> {
-        match &self.files {
-            None => Err(SubtitleError::NoFilesFound),
-            Some(files) => Ok(Self::find_within_files_by_name(name, files))
-        }
-    }
-
-    fn find_by_quality(&self, quality: &i32) -> Result<&SubtitleFile, SubtitleError> {
-        match &self.files {
-            None => Err(SubtitleError::NoFilesFound),
-            Some(files) => Ok(files.iter()
-                .filter(|e| e.quality().is_none() || e.quality().unwrap() == quality)
-                .sorted()
-                .next()
-                .unwrap())
         }
     }
 
@@ -209,20 +202,23 @@ impl SubtitleInfo {
         }
     }
 
-    fn find_within_files_by_name<'a, 'b>(name: &'a str, files: &'b Vec<SubtitleFile>) -> Option<&'b SubtitleFile> {
-        match files.iter()
+    fn filter_by_filename(name: &str, files: Vec<SubtitleFile>) -> Vec<SubtitleFile> {
+        files.into_iter()
             .filter(|e| Self::normalize(e.name()) == Self::normalize(name))
-            .sorted()
-            .next() {
-            None => None,
-            Some(e) => Some(e)
-        }
+            .collect()
     }
 
     fn normalize(name: &str) -> String {
         name
             .to_lowercase()
             .replace("[\\[\\]\\(\\)_-\\.]", "")
+    }
+
+    fn matches_quality(quality: &i32, file: &&SubtitleFile) -> bool {
+        match file.quality() {
+            None => true,
+            Some(e) => e == quality
+        }
     }
 }
 
@@ -237,108 +233,7 @@ impl PartialEq for SubtitleInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Display)]
-#[display(fmt = "name: {}, url: {}, quality: {:?}, downloads: {}", name, url, quality, downloads)]
-pub struct SubtitleFile {
-    file_id: i32,
-    name: String,
-    url: String,
-    score: f32,
-    downloads: i32,
-    quality: Option<i32>,
-}
 
-impl SubtitleFile {
-    /// Create a new subtitle file instance.
-    /// The quality is automatically parsed from the `name`.
-    pub fn new(file_id: i32, name: String, url: String, score: f32, downloads: i32) -> Self {
-        let quality = Self::try_parse_subtitle_quality(&name);
-        trace!("Parsed subtitle quality {:?} from \"{}\"", &quality, &name);
-
-        Self {
-            file_id,
-            name,
-            url,
-            score,
-            downloads,
-            quality,
-        }
-    }
-
-    /// Create a new subtitle file instance with the given quality.
-    pub fn new_with_quality(file_id: i32, quality: i32, name: String, url: String, score: f32, downloads: i32) -> Self {
-        Self {
-            file_id,
-            name,
-            url,
-            score,
-            downloads,
-            quality: Some(quality),
-        }
-    }
-
-    pub fn file_id(&self) -> &i32 {
-        &self.file_id
-    }
-
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn url(&self) -> &String {
-        &self.url
-    }
-
-    pub fn score(&self) -> &f32 {
-        &self.score
-    }
-
-    pub fn downloads(&self) -> &i32 {
-        &self.downloads
-    }
-
-    pub fn quality(&self) -> Option<&i32> {
-        match &self.quality {
-            None => None,
-            Some(e) => Some(e)
-        }
-    }
-
-    /// Try to parse the quality for the subtitle file based on the filename.
-    fn try_parse_subtitle_quality(name: &str) -> Option<i32> {
-        let regex = Regex::new(QUALITY_PATTERN).unwrap();
-        regex.captures(name)
-            .map(|e| e.get(1).unwrap())
-            .map(|e| String::from(e.as_str()))
-            .map(|e| e.parse::<i32>().unwrap())
-    }
-}
-
-impl Eq for SubtitleFile {}
-
-impl PartialOrd<Self> for SubtitleFile {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.score() > other.score() ||
-            (self.score() == other.score() && self.downloads() > other.downloads()) {
-            return Some(Ordering::Less);
-        }
-
-        if self.score() == other.score() && self.downloads() == other.downloads() {
-            return Some(Ordering::Equal);
-        }
-
-        Some(Ordering::Greater)
-    }
-}
-
-impl Ord for SubtitleFile {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match self.partial_cmp(other) {
-            None => Ordering::Equal,
-            Some(e) => e
-        }
-    }
-}
 
 /// The parsed [SubtitleInfo] which has downloaded and parsed the .srt file.
 #[derive(Debug, Clone, Display)]

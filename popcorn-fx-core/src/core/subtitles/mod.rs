@@ -1,6 +1,7 @@
 pub use error::*;
 pub use provider::*;
 pub use server::*;
+pub use subtitle_file::*;
 
 pub mod cue;
 pub mod language;
@@ -11,3 +12,4 @@ pub mod parsers;
 mod error;
 mod provider;
 mod server;
+mod subtitle_file;

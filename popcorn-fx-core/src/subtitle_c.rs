@@ -1,4 +1,5 @@
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::trace;
 
@@ -35,7 +36,7 @@ impl SubtitleInfoC {
         Self {
             imdb_id: to_c_string(String::new()),
             language: SubtitleLanguage::None,
-            subtitle_info: std::ptr::null_mut(),
+            subtitle_info: ptr::null_mut(),
         }
     }
 
@@ -82,23 +83,29 @@ impl VecSubtitleInfoC {
     }
 }
 
+/// The subtitle matcher C compatible struct.
+/// It contains the information which should be matched when selecting a subtitle file to load.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleMatcherC {
+    /// The nullable name of the media item.
     name: *const c_char,
-    quality: i32,
+    /// The nullable quality of the media item.
+    /// This can be represented as `720p` or `720`.
+    quality: *const c_char,
 }
 
 impl SubtitleMatcherC {
     pub fn from(matcher: SubtitleMatcher) -> Self {
-        let empty_name = "".to_string();
-
         Self {
-            name: to_c_string(matcher.name().or_else(|| Some(&empty_name)).unwrap().clone()),
-            quality: matcher.quality()
-                .map(|e| e.clone())
-                .or_else(|| Some(-1))
-                .unwrap(),
+            name: match matcher.name() {
+                None => ptr::null(),
+                Some(e) => to_c_string(e.clone())
+            },
+            quality: match matcher.quality() {
+                None => ptr::null(),
+                Some(e) => to_c_string(e.to_string())
+            },
         }
     }
 
@@ -109,13 +116,13 @@ impl SubtitleMatcherC {
         } else {
             Some(from_c_string(self.name))
         };
-        let quality = if self.quality == -1 {
+        let quality = if self.quality.is_null() {
             None
         } else {
-            Some(self.quality)
+            Some(from_c_string(self.quality))
         };
 
-        SubtitleMatcher::from_int(name, quality)
+        SubtitleMatcher::from_string(name, quality)
     }
 }
 

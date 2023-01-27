@@ -103,22 +103,19 @@ impl SubtitleMatcherC {
     }
 
     pub fn to_matcher(&self) -> SubtitleMatcher {
-        let name: Option<String>;
-        let quality: Option<String>;
-
-        if self.name.is_null() {
-            name = None;
+        trace!("Converting matcher from C for {:?}", self);
+        let name = if self.name.is_null() {
+            None
         } else {
-            name = Some(from_c_string(self.name))
-        }
-
-        if self.quality == -1 {
-            quality = None
+            Some(from_c_string(self.name))
+        };
+        let quality = if self.quality == -1 {
+            None
         } else {
-            quality = Some(self.quality.to_string())
-        }
+            Some(self.quality)
+        };
 
-        SubtitleMatcher::new(name, quality)
+        SubtitleMatcher::from_int(name, quality)
     }
 }
 

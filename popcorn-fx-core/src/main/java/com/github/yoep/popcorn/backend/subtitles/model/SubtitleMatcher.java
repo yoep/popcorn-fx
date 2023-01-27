@@ -19,7 +19,7 @@ public class SubtitleMatcher extends Structure implements Closeable {
     }
 
     public String name;
-    public Integer quality;
+    public int quality;
 
     //region Constructors
 

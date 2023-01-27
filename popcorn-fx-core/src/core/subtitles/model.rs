@@ -146,7 +146,7 @@ impl SubtitleInfo {
     pub fn best_matching_file(&self, matcher: &SubtitleMatcher) -> subtitles::Result<SubtitleFile> {
         let name = matcher.name();
         let mut files = self.filter_and_sort_by_quality(matcher.quality())?;
-        trace!("Searching matching subtitle for name: {:?}, quality: {:?} within files: {:?}", &name, &matcher.quality(), &self.files);
+        trace!("Searching matching subtitle for name: {:?}, quality: {:?} within files: {:?}", &name, &matcher.quality(), &files);
 
         // verify if a name is present to match
         // this will try to find a file matching the name in a normalized way
@@ -175,6 +175,7 @@ impl SubtitleInfo {
     }
 
     fn filter_and_sort_by_quality(&self, quality: Option<&i32>) -> subtitles::Result<Vec<SubtitleFile>> {
+        trace!("Initial filter of subtitles files for quality {:?} for {:?}", &quality, &self.files);
         match &self.files {
             None => Err(SubtitleError::NoFilesFound),
             Some(files) => {
@@ -183,7 +184,7 @@ impl SubtitleInfo {
                     Some(quality) => {
                         Ok(files.iter()
                             .filter(|e| Self::matches_quality(quality, e))
-                            .map(|e| e.clone())
+                            .cloned()
                             .sorted()
                             .collect())
                     }

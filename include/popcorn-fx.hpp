@@ -223,9 +223,14 @@ struct SubtitleC {
   int32_t number_of_cues;
 };
 
+/// The subtitle matcher C compatible struct.
+/// It contains the information which should be matched when selecting a subtitle file to load.
 struct SubtitleMatcherC {
+  /// The nullable name of the media item.
   const char *name;
-  int32_t quality;
+  /// The nullable quality of the media item.
+  /// This can be represented as `720p` or `720`.
+  const char *quality;
 };
 
 struct PlatformInfoC {

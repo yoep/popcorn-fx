@@ -1,4 +1,5 @@
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::trace;
 
@@ -35,7 +36,7 @@ impl SubtitleInfoC {
         Self {
             imdb_id: to_c_string(String::new()),
             language: SubtitleLanguage::None,
-            subtitle_info: std::ptr::null_mut(),
+            subtitle_info: ptr::null_mut(),
         }
     }
 
@@ -51,7 +52,7 @@ impl SubtitleInfoC {
         }
     }
 
-    pub fn to_subtitle(self) -> SubtitleInfo {
+    pub fn to_subtitle(&self) -> SubtitleInfo {
         from_c_owned(self.subtitle_info)
     }
 }
@@ -82,43 +83,46 @@ impl VecSubtitleInfoC {
     }
 }
 
+/// The subtitle matcher C compatible struct.
+/// It contains the information which should be matched when selecting a subtitle file to load.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleMatcherC {
+    /// The nullable name of the media item.
     name: *const c_char,
-    quality: i32,
+    /// The nullable quality of the media item.
+    /// This can be represented as `720p` or `720`.
+    quality: *const c_char,
 }
 
 impl SubtitleMatcherC {
     pub fn from(matcher: SubtitleMatcher) -> Self {
-        let empty_name = "".to_string();
-
         Self {
-            name: to_c_string(matcher.name().or_else(|| Some(&empty_name)).unwrap().clone()),
-            quality: matcher.quality()
-                .map(|e| e.clone())
-                .or_else(|| Some(-1))
-                .unwrap(),
+            name: match matcher.name() {
+                None => ptr::null(),
+                Some(e) => to_c_string(e.clone())
+            },
+            quality: match matcher.quality() {
+                None => ptr::null(),
+                Some(e) => to_c_string(e.to_string())
+            },
         }
     }
 
     pub fn to_matcher(&self) -> SubtitleMatcher {
-        let name: Option<String>;
-        let quality: Option<String>;
-
-        if self.name.is_null() {
-            name = None;
+        trace!("Converting matcher from C for {:?}", self);
+        let name = if self.name.is_null() {
+            None
         } else {
-            name = Some(from_c_string(self.name))
-        }
-
-        if self.quality == -1 {
-            quality = None
+            Some(from_c_string(self.name))
+        };
+        let quality = if self.quality.is_null() {
+            None
         } else {
-            quality = Some(self.quality.to_string())
-        }
+            Some(from_c_string(self.quality))
+        };
 
-        SubtitleMatcher::new(name, quality)
+        SubtitleMatcher::from_string(name, quality)
     }
 }
 

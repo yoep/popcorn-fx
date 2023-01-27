@@ -13,10 +13,10 @@ use reqwest::header::HeaderMap;
 
 use popcorn_fx_core::core::config::Application;
 use popcorn_fx_core::core::media::*;
-use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleProvider};
+use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
-use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleFile, SubtitleInfo, SubtitleType};
+use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::subtitles::parsers::{Parser, VttParser};
 use popcorn_fx_core::core::subtitles::parsers::SrtParser;
 
@@ -297,9 +297,9 @@ impl OpensubtitlesProvider {
         let extension = file_path
             .extension()
             .map(|e| String::from(e.to_str().unwrap()))
-            .ok_or_else(|| SubtitleError::ParsingFailed(path.clone(), "file has no extension".to_string()))?;
+            .ok_or_else(|| SubtitleError::ParseFileError(path.clone(), "file has no extension".to_string()))?;
         let subtitle_type = SubtitleType::from_extension(&extension)
-            .map_err(|err| SubtitleError::ParsingFailed(path.clone(), err.to_string()))?;
+            .map_err(|err| SubtitleError::ParseFileError(path.clone(), err.to_string()))?;
         let parser = self.parsers.get(&subtitle_type)
             .ok_or_else(|| SubtitleError::TypeNotSupported(subtitle_type))?;
 
@@ -309,7 +309,7 @@ impl OpensubtitlesProvider {
                 info!("Parsed subtitle file {:?}", &file_path);
                 Subtitle::new(e, info.map(|e| e.clone()), path.clone())
             })
-            .map_err(|err| SubtitleError::ParsingFailed(path.clone(), err.to_string()))
+            .map_err(|err| SubtitleError::ParseFileError(path.clone(), err.to_string()))
     }
 
     /// Find the subtitle for the default configured subtitle language.
@@ -680,7 +680,7 @@ mod test {
         let subtitle_info = SubtitleInfo::new_with_files("tt7405458".to_string(), SubtitleLanguage::German, vec![
             SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
         ]);
-        let matcher = SubtitleMatcher::new(Some(String::new()), Some(String::from("720")));
+        let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let response_body = read_test_file("download_response.json");
         server.mock(|when, then| {
             when.method(POST)
@@ -735,7 +735,7 @@ mod test {
         let subtitle_info = SubtitleInfo::new_with_files("tt00001".to_string(), SubtitleLanguage::German, vec![
             SubtitleFile::new(10001111, "subtitle_existing.srt".to_string(), String::new(), 0.0, 0)
         ]);
-        let matcher = SubtitleMatcher::new(Some(String::new()), Some(String::from("720")));
+        let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let expected_cues: Vec<SubtitleCue> = vec![
             SubtitleCue::new("1".to_string(), 8224, 10124, vec![
                 SubtitleLine::new(vec![StyledText::new("Okay, if no one else will say it, I will.".to_string(), false, false, false)])

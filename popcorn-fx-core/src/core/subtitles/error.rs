@@ -1,35 +1,32 @@
 use std::fmt::{Display, Formatter};
 
+use thiserror::Error;
+
 use crate::core::subtitles::model::SubtitleType;
 
 /// The specialized subtitle result.
 pub type Result<T> = std::result::Result<T, SubtitleError>;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Error)]
 pub enum SubtitleError {
+    #[error("Failed to create valid url, {0}")]
     InvalidUrl(String),
+    #[error("Failed to retrieve available subtitles, {0}")]
     SearchFailed(String),
+    #[error("Failed to download subtitle {0}, {1}")]
     DownloadFailed(String, String),
-    ParsingFailed(String, String),
+    #[error("Failed to parse file {0}, {1}")]
+    ParseFileError(String, String),
+    #[error("Failed to parse url, {0}")]
+    ParseUrlError(String),
+    #[error("Subtitle conversion to {0} failed, {1}")]
     ConversionFailed(SubtitleType, String),
+    #[error("Subtitle type {0} is not supported")]
     TypeNotSupported(SubtitleType),
-    NoFilesFound(),
+    #[error("No available subtitle files found")]
+    NoFilesFound,
+    #[error("File {0} is invalid, {1}")]
     InvalidFile(String, String),
-}
-
-impl Display for SubtitleError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SubtitleError::InvalidUrl(message) => write!(f, "Failed to create valid url, {}", message),
-            SubtitleError::SearchFailed(message) => write!(f, "Failed to retrieve available subtitles, {}", message),
-            SubtitleError::DownloadFailed(id, message) => write!(f, "Failed to download subtitle {}, {}", id, message),
-            SubtitleError::ParsingFailed(filename, message) => write!(f, "Failed to parse file {}, {}", filename, message),
-            SubtitleError::ConversionFailed(output_type, message) => write!(f, "Subtitle conversion to {} failed, {}", output_type, message),
-            SubtitleError::TypeNotSupported(subtitle_type) => write!(f, "Subtitle type {} is not supported", subtitle_type),
-            SubtitleError::NoFilesFound() => write!(f, "No available subtitle files found"),
-            SubtitleError::InvalidFile(filename, message) => write!(f, "File {} is invalid, {}", filename, message),
-        }
-    }
 }
 
 #[derive(PartialEq, Debug)]

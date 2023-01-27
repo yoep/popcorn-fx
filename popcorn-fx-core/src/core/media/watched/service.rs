@@ -303,7 +303,7 @@ mod test {
     use std::time::Duration;
 
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::testing::{init_logger, test_resource_directory};
+    use crate::testing::{copy_test_file, init_logger, test_resource_directory};
 
     use super::*;
 
@@ -311,14 +311,15 @@ mod test {
     fn test_is_watched_when_item_is_watched_should_return_true() {
         init_logger();
         let imdb_id = "tt548723".to_string();
-        let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().unwrap()));
         let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
             String::new(),
         );
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
 
         let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
@@ -329,14 +330,15 @@ mod test {
     fn test_is_watched_when_item_is_not_watched_should_return_false() {
         init_logger();
         let imdb_id = "tt548766".to_string();
-        let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().unwrap()));
         let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
             String::new(),
         );
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
 
         let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
@@ -364,14 +366,15 @@ mod test {
     #[test]
     fn test_all() {
         init_logger();
-        let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().unwrap()));
         let service = DefaultWatchedService::new(&storage);
         let expected_result = vec![
             "tt548723",
             "tt541345",
             "tt3915174",
         ];
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
 
         let result = service.all()
             .expect("expected the watched ids to have been returned");

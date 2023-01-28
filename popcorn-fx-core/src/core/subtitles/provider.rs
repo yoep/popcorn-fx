@@ -8,8 +8,8 @@ use crate::core::subtitles;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 
-/// The subtitle provider is responsible for discovering & downloading of [Subtitle] files for [Media]
-/// items.
+/// The subtitle provider is responsible for discovering & downloading of [Subtitle] files
+/// for [Media] items.
 #[async_trait]
 #[automock]
 pub trait SubtitleProvider {

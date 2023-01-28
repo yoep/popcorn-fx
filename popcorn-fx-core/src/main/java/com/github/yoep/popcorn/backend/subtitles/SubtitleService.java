@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -36,7 +37,9 @@ public interface SubtitleService {
      * Set the subtitle for the video player.
      *
      * @param activeSubtitle The subtitle for the video player.
+     * @deprecated Use {@link SubtitleService#updateSubtitleLanguage(SubtitleLanguage)} instead.
      */
+    @Deprecated
     void setActiveSubtitle(Subtitle activeSubtitle);
 
     /**
@@ -108,5 +111,20 @@ public interface SubtitleService {
      */
     SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles);
 
+    /**
+     * Serve the given subtitle over HTTP as the given output type.
+     *
+     * @param subtitle The subtitle to serve.
+     * @param type     The subtitle type.
+     * @return Returns the http url on which the subtitle is served.
+     */
     String serve(Subtitle subtitle, SubtitleType type);
+
+    /**
+     * Update the preferred subtitle language for the media playback.
+     * Passing `null` will disable the subtitle for the next media playback item.
+     *
+     * @param language The new subtitle language.
+     */
+    void updateSubtitleLanguage(SubtitleLanguage language);
 }

@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -54,6 +55,15 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Override
     public void setActiveSubtitle(Subtitle activeSubtitle) {
         this.activeSubtitle.set(activeSubtitle);
+
+        if (activeSubtitle != null) {
+            activeSubtitle.getSubtitleInfo().ifPresentOrElse(
+                    e -> FxLib.INSTANCE.update_subtitle_language(PopcornFxInstance.INSTANCE.get(), e.getLanguage().ordinal()),
+                    () -> FxLib.INSTANCE.update_subtitle_language(PopcornFxInstance.INSTANCE.get(), SubtitleLanguage.NONE.ordinal())
+            );
+        } else {
+            FxLib.INSTANCE.update_subtitle_language(PopcornFxInstance.INSTANCE.get(), SubtitleLanguage.NONE.ordinal());
+        }
     }
 
     //endregion
@@ -148,6 +158,12 @@ public class SubtitleServiceImpl implements SubtitleService {
     public String serve(Subtitle subtitle, SubtitleType type) {
         Assert.notNull(subtitle, "subtitle cannot be null");
         return FxLib.INSTANCE.serve_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle, type.ordinal());
+    }
+
+    @Override
+    public void updateSubtitleLanguage(SubtitleLanguage language) {
+        var preferredLanguage = Objects.requireNonNullElse(language, SubtitleLanguage.NONE);
+        FxLib.INSTANCE.update_subtitle_language(PopcornFxInstance.INSTANCE.get(), preferredLanguage.ordinal());
     }
 
     //endregion

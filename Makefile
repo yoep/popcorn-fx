@@ -33,6 +33,7 @@ prerequisites: ## Install the requirements for the application
 	$(info Installing Cargo plugins)
 	@cargo install cbindgen
 	@cargo install cargo-nextest
+	@cargo install cargo-llvm-cov
 	@cargo install grcov
 	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
 
@@ -43,7 +44,7 @@ clean: prerequisites ## Clean the output
 
 test-cargo: prerequisites ## The test cargo section of the application
 	$(info Running cargo tests)
-	@cargo nextest run
+	@cargo llvm-cov --lcov --output-path target/lcov.info nextest
 
 test: prerequisites test-cargo ## Test the application code
 	$(info Running maven tests)

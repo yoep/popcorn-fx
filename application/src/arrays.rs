@@ -21,3 +21,25 @@ impl StringArray {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use popcorn_fx_core::{from_c_string, from_c_vec};
+
+    use crate::arrays::StringArray;
+
+    #[test]
+    fn test_string_array_from() {
+        let vec = vec![
+            "lorem".to_string(),
+            "ipsum".to_string(),
+        ];
+
+        let array = StringArray::from(vec.clone());
+        let result: Vec<String> = from_c_vec(array.values, array.len).into_iter()
+            .map(|e| from_c_string(e))
+            .collect();
+
+        assert_eq!(vec, result)
+    }
+}

@@ -11,6 +11,7 @@ use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned,
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
+use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -53,7 +54,7 @@ pub extern "C" fn platform_info(popcorn_fx: &mut PopcornFX) -> *mut PlatformInfo
 /// Retrieve the default options available for the subtitles.
 #[no_mangle]
 pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut VecSubtitleInfoC {
-    into_c_owned(VecSubtitleInfoC::from(popcorn_fx.subtitle_service().default_subtitle_options().into_iter()
+    into_c_owned(VecSubtitleInfoC::from(popcorn_fx.subtitle_provider().default_subtitle_options().into_iter()
         .map(|e| SubtitleInfoC::from(e))
         .collect()))
 }
@@ -67,7 +68,7 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetai
     let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
     let movie_instance = movie.to_struct();
 
-    match runtime.block_on(popcorn_fx.subtitle_service().movie_subtitles(movie_instance)) {
+    match runtime.block_on(popcorn_fx.subtitle_provider().movie_subtitles(movie_instance)) {
         Ok(e) => {
             debug!("Found movie subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -90,7 +91,7 @@ pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetai
     let show_instance = show.to_struct();
     let episode_instance = episode.to_struct();
 
-    match runtime.block_on(popcorn_fx.subtitle_service().episode_subtitles(show_instance, episode_instance)) {
+    match runtime.block_on(popcorn_fx.subtitle_provider().episode_subtitles(show_instance, episode_instance)) {
         Ok(e) => {
             debug!("Found episode subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -112,7 +113,7 @@ pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut 
     let filename_rust = from_c_string(filename);
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.subtitle_service().file_subtitles(&filename_rust)) {
+    match runtime.block_on(popcorn_fx.subtitle_provider().file_subtitles(&filename_rust)) {
         Ok(e) => {
             debug!("Found filename subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -136,7 +137,7 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitl
         .map(|e| e.to_subtitle())
         .collect();
 
-    let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_service().select_or_default(&subtitles)));
+    let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_provider().select_or_default(&subtitles)));
 
     // make sure rust doesn't start cleaning the subtitles as they might be switched later on
     // the pointer can also not be cleaned
@@ -149,6 +150,12 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitl
     subtitle
 }
 
+/// Update the preferred subtitle language for the [Media] item playback.
+#[no_mangle]
+pub extern "C" fn update_subtitle_language(popcorn_fx: &mut PopcornFX, subtitle_language: SubtitleLanguage) {
+    popcorn_fx.subtitle_manager().update_language(subtitle_language.clone())
+}
+
 /// Download and parse the given subtitle info.
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
@@ -158,7 +165,7 @@ pub extern "C" fn download_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &Subti
     let matcher = matcher.to_matcher();
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.subtitle_service().download(&subtitle_info, &matcher)) {
+    match runtime.block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
         Ok(e) => {
             let result = SubtitleC::from(e);
             debug!("Returning parsed subtitle {:?}", result);
@@ -179,7 +186,7 @@ pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c
     let string_path = from_c_string(file_path);
     let path = Path::new(&string_path);
 
-    match popcorn_fx.subtitle_service().parse(path) {
+    match popcorn_fx.subtitle_provider().parse(path) {
         Ok(e) => {
             debug!("Parsed subtitle file, {}", e);
             into_c_owned(SubtitleC::from(e))
@@ -191,13 +198,16 @@ pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c
     }
 }
 
+/// Convert the given subtitle back to it's raw output type.
+///
+/// It returns the [String] output of the subtitle for the given output type.
 #[no_mangle]
 pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleC, output_type: usize) -> *const c_char {
     debug!("Converting to raw subtitle type {} for {:?}", output_type, subtitle);
     let subtitle = subtitle.to_subtitle();
     let subtitle_type = SubtitleType::from_ordinal(output_type);
 
-    match popcorn_fx.subtitle_service().convert(subtitle, subtitle_type.clone()) {
+    match popcorn_fx.subtitle_provider().convert(subtitle, subtitle_type.clone()) {
         Ok(e) => {
             debug!("Returning subtitle format {} to C", subtitle_type);
             to_c_string(e)

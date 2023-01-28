@@ -38,7 +38,7 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./application/target/site/jacoco-aggregate/jacoco.xml
+        files: ./application/target/site/jacoco-aggregate/jacoco.xml,./target/lcov.info
         flags: unittests
         name: codecov-umbrella
         verbose: true

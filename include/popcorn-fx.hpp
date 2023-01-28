@@ -453,6 +453,12 @@ SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleI
 /// It returns the url which hosts the [Subtitle].
 const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
 
+/// Convert the given subtitle back to it's raw output type.
+///
+/// It returns the [String] output of the subtitle for the given output type.
 const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
+
+/// Update the preferred subtitle language for the [Media] item playback.
+void update_subtitle_language(PopcornFX *popcorn_fx, SubtitleLanguage subtitle_language);
 
 } // extern "C"

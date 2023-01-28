@@ -44,7 +44,7 @@ const LANGUAGES: [SubtitleLanguage; 36] = [
 
 /// The supported subtitle languages.
 #[repr(i32)]
-#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SubtitleLanguage {
     None = 0,
@@ -86,15 +86,25 @@ pub enum SubtitleLanguage {
 }
 
 impl SubtitleLanguage {
-    /// Get the [SubtitleLanguage] for the given code.
-    pub fn from_code(code: String) -> Option<Self> {
+    /// Get the subtitle language for the given ordinal representation.
+    /// If the ordinal is out of range for the possible values, the code will [panic].
+    pub fn from(ordinal: i32) -> Self {
         for language in LANGUAGES {
-            if language.code() == code {
-                return Some(language);
+            let value = language.clone() as i32;
+
+            if value == ordinal {
+                return language;
             }
         }
 
-        None
+        panic!("Ordinal {} is out of range for SubtitleLanguage", ordinal)
+    }
+
+    /// Get the [SubtitleLanguage] for the given code.
+    pub fn from_code(code: String) -> Option<Self> {
+        LANGUAGES.iter()
+            .find(|e| e.code() == code)
+            .cloned()
     }
 
     /// The subtitle language identifier code.

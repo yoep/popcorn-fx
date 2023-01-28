@@ -13,7 +13,7 @@ use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteSe
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::storage::Storage;
-use popcorn_fx_core::core::subtitles::{SubtitleProvider, SubtitleServer};
+use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
 
@@ -28,11 +28,12 @@ const CONSOLE_APPENDER: &str = "stdout";
 pub struct PopcornFX {
     settings: Arc<Application>,
     subtitle_service: Arc<Box<dyn SubtitleProvider>>,
+    subtitle_server: Arc<SubtitleServer>,
+    subtitle_manager: Arc<SubtitleManager>,
     platform_service: Box<dyn PlatformService>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
     providers: ProviderManager,
-    subtitle_server: Arc<SubtitleServer>,
     storage: Arc<Storage>,
 }
 
@@ -44,6 +45,7 @@ impl PopcornFX {
         let settings = Arc::new(Application::new_auto(&storage));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
+        let subtitle_manager = Arc::new(SubtitleManager::default());
         let platform_service = Box::new(PlatformServiceImpl::new());
         let favorites_service: Arc<Box<dyn FavoriteService>> = Arc::new(Box::new(DefaultFavoriteService::new(&storage)));
         let watched_service: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(DefaultWatchedService::new(&storage)));
@@ -52,23 +54,29 @@ impl PopcornFX {
         Self {
             settings,
             subtitle_service,
+            subtitle_server,
+            subtitle_manager,
             platform_service,
             favorites_service,
             watched_service,
             providers,
-            subtitle_server,
             storage,
         }
     }
 
     /// The platform service of the popcorn FX instance.
-    pub fn subtitle_service(&mut self) -> Arc<Box<dyn SubtitleProvider>> {
+    pub fn subtitle_provider(&mut self) -> Arc<Box<dyn SubtitleProvider>> {
         self.subtitle_service.clone()
     }
 
     /// Retrieve the subtitle server instance.
     pub fn subtitle_server(&mut self) -> &mut Arc<SubtitleServer> {
         &mut self.subtitle_server
+    }
+
+    /// Retrieve the subtitle manager instance.
+    pub fn subtitle_manager(&mut self) -> &mut Arc<SubtitleManager> {
+        &mut self.subtitle_manager
     }
 
     /// The platform service of the popcorn FX instance.

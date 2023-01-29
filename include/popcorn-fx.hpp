@@ -62,10 +62,6 @@ struct Box;
 /// The [PopcornFX] application instance.
 struct PopcornFX;
 
-/// The subtitle info contains information about available subtitles for a certain [Media].
-/// This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
-struct SubtitleInfo;
-
 struct RatingC {
   uint16_t percentage;
   uint32_t watching;
@@ -173,10 +169,20 @@ struct MediaItemC {
   EpisodeC *episode;
 };
 
+struct SubtitleFileC {
+  int32_t file_id;
+  const char *name;
+  const char *url;
+  float score;
+  int32_t downloads;
+  int32_t *quality;
+};
+
 struct SubtitleInfoC {
   const char *imdb_id;
   SubtitleLanguage language;
-  SubtitleInfo *subtitle_info;
+  SubtitleFileC *files;
+  int32_t len;
 };
 
 struct VecSubtitleInfoC {

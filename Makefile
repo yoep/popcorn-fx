@@ -46,9 +46,11 @@ test-cargo: prerequisites ## The test cargo section of the application
 	$(info Running cargo tests)
 	@cargo llvm-cov --lcov --output-path target/lcov.info nextest
 
-test: prerequisites test-cargo ## Test the application code
+test-java: prerequisites
 	$(info Running maven tests)
 	@mvn -B clean verify -P$(PROFILE)
+
+test: prerequisites test-java test-cargo ## Test the application code
 
 build-cargo: ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))

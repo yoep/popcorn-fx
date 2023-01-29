@@ -34,9 +34,6 @@ jobs:
     - name: Build
       run: |
         xvfb-run make test && make build
-    - name: LS
-      run: |
-        ls -l ./target/
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

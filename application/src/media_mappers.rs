@@ -24,3 +24,46 @@ pub fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavorit
 
     into_c_owned(VecFavoritesC::from(movies, shows))
 }
+
+#[cfg(test)]
+mod test {
+    use popcorn_fx_core::core::media::{Images, MediaOverview, MovieOverview, ShowOverview};
+
+    use crate::media_mappers::favorites_to_c;
+
+    #[test]
+    fn test_favorites_to_c_movie() {
+        let movie = MovieOverview::new(
+            String::new(),
+            "tt54888877".to_string(),
+            String::new(),
+        );
+        let favorites = vec![Box::new(movie) as Box<dyn MediaOverview>];
+
+        let raw = favorites_to_c(favorites);
+        let result = unsafe { &*raw };
+
+        assert!(!result.movies.is_null(), "expected movie array to be filled in");
+        assert_eq!(1, result.movies_len)
+    }
+
+    #[test]
+    fn test_favorites_to_c_show() {
+        let show = ShowOverview::new(
+            "tt777444111".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            1,
+            Images::none(),
+            None,
+        );
+        let favorites = vec![Box::new(show) as Box<dyn MediaOverview>];
+
+        let raw = favorites_to_c(favorites);
+        let result = unsafe { &*raw };
+
+        assert!(!result.shows.is_null(), "expected show array to be filled in");
+        assert_eq!(1, result.shows_len)
+    }
+}

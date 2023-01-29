@@ -1,6 +1,7 @@
 use std::os::raw::c_char;
 use std::ptr;
 
+use futures::StreamExt;
 use log::trace;
 
 use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
@@ -8,6 +9,7 @@ use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
+use crate::core::subtitles::SubtitleFile;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -26,9 +28,10 @@ impl SubtitleInfoSet {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleInfoC {
-    pub imdb_id: *const c_char,
-    pub language: SubtitleLanguage,
-    subtitle_info: *mut SubtitleInfo,
+    imdb_id: *const c_char,
+    language: SubtitleLanguage,
+    files: *mut SubtitleFileC,
+    len: i32,
 }
 
 impl SubtitleInfoC {
@@ -36,24 +39,83 @@ impl SubtitleInfoC {
         Self {
             imdb_id: to_c_string(String::new()),
             language: SubtitleLanguage::None,
-            subtitle_info: ptr::null_mut(),
+            files: ptr::null_mut(),
+            len: 0,
         }
     }
 
     pub fn from(info: SubtitleInfo) -> Self {
         trace!("Converting subtitle info to C for {}", &info);
+        let (files, len) = match info.files() {
+            None => (ptr::null_mut(), 0),
+            Some(files) => to_c_vec(files.into_iter()
+                .map(|e| SubtitleFileC::from(e.clone()))
+                .collect())
+        };
+
         Self {
             imdb_id: match info.imdb_id() {
                 None => to_c_string(String::new()),
                 Some(e) => to_c_string(e.clone())
             },
             language: info.language().clone(),
-            subtitle_info: into_c_owned(info),
+            files,
+            len,
         }
     }
 
     pub fn to_subtitle(&self) -> SubtitleInfo {
-        from_c_owned(self.subtitle_info)
+        SubtitleInfo::new_with_files(
+            from_c_string(self.imdb_id),
+            self.language.clone(),
+            from_c_vec(self.files, self.len).into_iter()
+                .map(|e| e.to_subtitle_file())
+                .collect(),
+        )
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct SubtitleFileC {
+    file_id: i32,
+    name: *const c_char,
+    url: *const c_char,
+    score: f32,
+    downloads: i32,
+    quality: *mut i32,
+}
+
+impl SubtitleFileC {
+    fn from(file: SubtitleFile) -> Self {
+        Self {
+            file_id: *file.file_id(),
+            name: to_c_string(file.name().clone()),
+            url: to_c_string(file.url().clone()),
+            score: *file.score(),
+            downloads: *file.downloads(),
+            quality: match file.quality() {
+                None => ptr::null_mut(),
+                Some(e) => into_c_owned(*e)
+            },
+        }
+    }
+
+    fn to_subtitle_file(self) -> SubtitleFile {
+        let quality = if self.quality.is_null() {
+            None
+        } else {
+            Some(from_c_owned(self.quality))
+        };
+
+        SubtitleFile::new_with_quality(
+            self.file_id,
+            from_c_string(self.name),
+            from_c_string(self.url),
+            self.score,
+            self.downloads,
+            quality,
+        )
     }
 }
 

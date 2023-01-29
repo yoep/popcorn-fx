@@ -27,7 +27,7 @@ pub enum ServerState {
     Error,
 }
 
-/// The subtitle server which is responsible for serving [Subtitle]'s over http.
+/// The subtitle server is responsible for serving [Subtitle]'s over http.
 pub struct SubtitleServer {
     runtime: tokio::runtime::Runtime,
     socket: Arc<SocketAddr>,

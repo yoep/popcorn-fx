@@ -38,14 +38,14 @@ impl SubtitleFile {
     }
 
     /// Create a new subtitle file instance with the given quality.
-    pub fn new_with_quality(file_id: i32, quality: i32, name: String, url: String, score: f32, downloads: i32) -> Self {
+    pub fn new_with_quality(file_id: i32, name: String, url: String, score: f32, downloads: i32, quality: Option<i32>) -> Self {
         Self {
             file_id,
             name,
             url,
             score,
             downloads,
-            quality: Some(quality),
+            quality,
         }
     }
 

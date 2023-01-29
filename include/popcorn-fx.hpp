@@ -62,10 +62,6 @@ struct Box;
 /// The [PopcornFX] application instance.
 struct PopcornFX;
 
-/// The subtitle info contains information about available subtitles for a certain [Media].
-/// This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
-struct SubtitleInfo;
-
 struct RatingC {
   uint16_t percentage;
   uint32_t watching;
@@ -173,10 +169,20 @@ struct MediaItemC {
   EpisodeC *episode;
 };
 
+struct SubtitleFileC {
+  int32_t file_id;
+  const char *name;
+  const char *url;
+  float score;
+  int32_t downloads;
+  int32_t *quality;
+};
+
 struct SubtitleInfoC {
   const char *imdb_id;
   SubtitleLanguage language;
-  SubtitleInfo *subtitle_info;
+  SubtitleFileC *files;
+  int32_t len;
 };
 
 struct VecSubtitleInfoC {
@@ -453,6 +459,12 @@ SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleI
 /// It returns the url which hosts the [Subtitle].
 const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
 
+/// Convert the given subtitle back to it's raw output type.
+///
+/// It returns the [String] output of the subtitle for the given output type.
 const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
+
+/// Update the preferred subtitle language for the [Media] item playback.
+void update_subtitle_language(PopcornFX *popcorn_fx, SubtitleLanguage subtitle_language);
 
 } // extern "C"

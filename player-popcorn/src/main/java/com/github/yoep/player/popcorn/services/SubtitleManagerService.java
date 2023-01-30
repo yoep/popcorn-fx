@@ -220,7 +220,7 @@ public class SubtitleManagerService {
         // show the subtitle picker popup and let the user pick a subtitle file
         // if the user cancels the picking, we disable the subtitle
         subtitlePickerService.pickCustomSubtitle().ifPresentOrElse(
-                subtitleInfo::set,
+                subtitleService::updateCustomSubtitle,
                 this::disableSubtitleTrack
         );
 

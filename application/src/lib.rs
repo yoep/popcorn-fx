@@ -11,7 +11,6 @@ use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned,
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
-use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -150,22 +149,51 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitl
     subtitle
 }
 
-/// Update the preferred subtitle language for the [Media] item playback.
+/// Retrieve the preferred subtitle instance for the next [Media] item playback.
+///
+/// It returns the [SubtitleInfoC] when present, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn update_subtitle_language(popcorn_fx: &mut PopcornFX, subtitle_language: SubtitleLanguage) {
-    popcorn_fx.subtitle_manager().update_language(subtitle_language.clone())
+pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoC {
+    match popcorn_fx.subtitle_manager().preferred_subtitle() {
+        None => ptr::null_mut(),
+        Some(e) => into_c_owned(SubtitleInfoC::from(e))
+    }
+}
+
+/// Update the preferred subtitle for the [Media] item playback.
+/// This action will reset any custom configured subtitle files.
+#[no_mangle]
+pub extern "C" fn update_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC) {
+    popcorn_fx.subtitle_manager().update_subtitle(subtitle.to_subtitle())
+}
+
+/// Update the preferred subtitle to a custom subtitle filepath.
+/// This action will reset any preferred subtitle.
+#[no_mangle]
+pub extern "C" fn update_subtitle_custom_file(popcorn_fx: &mut PopcornFX, custom_filepath: *const c_char) {
+    let custom_filepath = from_c_string(custom_filepath);
+    trace!("Updating custom subtitle filepath to {}", &custom_filepath);
+
+    popcorn_fx.subtitle_manager().update_custom_subtitle(custom_filepath.as_str())
+}
+
+/// Reset the current preferred subtitle configuration.
+/// This will remove any selected [SubtitleInfo] or custom subtitle file.
+#[no_mangle]
+pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
+    popcorn_fx.subtitle_manager().reset()
 }
 
 /// Download and parse the given subtitle info.
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn download_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
+pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
     let subtitle_info = subtitle.clone().to_subtitle();
     let matcher = matcher.to_matcher();
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
+    match runtime.block_on(popcorn_fx.subtitle_provider().download_and_parse(&subtitle_info, &matcher)) {
         Ok(e) => {
             let result = SubtitleC::from(e);
             debug!("Returning parsed subtitle {:?}", result);
@@ -661,6 +689,7 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::from_c_owned;
 
     use super::*;
@@ -670,6 +699,21 @@ mod test {
         let instance = from_c_owned(new_popcorn_fx());
 
         dispose_popcorn_fx(Box::new(instance));
+    }
+
+    #[test]
+    fn test_update_subtitle() {
+        let subtitle = SubtitleInfo::new(
+            "tt212121".to_string(),
+            SubtitleLanguage::Finnish
+        );
+        let info_c = SubtitleInfoC::from(subtitle.clone());
+        let mut instance = from_c_owned(new_popcorn_fx());
+
+        update_subtitle(&mut instance, &info_c);
+        let result = from_c_owned(retrieve_preferred_subtitle(&mut instance)).to_subtitle();
+
+        assert_eq!(subtitle, result)
     }
 
     #[test]

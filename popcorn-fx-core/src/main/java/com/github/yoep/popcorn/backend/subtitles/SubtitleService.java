@@ -3,12 +3,12 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import javafx.beans.property.ReadOnlyObjectProperty;
+import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Async;
 
 import java.io.File;
@@ -23,7 +23,9 @@ public interface SubtitleService {
      * Get the current subtitle of the video player.
      *
      * @return Returns the subtitle.
+     * @deprecated Use {@link SubtitleService#preferredSubtitle()} instead.
      */
+    @Deprecated
     Optional<Subtitle> getActiveSubtitle();
 
     /**
@@ -31,13 +33,14 @@ public interface SubtitleService {
      *
      * @return Returns the subtitle property.
      */
+    @Deprecated
     ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty();
 
     /**
      * Set the subtitle for the video player.
      *
      * @param activeSubtitle The subtitle for the video player.
-     * @deprecated Use {@link SubtitleService#updateSubtitleLanguage(SubtitleLanguage)} instead.
+     * @deprecated Use {@link SubtitleService#updateSubtitle(SubtitleInfo)} instead.
      */
     @Deprecated
     void setActiveSubtitle(Subtitle activeSubtitle);
@@ -121,10 +124,24 @@ public interface SubtitleService {
     String serve(Subtitle subtitle, SubtitleType type);
 
     /**
-     * Update the preferred subtitle language for the media playback.
+     * Get the preferred subtitle for the next media item playback.
+     *
+     * @return Returns the preferred subtitle.
+     */
+    Optional<SubtitleInfo> preferredSubtitle();
+
+    /**
+     * Update the preferred subtitle for the media playback.
      * Passing `null` will disable the subtitle for the next media playback item.
      *
-     * @param language The new subtitle language.
+     * @param subtitle The new subtitle info to prefer on the next playback.
      */
-    void updateSubtitleLanguage(SubtitleLanguage language);
+    void updateSubtitle(@Nullable SubtitleInfo subtitle);
+
+    /**
+     * Update the subtitle to a custom filepath.
+     *
+     * @param subtitleFilepath The filepath to the custom subtitle file.
+     */
+    void updateCustomSubtitle(String subtitleFilepath);
 }

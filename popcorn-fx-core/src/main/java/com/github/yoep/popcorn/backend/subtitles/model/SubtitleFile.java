@@ -1,34 +1,29 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
+import com.sun.jna.Structure;
 import lombok.*;
 
-import java.nio.charset.Charset;
+import java.io.Closeable;
 
 @Getter
-@Builder
 @ToString
+@NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-public class SubtitleFile implements Comparable<SubtitleFile> {
-    private int fileId;
-    private String name;
-    private String url;
-    private Integer quality;
-    private int score;
-    private int downloads;
-    private Charset encoding;
-
-    public SubtitleFile() {
+@Structure.FieldOrder({"fileId", "name", "url", "score", "downloads", "quality"})
+public class SubtitleFile extends Structure implements Closeable {
+    public static class ByReference extends SubtitleFile implements Structure.ByReference {
     }
 
-    @Override
-    public int compareTo(SubtitleFile compareTo) {
-        if (score > compareTo.getScore() || (score == compareTo.getScore() && downloads > compareTo.getDownloads())) {
-            return -1;
-        } else if (score == compareTo.getScore() && downloads == compareTo.getDownloads()) {
-            return 0;
-        }
+    public int fileId;
+    public String name;
+    public String url;
+    public int score;
+    public int downloads;
+    public Integer quality;
 
-        return 1;
+    @Override
+    public void close() {
+        setAutoSynch(false);
     }
 }

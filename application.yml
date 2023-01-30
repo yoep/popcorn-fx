@@ -1,22 +1,17 @@
 logging:
   level:
     com.github.yoep.player.chromecast: INFO
-    com.github.yoep.popcorn.backend.media.favorites: DEBUG
+    com.github.yoep.popcorn.backend.media.favorites: INFO
     com.github.yoep.popcorn.backend.media.providers: INFO
-    com.github.yoep.popcorn.backend.media.watched: DEBUG
-    com.github.yoep.popcorn.backend.subtitles: INFO
-    com.github.yoep.popcorn.media: DEBUG
-    com.github.yoep.popcorn.ui: DEBUG
-    com.github.yoep.popcorn.view: DEBUG
+    com.github.yoep.popcorn.backend.media.watched: INFO
+    com.github.yoep.popcorn.backend.subtitles: TRACE
+    com.github.yoep.popcorn.media: INFO
+    com.github.yoep.popcorn.ui: INFO
+    com.github.yoep.popcorn.view: INFO
     com.github.yoep.popcorn: INFO
     com.github.yoep.torrent.frostwire: INFO
     com.github.yoep.torrent.stream: INFO
-    com.github.yoep.video.vlc: DEBUG
+    com.github.yoep.video.vlc: INFO
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
     org.springframework: INFO
-
-popcorn:
-  logging:
-    level:
-      root: Trace

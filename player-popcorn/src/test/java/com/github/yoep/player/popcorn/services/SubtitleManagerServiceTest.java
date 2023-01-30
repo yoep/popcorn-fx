@@ -162,7 +162,7 @@ class SubtitleManagerServiceTest {
                 .torrent(mock(Torrent.class))
                 .torrentStream(mock(TorrentStream.class))
                 .build();
-        when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(pickedSubtitle));
+        when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of("/lorem/ipsum.srt"));
         service.init();
         service.onPlayVideo(videoEvent);
         service.onPlayMedia(mediaUrl);

@@ -46,9 +46,15 @@ public interface FxLib extends Library {
 
     SubtitleInfo select_or_default_subtitle(PopcornFx instance, SubtitleInfo[] subtitles, int len);
 
-    void update_subtitle_language(PopcornFx instance, int language);
+    SubtitleInfo retrieve_preferred_subtitle(PopcornFx instance);
 
-    Subtitle download_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
+    void update_subtitle(PopcornFx instance, SubtitleInfo subtitle);
+
+    void update_subtitle_custom_file(PopcornFx instance, String filepath);
+
+    void reset_subtitle(PopcornFx instance);
+
+    Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
 
     Subtitle parse_subtitle(PopcornFx instance, String filePath);
 

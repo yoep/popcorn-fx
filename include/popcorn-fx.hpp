@@ -337,7 +337,7 @@ void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);
 /// Download and parse the given subtitle info.
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
-SubtitleC *download_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
+SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
 /// Enable the screensaver on the current platform
 void enable_screensaver(PopcornFX *popcorn_fx);
@@ -398,6 +398,10 @@ void reset_movie_apis(PopcornFX *popcorn_fx);
 /// This will make all disabled api's available again.
 void reset_show_apis(PopcornFX *popcorn_fx);
 
+/// Reset the current preferred subtitle configuration.
+/// This will remove any selected [SubtitleInfo] or custom subtitle file.
+void reset_subtitle(PopcornFX *popcorn_fx);
+
 /// Retrieve all favorites of the user.
 ///
 /// It will return an array of favorites on success, else [ptr::null_mut].
@@ -435,6 +439,11 @@ MediaItemC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id
 /// It returns the [MovieDetailsC] on success, else [ptr::null_mut].
 MovieDetailsC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
+/// Retrieve the preferred subtitle instance for the next [Media] item playback.
+///
+/// It returns the [SubtitleInfoC] when present, else [ptr::null_mut].
+SubtitleInfoC *retrieve_preferred_subtitle(PopcornFX *popcorn_fx);
+
 /// Retrieve the details of a show based on the given IMDB ID.
 /// The details contain all information about the show such as episodes and descriptions.
 ///
@@ -464,7 +473,12 @@ const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t out
 /// It returns the [String] output of the subtitle for the given output type.
 const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
 
-/// Update the preferred subtitle language for the [Media] item playback.
-void update_subtitle_language(PopcornFX *popcorn_fx, SubtitleLanguage subtitle_language);
+/// Update the preferred subtitle for the [Media] item playback.
+/// This action will reset any custom configured subtitle files.
+void update_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle);
+
+/// Update the preferred subtitle to a custom subtitle filepath.
+/// This action will reset any preferred subtitle.
+void update_subtitle_custom_file(PopcornFX *popcorn_fx, const char *custom_filepath);
 
 } // extern "C"

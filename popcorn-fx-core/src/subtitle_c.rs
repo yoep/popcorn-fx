@@ -1,7 +1,6 @@
 use std::os::raw::c_char;
 use std::ptr;
 
-use futures::StreamExt;
 use log::trace;
 
 use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
@@ -65,12 +64,18 @@ impl SubtitleInfoC {
     }
 
     pub fn to_subtitle(&self) -> SubtitleInfo {
+        let files = if !self.files.is_null() {
+            from_c_vec(self.files, self.len).into_iter()
+                .map(|e| e.to_subtitle_file())
+                .collect()
+        } else {
+            vec![]
+        };
+
         SubtitleInfo::new_with_files(
             from_c_string(self.imdb_id),
             self.language.clone(),
-            from_c_vec(self.files, self.len).into_iter()
-                .map(|e| e.to_subtitle_file())
-                .collect(),
+            files,
         )
     }
 }
@@ -325,5 +330,47 @@ impl StyledTextC {
         let underline = self.underline.clone();
 
         StyledText::new(from_c_string(self.text), italic, bold, underline)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::testing::init_logger;
+
+    use super::*;
+
+    #[test]
+    fn test_subtitle_info_with_files() {
+        init_logger();
+        let subtitle = SubtitleInfo::new_with_files(
+            "tt22222233".to_string(),
+            SubtitleLanguage::Italian,
+            vec![SubtitleFile::new(
+                1,
+                "lorem".to_string(),
+                String::new(),
+                8.0,
+                1544,
+            )],
+        );
+
+        let info_c = SubtitleInfoC::from(subtitle.clone());
+        let result = info_c.to_subtitle();
+
+        assert_eq!(subtitle, result)
+    }
+
+    #[test]
+    fn test_subtitle_info_without_files() {
+        init_logger();
+        let subtitle = SubtitleInfo::new(
+            "tt8788777".to_string(),
+            SubtitleLanguage::Spanish,
+        );
+
+        let info_c = SubtitleInfoC::from(subtitle.clone());
+        let result = info_c.to_subtitle();
+
+        assert_eq!(subtitle, result)
     }
 }

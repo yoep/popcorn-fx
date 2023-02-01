@@ -7,10 +7,11 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
+use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_platform::PlatformInfoC;
 
@@ -160,6 +161,14 @@ pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mu
     }
 }
 
+/// Retrieve the preferred subtitle language for the next [Media] item playback.
+///
+/// It returns the preferred subtitle language.
+#[no_mangle]
+pub extern "C" fn retrieve_preferred_subtitle_language(popcorn_fx: &mut PopcornFX) -> SubtitleLanguage {
+    popcorn_fx.subtitle_manager().preferred_language()
+}
+
 /// Update the preferred subtitle for the [Media] item playback.
 /// This action will reset any custom configured subtitle files.
 #[no_mangle]
@@ -182,6 +191,28 @@ pub extern "C" fn update_subtitle_custom_file(popcorn_fx: &mut PopcornFX, custom
 #[no_mangle]
 pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
     popcorn_fx.subtitle_manager().reset()
+}
+
+/// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
+///
+/// It returns the filepath to the subtitle on success, else [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *const c_char {
+    trace!("Starting subtitle download for info: {:?}, matcher: {:?}", subtitle, matcher);
+    let subtitle_info = subtitle.clone().to_subtitle();
+    let matcher = matcher.to_matcher();
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+
+    match runtime.block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
+        Ok(e) => {
+            debug!("Returning subtitle filepath {:?}", &e);
+            into_c_string(e)
+        }
+        Err(e) => {
+            error!("Failed to download subtitle, {}", e);
+            ptr::null_mut()
+        }
+    }
 }
 
 /// Download and parse the given subtitle info.
@@ -238,7 +269,7 @@ pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &Subtitl
     match popcorn_fx.subtitle_provider().convert(subtitle, subtitle_type.clone()) {
         Ok(e) => {
             debug!("Returning subtitle format {} to C", subtitle_type);
-            to_c_string(e)
+            into_c_string(e)
         }
         Err(e) => {
             error!("Failed to convert subtitle to {}, {}", subtitle_type, e);
@@ -542,7 +573,7 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
     match popcorn_fx.subtitle_server().serve(subtitle, subtitle_type) {
         Ok(e) => {
             info!("Serving subtitle at {}", &e);
-            to_c_string(e)
+            into_c_string(e)
         }
         Err(e) => {
             error!("Failed to serve subtitle, {}", e);
@@ -733,7 +764,7 @@ mod test {
         let mut instance = from_c_owned(new_popcorn_fx());
         let genre = GenreC::from(Genre::all());
         let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
-        let keywords = to_c_string(String::new());
+        let keywords = into_c_string(String::new());
 
         let media_items = retrieve_available_movies(&mut instance, &genre, &sort_by, keywords, 1);
 

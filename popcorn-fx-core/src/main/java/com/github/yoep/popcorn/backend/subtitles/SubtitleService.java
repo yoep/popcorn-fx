@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -84,6 +85,9 @@ public interface SubtitleService {
     @Async
     CompletableFuture<Subtitle> parse(File file, Charset encoding);
 
+    @Async
+    CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher matcher);
+
     /**
      * Download and parse the SRT file for the given {@link SubtitleInfo}.
      *
@@ -129,6 +133,13 @@ public interface SubtitleService {
      * @return Returns the preferred subtitle.
      */
     Optional<SubtitleInfo> preferredSubtitle();
+
+    /**
+     * Get the preferred subtitle language for the next media item playback.
+     *
+     * @return Returns the preferred subtitle language.
+     */
+    SubtitleLanguage preferredSubtitleLanguage();
 
     /**
      * Update the preferred subtitle for the media playback.

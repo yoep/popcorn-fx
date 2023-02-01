@@ -14,7 +14,7 @@ mod media_c;
 mod subtitle_c;
 
 /// Convert the given [String] into a C compatible string.
-pub fn to_c_string(value: String) -> *const c_char {
+pub fn into_c_string(value: String) -> *const c_char {
     // DO NOT use [CString::into_raw] as Rust still cleans the original string which the pointer uses
     let c_string = CString::new(value.as_bytes()).unwrap();
     let ptr = c_string.as_ptr();
@@ -74,7 +74,7 @@ pub fn from_c_into_boxed<T>(ptr: *mut T) -> Box<T> {
 pub fn to_c_vec<T>(vec: Vec<T>) -> (*mut T, i32) {
     // check if the vec contains items
     // if not, we return a ptr::null as ABI can't handle empty arrays
-    if vec.len() > 0 {
+    if !vec.is_empty() {
         let mut boxed = vec.into_boxed_slice();
         let ptr = boxed.as_mut_ptr();
         let len = boxed.len() as i32;
@@ -189,7 +189,7 @@ mod test {
     fn test_c_string() {
         let value = "lorem".to_string();
 
-        let c = to_c_string(value.clone());
+        let c = into_c_string(value.clone());
         let result = from_c_string(c);
 
         assert_eq!(value, result)

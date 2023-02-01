@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
+use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
 use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
@@ -36,7 +36,7 @@ pub struct SubtitleInfoC {
 impl SubtitleInfoC {
     pub fn empty() -> Self {
         Self {
-            imdb_id: to_c_string(String::new()),
+            imdb_id: into_c_string(String::new()),
             language: SubtitleLanguage::None,
             files: ptr::null_mut(),
             len: 0,
@@ -54,8 +54,8 @@ impl SubtitleInfoC {
 
         Self {
             imdb_id: match info.imdb_id() {
-                None => to_c_string(String::new()),
-                Some(e) => to_c_string(e.clone())
+                None => into_c_string(String::new()),
+                Some(e) => into_c_string(e.clone())
             },
             language: info.language().clone(),
             files,
@@ -64,6 +64,7 @@ impl SubtitleInfoC {
     }
 
     pub fn to_subtitle(&self) -> SubtitleInfo {
+        trace!("Converting subtitle info from C for {:?}", self);
         let files = if !self.files.is_null() {
             from_c_vec(self.files, self.len).into_iter()
                 .map(|e| e.to_subtitle_file())
@@ -95,8 +96,8 @@ impl SubtitleFileC {
     fn from(file: SubtitleFile) -> Self {
         Self {
             file_id: *file.file_id(),
-            name: to_c_string(file.name().clone()),
-            url: to_c_string(file.url().clone()),
+            name: into_c_string(file.name().clone()),
+            url: into_c_string(file.url().clone()),
             score: *file.score(),
             downloads: *file.downloads(),
             quality: match file.quality() {
@@ -107,6 +108,7 @@ impl SubtitleFileC {
     }
 
     fn to_subtitle_file(self) -> SubtitleFile {
+        trace!("Converting subtitle file from C for {:?}", self);
         let quality = if self.quality.is_null() {
             None
         } else {
@@ -167,11 +169,11 @@ impl SubtitleMatcherC {
         Self {
             name: match matcher.name() {
                 None => ptr::null(),
-                Some(e) => to_c_string(e.clone())
+                Some(e) => into_c_string(e.clone())
             },
             quality: match matcher.quality() {
                 None => ptr::null(),
-                Some(e) => to_c_string(e.to_string())
+                Some(e) => into_c_string(e.to_string())
             },
         }
     }
@@ -210,7 +212,7 @@ impl SubtitleC {
             .collect());
 
         Self {
-            file: to_c_string(subtitle.file().clone()),
+            file: into_c_string(subtitle.file().clone()),
             info: SubtitleInfoC::from(subtitle.info()
                 .map(|e| e.clone())
                 .or_else(|| Some(SubtitleInfo::none()))
@@ -252,7 +254,7 @@ impl SubtitleCueC {
             .collect());
 
         Self {
-            id: to_c_string(cue.id().clone()),
+            id: into_c_string(cue.id().clone()),
             start_time: cue.start_time().clone(),
             end_time: cue.end_time().clone(),
             lines,
@@ -317,7 +319,7 @@ pub struct StyledTextC {
 impl StyledTextC {
     pub fn from(text: &StyledText) -> Self {
         Self {
-            text: to_c_string(text.text().clone()),
+            text: into_c_string(text.text().clone()),
             italic: text.italic().clone(),
             bold: text.bold().clone(),
             underline: text.underline().clone(),

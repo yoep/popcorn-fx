@@ -39,10 +39,12 @@ pub trait SubtitleProvider {
     async fn download_and_parse(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<Subtitle>;
 
     /// Parse the given file path to a subtitle struct.
+    ///
     /// It returns a [SubtitleError] when the path doesn't exist of the file failed to be parsed.
     fn parse(&self, file_path: &Path) -> subtitles::Result<Subtitle>;
 
     /// Select one of the available subtitles.
+    ///
     /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
     fn select_or_default(&self, subtitles: &Vec<SubtitleInfo>) -> SubtitleInfo;
 

@@ -202,6 +202,16 @@ struct MediaSetC {
   int32_t shows_len;
 };
 
+/// The subtitle matcher C compatible struct.
+/// It contains the information which should be matched when selecting a subtitle file to load.
+struct SubtitleMatcherC {
+  /// The nullable name of the media item.
+  const char *name;
+  /// The nullable quality of the media item.
+  /// This can be represented as `720p` or `720`.
+  const char *quality;
+};
+
 struct StyledTextC {
   const char *text;
   bool italic;
@@ -227,16 +237,6 @@ struct SubtitleC {
   SubtitleInfoC info;
   SubtitleCueC *cues;
   int32_t number_of_cues;
-};
-
-/// The subtitle matcher C compatible struct.
-/// It contains the information which should be matched when selecting a subtitle file to load.
-struct SubtitleMatcherC {
-  /// The nullable name of the media item.
-  const char *name;
-  /// The nullable quality of the media item.
-  /// This can be represented as `720p` or `720`.
-  const char *quality;
 };
 
 struct PlatformInfoC {
@@ -333,6 +333,11 @@ void dispose_media_items(Box<MediaSetC> media);
 
 /// Delete the PopcornFX instance in a safe way.
 void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);
+
+/// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
+///
+/// It returns the filepath to the subtitle on success, else [ptr::null_mut].
+const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
 /// Download and parse the given subtitle info.
 ///
@@ -443,6 +448,11 @@ MovieDetailsC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id
 ///
 /// It returns the [SubtitleInfoC] when present, else [ptr::null_mut].
 SubtitleInfoC *retrieve_preferred_subtitle(PopcornFX *popcorn_fx);
+
+/// Retrieve the preferred subtitle language for the next [Media] item playback.
+///
+/// It returns the preferred subtitle language.
+SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFX *popcorn_fx);
 
 /// Retrieve the details of a show based on the given IMDB ID.
 /// The details contain all information about the show such as episodes and descriptions.

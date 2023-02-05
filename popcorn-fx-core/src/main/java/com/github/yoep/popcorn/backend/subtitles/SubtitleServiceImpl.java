@@ -56,7 +56,9 @@ public class SubtitleServiceImpl implements SubtitleService {
     public void setActiveSubtitle(Subtitle activeSubtitle) {
         this.activeSubtitle.set(activeSubtitle);
 
-        updateSubtitle(activeSubtitle.getSubtitleInfo().orElse(null));
+        updateSubtitle(Optional.ofNullable(activeSubtitle)
+                .flatMap(Subtitle::getSubtitleInfo)
+                .orElse(null));
     }
 
     //endregion

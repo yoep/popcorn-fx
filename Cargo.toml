@@ -5,4 +5,5 @@ members = [
     "popcorn-fx-core",
     "popcorn-fx-platform",
     "popcorn-fx-opensubtitles",
+    "popcorn-fx-torrent-stream",
 ]

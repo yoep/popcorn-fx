@@ -25,10 +25,9 @@ import com.sun.jna.Native;
  * Use the {@link FxLib#INSTANCE} to communicate with the loaded library.
  * <p>
  * <i>Example:</i>
- * <p>
- * <code>
+ * <pre><code>
  * var subtitles = FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), movie);
- * </code>
+ * </code></pre>
  */
 public interface FxLib extends Library {
     FxLib INSTANCE = Native.load("popcorn_fx", FxLib.class);

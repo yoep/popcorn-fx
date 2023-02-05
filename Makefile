@@ -46,7 +46,11 @@ test-cargo: prerequisites ## The test cargo section of the application
 	$(info Running cargo tests)
 	@cargo llvm-cov --lcov --output-path target/lcov.info nextest
 
-test-java: prerequisites
+test-cargo-cov: prerequisites
+	$(info Running cargo tests)
+	@cargo llvm-cov nextest
+
+test-java: prerequisites ## The test java section of the application
 	$(info Running maven tests)
 	@mvn -B clean verify -P$(PROFILE)
 

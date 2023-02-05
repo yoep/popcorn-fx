@@ -262,7 +262,6 @@ mod test {
         let server = SubtitleServer::new(&arc);
 
         wait_for_server(&server);
-        info!("Subtitle server has state {:?}", server.state());
         let serving_url = server.serve(subtitle, SubtitleType::Vtt)
             .expect("expected the subtitle to be served");
 
@@ -300,7 +299,6 @@ mod test {
         let server = SubtitleServer::new(&arc);
 
         wait_for_server(&server);
-        info!("Subtitle server has state {:?}", server.state());
         let serving_url = server.build_url(filename).unwrap();
 
         let status_code = runtime.block_on(async move {

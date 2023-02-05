@@ -1,6 +1,6 @@
 [package]
 name = "popcorn-fx"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.62"
 publish = false
@@ -10,12 +10,11 @@ description = "The main Popcorn FX"
 [lib]
 crate-type = ["cdylib"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 popcorn-fx-platform = { path = "../popcorn-fx-platform" }
 popcorn-fx-opensubtitles = { path = "../popcorn-fx-opensubtitles" }
+popcorn-fx-torrent-stream = { path = "../popcorn-fx-torrent-stream" }
 
 async-trait = "0.1"
 futures = { version = "0.3" }

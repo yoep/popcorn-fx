@@ -734,17 +734,20 @@ mod test {
 
     #[test]
     fn test_update_subtitle() {
+        let language = SubtitleLanguage::Finnish;
         let subtitle = SubtitleInfo::new(
             "tt212121".to_string(),
-            SubtitleLanguage::Finnish
+            language.clone()
         );
         let info_c = SubtitleInfoC::from(subtitle.clone());
         let mut instance = from_c_owned(new_popcorn_fx());
 
         update_subtitle(&mut instance, &info_c);
-        let result = from_c_owned(retrieve_preferred_subtitle(&mut instance)).to_subtitle();
+        let info_result = from_c_owned(retrieve_preferred_subtitle(&mut instance)).to_subtitle();
+        let language_result = retrieve_preferred_subtitle_language(&mut instance);
 
-        assert_eq!(subtitle, result)
+        assert_eq!(subtitle, info_result);
+        assert_eq!(language, language_result)
     }
 
     #[test]

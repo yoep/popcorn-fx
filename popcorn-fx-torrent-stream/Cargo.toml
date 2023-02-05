@@ -1,5 +1,5 @@
 [package]
-name = "popcorn-fx-core"
+name = "popcorn-fx-torrent-stream"
 version = "0.5.0"
 edition = "2021"
 rust-version = "1.62"
@@ -13,38 +13,25 @@ proc-macro = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1"
+popcorn-fx-core = { path = "../popcorn-fx-core" }
+
 bytes = "1"
-chrono = "0.4"
-derive_more = "0.99"
-downcast-rs = "1.2"
+derive_more = "0"
 futures = "0.3"
-home = "0.5"
-html-escape = "0.2"
-itertools = "0.10"
+http-range = "0.1"
+hyper = { version = "0.14", features = ["stream"] }
 local-ip-address = "0.5"
-log = "0.4"
-log4rs = { version = "1", features = ["console_writer"], optional = true }
-mockall = "0.11"
+log = "0"
 percent-encoding = "2"
-regex = "1.6"
-reqwest = { version = "0.11", features = ["serde_json", "json"] }
-serde = "1.0"
-serde_json = "1.0"
-serde_yaml = "0.9"
 thiserror = "1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
 tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["io"] }
 url = "2"
 warp = "0.3"
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-mockall = "0.11"
-httpmock = "0.6"
 tempfile = "3"
-tokio = { version = "1", features = ["test-util", "macros"] }
-
-[features]
-testing = ["dep:log4rs"]
+reqwest = "0.11"

@@ -28,6 +28,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
     @Override
     public TorrentStream startStream(Torrent torrent) {
         Assert.notNull(torrent, "torrent cannot be null");
+        log.trace("Starting a new stream for torrent file {}", torrent.getFile());
         var filename = getFilename(torrent);
         var url = UriComponentsBuilder.newInstance()
                 .scheme("http")
@@ -38,7 +39,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
                 .toString();
         var torrentStream = new TorrentStreamImpl(torrent, url);
 
-        log.debug("Starting stream for torrent {}", filename);
+        log.debug("Starting stream for torrent {} at {}", filename, url);
         streamCache.put(filename, torrentStream);
 
         return torrentStream;

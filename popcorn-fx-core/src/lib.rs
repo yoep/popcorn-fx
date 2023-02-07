@@ -8,7 +8,6 @@ pub use crate::media_c::*;
 pub use crate::subtitle_c::*;
 
 pub mod core;
-pub mod observer;
 
 mod media_c;
 mod subtitle_c;

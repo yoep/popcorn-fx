@@ -11,4 +11,6 @@ pub enum TorrentError {
     InvalidUrl(String),
     #[error("Torrent file {0} cannot be found")]
     FileNotFound(String),
+    #[error("Torrent file encountered an error, {0}")]
+    FileError(String)
 }

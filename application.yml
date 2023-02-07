@@ -15,3 +15,4 @@ logging:
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
     org.springframework: INFO
+    com.github.yoep.torrent.stream.services: DEBUG

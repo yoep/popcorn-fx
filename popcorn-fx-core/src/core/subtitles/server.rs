@@ -107,7 +107,8 @@ impl SubtitleServer {
                         let subtitles = subtitles.lock().await;
                         Self::handle_subtitle_request(subtitles, subtitle)
                     }
-                });
+                })
+                .with(warp::cors().allow_any_origin());
             let socket = socket.clone();
 
             trace!("Starting subtitle server on {}:{}", socket.ip(), socket.port());

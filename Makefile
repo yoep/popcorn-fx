@@ -46,7 +46,7 @@ test-cargo: prerequisites ## The test cargo section of the application
 	$(info Running cargo tests)
 	@cargo llvm-cov --lcov --output-path target/lcov.info nextest
 
-test-cargo-cov: prerequisites
+cov-cargo: prerequisites ## Test coverage of the cargo section as std output
 	$(info Running cargo tests)
 	@cargo llvm-cov nextest
 

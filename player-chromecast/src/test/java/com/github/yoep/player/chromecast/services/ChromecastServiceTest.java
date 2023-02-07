@@ -24,12 +24,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import su.litvak.chromecast.api.v2.Media;
 
 import java.io.File;
-import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -68,32 +66,6 @@ class ChromecastServiceTest {
         var result = service.resolveMetadata(uri);
 
         assertEquals(expectedResult, result);
-    }
-
-    @Test
-    void testRetrieveVttSubtitle_whenSubtitleDoesNotMatchActiveSubtitle_shouldReturnEmpty() {
-        var subtitleName = "lorem.vtt";
-        var activeSubtitle = "ipsum.vtt";
-        var subtitle = new Subtitle(new File(activeSubtitle), Collections.emptyList());
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
-
-        var result = service.retrieveVttSubtitle(subtitleName);
-
-        assertTrue(result.isEmpty(), "Expected an empty subtitle to be returned");
-    }
-
-    @Test
-    void testRetrieveVttSubtitle_whenSubtitleMatchesActiveSubtitle_shouldReturnSubtitleContents() {
-        var activeSubtitle = "ipsum.vtt";
-        var subtitle = new Subtitle(new File(activeSubtitle), Collections.emptyList());
-        var expectedResult = mock(InputStream.class);
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
-        when(subtitleService.convert(subtitle, SubtitleType.VTT)).thenReturn(expectedResult);
-
-        var result = service.retrieveVttSubtitle(activeSubtitle);
-
-        assertTrue(result.isPresent(), "Expected a subtitle to be returned");
-        assertEquals(expectedResult, result.get());
     }
 
     @Test

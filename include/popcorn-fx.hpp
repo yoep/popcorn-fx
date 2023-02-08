@@ -478,6 +478,9 @@ SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleI
 /// It returns the url which hosts the [Subtitle].
 const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
 
+/// Start a torrent stream for the given torrent.
+TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentC *torrent);
+
 /// Convert the given subtitle back to it's raw output type.
 ///
 /// It returns the [String] output of the subtitle for the given output type.

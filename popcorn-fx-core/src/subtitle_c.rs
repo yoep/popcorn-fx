@@ -169,7 +169,7 @@ impl SubtitleMatcherC {
         Self {
             name: match matcher.name() {
                 None => ptr::null(),
-                Some(e) => into_c_string(e.clone())
+                Some(e) => into_c_string(e.to_string())
             },
             quality: match matcher.quality() {
                 None => ptr::null(),

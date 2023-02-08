@@ -20,7 +20,7 @@ async-trait = "0.1"
 futures = { version = "0.3" }
 itertools = "0.10"
 log = "0.4"
-log4rs = {version = "1", features = ["console_writer"] }
+log4rs = { version = "1", features = ["console_writer"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [build-dependencies]

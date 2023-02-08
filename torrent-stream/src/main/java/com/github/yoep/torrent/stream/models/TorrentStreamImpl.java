@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import lombok.EqualsAndHashCode;
@@ -27,12 +28,12 @@ import java.util.Optional;
 
 @Slf4j
 @ToString(exclude = {"torrentListener", "listeners", "preparePieces"})
-@EqualsAndHashCode(exclude = {"torrentListener", "listeners", "preparePieces"})
+@EqualsAndHashCode(exclude = {"torrentListener", "listeners", "preparePieces"}, callSuper = false)
 public class TorrentStreamImpl implements TorrentStream {
     public static final String STATE_PROPERTY = "streamState";
 
     private final Torrent torrent;
-    private final String streamUrl;
+    private final TorrentStreamWrapper wrapper;
 
     private final ReadOnlyObjectWrapper<TorrentStreamState> streamState = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, TorrentStreamState.PREPARING);
     private final TorrentListener torrentListener = createTorrentListener();
@@ -41,11 +42,11 @@ public class TorrentStreamImpl implements TorrentStream {
 
     //region Constructors
 
-    public TorrentStreamImpl(Torrent torrent, String streamUrl) {
+    public TorrentStreamImpl(TorrentStreamWrapper wrapper, Torrent torrent) {
+        Assert.notNull(wrapper, "wrapper cannot be null");
         Assert.notNull(torrent, "torrent cannot be null");
-        Assert.hasText(streamUrl, "streamUrl cannot be null");
+        this.wrapper = wrapper;
         this.torrent = torrent;
-        this.streamUrl = streamUrl;
         this.preparePieces = determinePreparationPieces();
         initialize();
     }
@@ -160,7 +161,7 @@ public class TorrentStreamImpl implements TorrentStream {
 
     @Override
     public String getStreamUrl() {
-        return streamUrl;
+        return wrapper.getUrl();
     }
 
     @Override
@@ -257,7 +258,7 @@ public class TorrentStreamImpl implements TorrentStream {
 
         if (piecesToPrepare.length == 0 || piecesToPrepare.length == 1 && piecesToPrepare[0] == 0) {
             throw new FailedToPrepareTorrentStreamException(MessageFormat.format("Failed to prepare stream {0}, pieces to prepare couldn't be determined",
-                    streamUrl));
+                    wrapper.getUrl()));
         }
 
         return piecesToPrepare;

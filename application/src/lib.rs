@@ -13,7 +13,10 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
+use popcorn_fx_core::core::torrent::Torrent;
 use popcorn_fx_platform::PlatformInfoC;
+use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC};
+use popcorn_fx_torrent_stream::torrent::TorrentWrapper;
 
 use crate::arrays::StringArray;
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
@@ -692,6 +695,24 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
     popcorn_fx.watched_service().register(wrapper)
 }
 
+/// Start a torrent stream for the given torrent.
+#[no_mangle]
+pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &TorrentC) -> *mut TorrentStreamC {
+    trace!("Wrapping TorrentC into TorrentWrapper");
+    let wrapper = TorrentWrapper::from(torrent.clone());
+
+    match popcorn_fx.torrent_stream_server().start_stream(Box::new(wrapper) as Box<dyn Torrent>) {
+        Ok(e) => {
+            info!("Started new stream {}", e);
+            into_c_owned(TorrentStreamC::from(e))
+        }
+        Err(e) => {
+            error!("Failed to start stream, {}", e);
+            ptr::null_mut()
+        }
+    }
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -737,7 +758,7 @@ mod test {
         let language = SubtitleLanguage::Finnish;
         let subtitle = SubtitleInfo::new(
             "tt212121".to_string(),
-            language.clone()
+            language.clone(),
         );
         let info_c = SubtitleInfoC::from(subtitle.clone());
         let mut instance = from_c_owned(new_popcorn_fx());

@@ -6,9 +6,8 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::media;
+use crate::core::{CoreCallbacks, media};
 use crate::core::media::{MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
-use crate::core::media::callbacks::MediaCallbacks;
 use crate::core::media::favorites::model::Favorites;
 use crate::core::storage::{Storage, StorageError};
 
@@ -70,7 +69,7 @@ pub trait FavoriteService: Debug + Send + Sync {
 pub struct DefaultFavoriteService {
     storage: Arc<Storage>,
     cache: Arc<Mutex<Option<Favorites>>>,
-    callbacks: MediaCallbacks<FavoriteEvent>,
+    callbacks: CoreCallbacks<FavoriteEvent>,
 }
 
 impl DefaultFavoriteService {
@@ -78,7 +77,7 @@ impl DefaultFavoriteService {
         Self {
             storage: storage.clone(),
             cache: Arc::new(Mutex::new(None)),
-            callbacks: MediaCallbacks::default(),
+            callbacks: CoreCallbacks::default(),
         }
     }
 

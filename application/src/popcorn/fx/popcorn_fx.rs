@@ -14,8 +14,10 @@ use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, 
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
+use popcorn_fx_core::core::torrent::TorrentStreamServer;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
+use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 
 static INIT: Once = Once::new();
 
@@ -33,6 +35,7 @@ pub struct PopcornFX {
     platform_service: Box<dyn PlatformService>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
+    torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
     providers: ProviderManager,
     storage: Arc<Storage>,
 }
@@ -50,6 +53,7 @@ impl PopcornFX {
         let favorites_service: Arc<Box<dyn FavoriteService>> = Arc::new(Box::new(DefaultFavoriteService::new(&storage)));
         let watched_service: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(DefaultWatchedService::new(&storage)));
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
+        let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
 
         Self {
             settings,
@@ -59,6 +63,7 @@ impl PopcornFX {
             platform_service,
             favorites_service,
             watched_service,
+            torrent_stream_server,
             providers,
             storage,
         }
@@ -97,6 +102,11 @@ impl PopcornFX {
     /// The watched service of [PopcornFX] which handles all watched items and actions.
     pub fn watched_service(&mut self) -> &Arc<Box<dyn WatchedService>> {
         &self.watched_service
+    }
+
+    /// The torrent stream server which handles the video streams.
+    pub fn torrent_stream_server(&mut self) -> &Arc<Box<dyn TorrentStreamServer>> {
+        &self.torrent_stream_server
     }
 
     /// Dispose the FX instance.
@@ -150,13 +160,21 @@ impl PopcornFX {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+
     use super::*;
 
     #[test]
     fn test_popcorn_fx_new() {
         let mut popcorn_fx = PopcornFX::new();
-        let service = popcorn_fx.platform_service();
 
-        let _ = service.platform_info();
+        let _ = popcorn_fx.platform_service().platform_info();
+        let _ = popcorn_fx.subtitle_server();
+
+        let preferred_language = popcorn_fx.subtitle_manager().preferred_language();
+        let preferred_subtitle = popcorn_fx.subtitle_manager().preferred_subtitle();
+
+        assert_eq!(SubtitleLanguage::None, preferred_language);
+        assert_eq!(None, preferred_subtitle);
     }
 }

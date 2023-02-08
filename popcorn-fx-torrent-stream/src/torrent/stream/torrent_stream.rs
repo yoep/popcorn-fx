@@ -5,7 +5,7 @@ use std::future::Future;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -20,9 +20,11 @@ use popcorn_fx_core::core::torrent;
 use popcorn_fx_core::core::torrent::{MockTorrent, StreamBytesResult, Torrent, TorrentError, TorrentStream, TorrentStreamingResource, TorrentStreamingResourceWrapper};
 
 /// The default buffer size used while streaming in bytes
-const BUFFER_SIZE: usize = 64;
+const BUFFER_SIZE: usize = 10000;
+const BUFFER_AVAILABILITY_CHECK: usize = 100;
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "url: {}", url)]
 pub struct DefaultTorrentStream {
     /// The backing torrent of this stream.
     torrent: Arc<Box<dyn Torrent>>,
@@ -44,12 +46,12 @@ impl Torrent for DefaultTorrentStream {
         self.torrent.file()
     }
 
-    fn has_byte(&self, byte: u64) -> bool {
-        self.torrent.has_byte(byte)
+    fn has_bytes(&self, bytes: &[u64]) -> bool {
+        self.torrent.has_bytes(bytes)
     }
 
-    fn prioritize_byte(&self, byte: u64) {
-        self.torrent.prioritize_byte(byte)
+    fn prioritize_bytes(&self, bytes: &[u64]) {
+        self.torrent.prioritize_bytes(bytes)
     }
 }
 
@@ -63,8 +65,8 @@ impl TorrentStream for DefaultTorrentStream {
             .map(|e| TorrentStreamingResourceWrapper::new(e))
     }
 
-    fn stream_offset(&self, offset: u64, len: u64) -> torrent::Result<TorrentStreamingResourceWrapper> {
-        DefaultTorrentStreamingResource::new_offset(&self.torrent, offset, Some(len))
+    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrent::Result<TorrentStreamingResourceWrapper> {
+        DefaultTorrentStreamingResource::new_offset(&self.torrent, offset, len)
             .map(|e| TorrentStreamingResourceWrapper::new(e))
     }
 }
@@ -108,15 +110,15 @@ impl DefaultTorrentStreamingResource {
                 .open(&filepath)
                 .map(|mut file| {
                     let resource_length = Self::file_bytes(&mut file).expect("expected a file length");
-                    let stream_length = match len {
+                    let mut stream_length = match len {
                         None => resource_length,
                         Some(e) => e
                     };
-                    let mut stream_end = offset + stream_length;
+                    let stream_end = offset + stream_length;
 
                     if stream_end > resource_length {
                         warn!("Requested stream range ({}-{}) is larger than {} resource length", &offset, &stream_end, &resource_length);
-                        stream_end = resource_length - offset;
+                        stream_length = resource_length - offset;
                     }
 
                     Self {
@@ -130,6 +132,7 @@ impl DefaultTorrentStreamingResource {
                     }
                 })
                 .map_err(|e| {
+                    warn!("Failed to open torrent file {:?}, {}", &filepath, e);
                     let file = filepath;
                     let filepath = file.as_path().to_str().expect("expected a valid path");
                     TorrentError::FileNotFound(filepath.to_string())
@@ -141,20 +144,26 @@ impl DefaultTorrentStreamingResource {
     fn wait_for(&self, cx: &mut Context) -> Poll<Option<StreamBytesResult>> {
         let torrent = self.torrent.clone();
         let waker = cx.waker().clone();
-        let stream_info = self.to_string();
         let buffer = self.next_buffer();
+        let buffer_length = (buffer.end - buffer.start) as usize;
+        let mut bytes: Vec<u64> = vec![0; buffer_length];
 
-        for byte in buffer.start..buffer.end {
-            torrent.prioritize_byte(byte);
+        for i in 0..buffer_length {
+            bytes[i] = i as u64 + buffer.start;
         }
+        torrent.prioritize_bytes(&bytes[..]);
 
         tokio::spawn(async move {
+            let log = Once::new();
+
             while !Self::is_buffer_available_(&torrent, &buffer) {
-                trace!("Waiting for buffer {{{}-{}}} to be available", &buffer.start, &buffer.end);
+                log.call_once(|| {
+                    debug!("Waiting for buffer {{{}-{}}} to be available", &buffer.start, &buffer.end);
+                });
                 thread::sleep(Duration::from_millis(10))
             }
 
-            trace!("Awakening torrent stream {{{}}}", stream_info);
+            debug!("Buffer {{{}-{}}} became available", &buffer.start, &buffer.end);
             waker.wake();
         });
 
@@ -164,9 +173,8 @@ impl DefaultTorrentStreamingResource {
     /// Read the data of the stream at the current cursor.
     fn read_data(&mut self) -> Option<StreamBytesResult> {
         let buffer_size = self.calculate_buffer_size();
-        let mut reader = &mut self.file;
+        let reader = &mut self.file;
         let cursor = self.cursor.clone();
-        let current_pos = reader.stream_position().unwrap();
         let mut buffer = vec![0; buffer_size];
 
         match reader.seek(SeekFrom::Start(cursor)) {
@@ -247,13 +255,16 @@ impl DefaultTorrentStreamingResource {
     }
 
     fn is_buffer_available_(torrent: &Arc<Box<dyn Torrent>>, buffer: &Buffer) -> bool {
-        for byte in buffer.start..buffer.end {
-            if !torrent.has_byte(byte) {
-                return false;
-            }
+        let buffer_length = (buffer.end - buffer.start) as usize;
+        let total_bytes_to_check = buffer_length / BUFFER_AVAILABILITY_CHECK;
+        let mut bytes: Vec<u64> = vec![0; total_bytes_to_check];
+
+        for i in 0..total_bytes_to_check {
+            let byte_check = (i * BUFFER_AVAILABILITY_CHECK) as u64;
+            bytes[i] = byte_check + buffer.start;
         }
 
-        true
+        torrent.has_bytes(&bytes[..])
     }
 }
 
@@ -271,7 +282,11 @@ impl TorrentStreamingResource for DefaultTorrentStreamingResource {
     }
 
     fn content_range(&self) -> String {
-        let range_end = self.offset() + self.content_length() - 1;
+        let range_end = if self.content_length() == 0 {
+            self.offset()
+        } else {
+            self.offset() + self.content_length() - 1
+        };
         let range = format!("bytes {}-{}/{}", self.offset(), range_end, self.total_length());
 
         trace!("Stream {{{}}} has the following range {{{}}}", self, &range);
@@ -322,7 +337,7 @@ mod test {
         let url = Url::parse("http://localhost").unwrap();
         mock.expect_file()
             .returning(move || temp_path.clone());
-        mock.expect_has_byte()
+        mock.expect_has_bytes()
             .return_const(true);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock));
@@ -340,15 +355,14 @@ mod test {
         let filename = "range.txt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let mut a = Some(true);
         let mut mock = MockTorrent::new();
         mock.expect_file()
             .returning(move || temp_path.clone());
-        mock.expect_has_byte()
+        mock.expect_has_bytes()
             .return_const(true);
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
-        let mut stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
+        let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
         let expected_result = "bytes 0-1027/1028";
 
         let result = stream.content_range();
@@ -362,11 +376,10 @@ mod test {
         let filename = "simple.txt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let a = Some(true);
         let mut mock = MockTorrent::new();
         mock.expect_file()
             .returning(move || temp_path.clone());
-        mock.expect_has_byte()
+        mock.expect_has_bytes()
             .return_const(true);
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
@@ -384,15 +397,14 @@ mod test {
     fn test_poll_mismatching_buffer_size() {
         init_logger();
         let filename = "mismatch.txt";
-        let runtime = runtime::Runtime::new().unwrap();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
         let mut a = Some(true);
         let mut mock = MockTorrent::new();
         mock.expect_file()
             .returning(move || temp_path.clone());
-        mock.expect_has_byte()
-            .returning(move |e| {
+        mock.expect_has_bytes()
+            .returning(move |_| {
                 if a.is_some() {
                     a.take();
                     return false;
@@ -400,8 +412,8 @@ mod test {
 
                 true
             });
-        mock.expect_prioritize_byte()
-            .times(30)
+        mock.expect_prioritize_bytes()
+            .times(1)
             .return_const(());
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
@@ -419,15 +431,14 @@ mod test {
     fn test_poll_next_byte_not_present() {
         init_logger();
         let filename = "simple.txt";
-        let runtime = runtime::Runtime::new().unwrap();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
         let mut a = Some(true);
         let mut mock = MockTorrent::new();
         mock.expect_file()
             .returning(move || temp_path.clone());
-        mock.expect_has_byte()
-            .returning(move |e| {
+        mock.expect_has_bytes()
+            .returning(move |_| {
                 if a.is_some() {
                     a.take();
                     return false;
@@ -435,7 +446,7 @@ mod test {
 
                 true
             });
-        mock.expect_prioritize_byte()
+        mock.expect_prioritize_bytes()
             .return_const(());
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);

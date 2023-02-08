@@ -33,7 +33,7 @@ pub trait TorrentStream: Torrent {
     /// require the [Stream] to have a known size.
     ///
     /// It returns the stream of the torrent bytes, else the [torrent::TorrentError] that occurred.
-    fn stream_offset(&self, offset: u64, len: u64) -> torrent::Result<TorrentStreamingResourceWrapper>;
+    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrent::Result<TorrentStreamingResourceWrapper>;
 }
 
 /// The streaming resource of a [TorrentStream].

@@ -4,7 +4,7 @@ logging:
     com.github.yoep.popcorn.backend.media.favorites: INFO
     com.github.yoep.popcorn.backend.media.providers: INFO
     com.github.yoep.popcorn.backend.media.watched: INFO
-    com.github.yoep.popcorn.backend.subtitles: TRACE
+    com.github.yoep.popcorn.backend.subtitles: DEBUG
     com.github.yoep.popcorn.media: INFO
     com.github.yoep.popcorn.ui: INFO
     com.github.yoep.popcorn.view: INFO
@@ -15,4 +15,4 @@ logging:
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
     org.springframework: INFO
-    com.github.yoep.torrent.stream.services: DEBUG
+    com.github.yoep.torrent.stream.services: TRACE

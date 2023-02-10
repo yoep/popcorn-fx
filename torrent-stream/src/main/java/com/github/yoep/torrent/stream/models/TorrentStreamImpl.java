@@ -3,7 +3,6 @@ package com.github.yoep.torrent.stream.models;
 import com.github.yoep.popcorn.backend.adapters.torrent.FailedToPrepareTorrentStreamException;
 import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentStreamStateException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
-import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
@@ -22,13 +21,12 @@ import org.springframework.util.Assert;
 import java.io.File;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 @Slf4j
-@ToString(exclude = {"torrentListener", "listeners", "preparePieces"})
-@EqualsAndHashCode(exclude = {"torrentListener", "listeners", "preparePieces"}, callSuper = false)
+@ToString(exclude = {"listeners"})
+@EqualsAndHashCode(exclude = {"listeners"}, callSuper = false)
 public class TorrentStreamImpl implements TorrentStream {
     public static final String STATE_PROPERTY = "streamState";
 
@@ -36,9 +34,7 @@ public class TorrentStreamImpl implements TorrentStream {
     private final TorrentStreamWrapper wrapper;
 
     private final ReadOnlyObjectWrapper<TorrentStreamState> streamState = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, TorrentStreamState.PREPARING);
-    private final TorrentListener torrentListener = createTorrentListener();
     private final List<TorrentStreamListener> listeners = new ArrayList<>();
-    private final Integer[] preparePieces;
 
     //region Constructors
 
@@ -47,7 +43,6 @@ public class TorrentStreamImpl implements TorrentStream {
         Assert.notNull(torrent, "torrent cannot be null");
         this.wrapper = wrapper;
         this.torrent = torrent;
-        this.preparePieces = determinePreparationPieces();
         initialize();
     }
 
@@ -96,7 +91,7 @@ public class TorrentStreamImpl implements TorrentStream {
     }
 
     @Override
-    public void prioritizePieces(Integer... pieceIndexes) {
+    public void prioritizePieces(int... pieceIndexes) {
         torrent.prioritizePieces(pieceIndexes);
     }
 
@@ -199,8 +194,6 @@ public class TorrentStreamImpl implements TorrentStream {
 
     private void initialize() {
         initializeStateListener();
-        initializeTorrent();
-        updatePiecePriorities();
     }
 
     private void initializeStateListener() {
@@ -215,23 +208,12 @@ public class TorrentStreamImpl implements TorrentStream {
         });
     }
 
-    private void initializeTorrent() {
-        torrent.addListener(torrentListener);
-    }
-
     private void safeInvoke(Runnable runnable) {
         try {
             runnable.run();
         } catch (Exception ex) {
             log.error("An error occurred while invoking a listener, " + ex.getMessage(), ex);
         }
-    }
-
-    private void updatePiecePriorities() {
-        log.debug("Prioritizing {} preparation pieces", preparePieces.length);
-        log.trace("Preparing the following pieces {} for torrent stream \"{}\"", preparePieces, getFilename());
-        // update the torrent file priorities to prepare the first 5 pieces and the last piece
-        prioritizePieces(preparePieces);
     }
 
     private Integer[] determinePreparationPieces() {
@@ -273,55 +255,6 @@ public class TorrentStreamImpl implements TorrentStream {
         }
 
         return isValid;
-    }
-
-    private void onPieceFinished() {
-        verifyPrepareState();
-    }
-
-    private void onTorrentStateChanged() {
-        verifyPrepareState();
-    }
-
-    private void verifyPrepareState() {
-        // check if the torrent is already streaming or stopped
-        // if so, ignore this piece finished event
-        if (getStreamState() != TorrentStreamState.PREPARING)
-            return;
-
-        // verify if all prepare pieces are present
-        var preparationCompleted = Arrays.stream(preparePieces)
-                .allMatch(this::hasPiece);
-
-        if (preparationCompleted) {
-            updateStateToStreaming();
-        }
-    }
-
-    private void updateStateToStreaming() {
-        // verify if the torrent stream isn't already streaming
-        // if so, ignore this action
-        if (getStreamState() == TorrentStreamState.STREAMING)
-            return;
-
-        log.info("Torrent stream \"{}\" is ready to be streamed", getFilename());
-        streamState.set(TorrentStreamState.STREAMING);
-        // update the torrent download to sequential mode
-        sequentialMode();
-    }
-
-    private TorrentListener createTorrentListener() {
-        return new AbstractTorrentListener() {
-            @Override
-            public void onStateChanged(TorrentState oldState, TorrentState newState) {
-                TorrentStreamImpl.this.onTorrentStateChanged();
-            }
-
-            @Override
-            public void onPieceFinished(int pieceIndex) {
-                TorrentStreamImpl.this.onPieceFinished();
-            }
-        };
     }
 
     //endregion

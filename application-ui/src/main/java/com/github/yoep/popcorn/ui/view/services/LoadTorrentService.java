@@ -242,11 +242,14 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     private CompletableFuture<Torrent> retrieveAndDownloadAvailableSubtitles(Torrent torrent) {
         var quality = (String) null;
 
+        if (event instanceof LoadMediaTorrentEvent mediaEvent) {
+            quality = mediaEvent.getQuality();
+        }
+
         if (subtitleService.preferredSubtitleLanguage() == SubtitleLanguage.NONE) {
             var availableSubtitles = Collections.<SubtitleInfo>emptyList();
 
             if (event instanceof LoadMediaTorrentEvent mediaEvent) {
-                quality = mediaEvent.getQuality();
                 availableSubtitles = retrieveAvailableMediaSubtitles(mediaEvent.getMedia(), mediaEvent.getSubItem().orElse(null));
             } else if (event instanceof LoadUrlTorrentEvent urlEvent) {
                 availableSubtitles = retrieveAvailableFilenameSubtitles(urlEvent.getTorrentFileInfo().getFilename());

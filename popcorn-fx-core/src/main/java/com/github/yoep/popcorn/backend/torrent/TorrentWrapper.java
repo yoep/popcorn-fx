@@ -1,7 +1,9 @@
 package com.github.yoep.popcorn.backend.torrent;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.sun.jna.Structure;
@@ -20,30 +22,33 @@ import java.util.Optional;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"filepath", "hasByteCallback"})
+@Structure.FieldOrder({"filepath", "hasByteCallback", "torrentTotalPiecesCallback", "prioritizePiecesCallback", "sequentialModeCallback"})
 public class TorrentWrapper extends Structure implements Torrent, Closeable {
+    public static class ByValue extends TorrentWrapper implements Structure.ByValue {
+        public ByValue(Torrent torrent) {
+            super(torrent);
+            this.wrapperPointer = FxLib.INSTANCE.torrent_wrapper(this);
+            log.trace("Created torrent wrapper pointer {}", this.wrapperPointer);
+        }
+    }
 
     public String filepath;
     public TorrentHasByteCallback hasByteCallback;
+    public TorrentTotalPiecesCallback torrentTotalPiecesCallback;
+    public PrioritizePiecesCallback prioritizePiecesCallback;
+    public SequentialModeCallback sequentialModeCallback;
 
     private final Torrent torrent;
+    TorrentWrapperPointer wrapperPointer;
 
     private TorrentWrapper(Torrent torrent) {
         this.torrent = torrent;
         this.filepath = torrent.getFile().getAbsolutePath();
-        this.hasByteCallback = (len, ptr) -> {
-            if (len == 0 || ptr == null)
-                return (byte) 1;
-
-            var bytes = ptr.getLongArray(0, len);
-            for (long byteIndex : bytes) {
-                if (!torrent.hasByte(byteIndex)) {
-                    return (byte) 0;
-                }
-            }
-
-            return (byte) 1;
-        };
+        this.hasByteCallback = createHasByteCallback();
+        this.torrentTotalPiecesCallback = torrent::getTotalPieces;
+        this.prioritizePiecesCallback = createPrioritizePiecesCallback();
+        this.sequentialModeCallback = this.torrent::sequentialMode;
+        initialize();
     }
 
     //region Torrent
@@ -89,7 +94,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
     }
 
     @Override
-    public void prioritizePieces(Integer... pieceIndexes) {
+    public void prioritizePieces(int... pieceIndexes) {
         torrent.prioritizePieces(pieceIndexes);
     }
 
@@ -136,13 +141,66 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
 
     //endregion
 
-    public static TorrentWrapper from(Torrent torrent) {
+    //region Methods
+
+    public static TorrentWrapper.ByValue from(Torrent torrent) {
         Objects.requireNonNull(torrent, "torrent cannot be null");
-        return new TorrentWrapper(torrent);
+        return new TorrentWrapper.ByValue(torrent);
     }
 
     @Override
     public void close() {
         setAutoSynch(false);
+    }
+
+    //endregion
+
+    private void initialize() {
+        this.torrent.addListener(new TorrentListener() {
+            @Override
+            public void onStateChanged(TorrentState oldState, TorrentState newState) {
+                FxLib.INSTANCE.torrent_state_changed(wrapperPointer, newState);
+            }
+
+            @Override
+            public void onError(TorrentException error) {
+
+            }
+
+            @Override
+            public void onDownloadStatus(DownloadStatus status) {
+
+            }
+
+            @Override
+            public void onPieceFinished(int pieceIndex) {
+                FxLib.INSTANCE.torrent_piece_finished(wrapperPointer, pieceIndex);
+            }
+        });
+    }
+
+    private TorrentHasByteCallback createHasByteCallback() {
+        return (len, ptr) -> {
+            if (len == 0 || ptr == null)
+                return (byte) 1;
+
+            var bytes = ptr.getLongArray(0, len);
+            for (long byteIndex : bytes) {
+                if (!torrent.hasByte(byteIndex)) {
+                    return (byte) 0;
+                }
+            }
+
+            return (byte) 1;
+        };
+    }
+
+    private PrioritizePiecesCallback createPrioritizePiecesCallback() {
+        return (len, ptr) -> {
+            if (len == 0 || ptr == null)
+                return;
+
+            torrent.prioritizePieces(ptr.getIntArray(0, len));
+        };
     }
 }

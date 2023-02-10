@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaSet;
@@ -17,9 +18,9 @@ import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.TorrentHasByteCallback;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
+import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 
@@ -111,7 +112,13 @@ public interface FxLib extends Library {
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
-    TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapper torrent, TorrentHasByteCallback callback);
+    TorrentWrapperPointer torrent_wrapper(TorrentWrapper.ByValue torrent);
+
+    void torrent_state_changed(TorrentWrapperPointer torrent, TorrentState state);
+
+    void torrent_piece_finished(TorrentWrapperPointer torrent, int piece);
+
+    TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapperPointer torrent);
 
     void dispose_media_item(MediaItem media);
 

@@ -9,16 +9,32 @@ use tokio::sync::Mutex;
 /// This is a generic type that can be reused within the [crate::core] package.
 pub type CoreCallback<E> = Box<dyn Fn(E) + Send>;
 
-/// The callbacks holder for media events.
+/// The callbacks holder for Popcorn FX events.
 /// It contains one or more [CoreCallback] items which can be invoked by one of the services.
 ///
-/// The generic type [E] should be an enum.
+/// # Example
+///
+/// ```rust,no_run
+/// use popcorn_fx_core::core::{CoreCallback, CoreCallbacks};
+///
+/// pub type CallbackExample = CoreCallback<CoreEvent>;
+/// pub enum CoreEvent {
+///     Change
+/// }
+///
+/// let callback: CallbackExample = Box::new(|e| println!("received {:?}", e));
+/// let callbacks = CoreCallbacks::<CoreEvent>::default();
+///
+/// callbacks.add(callback);
+/// callbacks.invoke(CoreEvent::Change);
+/// ```
 pub struct CoreCallbacks<E>
     where E: Display + Clone {
     callbacks: Arc<Mutex<Vec<CoreCallback<E>>>>,
 }
 
 impl<E: Display + Clone> CoreCallbacks<E> {
+    /// Add a new callback which will be triggered when an event has been received.
     pub fn add(&self, callback: CoreCallback<E>) {
         trace!("Registering new callback for event");
         let callbacks = self.callbacks.clone();
@@ -28,6 +44,8 @@ impl<E: Display + Clone> CoreCallbacks<E> {
         debug!("Added new callback for events, new total callbacks {}", mutex.len());
     }
 
+    /// Invoke all callbacks for the given `event`.
+    /// Each callback will receive it's own owned instance of the `event`.
     pub fn invoke(&self, event: E) {
         let callbacks = self.callbacks.clone();
         let execute = async move {

@@ -30,7 +30,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         Assert.notNull(torrent, "torrent cannot be null");
         log.trace("Starting a new stream for torrent file {}", torrent.getFile());
         var torrentWrapper = TorrentWrapper.from(torrent);
-        var wrapper = FxLib.INSTANCE.start_stream(PopcornFxInstance.INSTANCE.get(), torrentWrapper, torrentWrapper.getHasByteCallback());
+        var wrapper = FxLib.INSTANCE.start_stream(PopcornFxInstance.INSTANCE.get(), torrentWrapper.getWrapperPointer());
         var filename = getFilename(torrent);
         var torrentStream = new TorrentStreamImpl(wrapper, torrentWrapper);
 

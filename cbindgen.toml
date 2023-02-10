@@ -138,7 +138,7 @@ bitflags = false
 
 [parse]
 parse_deps = true
-include = ["popcorn-fx-core", "popcorn-fx-platform", "popcorn-fx-opensubtitles"]
+include = ["popcorn-fx-core", "popcorn-fx-platform", "popcorn-fx-opensubtitles", "popcorn-fx-torrent-stream"]
 exclude = []
 clean = true
 extra_bindings = []

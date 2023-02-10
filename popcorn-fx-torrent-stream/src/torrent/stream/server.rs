@@ -202,7 +202,6 @@ impl DefaultTorrentStreamServer {
                 return match torrent_stream.stream() {
                     Ok(stream) => {
                         let resource = stream.resource();
-                        let video_length = resource.total_length();
                         let content_range = resource.content_range();
                         let media_type = match media_type_factory.media_type(filename) {
                             Ok(e) => e,
@@ -243,7 +242,7 @@ impl DefaultTorrentStreamServer {
                     debug!("Detected {} user agent, using status {} instead", USER_AGENT_JAVA, &status);
                 }
             }
-            Err(e) => warn!("User agent value is invalid for {}", filename)
+            Err(_) => warn!("User agent value is invalid for {}", filename)
         }
     }
 

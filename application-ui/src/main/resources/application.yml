@@ -4,16 +4,11 @@ spring:
   main:
     allow-bean-definition-overriding: true
     lazy-initialization: false
+    web-application-type: none
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
   codec:
     max-in-memory-size: 25MB
-
-server:
-  tomcat:
-    min-spare-threads: 1
-    connection-timeout: -1
-  port: 8091
 
 logging:
   level:

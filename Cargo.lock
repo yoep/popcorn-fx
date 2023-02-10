@@ -1749,6 +1749,7 @@ dependencies = [
  "derive_more",
  "futures",
  "hyper",
+ "itertools",
  "local-ip-address",
  "log",
  "percent-encoding",

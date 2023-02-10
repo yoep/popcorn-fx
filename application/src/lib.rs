@@ -3,6 +3,7 @@ extern crate core;
 use std::{mem, ptr, slice};
 use std::os::raw::c_char;
 use std::path::Path;
+use std::time::Instant;
 
 use log::{debug, error, info, trace, warn};
 
@@ -13,10 +14,9 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::torrent::Torrent;
+use popcorn_fx_core::core::torrent::{Torrent, TorrentState};
 use popcorn_fx_platform::PlatformInfoC;
-use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC};
-use popcorn_fx_torrent_stream::torrent::TorrentWrapper;
+use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentWrapperC};
 
 use crate::arrays::StringArray;
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
@@ -30,9 +30,10 @@ mod media_mappers;
 /// The instance can be safely deleted by using [delete_popcorn_fx].
 #[no_mangle]
 pub extern "C" fn new_popcorn_fx() -> *mut PopcornFX {
+    let start = Instant::now();
     let instance = PopcornFX::new();
 
-    info!("Created new Popcorn FX instance");
+    info!("Created new Popcorn FX instance in {} millis", start.elapsed().as_millis());
     into_c_owned(instance)
 }
 
@@ -695,13 +696,31 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
     popcorn_fx.watched_service().register(wrapper)
 }
 
+/// The torrent wrapper for moving data between rust and java.
+/// This is a temp wrapper till the torrent component is replaced.
+#[no_mangle]
+pub extern "C" fn torrent_wrapper(torrent: TorrentC) -> *mut TorrentWrapperC {
+    trace!("Wrapping TorrentC into TorrentWrapperC");
+    into_c_owned(TorrentWrapperC::from(torrent))
+}
+
+/// Inform the FX core that the state of the torrent has changed.
+#[no_mangle]
+pub extern "C" fn torrent_state_changed(torrent: &TorrentWrapperC, state: TorrentState) {
+    torrent.state_changed(state)
+}
+
+/// Inform the FX core that a piece for the torrent has finished downloading.
+#[no_mangle]
+pub extern "C" fn torrent_piece_finished(torrent: &TorrentWrapperC, piece: u32) {
+    torrent.piece_finished(piece)
+}
+
 /// Start a torrent stream for the given torrent.
 #[no_mangle]
-pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &TorrentC) -> *mut TorrentStreamC {
-    trace!("Wrapping TorrentC into TorrentWrapper");
-    let wrapper = TorrentWrapper::from(torrent.clone());
-
-    match popcorn_fx.torrent_stream_server().start_stream(Box::new(wrapper) as Box<dyn Torrent>) {
+pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static TorrentWrapperC) -> *mut TorrentStreamC {
+    trace!("Starting a new stream from C for {:?}", torrent);
+    match popcorn_fx.torrent_stream_server().start_stream(Box::new(torrent) as Box<dyn Torrent>) {
         Ok(e) => {
             info!("Started new stream {}", e);
             into_c_owned(TorrentStreamC::from(e))
@@ -741,10 +760,30 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
 
 #[cfg(test)]
 mod test {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::from_c_owned;
 
     use super::*;
+
+    #[no_mangle]
+    pub extern "C" fn has_bytes_callback(_: i32, _: *mut u64) -> bool {
+        true
+    }
+
+    #[no_mangle]
+    pub extern "C" fn total_pieces_callback() -> i32 {
+        10
+    }
+
+    #[no_mangle]
+    pub extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
+
+    #[no_mangle]
+    pub extern "C" fn sequential_mode_callback() {}
 
     #[test]
     fn test_create_and_dispose_popcorn_fx() {
@@ -769,6 +808,31 @@ mod test {
 
         assert_eq!(subtitle, info_result);
         assert_eq!(language, language_result)
+    }
+
+    #[test]
+    fn test_torrent_state_changed() {
+        let torrent = TorrentC {
+            filepath: into_c_string("lorem.txt".to_string()),
+            has_byte_callback: has_bytes_callback,
+            total_pieces: total_pieces_callback,
+            prioritize_pieces: prioritize_pieces_callback,
+            sequential_mode: sequential_mode_callback,
+        };
+        let (tx, rx) = channel();
+
+        let wrapper = from_c_owned(torrent_wrapper(torrent));
+        wrapper.wrapper().register(Box::new(move |e| {
+            tx.send(e).unwrap()
+        }));
+        torrent_state_changed(&wrapper, TorrentState::Starting);
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        match result {
+            TorrentEvent::StateChanged(state) => assert_eq!(TorrentState::Starting, state),
+            _ => {}
+        }
     }
 
     #[test]

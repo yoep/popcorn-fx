@@ -49,6 +49,7 @@ public class SubtitleManagerService {
 
     //region Properties
 
+    @Deprecated
     public ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty() {
         return subtitleService.activeSubtitleProperty();
     }
@@ -200,8 +201,6 @@ public class SubtitleManagerService {
         subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitle, throwable) -> {
             if (throwable == null) {
                 log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
-                subtitleService.setActiveSubtitle(subtitle);
-
                 onSubtitleDownloaded(subtitle);
             } else {
                 log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
@@ -232,8 +231,7 @@ public class SubtitleManagerService {
     }
 
     private boolean isSubtitleAlreadyActive(final SubtitleInfo subtitleInfo) {
-        return subtitleService.getActiveSubtitle()
-                .flatMap(Subtitle::getSubtitleInfo)
+        return subtitleService.preferredSubtitle()
                 .filter(e -> e == subtitleInfo)
                 .isPresent();
     }

@@ -56,11 +56,36 @@ enum class SubtitleLanguage : int32_t {
   Vietnamese = 35,
 };
 
+/// The state of a [Torrent] which is represented as a [i32].
+/// This state is abi compatible to be used over [std::ffi].
+enum class TorrentState : int32_t {
+  /// The initial phase of the torrent in which it's still being created.
+  /// This is the state where the metadata of the torrent is retrieved.
+  Creating = 0,
+  /// The torrent is ready to be downloaded (metadata is available).
+  Ready = 1,
+  /// The download of the torrent is starting.
+  Starting = 2,
+  /// The torrent is being downloaded.
+  Downloading = 3,
+  /// The torrent download has been paused.
+  Paused = 4,
+  /// The torrent download has completed.
+  Completed = 5,
+  /// The torrent encountered an error and cannot be downloaded.
+  Error = -1,
+};
+
+template<typename T = void>
+struct Arc;
+
 template<typename T = void>
 struct Box;
 
 /// The [PopcornFX] application instance.
 struct PopcornFX;
+
+struct TorrentWrapper;
 
 struct RatingC {
   uint16_t percentage;
@@ -309,6 +334,39 @@ struct SortByC {
   const char *text;
 };
 
+struct TorrentStreamC {
+  const char *url;
+};
+
+/// The wrapper communication between rust and C.
+/// This is a temp wrapper which will be replaced in the future.
+struct TorrentWrapperC {
+  Arc<TorrentWrapper> wrapper;
+};
+
+/// The callback to verify if the given byte is available.
+using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
+
+/// The callback to retrieve the total pieces of the torrent.
+using TotalPiecesCallbackC = int32_t(*)();
+
+/// The callback for prioritizing pieces.
+using PrioritizePiecesCallbackC = void(*)(int32_t, uint32_t*);
+
+/// The callback for update the torrent mode to sequential.
+using SequentialModeCallbackC = void(*)();
+
+/// The C compatible abi struct for a [Torrent].
+/// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
+struct TorrentC {
+  /// The filepath to the torrent file
+  const char *filepath;
+  HasByteCallbackC has_byte_callback;
+  TotalPiecesCallbackC total_pieces;
+  PrioritizePiecesCallbackC prioritize_pieces;
+  SequentialModeCallbackC sequential_mode;
+};
+
 
 extern "C" {
 
@@ -479,12 +537,22 @@ SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleI
 const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
 
 /// Start a torrent stream for the given torrent.
-TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentC *torrent);
+TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torrent);
 
 /// Convert the given subtitle back to it's raw output type.
 ///
 /// It returns the [String] output of the subtitle for the given output type.
 const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
+
+/// Inform the FX core that a piece for the torrent has finished downloading.
+void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
+
+/// Inform the FX core that the state of the torrent has changed.
+void torrent_state_changed(const TorrentWrapperC *torrent, TorrentState state);
+
+/// The torrent wrapper for moving data between rust and java.
+/// This is a temp wrapper till the torrent component is replaced.
+TorrentWrapperC *torrent_wrapper(TorrentC torrent);
 
 /// Update the preferred subtitle for the [Media] item playback.
 /// This action will reset any custom configured subtitle files.

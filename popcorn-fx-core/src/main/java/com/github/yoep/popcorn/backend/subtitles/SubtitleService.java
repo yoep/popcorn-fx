@@ -13,7 +13,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Async;
 
 import java.io.File;
-import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Optional;
@@ -96,16 +95,6 @@ public interface SubtitleService {
      */
     @Async
     CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher);
-
-    /**
-     * Convert the given subtitle to the format type.
-     * It will output a string stream of the converted subtitle.
-     *
-     * @param subtitle The subtitle to convert.
-     * @param type     The expected subtitle type.
-     * @return Returns the converted subtitle output.
-     */
-    InputStream convert(Subtitle subtitle, SubtitleType type);
 
     /**
      * Get the subtitle that needs to be selected by default for the given subtitles list.

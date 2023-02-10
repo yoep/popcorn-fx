@@ -1,10 +1,12 @@
+use std::fmt::{Display, Formatter};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use derive_more::Display;
 use futures::Stream;
 use url::Url;
 
-use crate::core::torrent;
+use crate::core::{CoreCallback, torrent};
 use crate::core::torrent::Torrent;
 
 /// The stream bytes that are available to be used for the [TorrentStream].
@@ -13,8 +15,43 @@ pub type StreamBytes = Vec<u8>;
 /// The streaming result of a read operation on the [TorrentStream] resource.
 pub type StreamBytesResult = Result<StreamBytes, torrent::TorrentError>;
 
+/// The callback type for all torrent stream events.
+pub type TorrentStreamCallback = CoreCallback<TorrentStreamEvent>;
+
+/// The state of the [TorrentStream].
+#[repr(i32)]
+#[derive(Debug, Clone, Display)]
+pub enum TorrentStreamState {
+    /// The initial state of the torrent stream.
+    /// This state indicates that the stream is preparing the initial pieces.
+    Preparing = 0,
+    /// The torrent can be streamed over HTTP.
+    Streaming = 1,
+    /// The torrent has been stopped and can not longer be streamed.
+    Stopped = 2,
+}
+
+/// The torrent stream event which occurred for the [TorrentStream].
+#[derive(Debug, Clone)]
+pub enum TorrentStreamEvent {
+    /// The new state of the torrent stream
+    StateChanged(TorrentStreamState)
+}
+
+impl Display for TorrentStreamEvent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TorrentStreamEvent::StateChanged(state) => write!(f, "Torrent stream state changed to {}", state),
+        }
+    }
+}
+
 /// The torrent stream contains the information of a [Torrent] that is being streamed
 /// over the [TorrentStreamServer].
+///
+/// Use [TorrentStream::stream] or [TorrentStream::stream_offset] to retrieve a [Stream] resource.
+/// Once a [TorrentStreamingResource] is started, the offset and length can't be changed anymore.
+/// If you require another range, please create a new stream and drop the previous one.
 pub trait TorrentStream: Torrent {
     /// Retrieve the endpoint url on which the stream is available.
     ///
@@ -34,6 +71,12 @@ pub trait TorrentStream: Torrent {
     ///
     /// It returns the stream of the torrent bytes, else the [torrent::TorrentError] that occurred.
     fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrent::Result<TorrentStreamingResourceWrapper>;
+
+    /// The current state of the stream.
+    fn stream_state(&self) -> TorrentStreamState;
+
+    /// Register a new callback for the stream events.
+    fn register_stream(&self, callback: TorrentStreamCallback);
 }
 
 /// The streaming resource of a [TorrentStream].

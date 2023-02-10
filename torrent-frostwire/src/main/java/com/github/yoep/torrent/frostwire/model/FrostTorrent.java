@@ -107,8 +107,7 @@ public class FrostTorrent implements Torrent, AlertListener {
     }
 
     @Override
-    public void prioritizePieces(Integer... pieceIndexes) {
-        Assert.noNullElements(pieceIndexes, "pieceIndexes cannot contain \"null\" items");
+    public void prioritizePieces(int... pieceIndexes) {
         log.trace("Prioritizing the following pieces: {}", Arrays.toString(pieceIndexes));
         for (int pieceIndex : pieceIndexes) {
             var torrentPieceIndex = pieces.getTorrentPieceIndex(pieceIndex);

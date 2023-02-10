@@ -19,9 +19,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
@@ -108,7 +106,9 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Async
     public CompletableFuture<Subtitle> parse(File file, Charset encoding) {
         Objects.requireNonNull(file, "file cannot be null");
-        return CompletableFuture.completedFuture(FxLib.INSTANCE.parse_subtitle(PopcornFxInstance.INSTANCE.get(), file.getAbsolutePath()));
+        synchronized (mutex) {
+            return CompletableFuture.completedFuture(FxLib.INSTANCE.parse_subtitle(PopcornFxInstance.INSTANCE.get(), file.getAbsolutePath()));
+        }
     }
 
     @Override
@@ -130,15 +130,6 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    public InputStream convert(Subtitle subtitle, SubtitleType type) {
-        Objects.requireNonNull(subtitle, "subtitle cannot be null");
-        var subtitleType = (int) type.toNative();
-        var output = FxLib.INSTANCE.subtitle_to_raw(PopcornFxInstance.INSTANCE.get(), subtitle, subtitleType);
-
-        return new ByteArrayInputStream(output.getBytes());
-    }
-
-    @Override
     public SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles) {
         Objects.requireNonNull(subtitles, "subtitles cannot be null");
         subtitles = subtitles.stream()
@@ -156,13 +147,17 @@ public class SubtitleServiceImpl implements SubtitleService {
             array[i].len = subtitle.len;
         }
 
-        return FxLib.INSTANCE.select_or_default_subtitle(PopcornFxInstance.INSTANCE.get(), array, count);
+        synchronized (mutex) {
+            return FxLib.INSTANCE.select_or_default_subtitle(PopcornFxInstance.INSTANCE.get(), array, count);
+        }
     }
 
     @Override
     public String serve(Subtitle subtitle, SubtitleType type) {
         Objects.requireNonNull(subtitle, "subtitle cannot be null");
-        return FxLib.INSTANCE.serve_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle, type.ordinal());
+        synchronized (mutex) {
+            return FxLib.INSTANCE.serve_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle, type.ordinal());
+        }
     }
 
     @Override

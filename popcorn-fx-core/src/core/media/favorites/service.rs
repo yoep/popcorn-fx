@@ -6,7 +6,7 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::{CoreCallbacks, media};
+use crate::core::{CoreCallback, CoreCallbacks, media};
 use crate::core::media::{MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
 use crate::core::media::favorites::model::Favorites;
 use crate::core::storage::{Storage, StorageError};
@@ -14,7 +14,7 @@ use crate::core::storage::{Storage, StorageError};
 const FILENAME: &str = "favorites.json";
 
 /// The callback to listen on events of the favorite service.
-pub type FavoriteCallback = Box<dyn Fn(FavoriteEvent) + Send>;
+pub type FavoriteCallback = CoreCallback<FavoriteEvent>;
 
 #[derive(Debug, Clone)]
 pub enum FavoriteEvent {

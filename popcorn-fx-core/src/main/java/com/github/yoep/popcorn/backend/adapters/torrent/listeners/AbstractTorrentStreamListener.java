@@ -4,7 +4,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState
 
 public abstract class AbstractTorrentStreamListener implements TorrentStreamListener {
     @Override
-    public void onStateChanged(TorrentStreamState oldState, TorrentStreamState newState) {
+    public void onStateChanged(TorrentStreamState newState) {
         //no-op
     }
 

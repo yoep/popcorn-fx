@@ -14,7 +14,7 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::torrent::{Torrent, TorrentState};
+use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
 use popcorn_fx_platform::PlatformInfoC;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
@@ -741,6 +741,18 @@ pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, call
         callback(TorrentStreamEventC::from(e))
     }));
     mem::forget(stream);
+}
+
+/// Retrieve the current state of the stream.
+/// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
+///
+/// It returns the known [TorrentStreamState] at the time of invocation.
+#[no_mangle]
+pub extern "C" fn torrent_stream_state(stream: &TorrentStreamC) -> TorrentStreamState {
+    let stream = stream.stream();
+    let state = stream.stream_state();
+    mem::forget(stream);
+    state
 }
 
 /// Dispose the given media item from memory.

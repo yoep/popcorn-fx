@@ -9,10 +9,9 @@ public interface TorrentStreamListener {
     /**
      * Invoked when the torrent stream state is changed.
      *
-     * @param oldState The old stream state.
      * @param newState The new stream state.
      */
-    void onStateChanged(TorrentStreamState oldState, TorrentStreamState newState);
+    void onStateChanged(TorrentStreamState newState);
 
     /**
      * Invoked when an error occurred during the streaming of the torrent.

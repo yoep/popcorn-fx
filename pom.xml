@@ -25,7 +25,6 @@
         <module>popcorn-fx-platform</module>
         <module>shared-vlc</module>
         <module>torrent-frostwire</module>
-        <module>torrent-stream</module>
         <module>video-javafx</module>
         <module>video-vlc</module>
         <module>video-youtube</module>

@@ -1,8 +1,8 @@
-package com.github.yoep.torrent.stream.config;
+package com.github.yoep.popcorn.backend.config;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
-import com.github.yoep.torrent.stream.services.TorrentStreamServiceImpl;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamServiceImpl;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

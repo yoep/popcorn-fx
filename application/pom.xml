@@ -73,11 +73,6 @@
             <artifactId>torrent-frostwire</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>torrent-stream</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <!-- Testing -->
         <dependency>

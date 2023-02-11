@@ -352,7 +352,7 @@ mod test {
     use log::info;
     use reqwest::Client;
 
-    use popcorn_fx_core::core::torrent::MockTorrent;
+    use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
 
     use crate::torrent::stream::TorrentStreamServerState::Stopped;
@@ -373,6 +373,14 @@ mod test {
             .returning(move || file.clone());
         torrent.expect_has_bytes()
             .return_const(true);
+        torrent.expect_has_piece()
+            .returning(|_: u32| true);
+        torrent.expect_total_pieces()
+            .returning(|| 10);
+        torrent.expect_prioritize_pieces()
+            .returning(|_: &[u32]| {});
+        torrent.expect_register()
+            .returning(|_: TorrentCallback| {});
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
 
         wait_for_server(&server);
@@ -430,6 +438,14 @@ mod test {
             .returning(move || file.clone());
         torrent.expect_has_bytes()
             .return_const(true);
+        torrent.expect_has_piece()
+            .returning(|_: u32| true);
+        torrent.expect_total_pieces()
+            .returning(|| 10);
+        torrent.expect_prioritize_pieces()
+            .returning(|_: &[u32]| {});
+        torrent.expect_register()
+            .returning(|_: TorrentCallback| {});
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
         let expected_result = read_test_file(filename);
 

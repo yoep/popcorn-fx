@@ -115,12 +115,15 @@ impl DefaultTorrentStream {
             wrapper.torrent.sequential_mode();
             Self::update_state(wrapper, TorrentStreamState::Streaming);
         } else {
-            trace!("Awaiting {} remaining pieces to be prepared", pieces.len());
+            debug!("Awaiting {} remaining pieces to be prepared", pieces.len());
         }
     }
 
     fn update_state(wrapper: &Arc<Wrapper>, new_state: TorrentStreamState) {
         let mut state = wrapper.state.blocking_lock();
+        if *state == new_state {
+            return;
+        }
 
         info!("Torrent stream state changed to {}", &new_state);
         *state = new_state.clone();

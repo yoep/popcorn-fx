@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.backend.adapters.torrent.model;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentStreamException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import org.springframework.core.io.Resource;
 
 /**
  * Extension of {@link Torrent} is available for streaming.
@@ -15,14 +12,7 @@ public interface TorrentStream extends Torrent {
      *
      * @return Returns the stream state.
      */
-    TorrentStreamState getStreamState();
-
-    /**
-     * Get the stream state property.
-     *
-     * @return Returns the stream state property.
-     */
-    ReadOnlyObjectProperty<TorrentStreamState> streamStateProperty();
+    TorrentStreamState streamState();
 
     /**
      * Get the underlying torrent of this torrent stream.
@@ -51,13 +41,6 @@ public interface TorrentStream extends Torrent {
      * @param listener The listener to remove.
      */
     void removeListener(TorrentStreamListener listener);
-
-    /**
-     * Get the stream resource of this torrent stream.
-     *
-     * @return Returns the stream resource of the given torrent.
-     */
-    Resource stream() throws InvalidTorrentStreamException;
 
     /**
      * Stop this torrent stream.

@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaSet;
@@ -122,6 +123,8 @@ public interface FxLib extends Library {
     TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapperPointer torrent);
 
     void register_torrent_stream_callback(TorrentStreamWrapper stream, TorrentStreamEventCallback callback);
+
+    TorrentStreamState torrent_stream_state(TorrentStreamWrapper stream);
 
     void dispose_media_item(MediaItem media);
 

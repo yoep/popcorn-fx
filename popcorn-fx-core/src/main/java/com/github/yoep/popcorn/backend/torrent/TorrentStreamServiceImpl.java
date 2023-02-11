@@ -1,4 +1,4 @@
-package com.github.yoep.torrent.stream.services;
+package com.github.yoep.popcorn.backend.torrent;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
@@ -7,13 +7,10 @@ import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
-import com.github.yoep.torrent.stream.models.TorrentStreamImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
-import org.springframework.util.Assert;
 
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -27,14 +24,13 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
 
     @Override
     public TorrentStream startStream(Torrent torrent) {
-        Assert.notNull(torrent, "torrent cannot be null");
+        Objects.requireNonNull(torrent, "torrent cannot be null");
         log.trace("Starting a new stream for torrent file {}", torrent.getFile());
         var torrentWrapper = TorrentWrapper.from(torrent);
-        var wrapper = FxLib.INSTANCE.start_stream(PopcornFxInstance.INSTANCE.get(), torrentWrapper.getWrapperPointer());
-        var filename = getFilename(torrent);
-        var torrentStream = new TorrentStreamImpl(wrapper, torrentWrapper);
+        var torrentStream = FxLib.INSTANCE.start_stream(PopcornFxInstance.INSTANCE.get(), torrentWrapper.getWrapperPointer());
 
-        log.debug("Starting stream for torrent {} at {}", filename, torrentStream.getStreamUrl());
+        log.debug("Starting stream for torrent {} at {}", torrent.getFile(), torrentStream.getStreamUrl());
+        torrentStream.updateTorrent(torrentWrapper);
         streamCache.add(torrentStream);
 
         return torrentStream;
@@ -42,7 +38,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
 
     @Override
     public void stopStream(TorrentStream torrentStream) {
-        Assert.notNull(torrentStream, "torrentStream cannot be null");
+        Objects.requireNonNull(torrentStream, "torrentStream cannot be null");
         try {
             if (streamCache.contains(torrentStream)) {
                 log.debug("Stopping torrentStream stream for {}", torrentStream);
@@ -61,16 +57,6 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
     @Override
     public void stopAllStreams() {
         this.streamCache.forEach(this::stopStream);
-    }
-
-    //endregion
-
-    //region Functions
-
-    private String getFilename(Torrent torrent) {
-        var filePath = torrent.getFile().getAbsolutePath();
-
-        return FilenameUtils.getName(filePath);
     }
 
     //endregion

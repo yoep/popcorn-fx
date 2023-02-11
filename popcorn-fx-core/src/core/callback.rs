@@ -51,7 +51,7 @@ impl<E: Display + Clone> CoreCallbacks<E> {
         let execute = async move {
             let mutex = callbacks.lock().await;
 
-            debug!("Calling a total of {} callbacks for: {}", mutex.len(), &event);
+            trace!("Calling a total of {} callbacks for {{{}}}", mutex.len(), &event);
             for callback in mutex.iter() {
                 callback(event.clone());
             }

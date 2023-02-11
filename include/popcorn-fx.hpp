@@ -96,6 +96,7 @@ struct Box;
 /// The [PopcornFX] application instance.
 struct PopcornFX;
 
+/// The C compatible struct for [TorrentStream].
 struct TorrentStreamC;
 
 struct TorrentWrapper;
@@ -581,6 +582,12 @@ void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
 
 /// Inform the FX core that the state of the torrent has changed.
 void torrent_state_changed(const TorrentWrapperC *torrent, TorrentState state);
+
+/// Retrieve the current state of the stream.
+/// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
+///
+/// It returns the known [TorrentStreamState] at the time of invocation.
+TorrentStreamState torrent_stream_state(const TorrentStreamC *stream);
 
 /// The torrent wrapper for moving data between rust and java.
 /// This is a temp wrapper till the torrent component is replaced.

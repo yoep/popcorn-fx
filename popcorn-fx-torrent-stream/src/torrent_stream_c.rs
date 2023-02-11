@@ -9,7 +9,7 @@ use popcorn_fx_core::core::torrent::{TorrentStream, TorrentStreamEvent, TorrentS
 #[derive(Debug)]
 pub struct TorrentStreamC {
     pub url: *const c_char,
-    pub ptr: *mut Arc<dyn TorrentStream>
+    pub ptr: *mut Arc<dyn TorrentStream>,
 }
 
 impl TorrentStreamC {
@@ -38,6 +38,23 @@ impl From<TorrentStreamEvent> for TorrentStreamEventC {
     fn from(value: TorrentStreamEvent) -> Self {
         match value {
             TorrentStreamEvent::StateChanged(e) => TorrentStreamEventC::StateChanged(e),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_stream_event_c_from() {
+        let event = TorrentStreamEvent::StateChanged(TorrentStreamState::Stopped);
+
+        let result= TorrentStreamEventC::from(event);
+
+        match result {
+            TorrentStreamEventC::StateChanged(state) => assert_eq!(TorrentStreamState::Stopped, state),
+            _ => assert!(false, "expected TorrentStreamEventC::StateChanged")
         }
     }
 }

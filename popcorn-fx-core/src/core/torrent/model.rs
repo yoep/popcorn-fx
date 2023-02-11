@@ -85,6 +85,11 @@ pub trait Torrent: Display + Debug + Send + Sync {
     /// It returns true when the bytes are available, else false.
     fn has_bytes(&self, bytes: &[u64]) -> bool;
 
+    /// Verify if the given piece is available.
+    ///
+    /// It returns true when the piece is present, else false.
+    fn has_piece(&self, piece: u32) -> bool;
+
     /// Prioritize the given bytes to be downloaded.
     fn prioritize_bytes(&self, bytes: &[u64]);
 

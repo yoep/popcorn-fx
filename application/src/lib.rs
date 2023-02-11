@@ -16,7 +16,7 @@ use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::torrent::{Torrent, TorrentState};
 use popcorn_fx_platform::PlatformInfoC;
-use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentWrapperC};
+use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 use crate::arrays::StringArray;
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
@@ -732,6 +732,17 @@ pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static Tor
     }
 }
 
+/// Register a new callback for the torrent stream.
+#[no_mangle]
+pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
+    trace!("Wrapping TorrentStreamEventC callback");
+    let stream = stream.stream();
+    stream.register_stream(Box::new(move |e| {
+        callback(TorrentStreamEventC::from(e))
+    }));
+    mem::forget(stream);
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -771,6 +782,11 @@ mod test {
 
     #[no_mangle]
     pub extern "C" fn has_bytes_callback(_: i32, _: *mut u64) -> bool {
+        true
+    }
+
+    #[no_mangle]
+    pub extern "C" fn has_piece_callback(_: u32) -> bool {
         true
     }
 
@@ -815,6 +831,7 @@ mod test {
         let torrent = TorrentC {
             filepath: into_c_string("lorem.txt".to_string()),
             has_byte_callback: has_bytes_callback,
+            has_piece_callback: has_piece_callback,
             total_pieces: total_pieces_callback,
             prioritize_pieces: prioritize_pieces_callback,
             sequential_mode: sequential_mode_callback,

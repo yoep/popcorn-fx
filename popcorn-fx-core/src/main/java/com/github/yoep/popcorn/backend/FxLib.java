@@ -18,6 +18,7 @@ import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
@@ -119,6 +120,8 @@ public interface FxLib extends Library {
     void torrent_piece_finished(TorrentWrapperPointer torrent, int piece);
 
     TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapperPointer torrent);
+
+    void register_torrent_stream_callback(TorrentStreamWrapper stream, TorrentStreamEventCallback callback);
 
     void dispose_media_item(MediaItem media);
 

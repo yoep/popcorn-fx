@@ -9,7 +9,10 @@ use popcorn_fx_core::core::CoreCallbacks;
 use popcorn_fx_core::core::torrent::{Torrent, TorrentCallback, TorrentEvent, TorrentState};
 
 /// The has byte callback.
-pub type HasByteCallback = Box<dyn Fn(&[u64]) -> bool + Send>;
+pub type HasBytesCallback = Box<dyn Fn(&[u64]) -> bool + Send>;
+
+/// The has piece callback.
+pub type HasPieceCallback = Box<dyn Fn(u32) -> bool + Send>;
 
 /// The total number of pieces callback.
 pub type TotalPiecesCallback = Box<dyn Fn() -> i32 + Send>;
@@ -24,7 +27,8 @@ pub type SequentialModeCallback = Box<dyn Fn() + Send>;
 #[display(fmt = "filepath: {:?}", filepath)]
 pub struct TorrentWrapper {
     filepath: PathBuf,
-    has_byte: Mutex<HasByteCallback>,
+    has_bytes: Mutex<HasBytesCallback>,
+    has_piece: Mutex<HasPieceCallback>,
     total_pieces: Mutex<TotalPiecesCallback>,
     prioritize_pieces: Mutex<PrioritizePiecesCallback>,
     sequential_mode: Mutex<SequentialModeCallback>,
@@ -32,10 +36,11 @@ pub struct TorrentWrapper {
 }
 
 impl TorrentWrapper {
-    pub fn new(filepath: String, has_byte: HasByteCallback, total_pieces: TotalPiecesCallback, prioritize_pieces: PrioritizePiecesCallback, sequential_mode: SequentialModeCallback) -> Self {
+    pub fn new(filepath: String, has_byte: HasBytesCallback, has_piece: HasPieceCallback, total_pieces: TotalPiecesCallback, prioritize_pieces: PrioritizePiecesCallback, sequential_mode: SequentialModeCallback) -> Self {
         Self {
             filepath: PathBuf::from(filepath),
-            has_byte: Mutex::new(has_byte),
+            has_bytes: Mutex::new(has_byte),
+            has_piece: Mutex::new(has_piece),
             total_pieces: Mutex::new(total_pieces),
             prioritize_pieces: Mutex::new(prioritize_pieces),
             sequential_mode: Mutex::new(sequential_mode),
@@ -65,8 +70,15 @@ impl Torrent for TorrentWrapper {
 
     fn has_bytes(&self, bytes: &[u64]) -> bool {
         tokio::task::block_in_place(move || {
-            let mutex = self.has_byte.blocking_lock();
+            let mutex = self.has_bytes.blocking_lock();
             mutex(bytes)
+        })
+    }
+
+    fn has_piece(&self, piece: u32) -> bool {
+        tokio::task::block_in_place(move || {
+            let mutex = self.has_piece.blocking_lock();
+            mutex(piece)
         })
     }
 
@@ -108,14 +120,15 @@ mod test {
     #[test]
     fn test_has_bytes() {
         let (tx, rx) = channel();
-        let callback: HasByteCallback = Box::new(move |byte| {
+        let callback: HasBytesCallback = Box::new(move |byte| {
             tx.send(byte.to_vec()).unwrap();
             true
         });
+        let has_piece = Box::new(|_: u32| true);
         let total_pieces = Box::new(|| 0);
         let prioritize_pieces = Box::new(|_: &[u32]| {});
         let sequential_mode = Box::new(|| {});
-        let wrapper = TorrentWrapper::new("lorem.txt".to_string(), callback, total_pieces, prioritize_pieces, sequential_mode);
+        let wrapper = TorrentWrapper::new("lorem.txt".to_string(), callback, has_piece, total_pieces, prioritize_pieces, sequential_mode);
         let bytes = vec![2, 3];
 
         let result = wrapper.has_bytes(&bytes[..]);

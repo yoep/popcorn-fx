@@ -1,6 +1,6 @@
 package com.github.yoep.torrent.stream.models;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.FailedToPrepareTorrentStreamException;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.torrent.InvalidTorrentStreamStateException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -19,7 +20,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
 import java.io.File;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +35,7 @@ public class TorrentStreamImpl implements TorrentStream {
 
     private final ReadOnlyObjectWrapper<TorrentStreamState> streamState = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, TorrentStreamState.PREPARING);
     private final List<TorrentStreamListener> listeners = new ArrayList<>();
+    private final TorrentStreamEventCallback streamCallback = createStreamCallback();
 
     //region Constructors
 
@@ -43,6 +44,7 @@ public class TorrentStreamImpl implements TorrentStream {
         Assert.notNull(torrent, "torrent cannot be null");
         this.wrapper = wrapper;
         this.torrent = torrent;
+        FxLib.INSTANCE.register_torrent_stream_callback(wrapper, streamCallback);
         initialize();
     }
 
@@ -196,6 +198,17 @@ public class TorrentStreamImpl implements TorrentStream {
         initializeStateListener();
     }
 
+    private TorrentStreamEventCallback createStreamCallback() {
+        return event -> {
+            switch (event.getTag()) {
+                case StateChanged -> {
+                    var change = event.getUnion().getState_changed();
+                    streamState.set(change.getNewState());
+                }
+            }
+        };
+    }
+
     private void initializeStateListener() {
         streamState.addListener((observable, oldValue, newValue) -> {
             log.debug("Torrent stream \"{}\" changed from state {} to {}", getFilename(), oldValue, newValue);
@@ -214,47 +227,6 @@ public class TorrentStreamImpl implements TorrentStream {
         } catch (Exception ex) {
             log.error("An error occurred while invoking a listener, " + ex.getMessage(), ex);
         }
-    }
-
-    private Integer[] determinePreparationPieces() {
-        var totalPieces = getTotalPieces();
-        var numberOfPreparationPieces = Math.max(8, totalPieces * 0.08);
-        var pieces = new ArrayList<Integer>();
-
-        // prepare the first 10% of pieces if it doesn't exceed the total pieces
-        // otherwise, prepare the first 8
-        for (int i = 0; i < numberOfPreparationPieces && i < totalPieces - 1; i++) {
-            pieces.add(i);
-        }
-
-        // add the last 3 pieces for preparation
-        // this is done for determining the video length during streaming
-        for (int i = totalPieces; i > totalPieces - 3; i--) {
-            pieces.add(i);
-        }
-
-        var piecesToPrepare = pieces
-                .stream()
-                .filter(this::isValidPreparationPiece)
-                .toArray(Integer[]::new);
-
-        if (piecesToPrepare.length == 0 || piecesToPrepare.length == 1 && piecesToPrepare[0] == 0) {
-            throw new FailedToPrepareTorrentStreamException(MessageFormat.format("Failed to prepare stream {0}, pieces to prepare couldn't be determined",
-                    wrapper.getUrl()));
-        }
-
-        return piecesToPrepare;
-    }
-
-    private boolean isValidPreparationPiece(Integer index) {
-        var totalPieces = getTotalPieces();
-        var isValid = index >= 0 && index <= totalPieces;
-
-        if (!isValid) {
-            log.warn("Preparation piece index {} is invalid", index);
-        }
-
-        return isValid;
     }
 
     //endregion

@@ -20,7 +20,7 @@ pub type TorrentStreamCallback = CoreCallback<TorrentStreamEvent>;
 
 /// The state of the [TorrentStream].
 #[repr(i32)]
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, PartialEq)]
 pub enum TorrentStreamState {
     /// The initial state of the torrent stream.
     /// This state indicates that the stream is preparing the initial pieces.

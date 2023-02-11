@@ -76,6 +76,17 @@ enum class TorrentState : int32_t {
   Error = -1,
 };
 
+/// The state of the [TorrentStream].
+enum class TorrentStreamState : int32_t {
+  /// The initial state of the torrent stream.
+  /// This state indicates that the stream is preparing the initial pieces.
+  Preparing = 0,
+  /// The torrent can be streamed over HTTP.
+  Streaming = 1,
+  /// The torrent has been stopped and can not longer be streamed.
+  Stopped = 2,
+};
+
 template<typename T = void>
 struct Arc;
 
@@ -84,6 +95,8 @@ struct Box;
 
 /// The [PopcornFX] application instance.
 struct PopcornFX;
+
+struct TorrentStreamC;
 
 struct TorrentWrapper;
 
@@ -291,6 +304,22 @@ struct FavoriteEventC {
   };
 };
 
+/// The C abi compatible torrent stream event.
+struct TorrentStreamEventC {
+  enum class Tag {
+    StateChanged,
+  };
+
+  struct StateChanged_Body {
+    TorrentStreamState _0;
+  };
+
+  Tag tag;
+  union {
+    StateChanged_Body state_changed;
+  };
+};
+
 struct WatchedEventC {
   enum class Tag {
     /// Event indicating that the watched state of a media item changed.
@@ -334,10 +363,6 @@ struct SortByC {
   const char *text;
 };
 
-struct TorrentStreamC {
-  const char *url;
-};
-
 /// The wrapper communication between rust and C.
 /// This is a temp wrapper which will be replaced in the future.
 struct TorrentWrapperC {
@@ -346,6 +371,9 @@ struct TorrentWrapperC {
 
 /// The callback to verify if the given byte is available.
 using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
+
+/// The callback to verify if the given piece is available.
+using HasPieceCallbackC = bool(*)(uint32_t);
 
 /// The callback to retrieve the total pieces of the torrent.
 using TotalPiecesCallbackC = int32_t(*)();
@@ -362,6 +390,7 @@ struct TorrentC {
   /// The filepath to the torrent file
   const char *filepath;
   HasByteCallbackC has_byte_callback;
+  HasPieceCallbackC has_piece_callback;
   TotalPiecesCallbackC total_pieces;
   PrioritizePiecesCallbackC prioritize_pieces;
   SequentialModeCallbackC sequential_mode;
@@ -443,6 +472,9 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
+
+/// Register a new callback for the torrent stream.
+void register_torrent_stream_callback(const TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
 
 /// Register a new callback listener for watched events.
 void register_watched_event_callback(PopcornFX *popcorn_fx, void (*callback)(WatchedEventC));

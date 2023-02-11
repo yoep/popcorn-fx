@@ -11,6 +11,9 @@ use crate::torrent::TorrentWrapper;
 /// The callback to verify if the given byte is available.
 pub type HasByteCallbackC = extern "C" fn(i32, *mut u64) -> bool;
 
+/// The callback to verify if the given piece is available.
+pub type HasPieceCallbackC = extern "C" fn(u32) -> bool;
+
 /// The callback to retrieve the total pieces of the torrent.
 pub type TotalPiecesCallbackC = extern "C" fn() -> i32;
 
@@ -28,6 +31,7 @@ pub struct TorrentC {
     /// The filepath to the torrent file
     pub filepath: *const c_char,
     pub has_byte_callback: HasByteCallbackC,
+    pub has_piece_callback: HasPieceCallbackC,
     pub total_pieces: TotalPiecesCallbackC,
     pub prioritize_pieces: PrioritizePiecesCallbackC,
     pub sequential_mode: SequentialModeCallbackC,
@@ -40,6 +44,9 @@ impl From<TorrentC> for TorrentWrapper {
             Box::new(move |bytes| -> bool {
                 let (bytes, len) = to_c_vec(bytes.to_vec());
                 (value.has_byte_callback)(len, bytes)
+            }),
+            Box::new(move |piece| {
+                (value.has_piece_callback)(piece)
             }),
             Box::new(move || (value.total_pieces)()),
             Box::new(move |pieces| {
@@ -96,6 +103,10 @@ impl Torrent for &'static TorrentWrapperC {
         self.wrapper.has_bytes(bytes)
     }
 
+    fn has_piece(&self, piece: u32) -> bool {
+        self.wrapper.has_piece(piece)
+    }
+
     fn prioritize_bytes(&self, bytes: &[u64]) {
         self.wrapper.prioritize_bytes(bytes)
     }
@@ -139,11 +150,17 @@ mod test {
     #[no_mangle]
     pub extern "C" fn sequential_mode_callback() {}
 
+    #[no_mangle]
+    pub extern "C" fn has_piece_callback(_: u32) -> bool {
+        true
+    }
+
     #[test]
     pub fn test_from_torrent_c_to_wrapper() {
         let torrent = TorrentC {
             filepath: into_c_string("lorem.csv".to_string()),
             has_byte_callback: has_bytes_callback,
+            has_piece_callback: has_piece_callback,
             total_pieces: total_pieces_callback,
             prioritize_pieces: prioritize_pieces_callback,
             sequential_mode: sequential_mode_callback,
@@ -151,7 +168,9 @@ mod test {
 
         let wrapper = TorrentWrapper::from(torrent);
 
-        assert_eq!(10, wrapper.total_pieces())
+        assert_eq!(true, wrapper.has_bytes(&vec![10][..]));
+        assert_eq!(true, wrapper.has_piece(12));
+        assert_eq!(10, wrapper.total_pieces());
     }
 
     #[test]
@@ -159,6 +178,7 @@ mod test {
         let torrent = TorrentC {
             filepath: into_c_string("lorem.csv".to_string()),
             has_byte_callback: has_bytes_callback,
+            has_piece_callback: has_piece_callback,
             total_pieces: total_pieces_callback,
             prioritize_pieces: prioritize_pieces_callback,
             sequential_mode: sequential_mode_callback,

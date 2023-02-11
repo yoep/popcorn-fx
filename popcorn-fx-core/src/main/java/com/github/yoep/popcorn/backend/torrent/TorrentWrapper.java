@@ -22,7 +22,7 @@ import java.util.Optional;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"filepath", "hasByteCallback", "torrentTotalPiecesCallback", "prioritizePiecesCallback", "sequentialModeCallback"})
+@Structure.FieldOrder({"filepath", "hasByteCallback", "hasPieceCallback", "torrentTotalPiecesCallback", "prioritizePiecesCallback", "sequentialModeCallback"})
 public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public static class ByValue extends TorrentWrapper implements Structure.ByValue {
         public ByValue(Torrent torrent) {
@@ -34,6 +34,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
 
     public String filepath;
     public TorrentHasByteCallback hasByteCallback;
+    public TorrentHasPieceCallback hasPieceCallback;
     public TorrentTotalPiecesCallback torrentTotalPiecesCallback;
     public PrioritizePiecesCallback prioritizePiecesCallback;
     public SequentialModeCallback sequentialModeCallback;
@@ -45,6 +46,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
         this.torrent = torrent;
         this.filepath = torrent.getFile().getAbsolutePath();
         this.hasByteCallback = createHasByteCallback();
+        this.hasPieceCallback = (int index) -> (byte) (this.torrent.hasPiece(index) ? 1 : 0);
         this.torrentTotalPiecesCallback = torrent::getTotalPieces;
         this.prioritizePiecesCallback = createPrioritizePiecesCallback();
         this.sequentialModeCallback = this.torrent::sequentialMode;

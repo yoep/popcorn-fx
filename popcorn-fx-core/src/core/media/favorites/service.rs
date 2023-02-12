@@ -124,7 +124,7 @@ impl DefaultFavoriteService {
                 match e {
                     StorageError::FileNotFound(file) => {
                         debug!("Creating new favorites file {}", file);
-                        Ok(Favorites::empty())
+                        Ok(Favorites::default())
                     }
                     StorageError::CorruptRead(_, error) => {
                         error!("Failed to load favorites, {}", error);
@@ -132,7 +132,7 @@ impl DefaultFavoriteService {
                     }
                     _ => {
                         warn!("Unexpected error returned from storage, {}", e);
-                        Ok(Favorites::empty())
+                        Ok(Favorites::default())
                     }
                 }
             }

@@ -1738,6 +1738,7 @@ dependencies = [
  "derive_more",
  "libc",
  "log",
+ "popcorn-fx-core",
  "windows",
 ]
 

@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend.media.resume;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.resume.models.AutoResume;
@@ -12,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -54,13 +55,9 @@ public class AutoResumeService {
      * @return Returns the last known timestamp of the video if known, else {@link Optional#empty()}.
      */
     public Optional<Long> getResumeTimestamp(String id, String filename) {
-        Assert.hasText(filename, "filename cannot be null");
-        loadVideoTimestampsToCache();
-
-        return cache.getVideoTimestamps().stream()
-                .filter(timestamp -> isIdMatching(id, timestamp) || isFilenameMatching(filename, timestamp))
-                .map(VideoTimestamp::getLastKnownTime)
-                .findFirst();
+        var ptr = FxLib.INSTANCE.auto_resume_timestamp(PopcornFxInstance.INSTANCE.get(), id, filename);
+        return Optional.ofNullable(ptr)
+                .map(e -> e.getLong(0));
     }
 
     @EventListener

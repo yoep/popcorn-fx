@@ -11,6 +11,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use popcorn_fx_core::core::config::Application;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
@@ -36,6 +37,7 @@ pub struct PopcornFX {
     favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+    auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     providers: ProviderManager,
     storage: Arc<Storage>,
 }
@@ -50,10 +52,11 @@ impl PopcornFX {
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let subtitle_manager = Arc::new(SubtitleManager::default());
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let favorites_service: Arc<Box<dyn FavoriteService>> = Arc::new(Box::new(DefaultFavoriteService::new(&storage)));
-        let watched_service: Arc<Box<dyn WatchedService>> = Arc::new(Box::new(DefaultWatchedService::new(&storage)));
+        let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(&storage)) as Box<dyn FavoriteService>);
+        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(&storage)) as Box<dyn WatchedService>);
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
+        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(&storage)) as Box<dyn AutoResumeService>);
 
         Self {
             settings,
@@ -64,6 +67,7 @@ impl PopcornFX {
             favorites_service,
             watched_service,
             torrent_stream_server,
+            auto_resume_service,
             providers,
             storage,
         }
@@ -107,6 +111,11 @@ impl PopcornFX {
     /// The torrent stream server which handles the video streams.
     pub fn torrent_stream_server(&mut self) -> &Arc<Box<dyn TorrentStreamServer>> {
         &self.torrent_stream_server
+    }
+
+    /// The auto-resume service which handles the resume timestamps of videos.
+    pub fn auto_resume_service(&mut self) -> &Arc<Box<dyn AutoResumeService>> {
+        &self.auto_resume_service
     }
 
     /// Dispose the FX instance.
@@ -176,5 +185,25 @@ mod test {
 
         assert_eq!(SubtitleLanguage::None, preferred_language);
         assert_eq!(None, preferred_subtitle);
+    }
+
+    #[test]
+    fn test_popcorn_fx_favorite() {
+        let id = "tt00000021544";
+        let mut popcorn_fx = PopcornFX::new();
+
+        let result = popcorn_fx.favorite_service().is_liked(id);
+
+        assert_eq!(false, result)
+    }
+
+    #[test]
+    fn test_popcorn_fx_auto_resume() {
+        let filename = "something-totally_random123qwe.mp4";
+        let mut popcorn_fx = PopcornFX::new();
+
+        let result = popcorn_fx.auto_resume_service().resume_timestamp(None, Some(filename));
+
+        assert_eq!(None, result)
     }
 }

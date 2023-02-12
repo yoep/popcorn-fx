@@ -7,7 +7,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitMenuButton;
 import javafx.scene.image.ImageView;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import javax.validation.constraints.NotNull;
 import java.util.Collection;
@@ -97,22 +96,12 @@ public class DropDownButton<T> extends SplitMenuButton {
     }
 
     /**
-     * Add the item to the items.
-     *
-     * @param item The item to add.
-     */
-    public void addDropDownItem(T item) {
-        Assert.notNull(item, "item cannot be null");
-        addPlayer(item);
-    }
-
-    /**
      * Add the given items to the items.
      *
      * @param items The items to add.
      */
     public void addDropDownItems(Collection<T> items) {
-        Assert.notNull(items, "items cannot be null");
+        Objects.requireNonNull(items, "items cannot be null");
         for (T item : items) {
             this.addPlayer(item);
         }
@@ -124,7 +113,7 @@ public class DropDownButton<T> extends SplitMenuButton {
      * @param items The items to add.
      */
     public void addDropDownItems(T... items) {
-        Assert.notNull(items, "items cannot be null");
+        Objects.requireNonNull(items, "items cannot be null");
         addDropDownItems(asList(items));
     }
 

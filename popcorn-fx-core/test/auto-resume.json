@@ -1,0 +1,14 @@
+{
+  "video_timestamps": [
+    {
+      "id": "110999",
+      "filename": "lorem.mp4",
+      "last_known_time": 19826
+    },
+    {
+      "id": null,
+      "filename": "ipsum.mkv",
+      "last_known_time": 87554
+    }
+  ]
+}

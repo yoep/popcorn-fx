@@ -405,26 +405,6 @@ pub struct MediaItemC {
 }
 
 impl MediaItemC {
-    pub fn from_movie(media: MovieOverview) -> Self {
-        Self {
-            movie_overview: into_c_owned(MovieOverviewC::from(media)),
-            movie_details: ptr::null_mut(),
-            show_overview: ptr::null_mut(),
-            show_details: ptr::null_mut(),
-            episode: ptr::null_mut(),
-        }
-    }
-
-    pub fn from_movie_details(media: MovieDetails) -> Self {
-        Self {
-            movie_overview: ptr::null_mut(),
-            movie_details: into_c_owned(MovieDetailsC::from(media)),
-            show_overview: ptr::null_mut(),
-            show_details: ptr::null_mut(),
-            episode: ptr::null_mut(),
-        }
-    }
-
     pub fn from_show_details(media: ShowDetails) -> Self {
         Self {
             movie_overview: ptr::null_mut(),
@@ -468,6 +448,30 @@ impl MediaItemC {
         }
 
         Some(media)
+    }
+}
+
+impl From<MovieOverview> for MediaItemC {
+    fn from(value: MovieOverview) -> Self {
+        Self {
+            movie_overview: into_c_owned(MovieOverviewC::from(value)),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        }
+    }
+}
+
+impl From<MovieDetails> for MediaItemC {
+    fn from(value: MovieDetails) -> Self {
+        Self {
+            movie_overview: ptr::null_mut(),
+            movie_details: into_c_owned(MovieDetailsC::from(value)),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        }
     }
 }
 

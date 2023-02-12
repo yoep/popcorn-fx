@@ -25,6 +25,7 @@ import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import com.sun.jna.Pointer;
 
 /**
  * The Popcorn FX native library interface.
@@ -125,6 +126,8 @@ public interface FxLib extends Library {
     void register_torrent_stream_callback(TorrentStreamWrapper stream, TorrentStreamEventCallback callback);
 
     TorrentStreamState torrent_stream_state(TorrentStreamWrapper stream);
+
+    Pointer auto_resume_timestamp(PopcornFx instance, String id, String filename);
 
     void dispose_media_item(MediaItem media);
 

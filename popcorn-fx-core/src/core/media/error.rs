@@ -32,4 +32,6 @@ pub enum MediaError {
     /// No provider could be found for the requested category.
     #[error("no provider could be found for {0}")]
     ProviderNotFound(String),
+    #[error("auto-resume failed to load, {0}")]
+    AutoResumeLoadingFailed(String),
 }

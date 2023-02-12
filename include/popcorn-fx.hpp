@@ -407,6 +407,9 @@ void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 /// Add the given media item to the watched list.
 void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
+/// Retrieve the auto-resume timestamp for the given media id and/or filename.
+uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const char *filename);
+
 /// Retrieve the default options available for the subtitles.
 VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 

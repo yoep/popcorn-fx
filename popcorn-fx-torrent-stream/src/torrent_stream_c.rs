@@ -38,6 +38,15 @@ impl From<Arc<dyn TorrentStream>> for TorrentStreamC {
     }
 }
 
+impl Drop for TorrentStreamC {
+    fn drop(&mut self) {
+        if !self.ptr.is_null() {
+            trace!("Disposing Arc<dyn TorrentStream>");
+            let _ = from_c_owned(self.ptr);
+        }
+    }
+}
+
 /// The C abi compatible torrent stream event.
 #[repr(C)]
 #[derive(Debug)]

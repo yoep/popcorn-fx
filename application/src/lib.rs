@@ -427,7 +427,7 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
             trace!("Returning favorite details {:?}", &e);
             match e.media_type() {
                 MediaType::Movie => {
-                    into_c_owned(MediaItemC::from_movie_details(*e.into_any()
+                    into_c_owned(MediaItemC::from(*e.into_any()
                         .downcast::<MovieDetails>()
                         .expect("expected the favorite item to be a movie")))
                 }
@@ -758,6 +758,36 @@ pub extern "C" fn torrent_stream_state(stream: &mut TorrentStreamC) -> TorrentSt
     }
 }
 
+/// Retrieve the auto-resume timestamp for the given media id and/or filename.
+#[no_mangle]
+pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c_char, filename: *const c_char) -> *mut u64 {
+    trace!("Retrieving auto-resume timestamp of id: {:?}, filename: {:?}", id, filename);
+    let mut id_value: String;
+    let mut filename_value: String;
+    let id = if !id.is_null() {
+        id_value = from_c_string(id);
+        Some(id_value.as_str())
+    } else {
+        None
+    };
+    let filename = if !filename.is_null() {
+        filename_value = from_c_string(filename);
+        Some(filename_value.as_str())
+    } else {
+        None
+    };
+
+    match popcorn_fx.auto_resume_service().resume_timestamp(id, filename) {
+        None => {
+            info!("Auto-resume timestamp not found for id: {:?}, filename: {:?}", id, filename);
+            ptr::null_mut()
+        }
+        Some(e) => {
+            into_c_owned(e)
+        }
+    }
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -831,6 +861,47 @@ mod test {
     }
 
     #[test]
+    fn test_is_liked_movie_overview() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let movie = MovieOverview::new(
+            "".to_string(),
+            "tt0000000122".to_string(),
+            "2020".to_string(),
+        );
+        let media = MediaItemC::from(movie);
+
+        let result = is_media_liked(&mut instance, &media);
+
+        assert_eq!(false, result)
+    }
+
+    #[test]
+    fn test_is_liked_movie_details() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let movie = MovieDetails::new(
+            "".to_string(),
+            "tt0000000111".to_string(),
+            "2020".to_string(),
+        );
+        let media = MediaItemC::from(movie);
+
+        let result = is_media_liked(&mut instance, &media);
+
+        assert_eq!(false, result)
+    }
+
+    #[test]
+    fn test_auto_resume_timestamp() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let id = "tt0000001111".to_string();
+        let filename = "lorem-ipsum-dolor-estla.mkv".to_string();
+
+        let result = auto_resume_timestamp(&mut instance, into_c_string(id), into_c_string(filename));
+
+        assert_eq!(ptr::null_mut(), result)
+    }
+
+    #[test]
     fn test_update_subtitle() {
         let language1 = SubtitleLanguage::Finnish;
         let subtitle1 = SubtitleInfo::new(
@@ -892,7 +963,7 @@ mod test {
             String::from("tt54698542"),
             String::new(),
         );
-        let media = MediaItemC::from_movie(movie);
+        let media = MediaItemC::from(movie);
 
         dispose_media_item(Box::new(media));
     }

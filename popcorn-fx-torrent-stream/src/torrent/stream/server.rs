@@ -306,7 +306,6 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
                 debug!("Starting url stream for {}", &url);
                 let stream = Arc::new(DefaultTorrentStream::new(url, torrent));
                 let stream_ref = stream.clone();
-                let url = stream.url();
 
                 mutex.insert(filename.to_string(), stream);
 

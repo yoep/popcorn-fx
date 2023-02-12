@@ -49,7 +49,7 @@ pub struct DefaultTorrentStream {
 impl DefaultTorrentStream {
     pub fn new(url: Url, torrent: Box<dyn Torrent>) -> Self {
         let prepare_pieces = Self::preparation_pieces(&torrent);
-        let mut stream = Self {
+        let stream = Self {
             torrent: Arc::new(torrent),
             url,
             preparing_pieces: Arc::new(Mutex::new(prepare_pieces)),
@@ -71,8 +71,7 @@ impl DefaultTorrentStream {
         });
 
         self.torrent.register(Box::new(move |event| {
-            let mut wrapper = wrapper.clone();
-
+            let wrapper = wrapper.clone();
             tokio::task::block_in_place(move || {
                 match event {
                     TorrentEvent::StateChanged(state) => Self::verify_ready_to_stream(&wrapper),
@@ -531,7 +530,8 @@ mod test {
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
         let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
-        let expected_result = "bytes 0-1027/1028";
+        let bytes = read_test_file(filename).as_bytes().len();
+        let expected_result = format!("bytes 0-{}/{}", bytes - 1, bytes);
 
         let result = stream.content_range();
 

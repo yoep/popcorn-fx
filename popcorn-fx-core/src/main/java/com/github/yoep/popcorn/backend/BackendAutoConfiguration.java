@@ -11,6 +11,7 @@ import javax.annotation.PreDestroy;
 
 @Configuration
 @Import({
+        FxConfig.class,
         MediaConfig.class,
         RestConfig.class,
         SettingsConfig.class,

@@ -422,6 +422,10 @@ void dispose_media_items(Box<MediaSetC> media);
 /// Delete the PopcornFX instance in a safe way.
 void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);
 
+/// Dispose the torrent stream.
+/// Make sure [stop_stream] has been called before dropping the instance.
+void dispose_torrent_stream(Box<TorrentStreamC> stream);
+
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
 ///
 /// It returns the filepath to the subtitle on success, else [ptr::null_mut].
@@ -571,6 +575,9 @@ const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t out
 
 /// Start a torrent stream for the given torrent.
 TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torrent);
+
+/// Stop the given torrent stream.
+void stop_stream(PopcornFX *popcorn_fx, const TorrentStreamC *stream);
 
 /// Convert the given subtitle back to it's raw output type.
 ///

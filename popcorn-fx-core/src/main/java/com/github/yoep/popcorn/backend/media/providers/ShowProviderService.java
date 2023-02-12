@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
@@ -21,8 +22,11 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ShowProviderService implements ProviderService<ShowOverview> {
     private static final Category CATEGORY = Category.SERIES;
+
+    private final FxLib fxLib;
 
     @Override
     public boolean supports(Category category) {
@@ -55,11 +59,11 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
 
     @Override
     public void resetApiAvailability() {
-        FxLib.INSTANCE.reset_show_apis(PopcornFxInstance.INSTANCE.get());
+        fxLib.reset_show_apis(PopcornFxInstance.INSTANCE.get());
     }
 
     public Page<ShowOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        var shows = Optional.ofNullable(FxLib.INSTANCE.retrieve_available_shows(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
+        var shows = Optional.ofNullable(fxLib.retrieve_available_shows(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
                 .map(MediaSet::getShows)
                 .orElse(Collections.emptyList());
         log.debug("Retrieved shows {}", shows);
@@ -68,6 +72,6 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
     }
 
     private ShowDetails getDetailsInternal(String imdbId) {
-        return FxLib.INSTANCE.retrieve_show_details(PopcornFxInstance.INSTANCE.get(), imdbId);
+        return fxLib.retrieve_show_details(PopcornFxInstance.INSTANCE.get(), imdbId);
     }
 }

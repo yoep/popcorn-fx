@@ -894,7 +894,8 @@ mod test {
         );
         let settings = Arc::new(Application::default());
         let service = OpensubtitlesProvider::new(&settings);
-        let expected_result = read_test_file("example-conversion.vtt");
+        let expected_result = read_test_file("example-conversion.vtt")
+            .replace("\r\n", "\n");
 
         let result = service.convert(subtitle, Vtt);
 

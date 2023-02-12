@@ -319,7 +319,21 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
     }
 
     fn stop_stream(&self, stream: &Arc<dyn TorrentStream>) {
-        todo!()
+        let streams = self.streams.clone();
+        let mut mutex = streams.blocking_lock();
+        let filepath = stream.file();
+        let filename = filepath.file_name()
+            .expect("expected a valid filename")
+            .to_str()
+            .unwrap();
+
+        match mutex.remove(filename) {
+            None => warn!("Unable to stop stream of {}, stream not found", filename),
+            Some(stream) => {
+                stream.stop_stream();
+                info!("Stream {} has been stopped", stream.url())
+            }
+        }
     }
 }
 
@@ -351,7 +365,7 @@ mod test {
     use log::info;
     use reqwest::Client;
 
-    use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback};
+    use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback, TorrentEvent, TorrentStreamState};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
 
     use crate::torrent::stream::TorrentStreamServerState::Stopped;
@@ -378,8 +392,14 @@ mod test {
             .returning(|| 10);
         torrent.expect_prioritize_pieces()
             .returning(|_: &[u32]| {});
+        torrent.expect_sequential_mode()
+            .returning(|| {});
         torrent.expect_register()
-            .returning(|_: TorrentCallback| {});
+            .returning(|callback: TorrentCallback| {
+                for i in 0..10 {
+                    callback(TorrentEvent::PieceFinished(i));
+                }
+            });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
 
         wait_for_server(&server);
@@ -443,10 +463,17 @@ mod test {
             .returning(|| 10);
         torrent.expect_prioritize_pieces()
             .returning(|_: &[u32]| {});
+        torrent.expect_sequential_mode()
+            .returning(|| {});
         torrent.expect_register()
-            .returning(|_: TorrentCallback| {});
+            .returning(|callback: TorrentCallback| {
+                for i in 0..10 {
+                    callback(TorrentEvent::PieceFinished(i));
+                }
+            });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
-        let expected_result = read_test_file(filename);
+        let expected_result = read_test_file(filename)
+            .replace("\r\n", "\n");
 
         wait_for_server(&server);
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
@@ -468,6 +495,44 @@ mod test {
         });
 
         assert_eq!(expected_result, result.replace("\r\n", "\n"))
+    }
+
+    #[test]
+    fn test_stop_stream() {
+        init_logger();
+        let filename = "large.txt";
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file = temp_dir.path().join(filename);
+        let client = Client::builder().build().expect("Client should have been created");
+        let server = DefaultTorrentStreamServer::default();
+        let mut torrent = MockTorrent::new();
+        torrent.expect_file()
+            .returning(move || file.clone());
+        torrent.expect_total_pieces()
+            .returning(|| 10);
+        torrent.expect_prioritize_pieces()
+            .returning(|_: &[u32]| {});
+        torrent.expect_register()
+            .returning(|_: TorrentCallback| {});
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+
+        wait_for_server(&server);
+        let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
+            .expect("expected the torrent stream to have started");
+        server.stop_stream(&stream);
+        let result = runtime.block_on(async {
+            let response = client.get(stream.url())
+                .header(RANGE, "bytes=0-50000")
+                .send()
+                .await
+                .expect("expected a valid response");
+
+            response.status()
+        });
+
+        assert_eq!(TorrentStreamState::Stopped, stream.stream_state());
+        assert_eq!(StatusCode::NOT_FOUND, result)
     }
 
     #[test]

@@ -122,6 +122,8 @@ public interface FxLib extends Library {
 
     TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapperPointer torrent);
 
+    void stop_stream(PopcornFx instance, TorrentStreamWrapper stream);
+
     void register_torrent_stream_callback(TorrentStreamWrapper stream, TorrentStreamEventCallback callback);
 
     TorrentStreamState torrent_stream_state(TorrentStreamWrapper stream);
@@ -129,6 +131,8 @@ public interface FxLib extends Library {
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);
+
+    void dispose_torrent_stream(TorrentStreamWrapper wrapper);
 
     void dispose_popcorn_fx(PopcornFx instance);
 }

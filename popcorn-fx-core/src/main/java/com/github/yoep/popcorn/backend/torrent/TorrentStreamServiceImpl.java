@@ -17,6 +17,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @Slf4j
 @RequiredArgsConstructor
 public class TorrentStreamServiceImpl implements TorrentStreamService {
+    private final FxLib lib;
+    private final PopcornFxInstance instance;
     private final TorrentService torrentService;
     private final Queue<TorrentStream> streamCache = new ConcurrentLinkedQueue<>();
 
@@ -25,32 +27,42 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
     @Override
     public TorrentStream startStream(Torrent torrent) {
         Objects.requireNonNull(torrent, "torrent cannot be null");
-        log.trace("Starting a new stream for torrent file {}", torrent.getFile());
-        var torrentWrapper = TorrentWrapper.from(torrent);
-        var torrentStream = FxLib.INSTANCE.start_stream(PopcornFxInstance.INSTANCE.get(), torrentWrapper.getWrapperPointer());
+        synchronized (streamCache) {
+            log.trace("Starting a new stream for torrent file {}", torrent.getFile());
+            var torrentWrapper = TorrentWrapper.from(torrent);
+            var torrentStream = lib.start_stream(instance.get(), torrentWrapper.getWrapperPointer());
 
-        log.debug("Starting stream for torrent {} at {}", torrent.getFile(), torrentStream.getStreamUrl());
-        torrentStream.updateTorrent(torrentWrapper);
-        streamCache.add(torrentStream);
+            log.debug("Starting stream for torrent {} at {}", torrent.getFile(), torrentStream.getStreamUrl());
+            torrentStream.updateTorrent(torrentWrapper);
+            streamCache.add(torrentStream);
 
-        return torrentStream;
+            return torrentStream;
+        }
     }
 
     @Override
     public void stopStream(TorrentStream torrentStream) {
         Objects.requireNonNull(torrentStream, "torrentStream cannot be null");
-        try {
-            if (streamCache.contains(torrentStream)) {
-                log.debug("Stopping torrentStream stream for {}", torrentStream);
+        synchronized (streamCache) {
+            try {
+                if (streamCache.contains(torrentStream)) {
+                    log.debug("Stopping torrentStream stream for {}", torrentStream);
+                    if (torrentStream.getTorrent() instanceof TorrentWrapper wrapper) {
+                        torrentService.remove(wrapper.getTorrent());
+                    }
+                    if (torrentStream instanceof TorrentStreamWrapper wrapper) {
+                        lib.stop_stream(instance.get(), wrapper);
+                        lib.dispose_torrent_stream(wrapper);
+                    }
 
-                torrentStream.stopStream();
-                streamCache.remove(torrentStream);
-                torrentService.remove(torrentStream.getTorrent());
-            } else {
-                log.warn("Unable to stop torrentStream stream, torrentStream is unknown ({})", torrentStream);
+                    torrentStream.stopStream();
+                    streamCache.remove(torrentStream);
+                } else {
+                    log.warn("Unable to stop torrentStream stream, torrentStream is unknown ({})", torrentStream);
+                }
+            } catch (TorrentException ex) {
+                log.error("Failed to stop torrent stream, {}", ex.getMessage(), ex);
             }
-        } catch (TorrentException ex) {
-            log.error("Failed to stop torrent stream, {}", ex.getMessage(), ex);
         }
     }
 

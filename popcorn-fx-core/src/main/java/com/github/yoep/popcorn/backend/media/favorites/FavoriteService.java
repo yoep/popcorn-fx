@@ -17,11 +17,14 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Slf4j
 @Service
 public class FavoriteService {
+    private final FxLib fxLib;
+    
     private final Object lock = new Object();
     private final FavoriteEventCallback callback = createCallback();
     private final ConcurrentLinkedDeque<FavoriteEventCallback> listeners = new ConcurrentLinkedDeque<>();
 
-    public FavoriteService() {
+    public FavoriteService(FxLib fxLib) {
+        this.fxLib = fxLib;
         init();
     }
 
@@ -34,7 +37,7 @@ public class FavoriteService {
     public boolean isLiked(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            return FxLib.INSTANCE.is_media_liked(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
+            return fxLib.is_media_liked(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
         }
     }
 
@@ -45,7 +48,7 @@ public class FavoriteService {
      */
     public List<Media> getAll() {
         synchronized (lock) {
-            return Optional.ofNullable(FxLib.INSTANCE.retrieve_all_favorites(PopcornFxInstance.INSTANCE.get()))
+            return Optional.ofNullable(fxLib.retrieve_all_favorites(PopcornFxInstance.INSTANCE.get()))
                     .map(FavoritesSet::<Media>getAll)
                     .orElse(Collections.emptyList());
         }
@@ -59,7 +62,7 @@ public class FavoriteService {
     public void addToFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            FxLib.INSTANCE.add_to_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
+            fxLib.add_to_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
         }
     }
 
@@ -71,7 +74,7 @@ public class FavoriteService {
     public void removeFromFavorites(Media favorable) {
         Assert.notNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            FxLib.INSTANCE.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
+            fxLib.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
         }
     }
 
@@ -86,7 +89,7 @@ public class FavoriteService {
 
     private void init() {
         synchronized (lock) {
-            FxLib.INSTANCE.register_favorites_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
+            fxLib.register_favorites_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
         }
     }
 

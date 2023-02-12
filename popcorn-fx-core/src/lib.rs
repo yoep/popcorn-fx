@@ -161,9 +161,7 @@ pub mod testing {
     pub fn read_test_file(filename: &str) -> String {
         let source = test_resource_filepath(filename);
 
-        fs::read_to_string(&source)
-            .unwrap()
-            .replace("\r\n", "\n")
+        fs::read_to_string(&source).unwrap()
     }
 
     /// Read a file from the temp directory.

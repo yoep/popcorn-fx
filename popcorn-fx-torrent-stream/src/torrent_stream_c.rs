@@ -1,6 +1,8 @@
 use std::os::raw::c_char;
 use std::sync::Arc;
 
+use log::trace;
+
 use popcorn_fx_core::{from_c_owned, into_c_owned, into_c_string};
 use popcorn_fx_core::core::torrent::{TorrentStream, TorrentStreamEvent, TorrentStreamState};
 
@@ -14,6 +16,7 @@ pub struct TorrentStreamC {
 
 impl TorrentStreamC {
     pub fn stream(&self) -> Arc<dyn TorrentStream> {
+        trace!("Reading Arc<dyn TorrentStream> from pointer {:?}", self.ptr);
         from_c_owned(self.ptr)
     }
 }

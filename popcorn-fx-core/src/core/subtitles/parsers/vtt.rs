@@ -94,7 +94,8 @@ mod test {
             ]),
         ];
         let parser = VttParser::default();
-        let expected_result = read_test_file("conversion-example.vtt");
+        let expected_result = read_test_file("conversion-example.vtt")
+            .replace("\r\n", "\n");
 
         let result = parser.convert(&cues);
 

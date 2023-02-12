@@ -732,6 +732,15 @@ pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static Tor
     }
 }
 
+/// Stop the given torrent stream.
+#[no_mangle]
+pub extern "C" fn stop_stream(popcorn_fx: &mut PopcornFX, stream: &TorrentStreamC) {
+    trace!("Stopping torrent stream of {:?}", stream);
+    let stream = stream.stream();
+    popcorn_fx.torrent_stream_server().stop_stream(&stream);
+    mem::forget(stream);
+}
+
 /// Register a new callback for the torrent stream.
 #[no_mangle]
 pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
@@ -771,6 +780,13 @@ pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {
     trace!("Disposing media items of {:?}", media);
     let _ = media.movies();
     let _ = media.shows();
+}
+
+/// Dispose the torrent stream.
+/// Make sure [stop_stream] has been called before dropping the instance.
+#[no_mangle]
+pub extern "C" fn dispose_torrent_stream(stream: Box<TorrentStreamC>) {
+    trace!("Disposing stream {:?}", stream)
 }
 
 /// Delete the PopcornFX instance in a safe way.

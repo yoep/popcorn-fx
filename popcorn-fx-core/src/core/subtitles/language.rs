@@ -86,20 +86,6 @@ pub enum SubtitleLanguage {
 }
 
 impl SubtitleLanguage {
-    /// Get the subtitle language for the given ordinal representation.
-    /// If the ordinal is out of range for the possible values, the code will [panic].
-    pub fn from(ordinal: i32) -> Self {
-        for language in LANGUAGES {
-            let value = language.clone() as i32;
-
-            if value == ordinal {
-                return language;
-            }
-        }
-
-        panic!("Ordinal {} is out of range for SubtitleLanguage", ordinal)
-    }
-
     /// Get the [SubtitleLanguage] for the given code.
     pub fn from_code(code: String) -> Option<Self> {
         LANGUAGES.iter()
@@ -189,6 +175,15 @@ impl SubtitleLanguage {
             SubtitleLanguage::Ukrainian => "українська".to_string(),
             SubtitleLanguage::Vietnamese => "Tiếng Việt".to_string(),
         }
+    }
+}
+
+impl From<i32> for SubtitleLanguage {
+    fn from(value: i32) -> Self {
+        LANGUAGES.iter()
+            .find(|e| ((*e).clone() as i32) == value)
+            .cloned()
+            .unwrap_or_else(|| panic!("Ordinal {} is out of range for SubtitleLanguage", value))
     }
 }
 

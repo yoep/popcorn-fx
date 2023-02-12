@@ -13,6 +13,7 @@ import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguag
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +21,6 @@ import org.apache.commons.io.FilenameUtils;
 import org.springframework.stereotype.Service;
 import su.litvak.chromecast.api.v2.Media;
 
-import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
 
@@ -57,22 +57,6 @@ public class ChromecastService {
     }
 
     /**
-     * Retrieve the subtitle contents for the given subtitle file.
-     *
-     * @param subtitle The subtitle to retrieve.
-     * @return Returns the content stream if found, else {@link Optional#empty()}.
-     */
-    public Optional<InputStream> retrieveVttSubtitle(String subtitle) {
-        var name = FilenameUtils.getBaseName(subtitle);
-
-        return subtitleService.getActiveSubtitle()
-                .filter(this::isSubtitleNotDisabled)
-                .filter(e -> e.getFile().isPresent())
-                .filter(e -> FilenameUtils.getBaseName(e.getFile().get().getName()).equals(name))
-                .map(e -> subtitleService.convert(e, SubtitleType.VTT));
-    }
-
-    /**
      * Convert the given play request to a {@link su.litvak.chromecast.api.v2.ChromeCast} media request.
      *
      * @param request The request to convert.
@@ -80,12 +64,8 @@ public class ChromecastService {
      */
     public Load toLoadRequest(String sessionId, PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
-        Objects.requireNonNull(request, "request cannot be null");
         log.trace("Creating ChromeCast media request for {}", request);
-        var tracks = subtitleService.getActiveSubtitle()
-                .filter(this::isSubtitleNotDisabled)
-                .map(this::getMediaTrack)
-                .orElse(Collections.emptyList());
+        var tracks = loadTracks(request);
         var url = request.getUrl();
         var videoMetadata = resolveMetadata(URI.create(url));
         var streamType = Media.StreamType.BUFFERED;
@@ -183,6 +163,24 @@ public class ChromecastService {
                     return e;
                 })
                 .isPresent();
+    }
+
+    private List<Track> loadTracks(PlayRequest request) {
+        var filename = FilenameUtils.getName(request.getUrl());
+        var quality = request.getQuality().orElse(null);
+
+        log.trace("Loading chromecast tracks for filename: {}, quality: {}", filename, quality);
+        return subtitleService.preferredSubtitle()
+                .flatMap(e -> {
+                    try {
+                        return Optional.of(subtitleService.downloadAndParse(e, SubtitleMatcher.from(filename, quality)).get());
+                    } catch (Exception ex) {
+                        log.error(ex.getMessage(), ex);
+                        return Optional.empty();
+                    }
+                })
+                .map(this::getMediaTrack)
+                .orElse(Collections.emptyList());
     }
 
     private List<Track> getMediaTrack(Subtitle subtitle) {

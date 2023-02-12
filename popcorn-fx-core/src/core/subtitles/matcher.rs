@@ -31,10 +31,10 @@ impl SubtitleMatcher {
         }
     }
 
-    pub fn name(&self) -> Option<&String> {
+    pub fn name(&self) -> Option<&str> {
         match &self.name {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e.as_str())
         }
     }
 

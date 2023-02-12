@@ -23,3 +23,28 @@ impl Category {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_name_movies() {
+        let category = Category::MOVIES;
+        let expected_result = "movies".to_string();
+
+        let result= category.name();
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_name_series() {
+        let category = Category::SERIES;
+        let expected_result = "series".to_string();
+
+        let result= category.name();
+
+        assert_eq!(expected_result, result)
+    }
+}

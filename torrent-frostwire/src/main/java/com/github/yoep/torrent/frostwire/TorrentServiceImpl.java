@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import java.io.File;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -125,7 +126,7 @@ public class TorrentServiceImpl implements TorrentService {
             session.remove(frostTorrent.getHandle());
             log.info("Torrent \"{}\" has been removed from the torrent session", torrent.getFilename());
         } else {
-            throw new TorrentException("Invalid torrent, torrent is not a frost torrent type");
+            throw new TorrentException(MessageFormat.format("Invalid torrent, torrent is not a frost torrent type ({0})", torrent.getClass().getName()));
         }
     }
 

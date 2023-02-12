@@ -3,17 +3,20 @@ extern crate core;
 use std::{mem, ptr, slice};
 use std::os::raw::c_char;
 use std::path::Path;
+use std::time::Instant;
 
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_string, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
+use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
 use popcorn_fx_platform::PlatformInfoC;
+use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 use crate::arrays::StringArray;
 use crate::popcorn::fx::popcorn_fx::PopcornFX;
@@ -27,9 +30,10 @@ mod media_mappers;
 /// The instance can be safely deleted by using [delete_popcorn_fx].
 #[no_mangle]
 pub extern "C" fn new_popcorn_fx() -> *mut PopcornFX {
+    let start = Instant::now();
     let instance = PopcornFX::new();
 
-    info!("Created new Popcorn FX instance");
+    info!("Created new Popcorn FX instance in {} millis", start.elapsed().as_millis());
     into_c_owned(instance)
 }
 
@@ -134,7 +138,7 @@ pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut 
 pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitles_ptr: *const SubtitleInfoC, len: usize) -> *mut SubtitleInfoC {
     let c_vec = unsafe { slice::from_raw_parts(subtitles_ptr, len).to_vec() };
     let subtitles: Vec<SubtitleInfo> = c_vec.iter()
-        .map(|e| e.to_subtitle())
+        .map(|e| SubtitleInfo::from(e))
         .collect();
 
     let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_provider().select_or_default(&subtitles)));
@@ -150,22 +154,81 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitl
     subtitle
 }
 
-/// Update the preferred subtitle language for the [Media] item playback.
+/// Retrieve the preferred subtitle instance for the next [Media] item playback.
+///
+/// It returns the [SubtitleInfoC] when present, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn update_subtitle_language(popcorn_fx: &mut PopcornFX, subtitle_language: SubtitleLanguage) {
-    popcorn_fx.subtitle_manager().update_language(subtitle_language.clone())
+pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoC {
+    match popcorn_fx.subtitle_manager().preferred_subtitle() {
+        None => ptr::null_mut(),
+        Some(e) => into_c_owned(SubtitleInfoC::from(e))
+    }
+}
+
+/// Retrieve the preferred subtitle language for the next [Media] item playback.
+///
+/// It returns the preferred subtitle language.
+#[no_mangle]
+pub extern "C" fn retrieve_preferred_subtitle_language(popcorn_fx: &mut PopcornFX) -> SubtitleLanguage {
+    popcorn_fx.subtitle_manager().preferred_language()
+}
+
+/// Update the preferred subtitle for the [Media] item playback.
+/// This action will reset any custom configured subtitle files.
+#[no_mangle]
+pub extern "C" fn update_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC) {
+    popcorn_fx.subtitle_manager().update_subtitle(SubtitleInfo::from(subtitle))
+}
+
+/// Update the preferred subtitle to a custom subtitle filepath.
+/// This action will reset any preferred subtitle.
+#[no_mangle]
+pub extern "C" fn update_subtitle_custom_file(popcorn_fx: &mut PopcornFX, custom_filepath: *const c_char) {
+    let custom_filepath = from_c_string(custom_filepath);
+    trace!("Updating custom subtitle filepath to {}", &custom_filepath);
+
+    popcorn_fx.subtitle_manager().update_custom_subtitle(custom_filepath.as_str())
+}
+
+/// Reset the current preferred subtitle configuration.
+/// This will remove any selected [SubtitleInfo] or custom subtitle file.
+#[no_mangle]
+pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
+    popcorn_fx.subtitle_manager().reset()
+}
+
+/// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
+///
+/// It returns the filepath to the subtitle on success, else [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *const c_char {
+    trace!("Starting subtitle download for info: {:?}, matcher: {:?}", subtitle, matcher);
+    let subtitle_info = SubtitleInfo::from(subtitle);
+    let matcher = matcher.to_matcher();
+    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+
+    match runtime.block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
+        Ok(e) => {
+            debug!("Returning subtitle filepath {:?}", &e);
+            into_c_string(e)
+        }
+        Err(e) => {
+            error!("Failed to download subtitle, {}", e);
+            ptr::null_mut()
+        }
+    }
 }
 
 /// Download and parse the given subtitle info.
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn download_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
-    let subtitle_info = subtitle.clone().to_subtitle();
+pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
+    let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
+    match runtime.block_on(popcorn_fx.subtitle_provider().download_and_parse(&subtitle_info, &matcher)) {
         Ok(e) => {
             let result = SubtitleC::from(e);
             debug!("Returning parsed subtitle {:?}", result);
@@ -210,7 +273,7 @@ pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &Subtitl
     match popcorn_fx.subtitle_provider().convert(subtitle, subtitle_type.clone()) {
         Ok(e) => {
             debug!("Returning subtitle format {} to C", subtitle_type);
-            to_c_string(e)
+            into_c_string(e)
         }
         Err(e) => {
             error!("Failed to convert subtitle to {}, {}", subtitle_type, e);
@@ -514,7 +577,7 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
     match popcorn_fx.subtitle_server().serve(subtitle, subtitle_type) {
         Ok(e) => {
             info!("Serving subtitle at {}", &e);
-            to_c_string(e)
+            into_c_string(e)
         }
         Err(e) => {
             error!("Failed to serve subtitle, {}", e);
@@ -633,6 +696,65 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
     popcorn_fx.watched_service().register(wrapper)
 }
 
+/// The torrent wrapper for moving data between rust and java.
+/// This is a temp wrapper till the torrent component is replaced.
+#[no_mangle]
+pub extern "C" fn torrent_wrapper(torrent: TorrentC) -> *mut TorrentWrapperC {
+    trace!("Wrapping TorrentC into TorrentWrapperC");
+    into_c_owned(TorrentWrapperC::from(torrent))
+}
+
+/// Inform the FX core that the state of the torrent has changed.
+#[no_mangle]
+pub extern "C" fn torrent_state_changed(torrent: &TorrentWrapperC, state: TorrentState) {
+    torrent.state_changed(state)
+}
+
+/// Inform the FX core that a piece for the torrent has finished downloading.
+#[no_mangle]
+pub extern "C" fn torrent_piece_finished(torrent: &TorrentWrapperC, piece: u32) {
+    torrent.piece_finished(piece)
+}
+
+/// Start a torrent stream for the given torrent.
+#[no_mangle]
+pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static TorrentWrapperC) -> *mut TorrentStreamC {
+    trace!("Starting a new stream from C for {:?}", torrent);
+    match popcorn_fx.torrent_stream_server().start_stream(Box::new(torrent) as Box<dyn Torrent>) {
+        Ok(e) => {
+            info!("Started new stream {}", e);
+            into_c_owned(TorrentStreamC::from(e))
+        }
+        Err(e) => {
+            error!("Failed to start stream, {}", e);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Register a new callback for the torrent stream.
+#[no_mangle]
+pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
+    trace!("Wrapping TorrentStreamEventC callback");
+    let stream = stream.stream();
+    stream.register_stream(Box::new(move |e| {
+        callback(TorrentStreamEventC::from(e))
+    }));
+    mem::forget(stream);
+}
+
+/// Retrieve the current state of the stream.
+/// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
+///
+/// It returns the known [TorrentStreamState] at the time of invocation.
+#[no_mangle]
+pub extern "C" fn torrent_stream_state(stream: &TorrentStreamC) -> TorrentStreamState {
+    let stream = stream.stream();
+    let state = stream.stream_state();
+    mem::forget(stream);
+    state
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -661,15 +783,96 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
 
 #[cfg(test)]
 mod test {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::from_c_owned;
 
     use super::*;
+
+    #[no_mangle]
+    pub extern "C" fn has_bytes_callback(_: i32, _: *mut u64) -> bool {
+        true
+    }
+
+    #[no_mangle]
+    pub extern "C" fn has_piece_callback(_: u32) -> bool {
+        true
+    }
+
+    #[no_mangle]
+    pub extern "C" fn total_pieces_callback() -> i32 {
+        10
+    }
+
+    #[no_mangle]
+    pub extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
+
+    #[no_mangle]
+    pub extern "C" fn sequential_mode_callback() {}
 
     #[test]
     fn test_create_and_dispose_popcorn_fx() {
         let instance = from_c_owned(new_popcorn_fx());
 
         dispose_popcorn_fx(Box::new(instance));
+    }
+
+    #[test]
+    fn test_update_subtitle() {
+        let language1 = SubtitleLanguage::Finnish;
+        let subtitle1 = SubtitleInfo::new(
+            "tt212121".to_string(),
+            language1.clone(),
+        );
+        let info_c1 = SubtitleInfoC::from(subtitle1.clone());
+        let language2 = SubtitleLanguage::English;
+        let subtitle2 = SubtitleInfo::new(
+            "tt212333".to_string(),
+            language2.clone(),
+        );
+        let info_c2 = SubtitleInfoC::from(subtitle2.clone());
+        let mut instance = from_c_owned(new_popcorn_fx());
+
+        update_subtitle(&mut instance, &info_c1);
+        let info_result = SubtitleInfo::from(&from_c_owned(retrieve_preferred_subtitle(&mut instance)));
+        let language_result = retrieve_preferred_subtitle_language(&mut instance);
+        assert_eq!(subtitle1, info_result);
+        assert_eq!(language1, language_result);
+
+        update_subtitle(&mut instance, &info_c2);
+        let info_result = SubtitleInfo::from(&from_c_owned(retrieve_preferred_subtitle(&mut instance)));
+        let language_result = retrieve_preferred_subtitle_language(&mut instance);
+        assert_eq!(subtitle2, info_result);
+        assert_eq!(language2, language_result);
+    }
+
+    #[test]
+    fn test_torrent_state_changed() {
+        let torrent = TorrentC {
+            filepath: into_c_string("lorem.txt".to_string()),
+            has_byte_callback: has_bytes_callback,
+            has_piece_callback: has_piece_callback,
+            total_pieces: total_pieces_callback,
+            prioritize_pieces: prioritize_pieces_callback,
+            sequential_mode: sequential_mode_callback,
+        };
+        let (tx, rx) = channel();
+
+        let wrapper = from_c_owned(torrent_wrapper(torrent));
+        wrapper.wrapper().register(Box::new(move |e| {
+            tx.send(e).unwrap()
+        }));
+        torrent_state_changed(&wrapper, TorrentState::Starting);
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        match result {
+            TorrentEvent::StateChanged(state) => assert_eq!(TorrentState::Starting, state),
+            _ => {}
+        }
     }
 
     #[test]
@@ -689,7 +892,7 @@ mod test {
         let mut instance = from_c_owned(new_popcorn_fx());
         let genre = GenreC::from(Genre::all());
         let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
-        let keywords = to_c_string(String::new());
+        let keywords = into_c_string(String::new());
 
         let media_items = retrieve_available_movies(&mut instance, &genre, &sort_by, keywords, 1);
 

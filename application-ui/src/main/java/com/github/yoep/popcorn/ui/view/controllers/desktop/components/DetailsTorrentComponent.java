@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
@@ -52,6 +53,7 @@ public class DetailsTorrentComponent implements Initializable {
     private final PlayerManagerService playerManagerService;
     private final PlatformProvider platformProvider;
     private final SubtitlePickerService subtitlePickerService;
+    private final SubtitleService subtitleService;
 
     private String magnetUri;
     private TorrentInfo torrentInfo;
@@ -152,7 +154,7 @@ public class DetailsTorrentComponent implements Initializable {
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
         if (SubtitleInfo.custom().equals(subtitleInfo)) {
-            subtitlePickerService.pickCustomSubtitle().ifPresent(e -> activeSubtitleInfo = e);
+            subtitlePickerService.pickCustomSubtitle().ifPresent(subtitleService::updateCustomSubtitle);
         } else {
             activeSubtitleInfo = subtitleInfo;
         }

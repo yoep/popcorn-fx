@@ -156,7 +156,7 @@ impl SubtitleInfo {
 
             return match files.into_iter().next() {
                 None => {
-                    warn!("No subtitle file found matching the given name, using best matching item instead");
+                    warn!("No subtitle file found matching {}, using best matching item instead", name);
                     match self.files().unwrap().iter()
                         .sorted()
                         .next() {
@@ -204,8 +204,9 @@ impl SubtitleInfo {
     }
 
     fn filter_by_filename(name: &str, files: Vec<SubtitleFile>) -> Vec<SubtitleFile> {
+        let normalized_filename = Self::normalize(name);
         files.into_iter()
-            .filter(|e| Self::normalize(e.name()) == Self::normalize(name))
+            .filter(|e| Self::normalize(e.name()) == normalized_filename)
             .collect()
     }
 

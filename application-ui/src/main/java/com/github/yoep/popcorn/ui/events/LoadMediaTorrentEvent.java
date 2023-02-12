@@ -33,8 +33,11 @@ public class LoadMediaTorrentEvent extends LoadTorrentEvent {
     private final String quality;
     /**
      * The subtitle that needs to be loaded while loading the torrent.
+     *
+     * @deprecated Use the {@link com.github.yoep.popcorn.backend.subtitles.SubtitleService} instead.
      */
     @Nullable
+    @Deprecated
     private final SubtitleInfo subtitle;
 
     @Builder

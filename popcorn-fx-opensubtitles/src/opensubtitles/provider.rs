@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
+use std::future::Future;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -62,7 +63,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    fn create_search_url(&self, media_id: Option<&String>, episode: Option<&Episode>, filename: Option<&String>, page: i32) -> Result<Url> {
+    fn create_search_url(&self, media_id: Option<&str>, episode: Option<&Episode>, filename: Option<&str>, page: i32) -> Result<Url> {
         let mut query_params: Vec<(&str, &str)> = vec![];
         let imdb_id: String;
         let season: String;
@@ -169,7 +170,7 @@ impl OpensubtitlesProvider {
             .collect()
     }
 
-    async fn handle_search_result(id: &String, response: Response) -> Result<OpenSubtitlesResponse<SearchResult>> {
+    async fn handle_search_result(id: &str, response: Response) -> Result<OpenSubtitlesResponse<SearchResult>> {
         match response.status() {
             StatusCode::OK => {
                 trace!("Received response from OpenSubtitles for {}, decoding JSON...", id);
@@ -188,7 +189,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn start_search_request(&self, id: &String, media_id: Option<&String>, episode: Option<&Episode>, filename: Option<&String>) -> Result<Vec<SubtitleInfo>> {
+    async fn start_search_request(&self, id: &str, media_id: Option<&str>, episode: Option<&Episode>, filename: Option<&str>) -> Result<Vec<SubtitleInfo>> {
         let mut search_data: Vec<SearchResult> = vec![];
 
         trace!("Fetching search result page 1");
@@ -218,7 +219,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn fetch_search_page(&self, id: &String, media_id: Option<&String>, episode: Option<&Episode>, filename: Option<&String>, page: i32) -> Result<OpenSubtitlesResponse<SearchResult>> {
+    async fn fetch_search_page(&self, id: &str, media_id: Option<&str>, episode: Option<&Episode>, filename: Option<&str>, page: i32) -> Result<OpenSubtitlesResponse<SearchResult>> {
         let url = self.create_search_url(media_id, episode, filename, page)?;
 
         debug!("Retrieving available subtitles from {}", &url);
@@ -230,7 +231,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn execute_download_request(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, download_response: DownloadResponse) -> Result<Subtitle> {
+    async fn execute_download_request(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, download_response: DownloadResponse) -> Result<String> {
         let download_link = download_response.link();
 
         debug!("Downloading subtitle file from {}", download_link);
@@ -242,7 +243,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn handle_download_binary_response(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, response: Response) -> Result<Subtitle> {
+    async fn handle_download_binary_response(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, response: Response) -> Result<String> {
         match response.status() {
             StatusCode::OK => {
                 trace!("Storing subtitle response of {} into {:?}", file_id, path);
@@ -251,8 +252,9 @@ impl OpensubtitlesProvider {
                         let mut content = Cursor::new(response.bytes().await.unwrap());
                         match std::io::copy(&mut content, &mut file) {
                             Ok(_) => {
-                                info!("Downloaded subtitle file {}", path.to_str().unwrap());
-                                self.internal_parse(path, Some(subtitle_info))
+                                let path = path.to_str().expect("expected the path to be a valid str");
+                                info!("Downloaded subtitle file {}", path);
+                                Ok(path.to_string())
                             }
                             Err(err) => return Err(SubtitleError::DownloadFailed(file_id.to_string(), err.to_string()))
                         }
@@ -264,7 +266,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn handle_download_response(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, response: Response) -> Result<Subtitle> {
+    async fn handle_download_response(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, response: Response) -> Result<String> {
         match response.status() {
             StatusCode::OK => {
                 match response.json::<DownloadResponse>()
@@ -393,13 +395,13 @@ impl SubtitleProvider for OpensubtitlesProvider {
             .await
     }
 
-    async fn file_subtitles(&self, filename: &String) -> Result<Vec<SubtitleInfo>> {
+    async fn file_subtitles(&self, filename: &str) -> Result<Vec<SubtitleInfo>> {
         debug!("Searching filename subtitles for {}", filename);
         self.start_search_request(filename, None, None, Some(filename))
             .await
     }
 
-    async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> Result<Subtitle> {
+    async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> Result<String> {
         trace!("Starting subtitle download for {}", subtitle_info);
         let subtitle_file = subtitle_info.best_matching_file(matcher)?;
         let file_location = self.storage_file(&subtitle_file);
@@ -410,7 +412,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
         trace!("Verifying subtitle path {:?}", path);
         if path.exists() {
             info!("Subtitle file {:?} already exists, skipping download", path.as_os_str());
-            return self.internal_parse(path, Some(subtitle_info));
+            return Ok(path.to_str().expect("expected the subtitle path to be valid").to_string());
         }
 
         let url = self.create_download_url()?;
@@ -422,6 +424,16 @@ impl SubtitleProvider for OpensubtitlesProvider {
             .await {
             Ok(response) => self.handle_download_response(file_id, path, subtitle_info, response).await,
             Err(err) => Err(SubtitleError::DownloadFailed(file_id.to_string(), err.to_string()))
+        }
+    }
+
+    async fn download_and_parse(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> Result<Subtitle> {
+        match self.download(subtitle_info, matcher).await {
+            Err(e) => Err(e),
+            Ok(path) => {
+                let path = Path::new(&path);
+                self.internal_parse(path, Some(subtitle_info))
+            }
         }
     }
 
@@ -704,7 +716,7 @@ mod test {
                 StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)
             ])])], Some(subtitle_info.clone()), expected_file.to_str().unwrap().to_string());
 
-        let result = service.download(&subtitle_info, &matcher)
+        let result = service.download_and_parse(&subtitle_info, &matcher)
             .await
             .unwrap();
 
@@ -743,7 +755,7 @@ mod test {
         ];
         let expected_result = Subtitle::new(expected_cues.clone(), Some(subtitle_info.clone()), destination.clone());
 
-        let result = service.download(&subtitle_info, &matcher)
+        let result = service.download_and_parse(&subtitle_info, &matcher)
             .await
             .unwrap();
 

@@ -251,7 +251,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                 onCustomSubtitleSelected();
             } else {
                 this.subtitle = newValue;
-                subtitleService.updateSubtitleLanguage(newValue.getLanguage());
+                subtitleService.updateSubtitle(newValue);
             }
         };
     }
@@ -281,7 +281,9 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
             // if a custom subtitle was picked by the user, update the subtitle with the custom subtitle
             // otherwise, the subtitle pick was cancelled and we need to reset the selected language to disabled
-            subtitleInfo.ifPresentOrElse(subtitle -> this.subtitle = subtitle, () -> languageSelection.select(SubtitleInfo.none()));
+            subtitleInfo.ifPresentOrElse(
+                    subtitleService::updateCustomSubtitle,
+                    () -> languageSelection.select(SubtitleInfo.none()));
         });
     }
 

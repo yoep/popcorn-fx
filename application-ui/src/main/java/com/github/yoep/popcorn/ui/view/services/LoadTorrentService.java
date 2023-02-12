@@ -23,7 +23,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -98,7 +98,6 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         // remove the stored info
         resetToIdleState();
 
-        subtitleService.setActiveSubtitle(Subtitle.none());
         eventPublisher.publishEvent(new CloseLoadEvent(this));
     }
 
@@ -241,24 +240,30 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     }
 
     private CompletableFuture<Torrent> retrieveAndDownloadAvailableSubtitles(Torrent torrent) {
-        var availableSubtitles = Collections.<SubtitleInfo>emptyList();
-        SubtitleInfo selectedSubtitle = null;
-        String quality = null;
+        var quality = (String) null;
 
         if (event instanceof LoadMediaTorrentEvent mediaEvent) {
-            selectedSubtitle = mediaEvent.getSubtitle().orElse(null);
             quality = mediaEvent.getQuality();
-            availableSubtitles = retrieveAvailableMediaSubtitles(mediaEvent.getMedia(), mediaEvent.getSubItem().orElse(null));
-        } else if (event instanceof LoadUrlTorrentEvent urlEvent) {
-            selectedSubtitle = urlEvent.getSubtitle().orElse(null);
-            availableSubtitles = retrieveAvailableFilenameSubtitles(urlEvent.getTorrentFileInfo().getFilename());
         }
 
-        if (selectedSubtitle == null) {
-            selectedSubtitle = subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles);
+        if (subtitleService.preferredSubtitleLanguage() == SubtitleLanguage.NONE) {
+            var availableSubtitles = Collections.<SubtitleInfo>emptyList();
+
+            if (event instanceof LoadMediaTorrentEvent mediaEvent) {
+                availableSubtitles = retrieveAvailableMediaSubtitles(mediaEvent.getMedia(), mediaEvent.getSubItem().orElse(null));
+            } else if (event instanceof LoadUrlTorrentEvent urlEvent) {
+                availableSubtitles = retrieveAvailableFilenameSubtitles(urlEvent.getTorrentFileInfo().getFilename());
+            }
+
+            var subtitle = subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles);
+            subtitleService.updateSubtitle(subtitle);
         }
 
-        downloadSubtitles(selectedSubtitle, quality, torrent.getFilename());
+        var subtitleInfo = subtitleService.preferredSubtitle();
+        if (subtitleInfo.isPresent()) {
+            downloadSubtitles(subtitleInfo.get(), quality, torrent.getFilename());
+        }
+
         return CompletableFuture.completedFuture(torrent);
     }
 
@@ -317,13 +322,12 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
 
         // download the subtitle locally, this will cache the subtitle for later use in the video player
         try {
-            var subtitle = subtitleService.downloadAndParse(subtitleInfo, SubtitleMatcher.from(filename, quality))
+            var subtitle = subtitleService.download(subtitleInfo, SubtitleMatcher.from(filename, quality))
                     .exceptionally(throwable -> {
                         log.warn("Failed to load torrent subtitle {}, {}", subtitleInfo, throwable.getMessage(), throwable);
-                        return Subtitle.none();
+                        return "";
                     })
                     .get(DOWNLOAD_SUBTITLE_TIMEOUT, TimeUnit.SECONDS);
-            subtitleService.setActiveSubtitle(subtitle);
             log.info("Torrent subtitle {} has been activated for playback", subtitle);
         } catch (InterruptedException | ExecutionException ex) {
             log.debug("Downloading of the torrent subtitle has been cancelled");

@@ -85,3 +85,17 @@ impl SubtitleFamily {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::core::config::SubtitleFamily;
+
+    #[test]
+    fn test_subtitle_family() {
+        let tm = SubtitleFamily::TrebuchetMs.family();
+        let verdana = SubtitleFamily::Verdana.family();
+
+        assert_eq!("Trebuchet MS".to_string(), tm);
+        assert_eq!("Verdana".to_string(), verdana);
+    }
+}

@@ -1,9 +1,12 @@
 package com.github.yoep.popcorn.backend.adapters.torrent.state;
 
+import com.sun.jna.FromNativeContext;
+import com.sun.jna.NativeMapped;
+
 /**
  * The torrent state.
  */
-public enum TorrentState {
+public enum TorrentState implements NativeMapped {
     /**
      * The torrent is currently being created.
      */
@@ -32,5 +35,27 @@ public enum TorrentState {
      * The torrent encountered a fatal error and cannot continue.
      * This state is mostly encountered during the creation/start of the torrent.
      */
-    ERROR
+    ERROR;
+
+    @Override
+    public Object fromNative(Object nativeValue, FromNativeContext context) {
+        var ordinal = (Integer) nativeValue;
+        if (ordinal == -1)
+            return ERROR;
+
+        return TorrentState.values()[ordinal];
+    }
+
+    @Override
+    public Object toNative() {
+        if (this == ERROR)
+            return -1;
+
+        return ordinal();
+    }
+
+    @Override
+    public Class<?> nativeType() {
+        return Integer.class;
+    }
 }

@@ -1,10 +1,9 @@
 use std::os::raw::c_char;
 use std::ptr;
 
-use futures::StreamExt;
 use log::trace;
 
-use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
+use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
 use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
@@ -37,7 +36,7 @@ pub struct SubtitleInfoC {
 impl SubtitleInfoC {
     pub fn empty() -> Self {
         Self {
-            imdb_id: to_c_string(String::new()),
+            imdb_id: into_c_string(String::new()),
             language: SubtitleLanguage::None,
             files: ptr::null_mut(),
             len: 0,
@@ -55,22 +54,31 @@ impl SubtitleInfoC {
 
         Self {
             imdb_id: match info.imdb_id() {
-                None => to_c_string(String::new()),
-                Some(e) => to_c_string(e.clone())
+                None => into_c_string(String::new()),
+                Some(e) => into_c_string(e.clone())
             },
             language: info.language().clone(),
             files,
             len,
         }
     }
+}
 
-    pub fn to_subtitle(&self) -> SubtitleInfo {
+impl From<&SubtitleInfoC> for SubtitleInfo {
+    fn from(value: &SubtitleInfoC) -> Self {
+        trace!("Converting SubtitleInfo from C for {:?}", value);
+        let files = if !value.files.is_null() {
+            from_c_vec(value.files, value.len).into_iter()
+                .map(SubtitleFile::from)
+                .collect()
+        } else {
+            vec![]
+        };
+
         SubtitleInfo::new_with_files(
-            from_c_string(self.imdb_id),
-            self.language.clone(),
-            from_c_vec(self.files, self.len).into_iter()
-                .map(|e| e.to_subtitle_file())
-                .collect(),
+            from_c_string(value.imdb_id.clone()),
+            value.language.clone(),
+            files,
         )
     }
 }
@@ -90,8 +98,8 @@ impl SubtitleFileC {
     fn from(file: SubtitleFile) -> Self {
         Self {
             file_id: *file.file_id(),
-            name: to_c_string(file.name().clone()),
-            url: to_c_string(file.url().clone()),
+            name: into_c_string(file.name().clone()),
+            url: into_c_string(file.url().clone()),
             score: *file.score(),
             downloads: *file.downloads(),
             quality: match file.quality() {
@@ -100,20 +108,23 @@ impl SubtitleFileC {
             },
         }
     }
+}
 
-    fn to_subtitle_file(self) -> SubtitleFile {
-        let quality = if self.quality.is_null() {
+impl From<SubtitleFileC> for SubtitleFile {
+    fn from(value: SubtitleFileC) -> Self {
+        trace!("Converting SubtitleFile from C for {:?}", &value);
+        let quality = if value.quality.is_null() {
             None
         } else {
-            Some(from_c_owned(self.quality))
+            Some(from_c_owned(value.quality))
         };
 
         SubtitleFile::new_with_quality(
-            self.file_id,
-            from_c_string(self.name),
-            from_c_string(self.url),
-            self.score,
-            self.downloads,
+            value.file_id,
+            from_c_string(value.name),
+            from_c_string(value.url),
+            value.score,
+            value.downloads,
             quality,
         )
     }
@@ -162,11 +173,11 @@ impl SubtitleMatcherC {
         Self {
             name: match matcher.name() {
                 None => ptr::null(),
-                Some(e) => to_c_string(e.clone())
+                Some(e) => into_c_string(e.to_string())
             },
             quality: match matcher.quality() {
                 None => ptr::null(),
-                Some(e) => to_c_string(e.to_string())
+                Some(e) => into_c_string(e.to_string())
             },
         }
     }
@@ -201,11 +212,11 @@ impl SubtitleC {
     pub fn from(subtitle: Subtitle) -> Self {
         trace!("Converting subtitle to C for {}", subtitle);
         let (cues_ptr, number_of_cues) = to_c_vec(subtitle.cues().iter()
-            .map(|e| SubtitleCueC::from(e))
+            .map(SubtitleCueC::from)
             .collect());
 
         Self {
-            file: to_c_string(subtitle.file().clone()),
+            file: into_c_string(subtitle.file().clone()),
             info: SubtitleInfoC::from(subtitle.info()
                 .map(|e| e.clone())
                 .or_else(|| Some(SubtitleInfo::none()))
@@ -217,7 +228,7 @@ impl SubtitleC {
 
     pub fn to_subtitle(&self) -> Subtitle {
         trace!("Converting subtitle from C for {:?}", self);
-        let info = self.info.clone().to_subtitle();
+        let info = SubtitleInfo::from(&self.info);
         let cues = from_c_vec(self.cues, self.number_of_cues);
 
         Subtitle::new(
@@ -247,7 +258,7 @@ impl SubtitleCueC {
             .collect());
 
         Self {
-            id: to_c_string(cue.id().clone()),
+            id: into_c_string(cue.id().clone()),
             start_time: cue.start_time().clone(),
             end_time: cue.end_time().clone(),
             lines,
@@ -312,7 +323,7 @@ pub struct StyledTextC {
 impl StyledTextC {
     pub fn from(text: &StyledText) -> Self {
         Self {
-            text: to_c_string(text.text().clone()),
+            text: into_c_string(text.text().clone()),
             italic: text.italic().clone(),
             bold: text.bold().clone(),
             underline: text.underline().clone(),
@@ -325,5 +336,71 @@ impl StyledTextC {
         let underline = self.underline.clone();
 
         StyledText::new(from_c_string(self.text), italic, bold, underline)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::testing::init_logger;
+
+    use super::*;
+
+    #[test]
+    fn test_subtitle_file_from() {
+        init_logger();
+        let name = "lorem".to_string();
+        let url = "ipsum".to_string();
+        let subtitle_c = SubtitleFileC {
+            file_id: 12,
+            name: into_c_string(name.clone()),
+            url: into_c_string(url.clone()),
+            score: 7.3,
+            downloads: 8754,
+            quality: ptr::null_mut(),
+        };
+
+        let result = SubtitleFile::from(subtitle_c);
+
+        assert_eq!(&12, result.file_id());
+        assert_eq!(&name, result.name());
+        assert_eq!(&url, result.url());
+        assert_eq!(&7.3, result.score());
+        assert_eq!(&8754, result.downloads());
+        assert_eq!(None, result.quality());
+    }
+
+    #[test]
+    fn test_subtitle_info_with_files() {
+        init_logger();
+        let subtitle = SubtitleInfo::new_with_files(
+            "tt22222233".to_string(),
+            SubtitleLanguage::Italian,
+            vec![SubtitleFile::new(
+                1,
+                "lorem".to_string(),
+                String::new(),
+                8.0,
+                1544,
+            )],
+        );
+
+        let info_c = SubtitleInfoC::from(subtitle.clone());
+        let result = SubtitleInfo::from(&info_c);
+
+        assert_eq!(subtitle, result)
+    }
+
+    #[test]
+    fn test_subtitle_info_without_files() {
+        init_logger();
+        let subtitle = SubtitleInfo::new(
+            "tt8788777".to_string(),
+            SubtitleLanguage::Spanish,
+        );
+
+        let info_c = SubtitleInfoC::from(subtitle.clone());
+        let result = SubtitleInfo::from(&info_c);
+
+        assert_eq!(subtitle, result)
     }
 }

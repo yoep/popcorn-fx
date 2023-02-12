@@ -10,7 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import javax.validation.constraints.NotNull;
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -24,7 +28,7 @@ public class DropDownButton<T> extends SplitMenuButton {
     static final String STYLE_CLASS = "dropdown-button";
 
     private final ObjectProperty<T> selectedItem = new SimpleObjectProperty<>(this, SELECTED_ITEM_PROPERTY);
-    private final Map<Integer, ItemHolder<T>> items = new HashMap<>();
+    private final Map<Integer, ItemHolder<T>> items = new ConcurrentHashMap<>();
 
     private DropDownButtonFactory<T> itemFactory;
 
@@ -109,7 +113,9 @@ public class DropDownButton<T> extends SplitMenuButton {
      */
     public void addDropDownItems(Collection<T> items) {
         Assert.notNull(items, "items cannot be null");
-        items.forEach(this::addPlayer);
+        for (T item : items) {
+            this.addPlayer(item);
+        }
     }
 
     /**
@@ -150,7 +156,7 @@ public class DropDownButton<T> extends SplitMenuButton {
 
     private boolean isIdActive(int id) {
         var activeId = getSelectedItem()
-                .map(e -> e.hashCode())
+                .map(Object::hashCode)
                 .orElse(-1);
 
         return activeId.equals(id);

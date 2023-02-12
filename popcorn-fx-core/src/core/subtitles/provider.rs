@@ -25,17 +25,26 @@ pub trait SubtitleProvider {
     async fn episode_subtitles(&self, media: ShowDetails, episode: Episode) -> subtitles::Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given filename.
-    async fn file_subtitles(&self, filename: &String) -> subtitles::Result<Vec<SubtitleInfo>>;
+    async fn file_subtitles(&self, filename: &str) -> subtitles::Result<Vec<SubtitleInfo>>;
 
-    /// Download the [Subtitle] for the given [SubtitleInfo].
+    /// Download the subtitle for the given [SubtitleInfo].
+    ///
+    /// It returns the location to the downloaded subtitle file on success, else the [subtitles::SubtitleError].
+    async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<String>;
+
+    /// Download the subtitle for the given [SubtitleInfo].
     /// This method automatically parses the downloaded file.
-    async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<Subtitle>;
+    ///
+    /// It returns the parsed [Subtitle] on success, else the [subtitles::SubtitleError].
+    async fn download_and_parse(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<Subtitle>;
 
     /// Parse the given file path to a subtitle struct.
+    ///
     /// It returns a [SubtitleError] when the path doesn't exist of the file failed to be parsed.
     fn parse(&self, file_path: &Path) -> subtitles::Result<Subtitle>;
 
     /// Select one of the available subtitles.
+    ///
     /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
     fn select_or_default(&self, subtitles: &Vec<SubtitleInfo>) -> SubtitleInfo;
 

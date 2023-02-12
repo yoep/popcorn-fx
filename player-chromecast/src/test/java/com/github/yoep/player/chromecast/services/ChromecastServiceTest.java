@@ -14,6 +14,8 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,13 +25,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import su.litvak.chromecast.api.v2.Media;
 
-import java.io.File;
-import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,40 +71,14 @@ class ChromecastServiceTest {
     }
 
     @Test
-    void testRetrieveVttSubtitle_whenSubtitleDoesNotMatchActiveSubtitle_shouldReturnEmpty() {
-        var subtitleName = "lorem.vtt";
-        var activeSubtitle = "ipsum.vtt";
-        var subtitle = new Subtitle(new File(activeSubtitle), Collections.emptyList());
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
-
-        var result = service.retrieveVttSubtitle(subtitleName);
-
-        assertTrue(result.isEmpty(), "Expected an empty subtitle to be returned");
-    }
-
-    @Test
-    void testRetrieveVttSubtitle_whenSubtitleMatchesActiveSubtitle_shouldReturnSubtitleContents() {
-        var activeSubtitle = "ipsum.vtt";
-        var subtitle = new Subtitle(new File(activeSubtitle), Collections.emptyList());
-        var expectedResult = mock(InputStream.class);
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
-        when(subtitleService.convert(subtitle, SubtitleType.VTT)).thenReturn(expectedResult);
-
-        var result = service.retrieveVttSubtitle(activeSubtitle);
-
-        assertTrue(result.isPresent(), "Expected a subtitle to be returned");
-        assertEquals(expectedResult, result.get());
-    }
-
-    @Test
     void testToLoadRequest_whenFormatIsSupported_shouldUseOriginalUrl() {
         var url = "http://localhost:9976/my-video-url.mp4";
         var subtitleUri = "http://localhost:8754/lorem.vtt";
         var sessionId = "mySessionId";
         var contentType = "video/mp4";
         var duration = 20000L;
-        var port = 9999;
-        var subtitle = new Subtitle(new File("my-subtitle.srt"), Collections.emptyList());
+        var subtitleInfo = mock(SubtitleInfo.class);
+        var subtitle = mock(Subtitle.class);
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .title("My movie title")
@@ -136,12 +110,13 @@ class ChromecastServiceTest {
                         .build())
                 .activeTrackIds(Collections.singletonList(0))
                 .build();
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(subtitleService.serve(subtitle, SubtitleType.VTT)).thenReturn(subtitleUri);
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
                 .build());
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
         when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
         when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);
         when(probeData.getString("codec_name")).thenReturn(getSupportedCodec());
@@ -184,7 +159,6 @@ class ChromecastServiceTest {
                 .contentType(contentType)
                 .duration(duration)
                 .build());
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.empty());
         when(transcodeService.transcode(url)).thenReturn(transcodedUrl);
         when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
         when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);

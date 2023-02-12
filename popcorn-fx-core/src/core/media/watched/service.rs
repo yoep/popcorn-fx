@@ -6,9 +6,8 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::media;
+use crate::core::{CoreCallbacks, media};
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
-use crate::core::media::callbacks::MediaCallbacks;
 use crate::core::media::watched::Watched;
 use crate::core::storage::{Storage, StorageError};
 
@@ -86,7 +85,7 @@ pub trait WatchedService: Debug + Send + Sync {
 pub struct DefaultWatchedService {
     storage: Arc<Storage>,
     cache: Arc<Mutex<Option<Watched>>>,
-    callbacks: MediaCallbacks<WatchedEvent>,
+    callbacks: CoreCallbacks<WatchedEvent>,
 }
 
 impl DefaultWatchedService {
@@ -94,7 +93,7 @@ impl DefaultWatchedService {
         Self {
             storage: storage.clone(),
             cache: Arc::new(Mutex::new(None)),
-            callbacks: MediaCallbacks::default(),
+            callbacks: CoreCallbacks::default(),
         }
     }
 

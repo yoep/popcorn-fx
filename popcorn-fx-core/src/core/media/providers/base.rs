@@ -46,7 +46,7 @@ impl BaseProvider {
                 .build()
                 .expect("Client should have been created"),
             uri_providers: uris.into_iter()
-                .map(|e| UriProvider::new(e))
+                .map(UriProvider::new)
                 .collect(),
         }
     }
@@ -151,13 +151,13 @@ impl BaseProvider {
             .collect()
     }
 
-    fn create_search_uri(host: &String, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: u32) -> Option<Url> {
+    fn create_search_uri(host: &String, resource: &str, genre: &Genre, sort: &SortBy, keywords: &str, page: u32) -> Option<Url> {
         let mut query_params: Vec<(&str, &str)> = vec![];
 
         query_params.push((ORDER_QUERY, ORDER_QUERY_VALUE));
         query_params.push((GENRE_QUERY, genre.key().as_str()));
         query_params.push((SORT_QUERY, sort.key().as_str()));
-        query_params.push((KEYWORDS_QUERY, keywords.as_str()));
+        query_params.push((KEYWORDS_QUERY, keywords));
 
         match Url::parse_with_params(host.as_str(), &query_params) {
             Ok(mut e) => {

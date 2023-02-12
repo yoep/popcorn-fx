@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 
 use log::{error, trace};
 
-use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, to_c_string, to_c_vec};
+use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
 use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use crate::core::media::favorites::FavoriteEvent;
 use crate::core::media::watched::WatchedEvent;
@@ -110,9 +110,9 @@ pub struct MovieOverviewC {
 impl MovieOverviewC {
     pub fn from(movie: MovieOverview) -> Self {
         Self {
-            title: to_c_string(movie.title()),
-            imdb_id: to_c_string(movie.imdb_id().clone()),
-            year: to_c_string(movie.year().clone()),
+            title: into_c_string(movie.title()),
+            imdb_id: into_c_string(movie.imdb_id().clone()),
+            year: into_c_string(movie.year().clone()),
             rating: match movie.rating() {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
@@ -162,24 +162,24 @@ impl MovieDetailsC {
     pub fn from(movie: MovieDetails) -> Self {
         trace!("Converting MovieDetails to C for {{{}}}", movie);
         let (genres, genres_len) = to_c_vec(movie.genres().iter()
-            .map(|e| to_c_string(e.clone()))
+            .map(|e| into_c_string(e.clone()))
             .collect());
         let (torrents, torrents_len) = to_c_vec(movie.torrents().iter()
             .map(|(k, v)| TorrentEntryC::from(k, v))
             .collect());
 
         Self {
-            title: to_c_string(movie.title()),
-            imdb_id: to_c_string(movie.imdb_id().clone()),
-            year: to_c_string(movie.year().clone()),
+            title: into_c_string(movie.title()),
+            imdb_id: into_c_string(movie.imdb_id().clone()),
+            year: into_c_string(movie.year().clone()),
             runtime: movie.runtime().clone(),
             rating: match movie.rating() {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
             },
             images: ImagesC::from(movie.images()),
-            synopsis: to_c_string(movie.synopsis().clone()),
-            trailer: to_c_string(movie.trailer().clone()),
+            synopsis: into_c_string(movie.synopsis().clone()),
+            trailer: into_c_string(movie.trailer().clone()),
             genres,
             genres_len,
             torrents,
@@ -232,10 +232,10 @@ impl ShowOverviewC {
     pub fn from(show: ShowOverview) -> Self {
         trace!("Converting Show to C {}", show);
         Self {
-            imdb_id: to_c_string(show.imdb_id().clone()),
-            tvdb_id: to_c_string(show.tvdb_id().clone()),
-            title: to_c_string(show.title()),
-            year: to_c_string(show.year().clone()),
+            imdb_id: into_c_string(show.imdb_id().clone()),
+            tvdb_id: into_c_string(show.tvdb_id().clone()),
+            title: into_c_string(show.title()),
+            year: into_c_string(show.year().clone()),
             num_seasons: show.number_of_seasons().clone(),
             images: ImagesC::from(show.images()),
             rating: match show.rating() {
@@ -290,7 +290,7 @@ impl ShowDetailsC {
     pub fn from(show: ShowDetails) -> Self {
         trace!("Converting ShowDetails to C {}", show);
         let (genres, genres_len) = to_c_vec(show.genres().iter()
-            .map(|e| to_c_string(e.clone()))
+            .map(|e| into_c_string(e.clone()))
             .collect());
         let episodes = show.episodes().iter()
             .map(|e| EpisodeC::from(e.clone()))
@@ -298,19 +298,19 @@ impl ShowDetailsC {
         let (episodes, episodes_len) = to_c_vec(episodes);
 
         Self {
-            imdb_id: to_c_string(show.imdb_id().clone()),
-            tvdb_id: to_c_string(show.tvdb_id().clone()),
-            title: to_c_string(show.title()),
-            year: to_c_string(show.year().clone()),
+            imdb_id: into_c_string(show.imdb_id().clone()),
+            tvdb_id: into_c_string(show.tvdb_id().clone()),
+            title: into_c_string(show.title()),
+            year: into_c_string(show.year().clone()),
             num_seasons: show.number_of_seasons().clone(),
             images: ImagesC::from(show.images()),
             rating: match show.rating() {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(RatingC::from(e))
             },
-            synopsis: to_c_string(show.synopsis().clone()),
+            synopsis: into_c_string(show.synopsis().clone()),
             runtime: show.runtime().clone(),
-            status: to_c_string(show.status().clone()),
+            status: into_c_string(show.status().clone()),
             genres,
             genres_len,
             episodes,
@@ -365,9 +365,9 @@ impl EpisodeC {
             season: episode.season().clone() as i32,
             episode: episode.episode().clone() as i32,
             first_aired: episode.first_aired().clone() as i64,
-            title: to_c_string(episode.title().clone()),
-            synopsis: to_c_string(episode.synopsis()),
-            tvdb_id: to_c_string(episode.tvdb_id().clone()),
+            title: into_c_string(episode.title().clone()),
+            synopsis: into_c_string(episode.synopsis()),
+            tvdb_id: into_c_string(episode.tvdb_id().clone()),
             torrents,
             len,
         }
@@ -481,8 +481,8 @@ pub struct GenreC {
 impl GenreC {
     pub fn from(genre: Genre) -> Self {
         Self {
-            key: to_c_string(genre.key().clone()),
-            text: to_c_string(genre.text().clone()),
+            key: into_c_string(genre.key().clone()),
+            text: into_c_string(genre.text().clone()),
         }
     }
 
@@ -505,8 +505,8 @@ pub struct SortByC {
 impl SortByC {
     pub fn from(sort_by: SortBy) -> Self {
         Self {
-            key: to_c_string(sort_by.key().clone()),
-            text: to_c_string(sort_by.text().clone()),
+            key: into_c_string(sort_by.key().clone()),
+            text: into_c_string(sort_by.text().clone()),
         }
     }
 
@@ -565,9 +565,9 @@ impl ImagesC {
     pub fn from(images: &Images) -> Self {
         trace!("Converting Images to C {{{}}}", images);
         Self {
-            poster: to_c_string(images.poster().clone()),
-            fanart: to_c_string(images.fanart().clone()),
-            banner: to_c_string(images.banner().clone()),
+            poster: into_c_string(images.poster().clone()),
+            fanart: into_c_string(images.fanart().clone()),
+            banner: into_c_string(images.banner().clone()),
         }
     }
 
@@ -596,7 +596,7 @@ impl TorrentEntryC {
             .collect());
 
         Self {
-            language: to_c_string(language.clone()),
+            language: into_c_string(language.clone()),
             qualities,
             len,
         }
@@ -613,7 +613,7 @@ pub struct TorrentQualityC {
 impl TorrentQualityC {
     fn from(quality: &String, info: &TorrentInfo) -> Self {
         Self {
-            quality: to_c_string(quality.clone()),
+            quality: into_c_string(quality.clone()),
             torrent: TorrentInfoC::from(info),
         }
     }
@@ -637,24 +637,24 @@ pub struct TorrentInfoC {
 impl TorrentInfoC {
     fn from(info: &TorrentInfo) -> Self {
         Self {
-            url: to_c_string(info.url().clone()),
-            provider: to_c_string(info.provider().clone()),
-            source: to_c_string(info.source().clone()),
-            title: to_c_string(info.title().clone()),
-            quality: to_c_string(info.quality().clone()),
+            url: into_c_string(info.url().clone()),
+            provider: into_c_string(info.provider().clone()),
+            source: into_c_string(info.source().clone()),
+            title: into_c_string(info.title().clone()),
+            quality: into_c_string(info.quality().clone()),
             seed: info.seed().clone(),
             peer: info.peer().clone(),
             size: match info.size() {
                 None => ptr::null(),
-                Some(e) => to_c_string(e.clone())
+                Some(e) => into_c_string(e.clone())
             },
             filesize: match info.filesize() {
                 None => ptr::null(),
-                Some(e) => to_c_string(e.clone())
+                Some(e) => into_c_string(e.clone())
             },
             file: match info.file() {
                 None => ptr::null(),
-                Some(e) => to_c_string(e.clone())
+                Some(e) => into_c_string(e.clone())
             },
         }
     }
@@ -674,7 +674,7 @@ impl FavoriteEventC {
     pub fn from(event: FavoriteEvent) -> Self {
         trace!("Converting FavoriteEvent to C {}", &event);
         match event {
-            FavoriteEvent::LikedStateChanged(id, state) => Self::LikedStateChanged(to_c_string(id.clone()), state.clone()),
+            FavoriteEvent::LikedStateChanged(id, state) => Self::LikedStateChanged(into_c_string(id.clone()), state.clone()),
         }
     }
 }
@@ -693,7 +693,7 @@ impl WatchedEventC {
     pub fn from(event: WatchedEvent) -> Self {
         trace!("Converting WatchedEvent to C {}", &event);
         match event {
-            WatchedEvent::WatchedStateChanged(id, state) => Self::WatchedStateChanged(to_c_string(id), state)
+            WatchedEvent::WatchedStateChanged(id, state) => Self::WatchedStateChanged(into_c_string(id), state)
         }
     }
 }

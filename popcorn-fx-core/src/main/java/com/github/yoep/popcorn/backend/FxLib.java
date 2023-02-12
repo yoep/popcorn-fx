@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaSet;
@@ -12,10 +14,15 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.platform.PlatformInfo;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
+import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
+import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 
@@ -24,10 +31,9 @@ import com.sun.jna.Native;
  * Use the {@link FxLib#INSTANCE} to communicate with the loaded library.
  * <p>
  * <i>Example:</i>
- * <p>
- * <code>
+ * <pre><code>
  * var subtitles = FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), movie);
- * </code>
+ * </code></pre>
  */
 public interface FxLib extends Library {
     FxLib INSTANCE = Native.load("popcorn_fx", FxLib.class);
@@ -46,9 +52,19 @@ public interface FxLib extends Library {
 
     SubtitleInfo select_or_default_subtitle(PopcornFx instance, SubtitleInfo[] subtitles, int len);
 
-    void update_subtitle_language(PopcornFx instance, int language);
+    SubtitleInfo retrieve_preferred_subtitle(PopcornFx instance);
 
-    Subtitle download_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
+    SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFx instance);
+
+    void update_subtitle(PopcornFx instance, SubtitleInfo subtitle);
+
+    void update_subtitle_custom_file(PopcornFx instance, String filepath);
+
+    void reset_subtitle(PopcornFx instance);
+
+    String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
+
+    Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
 
     Subtitle parse_subtitle(PopcornFx instance, String filePath);
 
@@ -97,6 +113,18 @@ public interface FxLib extends Library {
     void remove_from_watched(PopcornFx instance, MediaItem media);
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
+
+    TorrentWrapperPointer torrent_wrapper(TorrentWrapper.ByValue torrent);
+
+    void torrent_state_changed(TorrentWrapperPointer torrent, TorrentState state);
+
+    void torrent_piece_finished(TorrentWrapperPointer torrent, int piece);
+
+    TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapperPointer torrent);
+
+    void register_torrent_stream_callback(TorrentStreamWrapper stream, TorrentStreamEventCallback callback);
+
+    TorrentStreamState torrent_stream_state(TorrentStreamWrapper stream);
 
     void dispose_media_item(MediaItem media);
 

@@ -23,7 +23,7 @@ import java.io.Serializable;
 @Data
 @ToString
 @EqualsAndHashCode(of = {"imdbId", "language"}, callSuper = false)
-@Structure.FieldOrder({"imdbId", "language", "infoPointer"})
+@Structure.FieldOrder({"imdbId", "language", "files", "len"})
 public class SubtitleInfo extends Structure implements Comparable<SubtitleInfo>, Serializable, Closeable {
     public static class ByReference extends SubtitleInfo implements Structure.ByReference {
     }
@@ -32,7 +32,8 @@ public class SubtitleInfo extends Structure implements Comparable<SubtitleInfo>,
 
     public String imdbId;
     public SubtitleLanguage language;
-    public SubtitleInfoRef infoPointer;
+    public SubtitleFile.ByReference files;
+    public int len;
 
     //region Constructors
 

@@ -16,6 +16,7 @@ import javax.annotation.PreDestroy;
         SettingsConfig.class,
         StorageConfig.class,
         ThreadConfig.class,
+        TorrentStreamConfig.class,
         UtilsConfig.class,
 })
 @EnableConfigurationProperties({

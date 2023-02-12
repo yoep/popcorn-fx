@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.updater;
 
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
@@ -61,7 +60,7 @@ class UpdaterServiceTest {
 
         var restConfig = new RestConfig();
         var objectMapperBuilder = restConfig.jacksonObjectMapperBuilder(asList(
-                new ParameterNamesModule(), new JsonComponentModule(), restConfig.javaTimeModule(), restConfig.jdk8Module()));
+                new JsonComponentModule(), restConfig.javaTimeModule(), restConfig.jdk8Module()));
 
         updaterService = new UpdateService(platformProvider, properties, restConfig.webClient(objectMapperBuilder.createXmlMapper(false).build(), createDefaultCodecProperties()), storageService, taskExecutor);
     }

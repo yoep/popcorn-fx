@@ -100,11 +100,13 @@ class SubtitleManagerServiceTest {
     void testUpdateSubtitle_whenSubtitleIsGivenAndNotCustom_shouldDownloadAndActivateTheSubtitle() {
         var subtitleInfo = mock(SubtitleInfo.class);
         var subtitle = mock(Subtitle.class);
-        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
+        when(subtitleInfo.getLanguage()).thenReturn(SubtitleLanguage.DUTCH);
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(mock(SubtitleInfo.class)));
+        when(subtitleService.downloadAndParse(isA(SubtitleInfo.class), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
 
         service.updateSubtitle(subtitleInfo);
 
-        verify(subtitleService).setActiveSubtitle(subtitle);
+        verify(subtitleService).downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class));
     }
 
     @Test
@@ -162,14 +164,15 @@ class SubtitleManagerServiceTest {
                 .torrent(mock(Torrent.class))
                 .torrentStream(mock(TorrentStream.class))
                 .build();
-        when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of("/lorem/ipsum.srt"));
+        var expected_filepath = "/lorem/ipsum.srt";
+        when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(expected_filepath));
         service.init();
         service.onPlayVideo(videoEvent);
         service.onPlayMedia(mediaUrl);
 
         activeSubtitleProperty.set(subtitle);
 
-        verify(subtitleService).downloadAndParse(pickedSubtitle, matcher);
+        verify(subtitleService).updateCustomSubtitle(expected_filepath);
     }
 
     @Test

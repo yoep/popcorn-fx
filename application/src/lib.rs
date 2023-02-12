@@ -138,7 +138,7 @@ pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut 
 pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitles_ptr: *const SubtitleInfoC, len: usize) -> *mut SubtitleInfoC {
     let c_vec = unsafe { slice::from_raw_parts(subtitles_ptr, len).to_vec() };
     let subtitles: Vec<SubtitleInfo> = c_vec.iter()
-        .map(|e| e.to_subtitle())
+        .map(|e| SubtitleInfo::from(e))
         .collect();
 
     let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_provider().select_or_default(&subtitles)));
@@ -177,7 +177,7 @@ pub extern "C" fn retrieve_preferred_subtitle_language(popcorn_fx: &mut PopcornF
 /// This action will reset any custom configured subtitle files.
 #[no_mangle]
 pub extern "C" fn update_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC) {
-    popcorn_fx.subtitle_manager().update_subtitle(subtitle.to_subtitle())
+    popcorn_fx.subtitle_manager().update_subtitle(SubtitleInfo::from(subtitle))
 }
 
 /// Update the preferred subtitle to a custom subtitle filepath.
@@ -203,7 +203,7 @@ pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
 #[no_mangle]
 pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *const c_char {
     trace!("Starting subtitle download for info: {:?}, matcher: {:?}", subtitle, matcher);
-    let subtitle_info = subtitle.clone().to_subtitle();
+    let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
@@ -224,7 +224,7 @@ pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC,
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 #[no_mangle]
 pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
-    let subtitle_info = subtitle.clone().to_subtitle();
+    let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
@@ -822,20 +822,31 @@ mod test {
 
     #[test]
     fn test_update_subtitle() {
-        let language = SubtitleLanguage::Finnish;
-        let subtitle = SubtitleInfo::new(
+        let language1 = SubtitleLanguage::Finnish;
+        let subtitle1 = SubtitleInfo::new(
             "tt212121".to_string(),
-            language.clone(),
+            language1.clone(),
         );
-        let info_c = SubtitleInfoC::from(subtitle.clone());
+        let info_c1 = SubtitleInfoC::from(subtitle1.clone());
+        let language2 = SubtitleLanguage::English;
+        let subtitle2 = SubtitleInfo::new(
+            "tt212333".to_string(),
+            language2.clone(),
+        );
+        let info_c2 = SubtitleInfoC::from(subtitle2.clone());
         let mut instance = from_c_owned(new_popcorn_fx());
 
-        update_subtitle(&mut instance, &info_c);
-        let info_result = from_c_owned(retrieve_preferred_subtitle(&mut instance)).to_subtitle();
+        update_subtitle(&mut instance, &info_c1);
+        let info_result = SubtitleInfo::from(&from_c_owned(retrieve_preferred_subtitle(&mut instance)));
         let language_result = retrieve_preferred_subtitle_language(&mut instance);
+        assert_eq!(subtitle1, info_result);
+        assert_eq!(language1, language_result);
 
-        assert_eq!(subtitle, info_result);
-        assert_eq!(language, language_result)
+        update_subtitle(&mut instance, &info_c2);
+        let info_result = SubtitleInfo::from(&from_c_owned(retrieve_preferred_subtitle(&mut instance)));
+        let language_result = retrieve_preferred_subtitle_language(&mut instance);
+        assert_eq!(subtitle2, info_result);
+        assert_eq!(language2, language_result);
     }
 
     #[test]

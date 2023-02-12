@@ -15,7 +15,6 @@ import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -32,7 +31,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -89,7 +87,6 @@ class LoadTorrentServiceTest {
         service.cancel();
 
         verify(eventPublisher).publishEvent(new CloseLoadEvent(service));
-        verify(subtitleService).setActiveSubtitle(Subtitle.none());
         verify(future).cancel(true);
     }
 
@@ -148,6 +145,7 @@ class LoadTorrentServiceTest {
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(CompletableFuture.completedFuture(torrentInfo));
         when(torrentService.create(torrentFileInfo, workingDir, true)).thenReturn(CompletableFuture.completedFuture(torrent));
+        when(torrentStreamService.startStream(isA(Torrent.class))).thenReturn(mock(TorrentStream.class));
         when(subtitleService.download(subtitleInfo, subtitleMatcher)).thenReturn(CompletableFuture.completedFuture(""));
         when(subtitleService.preferredSubtitleLanguage()).thenReturn(SubtitleLanguage.ENGLISH);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
@@ -196,7 +194,6 @@ class LoadTorrentServiceTest {
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(CompletableFuture.completedFuture(torrentInfo));
         when(torrentService.create(torrentFileInfo, workingDir, true)).thenReturn(CompletableFuture.completedFuture(torrent));
         when(torrentStreamService.startStream(torrent)).thenReturn(torrentStream);
-        when(subtitleService.retrieveSubtitles(media)).thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, TorrentStreamListener.class));
             return null;
@@ -221,7 +218,6 @@ class LoadTorrentServiceTest {
                 .imdbId("tv00001")
                 .language(SubtitleLanguage.ENGLISH)
                 .build();
-        var availableSubtitles = Collections.singletonList(subtitleInfo);
         var event = LoadUrlTorrentEvent.builder()
                 .source(this)
                 .torrentInfo(torrentInfo)

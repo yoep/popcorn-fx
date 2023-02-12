@@ -62,20 +62,22 @@ impl SubtitleInfoC {
             len,
         }
     }
+}
 
-    pub fn to_subtitle(&self) -> SubtitleInfo {
-        trace!("Converting subtitle info from C for {:?}", self);
-        let files = if !self.files.is_null() {
-            from_c_vec(self.files, self.len).into_iter()
-                .map(|e| e.to_subtitle_file())
+impl From<&SubtitleInfoC> for SubtitleInfo {
+    fn from(value: &SubtitleInfoC) -> Self {
+        trace!("Converting SubtitleInfo from C for {:?}", value);
+        let files = if !value.files.is_null() {
+            from_c_vec(value.files, value.len).into_iter()
+                .map(SubtitleFile::from)
                 .collect()
         } else {
             vec![]
         };
 
         SubtitleInfo::new_with_files(
-            from_c_string(self.imdb_id),
-            self.language.clone(),
+            from_c_string(value.imdb_id.clone()),
+            value.language.clone(),
             files,
         )
     }
@@ -106,21 +108,23 @@ impl SubtitleFileC {
             },
         }
     }
+}
 
-    fn to_subtitle_file(self) -> SubtitleFile {
-        trace!("Converting subtitle file from C for {:?}", self);
-        let quality = if self.quality.is_null() {
+impl From<SubtitleFileC> for SubtitleFile {
+    fn from(value: SubtitleFileC) -> Self {
+        trace!("Converting SubtitleFile from C for {:?}", &value);
+        let quality = if value.quality.is_null() {
             None
         } else {
-            Some(from_c_owned(self.quality))
+            Some(from_c_owned(value.quality))
         };
 
         SubtitleFile::new_with_quality(
-            self.file_id,
-            from_c_string(self.name),
-            from_c_string(self.url),
-            self.score,
-            self.downloads,
+            value.file_id,
+            from_c_string(value.name),
+            from_c_string(value.url),
+            value.score,
+            value.downloads,
             quality,
         )
     }
@@ -208,7 +212,7 @@ impl SubtitleC {
     pub fn from(subtitle: Subtitle) -> Self {
         trace!("Converting subtitle to C for {}", subtitle);
         let (cues_ptr, number_of_cues) = to_c_vec(subtitle.cues().iter()
-            .map(|e| SubtitleCueC::from(e))
+            .map(SubtitleCueC::from)
             .collect());
 
         Self {
@@ -224,7 +228,7 @@ impl SubtitleC {
 
     pub fn to_subtitle(&self) -> Subtitle {
         trace!("Converting subtitle from C for {:?}", self);
-        let info = self.info.clone().to_subtitle();
+        let info = SubtitleInfo::from(&self.info);
         let cues = from_c_vec(self.cues, self.number_of_cues);
 
         Subtitle::new(
@@ -342,6 +346,30 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_subtitle_file_from() {
+        init_logger();
+        let name = "lorem".to_string();
+        let url = "ipsum".to_string();
+        let subtitle_c = SubtitleFileC {
+            file_id: 12,
+            name: into_c_string(name.clone()),
+            url: into_c_string(url.clone()),
+            score: 7.3,
+            downloads: 8754,
+            quality: ptr::null_mut(),
+        };
+
+        let result = SubtitleFile::from(subtitle_c);
+
+        assert_eq!(&12, result.file_id());
+        assert_eq!(&name, result.name());
+        assert_eq!(&url, result.url());
+        assert_eq!(&7.3, result.score());
+        assert_eq!(&8754, result.downloads());
+        assert_eq!(None, result.quality());
+    }
+
+    #[test]
     fn test_subtitle_info_with_files() {
         init_logger();
         let subtitle = SubtitleInfo::new_with_files(
@@ -357,7 +385,7 @@ mod test {
         );
 
         let info_c = SubtitleInfoC::from(subtitle.clone());
-        let result = info_c.to_subtitle();
+        let result = SubtitleInfo::from(&info_c);
 
         assert_eq!(subtitle, result)
     }
@@ -371,7 +399,7 @@ mod test {
         );
 
         let info_c = SubtitleInfoC::from(subtitle.clone());
-        let result = info_c.to_subtitle();
+        let result = SubtitleInfo::from(&info_c);
 
         assert_eq!(subtitle, result)
     }

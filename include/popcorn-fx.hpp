@@ -479,7 +479,7 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
 /// Register a new callback for the torrent stream.
-void register_torrent_stream_callback(const TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
+void register_torrent_stream_callback(TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
 
 /// Register a new callback listener for watched events.
 void register_watched_event_callback(PopcornFX *popcorn_fx, void (*callback)(WatchedEventC));
@@ -577,12 +577,7 @@ const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t out
 TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torrent);
 
 /// Stop the given torrent stream.
-void stop_stream(PopcornFX *popcorn_fx, const TorrentStreamC *stream);
-
-/// Convert the given subtitle back to it's raw output type.
-///
-/// It returns the [String] output of the subtitle for the given output type.
-const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
+void stop_stream(PopcornFX *popcorn_fx, TorrentStreamC *stream);
 
 /// Inform the FX core that a piece for the torrent has finished downloading.
 void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
@@ -594,7 +589,7 @@ void torrent_state_changed(const TorrentWrapperC *torrent, TorrentState state);
 /// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
 ///
 /// It returns the known [TorrentStreamState] at the time of invocation.
-TorrentStreamState torrent_stream_state(const TorrentStreamC *stream);
+TorrentStreamState torrent_stream_state(TorrentStreamC *stream);
 
 /// The torrent wrapper for moving data between rust and java.
 /// This is a temp wrapper till the torrent component is replaced.

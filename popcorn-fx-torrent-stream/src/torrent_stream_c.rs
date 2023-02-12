@@ -1,7 +1,7 @@
 use std::os::raw::c_char;
 use std::sync::Arc;
 
-use log::trace;
+use log::{trace, warn};
 
 use popcorn_fx_core::{from_c_owned, into_c_owned, into_c_string};
 use popcorn_fx_core::core::torrent::{TorrentStream, TorrentStreamEvent, TorrentStreamState};
@@ -15,9 +15,17 @@ pub struct TorrentStreamC {
 }
 
 impl TorrentStreamC {
-    pub fn stream(&self) -> Arc<dyn TorrentStream> {
-        trace!("Reading Arc<dyn TorrentStream> from pointer {:?}", self.ptr);
-        from_c_owned(self.ptr)
+    pub fn stream(&mut self) -> Option<Arc<dyn TorrentStream>> {
+        if !self.ptr.is_null() {
+            trace!("Reading Arc<dyn TorrentStream> from pointer {:?}", self.ptr);
+            let stream = from_c_owned(self.ptr);
+            let result = stream.clone();
+            self.ptr = into_c_owned(stream);
+            Some(result)
+        } else {
+            warn!("Unable to read the Arc<dyn TorrentStream> pointer, pointer is null");
+            None
+        }
     }
 }
 
@@ -53,7 +61,7 @@ mod test {
     fn test_stream_event_c_from() {
         let event = TorrentStreamEvent::StateChanged(TorrentStreamState::Stopped);
 
-        let result= TorrentStreamEventC::from(event);
+        let result = TorrentStreamEventC::from(event);
 
         match result {
             TorrentStreamEventC::StateChanged(state) => assert_eq!(TorrentStreamState::Stopped, state),

@@ -14,7 +14,7 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
+use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStream, TorrentStreamState};
 use popcorn_fx_platform::PlatformInfoC;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
@@ -257,27 +257,6 @@ pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c
         Err(e) => {
             error!("File parsing failed, {}", e);
             ptr::null_mut()
-        }
-    }
-}
-
-/// Convert the given subtitle back to it's raw output type.
-///
-/// It returns the [String] output of the subtitle for the given output type.
-#[no_mangle]
-pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleC, output_type: usize) -> *const c_char {
-    debug!("Converting to raw subtitle type {} for {:?}", output_type, subtitle);
-    let subtitle = subtitle.to_subtitle();
-    let subtitle_type = SubtitleType::from_ordinal(output_type);
-
-    match popcorn_fx.subtitle_provider().convert(subtitle, subtitle_type.clone()) {
-        Ok(e) => {
-            debug!("Returning subtitle format {} to C", subtitle_type);
-            into_c_string(e)
-        }
-        Err(e) => {
-            error!("Failed to convert subtitle to {}, {}", subtitle_type, e);
-            ptr::null()
         }
     }
 }
@@ -734,22 +713,31 @@ pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static Tor
 
 /// Stop the given torrent stream.
 #[no_mangle]
-pub extern "C" fn stop_stream(popcorn_fx: &mut PopcornFX, stream: &TorrentStreamC) {
+pub extern "C" fn stop_stream(popcorn_fx: &mut PopcornFX, stream: &mut TorrentStreamC) {
     trace!("Stopping torrent stream of {:?}", stream);
     let stream = stream.stream();
-    popcorn_fx.torrent_stream_server().stop_stream(&stream);
-    mem::forget(stream);
+    match stream {
+        None => error!("Unable to stop stream, pointer is invalid"),
+        Some(stream) => {
+            trace!("Stream {:?} has been read, trying to stop server", stream);
+            popcorn_fx.torrent_stream_server().stop_stream(&stream);
+        }
+    }
 }
 
 /// Register a new callback for the torrent stream.
 #[no_mangle]
-pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
+pub extern "C" fn register_torrent_stream_callback(stream: &mut TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
     trace!("Wrapping TorrentStreamEventC callback");
     let stream = stream.stream();
-    stream.register_stream(Box::new(move |e| {
-        callback(TorrentStreamEventC::from(e))
-    }));
-    mem::forget(stream);
+    match stream {
+        None => error!("Unable to register callback, pointer is invalid"),
+        Some(stream) => {
+            stream.register_stream(Box::new(move |e| {
+                callback(TorrentStreamEventC::from(e))
+            }));
+        }
+    }
 }
 
 /// Retrieve the current state of the stream.
@@ -757,11 +745,17 @@ pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, call
 ///
 /// It returns the known [TorrentStreamState] at the time of invocation.
 #[no_mangle]
-pub extern "C" fn torrent_stream_state(stream: &TorrentStreamC) -> TorrentStreamState {
+pub extern "C" fn torrent_stream_state(stream: &mut TorrentStreamC) -> TorrentStreamState {
     let stream = stream.stream();
-    let state = stream.stream_state();
-    mem::forget(stream);
-    state
+    match stream {
+        None => {
+            error!("Unable to get stream state, pointer is invalid");
+            TorrentStreamState::Stopped
+        }
+        Some(stream) => {
+            stream.stream_state()
+        }
+    }
 }
 
 /// Dispose the given media item from memory.

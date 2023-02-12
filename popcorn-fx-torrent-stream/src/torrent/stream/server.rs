@@ -319,6 +319,7 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
     }
 
     fn stop_stream(&self, stream: &Arc<dyn TorrentStream>) {
+        trace!("Stopping torrent stream {}", stream);
         let streams = self.streams.clone();
         let mut mutex = streams.blocking_lock();
         let filepath = stream.file();
@@ -327,6 +328,7 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
             .to_str()
             .unwrap();
 
+        debug!("Trying to stop stream of {}", filename);
         match mutex.remove(filename) {
             None => warn!("Unable to stop stream of {}, stream not found", filename),
             Some(stream) => {

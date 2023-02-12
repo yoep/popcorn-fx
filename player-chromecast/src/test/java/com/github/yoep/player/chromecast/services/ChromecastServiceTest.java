@@ -14,6 +14,8 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,9 +25,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import su.litvak.chromecast.api.v2.Media;
 
-import java.io.File;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -75,8 +77,8 @@ class ChromecastServiceTest {
         var sessionId = "mySessionId";
         var contentType = "video/mp4";
         var duration = 20000L;
-        var port = 9999;
-        var subtitle = new Subtitle(new File("my-subtitle.srt"), Collections.emptyList());
+        var subtitleInfo = mock(SubtitleInfo.class);
+        var subtitle = mock(Subtitle.class);
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .title("My movie title")
@@ -108,12 +110,13 @@ class ChromecastServiceTest {
                         .build())
                 .activeTrackIds(Collections.singletonList(0))
                 .build();
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(subtitleService.serve(subtitle, SubtitleType.VTT)).thenReturn(subtitleUri);
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
                 .build());
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
         when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
         when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);
         when(probeData.getString("codec_name")).thenReturn(getSupportedCodec());
@@ -156,7 +159,6 @@ class ChromecastServiceTest {
                 .contentType(contentType)
                 .duration(duration)
                 .build());
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.empty());
         when(transcodeService.transcode(url)).thenReturn(transcodedUrl);
         when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
         when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);

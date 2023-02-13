@@ -111,7 +111,7 @@ impl MovieOverviewC {
     pub fn from(movie: MovieOverview) -> Self {
         Self {
             title: into_c_string(movie.title()),
-            imdb_id: into_c_string(movie.imdb_id().clone()),
+            imdb_id: into_c_string(movie.imdb_id().to_string()),
             year: into_c_string(movie.year().clone()),
             rating: match movie.rating() {
                 None => ptr::null_mut(),
@@ -170,7 +170,7 @@ impl MovieDetailsC {
 
         Self {
             title: into_c_string(movie.title()),
-            imdb_id: into_c_string(movie.imdb_id().clone()),
+            imdb_id: into_c_string(movie.imdb_id().to_string()),
             year: into_c_string(movie.year().clone()),
             runtime: movie.runtime().clone(),
             rating: match movie.rating() {
@@ -232,7 +232,7 @@ impl ShowOverviewC {
     pub fn from(show: ShowOverview) -> Self {
         trace!("Converting Show to C {}", show);
         Self {
-            imdb_id: into_c_string(show.imdb_id().clone()),
+            imdb_id: into_c_string(show.imdb_id().to_string()),
             tvdb_id: into_c_string(show.tvdb_id().clone()),
             title: into_c_string(show.title()),
             year: into_c_string(show.year().clone()),
@@ -298,7 +298,7 @@ impl ShowDetailsC {
         let (episodes, episodes_len) = to_c_vec(episodes);
 
         Self {
-            imdb_id: into_c_string(show.imdb_id().clone()),
+            imdb_id: into_c_string(show.imdb_id().to_string()),
             tvdb_id: into_c_string(show.tvdb_id().clone()),
             title: into_c_string(show.title()),
             year: into_c_string(show.year().clone()),
@@ -415,7 +415,7 @@ impl MediaItemC {
         }
     }
 
-    pub fn to_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
+    pub fn into_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
         let media: Box<dyn MediaIdentifier>;
 
         if !self.movie_overview.is_null() {

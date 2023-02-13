@@ -49,8 +49,8 @@ impl ShowOverview {
 }
 
 impl MediaIdentifier for ShowOverview {
-    fn imdb_id(&self) -> String {
-        self.imdb_id.clone()
+    fn imdb_id(&self) -> &str {
+        self.imdb_id.as_str()
     }
 
     fn media_type(&self) -> MediaType {
@@ -156,8 +156,8 @@ impl ShowDetails {
 }
 
 impl MediaIdentifier for ShowDetails {
-    fn imdb_id(&self) -> String {
-        self.imdb_id.clone()
+    fn imdb_id(&self) -> &str {
+        self.imdb_id.as_str()
     }
 
     fn media_type(&self) -> MediaType {

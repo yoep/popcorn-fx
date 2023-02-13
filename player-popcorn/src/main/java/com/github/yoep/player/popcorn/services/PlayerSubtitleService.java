@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -95,11 +96,13 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private void handleSubtitlesResponse(final List<SubtitleInfo> subtitles, Throwable throwable) {
         if (throwable == null) {
             log.trace("Available subtitles have been retrieved");
-            var subtitle = subtitleService.getActiveSubtitle()
-                    .flatMap(Subtitle::getSubtitleInfo)
-                    .orElseGet(() -> subtitleService.getDefaultOrInterfaceLanguage(subtitles));
+            if (!subtitleService.isDisabled() && subtitleService.preferredSubtitleLanguage() == SubtitleLanguage.NONE) {
+                log.trace("Selecting a new default subtitle to enable during playback");
+                subtitleService.updateSubtitle(subtitleService.getDefaultOrInterfaceLanguage(subtitles));
+            }
 
-            invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, subtitle));
+            invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles,
+                    subtitleService.preferredSubtitle().orElse(SubtitleInfo.none())));
         } else {
             log.error("Failed to retrieve subtitles, " + throwable.getMessage(), throwable);
         }

@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEventC;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaSet;
@@ -57,10 +58,14 @@ public interface FxLib extends Library {
 
     SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFx instance);
 
+    byte is_subtitle_disabled(PopcornFx instance);
+
     void update_subtitle(PopcornFx instance, SubtitleInfo subtitle);
 
     void update_subtitle_custom_file(PopcornFx instance, String filepath);
 
+    void disable_subtitle(PopcornFx instance);
+    
     void reset_subtitle(PopcornFx instance);
 
     String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
@@ -128,6 +133,8 @@ public interface FxLib extends Library {
     TorrentStreamState torrent_stream_state(TorrentStreamWrapper stream);
 
     Pointer auto_resume_timestamp(PopcornFx instance, String id, String filename);
+
+    void handle_player_stopped_event(PopcornFx instance, PlayerStoppedEventC.ByValue event);
 
     void dispose_media_item(MediaItem media);
 

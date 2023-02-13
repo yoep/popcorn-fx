@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
-use std::future::Future;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

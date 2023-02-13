@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 
-use futures::TryFutureExt;
 use hyper::Body;
 use local_ip_address::local_ip;
 use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 use url::Url;
-use warp::{Filter, hyper, Rejection, Reply, Stream};
-use warp::http::{header, HeaderValue, Response, StatusCode};
+use warp::{Filter, hyper, Rejection};
+use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT};
 use warp::hyper::HeaderMap;
 
@@ -247,7 +246,7 @@ impl DefaultTorrentStreamServer {
     }
 
     fn extract_range(headers: &HeaderMap) -> Option<Range> {
-        match headers.get(header::RANGE) {
+        match headers.get(RANGE) {
             None => None,
             Some(value) => {
                 return match Range::parse(value.to_str().expect("Expected a value string")) {
@@ -263,7 +262,7 @@ impl DefaultTorrentStreamServer {
 
     /// The response for when the requested [Range] couldn't be satisfied.
     /// This is used mostly when the requested range is out of bounds for the streaming resource.
-    fn request_not_satisfiable_response() -> Response<hyper::Body> {
+    fn request_not_satisfiable_response() -> Response<Body> {
         Response::builder()
             .status(StatusCode::from_u16(416).unwrap())
             .header(CONTENT_TYPE, PLAIN_TEXT_TYPE)

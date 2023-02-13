@@ -278,6 +278,19 @@ struct SubtitleC {
   int32_t number_of_cues;
 };
 
+/// The player stopped event which indicates a video playback has been stopped.
+/// It contains the last known information of the video playback right before it was stopped.
+struct PlayerStoppedEventC {
+  /// The playback url that was being played
+  const char *url;
+  /// The last known video time of the player in millis
+  const int64_t *time;
+  /// The duration of the video playback in millis
+  const int64_t *duration;
+  /// The optional media item that was being played
+  MediaItemC *media;
+};
+
 struct PlatformInfoC {
   /// The platform type
   PlatformType platform_type;
@@ -416,6 +429,10 @@ VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 /// Disable the screensaver on the current platform
 void disable_screensaver(PopcornFX *popcorn_fx);
 
+/// Disable the subtitle track on request of the user.
+/// This will make the [is_subtitle_disabled] return `true`.
+void disable_subtitle(PopcornFX *popcorn_fx);
+
 /// Dispose the given media item from memory.
 void dispose_media_item(Box<MediaItemC> media);
 
@@ -448,6 +465,12 @@ VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *s
 /// Retrieve the available subtitles for the given filename
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
+/// Handle the player stopped event.
+/// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
+///
+/// * `event`   - The C event instance.
+void handle_player_stopped_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
+
 /// Verify if the given media item is liked/favorite of the user.
 /// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
 ///
@@ -458,6 +481,11 @@ bool is_media_liked(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 ///
 /// It returns true when the item is watched, else false.
 bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
+
+/// Verify if the subtitle has been disabled by the user.
+///
+/// It returns true when the subtitle track should be disabled, else false.
+bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///

@@ -10,6 +10,9 @@ import java.io.Closeable;
 @ToString
 @Structure.FieldOrder({"movieOverview", "movieDetails", "showOverview", "showDetails", "episode"})
 public class MediaItem extends Structure implements Closeable {
+    public static class ByReference extends MediaItem implements Structure.ByReference {
+    }
+    
     public MovieOverview.ByReference movieOverview;
     public MovieDetails.ByReference movieDetails;
     public ShowOverview.ByReference showOverview;

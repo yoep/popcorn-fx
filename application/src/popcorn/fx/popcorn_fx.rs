@@ -43,36 +43,6 @@ pub struct PopcornFX {
 }
 
 impl PopcornFX {
-    /// Initialize a new popcorn FX instance.
-    pub fn new() -> Self {
-        Self::initialize_logger();
-        let storage = Arc::new(Storage::new());
-        let settings = Arc::new(Application::new_auto(&storage));
-        let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
-        let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
-        let subtitle_manager = Arc::new(SubtitleManager::default());
-        let platform_service = Box::new(PlatformServiceImpl::new());
-        let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(&storage)) as Box<dyn FavoriteService>);
-        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(&storage)) as Box<dyn WatchedService>);
-        let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
-        let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
-        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(&storage)) as Box<dyn AutoResumeService>);
-
-        Self {
-            settings,
-            subtitle_service,
-            subtitle_server,
-            subtitle_manager,
-            platform_service,
-            favorites_service,
-            watched_service,
-            torrent_stream_server,
-            auto_resume_service,
-            providers,
-            storage,
-        }
-    }
-
     /// The platform service of the popcorn FX instance.
     pub fn subtitle_provider(&mut self) -> Arc<Box<dyn SubtitleProvider>> {
         self.subtitle_service.clone()
@@ -167,6 +137,37 @@ impl PopcornFX {
     }
 }
 
+impl Default for PopcornFX {
+    fn default() -> Self {
+        Self::initialize_logger();
+        let storage = Arc::new(Storage::new());
+        let settings = Arc::new(Application::new_auto(&storage));
+        let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
+        let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
+        let subtitle_manager = Arc::new(SubtitleManager::default());
+        let platform_service = Box::new(PlatformServiceImpl::new());
+        let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(&storage)) as Box<dyn FavoriteService>);
+        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(&storage)) as Box<dyn WatchedService>);
+        let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
+        let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
+        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(&storage)) as Box<dyn AutoResumeService>);
+
+        Self {
+            settings,
+            subtitle_service,
+            subtitle_server,
+            subtitle_manager,
+            platform_service,
+            favorites_service,
+            watched_service,
+            torrent_stream_server,
+            auto_resume_service,
+            providers,
+            storage,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -175,7 +176,7 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_new() {
-        let mut popcorn_fx = PopcornFX::new();
+        let mut popcorn_fx = PopcornFX::default();
 
         let _ = popcorn_fx.platform_service().platform_info();
         let _ = popcorn_fx.subtitle_server();
@@ -190,7 +191,7 @@ mod test {
     #[test]
     fn test_popcorn_fx_favorite() {
         let id = "tt00000021544";
-        let mut popcorn_fx = PopcornFX::new();
+        let mut popcorn_fx = PopcornFX::default();
 
         let result = popcorn_fx.favorite_service().is_liked(id);
 
@@ -200,7 +201,7 @@ mod test {
     #[test]
     fn test_popcorn_fx_auto_resume() {
         let filename = "something-totally_random123qwe.mp4";
-        let mut popcorn_fx = PopcornFX::new();
+        let mut popcorn_fx = PopcornFX::default();
 
         let result = popcorn_fx.auto_resume_service().resume_timestamp(None, Some(filename));
 

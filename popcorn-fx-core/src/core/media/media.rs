@@ -11,7 +11,7 @@ use mockall::automock;
 use crate::core::media::Rating;
 
 /// The media type identifier.
-#[derive(Debug, Copy, Clone, PartialOrd, Eq, Display, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, Display, PartialEq)]
 pub enum MediaType {
     Unknown = -1,
     Movie = 0,
@@ -19,15 +19,21 @@ pub enum MediaType {
     Episode = 2,
 }
 
+impl PartialOrd for MediaType {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self == other {
+            Some(Ordering::Equal)
+        } else if self == &MediaType::Movie && other != &MediaType::Movie {
+            Some(Ordering::Less)
+        } else {
+            Some(Ordering::Greater)
+        }
+    }
+}
+
 impl Ord for MediaType {
     fn cmp(&self, other: &Self) -> Ordering {
-        return if self == other {
-            Ordering::Equal
-        } else if self == &MediaType::Movie && other != &MediaType::Movie {
-            Ordering::Less
-        } else {
-            Ordering::Greater
-        };
+        self.partial_cmp(other).expect("expected an ordering")
     }
 }
 
@@ -35,7 +41,7 @@ impl Ord for MediaType {
 #[cfg_attr(test, automock)]
 pub trait MediaIdentifier: Debug + DowncastSync + Display {
     /// Retrieve an owned instance of the IMDB id.
-    fn imdb_id(&self) -> String;
+    fn imdb_id(&self) -> &str;
 
     /// Get the type of the media.
     fn media_type(&self) -> MediaType;
@@ -71,5 +77,23 @@ pub trait MediaDetails: MediaOverview {
 
     /// Retrieve the runtime of the media item.
     fn runtime(&self) -> i32;
+}
+
+#[cfg(test)]
+mod test {
+    use std::cmp::Ordering;
+
+    use crate::core::media::MediaType;
+
+    #[test]
+    fn test_media_type_ordering() {
+        let equal = MediaType::Show.cmp(&MediaType::Show);
+        let less = MediaType::Movie.cmp(&MediaType::Show);
+        let greater = MediaType::Show.cmp(&MediaType::Movie);
+
+        assert_eq!(Ordering::Equal, equal);
+        assert_eq!(Ordering::Less, less);
+        assert_eq!(Ordering::Greater, greater);
+    }
 }
 

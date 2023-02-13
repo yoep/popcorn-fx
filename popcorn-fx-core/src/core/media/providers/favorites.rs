@@ -90,8 +90,8 @@ impl FavoritesProvider {
     /// Items not seen will be put in front of the list, items seen at the back of the list.
     fn sort_by_watched(&self, a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
         trace!("Sorting media item based on watched state for {} & {}", a, b);
-        let a_watched = self.watched_service.is_watched(a.imdb_id().as_str());
-        let b_watched = self.watched_service.is_watched(b.imdb_id().as_str());
+        let a_watched = self.watched_service.is_watched(a.imdb_id());
+        let b_watched = self.watched_service.is_watched(b.imdb_id());
 
         if a_watched == b_watched {
             Ordering::Equal
@@ -148,7 +148,7 @@ impl FavoritesProvider {
 
                     if provider.supports(&category) {
                         trace!("Using favorite sub provider {} for retrieving details of {}", &provider, &imdb_id);
-                        return provider.retrieve_details(&imdb_id).await;
+                        return provider.retrieve_details(imdb_id).await;
                     }
                 }
 
@@ -194,10 +194,10 @@ impl MediaProvider for FavoritesProvider {
         }
     }
 
-    async fn retrieve_details(&self, imdb_id: &String) -> crate::core::media::Result<Box<dyn MediaDetails>> {
+    async fn retrieve_details(&self, imdb_id: &str) -> crate::core::media::Result<Box<dyn MediaDetails>> {
         match self.favorites.find_id(imdb_id) {
             Some(e) => self.retrieve_media_details(e).await,
-            None => Err(MediaError::FavoriteNotFound(imdb_id.clone()))
+            None => Err(MediaError::FavoriteNotFound(imdb_id.to_string()))
         }
     }
 }

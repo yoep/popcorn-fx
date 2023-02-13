@@ -74,7 +74,7 @@ impl MediaProvider for MovieProvider {
         }
     }
 
-    async fn retrieve_details(&self, imdb_id: &String) -> crate::core::media::Result<Box<dyn MediaDetails>> {
+    async fn retrieve_details(&self, imdb_id: &str) -> crate::core::media::Result<Box<dyn MediaDetails>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
 

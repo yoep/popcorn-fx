@@ -45,8 +45,8 @@ impl MovieOverview {
 }
 
 impl MediaIdentifier for MovieOverview {
-    fn imdb_id(&self) -> String {
-        self.imdb_id.clone()
+    fn imdb_id(&self) -> &str {
+        self.imdb_id.as_str()
     }
 
     fn media_type(&self) -> MediaType {
@@ -148,8 +148,8 @@ impl MovieDetails {
 }
 
 impl MediaIdentifier for MovieDetails {
-    fn imdb_id(&self) -> String {
-        self.imdb_id.clone()
+    fn imdb_id(&self) -> &str {
+        self.imdb_id.as_str()
     }
 
     fn media_type(&self) -> MediaType {

@@ -30,7 +30,7 @@ pub trait MediaProvider: Debug + Display + Send + Sync {
     /// The media item will contain all information for a media description and playback.
     ///
     /// It returns the details on success, else the [providers::ProviderError].
-    async fn retrieve_details(&self, imdb_id: &String) -> media::Result<Box<dyn MediaDetails>>;
+    async fn retrieve_details(&self, imdb_id: &str) -> media::Result<Box<dyn MediaDetails>>;
 }
 
 #[cfg(test)]

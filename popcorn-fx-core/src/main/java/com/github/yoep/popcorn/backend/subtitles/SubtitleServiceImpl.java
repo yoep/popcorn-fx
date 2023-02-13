@@ -59,6 +59,11 @@ public class SubtitleServiceImpl implements SubtitleService {
                 .orElse(null));
     }
 
+    @Override
+    public boolean isDisabled() {
+        return FxLib.INSTANCE.is_subtitle_disabled(PopcornFxInstance.INSTANCE.get()) == 1;
+    }
+
     //endregion
 
     //region Methods
@@ -194,6 +199,11 @@ public class SubtitleServiceImpl implements SubtitleService {
             log.trace("Updating subtitle custom filepath to {}", subtitleFilepath);
             FxLib.INSTANCE.update_subtitle_custom_file(PopcornFxInstance.INSTANCE.get(), subtitleFilepath);
         }
+    }
+
+    @Override
+    public void disableSubtitle() {
+        FxLib.INSTANCE.disable_subtitle(PopcornFxInstance.INSTANCE.get());
     }
 
     //endregion

@@ -97,7 +97,7 @@ impl BaseProvider {
         Err(MediaError::NoAvailableProviders)
     }
 
-    pub async fn retrieve_details<T>(&mut self, resource: &str, id: &String) -> crate::core::media::Result<T>
+    pub async fn retrieve_details<T>(&mut self, resource: &str, id: &str) -> crate::core::media::Result<T>
         where T: DeserializeOwned {
         let client = self.client.clone();
         let available_providers: Vec<&mut UriProvider> = self.available_providers();
@@ -176,7 +176,7 @@ impl BaseProvider {
         }
     }
 
-    fn create_details_uri(host: &String, resource: &str, id: &String) -> Option<Url> {
+    fn create_details_uri(host: &String, resource: &str, id: &str) -> Option<Url> {
         match Url::parse(host.as_str()) {
             Ok(mut e) => {
                 trace!("Creating details url for host: {}, resource: {}, id: {}", host, resource, id);

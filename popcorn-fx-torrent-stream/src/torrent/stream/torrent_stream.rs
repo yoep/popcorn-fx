@@ -1,5 +1,4 @@
 use std::{fs, thread};
-use std::borrow::BorrowMut;
 use std::cmp::{max, min};
 use std::fs::File;
 use std::future::Future;
@@ -14,13 +13,11 @@ use derive_more::Display;
 use futures::Stream;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use tokio::io::{AsyncRead, AsyncSeek};
-use tokio::runtime;
 use tokio::sync::Mutex;
 use url::Url;
 
 use popcorn_fx_core::core::{CoreCallbacks, torrent};
-use popcorn_fx_core::core::torrent::{MockTorrent, StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
+use popcorn_fx_core::core::torrent::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
 
 /// The default buffer size used while streaming in bytes
 const BUFFER_SIZE: usize = 10000;
@@ -68,7 +65,13 @@ impl DefaultTorrentStream {
             let wrapper = wrapper.clone();
             tokio::task::block_in_place(move || {
                 match event {
-                    TorrentEvent::StateChanged(state) => Self::verify_ready_to_stream(&wrapper),
+                    TorrentEvent::StateChanged(state) => {
+                        if state == TorrentState::Completed {
+                            wrapper.update_state(TorrentStreamState::Streaming)
+                        } else {
+                            Self::verify_ready_to_stream(&wrapper)
+                        }
+                    }
                     TorrentEvent::PieceFinished(piece) => Self::on_piece_finished(&wrapper, piece),
                 }
             })
@@ -121,27 +124,18 @@ impl DefaultTorrentStream {
 
         if pieces.is_empty() {
             wrapper.torrent.sequential_mode();
-            Self::update_state(wrapper, TorrentStreamState::Streaming);
+            wrapper.update_state(TorrentStreamState::Streaming);
         } else {
             debug!("Awaiting {} remaining pieces to be prepared", pieces.len());
         }
     }
 
-    fn update_state(wrapper: &Arc<Wrapper>, new_state: TorrentStreamState) {
-        let mut state = wrapper.state.blocking_lock();
-        if *state == new_state {
-            return;
-        }
-
-        info!("Torrent stream state changed to {}", &new_state);
-        *state = new_state.clone();
-        wrapper.callbacks.invoke(TorrentStreamEvent::StateChanged(new_state));
-    }
-
     fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<u32> {
         let total_pieces = torrent.total_pieces();
+        trace!("Calculating preparation pieces of {:?} for a total of {} pieces", torrent.file(), total_pieces);
         let number_of_preparation_pieces = max(8, (total_pieces as f32 * 0.08) as i32);
         let number_of_preparation_pieces = min(number_of_preparation_pieces, total_pieces - 1);
+        let start_of_end_piece_index = max(0, total_pieces - 3);
         let mut pieces = vec![];
 
         // prepare the first 8% of pieces if it doesn't exceed the total pieces
@@ -151,7 +145,7 @@ impl DefaultTorrentStream {
 
         // prepare the last 3 pieces
         // this is done for determining the video length during streaming
-        for i in total_pieces - 3..total_pieces {
+        for i in start_of_end_piece_index..total_pieces {
             pieces.push(i);
         }
 
@@ -240,7 +234,7 @@ impl TorrentStream for DefaultTorrentStream {
 
     fn stop_stream(&self) {
         let wrapper = self.create_wrapper();
-        Self::update_state(&wrapper, TorrentStreamState::Stopped);
+        wrapper.update_state(TorrentStreamState::Stopped);
     }
 }
 
@@ -496,6 +490,19 @@ struct Wrapper {
     preparing_pieces: Arc<Mutex<Vec<u32>>>,
     state: Arc<Mutex<TorrentStreamState>>,
     callbacks: Arc<CoreCallbacks<TorrentStreamEvent>>,
+}
+
+impl Wrapper {
+    fn update_state(&self, new_state: TorrentStreamState) {
+        let mut state = self.state.blocking_lock();
+        if *state == new_state {
+            return;
+        }
+
+        info!("Torrent stream state changed to {}", &new_state);
+        *state = new_state.clone();
+        self.callbacks.invoke(TorrentStreamEvent::StateChanged(new_state));
+    }
 }
 
 #[cfg(test)]

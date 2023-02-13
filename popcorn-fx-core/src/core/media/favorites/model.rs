@@ -71,7 +71,7 @@ impl Favorites {
     }
 
     /// Remove the media item from the favorites based on the given ID.
-    pub fn remove_id(&mut self, imdb_id: &String) {
+    pub fn remove_id(&mut self, imdb_id: &str) {
         let movie = self.movies.iter()
             .position(|e| e.imdb_id().eq(imdb_id));
         let show = self.shows.iter()

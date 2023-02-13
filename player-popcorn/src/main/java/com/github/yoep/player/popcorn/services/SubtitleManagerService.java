@@ -173,7 +173,7 @@ public class SubtitleManagerService {
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
         // check if the subtitle is being disabled
         // if so, update the subtitle to none and ignore the subtitle download & parsing
-        if (subtitleInfo == null || subtitleInfo.isNone()) {
+        if (subtitleService.isDisabled() || subtitleInfo == null || subtitleInfo.isNone()) {
             disableSubtitleTrack();
             return;
         }
@@ -238,7 +238,7 @@ public class SubtitleManagerService {
 
     private void disableSubtitleTrack() {
         log.debug("Disabling the subtitle track for the video playback");
-        subtitleService.setActiveSubtitle(Subtitle.none());
+        subtitleService.disableSubtitle();
     }
 
     //endregion

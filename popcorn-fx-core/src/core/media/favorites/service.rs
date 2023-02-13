@@ -6,7 +6,7 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::{CoreCallback, CoreCallbacks, media};
+use crate::core::{block_in_place, CoreCallback, CoreCallbacks, media};
 use crate::core::media::{MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
 use crate::core::media::favorites::model::Favorites;
 use crate::core::storage::{Storage, StorageError};
@@ -82,13 +82,7 @@ impl DefaultFavoriteService {
     }
 
     fn save(&self, favorites: &Favorites) {
-        match Handle::try_current() {
-            Ok(e) => e.block_on(self.save_async(favorites)),
-            Err(_) => {
-                let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
-                runtime.block_on(self.save_async(favorites));
-            }
-        }
+        block_in_place(self.save_async(favorites))
     }
 
     async fn save_async(&self, favorites: &Favorites) {
@@ -161,7 +155,7 @@ impl FavoriteService for DefaultFavoriteService {
     fn is_liked_dyn(&self, favorable: &Box<dyn MediaIdentifier>) -> bool {
         let imdb_id = favorable.imdb_id();
 
-        self.is_liked(imdb_id.as_str())
+        self.is_liked(imdb_id)
     }
 
     fn all(&self) -> media::Result<Vec<Box<dyn MediaOverview>>> {
@@ -205,7 +199,7 @@ impl FavoriteService for DefaultFavoriteService {
         let mutex = self.cache.clone();
         let mut cache = futures::executor::block_on(mutex.lock());
         let favorites = cache.as_mut().expect("cache should have been present");
-        let imdb_id = favorite.imdb_id();
+        let imdb_id = favorite.imdb_id().to_string();
         let media_type = favorite.media_type();
 
         match media_type {
@@ -244,11 +238,11 @@ impl FavoriteService for DefaultFavoriteService {
                 let mut cache = futures::executor::block_on(mutex.lock());
                 let mut e = cache.as_mut().expect("cache should have been present");
 
-                e.remove_id(&imdb_id);
+                e.remove_id(imdb_id);
 
                 // invoke callbacks
                 self.save(&mut e);
-                self.callbacks.invoke(FavoriteEvent::LikedStateChanged(imdb_id, false));
+                self.callbacks.invoke(FavoriteEvent::LikedStateChanged(imdb_id.to_string(), false));
             }
             Err(e) => error!("Failed to add {} as favorite, {}", favorite, e)
         }

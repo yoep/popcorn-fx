@@ -39,9 +39,10 @@ impl Watched {
     /// Duplicate items will be automatically ignored.
     ///
     /// * `id`  - The movie ID to mark as watched
-    pub fn add_movie(&mut self, id: String) {
+    pub fn add_movie(&mut self, id: &str) {
+        let id = id.to_string();
         if !self.movies.contains(&id) {
-            trace!("Adding movie ID {} as watched", &id);
+            trace!("Adding movie ID {} as watched", id);
             self.movies.push(id);
         }
     }
@@ -50,7 +51,8 @@ impl Watched {
     /// Duplicate items will be automatically ignored.
     ///
     /// * `id`  - The show/episode ID to mark as watched
-    pub fn add_show(&mut self, id: String) {
+    pub fn add_show(&mut self, id: &str) {
+        let id = id.to_string();
         if !self.shows.contains(&id) {
             trace!("Adding show ID {} as watched", &id);
             self.shows.push(id);
@@ -59,11 +61,11 @@ impl Watched {
 
     /// Remove the given watched item ID from the list.
     /// Unknown ID's which are not within the watched items are auto ignored.
-    pub fn remove(&mut self, id: String) {
+    pub fn remove(&mut self, id: &str) {
         let movie_index = self.movies.iter()
-            .position(|e| e == &id);
+            .position(|e| e.as_str() == id);
         let show_index = self.shows.iter()
-            .position(|e| e == &id);
+            .position(|e| e.as_str() == id);
 
         if movie_index.is_some() {
             trace!("Removing movie {} from the watched items", &id);

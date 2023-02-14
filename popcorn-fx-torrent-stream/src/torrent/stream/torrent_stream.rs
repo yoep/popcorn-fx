@@ -1,5 +1,4 @@
 use std::{fs, thread};
-use std::borrow::BorrowMut;
 use std::cmp::{max, min};
 use std::fs::File;
 use std::future::Future;
@@ -14,13 +13,11 @@ use derive_more::Display;
 use futures::Stream;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use tokio::io::{AsyncRead, AsyncSeek};
-use tokio::runtime;
 use tokio::sync::Mutex;
 use url::Url;
 
 use popcorn_fx_core::core::{CoreCallbacks, torrent};
-use popcorn_fx_core::core::torrent::{MockTorrent, StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
+use popcorn_fx_core::core::torrent::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
 
 /// The default buffer size used while streaming in bytes
 const BUFFER_SIZE: usize = 10000;
@@ -63,22 +60,37 @@ impl DefaultTorrentStream {
     }
 
     fn start_torrent_listener(&self) {
-        let wrapper = Arc::new(Wrapper {
-            torrent: self.torrent.clone(),
-            preparing_pieces: self.preparing_pieces.clone(),
-            state: self.state.clone(),
-            callbacks: self.callbacks.clone(),
-        });
-
+        let wrapper = self.create_wrapper();
         self.torrent.register(Box::new(move |event| {
             let wrapper = wrapper.clone();
             tokio::task::block_in_place(move || {
                 match event {
-                    TorrentEvent::StateChanged(state) => Self::verify_ready_to_stream(&wrapper),
+                    TorrentEvent::StateChanged(state) => {
+                        if state == TorrentState::Completed {
+                            wrapper.update_state(TorrentStreamState::Streaming)
+                        } else {
+                            Self::verify_ready_to_stream(&wrapper)
+                        }
+                    }
                     TorrentEvent::PieceFinished(piece) => Self::on_piece_finished(&wrapper, piece),
                 }
             })
         }));
+    }
+
+    fn start_preparing_pieces(&self) {
+        let mutex = self.preparing_pieces.blocking_lock();
+        debug!("Preparing a total of {} pieces for the stream", mutex.len());
+        self.torrent.prioritize_pieces(&mutex[..])
+    }
+
+    fn create_wrapper(&self) -> Arc<Wrapper> {
+        Arc::new(Wrapper {
+            torrent: self.torrent.clone(),
+            preparing_pieces: self.preparing_pieces.clone(),
+            state: self.state.clone(),
+            callbacks: self.callbacks.clone(),
+        })
     }
 
     fn on_piece_finished(wrapper: &Arc<Wrapper>, piece: u32) {
@@ -94,7 +106,7 @@ impl DefaultTorrentStream {
         // a download might have been started before it was requested to be streamed
         for index in 0..pieces.len() {
             match pieces.get(index) {
-                None => {},
+                None => {}
                 Some(piece) => {
                     if torrent.has_piece(piece.clone()) {
                         pieces.remove(index);
@@ -112,33 +124,18 @@ impl DefaultTorrentStream {
 
         if pieces.is_empty() {
             wrapper.torrent.sequential_mode();
-            Self::update_state(wrapper, TorrentStreamState::Streaming);
+            wrapper.update_state(TorrentStreamState::Streaming);
         } else {
             debug!("Awaiting {} remaining pieces to be prepared", pieces.len());
         }
     }
 
-    fn update_state(wrapper: &Arc<Wrapper>, new_state: TorrentStreamState) {
-        let mut state = wrapper.state.blocking_lock();
-        if *state == new_state {
-            return;
-        }
-
-        info!("Torrent stream state changed to {}", &new_state);
-        *state = new_state.clone();
-        wrapper.callbacks.invoke(TorrentStreamEvent::StateChanged(new_state));
-    }
-
-    fn start_preparing_pieces(&self) {
-        let mutex = self.preparing_pieces.blocking_lock();
-        debug!("Preparing a total of {} pieces for the stream", mutex.len());
-        self.torrent.prioritize_pieces(&mutex[..])
-    }
-
     fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<u32> {
         let total_pieces = torrent.total_pieces();
+        trace!("Calculating preparation pieces of {:?} for a total of {} pieces", torrent.file(), total_pieces);
         let number_of_preparation_pieces = max(8, (total_pieces as f32 * 0.08) as i32);
         let number_of_preparation_pieces = min(number_of_preparation_pieces, total_pieces - 1);
+        let start_of_end_piece_index = max(0, total_pieces - 3);
         let mut pieces = vec![];
 
         // prepare the first 8% of pieces if it doesn't exceed the total pieces
@@ -148,7 +145,7 @@ impl DefaultTorrentStream {
 
         // prepare the last 3 pieces
         // this is done for determining the video length during streaming
-        for i in total_pieces - 3..total_pieces {
+        for i in start_of_end_piece_index..total_pieces {
             pieces.push(i);
         }
 
@@ -203,13 +200,27 @@ impl TorrentStream for DefaultTorrentStream {
     }
 
     fn stream(&self) -> torrent::Result<TorrentStreamingResourceWrapper> {
-        DefaultTorrentStreamingResource::new(&self.torrent)
-            .map(|e| TorrentStreamingResourceWrapper::new(e))
+        tokio::task::block_in_place(|| {
+            let mutex = self.state.blocking_lock();
+            if *mutex == TorrentStreamState::Streaming {
+                DefaultTorrentStreamingResource::new(&self.torrent)
+                    .map(|e| TorrentStreamingResourceWrapper::new(e))
+            } else {
+                Err(TorrentError::InvalidStreamState(mutex.clone()))
+            }
+        })
     }
 
     fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrent::Result<TorrentStreamingResourceWrapper> {
-        DefaultTorrentStreamingResource::new_offset(&self.torrent, offset, len)
-            .map(|e| TorrentStreamingResourceWrapper::new(e))
+        tokio::task::block_in_place(|| {
+            let mutex = self.state.blocking_lock();
+            if *mutex == TorrentStreamState::Streaming {
+                DefaultTorrentStreamingResource::new_offset(&self.torrent, offset, len)
+                    .map(|e| TorrentStreamingResourceWrapper::new(e))
+            } else {
+                Err(TorrentError::InvalidStreamState(mutex.clone()))
+            }
+        })
     }
 
     fn stream_state(&self) -> TorrentStreamState {
@@ -219,6 +230,11 @@ impl TorrentStream for DefaultTorrentStream {
     fn register_stream(&self, callback: TorrentStreamCallback) {
         debug!("Adding a new callback to stream {}", self);
         self.callbacks.add(callback)
+    }
+
+    fn stop_stream(&self) {
+        let wrapper = self.create_wrapper();
+        wrapper.update_state(TorrentStreamState::Stopped);
     }
 }
 
@@ -476,6 +492,19 @@ struct Wrapper {
     callbacks: Arc<CoreCallbacks<TorrentStreamEvent>>,
 }
 
+impl Wrapper {
+    fn update_state(&self, new_state: TorrentStreamState) {
+        let mut state = self.state.blocking_lock();
+        if *state == new_state {
+            return;
+        }
+
+        info!("Torrent stream state changed to {}", &new_state);
+        *state = new_state.clone();
+        self.callbacks.invoke(TorrentStreamEvent::StateChanged(new_state));
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::sync::mpsc::channel;
@@ -490,25 +519,37 @@ mod test {
 
     #[test]
     fn test_torrent_stream_stream() {
+        init_logger();
         let filename = "simple.txt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
         let mut mock = MockTorrent::new();
         let url = Url::parse("http://localhost").unwrap();
+        let (tx, rx) = channel();
         mock.expect_file()
             .returning(move || temp_path.clone());
         mock.expect_has_bytes()
+            .return_const(true);
+        mock.expect_has_piece()
             .return_const(true);
         mock.expect_total_pieces()
             .returning(|| 10);
         mock.expect_prioritize_pieces()
             .returning(|_: &[u32]| {});
+        mock.expect_sequential_mode()
+            .returning(|| {});
         mock.expect_register()
             .times(1)
-            .returning(|_| {});
+            .returning(move |callback: TorrentCallback| {
+                tx.send(callback).unwrap();
+            });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock));
 
+        let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        for i in 0..10 {
+            callback(TorrentEvent::PieceFinished(i))
+        }
         let result = torrent_stream.stream()
             .expect("expected a stream wrapper");
 
@@ -666,6 +707,39 @@ mod test {
 
         let state_result = stream.stream_state();
         assert_eq!(TorrentStreamState::Streaming, state_result)
+    }
+
+    #[test]
+    fn test_stop_stream() {
+        init_logger();
+        let filename = "simple.txt";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().join(filename);
+        let mut mock = MockTorrent::new();
+        let url = Url::parse("http://localhost").unwrap();
+        mock.expect_file()
+            .returning(move || temp_path.clone());
+        mock.expect_has_bytes()
+            .return_const(true);
+        mock.expect_total_pieces()
+            .returning(|| 10);
+        mock.expect_prioritize_pieces()
+            .returning(|_: &[u32]| {});
+        mock.expect_register()
+            .times(1)
+            .returning(|_| {});
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock));
+
+        torrent_stream.stop_stream();
+        let result = torrent_stream.stream()
+            .err()
+            .expect("expected an error to be returned");
+
+        match result {
+            TorrentError::InvalidStreamState(state) => assert_eq!(TorrentStreamState::Stopped, state),
+            _ => assert!(false, "expected TorrentError::InvalidStreamState")
+        }
     }
 
     fn read_stream(mut stream: DefaultTorrentStreamingResource) -> String {

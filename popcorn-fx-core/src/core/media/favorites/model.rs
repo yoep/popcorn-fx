@@ -31,15 +31,6 @@ impl Favorites {
         }
     }
 
-    /// Create a new empty instance of favorites.
-    pub fn empty() -> Self {
-        Self {
-            movies: vec![],
-            shows: vec![],
-            last_cache_update: Self::current_datetime(),
-        }
-    }
-
     /// Retrieve the current liked movies of the user.
     ///
     /// It returns a reference to the array of movies.
@@ -80,7 +71,7 @@ impl Favorites {
     }
 
     /// Remove the media item from the favorites based on the given ID.
-    pub fn remove_id(&mut self, imdb_id: &String) {
+    pub fn remove_id(&mut self, imdb_id: &str) {
         let movie = self.movies.iter()
             .position(|e| e.imdb_id().eq(imdb_id));
         let show = self.shows.iter()
@@ -109,6 +100,16 @@ impl Favorites {
     }
 }
 
+impl Default for Favorites {
+    fn default() -> Self {
+        Self {
+            movies: vec![],
+            shows: vec![],
+            last_cache_update: Self::current_datetime(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::core::media::Images;
@@ -116,11 +117,11 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_empty() {
+    fn test_default() {
         let movies: Vec<MovieOverview> = vec![];
         let shows: Vec<ShowOverview> = vec![];
 
-        let result = Favorites::empty();
+        let result = Favorites::default();
 
         assert_eq!(movies, result.movies);
         assert_eq!(shows, result.shows);
@@ -133,7 +134,7 @@ mod test {
             String::from("tt12345678"),
             String::new(),
         );
-        let mut favorites = Favorites::empty();
+        let mut favorites = Favorites::default();
 
         favorites.add_movie(&movie);
         let result = favorites.movies();
@@ -170,7 +171,7 @@ mod test {
             Images::none(),
             None,
         );
-        let mut favorites = Favorites::empty();
+        let mut favorites = Favorites::default();
 
         favorites.add_show(&show);
         let result = favorites.shows();

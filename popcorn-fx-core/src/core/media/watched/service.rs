@@ -6,7 +6,7 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::{CoreCallbacks, media};
+use crate::core::{block_in_place, CoreCallbacks, media};
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::media::watched::Watched;
 use crate::core::storage::{Storage, StorageError};
@@ -140,13 +140,7 @@ impl DefaultWatchedService {
     }
 
     fn save(&self, watchable: &Watched) {
-        match Handle::try_current() {
-            Ok(e) => e.block_on(self.save_async(watchable)),
-            Err(_) => {
-                let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
-                runtime.block_on(self.save_async(watchable));
-            }
-        }
+        block_in_place(self.save_async(watchable))
     }
 
     async fn save_async(&self, watchable: &Watched) {
@@ -177,8 +171,7 @@ impl WatchedService for DefaultWatchedService {
 
     fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
         let imdb_id = watchable.imdb_id();
-
-        self.is_watched(imdb_id.as_str())
+        self.is_watched(imdb_id)
     }
 
     fn all(&self) -> media::Result<Vec<String>> {
@@ -243,7 +236,7 @@ impl WatchedService for DefaultWatchedService {
         }
 
         self.save(watched);
-        self.callbacks.invoke(WatchedEvent::WatchedStateChanged(watchable.imdb_id(), true));
+        self.callbacks.invoke(WatchedEvent::WatchedStateChanged(watchable.imdb_id().to_string(), true));
         Ok(())
     }
 
@@ -257,7 +250,7 @@ impl WatchedService for DefaultWatchedService {
 
                 watched.remove(id.clone());
                 self.save(watched);
-                self.callbacks.invoke(WatchedEvent::WatchedStateChanged(id, false));
+                self.callbacks.invoke(WatchedEvent::WatchedStateChanged(id.to_string(), false));
             }
             Err(e) => {
                 error!("Failed to remove watched item, {}", e)

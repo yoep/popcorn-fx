@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEventC;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaSet;
@@ -25,6 +26,7 @@ import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import com.sun.jna.Pointer;
 
 /**
  * The Popcorn FX native library interface.
@@ -56,10 +58,14 @@ public interface FxLib extends Library {
 
     SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFx instance);
 
+    byte is_subtitle_disabled(PopcornFx instance);
+
     void update_subtitle(PopcornFx instance, SubtitleInfo subtitle);
 
     void update_subtitle_custom_file(PopcornFx instance, String filepath);
 
+    void disable_subtitle(PopcornFx instance);
+    
     void reset_subtitle(PopcornFx instance);
 
     String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
@@ -67,8 +73,6 @@ public interface FxLib extends Library {
     Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
 
     Subtitle parse_subtitle(PopcornFx instance, String filePath);
-
-    String subtitle_to_raw(PopcornFx instance, Subtitle subtitle, int type);
 
     MediaSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
@@ -122,13 +126,21 @@ public interface FxLib extends Library {
 
     TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapperPointer torrent);
 
+    void stop_stream(PopcornFx instance, TorrentStreamWrapper stream);
+
     void register_torrent_stream_callback(TorrentStreamWrapper stream, TorrentStreamEventCallback callback);
 
     TorrentStreamState torrent_stream_state(TorrentStreamWrapper stream);
 
+    Pointer auto_resume_timestamp(PopcornFx instance, String id, String filename);
+
+    void handle_player_stopped_event(PopcornFx instance, PlayerStoppedEventC.ByValue event);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);
+
+    void dispose_torrent_stream(TorrentStreamWrapper wrapper);
 
     void dispose_popcorn_fx(PopcornFx instance);
 }

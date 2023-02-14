@@ -93,7 +93,7 @@ class SubtitleManagerServiceTest {
     void testUpdateSubtitle_whenSubtitleIsNone_shouldDisableSubtitleTrack() {
         service.updateSubtitle(SubtitleInfo.none());
 
-        verify(subtitleService).setActiveSubtitle(Subtitle.none());
+        verify(subtitleService).disableSubtitle();
     }
 
     @Test
@@ -183,7 +183,7 @@ class SubtitleManagerServiceTest {
 
         activeSubtitleProperty.set(subtitle);
 
-        verify(subtitleService).setActiveSubtitle(Subtitle.none());
+        verify(subtitleService).disableSubtitle();
     }
 
     @Test

@@ -16,6 +16,8 @@ pub struct Episode {
     title: String,
     overview: String,
     tvdb_id: i32,
+    #[serde(skip, default)]
+    tvdb_id_value: String,
     torrents: HashMap<String, TorrentInfo>,
 }
 
@@ -28,6 +30,7 @@ impl Episode {
             title,
             overview,
             tvdb_id,
+            tvdb_id_value: tvdb_id.to_string(),
             torrents: HashMap::new(),
         }
     }
@@ -40,6 +43,7 @@ impl Episode {
             title,
             overview,
             tvdb_id,
+            tvdb_id_value: tvdb_id.to_string(),
             torrents,
         }
     }
@@ -72,8 +76,8 @@ impl Episode {
 }
 
 impl MediaIdentifier for Episode {
-    fn imdb_id(&self) -> String {
-        self.tvdb_id.to_string()
+    fn imdb_id(&self) -> &str {
+        self.tvdb_id_value.as_str()
     }
 
     fn media_type(&self) -> MediaType {

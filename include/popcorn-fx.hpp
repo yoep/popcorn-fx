@@ -278,6 +278,19 @@ struct SubtitleC {
   int32_t number_of_cues;
 };
 
+/// The player stopped event which indicates a video playback has been stopped.
+/// It contains the last known information of the video playback right before it was stopped.
+struct PlayerStoppedEventC {
+  /// The playback url that was being played
+  const char *url;
+  /// The last known video time of the player in millis
+  const int64_t *time;
+  /// The duration of the video playback in millis
+  const int64_t *duration;
+  /// The optional media item that was being played
+  MediaItemC *media;
+};
+
 struct PlatformInfoC {
   /// The platform type
   PlatformType platform_type;
@@ -407,11 +420,18 @@ void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 /// Add the given media item to the watched list.
 void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
+/// Retrieve the auto-resume timestamp for the given media id and/or filename.
+uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const char *filename);
+
 /// Retrieve the default options available for the subtitles.
 VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
 
 /// Disable the screensaver on the current platform
 void disable_screensaver(PopcornFX *popcorn_fx);
+
+/// Disable the subtitle track on request of the user.
+/// This will make the [is_subtitle_disabled] return `true`.
+void disable_subtitle(PopcornFX *popcorn_fx);
 
 /// Dispose the given media item from memory.
 void dispose_media_item(Box<MediaItemC> media);
@@ -421,6 +441,10 @@ void dispose_media_items(Box<MediaSetC> media);
 
 /// Delete the PopcornFX instance in a safe way.
 void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);
+
+/// Dispose the torrent stream.
+/// Make sure [stop_stream] has been called before dropping the instance.
+void dispose_torrent_stream(Box<TorrentStreamC> stream);
 
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
 ///
@@ -441,6 +465,12 @@ VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *s
 /// Retrieve the available subtitles for the given filename
 VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
+/// Handle the player stopped event.
+/// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
+///
+/// * `event`   - The C event instance of the player stopped data.
+void handle_player_stopped_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
+
 /// Verify if the given media item is liked/favorite of the user.
 /// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
 ///
@@ -451,6 +481,11 @@ bool is_media_liked(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 ///
 /// It returns true when the item is watched, else false.
 bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
+
+/// Verify if the subtitle has been disabled by the user.
+///
+/// It returns true when the subtitle track should be disabled, else false.
+bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
@@ -475,7 +510,7 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
 /// Register a new callback for the torrent stream.
-void register_torrent_stream_callback(const TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
+void register_torrent_stream_callback(TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
 
 /// Register a new callback listener for watched events.
 void register_watched_event_callback(PopcornFX *popcorn_fx, void (*callback)(WatchedEventC));
@@ -572,10 +607,8 @@ const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t out
 /// Start a torrent stream for the given torrent.
 TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torrent);
 
-/// Convert the given subtitle back to it's raw output type.
-///
-/// It returns the [String] output of the subtitle for the given output type.
-const char *subtitle_to_raw(PopcornFX *popcorn_fx, const SubtitleC *subtitle, size_t output_type);
+/// Stop the given torrent stream.
+void stop_stream(PopcornFX *popcorn_fx, TorrentStreamC *stream);
 
 /// Inform the FX core that a piece for the torrent has finished downloading.
 void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
@@ -587,7 +620,7 @@ void torrent_state_changed(const TorrentWrapperC *torrent, TorrentState state);
 /// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
 ///
 /// It returns the known [TorrentStreamState] at the time of invocation.
-TorrentStreamState torrent_stream_state(const TorrentStreamC *stream);
+TorrentStreamState torrent_stream_state(TorrentStreamC *stream);
 
 /// The torrent wrapper for moving data between rust and java.
 /// This is a temp wrapper till the torrent component is replaced.

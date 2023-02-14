@@ -8,7 +8,8 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
@@ -31,7 +32,7 @@ mod media_mappers;
 #[no_mangle]
 pub extern "C" fn new_popcorn_fx() -> *mut PopcornFX {
     let start = Instant::now();
-    let instance = PopcornFX::new();
+    let instance = PopcornFX::default();
 
     info!("Created new Popcorn FX instance in {} millis", start.elapsed().as_millis());
     into_c_owned(instance)
@@ -173,6 +174,14 @@ pub extern "C" fn retrieve_preferred_subtitle_language(popcorn_fx: &mut PopcornF
     popcorn_fx.subtitle_manager().preferred_language()
 }
 
+/// Verify if the subtitle has been disabled by the user.
+///
+/// It returns true when the subtitle track should be disabled, else false.
+#[no_mangle]
+pub extern "C" fn is_subtitle_disabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.subtitle_manager().is_disabled()
+}
+
 /// Update the preferred subtitle for the [Media] item playback.
 /// This action will reset any custom configured subtitle files.
 #[no_mangle]
@@ -188,6 +197,14 @@ pub extern "C" fn update_subtitle_custom_file(popcorn_fx: &mut PopcornFX, custom
     trace!("Updating custom subtitle filepath to {}", &custom_filepath);
 
     popcorn_fx.subtitle_manager().update_custom_subtitle(custom_filepath.as_str())
+}
+
+/// Disable the subtitle track on request of the user.
+/// This will make the [is_subtitle_disabled] return `true`.
+#[no_mangle]
+pub extern "C" fn disable_subtitle(popcorn_fx: &mut PopcornFX) {
+    trace!("Disabling the subtitle track");
+    popcorn_fx.subtitle_manager().disable_subtitle()
 }
 
 /// Reset the current preferred subtitle configuration.
@@ -257,27 +274,6 @@ pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c
         Err(e) => {
             error!("File parsing failed, {}", e);
             ptr::null_mut()
-        }
-    }
-}
-
-/// Convert the given subtitle back to it's raw output type.
-///
-/// It returns the [String] output of the subtitle for the given output type.
-#[no_mangle]
-pub extern "C" fn subtitle_to_raw(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleC, output_type: usize) -> *const c_char {
-    debug!("Converting to raw subtitle type {} for {:?}", output_type, subtitle);
-    let subtitle = subtitle.to_subtitle();
-    let subtitle_type = SubtitleType::from_ordinal(output_type);
-
-    match popcorn_fx.subtitle_provider().convert(subtitle, subtitle_type.clone()) {
-        Ok(e) => {
-            debug!("Returning subtitle format {} to C", subtitle_type);
-            into_c_string(e)
-        }
-        Err(e) => {
-            error!("Failed to convert subtitle to {}, {}", subtitle_type, e);
-            ptr::null()
         }
     }
 }
@@ -448,7 +444,7 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
             trace!("Returning favorite details {:?}", &e);
             match e.media_type() {
                 MediaType::Movie => {
-                    into_c_owned(MediaItemC::from_movie_details(*e.into_any()
+                    into_c_owned(MediaItemC::from(*e.into_any()
                         .downcast::<MovieDetails>()
                         .expect("expected the favorite item to be a movie")))
                 }
@@ -477,7 +473,7 @@ pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id:
 #[no_mangle]
 pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) -> bool {
     trace!("Verifying if media is liked for {:?}", favorite);
-    match favorite.to_identifier() {
+    match favorite.into_identifier() {
         None => {
             warn!("Unable to verify if media is liked, all FavoriteC fields are null");
             false
@@ -549,7 +545,7 @@ pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaI
 /// Remove the media item from favorites.
 #[no_mangle]
 pub extern "C" fn remove_from_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) {
-    match favorite.to_identifier() {
+    match favorite.into_identifier() {
         None => error!("Unable to remove favorite, all FavoriteC fields are null"),
         Some(e) => popcorn_fx.favorite_service().remove(e)
     }
@@ -591,7 +587,7 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
 /// It returns true when the item is watched, else false.
 #[no_mangle]
 pub extern "C" fn is_media_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) -> bool {
-    match watchable.to_identifier() {
+    match watchable.into_identifier() {
         Some(media) => {
             trace!("Verifying if media item is watched for {}", &media);
             let watched = popcorn_fx.watched_service().is_watched_dyn(&media);
@@ -660,9 +656,9 @@ pub extern "C" fn retrieve_watched_shows(popcorn_fx: &mut PopcornFX) -> StringAr
 /// Add the given media item to the watched list.
 #[no_mangle]
 pub extern "C" fn add_to_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) {
-    match watchable.to_identifier() {
+    match watchable.into_identifier() {
         Some(e) => {
-            let id = e.imdb_id();
+            let id = e.imdb_id().to_string();
             match popcorn_fx.watched_service().add(e) {
                 Ok(_) => info!("Media item {} as been added as seen", id),
                 Err(e) => error!("Failed to add media item {} as watched, {}", id, e)
@@ -677,7 +673,7 @@ pub extern "C" fn add_to_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaIt
 /// Remove the given media item from the watched list.
 #[no_mangle]
 pub extern "C" fn remove_from_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) {
-    match watchable.to_identifier() {
+    match watchable.into_identifier() {
         Some(e) => popcorn_fx.watched_service().remove(e),
         None => {
             error!("Unable to add watchable, no media item given")
@@ -732,15 +728,33 @@ pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static Tor
     }
 }
 
+/// Stop the given torrent stream.
+#[no_mangle]
+pub extern "C" fn stop_stream(popcorn_fx: &mut PopcornFX, stream: &mut TorrentStreamC) {
+    trace!("Stopping torrent stream of {:?}", stream);
+    let stream = stream.stream();
+    match stream {
+        None => error!("Unable to stop stream, pointer is invalid"),
+        Some(stream) => {
+            trace!("Stream {:?} has been read, trying to stop server", stream);
+            popcorn_fx.torrent_stream_server().stop_stream(&stream);
+        }
+    }
+}
+
 /// Register a new callback for the torrent stream.
 #[no_mangle]
-pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
+pub extern "C" fn register_torrent_stream_callback(stream: &mut TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
     trace!("Wrapping TorrentStreamEventC callback");
     let stream = stream.stream();
-    stream.register_stream(Box::new(move |e| {
-        callback(TorrentStreamEventC::from(e))
-    }));
-    mem::forget(stream);
+    match stream {
+        None => error!("Unable to register callback, pointer is invalid"),
+        Some(stream) => {
+            stream.register_stream(Box::new(move |e| {
+                callback(TorrentStreamEventC::from(e))
+            }));
+        }
+    }
 }
 
 /// Retrieve the current state of the stream.
@@ -748,11 +762,58 @@ pub extern "C" fn register_torrent_stream_callback(stream: &TorrentStreamC, call
 ///
 /// It returns the known [TorrentStreamState] at the time of invocation.
 #[no_mangle]
-pub extern "C" fn torrent_stream_state(stream: &TorrentStreamC) -> TorrentStreamState {
+pub extern "C" fn torrent_stream_state(stream: &mut TorrentStreamC) -> TorrentStreamState {
     let stream = stream.stream();
-    let state = stream.stream_state();
-    mem::forget(stream);
-    state
+    match stream {
+        None => {
+            error!("Unable to get stream state, pointer is invalid");
+            TorrentStreamState::Stopped
+        }
+        Some(stream) => {
+            stream.stream_state()
+        }
+    }
+}
+
+/// Retrieve the auto-resume timestamp for the given media id and/or filename.
+#[no_mangle]
+pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c_char, filename: *const c_char) -> *mut u64 {
+    trace!("Retrieving auto-resume timestamp of id: {:?}, filename: {:?}", id, filename);
+    let id_value: String;
+    let filename_value: String;
+    let id = if !id.is_null() {
+        id_value = from_c_string(id);
+        Some(id_value.as_str())
+    } else {
+        None
+    };
+    let filename = if !filename.is_null() {
+        filename_value = from_c_string(filename);
+        Some(filename_value.as_str())
+    } else {
+        None
+    };
+
+    match popcorn_fx.auto_resume_service().resume_timestamp(id, filename) {
+        None => {
+            info!("Auto-resume timestamp not found for id: {:?}, filename: {:?}", id, filename);
+            ptr::null_mut()
+        }
+        Some(e) => {
+            into_c_owned(e)
+        }
+    }
+}
+
+/// Handle the player stopped event.
+/// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
+///
+/// * `event`   - The C event instance of the player stopped data.
+#[no_mangle]
+pub extern "C" fn handle_player_stopped_event(popcorn_fx: &mut PopcornFX, event: PlayerStoppedEventC) {
+    trace!("Handling the player stopped event {:?}", event);
+    let event = PlayerStoppedEvent::from(&event);
+    popcorn_fx.auto_resume_service().player_stopped(&event);
 }
 
 /// Dispose the given media item from memory.
@@ -771,6 +832,13 @@ pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {
     trace!("Disposing media items of {:?}", media);
     let _ = media.movies();
     let _ = media.shows();
+}
+
+/// Dispose the torrent stream.
+/// Make sure [stop_stream] has been called before dropping the instance.
+#[no_mangle]
+pub extern "C" fn dispose_torrent_stream(stream: Box<TorrentStreamC>) {
+    trace!("Disposing stream {:?}", stream)
 }
 
 /// Delete the PopcornFX instance in a safe way.
@@ -818,6 +886,47 @@ mod test {
         let instance = from_c_owned(new_popcorn_fx());
 
         dispose_popcorn_fx(Box::new(instance));
+    }
+
+    #[test]
+    fn test_is_liked_movie_overview() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let movie = MovieOverview::new(
+            "".to_string(),
+            "tt0000000122".to_string(),
+            "2020".to_string(),
+        );
+        let media = MediaItemC::from(movie);
+
+        let result = is_media_liked(&mut instance, &media);
+
+        assert_eq!(false, result)
+    }
+
+    #[test]
+    fn test_is_liked_movie_details() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let movie = MovieDetails::new(
+            "".to_string(),
+            "tt0000000111".to_string(),
+            "2020".to_string(),
+        );
+        let media = MediaItemC::from(movie);
+
+        let result = is_media_liked(&mut instance, &media);
+
+        assert_eq!(false, result)
+    }
+
+    #[test]
+    fn test_auto_resume_timestamp() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let id = "tt0000001111".to_string();
+        let filename = "lorem-ipsum-dolor-estla.mkv".to_string();
+
+        let result = auto_resume_timestamp(&mut instance, into_c_string(id), into_c_string(filename));
+
+        assert_eq!(ptr::null_mut(), result)
     }
 
     #[test]
@@ -876,13 +985,26 @@ mod test {
     }
 
     #[test]
+    fn test_disable_subtitle() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+
+        let disabled = is_subtitle_disabled(&mut instance);
+        assert!(!disabled, "expected the subtitle track to be enabled by default");
+
+        disable_subtitle(&mut instance);
+        let result = is_subtitle_disabled(&mut instance);
+
+        assert!(result, "expected the subtitle track to be disabled")
+    }
+
+    #[test]
     fn test_dispose_media_item() {
         let movie = MovieOverview::new(
             String::new(),
             String::from("tt54698542"),
             String::new(),
         );
-        let media = MediaItemC::from_movie(movie);
+        let media = MediaItemC::from(movie);
 
         dispose_media_item(Box::new(media));
     }

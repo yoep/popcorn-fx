@@ -46,6 +46,13 @@ public interface SubtitleService {
     void setActiveSubtitle(Subtitle activeSubtitle);
 
     /**
+     * Verify if the subtitle is disabled by the user.
+     *
+     * @return Returns true when disabled by the user, else false.
+     */
+    boolean isDisabled();
+
+    /**
      * Retrieve the available subtitles for the given media.
      *
      * @param media The media to retrieve the subtitles of.
@@ -144,4 +151,9 @@ public interface SubtitleService {
      * @param subtitleFilepath The filepath to the custom subtitle file.
      */
     void updateCustomSubtitle(String subtitleFilepath);
+
+    /**
+     * Disable the subtitle track.
+     */
+    void disableSubtitle();
 }

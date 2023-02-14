@@ -111,7 +111,7 @@ impl MovieOverviewC {
     pub fn from(movie: MovieOverview) -> Self {
         Self {
             title: into_c_string(movie.title()),
-            imdb_id: into_c_string(movie.imdb_id().clone()),
+            imdb_id: into_c_string(movie.imdb_id().to_string()),
             year: into_c_string(movie.year().clone()),
             rating: match movie.rating() {
                 None => ptr::null_mut(),
@@ -170,7 +170,7 @@ impl MovieDetailsC {
 
         Self {
             title: into_c_string(movie.title()),
-            imdb_id: into_c_string(movie.imdb_id().clone()),
+            imdb_id: into_c_string(movie.imdb_id().to_string()),
             year: into_c_string(movie.year().clone()),
             runtime: movie.runtime().clone(),
             rating: match movie.rating() {
@@ -232,7 +232,7 @@ impl ShowOverviewC {
     pub fn from(show: ShowOverview) -> Self {
         trace!("Converting Show to C {}", show);
         Self {
-            imdb_id: into_c_string(show.imdb_id().clone()),
+            imdb_id: into_c_string(show.imdb_id().to_string()),
             tvdb_id: into_c_string(show.tvdb_id().clone()),
             title: into_c_string(show.title()),
             year: into_c_string(show.year().clone()),
@@ -298,7 +298,7 @@ impl ShowDetailsC {
         let (episodes, episodes_len) = to_c_vec(episodes);
 
         Self {
-            imdb_id: into_c_string(show.imdb_id().clone()),
+            imdb_id: into_c_string(show.imdb_id().to_string()),
             tvdb_id: into_c_string(show.tvdb_id().clone()),
             title: into_c_string(show.title()),
             year: into_c_string(show.year().clone()),
@@ -405,26 +405,6 @@ pub struct MediaItemC {
 }
 
 impl MediaItemC {
-    pub fn from_movie(media: MovieOverview) -> Self {
-        Self {
-            movie_overview: into_c_owned(MovieOverviewC::from(media)),
-            movie_details: ptr::null_mut(),
-            show_overview: ptr::null_mut(),
-            show_details: ptr::null_mut(),
-            episode: ptr::null_mut(),
-        }
-    }
-
-    pub fn from_movie_details(media: MovieDetails) -> Self {
-        Self {
-            movie_overview: ptr::null_mut(),
-            movie_details: into_c_owned(MovieDetailsC::from(media)),
-            show_overview: ptr::null_mut(),
-            show_details: ptr::null_mut(),
-            episode: ptr::null_mut(),
-        }
-    }
-
     pub fn from_show_details(media: ShowDetails) -> Self {
         Self {
             movie_overview: ptr::null_mut(),
@@ -435,7 +415,7 @@ impl MediaItemC {
         }
     }
 
-    pub fn to_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
+    pub fn into_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
         let media: Box<dyn MediaIdentifier>;
 
         if !self.movie_overview.is_null() {
@@ -468,6 +448,30 @@ impl MediaItemC {
         }
 
         Some(media)
+    }
+}
+
+impl From<MovieOverview> for MediaItemC {
+    fn from(value: MovieOverview) -> Self {
+        Self {
+            movie_overview: into_c_owned(MovieOverviewC::from(value)),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        }
+    }
+}
+
+impl From<MovieDetails> for MediaItemC {
+    fn from(value: MovieDetails) -> Self {
+        Self {
+            movie_overview: ptr::null_mut(),
+            movie_details: into_c_owned(MovieDetailsC::from(value)),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        }
     }
 }
 

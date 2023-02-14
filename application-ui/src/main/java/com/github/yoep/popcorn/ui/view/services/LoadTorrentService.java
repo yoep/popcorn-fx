@@ -240,6 +240,9 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     }
 
     private CompletableFuture<Torrent> retrieveAndDownloadAvailableSubtitles(Torrent torrent) {
+        if (subtitleService.isDisabled())
+            return CompletableFuture.completedFuture(torrent);
+
         var quality = (String) null;
 
         if (event instanceof LoadMediaTorrentEvent mediaEvent) {

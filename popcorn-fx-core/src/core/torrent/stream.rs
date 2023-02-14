@@ -77,6 +77,10 @@ pub trait TorrentStream: Torrent {
 
     /// Register a new callback for the stream events.
     fn register_stream(&self, callback: TorrentStreamCallback);
+
+    /// Stop the stream which will prevent new streaming resources to be created.
+    /// It will also stop the underlying [Torrent] process.
+    fn stop_stream(&self);
 }
 
 /// The streaming resource of a [TorrentStream].

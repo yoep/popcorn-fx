@@ -1,7 +1,8 @@
-use std::ffi::CString;
 use std::os::raw::c_char;
 
 use log::trace;
+
+use popcorn_fx_core::into_c_string;
 
 use crate::popcorn::fx::platform::platform_info::{PlatformInfo, PlatformType};
 
@@ -13,15 +14,31 @@ pub struct PlatformInfoC {
     pub arch: *const c_char,
 }
 
-impl PlatformInfoC {
-    pub fn from(info: &PlatformInfo) -> PlatformInfoC {
-        trace!("Converting platform info to C for {}", info);
+impl From<&PlatformInfo> for PlatformInfoC {
+    fn from(value: &PlatformInfo) -> Self {
+        trace!("Converting platform info to C for {}", value);
         PlatformInfoC {
-            platform_type: info.platform_type.clone(),
-            arch: match CString::new(info.arch.clone()) {
-                Err(ex) => panic!("failed to transform arch string to cstring, {}", ex),
-                Ok(string) => string.into_raw(),
-            },
+            platform_type: value.platform_type.clone(),
+            arch: into_c_string(value.arch.clone()),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use popcorn_fx_core::from_c_string;
+
+    use crate::PlatformInfoC;
+    use crate::popcorn::fx::platform::platform_info::PlatformInfo;
+
+    #[test]
+    fn test_from() {
+        let platform = PlatformInfo::new();
+
+        let result = PlatformInfoC::from(&platform);
+        let arch_result = from_c_string(result.arch);
+
+        assert_eq!(platform.platform_type, result.platform_type);
+        assert_eq!(platform.arch, arch_result);
     }
 }

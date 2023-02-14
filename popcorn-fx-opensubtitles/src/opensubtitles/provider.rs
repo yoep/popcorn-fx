@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
-use std::future::Future;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -894,7 +893,8 @@ mod test {
         );
         let settings = Arc::new(Application::default());
         let service = OpensubtitlesProvider::new(&settings);
-        let expected_result = read_test_file("example-conversion.vtt");
+        let expected_result = read_test_file("example-conversion.vtt")
+            .replace("\r\n", "\n");
 
         let result = service.convert(subtitle, Vtt);
 

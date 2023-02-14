@@ -251,7 +251,11 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                 onCustomSubtitleSelected();
             } else {
                 this.subtitle = newValue;
-                subtitleService.updateSubtitle(newValue);
+                if (newValue.isNone()) {
+                    subtitleService.disableSubtitle();
+                } else {
+                    subtitleService.updateSubtitle(newValue);
+                }
             }
         };
     }

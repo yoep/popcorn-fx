@@ -10,7 +10,6 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-import org.springframework.util.Assert;
 
 import java.io.Closeable;
 import java.io.Serializable;
@@ -125,20 +124,6 @@ public class SubtitleInfo extends Structure implements Comparable<SubtitleInfo>,
             return 1;
 
         return this.getLanguage().compareTo(compare.getLanguage());
-    }
-
-    //endregion
-
-    //region
-
-    /**
-     * Add the given subtitle file to the collection of this subtitle info.
-     *
-     * @param file The file to add.
-     */
-    public void addFile(SubtitleFile file) {
-        Assert.notNull(file, "file cannot be null");
-        // TODO: replace with attributes field
     }
 
     //endregion

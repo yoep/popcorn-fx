@@ -1,9 +1,10 @@
 [workspace]
 
 members = [
-    "application",
+    "popcorn-fx",
     "popcorn-fx-core",
     "popcorn-fx-platform",
     "popcorn-fx-opensubtitles",
+    "popcorn-fx-torrent",
     "popcorn-fx-torrent-stream",
 ]

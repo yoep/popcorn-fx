@@ -1,8 +1,11 @@
 extern crate derive_more;
 
+use std::path::PathBuf;
+
 use derive_more::Display;
 use itertools::Itertools;
-use log::{trace, warn};
+use log::{info, trace, warn};
+use regex::Regex;
 
 use crate::core::subtitles;
 use crate::core::subtitles::cue::SubtitleCue;
@@ -13,6 +16,7 @@ use crate::core::subtitles::SubtitleFile;
 
 const SRT_EXTENSION: &str = "srt";
 const VTT_EXTENSION: &str = "vtt";
+const NORMALIZATION_PATTERN: &str = "[\\.\\[\\]\\(\\)_-]";
 
 const SUBTITLE_TYPES: [SubtitleType; 2] = [
     SubtitleType::Srt,
@@ -69,6 +73,7 @@ pub struct SubtitleInfo {
     imdb_id: Option<String>,
     language: SubtitleLanguage,
     files: Option<Vec<SubtitleFile>>,
+    normalize_regex: Regex,
 }
 
 impl SubtitleInfo {
@@ -78,6 +83,7 @@ impl SubtitleInfo {
             imdb_id: None,
             language: SubtitleLanguage::None,
             files: None,
+            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
         }
     }
 
@@ -87,6 +93,7 @@ impl SubtitleInfo {
             imdb_id: None,
             language: SubtitleLanguage::Custom,
             files: None,
+            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
         }
     }
 
@@ -96,6 +103,7 @@ impl SubtitleInfo {
             imdb_id: Some(imdb_id),
             language,
             files: None,
+            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
         }
     }
 
@@ -105,6 +113,7 @@ impl SubtitleInfo {
             imdb_id: Some(imdb_id),
             language,
             files: Some(files),
+            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
         }
     }
 
@@ -152,7 +161,7 @@ impl SubtitleInfo {
         // this will try to find a file matching the name in a normalized way
         if let Some(name) = name {
             trace!("Searching subtitle file based on filename {}", name);
-            files = Self::filter_by_filename(name, files);
+            files = self.filter_by_filename(name, files);
 
             return match files.into_iter().next() {
                 None => {
@@ -165,12 +174,15 @@ impl SubtitleInfo {
                     }
                 }
                 Some(e) => Ok(e)
-            }
+            };
         }
 
         match files.into_iter().next() {
             None => Err(SubtitleError::NoFilesFound),
-            Some(e) => Ok(e)
+            Some(e) => {
+                info!("Next playback will use subtitle file {:?}", &e);
+                Ok(e)
+            }
         }
     }
 
@@ -193,27 +205,29 @@ impl SubtitleInfo {
         }
     }
 
-    fn find_by_best_score(&self) -> Result<&SubtitleFile, SubtitleError> {
-        match &self.files {
-            None => Err(SubtitleError::NoFilesFound),
-            Some(files) => Ok(files.iter()
-                .sorted()
-                .next()
-                .unwrap())
-        }
-    }
-
-    fn filter_by_filename(name: &str, files: Vec<SubtitleFile>) -> Vec<SubtitleFile> {
-        let normalized_filename = Self::normalize(name);
+    fn filter_by_filename(&self, name: &str, files: Vec<SubtitleFile>) -> Vec<SubtitleFile> {
+        let normalized_filename = self.normalize(name);
         files.into_iter()
-            .filter(|e| Self::normalize(e.name()) == normalized_filename)
+            .filter(|e| self.normalize(e.name()) == normalized_filename)
             .collect()
     }
 
-    fn normalize(name: &str) -> String {
-        name
-            .to_lowercase()
-            .replace("[\\[\\]\\(\\)_-\\.]", "")
+    fn normalize(&self, name: &str) -> String {
+        let path = PathBuf::from(name);
+
+        match path.file_stem() {
+            None => {
+                warn!("Unable to normalize {}, invalid basename", name);
+                name.to_lowercase()
+            }
+            Some(e) => {
+                let name = e.to_str()
+                    .expect("expected a valid str")
+                    .to_lowercase();
+
+                self.normalize_regex.replace_all(name.as_str(), "").to_string()
+            }
+        }
     }
 
     fn matches_quality(quality: &i32, file: &&SubtitleFile) -> bool {
@@ -234,7 +248,6 @@ impl PartialEq for SubtitleInfo {
             })
     }
 }
-
 
 
 /// The parsed [SubtitleInfo] which has downloaded and parsed the .srt file.
@@ -426,5 +439,67 @@ mod test {
         items.sort_by(|a, b| a.cmp(b));
 
         assert_eq!(vec![&item3, &item1, &item2], items)
+    }
+
+    #[test]
+    fn test_subtitle_info_normalize() {
+        let filename = "Lorem.S02E11[720p]AMZN.WEBRip.x264-GalaxyTV.mkv";
+        let expected_result = "lorems02e11720pamznwebripx264galaxytv";
+        let subtitle_info = SubtitleInfo::none();
+
+        let result = subtitle_info.normalize(filename);
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn subtitle_info_best_matching_file() {
+        init_logger();
+        let filename = "Lorem.S02E11.720p.AMZN.WEBRip.x264-GalaxyTV.mkv";
+        let quality = Some(720);
+        let expected_file = SubtitleFile::new_with_quality(
+            102,
+            "Lorem.S02E11.Ipsum.to.Dolor.DVDRip.Xvid-FoV.en.srt".to_string(),
+            String::new(),
+            9.0,
+            44134,
+            None,
+        );
+        let subtitle_info = SubtitleInfo::new_with_files(
+            "tt100001010".to_string(),
+            SubtitleLanguage::English,
+            vec![
+                SubtitleFile::new_with_quality(
+                    100,
+                    "Lorem S02 E11 Ipsum to Dolor 720p x264.srt".to_string(),
+                    String::new(),
+                    0.0,
+                    6755,
+                    Some(720),
+                ),
+                SubtitleFile::new_with_quality(
+                    101,
+                    "Lorem.M.D.S02E11.720p.WEB.DL.nHD.x264-NhaNc3-eng.srt".to_string(),
+                    String::new(),
+                    0.0,
+                    4879,
+                    Some(720),
+                ),
+                expected_file.clone(),
+                SubtitleFile::new_with_quality(
+                    103,
+                    "Lorem MD Season 2 Episode 11 - Ipsum To Dolor-eng.srt".to_string(),
+                    String::new(),
+                    0.0,
+                    5735,
+                    None,
+                ),
+            ],
+        );
+
+        let result = subtitle_info.best_matching_file(&SubtitleMatcher::from_int(Some(filename.to_string()), quality))
+            .expect("expected a file to be found");
+
+        assert_eq!(expected_file, result)
     }
 }

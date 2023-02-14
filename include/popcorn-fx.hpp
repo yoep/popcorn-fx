@@ -468,7 +468,7 @@ VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 /// Handle the player stopped event.
 /// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
 ///
-/// * `event`   - The C event instance.
+/// * `event`   - The C event instance of the player stopped data.
 void handle_player_stopped_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
 
 /// Verify if the given media item is liked/favorite of the user.

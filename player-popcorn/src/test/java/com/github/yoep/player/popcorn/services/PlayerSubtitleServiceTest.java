@@ -112,9 +112,8 @@ class PlayerSubtitleServiceTest {
                 .torrentStream(torrentStream)
                 .build();
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
         when(subtitleService.retrieveSubtitles(movie)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(activeSubtitle));
         service.init();
 
         listenerHolder.get().onPlay(request);
@@ -137,9 +136,8 @@ class PlayerSubtitleServiceTest {
                 .torrentStream(torrentStream)
                 .build();
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
         when(subtitleService.retrieveSubtitles(show, episode)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(activeSubtitle));
         service.init();
 
         listenerHolder.get().onPlay(request);
@@ -168,7 +166,6 @@ class PlayerSubtitleServiceTest {
         when(request.isSubtitlesEnabled()).thenReturn(true);
         when(request.getUrl()).thenReturn(filename);
         when(subtitleService.retrieveSubtitles(filename)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(SubtitleInfo.none());
         service.init();
 
         listenerHolder.get().onPlay(request);

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.media.resume;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEventC;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +16,9 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class AutoResumeService {
+    private final FxLib fxLib;
+    private final PopcornFx fxInstance;
+
     //region Getters
 
     /**
@@ -36,7 +39,7 @@ public class AutoResumeService {
      * @return Returns the last known timestamp of the video if known, else {@link Optional#empty()}.
      */
     public Optional<Long> getResumeTimestamp(String id, String filename) {
-        var ptr = FxLib.INSTANCE.auto_resume_timestamp(PopcornFxInstance.INSTANCE.get(), id, filename);
+        var ptr = fxLib.auto_resume_timestamp(fxInstance, id, filename);
         return Optional.ofNullable(ptr)
                 .map(e -> e.getLong(0));
     }
@@ -46,7 +49,7 @@ public class AutoResumeService {
         Objects.requireNonNull(event, "event cannot be null");
         try (var event_c = PlayerStoppedEventC.from(event)) {
             log.debug("Handling closed player event for auto-resume with {}", event_c);
-            FxLib.INSTANCE.handle_player_stopped_event(PopcornFxInstance.INSTANCE.get(), event_c);
+            fxLib.handle_player_stopped_event(fxInstance, event_c);
         }
     }
 

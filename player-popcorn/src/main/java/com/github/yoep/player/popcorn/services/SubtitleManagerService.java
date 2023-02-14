@@ -104,6 +104,12 @@ public class SubtitleManagerService {
      * @param subtitleInfo The subtitle to use.
      */
     public void updateSubtitle(@Nullable SubtitleInfo subtitleInfo) {
+        if (subtitleInfo == null || subtitleInfo.isNone()) {
+            subtitleService.disableSubtitle();
+        } else {
+            subtitleService.updateSubtitle(subtitleInfo);
+        }
+
         onSubtitleChanged(subtitleInfo);
     }
 
@@ -173,12 +179,9 @@ public class SubtitleManagerService {
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
         // check if the subtitle is being disabled
         // if so, update the subtitle to none and ignore the subtitle download & parsing
-        if (subtitleService.isDisabled() || subtitleInfo == null || subtitleInfo.isNone()) {
-            disableSubtitleTrack();
-            return;
-        }
-        // if the subtitle is the same, ignore this change
-        if (isSubtitleAlreadyActive(subtitleInfo)) {
+        if (isSubtitleAlreadyActive(subtitleInfo) || subtitleService.isDisabled() ||
+                subtitleInfo == null || subtitleInfo.isNone()) {
+            log.trace("Subtitle change ignore on popcorn player for {}", subtitleInfo);
             return;
         }
 
@@ -220,7 +223,7 @@ public class SubtitleManagerService {
         // if the user cancels the picking, we disable the subtitle
         subtitlePickerService.pickCustomSubtitle().ifPresentOrElse(
                 subtitleService::updateCustomSubtitle,
-                this::disableSubtitleTrack
+                subtitleService::disableSubtitle
         );
 
         // resume the video playback
@@ -234,11 +237,6 @@ public class SubtitleManagerService {
         return subtitleService.preferredSubtitle()
                 .filter(e -> e == subtitleInfo)
                 .isPresent();
-    }
-
-    private void disableSubtitleTrack() {
-        log.debug("Disabling the subtitle track for the video playback");
-        subtitleService.disableSubtitle();
     }
 
     //endregion

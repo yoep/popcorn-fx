@@ -97,6 +97,13 @@ class SubtitleManagerServiceTest {
     }
 
     @Test
+    void testUpdateSubtitle_whenSubtitleIsNull_shouldDisableSubtitleTrack() {
+        service.updateSubtitle(null);
+
+        verify(subtitleService).disableSubtitle();
+    }
+
+    @Test
     void testUpdateSubtitle_whenSubtitleIsGivenAndNotCustom_shouldDownloadAndActivateTheSubtitle() {
         var subtitleInfo = mock(SubtitleInfo.class);
         var subtitle = mock(Subtitle.class);

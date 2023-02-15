@@ -27,6 +27,14 @@ const LOG_FORMAT: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I} --- [{T:>
 const CONSOLE_APPENDER: &str = "stdout";
 
 /// The [PopcornFX] application instance.
+/// This is the main entry into the FX application and manages all known data.
+///
+/// A simple instance with default values can be retrieved by as follows.
+/// ```no_run
+/// let instance = PopcornFX::default();
+/// ```
+/// This instance will have initialize the log4rs logger.
+///
 #[repr(C)]
 pub struct PopcornFX {
     settings: Arc<Application>,
@@ -44,8 +52,8 @@ pub struct PopcornFX {
 
 impl PopcornFX {
     /// The platform service of the popcorn FX instance.
-    pub fn subtitle_provider(&mut self) -> Arc<Box<dyn SubtitleProvider>> {
-        self.subtitle_service.clone()
+    pub fn subtitle_provider(&mut self) -> &mut Arc<Box<dyn SubtitleProvider>> {
+        &mut self.subtitle_service
     }
 
     /// Retrieve the subtitle server instance.

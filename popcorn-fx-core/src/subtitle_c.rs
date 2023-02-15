@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
+use crate::{from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
 use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
@@ -70,7 +70,7 @@ impl From<&SubtitleInfoC> for SubtitleInfo {
         let id = from_c_string(value.imdb_id);
         trace!("Converted the SubtitleInfo id into {}", &id);
         let files = if !value.files.is_null() && value.len > 0 {
-            from_c_vec(value.files, value.len).into_iter()
+            from_c_vec(value.files, value.len).iter()
                 .map(SubtitleFile::from)
                 .collect()
         } else {
@@ -94,7 +94,7 @@ pub struct SubtitleFileC {
     url: *const c_char,
     score: f32,
     downloads: i32,
-    quality: *mut i32,
+    quality: *const i32,
 }
 
 impl SubtitleFileC {
@@ -113,19 +113,21 @@ impl SubtitleFileC {
     }
 }
 
-impl From<SubtitleFileC> for SubtitleFile {
-    fn from(value: SubtitleFileC) -> Self {
+impl From<&SubtitleFileC> for SubtitleFile {
+    fn from(value: &SubtitleFileC) -> Self {
         trace!("Converting SubtitleFile from C for {:?}", &value);
         let quality = if value.quality.is_null() {
             None
         } else {
-            Some(from_c_owned(value.quality))
+            Some(unsafe { value.quality.read() })
         };
+        let name = from_c_string(value.name);
+        let url = from_c_string(value.url);
 
         SubtitleFile::new_with_quality(
             value.file_id,
-            from_c_string(value.name),
-            from_c_string(value.url),
+            name,
+            url,
             value.score,
             value.downloads,
             quality,
@@ -362,7 +364,7 @@ mod test {
             quality: ptr::null_mut(),
         };
 
-        let result = SubtitleFile::from(subtitle_c);
+        let result = SubtitleFile::from(&subtitle_c);
 
         assert_eq!(&12, result.file_id());
         assert_eq!(&name, result.name());

@@ -315,7 +315,7 @@ impl OpensubtitlesProvider {
 
     /// Find the subtitle for the default configured subtitle language.
     /// This uses the [SubtitleSettings::default_subtitle] setting.
-    fn find_for_default_subtitle_language(&self, subtitles: &Vec<SubtitleInfo>) -> Option<SubtitleInfo> {
+    fn find_for_default_subtitle_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
         let subtitle_language = self.settings.settings().subtitle().default_subtitle();
 
         subtitles.iter()
@@ -325,7 +325,7 @@ impl OpensubtitlesProvider {
 
     /// Find the subtitle for the interface language.
     /// This uses the [UiSettings::default_language] setting.
-    fn find_for_interface_language(&self, subtitles: &Vec<SubtitleInfo>) -> Option<SubtitleInfo> {
+    fn find_for_interface_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
         let language = self.settings.settings().ui().default_language();
 
         subtitles.iter()
@@ -440,7 +440,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
         self.internal_parse(file_path, None)
     }
 
-    fn select_or_default(&self, subtitles: &Vec<SubtitleInfo>) -> SubtitleInfo {
+    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
         trace!("Selecting subtitle out of {:?}", subtitles);
         let subtitle = self.find_for_default_subtitle_language(subtitles)
             .or_else(|| self.find_for_interface_language(subtitles))

@@ -45,8 +45,10 @@ pub trait SubtitleProvider {
 
     /// Select one of the available subtitles.
     ///
+    /// * `subtitles` - The available subtitle slice to pick from.
+    ///
     /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
-    fn select_or_default(&self, subtitles: &Vec<SubtitleInfo>) -> SubtitleInfo;
+    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
 
     /// Convert the given [Subtitle] back to a raw format of [SubtitleType].
     /// It returns the raw format string for the given type on success, else the error.

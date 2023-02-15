@@ -1,5 +1,6 @@
 extern crate derive_more;
 
+use std::cmp::Ordering;
 use std::path::PathBuf;
 
 use derive_more::Display;
@@ -249,6 +250,20 @@ impl PartialEq for SubtitleInfo {
     }
 }
 
+impl Eq for SubtitleInfo {
+}
+
+impl PartialOrd for SubtitleInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.language().partial_cmp(other.language())
+    }
+}
+
+impl Ord for SubtitleInfo {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).expect("expected a ordering for SubtitleInfo")
+    }
+}
 
 /// The parsed [SubtitleInfo] which has downloaded and parsed the .srt file.
 #[derive(Debug, Clone, Display)]

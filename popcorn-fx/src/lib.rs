@@ -14,7 +14,7 @@ use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
+use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
 use popcorn_fx_platform::PlatformInfoC;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
@@ -563,7 +563,7 @@ pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut Popcorn
 /// It returns the url which hosts the [Subtitle].
 #[no_mangle]
 pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC, output_type: usize) -> *const c_char {
-    let subtitle = subtitle.to_subtitle();
+    let subtitle = Subtitle::from(subtitle);
     let subtitle_type = SubtitleType::from_ordinal(output_type);
 
     match popcorn_fx.subtitle_server().serve(subtitle, subtitle_type) {
@@ -837,6 +837,13 @@ pub extern "C" fn dispose_torrent_stream(stream: Box<TorrentStreamC>) {
     trace!("Disposing stream {:?}", stream)
 }
 
+/// Dispose the given subtitle.
+#[no_mangle]
+pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
+    trace!("Disposing subtitle {:?}", subtitle);
+    let _ = Subtitle::from(*subtitle);
+}
+
 /// Delete the PopcornFX instance in a safe way.
 #[no_mangle]
 pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
@@ -850,6 +857,7 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::from_c_owned;
@@ -1015,5 +1023,30 @@ mod test {
         let media_items = retrieve_available_movies(&mut instance, &genre, &sort_by, keywords, 1);
 
         dispose_media_items(Box::new(from_c_owned(media_items)))
+    }
+
+    #[test]
+    fn test_dispose_subtitle() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let subtitle = Subtitle::new(
+            vec![SubtitleCue::new(
+                "012".to_string(),
+                10000,
+                20000,
+                vec![SubtitleLine::new(
+                    vec![StyledText::new(
+                        "Lorem ipsum dolor".to_string(),
+                        true,
+                        false,
+                        false,
+                    )]
+                )],
+            )],
+            Some(SubtitleInfo::new("tt00001".to_string(), SubtitleLanguage::English)),
+            "lorem.srt".to_string(),
+        );
+        let subtitle_c = SubtitleC::from(subtitle);
+
+        dispose_subtitle(Box::new(subtitle_c))
     }
 }

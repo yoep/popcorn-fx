@@ -142,5 +142,7 @@ public interface FxLib extends Library {
 
     void dispose_torrent_stream(TorrentStreamWrapper wrapper);
 
+    void dispose_subtitle(Subtitle subtitle);
+
     void dispose_popcorn_fx(PopcornFx instance);
 }

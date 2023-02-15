@@ -2066,6 +2066,7 @@ dependencies = [
  "derive-new",
  "futures",
  "httpmock",
+ "itertools",
  "log",
  "popcorn-fx-core",
  "reqwest",

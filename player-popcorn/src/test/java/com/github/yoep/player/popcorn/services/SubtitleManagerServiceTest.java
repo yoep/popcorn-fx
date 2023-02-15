@@ -30,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -138,7 +137,7 @@ class SubtitleManagerServiceTest {
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(true);
-        when(subtitle.getFile()).thenReturn(Optional.of(subtitleFile));
+        when(subtitle.getFile()).thenReturn(subtitleFile);
 
         service.updateSubtitle(subtitleInfo);
 
@@ -150,11 +149,7 @@ class SubtitleManagerServiceTest {
         var url = "my-video-url";
         var quality = "720p";
         var title = "my-video-title";
-        var subtitle = new Subtitle(SubtitleInfo.custom(), new File(""), Collections.emptyList());
-        var matcher = SubtitleMatcher.from(url, quality);
-        var pickedSubtitle = SubtitleInfo.builder()
-                .language(SubtitleLanguage.ENGLISH)
-                .build();
+        var subtitle = mock(Subtitle.class);
         var videoEvent = PlayVideoEvent.builder()
                 .source(this)
                 .url(url)
@@ -172,6 +167,7 @@ class SubtitleManagerServiceTest {
                 .torrentStream(mock(TorrentStream.class))
                 .build();
         var expected_filepath = "/lorem/ipsum.srt";
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(SubtitleInfo.custom()));
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(expected_filepath));
         service.init();
         service.onPlayVideo(videoEvent);
@@ -184,7 +180,8 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testSubtitleListener_whenSubtitleIsChangedToCustomAndUserCancels_shouldDisableTheSubtitleTrack() {
-        var subtitle = new Subtitle(SubtitleInfo.custom(), new File(""), Collections.emptyList());
+        var subtitle = mock(Subtitle.class);
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(SubtitleInfo.custom()));
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.empty());
         service.init();
 

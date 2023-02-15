@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
@@ -166,6 +167,7 @@ impl OpensubtitlesProvider {
 
                 SubtitleInfo::new_with_files(imdb_id.clone(), language.clone(), files.clone())
             })
+            .sorted()
             .collect()
     }
 

@@ -116,6 +116,11 @@ public class PopcornPlayerSectionController implements Initializable {
             }
 
             @Override
+            public void onSubtitleDisabled() {
+                PopcornPlayerSectionController.this.onSubtitleDisabled();
+            }
+
+            @Override
             public void onPlayerStateChanged(PlayerState state) {
                 PopcornPlayerSectionController.this.onPlayerStateChanged(state);
             }
@@ -360,6 +365,10 @@ public class PopcornPlayerSectionController implements Initializable {
         } else {
             subtitleTrack.setSubtitle(subtitle);
         }
+    }
+
+    private void onSubtitleDisabled() {
+        subtitleTrack.clear();
     }
 
     private FontWeight getFontWeight(boolean isBold) {

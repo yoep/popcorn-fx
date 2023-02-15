@@ -32,7 +32,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.concurrent.atomic.AtomicReference;
@@ -125,8 +124,10 @@ class VlcPlayerServiceTest {
                 .url(url)
                 .build();
         var subtitleFile = new File("");
+        var subtitle = mock(Subtitle.class);
         var expectedCommand = "vlc my-video-url.mp4 " + VlcPlayerService.OPTIONS + " " + VlcPlayerService.SUBTITLE_OPTION + subtitleFile.getAbsolutePath();
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(new Subtitle(subtitleFile, Collections.emptyList())));
+        when(subtitle.getFile()).thenReturn(subtitleFile);
+        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
         when(platformProvider.launch(isA(String.class))).thenReturn(true);
         MOCK_SERVER.setDispatcher(new Dispatcher() {
             @NotNull

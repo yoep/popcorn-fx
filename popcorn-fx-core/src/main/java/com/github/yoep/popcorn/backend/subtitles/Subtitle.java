@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.sun.jna.Structure;
@@ -10,7 +11,10 @@ import lombok.ToString;
 import java.io.Closeable;
 import java.io.File;
 import java.io.Serializable;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * The subtitle contains the parsed information of a subtitle file.
@@ -19,14 +23,11 @@ import java.util.*;
  */
 @Getter
 @ToString(exclude = {"cached"})
-@EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"file", "subtitleInfo", "cueRef", "len"})
+@EqualsAndHashCode(exclude = {"cached"}, callSuper = false)
+@Structure.FieldOrder({"filepath", "subtitleInfo", "cueRef", "len"})
 public class Subtitle extends Structure implements Serializable, Closeable {
-
-    private static final Subtitle NONE = new Subtitle(SubtitleInfo.none());
-
-    public String file;
-    public SubtitleInfo subtitleInfo;
+    public String filepath;
+    public SubtitleInfo.ByReference subtitleInfo;
     public SubtitleCue.ByReference cueRef;
     public int len;
 
@@ -37,47 +38,14 @@ public class Subtitle extends Structure implements Serializable, Closeable {
     public Subtitle() {
     }
 
-    Subtitle(SubtitleInfo subtitleInfo) {
-        Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
-        this.subtitleInfo = subtitleInfo;
-        this.file = null;
-    }
-
-    public Subtitle(File file, List<SubtitleCue> cues) {
-        Objects.requireNonNull(file, "file cannot be null");
-        Objects.requireNonNull(cues, "cues cannot be null");
-        this.subtitleInfo = null;
-        this.file = file.getAbsolutePath();
-    }
-
-    public Subtitle(SubtitleInfo subtitleInfo, File file, List<SubtitleCue> cues) {
-        Objects.requireNonNull(file, "file cannot be null");
-        Objects.requireNonNull(cues, "cues cannot be null");
-        this.subtitleInfo = subtitleInfo;
-        this.file = file.getAbsolutePath();
-    }
-
     //endregion
 
     public List<SubtitleCue> getCues() {
         if (cached == null) {
-            cached = Optional.ofNullable(cueRef)
-                    .map(e -> e.toArray(len))
-                    .map(e -> (SubtitleCue[]) e)
-                    .map(Arrays::asList)
-                    .orElse(Collections.emptyList());
+            cacheCues();
         }
 
         return cached;
-    }
-
-    /**
-     * Get the special subtitle none type.
-     *
-     * @return Returns the special subtitle none.
-     */
-    public static Subtitle none() {
-        return NONE;
     }
 
     /**
@@ -100,13 +68,27 @@ public class Subtitle extends Structure implements Serializable, Closeable {
         return Optional.ofNullable(subtitleInfo);
     }
 
-    public Optional<File> getFile() {
-        return Optional.ofNullable(file)
-                .map(File::new);
+    public File getFile() {
+        return new File(filepath);
+    }
+
+    @Override
+    public void read() {
+        super.read();
+        cacheCues();
     }
 
     @Override
     public void close() {
         setAutoSynch(false);
+        FxLib.INSTANCE.dispose_subtitle(this);
+    }
+
+    private void cacheCues() {
+        cached = Optional.ofNullable(cueRef)
+                .map(e -> e.toArray(len))
+                .map(e -> (SubtitleCue[]) e)
+                .map(Arrays::asList)
+                .orElse(Collections.emptyList());
     }
 }

@@ -5,14 +5,13 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
-import java.io.Closeable;
 import java.util.*;
 
 @Getter
 @ToString(exclude = {"cached"})
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"id", "startTime", "endTime", "lineRef", "len"})
-public class SubtitleCue extends Structure implements Comparable<SubtitleCue>, Closeable {
+public class SubtitleCue extends Structure implements Comparable<SubtitleCue> {
     public static class ByReference extends SubtitleCue implements Structure.ByReference {
     }
 
@@ -60,10 +59,5 @@ public class SubtitleCue extends Structure implements Comparable<SubtitleCue>, C
     @Override
     public int compareTo(SubtitleCue o) {
         return Objects.compare(getStartTime(), o.getStartTime(), Long::compareTo);
-    }
-
-    @Override
-    public void close() {
-        setAutoSynch(false);
     }
 }

@@ -55,7 +55,7 @@ public class VlcPlayerService extends AbstractListenerService<VlcListener> {
         Objects.requireNonNull(request, "request cannot be null");
         var subtitleOption = subtitleService.getActiveSubtitle()
                 .filter(e -> !e.isNone())
-                .flatMap(Subtitle::getFile)
+                .map(Subtitle::getFile)
                 .map(File::getAbsolutePath)
                 .map(e -> SUBTITLE_OPTION + e)
                 .orElse("");

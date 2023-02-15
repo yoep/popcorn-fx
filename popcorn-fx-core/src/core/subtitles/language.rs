@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
@@ -193,6 +194,21 @@ impl Display for SubtitleLanguage {
     }
 }
 
+impl PartialOrd for SubtitleLanguage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let ordinal = self.clone() as i32;
+        let other_ordinal = other.clone() as i32;
+
+        ordinal.partial_cmp(&other_ordinal)
+    }
+}
+
+impl Ord for SubtitleLanguage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).expect("expected a Ordering for SubtitleLanguage")
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -213,5 +229,13 @@ mod test {
         let result = SubtitleLanguage::from_code(code);
 
         assert_eq!(true, result.is_none())
+    }
+
+    #[test]
+    fn test_ordering() {
+        let language1 = SubtitleLanguage::None;
+        let language2 = SubtitleLanguage::Custom;
+
+        assert_eq!(Ordering::Greater, language2.cmp(&language1))
     }
 }

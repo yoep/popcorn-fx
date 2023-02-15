@@ -1,6 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
@@ -26,7 +27,10 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 @Slf4j
 @Service
@@ -37,6 +41,7 @@ public class SubtitleManagerService {
 
     private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
     private final LongProperty subtitleOffset = new SimpleLongProperty(this, SUBTITLE_OFFSET_PROPERTY);
+    private final Queue<SubtitleListener> listeners = new ConcurrentLinkedDeque<>();
     private final SettingsService settingsService;
     private final VideoService videoService;
     private final SubtitleService subtitleService;
@@ -48,11 +53,6 @@ public class SubtitleManagerService {
     private String url;
 
     //region Properties
-
-    @Deprecated
-    public ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty() {
-        return subtitleService.activeSubtitleProperty();
-    }
 
     /**
      * Get the subtitle size property.
@@ -111,6 +111,11 @@ public class SubtitleManagerService {
         }
 
         onSubtitleChanged(subtitleInfo);
+    }
+
+    public void registerListener(SubtitleListener listener) {
+        Objects.requireNonNull(listener, "listener cannot be null");
+        listeners.add(listener);
     }
 
     @EventListener
@@ -172,7 +177,9 @@ public class SubtitleManagerService {
 
         if (videoPlayer.supportsNativeSubtitleFile()) {
             log.debug("Using native subtitle file render for the current video playback");
-            subtitle.getFile().ifPresent(videoPlayer::subtitleFile);
+            videoPlayer.subtitleFile(subtitle.getFile());
+        } else {
+            invokeListeners(e -> e.onSubtitleChanged(subtitle));
         }
     }
 
@@ -182,6 +189,7 @@ public class SubtitleManagerService {
         if (isSubtitleAlreadyActive(subtitleInfo) || subtitleService.isDisabled() ||
                 subtitleInfo == null || subtitleInfo.isNone()) {
             log.trace("Subtitle change ignore on popcorn player for {}", subtitleInfo);
+            invokeListeners(SubtitleListener::onSubtitleDisabled);
             return;
         }
 
@@ -204,7 +212,10 @@ public class SubtitleManagerService {
         subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitle, throwable) -> {
             if (throwable == null) {
                 log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
-                onSubtitleDownloaded(subtitle);
+                // auto-clean the subtitle
+                try (subtitle) {
+                    onSubtitleDownloaded(subtitle);
+                }
             } else {
                 log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                 eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
@@ -237,6 +248,16 @@ public class SubtitleManagerService {
         return subtitleService.preferredSubtitle()
                 .filter(e -> e == subtitleInfo)
                 .isPresent();
+    }
+
+    private void invokeListeners(Consumer<SubtitleListener> action) {
+        listeners.forEach(e -> {
+            try {
+                action.accept(e);
+            } catch (Exception ex) {
+                log.error("Failed to invoke listener, {}", ex.getMessage(), ex);
+            }
+        });
     }
 
     //endregion

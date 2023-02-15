@@ -132,7 +132,9 @@ public class SubtitleServiceImpl implements SubtitleService {
         Objects.requireNonNull(matcher, "matcher cannot be null");
         synchronized (mutex) {
             log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-            return CompletableFuture.completedFuture(FxLib.INSTANCE.download_and_parse_subtitle(PopcornFxInstance.INSTANCE.get(), subtitleInfo, matcher));
+            var subtitle = FxLib.INSTANCE.download_and_parse_subtitle(PopcornFxInstance.INSTANCE.get(), subtitleInfo, matcher);
+            log.info("Downloaded and parsed subtitle info {} to {}", subtitleInfo, subtitle.getFilepath());
+            return CompletableFuture.completedFuture(subtitle);
         }
     }
 

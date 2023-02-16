@@ -67,7 +67,6 @@ impl SubtitleInfoC {
 impl From<&SubtitleInfoC> for SubtitleInfo {
     fn from(value: &SubtitleInfoC) -> Self {
         trace!("Converting SubtitleInfo from C for {:?}", value);
-        let id = from_c_string(value.imdb_id);
         let files = if !value.files.is_null() && value.len > 0 {
             from_c_vec(value.files, value.len).iter()
                 .map(SubtitleFile::from)
@@ -87,7 +86,6 @@ impl From<&SubtitleInfoC> for SubtitleInfo {
 impl From<SubtitleInfoC> for SubtitleInfo {
     fn from(value: SubtitleInfoC) -> Self {
         trace!("Converting SubtitleInfo from C for {:?}", value);
-        let id = from_c_string(value.imdb_id);
         let files = if !value.files.is_null() && value.len > 0 {
             from_c_vec(value.files, value.len).iter()
                 .map(SubtitleFile::from)

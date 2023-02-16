@@ -6,7 +6,7 @@ use crate::core::config::Application;
 
 /// Retrieve the available uri's from the settings for the given provider name.
 pub fn available_uris(settings: &Arc<Application>, provider_name: &str) -> Vec<String> {
-    let api_server = settings.settings().server().api_server();
+    let api_server = settings.user_settings().server().api_server();
     let mut uris: Vec<String> = vec![];
 
     match api_server {
@@ -30,7 +30,7 @@ pub fn available_uris(settings: &Arc<Application>, provider_name: &str) -> Vec<S
 mod test {
     use std::collections::HashMap;
 
-    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings, SubtitleProperties, SubtitleSettings, UiSettings};
+    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings, SubtitleProperties, SubtitleSettings, TorrentSettings, UiSettings};
     use crate::testing::init_logger;
 
     use super::*;
@@ -50,7 +50,7 @@ mod test {
                 ))
             ])),
             PopcornSettings::new(SubtitleSettings::default(), UiSettings::default(),
-                                 ServerSettings::new(api_server.clone())),
+                                 ServerSettings::new(api_server.clone()), TorrentSettings::default()),
         ));
         let expected_result = vec![
             api_server,
@@ -69,7 +69,7 @@ mod test {
         let settings = Arc::new(Application::new(
             PopcornProperties::new_with_providers(SubtitleProperties::default(), HashMap::new()),
             PopcornSettings::new(SubtitleSettings::default(), UiSettings::default(),
-                                 ServerSettings::new(api_server.clone())),
+                                 ServerSettings::new(api_server.clone()), TorrentSettings::default()),
         ));
         let expected_result = vec![
             api_server,

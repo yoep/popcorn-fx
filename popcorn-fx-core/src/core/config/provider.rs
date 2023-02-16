@@ -4,6 +4,7 @@ use serde::Deserialize;
 #[derive(Debug, Display, Clone, PartialEq, Deserialize)]
 #[display(fmt = "uris: {:?}, genres: {:?}, sort_by: {:?}", uris, genres, sort_by)]
 pub struct ProviderProperties {
+    /// The provider uri's to use
     uris: Vec<String>,
     genres: Vec<String>,
     sort_by: Vec<String>,

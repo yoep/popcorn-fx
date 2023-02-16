@@ -2,15 +2,18 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::core::config::{ServerSettings, SubtitleSettings, UiSettings};
+use crate::core::config::{ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
-const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = || SubtitleSettings::default();
-const DEFAULT_UI: fn() -> UiSettings = || UiSettings::default();
-const DEFAULT_SERVER: fn() -> ServerSettings = || ServerSettings::default();
+const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = SubtitleSettings::default;
+const DEFAULT_UI: fn() -> UiSettings = UiSettings::default;
+const DEFAULT_SERVER: fn() -> ServerSettings = ServerSettings::default;
+const DEFAULT_TORRENT: fn() -> TorrentSettings = TorrentSettings::default;
 
-#[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
+/// The Popcorn FX user settings.
+/// These contain the preferences of the user for the application.
+#[derive(Debug, Display, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[display(fmt = "subtitle_settings: {}, ui_settings: {}", subtitle_settings, ui_settings)]
 pub struct PopcornSettings {
     #[serde(default = "DEFAULT_SUBTITLES")]
@@ -19,14 +22,18 @@ pub struct PopcornSettings {
     ui_settings: UiSettings,
     #[serde(default = "DEFAULT_SERVER")]
     server_settings: ServerSettings,
+    #[serde(default = "DEFAULT_TORRENT")]
+    torrent_settings: TorrentSettings,
 }
 
 impl PopcornSettings {
-    pub fn new(subtitle_settings: SubtitleSettings, ui_settings: UiSettings, server_settings: ServerSettings) -> Self {
+    pub fn new(subtitle_settings: SubtitleSettings, ui_settings: UiSettings, server_settings: ServerSettings,
+               torrent_settings: TorrentSettings) -> Self {
         Self {
             subtitle_settings,
             ui_settings,
             server_settings,
+            torrent_settings,
         }
     }
 
@@ -48,31 +55,6 @@ impl PopcornSettings {
         }
     }
 
-    /// Create new settings from the given string.
-    /// If the `value` is invalid, the defaults will be returned.
-    pub fn from_str(value: &str) -> Self {
-        trace!("Parsing application settings \"{}\"", value);
-        match serde_json::from_str(value) {
-            Ok(e) => {
-                debug!("Application settings parsed, {:?}", &e);
-                e
-            }
-            Err(err) => {
-                warn!("Failed to deserialize settings, {}, using defaults instead", err.to_string());
-                PopcornSettings::default()
-            }
-        }
-    }
-
-    /// The default settings for the application.
-    pub fn default() -> Self {
-        Self {
-            subtitle_settings: DEFAULT_SUBTITLES(),
-            ui_settings: DEFAULT_UI(),
-            server_settings: DEFAULT_SERVER(),
-        }
-    }
-
     /// Retrieve the subtitle settings of the application.
     pub fn subtitle(&self) -> &SubtitleSettings {
         &self.subtitle_settings
@@ -87,18 +69,30 @@ impl PopcornSettings {
     pub fn server(&self) -> &ServerSettings {
         &self.server_settings
     }
-}
 
-impl Default for PopcornSettings {
-    fn default() -> Self {
-        Self {
-            subtitle_settings: SubtitleSettings::default(),
-            ui_settings: UiSettings::default(),
-            server_settings: ServerSettings::default(),
-        }
+    /// Retrieve the torrent settings of the application.
+    pub fn torrent(&self) -> &TorrentSettings {
+        &self.torrent_settings
     }
 }
 
+impl From<&str> for PopcornSettings {
+    /// Create new settings from the given json string.
+    /// If the `value` is invalid, the [PopcornSettings::default] will be returned.
+    fn from(value: &str) -> Self {
+        trace!("Parsing application settings \"{}\"", value);
+        match serde_json::from_str(value) {
+            Ok(e) => {
+                debug!("Application settings parsed, {:?}", &e);
+                e
+            }
+            Err(err) => {
+                warn!("Failed to deserialize settings, {}, using defaults instead", err.to_string());
+                PopcornSettings::default()
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -123,9 +117,11 @@ mod test {
         let expected_result = PopcornSettings::new(
             SubtitleSettings::new("my-path/to-subtitles".to_string(), false, SubtitleLanguage::English, SubtitleFamily::Arial),
             UiSettings::default(),
-            ServerSettings::default());
+            ServerSettings::default(),
+            TorrentSettings::default(),
+        );
 
-        let result = PopcornSettings::from_str(value);
+        let result = PopcornSettings::from(value);
 
         assert_eq!(expected_result, result)
     }
@@ -136,7 +132,7 @@ mod test {
         let value = "{something: \"value\"}";
         let expected_result = PopcornSettings::default();
 
-        let result = PopcornSettings::from_str(value);
+        let result = PopcornSettings::from(value);
 
         assert_eq!(expected_result, result)
     }

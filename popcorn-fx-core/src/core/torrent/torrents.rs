@@ -113,6 +113,21 @@ impl Display for MockTorrent {
     }
 }
 
+/// The torrent information
+#[derive(Debug, Clone)]
+pub struct TorrentInfo {
+    /// The name of the torrent
+    pub name: String,
+    /// The total number of files available in the torrent
+    pub total_files: i32,
+    /// The available files
+    pub files: Vec<String>,
+}
+
+impl TorrentInfo {
+
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

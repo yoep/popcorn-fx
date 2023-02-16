@@ -4,8 +4,19 @@ use std::sync::Arc;
 use crate::core::torrent;
 use crate::core::torrent::{Torrent, TorrentStream};
 
+/// The state of the torrent stream server.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TorrentStreamServerState {
+    Stopped,
+    Running,
+    Error,
+}
+
 /// The torrent stream server allows a [Torrent] to be streamed over the HTTP protocol.
 pub trait TorrentStreamServer: Debug + Send + Sync {
+    /// The state of the torrent stream server.
+    fn state(&self) -> TorrentStreamServerState;
+
     /// Start a new stream for the given [Torrent] info.
     ///
     /// * `torrent` - The torrent info for which a stream should be started.

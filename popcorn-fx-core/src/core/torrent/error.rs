@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::core::torrent::TorrentStreamState;
+use crate::core::torrent::{TorrentManagerState, TorrentStreamState};
 
 /// The torrent package specific results.
 pub type Result<T> = std::result::Result<T, TorrentError>;
@@ -17,4 +17,6 @@ pub enum TorrentError {
     FileError(String),
     #[error("Torrent stream has invalid state {0}")]
     InvalidStreamState(TorrentStreamState),
+    #[error("Torrent manager has invalid state {0}")]
+    InvalidManagerState(TorrentManagerState),
 }

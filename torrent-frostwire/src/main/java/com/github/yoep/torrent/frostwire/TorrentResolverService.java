@@ -6,12 +6,12 @@ import com.github.yoep.torrent.frostwire.wrappers.TorrentInfoWrapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Objects;
 
 public record TorrentResolverService(TorrentSessionManager sessionManager, HttpClient httpClient) {
     private static final String MAGNET_IDENTIFIER = "magnet";
@@ -26,7 +26,7 @@ public record TorrentResolverService(TorrentSessionManager sessionManager, HttpC
      * @return Returns the resolved torrent url info.
      */
     public TorrentInfoWrapper resolveUrl(String torrentUrl) {
-        Assert.hasText(torrentUrl, "torrentUrl cannot be empty");
+        Objects.requireNonNull(torrentUrl, "torrentUrl cannot be empty");
 
         if (isMagnetUrl(torrentUrl)) {
             return fetchMagnetInfo(torrentUrl);

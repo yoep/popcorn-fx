@@ -15,7 +15,9 @@ proc-macro = true
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
-librqbit = { git = "https://github.com/ikatson/rqbit" }
+async-trait = "0.1"
+log = "0.4"
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

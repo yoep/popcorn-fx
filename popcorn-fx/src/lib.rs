@@ -812,6 +812,24 @@ pub extern "C" fn handle_player_stopped_event(popcorn_fx: &mut PopcornFX, event:
     popcorn_fx.auto_resume_service().player_stopped(&event);
 }
 
+/// Resolve the given torrent url into meta information of the torrent.
+/// The url can be a magnet, http or file url to the torrent file.
+#[no_mangle]
+pub extern "C" fn torrent_info(popcorn_fx: &mut PopcornFX, url: *const c_char) {
+    let url = from_c_string(url);
+    trace!("Retrieving torrent information for {}", url);
+    let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
+
+    runtime.block_on(async {
+        match popcorn_fx.torrent_manager().info(url.as_str()).await {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Failed to resolve torrent information, {}", e)
+            }
+        };
+    })
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {

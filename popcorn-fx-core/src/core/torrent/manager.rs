@@ -3,7 +3,8 @@ use std::fmt::{Display, Formatter};
 use async_trait::async_trait;
 use derive_more::Display;
 
-use crate::core::CoreCallback;
+use crate::core::{CoreCallback, torrent};
+use crate::core::torrent::TorrentInfo;
 
 /// The callback type for the torrent manager events.
 pub type TorrentManagerCallback = CoreCallback<TorrentManagerEvent>;
@@ -50,6 +51,11 @@ pub trait TorrentManager {
     /// Register a new callback to this manager.
     /// The callback will receive events when an action occurs in this manager.
     fn register(&self, callback: TorrentManagerCallback);
+
+    /// Resolve the given url into torrent information.
+    ///
+    /// It returns the meta info on success, else the [torrent::TorrentError].
+    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo>;
 }
 
 #[cfg(test)]

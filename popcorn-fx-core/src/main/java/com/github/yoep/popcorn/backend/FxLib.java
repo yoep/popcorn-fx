@@ -136,6 +136,8 @@ public interface FxLib extends Library {
 
     void handle_player_stopped_event(PopcornFx instance, PlayerStoppedEventC.ByValue event);
 
+    void torrent_info(PopcornFx instance, String url);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);

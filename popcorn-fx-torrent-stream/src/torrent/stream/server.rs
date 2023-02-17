@@ -13,7 +13,7 @@ use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANG
 use warp::hyper::HeaderMap;
 
 use popcorn_fx_core::core::torrent;
-use popcorn_fx_core::core::torrent::{Torrent, TorrentError, TorrentStream, TorrentStreamingResource, TorrentStreamServer};
+use popcorn_fx_core::core::torrent::{Torrent, TorrentError, TorrentStream, TorrentStreamingResource, TorrentStreamServer, TorrentStreamServerState};
 
 use crate::torrent::stream::{DefaultTorrentStream, MediaType, MediaTypeFactory, Range};
 
@@ -29,39 +29,64 @@ const PLAIN_TEXT_TYPE: &str = "text/plain";
 /// The stream mutex type used within the server.
 type StreamMutex = HashMap<String, Arc<DefaultTorrentStream>>;
 
-/// The state of the torrent stream server.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TorrentStreamServerState {
-    Stopped,
-    Running,
-    Error,
-}
-
 /// The default server implementation for streaming torrents over HTTP.
 #[derive(Debug)]
 pub struct DefaultTorrentStreamServer {
-    runtime: tokio::runtime::Runtime,
+    internal: Arc<TorrentStreamServerWrapper>,
+}
+
+impl DefaultTorrentStreamServer {
+    fn instance(&self) -> Arc<TorrentStreamServerWrapper> {
+        self.internal.clone()
+    }
+
+    fn build_url(&self, filename: &str) -> Result<Url, url::ParseError> {
+        self.internal.build_url(filename)
+    }
+}
+
+impl TorrentStreamServer for DefaultTorrentStreamServer {
+    fn state(&self) -> TorrentStreamServerState {
+        self.internal.state()
+    }
+
+    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrent::Result<Arc<dyn TorrentStream>> {
+        self.internal.start_stream(torrent)
+    }
+
+    fn stop_stream(&self, stream: &Arc<dyn TorrentStream>) {
+        self.internal.stop_stream(stream)
+    }
+}
+
+impl Default for DefaultTorrentStreamServer {
+    fn default() -> Self {
+        let wrapper = TorrentStreamServerWrapper::default();
+        let instance = Self {
+            internal: Arc::new(wrapper)
+        };
+
+        TorrentStreamServerWrapper::start_server(instance.instance());
+        instance
+    }
+}
+
+#[derive(Debug)]
+struct TorrentStreamServerWrapper {
+    runtime: Arc<tokio::runtime::Runtime>,
     socket: Arc<SocketAddr>,
     streams: Arc<Mutex<StreamMutex>>,
     state: Arc<Mutex<TorrentStreamServerState>>,
     media_type_factory: Arc<MediaTypeFactory>,
 }
 
-impl DefaultTorrentStreamServer {
-    pub fn state(&self) -> TorrentStreamServerState {
-        let mutex = futures::executor::block_on(self.state.lock());
-        mutex.clone()
-    }
-
-    fn start_server(&self) {
-        let streams_get = self.streams.clone();
-        let factory_get = self.media_type_factory.clone();
-        let streams_head = self.streams.clone();
-        let factory_head = self.media_type_factory.clone();
-        let socket = self.socket.clone();
-        let state = self.state.clone();
-
-        self.runtime.spawn(async move {
+impl TorrentStreamServerWrapper {
+    fn start_server(instance: Arc<TorrentStreamServerWrapper>) {
+        let runtime = instance.runtime.clone();
+        runtime.spawn(async move {
+            trace!("Starting torrent stream server");
+            let instance_get = instance.clone();
+            let instance_head = instance.clone();
             let get = warp::get()
                 .and(warp::path!("video" / String))
                 .and(warp::filters::header::headers_cloned())
@@ -70,8 +95,8 @@ impl DefaultTorrentStreamServer {
                         .decode_utf8()
                         .expect("expected a valid utf8 value")
                         .to_string();
-                    let streams = streams_get.clone();
-                    let factory = factory_get.clone();
+                    let streams = instance_get.streams.clone();
+                    let factory = instance_get.media_type_factory.clone();
 
                     async move {
                         let mutex = streams.lock().await;
@@ -85,8 +110,8 @@ impl DefaultTorrentStreamServer {
                         .decode_utf8()
                         .expect("expected a valid utf8 value")
                         .to_string();
-                    let streams = streams_head.clone();
-                    let factory = factory_head.clone();
+                    let streams = instance_head.streams.clone();
+                    let factory = instance_head.media_type_factory.clone();
 
                     async move {
                         let mutex = streams.lock().await;
@@ -98,8 +123,10 @@ impl DefaultTorrentStreamServer {
                 .with(warp::cors().allow_any_origin());
 
             let server = warp::serve(routes);
-            let mut state_lock = state.lock().await;
+            let mut state_lock = instance.state.lock().await;
+            let socket = instance.socket.clone();
 
+            trace!("Binding torrent stream to socket ");
             match server.try_bind_ephemeral((socket.ip(), socket.port())) {
                 Ok((_, e)) => {
                     debug!("Torrent stream server is running on {}:{}", socket.ip(), socket.port());
@@ -282,7 +309,12 @@ impl DefaultTorrentStreamServer {
     }
 }
 
-impl TorrentStreamServer for DefaultTorrentStreamServer {
+impl TorrentStreamServer for TorrentStreamServerWrapper {
+    fn state(&self) -> TorrentStreamServerState {
+        let mutex = self.state.blocking_lock();
+        mutex.clone()
+    }
+
     fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrent::Result<Arc<dyn TorrentStream>> {
         let streams = self.streams.clone();
         let mut mutex = streams.blocking_lock();
@@ -338,23 +370,20 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
     }
 }
 
-impl Default for DefaultTorrentStreamServer {
+impl Default for TorrentStreamServerWrapper {
     fn default() -> Self {
         let listener = TcpListener::bind("0.0.0.0:0").expect("expected a TCP address to be bound");
         let socket = listener.local_addr().expect("expected a valid socket");
         let ip = local_ip().expect("expected an ip address from a network interface");
         let port = socket.port();
 
-        let instance = Self {
-            runtime: tokio::runtime::Runtime::new().expect("expected a new runtime"),
+        Self {
+            runtime: Arc::new(tokio::runtime::Runtime::new().expect("expected a new runtime")),
             socket: Arc::new(SocketAddr::new(ip, port)),
             streams: Arc::new(Mutex::new(HashMap::new())),
             state: Arc::new(Mutex::new(TorrentStreamServerState::Stopped)),
             media_type_factory: Arc::new(MediaTypeFactory::default()),
-        };
-
-        instance.start_server();
-        instance
+        }
     }
 }
 
@@ -368,8 +397,6 @@ mod test {
 
     use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback, TorrentEvent, TorrentStreamState};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
-
-    use crate::torrent::stream::TorrentStreamServerState::Stopped;
 
     use super::*;
 
@@ -557,7 +584,7 @@ mod test {
     }
 
     fn wait_for_server(server: &DefaultTorrentStreamServer) {
-        while server.state() == Stopped {
+        while server.state() == TorrentStreamServerState::Stopped {
             info!("Waiting for torrent stream server to be started");
             thread::sleep(Duration::from_millis(50))
         }

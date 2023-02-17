@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
@@ -166,6 +167,7 @@ impl OpensubtitlesProvider {
 
                 SubtitleInfo::new_with_files(imdb_id.clone(), language.clone(), files.clone())
             })
+            .sorted()
             .collect()
     }
 
@@ -287,7 +289,7 @@ impl OpensubtitlesProvider {
     /// Retrieve the storage [Path] for the given subtitle file.
     fn storage_file(&self, file: &SubtitleFile) -> PathBuf {
         let file_name = file.name();
-        let settings = self.settings.settings().subtitle();
+        let settings = self.settings.user_settings().subtitle();
 
         settings.directory().join(file_name)
     }
@@ -315,8 +317,8 @@ impl OpensubtitlesProvider {
 
     /// Find the subtitle for the default configured subtitle language.
     /// This uses the [SubtitleSettings::default_subtitle] setting.
-    fn find_for_default_subtitle_language(&self, subtitles: &Vec<SubtitleInfo>) -> Option<SubtitleInfo> {
-        let subtitle_language = self.settings.settings().subtitle().default_subtitle();
+    fn find_for_default_subtitle_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
+        let subtitle_language = self.settings.user_settings().subtitle().default_subtitle();
 
         subtitles.iter()
             .find(|e| e.language() == subtitle_language)
@@ -325,8 +327,8 @@ impl OpensubtitlesProvider {
 
     /// Find the subtitle for the interface language.
     /// This uses the [UiSettings::default_language] setting.
-    fn find_for_interface_language(&self, subtitles: &Vec<SubtitleInfo>) -> Option<SubtitleInfo> {
-        let language = self.settings.settings().ui().default_language();
+    fn find_for_interface_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
+        let language = self.settings.user_settings().ui().default_language();
 
         subtitles.iter()
             .find(|e| &e.language().code() == language)
@@ -440,7 +442,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
         self.internal_parse(file_path, None)
     }
 
-    fn select_or_default(&self, subtitles: &Vec<SubtitleInfo>) -> SubtitleInfo {
+    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
         trace!("Selecting subtitle out of {:?}", subtitles);
         let subtitle = self.find_for_default_subtitle_language(subtitles)
             .or_else(|| self.find_for_interface_language(subtitles))
@@ -472,7 +474,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
 
 impl Drop for OpensubtitlesProvider {
     fn drop(&mut self) {
-        let settings = self.settings.settings().subtitle();
+        let settings = self.settings.user_settings().subtitle();
 
         if *settings.auto_cleaning_enabled() {
             let path = settings.directory();
@@ -531,6 +533,7 @@ mod test {
                 ),
                 UiSettings::default(),
                 ServerSettings::default(),
+                TorrentSettings::default(),
             ),
         ));
 
@@ -685,7 +688,7 @@ mod test {
     async fn test_download_should_return_the_expected_subtitle() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let temp_dir = settings.settings().subtitle().directory().to_str().unwrap().to_string();
+        let temp_dir = settings.user_settings().subtitle().directory().to_str().unwrap().to_string();
         let service = OpensubtitlesProvider::new(&settings);
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files("tt7405458".to_string(), SubtitleLanguage::German, vec![
@@ -739,7 +742,7 @@ mod test {
             StartScreen::Movies,
             false,
             false,
-        ), ServerSettings::default());
+        ), ServerSettings::default(), TorrentSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let destination = copy_test_file(temp_path.clone().as_str(), test_file);
         let service = OpensubtitlesProvider::new(&settings);
@@ -792,7 +795,7 @@ mod test {
             false,
             English,
             SubtitleFamily::Arial,
-        ), UiSettings::default(), ServerSettings::default());
+        ), UiSettings::default(), ServerSettings::default(), TorrentSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new("lorem".to_string(), English);
@@ -818,7 +821,7 @@ mod test {
             StartScreen::Movies,
             false,
             false,
-        ), ServerSettings::default());
+        ), ServerSettings::default(), TorrentSettings::default());
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new("ipsum".to_string(), French);

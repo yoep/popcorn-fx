@@ -6,6 +6,7 @@ pub use provider::*;
 pub use server_settings::*;
 pub use settings::*;
 pub use subtitle_settings::*;
+pub use torrent_settings::*;
 pub use ui_settings::*;
 
 use crate::core::storage::Storage;
@@ -17,6 +18,7 @@ mod server_settings;
 mod settings;
 mod subtitle_settings;
 mod ui_settings;
+mod torrent_settings;
 
 const DEFAULT_HOME_DIRECTORY: &str = ".popcorn-time";
 
@@ -24,7 +26,7 @@ const DEFAULT_HOME_DIRECTORY: &str = ".popcorn-time";
 pub type Result<T> = std::result::Result<T, ConfigError>;
 
 /// Contains the configuration and properties of the application.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Application {
     /// The static application properties
     properties: PopcornProperties,
@@ -46,24 +48,16 @@ impl Application {
         }
     }
 
-    /// Create [Settings] based on the defaults configured.
-    /// This function won't search or load any config files.
-    pub fn default() -> Self {
-        Self {
-            properties: PopcornProperties::default(),
-            settings: PopcornSettings::default(),
-        }
-    }
-
     /// The popcorn properties of the application.
     /// These are static and won't change during the lifetime of the application.
     pub fn properties(&self) -> &PopcornProperties {
         &self.properties
     }
 
-    /// The popcorn settings of the application.
+    /// The popcorn user settings of the application.
     /// These are mutable and can be changed during the lifetime of the application.
-    pub fn settings(&self) -> &PopcornSettings {
+    /// They're most of the time managed by the user based on preferences.
+    pub fn user_settings(&self) -> &PopcornSettings {
         &self.settings
     }
 

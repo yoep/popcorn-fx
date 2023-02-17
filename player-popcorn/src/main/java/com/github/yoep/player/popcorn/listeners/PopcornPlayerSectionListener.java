@@ -8,6 +8,8 @@ import javafx.scene.Node;
 public interface PopcornPlayerSectionListener {
     void onSubtitleChanged(Subtitle subtitle);
 
+    void onSubtitleDisabled();
+
     void onPlayerStateChanged(PlayerState state);
 
     void onPlayerTimeChanged(long time);

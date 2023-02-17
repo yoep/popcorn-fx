@@ -14,7 +14,7 @@ pub type CoreCallback<E> = Box<dyn Fn(E) + Send>;
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```no_run
 /// use popcorn_fx_core::core::{CoreCallback, CoreCallbacks};
 ///
 /// pub type CallbackExample = CoreCallback<CoreEvent>;

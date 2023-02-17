@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
 import com.sun.jna.Structure;
+import com.sun.jna.ptr.IntByReference;
 import lombok.*;
 
 import java.io.Closeable;
@@ -20,7 +21,7 @@ public class SubtitleFile extends Structure implements Closeable {
     public String url;
     public int score;
     public int downloads;
-    public Integer quality;
+    public IntByReference quality;
 
     @Override
     public void close() {

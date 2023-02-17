@@ -2,6 +2,7 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.AbstractPlayerListener;
 import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
+import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
@@ -94,7 +95,17 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         settingsService.getSettings().getSubtitleSettings().addListener(this::onSubtitleSettingsChanged);
         videoService.videoPlayerProperty().addListener((observableValue, videoPlayer, newVideoPlayer) -> onVideoViewChanged(newVideoPlayer));
         subtitleManagerService.subtitleSizeProperty().addListener((observableValue, number, newSize) -> onSubtitleSizeChanged(newSize));
-        subtitleManagerService.activeSubtitleProperty().addListener((observableValue, subtitle, newSubtitle) -> onActiveSubtitleChanged(newSubtitle));
+        subtitleManagerService.registerListener(new SubtitleListener() {
+            @Override
+            public void onSubtitleChanged(Subtitle newSubtitle) {
+                onActiveSubtitleChanged(newSubtitle);
+            }
+
+            @Override
+            public void onSubtitleDisabled() {
+                invokeListeners(PopcornPlayerSectionListener::onSubtitleDisabled);
+            }
+        });
     }
 
     //endregion

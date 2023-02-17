@@ -1676,6 +1676,7 @@ dependencies = [
  "popcorn-fx-core",
  "popcorn-fx-opensubtitles",
  "popcorn-fx-platform",
+ "popcorn-fx-torrent",
  "popcorn-fx-torrent-stream",
  "tokio",
 ]
@@ -1721,6 +1722,7 @@ dependencies = [
  "derive-new",
  "futures",
  "httpmock",
+ "itertools",
  "log",
  "popcorn-fx-core",
  "reqwest",
@@ -1740,6 +1742,17 @@ dependencies = [
  "log",
  "popcorn-fx-core",
  "windows",
+]
+
+[[package]]
+name = "popcorn-fx-torrent"
+version = "0.5.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "popcorn-fx-core",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

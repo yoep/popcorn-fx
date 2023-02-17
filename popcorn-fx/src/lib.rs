@@ -8,13 +8,13 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, to_c_vec, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
+use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
 use popcorn_fx_platform::PlatformInfoC;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
@@ -142,14 +142,10 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitl
         .map(|e| SubtitleInfo::from(e))
         .collect();
 
-    let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_provider().select_or_default(&subtitles)));
+    let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_provider().select_or_default(&subtitles[..])));
 
-    // make sure rust doesn't start cleaning the subtitles as they might be switched later on
-    // the pointer can also not be cleaned
-    let (vec, _) = to_c_vec(subtitles.into_iter()
-        .map(|e| SubtitleInfoC::from(e))
-        .collect());
-    mem::forget(vec);
+    mem::forget(c_vec);
+    mem::forget(subtitles);
     mem::forget(subtitles_ptr);
 
     subtitle
@@ -567,7 +563,7 @@ pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut Popcorn
 /// It returns the url which hosts the [Subtitle].
 #[no_mangle]
 pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC, output_type: usize) -> *const c_char {
-    let subtitle = subtitle.to_subtitle();
+    let subtitle = Subtitle::from(subtitle);
     let subtitle_type = SubtitleType::from_ordinal(output_type);
 
     match popcorn_fx.subtitle_server().serve(subtitle, subtitle_type) {
@@ -816,6 +812,24 @@ pub extern "C" fn handle_player_stopped_event(popcorn_fx: &mut PopcornFX, event:
     popcorn_fx.auto_resume_service().player_stopped(&event);
 }
 
+/// Resolve the given torrent url into meta information of the torrent.
+/// The url can be a magnet, http or file url to the torrent file.
+#[no_mangle]
+pub extern "C" fn torrent_info(popcorn_fx: &mut PopcornFX, url: *const c_char) {
+    let url = from_c_string(url);
+    trace!("Retrieving torrent information for {}", url);
+    let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
+
+    runtime.block_on(async {
+        match popcorn_fx.torrent_manager().info(url.as_str()).await {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Failed to resolve torrent information, {}", e)
+            }
+        };
+    })
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -841,6 +855,13 @@ pub extern "C" fn dispose_torrent_stream(stream: Box<TorrentStreamC>) {
     trace!("Disposing stream {:?}", stream)
 }
 
+/// Dispose the given subtitle.
+#[no_mangle]
+pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
+    trace!("Disposing subtitle {:?}", subtitle);
+    let _ = Subtitle::from(*subtitle);
+}
+
 /// Delete the PopcornFX instance in a safe way.
 #[no_mangle]
 pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
@@ -854,6 +875,7 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::from_c_owned;
@@ -1019,5 +1041,30 @@ mod test {
         let media_items = retrieve_available_movies(&mut instance, &genre, &sort_by, keywords, 1);
 
         dispose_media_items(Box::new(from_c_owned(media_items)))
+    }
+
+    #[test]
+    fn test_dispose_subtitle() {
+        let mut instance = from_c_owned(new_popcorn_fx());
+        let subtitle = Subtitle::new(
+            vec![SubtitleCue::new(
+                "012".to_string(),
+                10000,
+                20000,
+                vec![SubtitleLine::new(
+                    vec![StyledText::new(
+                        "Lorem ipsum dolor".to_string(),
+                        true,
+                        false,
+                        false,
+                    )]
+                )],
+            )],
+            Some(SubtitleInfo::new("tt00001".to_string(), SubtitleLanguage::English)),
+            "lorem.srt".to_string(),
+        );
+        let subtitle_c = SubtitleC::from(subtitle);
+
+        dispose_subtitle(Box::new(subtitle_c))
     }
 }

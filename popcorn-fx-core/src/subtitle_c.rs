@@ -67,16 +67,32 @@ impl SubtitleInfoC {
 impl From<&SubtitleInfoC> for SubtitleInfo {
     fn from(value: &SubtitleInfoC) -> Self {
         trace!("Converting SubtitleInfo from C for {:?}", value);
-        let id = from_c_string(value.imdb_id);
-        trace!("Converted the SubtitleInfo id into {}", &id);
         let files = if !value.files.is_null() && value.len > 0 {
-            from_c_vec(value.files, value.len).into_iter()
+            from_c_vec(value.files, value.len).iter()
                 .map(SubtitleFile::from)
                 .collect()
         } else {
             vec![]
         };
-        trace!("Converted the subtitle files into {:?}", files);
+
+        SubtitleInfo::new_with_files(
+            from_c_string(value.imdb_id),
+            value.language.clone(),
+            files,
+        )
+    }
+}
+
+impl From<SubtitleInfoC> for SubtitleInfo {
+    fn from(value: SubtitleInfoC) -> Self {
+        trace!("Converting SubtitleInfo from C for {:?}", value);
+        let files = if !value.files.is_null() && value.len > 0 {
+            from_c_vec(value.files, value.len).iter()
+                .map(SubtitleFile::from)
+                .collect()
+        } else {
+            vec![]
+        };
 
         SubtitleInfo::new_with_files(
             from_c_string(value.imdb_id),
@@ -94,7 +110,7 @@ pub struct SubtitleFileC {
     url: *const c_char,
     score: f32,
     downloads: i32,
-    quality: *mut i32,
+    quality: *const i32,
 }
 
 impl SubtitleFileC {
@@ -113,19 +129,21 @@ impl SubtitleFileC {
     }
 }
 
-impl From<SubtitleFileC> for SubtitleFile {
-    fn from(value: SubtitleFileC) -> Self {
+impl From<&SubtitleFileC> for SubtitleFile {
+    fn from(value: &SubtitleFileC) -> Self {
         trace!("Converting SubtitleFile from C for {:?}", &value);
         let quality = if value.quality.is_null() {
             None
         } else {
-            Some(from_c_owned(value.quality))
+            Some(unsafe { value.quality.read() })
         };
+        let name = from_c_string(value.name);
+        let url = from_c_string(value.url);
 
         SubtitleFile::new_with_quality(
             value.file_id,
-            from_c_string(value.name),
-            from_c_string(value.url),
+            name,
+            url,
             value.score,
             value.downloads,
             quality,
@@ -202,44 +220,57 @@ impl SubtitleMatcherC {
     }
 }
 
+/// The parsed subtitle representation for C.
+/// It contains the data of a subtitle file that can be displayed.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleC {
+    /// The filepath that has been parsed
     pub file: *const c_char,
-    pub info: SubtitleInfoC,
+    /// The info of the parsed subtitle if available, else [ptr::null_mut]
+    pub info: *mut SubtitleInfoC,
+    /// The parsed cues from the subtitle file
     pub cues: *mut SubtitleCueC,
-    pub number_of_cues: i32,
+    /// The total number of cue elements
+    pub len: i32,
 }
 
-impl SubtitleC {
-    pub fn from(subtitle: Subtitle) -> Self {
-        trace!("Converting subtitle to C for {}", subtitle);
-        let (cues_ptr, number_of_cues) = to_c_vec(subtitle.cues().iter()
+impl From<Subtitle> for SubtitleC {
+    fn from(value: Subtitle) -> Self {
+        trace!("Converting subtitle to C for {}", value);
+        let (cues_ptr, number_of_cues) = to_c_vec(value.cues().iter()
             .map(SubtitleCueC::from)
             .collect());
+        let info = match value.info() {
+            None => ptr::null_mut(),
+            Some(e) => into_c_owned(SubtitleInfoC::from(e.clone()))
+        };
 
         Self {
-            file: into_c_string(subtitle.file().clone()),
-            info: SubtitleInfoC::from(subtitle.info()
-                .map(|e| e.clone())
-                .or_else(|| Some(SubtitleInfo::none()))
-                .unwrap()),
+            file: into_c_string(value.file().clone()),
+            info,
             cues: cues_ptr,
-            number_of_cues,
+            len: number_of_cues,
         }
     }
+}
 
-    pub fn to_subtitle(&self) -> Subtitle {
-        trace!("Converting subtitle from C for {:?}", self);
-        let info = SubtitleInfo::from(&self.info);
-        let cues = from_c_vec(self.cues, self.number_of_cues);
+impl From<SubtitleC> for Subtitle {
+    fn from(value: SubtitleC) -> Self {
+        trace!("Converting Subtitle from C for {:?}", value);
+        let cues = from_c_vec(value.cues, value.len).into_iter()
+            .map(|e| e.to_cue())
+            .collect();
+        let info = if !value.info.is_null() {
+            Some(SubtitleInfo::from(from_c_owned(value.info)))
+        } else {
+            None
+        };
 
         Subtitle::new(
-            cues.iter()
-                .map(|e| e.to_cue())
-                .collect(),
-            Some(info),
-            from_c_string(self.file))
+            cues,
+            info,
+            from_c_string(value.file))
     }
 }
 
@@ -362,7 +393,7 @@ mod test {
             quality: ptr::null_mut(),
         };
 
-        let result = SubtitleFile::from(subtitle_c);
+        let result = SubtitleFile::from(&subtitle_c);
 
         assert_eq!(&12, result.file_id());
         assert_eq!(&name, result.name());
@@ -405,5 +436,36 @@ mod test {
         let result = SubtitleInfo::from(&info_c);
 
         assert_eq!(subtitle, result)
+    }
+
+    #[test]
+    fn test_subtitle_from() {
+        init_logger();
+        let subtitle = create_simple_subtitle();
+
+        let subtitle_c = SubtitleC::from(subtitle.clone());
+        let result = Subtitle::from(subtitle_c);
+
+        assert_eq!(subtitle, result)
+    }
+
+    fn create_simple_subtitle() -> Subtitle {
+        Subtitle::new(
+            vec![SubtitleCue::new(
+                "01".to_string(),
+                1200,
+                2000,
+                vec![SubtitleLine::new(
+                    vec![StyledText::new(
+                        "lorem".to_string(),
+                        false,
+                        false,
+                        false,
+                    )]
+                )],
+            )],
+            Some(SubtitleInfo::new("tt00001".to_string(), SubtitleLanguage::English)),
+            "lorem.srt".to_string(),
+        )
     }
 }

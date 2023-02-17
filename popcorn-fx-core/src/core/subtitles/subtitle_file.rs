@@ -108,14 +108,14 @@ impl Eq for SubtitleFile {}
 
 impl PartialOrd<Self> for SubtitleFile {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let quality_cmp = self.quality_cmp(other);
-        if quality_cmp != Ordering::Equal {
-            return Some(quality_cmp);
-        }
-
         let download_cmp = self.download_cmp(other);
         if download_cmp != Ordering::Equal {
             return Some(download_cmp);
+        }
+
+        let quality_cmp = self.quality_cmp(other);
+        if quality_cmp != Ordering::Equal {
+            return Some(quality_cmp);
         }
 
         self.score.partial_cmp(other.score())
@@ -200,6 +200,39 @@ mod test {
 
         assert_eq!(Ordering::Greater, file1.cmp(&file2));
         assert_eq!(Ordering::Less, file2.cmp(&file1));
+        assert_eq!(Ordering::Equal, file2.cmp(&file3))
+    }
+
+    #[test]
+    fn test_ordering_score() {
+        let file1 = SubtitleFile {
+            file_id: 1,
+            name: "lorem".to_string(),
+            url: "".to_string(),
+            score: 8.0,
+            downloads: 0,
+            quality: None,
+        };
+        let file2 = SubtitleFile {
+            file_id: 2,
+            name: "ipsum".to_string(),
+            url: "".to_string(),
+            score: 5.0,
+            downloads: 0,
+            quality: None,
+        };
+
+        let file3 = SubtitleFile {
+            file_id: 3,
+            name: "dolor".to_string(),
+            url: "".to_string(),
+            score: 5.0,
+            downloads: 0,
+            quality: None,
+        };
+
+        assert_eq!(Ordering::Less, file1.cmp(&file2));
+        assert_eq!(Ordering::Greater, file2.cmp(&file1));
         assert_eq!(Ordering::Equal, file2.cmp(&file3))
     }
 }

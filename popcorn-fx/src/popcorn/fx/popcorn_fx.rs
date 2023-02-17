@@ -15,9 +15,10 @@ use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeS
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
-use popcorn_fx_core::core::torrent::TorrentStreamServer;
+use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
+use popcorn_fx_torrent::torrent::RTTorrentManager;
 use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 
 static INIT: Once = Once::new();
@@ -27,6 +28,14 @@ const LOG_FORMAT: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I} --- [{T:>
 const CONSOLE_APPENDER: &str = "stdout";
 
 /// The [PopcornFX] application instance.
+/// This is the main entry into the FX application and manages all known data.
+///
+/// A simple instance with default values can be retrieved by as follows.
+/// ```no_run
+/// let instance = PopcornFX::default();
+/// ```
+/// This instance will have initialize the log4rs logger.
+///
 #[repr(C)]
 pub struct PopcornFX {
     settings: Arc<Application>,
@@ -36,6 +45,7 @@ pub struct PopcornFX {
     platform_service: Box<dyn PlatformService>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
+    torrent_manager: Arc<Box<dyn TorrentManager>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     providers: ProviderManager,
@@ -44,8 +54,8 @@ pub struct PopcornFX {
 
 impl PopcornFX {
     /// The platform service of the popcorn FX instance.
-    pub fn subtitle_provider(&mut self) -> Arc<Box<dyn SubtitleProvider>> {
-        self.subtitle_service.clone()
+    pub fn subtitle_provider(&mut self) -> &mut Arc<Box<dyn SubtitleProvider>> {
+        &mut self.subtitle_service
     }
 
     /// Retrieve the subtitle server instance.
@@ -76,6 +86,11 @@ impl PopcornFX {
     /// The watched service of [PopcornFX] which handles all watched items and actions.
     pub fn watched_service(&mut self) -> &Arc<Box<dyn WatchedService>> {
         &self.watched_service
+    }
+
+    /// The torrent manager to create, manage and delete torrents.
+    pub fn torrent_manager(&mut self) -> &Arc<Box<dyn TorrentManager>> {
+        &self.torrent_manager
     }
 
     /// The torrent stream server which handles the video streams.
@@ -149,6 +164,7 @@ impl Default for PopcornFX {
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(&storage)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(&storage)) as Box<dyn WatchedService>);
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
+        let torrent_manager = Arc::new(Box::new(RTTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(&storage)) as Box<dyn AutoResumeService>);
 
@@ -160,6 +176,7 @@ impl Default for PopcornFX {
             platform_service,
             favorites_service,
             watched_service,
+            torrent_manager,
             torrent_stream_server,
             auto_resume_service,
             providers,

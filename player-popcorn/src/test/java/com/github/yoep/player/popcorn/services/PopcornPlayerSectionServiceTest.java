@@ -1,6 +1,7 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
+import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
@@ -12,7 +13,6 @@ import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -27,8 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.File;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -58,8 +56,8 @@ class PopcornPlayerSectionServiceTest {
 
     private final ObjectProperty<VideoPlayback> videoPlayerProperty = new SimpleObjectProperty<>();
     private final IntegerProperty subtitleSizeProperty = new SimpleIntegerProperty();
-    private final ObjectProperty<Subtitle> activeSubtitleProperty = new SimpleObjectProperty<>();
     private final AtomicReference<PlayerListener> listenerHolder = new AtomicReference<>();
+    private final AtomicReference<SubtitleListener> subtitleListenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
@@ -70,7 +68,10 @@ class PopcornPlayerSectionServiceTest {
         lenient().when(videoService.videoPlayerProperty()).thenReturn(videoPlayerProperty);
         lenient().when(settingsService.getSettings()).thenReturn(settings);
         lenient().when(subtitleManagerService.subtitleSizeProperty()).thenReturn(subtitleSizeProperty);
-        lenient().when(subtitleManagerService.activeSubtitleProperty()).thenReturn(activeSubtitleProperty);
+        lenient().doAnswer(invocation -> {
+            subtitleListenerHolder.set(invocation.getArgument(0, SubtitleListener.class));
+            return null;
+        }).when(subtitleManagerService).registerListener(isA(SubtitleListener.class));
 
         service.addListener(listener);
     }
@@ -286,14 +287,27 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testSubtitleListener_whenSubtitleIsChanged_shouldInvokedListeners() {
-        var subtitle = new Subtitle(SubtitleInfo.custom(), new File(""), Collections.emptyList());
+        var subtitle = mock(Subtitle.class);
         var subtitleSettings = mock(SubtitleSettings.class);
         when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
-        activeSubtitleProperty.set(subtitle);
+        var listener = subtitleListenerHolder.get();
+        listener.onSubtitleChanged(subtitle);
 
-        verify(listener).onSubtitleChanged(subtitle);
+        verify(this.listener).onSubtitleChanged(subtitle);
+    }
+
+    @Test
+    void testSubtitleListener_whenSubtitleIsDisabled_shouldInvokedListeners() {
+        var subtitleSettings = mock(SubtitleSettings.class);
+        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
+        service.init();
+
+        var listener = subtitleListenerHolder.get();
+        listener.onSubtitleDisabled();
+
+        verify(this.listener).onSubtitleDisabled();
     }
 
     @Test

@@ -1669,7 +1669,9 @@ version = "0.5.0"
 dependencies = [
  "async-trait",
  "cbindgen",
+ "derive_more",
  "futures",
+ "home",
  "itertools",
  "log",
  "log4rs",
@@ -1678,6 +1680,7 @@ dependencies = [
  "popcorn-fx-platform",
  "popcorn-fx-torrent",
  "popcorn-fx-torrent-stream",
+ "tempfile",
  "tokio",
 ]
 

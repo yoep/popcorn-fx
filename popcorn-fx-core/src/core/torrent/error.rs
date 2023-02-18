@@ -21,4 +21,6 @@ pub enum TorrentError {
     InvalidManagerState(TorrentManagerState),
     #[error("The torrent info couldn't be resolved, {0}")]
     TorrentResolvingFailed(String),
+    #[error("Failed to load the torrent collection, {0}")]
+    TorrentCollectionLoadingFailed(String),
 }

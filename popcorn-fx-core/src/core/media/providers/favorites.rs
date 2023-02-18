@@ -252,7 +252,7 @@ mod test {
         let imdb_id = "tt1156398";
         let resource_directory = test_resource_directory();
         let settings = Arc::new(Application::default());
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
         let mut favorites = MockFavoriteService::new();
         favorites.expect_find_id()
             .returning(|_id: &str| -> Option<Box<dyn MediaOverview>> {
@@ -353,7 +353,7 @@ mod test {
     fn test_sort_by_should_order_movie_before_show() {
         init_logger();
         let resource_directory = tempfile::tempdir().expect("expected a temp directory");
-        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
         let favorites = MockFavoriteService::new();
         let service = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),

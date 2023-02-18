@@ -82,7 +82,8 @@ impl Torrent for TorrentWrapper {
         })
     }
 
-    fn prioritize_bytes(&self, bytes: &[u64]) {}
+    fn prioritize_bytes(&self, bytes: &[u64]) {
+    }
 
     fn prioritize_pieces(&self, pieces: &[u32]) {
         tokio::task::block_in_place(move || {

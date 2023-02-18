@@ -70,6 +70,8 @@ impl Application {
 
 #[cfg(test)]
 mod test {
+    use tempfile::tempdir;
+
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::init_logger;
 
@@ -78,7 +80,9 @@ mod test {
     #[test]
     fn test_new_should_return_valid_instance() {
         init_logger();
-        let storage = Storage::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let storage = Storage::from(temp_path);
         let result = Application::new_auto(&storage);
         let expected_result = "https://api.opensubtitles.com/api/v1".to_string();
 

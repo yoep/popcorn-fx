@@ -10,8 +10,6 @@ use tokio::io::AsyncWriteExt;
 use crate::core::storage;
 use crate::core::storage::StorageError;
 
-const DEFAULT_APP_DIRECTORY: &str = ".popcorn-time";
-
 /// The storage is responsible for storing & retrieving files from the file system.
 /// It uses the home directory for the main files of the application.
 #[derive(Debug)]
@@ -20,31 +18,6 @@ pub struct Storage {
 }
 
 impl Storage {
-    /// Create a storage from the default application directory.
-    /// This directory is always located in the home dir of the user.
-    /// The addition of [DEFAULT_APP_DIRECTORY] will be added to the home directory path.
-    ///
-    /// It will `panic` if no home directory is found for the current user.
-    pub fn new() -> Self {
-        let mut directory = home::home_dir().expect("expected a home dir to exist");
-        directory.push(DEFAULT_APP_DIRECTORY);
-
-        debug!("Using application storage path {:?}", directory);
-        Self {
-            directory,
-        }
-    }
-
-    /// Create a storage from the given directory path.
-    /// It will use the given directory path without any additions to it.
-    ///
-    /// This means that path `/opt/popcorn` will be used as `/opt/popcorn/settings.json`
-    pub fn from_directory(directory: &str) -> Self {
-        Self {
-            directory: PathBuf::from(directory),
-        }
-    }
-
     /// Read the contents from the given filename from within the app directory.
     ///
     /// It returns the deserialized struct on success, else the [StorageError] that occurred.
@@ -117,6 +90,22 @@ impl Storage {
     }
 }
 
+impl From<&str> for Storage {
+    fn from(value: &str) -> Self {
+        Self {
+            directory: PathBuf::from(value),
+        }
+    }
+}
+
+impl From<&PathBuf> for Storage {
+    fn from(value: &PathBuf) -> Self {
+        Self {
+            directory: value.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::core::config::{PopcornSettings, UiSettings};
@@ -129,7 +118,7 @@ mod test {
         let resource_directory = test_resource_directory();
         let expected_result = PathBuf::from(resource_directory.to_str().expect("expected the testing directory to be valid"));
 
-        let storage = Storage::from_directory(resource_directory.to_str().expect("expected path to be valid"));
+        let storage = Storage::from(resource_directory.to_str().expect("expected path to be valid"));
 
         assert_eq!(expected_result, storage.directory)
     }

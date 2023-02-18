@@ -5,10 +5,10 @@ edition = "2021"
 rust-version = "1.62"
 publish = false
 license-file = "../LICENSE"
-description = "The main Popcorn FX"
+description = "The main Popcorn FX package"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
@@ -18,13 +18,18 @@ popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
 popcorn-fx-torrent-stream = { path = "../popcorn-fx-torrent-stream" }
 
 async-trait = "0.1"
+derive_more = "0.99"
 futures = { version = "0.3" }
+home = "0.5"
 itertools = "0.10"
 log = "0.4"
 log4rs = { version = "1", features = ["console_writer"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
-[build-dependencies]
+[dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
+tempfile = "3"
+
+[build-dependencies]
 cbindgen = "0.24"

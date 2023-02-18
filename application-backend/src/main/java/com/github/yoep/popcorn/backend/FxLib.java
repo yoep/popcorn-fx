@@ -138,6 +138,8 @@ public interface FxLib extends Library {
 
     void torrent_info(PopcornFx instance, String url);
 
+    byte torrent_collection_is_stored(PopcornFx instance, String magnetUrl);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);

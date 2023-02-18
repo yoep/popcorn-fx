@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.ui.torrent;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import com.github.yoep.popcorn.ui.torrent.models.StoredTorrent;
@@ -27,9 +29,8 @@ public class TorrentCollectionService {
      * @return Returns true if the magnet has already been added.
      */
     public boolean isStored(String magnetUri) {
-        Assert.hasText(magnetUri, "magnetUri cannot be empty");
-        return loadCollection().getTorrents().stream()
-                .anyMatch(e -> Objects.equals(e.getMagnetUri(), magnetUri));
+        Objects.requireNonNull(magnetUri, "magnetUri cannot be empty");
+        return FxLib.INSTANCE.torrent_collection_is_stored(PopcornFxInstance.INSTANCE.get(), magnetUri) == 1;
     }
 
     /**

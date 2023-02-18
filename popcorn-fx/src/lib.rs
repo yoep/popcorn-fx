@@ -830,6 +830,14 @@ pub extern "C" fn torrent_info(popcorn_fx: &mut PopcornFX, url: *const c_char) {
     })
 }
 
+/// Verify if the given magnet uri has already been stored.
+#[no_mangle]
+pub extern "C" fn torrent_collection_is_stored(popcorn_fx: &mut PopcornFX, magnet_uri: *const c_char) -> bool {
+    let magnet_uri = from_c_string(magnet_uri);
+    trace!("Checking if magnet uri is stored for {}", magnet_uri.as_str());
+    popcorn_fx.torrent_collection().is_stored(magnet_uri.as_str())
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -872,13 +880,19 @@ pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
     use std::sync::mpsc::channel;
     use std::time::Duration;
+
+    use tempfile::tempdir;
 
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::from_c_owned;
+    use popcorn_fx_core::testing::copy_test_file;
+
+    use crate::popcorn::fx::popcorn_fx::PopcornFxOpts;
 
     use super::*;
 
@@ -1045,7 +1059,6 @@ mod test {
 
     #[test]
     fn test_dispose_subtitle() {
-        let mut instance = from_c_owned(new_popcorn_fx());
         let subtitle = Subtitle::new(
             vec![SubtitleCue::new(
                 "012".to_string(),
@@ -1066,5 +1079,20 @@ mod test {
         let subtitle_c = SubtitleC::from(subtitle);
 
         dispose_subtitle(Box::new(subtitle_c))
+    }
+
+    #[test]
+    fn test_torrent_collection_is_stored() {
+        let magnet_uri = "magnet:?MagnetA";
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+        copy_test_file(temp_path, "torrent-collection.json");
+
+        let result = torrent_collection_is_stored(&mut instance, into_c_string(magnet_uri.to_string()));
+
+        assert_eq!(true, result)
     }
 }

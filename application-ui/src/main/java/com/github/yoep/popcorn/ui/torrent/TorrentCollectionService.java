@@ -49,7 +49,7 @@ public class TorrentCollectionService {
      * @param torrent   The torrent info to add.
      */
     public void addTorrent(String magnetUri, TorrentInfo torrent) {
-        Assert.notNull(torrent, "torrent cannot be null");
+        Objects.requireNonNull(torrent, "torrent cannot be null");
         TorrentCollection collection = loadCollection();
 
         // check if the torrent has already been stored

@@ -1,4 +1,6 @@
-use log::debug;
+use derive_more::Display;
+use itertools::Itertools;
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
 
 /// The collection information of magnet torrents.
@@ -28,9 +30,22 @@ impl Collection {
             magnet_uri: magnet_uri.to_string(),
         })
     }
+
+    /// Remove the given magnet uri from this collection.
+    /// If the magnet is unknown to this collection, the action will be ignored.
+    pub fn remove(&mut self, magnet_uri: &str) {
+        let position = self.torrents.iter()
+            .position(|e| e.magnet_uri.as_str() == magnet_uri);
+
+        if let Some(index) = position {
+            let info = self.torrents.remove(index);
+            info!("Removed magnet {} from collection", info)
+        }
+    }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Display, Serialize, Deserialize, PartialEq)]
+#[display(fmt = "name: {}, magnet_uri: {}", name, magnet_uri)]
 pub struct MagnetInfo {
     /// The name of the magnet
     pub name: String,
@@ -100,5 +115,35 @@ mod test {
             .count();
 
         assert_eq!(1, result)
+    }
+
+    #[test]
+    fn test_remove_existing_item() {
+        let name = "toBeRemoved";
+        let uri = "magnet:?ishaOfEstla";
+        let mut collection = Collection {
+            torrents: vec![]
+        };
+
+        collection.insert(name, uri);
+        assert_eq!(false, collection.torrents.is_empty());
+
+        collection.remove(uri);
+        assert_eq!(true, collection.torrents.is_empty())
+    }
+
+    #[test]
+    fn test_remove_non_existing_item() {
+        let uri = "magnet:?ishaOfEstla";
+        let info = MagnetInfo {
+            name: "alreadyExistingItem".to_string(),
+            magnet_uri: "magnet:?alreadyExistingItemUrl".to_string(),
+        };
+        let mut collection = Collection {
+            torrents: vec![info.clone()]
+        };
+
+        collection.remove(uri);
+        assert_eq!(&info, collection.torrents.get(0).unwrap())
     }
 }

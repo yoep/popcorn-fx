@@ -39,20 +39,19 @@ pub trait AutoResumeService: Debug + Send + Sync {
 #[derive(Debug)]
 pub struct DefaultAutoResumeService {
     storage: Arc<Storage>,
-    cache: Arc<Mutex<Option<AutoResume>>>,
+    cache: Mutex<Option<AutoResume>>,
 }
 
 impl DefaultAutoResumeService {
     pub fn new(storage: &Arc<Storage>) -> Self {
         Self {
             storage: storage.clone(),
-            cache: Arc::new(Mutex::new(None)),
+            cache: Mutex::new(None),
         }
     }
 
     async fn load_resume_cache(&self) -> media::Result<()> {
-        let mutex = self.cache.clone();
-        let mut cache = mutex.lock().await;
+        let mut cache = self.cache.lock().await;
 
         if cache.is_none() {
             trace!("Loading auto-resume cache");

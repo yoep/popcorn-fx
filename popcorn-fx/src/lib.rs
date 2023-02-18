@@ -838,6 +838,12 @@ pub extern "C" fn torrent_collection_is_stored(popcorn_fx: &mut PopcornFX, magne
     popcorn_fx.torrent_collection().is_stored(magnet_uri.as_str())
 }
 
+/// Add the given magnet info to the torrent collection.
+#[no_mangle]
+pub extern "C" fn torrent_collection_add(popcorn_fx: &mut PopcornFX, name: *const c_char, magnet_uri: *const c_char) {
+    popcorn_fx.torrent_collection();
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {

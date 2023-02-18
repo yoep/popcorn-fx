@@ -3,6 +3,10 @@
     {
       "name": "Lorem ipsum dolor",
       "magnet_uri": "magnet:?MyMagnetUri1"
+    },
+    {
+      "name": "MyMagnet2",
+      "magnet_uri": "magnet:?MyMagnet2MagnetUrl"
     }
   ]
 }

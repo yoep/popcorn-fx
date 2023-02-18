@@ -8,7 +8,7 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -838,10 +838,40 @@ pub extern "C" fn torrent_collection_is_stored(popcorn_fx: &mut PopcornFX, magne
     popcorn_fx.torrent_collection().is_stored(magnet_uri.as_str())
 }
 
+/// Retrieve all stored magnets from the torrent collection.
+/// It returns the set on success, else [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn torrent_collection_all(popcorn_fx: &mut PopcornFX) -> *mut TorrentCollectionSet {
+    trace!("Retrieving torrent collection magnets");
+    match popcorn_fx.torrent_collection().all() {
+        Ok(e) => {
+            let set = TorrentCollectionSet::from(e);
+            into_c_owned(set)
+        }
+        Err(e) => {
+            error!("Failed to retrieve magnets, {}", e);
+            ptr::null_mut()
+        },
+    }
+}
+
 /// Add the given magnet info to the torrent collection.
 #[no_mangle]
 pub extern "C" fn torrent_collection_add(popcorn_fx: &mut PopcornFX, name: *const c_char, magnet_uri: *const c_char) {
-    popcorn_fx.torrent_collection();
+    let name = from_c_string(name);
+    let magnet_uri = from_c_string(magnet_uri);
+    trace!("Adding magnet {} to torrent collection", magnet_uri);
+
+    popcorn_fx.torrent_collection().insert(name.as_str(), magnet_uri.as_str());
+}
+
+/// Remove the given magnet uri from the torrent collection.
+#[no_mangle]
+pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_uri: *const c_char) {
+    let magnet_uri = from_c_string(magnet_uri);
+    trace!("Removing magnet {} from torrent collection", magnet_uri);
+
+    popcorn_fx.torrent_collection().remove(magnet_uri.as_str());
 }
 
 /// Dispose the given media item from memory.
@@ -874,6 +904,12 @@ pub extern "C" fn dispose_torrent_stream(stream: Box<TorrentStreamC>) {
 pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
     trace!("Disposing subtitle {:?}", subtitle);
     let _ = Subtitle::from(*subtitle);
+}
+
+/// Dispose the [TorrentCollectionSet] from memory.
+#[no_mangle]
+pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollectionSet>) {
+    trace!("Disposing collection set {:?}", collection_set)
 }
 
 /// Delete the PopcornFX instance in a safe way.
@@ -1040,6 +1076,35 @@ mod test {
     }
 
     #[test]
+    fn test_torrent_collection_is_stored() {
+        let magnet_uri = "magnet:?MagnetA";
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+        copy_test_file(temp_path, "torrent-collection.json");
+
+        let result = torrent_collection_is_stored(&mut instance, into_c_string(magnet_uri.to_string()));
+
+        assert_eq!(true, result)
+    }
+
+    #[test]
+    fn test_torrent_collection_all() {
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+        copy_test_file(temp_path, "torrent-collection.json");
+
+        let result = from_c_owned(torrent_collection_all(&mut instance));
+
+        assert_eq!(1, result.len)
+    }
+
+    #[test]
     fn test_dispose_media_item() {
         let movie = MovieOverview::new(
             String::new(),
@@ -1085,20 +1150,5 @@ mod test {
         let subtitle_c = SubtitleC::from(subtitle);
 
         dispose_subtitle(Box::new(subtitle_c))
-    }
-
-    #[test]
-    fn test_torrent_collection_is_stored() {
-        let magnet_uri = "magnet:?MagnetA";
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxOpts {
-            app_directory: PathBuf::from(temp_dir.path()),
-        });
-        copy_test_file(temp_path, "torrent-collection.json");
-
-        let result = torrent_collection_is_stored(&mut instance, into_c_string(magnet_uri.to_string()));
-
-        assert_eq!(true, result)
     }
 }

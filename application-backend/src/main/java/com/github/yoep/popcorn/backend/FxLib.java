@@ -24,6 +24,7 @@ import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
+import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -140,6 +141,12 @@ public interface FxLib extends Library {
 
     byte torrent_collection_is_stored(PopcornFx instance, String magnetUrl);
 
+    StoredTorrentSet torrent_collection_all(PopcornFx instance);
+
+    void torrent_collection_add(PopcornFx instance, String name, String magnetUrl);
+
+    void torrent_collection_remove(PopcornFx instance, String magnetUrl);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);
@@ -147,6 +154,8 @@ public interface FxLib extends Library {
     void dispose_torrent_stream(TorrentStreamWrapper wrapper);
 
     void dispose_subtitle(Subtitle subtitle);
+
+    void dispose_torrent_collection(StoredTorrentSet set);
 
     void dispose_popcorn_fx(PopcornFx instance);
 }

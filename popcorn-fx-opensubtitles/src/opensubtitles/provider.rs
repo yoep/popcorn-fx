@@ -165,7 +165,10 @@ impl OpensubtitlesProvider {
                 let language = key.0;
                 let files = key.1;
 
-                SubtitleInfo::new_with_files(imdb_id.clone(), language.clone(), files.clone())
+                SubtitleInfo::new_with_files(
+                    Some(imdb_id.clone()),
+                    language.clone(),
+                    files.clone())
             })
             .sorted()
             .collect()
@@ -691,7 +694,7 @@ mod test {
         let temp_dir = settings.user_settings().subtitle().directory().to_str().unwrap().to_string();
         let service = OpensubtitlesProvider::new(&settings);
         let filename = "test-subtitle-file.srt".to_string();
-        let subtitle_info = SubtitleInfo::new_with_files("tt7405458".to_string(), SubtitleLanguage::German, vec![
+        let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
             SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
         ]);
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
@@ -746,7 +749,7 @@ mod test {
         let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
         let destination = copy_test_file(temp_path.clone().as_str(), test_file);
         let service = OpensubtitlesProvider::new(&settings);
-        let subtitle_info = SubtitleInfo::new_with_files("tt00001".to_string(), SubtitleLanguage::German, vec![
+        let subtitle_info = SubtitleInfo::new_with_files(Some("tt00001".to_string()), SubtitleLanguage::German, vec![
             SubtitleFile::new(10001111, "subtitle_existing.srt".to_string(), String::new(), 0.0, 0)
         ]);
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));

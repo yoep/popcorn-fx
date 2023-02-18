@@ -296,7 +296,7 @@ mod test {
         init_logger();
         let imdb_id = String::from("tt9387250");
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
         let service = DefaultFavoriteService::new(&storage);
 
         let result = service.is_liked(imdb_id.as_str());
@@ -309,7 +309,7 @@ mod test {
         init_logger();
         let imdb_id = String::from("tt1156398");
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
         let service = DefaultFavoriteService::new(&storage);
 
         let result = service.is_liked(imdb_id.as_str());
@@ -321,7 +321,7 @@ mod test {
     fn test_all() {
         init_logger();
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
         let service = DefaultFavoriteService::new(&storage);
         let result = service.all()
             .expect("Expected the favorites to have been retrieved");
@@ -339,7 +339,7 @@ mod test {
         let imdb_id = "tt12345678";
         let title = "lorem ipsum";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
+        let storage = Arc::new(Storage::from(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
         let service = DefaultFavoriteService::new(&storage);
         let movie = Box::new(MovieOverview::new(
             String::from(title),
@@ -364,7 +364,7 @@ mod test {
         let imdb_id = "tt12345666";
         let title = "lorem ipsum";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
+        let storage = Arc::new(Storage::from(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
         let service = DefaultFavoriteService::new(&storage);
         let movie = MovieOverview::new(
             String::from(title),
@@ -386,7 +386,7 @@ mod test {
         init_logger();
         let id = "tt1122333";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
+        let storage = Arc::new(Storage::from(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
         let service = DefaultFavoriteService::new(&storage);
         let (tx, rx) = channel();
         let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(

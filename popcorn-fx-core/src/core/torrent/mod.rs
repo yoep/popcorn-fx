@@ -4,6 +4,7 @@ pub use stream_server::*;
 pub use torrent_stream::*;
 pub use torrents::*;
 
+pub mod collection;
 mod error;
 mod torrents;
 mod manager;

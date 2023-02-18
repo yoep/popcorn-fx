@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.torrent.models;
 
+import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

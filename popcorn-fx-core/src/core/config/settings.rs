@@ -96,6 +96,8 @@ impl From<&str> for PopcornSettings {
 
 #[cfg(test)]
 mod test {
+    use tempfile::tempdir;
+
     use crate::core::config::SubtitleFamily;
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::init_logger;
@@ -105,7 +107,9 @@ mod test {
     #[test]
     fn test_new_auto_should_always_return_settings() {
         init_logger();
-        let storage = Storage::new();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let storage = Storage::from(temp_path);
 
         PopcornSettings::new_auto(&storage);
     }

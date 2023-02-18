@@ -24,28 +24,32 @@ impl SubtitleInfoSet {
     }
 }
 
+/// The C compatible struct for [SubtitleInfo].
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleInfoC {
-    imdb_id: *const c_char,
-    language: SubtitleLanguage,
-    files: *mut SubtitleFileC,
-    len: i32,
+    /// The IMDB ID if known, this can be [ptr::null]
+    pub imdb_id: *const c_char,
+    pub language: SubtitleLanguage,
+    pub files: *mut SubtitleFileC,
+    pub len: i32,
 }
 
 impl SubtitleInfoC {
     pub fn empty() -> Self {
         Self {
-            imdb_id: into_c_string(String::new()),
+            imdb_id: ptr::null(),
             language: SubtitleLanguage::None,
             files: ptr::null_mut(),
             len: 0,
         }
     }
+}
 
-    pub fn from(info: SubtitleInfo) -> Self {
-        trace!("Converting subtitle info to C for {}", &info);
-        let (files, len) = match info.files() {
+impl From<SubtitleInfo> for SubtitleInfoC {
+    fn from(value: SubtitleInfo) -> Self {
+        trace!("Converting subtitle info to C for {}", &value);
+        let (files, len) = match value.files() {
             None => (ptr::null_mut(), 0),
             Some(files) => to_c_vec(files.into_iter()
                 .map(|e| SubtitleFileC::from(e.clone()))
@@ -53,11 +57,11 @@ impl SubtitleInfoC {
         };
 
         Self {
-            imdb_id: match info.imdb_id() {
-                None => into_c_string(String::new()),
+            imdb_id: match value.imdb_id() {
+                None => ptr::null(),
                 Some(e) => into_c_string(e.clone())
             },
-            language: info.language().clone(),
+            language: value.language().clone(),
             files,
             len,
         }
@@ -67,6 +71,11 @@ impl SubtitleInfoC {
 impl From<&SubtitleInfoC> for SubtitleInfo {
     fn from(value: &SubtitleInfoC) -> Self {
         trace!("Converting SubtitleInfo from C for {:?}", value);
+        let imdb_id = if !value.imdb_id.is_null() {
+            Some(from_c_string(value.imdb_id))
+        } else {
+            None
+        };
         let files = if !value.files.is_null() && value.len > 0 {
             from_c_vec(value.files, value.len).iter()
                 .map(SubtitleFile::from)
@@ -76,7 +85,7 @@ impl From<&SubtitleInfoC> for SubtitleInfo {
         };
 
         SubtitleInfo::new_with_files(
-            from_c_string(value.imdb_id),
+            imdb_id,
             value.language.clone(),
             files,
         )
@@ -86,6 +95,11 @@ impl From<&SubtitleInfoC> for SubtitleInfo {
 impl From<SubtitleInfoC> for SubtitleInfo {
     fn from(value: SubtitleInfoC) -> Self {
         trace!("Converting SubtitleInfo from C for {:?}", value);
+        let imdb_id = if !value.imdb_id.is_null() {
+            Some(from_c_string(value.imdb_id))
+        } else {
+            None
+        };
         let files = if !value.files.is_null() && value.len > 0 {
             from_c_vec(value.files, value.len).iter()
                 .map(SubtitleFile::from)
@@ -95,7 +109,7 @@ impl From<SubtitleInfoC> for SubtitleInfo {
         };
 
         SubtitleInfo::new_with_files(
-            from_c_string(value.imdb_id),
+            imdb_id,
             value.language.clone(),
             files,
         )
@@ -407,7 +421,7 @@ mod test {
     fn test_subtitle_info_with_files() {
         init_logger();
         let subtitle = SubtitleInfo::new_with_files(
-            "tt22222233".to_string(),
+            Some("tt22222233".to_string()),
             SubtitleLanguage::Italian,
             vec![SubtitleFile::new(
                 1,
@@ -436,6 +450,18 @@ mod test {
         let result = SubtitleInfo::from(&info_c);
 
         assert_eq!(subtitle, result)
+    }
+
+    #[test]
+    fn test_subtitle_info_none() {
+        init_logger();
+        let info = SubtitleInfo::none();
+
+        let subtitle_info_c = SubtitleInfoC::from(info.clone());
+        assert_eq!(ptr::null(), subtitle_info_c.imdb_id);
+
+        let result = SubtitleInfo::from(subtitle_info_c);
+        assert_eq!(info, result)
     }
 
     #[test]

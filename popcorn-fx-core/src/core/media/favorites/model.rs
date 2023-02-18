@@ -9,28 +9,15 @@ const DATETIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S.%f";
 /// The favorites/liked media items of the user.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Favorites {
-    movies: Vec<MovieOverview>,
-    shows: Vec<ShowOverview>,
-    last_cache_update: String,
+    /// The liked movies of the user
+    pub movies: Vec<MovieOverview>,
+    /// The liked shows of the user
+    pub shows: Vec<ShowOverview>,
+    /// The last time this cache has been updated
+    pub last_cache_update: String,
 }
 
 impl Favorites {
-    pub fn new(movies: Vec<MovieOverview>, shows: Vec<ShowOverview>) -> Self {
-        Self {
-            movies,
-            shows,
-            last_cache_update: Self::current_datetime(),
-        }
-    }
-
-    pub fn new_with_last_cache_update(movies: Vec<MovieOverview>, shows: Vec<ShowOverview>, last_cache_update: String) -> Self {
-        Self {
-            movies,
-            shows,
-            last_cache_update,
-        }
-    }
-
     /// Retrieve the current liked movies of the user.
     ///
     /// It returns a reference to the array of movies.
@@ -48,7 +35,7 @@ impl Favorites {
     /// Add the given movie to the favorites.
     /// Duplicates will be automatically ignored.
     pub fn add_movie(&mut self, media: &MovieOverview) {
-        if !self.contains(&media.imdb_id()) {
+        if !self.contains(media.imdb_id()) {
             trace!("Adding media {} to favorites", &media);
             self.movies.push(media.clone())
         }
@@ -57,7 +44,7 @@ impl Favorites {
     /// Add the given show to the favorites.
     /// Duplicates will be automatically ignored.
     pub fn add_show(&mut self, media: &ShowOverview) {
-        if !self.contains(&media.imdb_id()) {
+        if !self.contains(media.imdb_id()) {
             trace!("Adding media {} to favorites", &media);
             self.shows.push(media.clone())
         }
@@ -149,10 +136,11 @@ mod test {
             String::from("tt12345678"),
             String::new(),
         );
-        let mut favorites = Favorites::new(
-            vec![movie.clone()],
-            vec![],
-        );
+        let mut favorites = Favorites {
+            movies: vec![movie.clone()],
+            shows: vec![],
+            last_cache_update: "2023-01-01T22:00:00.129617500".to_string(),
+        };
 
         favorites.add_movie(&movie);
         let result = favorites.movies();
@@ -190,10 +178,11 @@ mod test {
             Images::none(),
             None,
         );
-        let mut favorites = Favorites::new(
-            vec![],
-            vec![show.clone()],
-        );
+        let mut favorites = Favorites {
+            movies: vec![],
+            shows: vec![show.clone()],
+            last_cache_update: "2023-01-01T22:00:00.129617500".to_string(),
+        };
 
         favorites.add_show(&show);
         let result = favorites.shows();

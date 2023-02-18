@@ -1,13 +1,13 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;
-import com.github.yoep.popcorn.ui.torrent.models.StoredTorrent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

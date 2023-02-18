@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.torrent.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.yoep.popcorn.ui.torrent.models.StoredTorrent;
+import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;

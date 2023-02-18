@@ -32,47 +32,43 @@ type StreamMutex = HashMap<String, Arc<DefaultTorrentStream>>;
 /// The default server implementation for streaming torrents over HTTP.
 #[derive(Debug)]
 pub struct DefaultTorrentStreamServer {
-    internal: Arc<TorrentStreamServerWrapper>,
+    inner: Arc<TorrentStreamServerInner>,
 }
 
 impl DefaultTorrentStreamServer {
-    fn instance(&self) -> Arc<TorrentStreamServerWrapper> {
-        self.internal.clone()
-    }
-
-    fn build_url(&self, filename: &str) -> Result<Url, url::ParseError> {
-        self.internal.build_url(filename)
+    fn instance(&self) -> Arc<TorrentStreamServerInner> {
+        self.inner.clone()
     }
 }
 
 impl TorrentStreamServer for DefaultTorrentStreamServer {
     fn state(&self) -> TorrentStreamServerState {
-        self.internal.state()
+        self.inner.state()
     }
 
     fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrent::Result<Arc<dyn TorrentStream>> {
-        self.internal.start_stream(torrent)
+        self.inner.start_stream(torrent)
     }
 
     fn stop_stream(&self, stream: &Arc<dyn TorrentStream>) {
-        self.internal.stop_stream(stream)
+        self.inner.stop_stream(stream)
     }
 }
 
 impl Default for DefaultTorrentStreamServer {
     fn default() -> Self {
-        let wrapper = TorrentStreamServerWrapper::default();
+        let wrapper = TorrentStreamServerInner::default();
         let instance = Self {
-            internal: Arc::new(wrapper)
+            inner: Arc::new(wrapper)
         };
 
-        TorrentStreamServerWrapper::start_server(instance.instance());
+        TorrentStreamServerInner::start_server(instance.instance());
         instance
     }
 }
 
 #[derive(Debug)]
-struct TorrentStreamServerWrapper {
+struct TorrentStreamServerInner {
     runtime: Arc<tokio::runtime::Runtime>,
     socket: Arc<SocketAddr>,
     streams: Arc<Mutex<StreamMutex>>,
@@ -80,8 +76,8 @@ struct TorrentStreamServerWrapper {
     media_type_factory: Arc<MediaTypeFactory>,
 }
 
-impl TorrentStreamServerWrapper {
-    fn start_server(instance: Arc<TorrentStreamServerWrapper>) {
+impl TorrentStreamServerInner {
+    fn start_server(instance: Arc<TorrentStreamServerInner>) {
         let runtime = instance.runtime.clone();
         runtime.spawn(async move {
             trace!("Starting torrent stream server");
@@ -309,7 +305,7 @@ impl TorrentStreamServerWrapper {
     }
 }
 
-impl TorrentStreamServer for TorrentStreamServerWrapper {
+impl TorrentStreamServer for TorrentStreamServerInner {
     fn state(&self) -> TorrentStreamServerState {
         let mutex = self.state.blocking_lock();
         mutex.clone()
@@ -370,7 +366,7 @@ impl TorrentStreamServer for TorrentStreamServerWrapper {
     }
 }
 
-impl Default for TorrentStreamServerWrapper {
+impl Default for TorrentStreamServerInner {
     fn default() -> Self {
         let listener = TcpListener::bind("0.0.0.0:0").expect("expected a TCP address to be bound");
         let socket = listener.local_addr().expect("expected a valid socket");
@@ -460,7 +456,7 @@ mod test {
 
         wait_for_server(&server);
         let result = runtime.block_on(async {
-            let response = client.head(server.build_url("lorem").unwrap())
+            let response = client.head(server.inner.build_url("lorem").unwrap())
                 .send()
                 .await
                 .expect("expected a valid response");
@@ -572,7 +568,7 @@ mod test {
 
         wait_for_server(&server);
         let result = runtime.block_on(async {
-            let response = client.get(server.build_url("lorem").unwrap())
+            let response = client.get(server.inner.build_url("lorem").unwrap())
                 .send()
                 .await
                 .expect("expected a valid response");

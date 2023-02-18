@@ -109,9 +109,9 @@ impl SubtitleInfo {
     }
 
     /// Create a new subtitle info with subtitle files.
-    pub fn new_with_files(imdb_id: String, language: SubtitleLanguage, files: Vec<SubtitleFile>) -> Self {
+    pub fn new_with_files(imdb_id: Option<String>, language: SubtitleLanguage, files: Vec<SubtitleFile>) -> Self {
         Self {
-            imdb_id: Some(imdb_id),
+            imdb_id,
             language,
             files: Some(files),
             normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
@@ -250,8 +250,7 @@ impl PartialEq for SubtitleInfo {
     }
 }
 
-impl Eq for SubtitleInfo {
-}
+impl Eq for SubtitleInfo {}
 
 impl PartialOrd for SubtitleInfo {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -481,7 +480,7 @@ mod test {
             None,
         );
         let subtitle_info = SubtitleInfo::new_with_files(
-            "tt100001010".to_string(),
+            Some("tt100001010".to_string()),
             SubtitleLanguage::English,
             vec![
                 SubtitleFile::new_with_quality(

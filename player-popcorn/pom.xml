@@ -18,7 +18,7 @@
         <!-- Popcorn FX -->
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>popcorn-fx-core</artifactId>
+            <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
 

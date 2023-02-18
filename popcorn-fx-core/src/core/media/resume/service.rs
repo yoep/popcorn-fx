@@ -39,20 +39,19 @@ pub trait AutoResumeService: Debug + Send + Sync {
 #[derive(Debug)]
 pub struct DefaultAutoResumeService {
     storage: Arc<Storage>,
-    cache: Arc<Mutex<Option<AutoResume>>>,
+    cache: Mutex<Option<AutoResume>>,
 }
 
 impl DefaultAutoResumeService {
     pub fn new(storage: &Arc<Storage>) -> Self {
         Self {
             storage: storage.clone(),
-            cache: Arc::new(Mutex::new(None)),
+            cache: Mutex::new(None),
         }
     }
 
     async fn load_resume_cache(&self) -> media::Result<()> {
-        let mutex = self.cache.clone();
-        let mut cache = mutex.lock().await;
+        let mut cache = self.cache.lock().await;
 
         if cache.is_none() {
             trace!("Loading auto-resume cache");
@@ -213,7 +212,7 @@ mod test {
         let filename = "Lorem.mp4";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
         copy_test_file(temp_path, "auto-resume.json");
 
@@ -231,7 +230,7 @@ mod test {
         let filename = "random-video-not-known.mkv";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
 
         let result = service.resume_timestamp(None, Some(filename));
@@ -245,7 +244,7 @@ mod test {
         let id = "110999";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
         copy_test_file(temp_path, "auto-resume.json");
 
@@ -262,7 +261,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
 
         let result = service.resume_timestamp(None, None);
@@ -275,7 +274,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
         let event = PlayerStoppedEvent::new(
             "http://localhost/ipsum.mp4".to_string(),
@@ -296,7 +295,7 @@ mod test {
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
         let expected_timestamp = 40000;
         let movie = Box::new(MovieOverview::new(
@@ -324,7 +323,7 @@ mod test {
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
         copy_test_file(temp_path, "auto-resume.json");
         let movie = Box::new(MovieOverview::new(
@@ -351,7 +350,7 @@ mod test {
         let id = "tt00001212";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_path));
+        let storage = Arc::new(Storage::from(temp_path));
         let service = DefaultAutoResumeService::new(&storage);
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),

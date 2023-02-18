@@ -304,7 +304,7 @@ mod test {
         init_logger();
         let imdb_id = "tt548723".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().unwrap()));
+        let storage = Arc::new(Storage::from(temp_dir.path().to_str().unwrap()));
         let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
@@ -323,7 +323,7 @@ mod test {
         init_logger();
         let imdb_id = "tt548766".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().unwrap()));
+        let storage = Arc::new(Storage::from(temp_dir.path().to_str().unwrap()));
         let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
@@ -342,7 +342,7 @@ mod test {
         init_logger();
         let imdb_id = "tt541345".to_string();
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from_directory(resource_directory.to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
         let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
@@ -359,7 +359,7 @@ mod test {
     fn test_all() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from_directory(temp_dir.path().to_str().unwrap()));
+        let storage = Arc::new(Storage::from(temp_dir.path().to_str().unwrap()));
         let service = DefaultWatchedService::new(&storage);
         let expected_result = vec![
             "tt548723",
@@ -379,7 +379,7 @@ mod test {
         init_logger();
         let imdb_id = "tt548795".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
         let service = DefaultWatchedService::new(&storage);
         let movie = MovieOverview::new(
             String::new(),
@@ -399,7 +399,7 @@ mod test {
         init_logger();
         let imdb_id = "tt88877554".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
         let service = DefaultWatchedService::new(&storage);
         let show = ShowOverview::new(
             imdb_id.clone(),
@@ -423,7 +423,7 @@ mod test {
         init_logger();
         let id = "tt8744557";
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
         let service = DefaultWatchedService::new(&storage);
         let (tx, rx) = channel();
         let callback: WatchedCallback = Box::new(move |e| {
@@ -452,7 +452,7 @@ mod test {
         init_logger();
         let id = "tt8744557";
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from_directory(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
         let service = DefaultWatchedService::new(&storage);
         let (tx, rx) = channel();
         let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(

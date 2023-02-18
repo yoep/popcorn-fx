@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 /// The auto-resume data structure.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AutoResume {
-    video_timestamps: Vec<VideoTimestamp>,
+    /// The available/known resume timestamps
+    pub video_timestamps: Vec<VideoTimestamp>,
 }
 
 impl AutoResume {

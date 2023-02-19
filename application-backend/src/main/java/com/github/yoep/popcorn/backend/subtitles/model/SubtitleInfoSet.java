@@ -11,11 +11,10 @@ import static java.util.Arrays.asList;
 
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"subtitles", "len", "cap"})
+@Structure.FieldOrder({"subtitles", "len"})
 public class SubtitleInfoSet extends Structure implements Closeable {
     public SubtitleInfo.ByReference subtitles;
     public int len;
-    public int cap;
 
     public List<SubtitleInfo> getSubtitles() {
         return asList((SubtitleInfo[]) subtitles.toArray(len));

@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 @Getter
 @ToString
@@ -20,7 +19,7 @@ public class StoredTorrent extends Structure implements Closeable {
     public String magnetUri;
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         setAutoSynch(false);
     }
 }

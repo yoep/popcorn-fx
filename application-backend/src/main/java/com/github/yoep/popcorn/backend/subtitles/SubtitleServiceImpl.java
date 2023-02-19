@@ -72,13 +72,15 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final MovieDetails media) {
         Objects.requireNonNull(media, "media cannot be null");
-        var subtitles = Optional.ofNullable(FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), media))
-                .map(SubtitleInfoSet::getSubtitles)
-                .orElse(Collections.emptyList());
+        try (var set = FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), media)) {
+            var subtitles = Optional.ofNullable(set)
+                    .map(SubtitleInfoSet::getSubtitles)
+                    .orElse(Collections.emptyList());
 
-        log.debug("Retrieved movie subtitles {}", subtitles);
-        return CompletableFuture.completedFuture(
-                Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
+            log.debug("Retrieved movie subtitles {}", subtitles);
+            return CompletableFuture.completedFuture(
+                    Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
+        }
     }
 
     @Override
@@ -213,6 +215,8 @@ public class SubtitleServiceImpl implements SubtitleService {
     //endregion
 
     private static List<SubtitleInfo> defaultOptions() {
-        return FxLib.INSTANCE.default_subtitle_options(PopcornFxInstance.INSTANCE.get()).getSubtitles();
+        try (var set = FxLib.INSTANCE.default_subtitle_options(PopcornFxInstance.INSTANCE.get())) {
+            return set.getSubtitles();
+        }
     }
 }

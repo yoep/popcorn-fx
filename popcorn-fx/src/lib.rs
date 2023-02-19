@@ -958,10 +958,18 @@ mod test {
     }
 
     #[no_mangle]
+    pub extern "C" fn prioritize_bytes_callback(_: i32, _: *mut u64) {}
+
+    #[no_mangle]
     pub extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
 
     #[no_mangle]
     pub extern "C" fn sequential_mode_callback() {}
+
+    #[no_mangle]
+    pub extern "C" fn torrent_state_callback() -> TorrentState {
+        TorrentState::Downloading
+    }
 
     #[test]
     fn test_default_subtitle_options() {
@@ -1064,8 +1072,10 @@ mod test {
             has_byte_callback: has_bytes_callback,
             has_piece_callback: has_piece_callback,
             total_pieces: total_pieces_callback,
+            prioritize_bytes: prioritize_bytes_callback,
             prioritize_pieces: prioritize_pieces_callback,
             sequential_mode: sequential_mode_callback,
+            torrent_state: torrent_state_callback,
         };
         let (tx, rx) = channel();
 

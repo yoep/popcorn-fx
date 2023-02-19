@@ -22,7 +22,8 @@ import java.util.Optional;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"filepath", "hasByteCallback", "hasPieceCallback", "torrentTotalPiecesCallback", "prioritizePiecesCallback", "sequentialModeCallback"})
+@Structure.FieldOrder({"filepath", "hasByteCallback", "hasPieceCallback", "torrentTotalPiecesCallback",
+        "prioritizeBytesCallback", "prioritizePiecesCallback", "sequentialModeCallback", "torrentStateCallback"})
 public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public static class ByValue extends TorrentWrapper implements Structure.ByValue {
         public ByValue(Torrent torrent) {
@@ -36,8 +37,10 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public TorrentHasByteCallback hasByteCallback;
     public TorrentHasPieceCallback hasPieceCallback;
     public TorrentTotalPiecesCallback torrentTotalPiecesCallback;
+    public PrioritizeBytesCallback prioritizeBytesCallback;
     public PrioritizePiecesCallback prioritizePiecesCallback;
     public SequentialModeCallback sequentialModeCallback;
+    public TorrentStateCallback torrentStateCallback;
 
     private final Torrent torrent;
     TorrentWrapperPointer wrapperPointer;
@@ -48,8 +51,10 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
         this.hasByteCallback = createHasByteCallback();
         this.hasPieceCallback = (int index) -> (byte) (this.torrent.hasPiece(index) ? 1 : 0);
         this.torrentTotalPiecesCallback = torrent::getTotalPieces;
+        this.prioritizeBytesCallback = createPrioritizeBytesCallback();
         this.prioritizePiecesCallback = createPrioritizePiecesCallback();
         this.sequentialModeCallback = this.torrent::sequentialMode;
+        this.torrentStateCallback = this.torrent::getState;
         initialize();
     }
 
@@ -106,8 +111,8 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
     }
 
     @Override
-    public void prioritizeByte(long byteIndex) {
-        torrent.prioritizeByte(byteIndex);
+    public void prioritizeBytes(long... bytes) {
+        torrent.prioritizeBytes(bytes);
     }
 
     @Override
@@ -194,6 +199,17 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
             }
 
             return (byte) 1;
+        };
+    }
+
+    private PrioritizeBytesCallback createPrioritizeBytesCallback() {
+        return (len, bytesPtr) -> {
+            if (bytesPtr == null || len == 0) {
+                return;
+            }
+
+            var bytes = bytesPtr.getLongArray(0, len);
+            torrent.prioritizeBytes(bytes);
         };
     }
 

@@ -80,6 +80,10 @@ impl Torrent for DefaultTorrentStream {
         self.internal.sequential_mode()
     }
 
+    fn state(&self) -> TorrentState {
+        self.internal.state()
+    }
+
     fn register(&self, callback: TorrentCallback) {
         self.internal.register(callback)
     }
@@ -165,9 +169,16 @@ impl TorrentStreamWrapper {
     }
 
     fn start_preparing_pieces(&self) {
-        let mutex = self.preparing_pieces.blocking_lock();
-        debug!("Preparing a total of {} pieces for the stream", mutex.len());
-        self.torrent.prioritize_pieces(&mutex[..])
+        let state = self.torrent.state();
+        trace!("Starting stream preparation with torrent state {}", state);
+        if state == TorrentState::Completed {
+            debug!("Torrent has state {}, starting stream immediately", state);
+            self.update_state(TorrentStreamState::Streaming);
+        } else {
+            let mutex = self.preparing_pieces.blocking_lock();
+            debug!("Preparing a total of {} pieces for the stream", mutex.len());
+            self.torrent.prioritize_pieces(&mutex[..]);
+        }
     }
 
     fn on_piece_finished(&self, piece: u32) {
@@ -275,6 +286,10 @@ impl Torrent for TorrentStreamWrapper {
 
     fn sequential_mode(&self) {
         self.torrent.sequential_mode()
+    }
+
+    fn state(&self) -> TorrentState {
+        self.torrent.state()
     }
 
     fn register(&self, callback: TorrentCallback) {

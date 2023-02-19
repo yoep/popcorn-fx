@@ -84,12 +84,11 @@ public interface Torrent {
     boolean hasByte(long byteIndex);
 
     /**
-     * Prioritize the given bytes in the download.
-     * This will increase the priority of the piece index which contains the byteIndex.
+     * Prioritize the given bytes to be downloaded first.
      *
-     * @param byteIndex The byte index to prioritize.
+     * @param bytes The bytes to prioritize.
      */
-    void prioritizeByte(long byteIndex);
+    void prioritizeBytes(long... bytes);
 
     /**
      * Register a new listener for this torrent.

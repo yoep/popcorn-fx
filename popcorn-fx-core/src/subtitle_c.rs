@@ -10,23 +10,9 @@ use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
 use crate::core::subtitles::SubtitleFile;
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct SubtitleInfoSet {
-    subtitles: Box<[SubtitleInfoC]>,
-}
-
-impl SubtitleInfoSet {
-    pub fn new(subtitles: Box<[SubtitleInfoC]>) -> Self {
-        Self {
-            subtitles
-        }
-    }
-}
-
 /// The C compatible struct for [SubtitleInfo].
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SubtitleInfoC {
     /// The IMDB ID if known, this can be [ptr::null]
     pub imdb_id: *const c_char,
@@ -127,15 +113,16 @@ pub struct SubtitleFileC {
     quality: *const i32,
 }
 
-impl SubtitleFileC {
-    fn from(file: SubtitleFile) -> Self {
+impl From<SubtitleFile> for SubtitleFileC {
+    fn from(value: SubtitleFile) -> Self {
+        trace!("Converting SubtitleFile to C for {:?}", &value);
         Self {
-            file_id: *file.file_id(),
-            name: into_c_string(file.name().clone()),
-            url: into_c_string(file.url().clone()),
-            score: *file.score(),
-            downloads: *file.downloads(),
-            quality: match file.quality() {
+            file_id: *value.file_id(),
+            name: into_c_string(value.name().clone()),
+            url: into_c_string(value.url().clone()),
+            score: *value.score(),
+            downloads: *value.downloads(),
+            quality: match value.quality() {
                 None => ptr::null_mut(),
                 Some(e) => into_c_owned(*e)
             },
@@ -165,28 +152,23 @@ impl From<&SubtitleFileC> for SubtitleFile {
     }
 }
 
+/// The C array of available [SubtitleInfo].
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct VecSubtitleInfoC {
+pub struct SubtitleInfoSet {
+    /// The available subtitle array
     pub subtitles: *mut SubtitleInfoC,
+    /// The length of the array
     pub len: i32,
-    pub cap: i32,
 }
 
-impl VecSubtitleInfoC {
-    pub fn new(subtitles: *mut SubtitleInfoC, len: i32, cap: i32) -> Self {
+impl From<Vec<SubtitleInfoC>> for SubtitleInfoSet {
+    fn from(value: Vec<SubtitleInfoC>) -> Self {
+        let (subtitles, len) = to_c_vec(value);
+
         Self {
             subtitles,
             len,
-            cap,
-        }
-    }
-
-    pub fn from(mut subtitles: Vec<SubtitleInfoC>) -> Self {
-        Self {
-            subtitles: subtitles.as_mut_ptr(),
-            len: subtitles.len() as i32,
-            cap: subtitles.capacity() as i32,
         }
     }
 }
@@ -392,6 +374,23 @@ mod test {
     use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_subtitle_info_set_from() {
+        init_logger();
+        let subtitle = SubtitleInfo::new(
+            "tt111000".to_string(),
+            SubtitleLanguage::French,
+        );
+        let subtitles = vec![SubtitleInfoC::from(subtitle.clone())];
+
+        let set = SubtitleInfoSet::from(subtitles);
+        assert_eq!(1, set.len);
+
+        let subtitles = from_c_vec(set.subtitles, set.len);
+        let result = subtitles.get(0);
+        assert_eq!(subtitle, SubtitleInfo::from(result.unwrap()))
+    }
 
     #[test]
     fn test_subtitle_file_from() {

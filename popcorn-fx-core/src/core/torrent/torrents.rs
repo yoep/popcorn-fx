@@ -101,6 +101,10 @@ pub trait Torrent: Display + Debug + Send + Sync {
 
     /// Update the download mode of the torrent to sequential.
     fn sequential_mode(&self);
+    
+    /// Retrieve the current state of the torrent.
+    /// It returns an owned instance of the state.
+    fn state(&self) -> TorrentState;
 
     /// Register a new callback for the [TorrentEvent]'s.
     /// The callback will be triggered when a new event occurs within the torrent.

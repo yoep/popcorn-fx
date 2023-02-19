@@ -17,11 +17,17 @@ pub type HasPieceCallbackC = extern "C" fn(u32) -> bool;
 /// The callback to retrieve the total pieces of the torrent.
 pub type TotalPiecesCallbackC = extern "C" fn() -> i32;
 
+/// The callback for prioritizing bytes.
+pub type PrioritizeBytesCallbackC = extern "C" fn(i32, *mut u64);
+
 /// The callback for prioritizing pieces.
 pub type PrioritizePiecesCallbackC = extern "C" fn(i32, *mut u32);
 
 /// The callback for update the torrent mode to sequential.
 pub type SequentialModeCallbackC = extern "C" fn();
+
+/// The callback for retrieving the torrent state.
+pub type TorrentStateCallbackC = extern "C" fn() -> TorrentState;
 
 /// The C compatible abi struct for a [Torrent].
 /// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
@@ -33,8 +39,10 @@ pub struct TorrentC {
     pub has_byte_callback: HasByteCallbackC,
     pub has_piece_callback: HasPieceCallbackC,
     pub total_pieces: TotalPiecesCallbackC,
+    pub prioritize_bytes: PrioritizeBytesCallbackC,
     pub prioritize_pieces: PrioritizePiecesCallbackC,
     pub sequential_mode: SequentialModeCallbackC,
+    pub torrent_state: TorrentStateCallbackC,
 }
 
 impl From<TorrentC> for TorrentWrapper {
@@ -49,11 +57,16 @@ impl From<TorrentC> for TorrentWrapper {
                 (value.has_piece_callback)(piece)
             }),
             Box::new(move || (value.total_pieces)()),
+            Box::new(move |bytes| {
+                let (bytes, len) = to_c_vec(bytes.to_vec());
+                (value.prioritize_bytes)(len, bytes)
+            }),
             Box::new(move |pieces| {
                 let (pieces, len) = to_c_vec(pieces.to_vec());
                 (value.prioritize_pieces)(len, pieces)
             }),
             Box::new(move || (value.sequential_mode)()),
+            Box::new(move || (value.torrent_state)()),
         )
     }
 }
@@ -123,6 +136,10 @@ impl Torrent for &'static TorrentWrapperC {
         self.wrapper.sequential_mode()
     }
 
+    fn state(&self) -> TorrentState {
+        self.wrapper.state()
+    }
+
     fn register(&self, callback: TorrentCallback) {
         self.wrapper.register(callback)
     }
@@ -145,6 +162,9 @@ mod test {
     }
 
     #[no_mangle]
+    pub extern "C" fn prioritize_bytes_callback(_: i32, _: *mut u64) {}
+
+    #[no_mangle]
     pub extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
 
     #[no_mangle]
@@ -155,6 +175,11 @@ mod test {
         true
     }
 
+    #[no_mangle]
+    pub extern "C" fn torrent_state_callback() -> TorrentState {
+        TorrentState::Downloading
+    }
+
     #[test]
     pub fn test_from_torrent_c_to_wrapper() {
         let torrent = TorrentC {
@@ -162,8 +187,10 @@ mod test {
             has_byte_callback: has_bytes_callback,
             has_piece_callback: has_piece_callback,
             total_pieces: total_pieces_callback,
+            prioritize_bytes: prioritize_bytes_callback,
             prioritize_pieces: prioritize_pieces_callback,
             sequential_mode: sequential_mode_callback,
+            torrent_state: torrent_state_callback,
         };
 
         let wrapper = TorrentWrapper::from(torrent);
@@ -180,13 +207,34 @@ mod test {
             has_byte_callback: has_bytes_callback,
             has_piece_callback: has_piece_callback,
             total_pieces: total_pieces_callback,
+            prioritize_bytes: prioritize_bytes_callback,
             prioritize_pieces: prioritize_pieces_callback,
             sequential_mode: sequential_mode_callback,
+            torrent_state: torrent_state_callback,
         };
         let bytes = vec![10, 11, 12];
 
         let wrapper = TorrentWrapper::from(torrent);
 
         assert_eq!(true, wrapper.has_bytes(&bytes[..]))
+    }
+
+    #[test]
+    pub fn test_state() {
+        let torrent = TorrentC {
+            filepath: into_c_string("lorem.csv".to_string()),
+            has_byte_callback: has_bytes_callback,
+            has_piece_callback: has_piece_callback,
+            total_pieces: total_pieces_callback,
+            prioritize_bytes: prioritize_bytes_callback,
+            prioritize_pieces: prioritize_pieces_callback,
+            sequential_mode: sequential_mode_callback,
+            torrent_state: torrent_state_callback,
+        };
+
+        let wrapper = TorrentWrapper::from(torrent);
+        let result = wrapper.state();
+
+        assert_eq!(TorrentState::Downloading, result)
     }
 }

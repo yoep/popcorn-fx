@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -35,7 +34,7 @@ public class StoredTorrentSet extends Structure implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         setAutoSynch(false);
         for (StoredTorrent storedTorrent : cache) {
             storedTorrent.close();

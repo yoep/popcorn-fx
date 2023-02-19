@@ -80,6 +80,10 @@ impl Torrent for DefaultTorrentStream {
         self.internal.sequential_mode()
     }
 
+    fn state(&self) -> TorrentState {
+        self.internal.state()
+    }
+
     fn register(&self, callback: TorrentCallback) {
         self.internal.register(callback)
     }
@@ -165,9 +169,16 @@ impl TorrentStreamWrapper {
     }
 
     fn start_preparing_pieces(&self) {
-        let mutex = self.preparing_pieces.blocking_lock();
-        debug!("Preparing a total of {} pieces for the stream", mutex.len());
-        self.torrent.prioritize_pieces(&mutex[..])
+        let state = self.torrent.state();
+        trace!("Starting stream preparation with torrent state {}", state);
+        if state == TorrentState::Completed {
+            debug!("Torrent has state {}, starting stream immediately", state);
+            self.update_state(TorrentStreamState::Streaming);
+        } else {
+            let mutex = self.preparing_pieces.blocking_lock();
+            debug!("Preparing a total of {} pieces for the stream", mutex.len());
+            self.torrent.prioritize_pieces(&mutex[..]);
+        }
     }
 
     fn on_piece_finished(&self, piece: u32) {
@@ -275,6 +286,10 @@ impl Torrent for TorrentStreamWrapper {
 
     fn sequential_mode(&self) {
         self.torrent.sequential_mode()
+    }
+
+    fn state(&self) -> TorrentState {
+        self.torrent.state()
     }
 
     fn register(&self, callback: TorrentCallback) {
@@ -610,6 +625,8 @@ mod test {
             .returning(move |callback: TorrentCallback| {
                 tx.send(callback).unwrap();
             });
+        mock.expect_state()
+            .return_const(TorrentState::Downloading);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock));
 
@@ -761,6 +778,8 @@ mod test {
         mock.expect_sequential_mode()
             .times(1)
             .returning(|| {});
+        mock.expect_state()
+            .return_const(TorrentState::Downloading);
         let stream = DefaultTorrentStream::new(url, Box::new(mock));
         let expected_pieces: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 97, 98, 99];
 
@@ -774,6 +793,35 @@ mod test {
 
         let state_result = stream.stream_state();
         assert_eq!(TorrentStreamState::Streaming, state_result)
+    }
+
+    #[test]
+    fn test_torrent_start_preparing_pieces_torrent_completed() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().join("lorem.ipsum");
+        let mut mock = MockTorrent::new();
+        let url = Url::parse("http://localhost").unwrap();
+        mock.expect_file()
+            .returning(move || temp_path.clone());
+        mock.expect_has_bytes()
+            .return_const(false);
+        mock.expect_has_piece()
+            .return_const(false);
+        mock.expect_total_pieces()
+            .returning(|| 100);
+        mock.expect_prioritize_pieces()
+            .times(0)
+            .returning(|_: &[u32]| {});
+        mock.expect_register()
+            .returning(|_: TorrentCallback| {});
+        mock.expect_state()
+            .return_const(TorrentState::Completed);
+        let stream = DefaultTorrentStream::new(url, Box::new(mock));
+
+        // retrieve the initial streaming state as it should be streaming
+        let result = stream.stream_state();
+
+        assert_eq!(TorrentStreamState::Streaming, result)
     }
 
     #[test]
@@ -795,6 +843,8 @@ mod test {
         mock.expect_register()
             .times(1)
             .returning(|_| {});
+        mock.expect_state()
+            .return_const(TorrentState::Downloading);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock));
 

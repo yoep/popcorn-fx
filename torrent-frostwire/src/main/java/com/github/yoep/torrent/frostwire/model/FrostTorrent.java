@@ -134,17 +134,23 @@ public class FrostTorrent implements Torrent, AlertListener {
     }
 
     @Override
-    public void prioritizeByte(long byteIndex) {
-        var pieceIndex = getPieceIndexOfByte(byteIndex);
-        var nextPiece = pieceIndex + 1;
+    public void prioritizeBytes(long... bytes) {
+        var indexes = Arrays.stream(bytes)
+                .mapToInt(this::getPieceIndexOfByte)
+                .distinct()
+                .toArray();
 
-        // prioritize the piece of the byte
-        prioritizePiece(pieceIndex, false);
+        for (var pieceIndex : indexes) {
+            var nextPiece = pieceIndex + 1;
 
-        // prioritize the next piece if it's within the current download range
-        // this is done to prevent stream tearing
-        if (nextPiece <= pieces.getLastPieceIndex()) {
-            prioritizePiece(nextPiece, false);
+            // prioritize the piece of the byte
+            prioritizePiece(pieceIndex, false);
+
+            // prioritize the next piece if it's within the current download range
+            // this is done to prevent stream tearing
+            if (nextPiece <= pieces.getLastPieceIndex()) {
+                prioritizePiece(nextPiece, false);
+            }
         }
     }
 

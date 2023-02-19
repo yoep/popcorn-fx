@@ -51,6 +51,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
                         torrentService.remove(wrapper.getTorrent());
                     }
                     if (torrentStream instanceof TorrentStreamWrapper wrapper) {
+                        wrapper.close();
                         lib.stop_stream(instance.get(), wrapper);
                         lib.dispose_torrent_stream(wrapper);
                     }

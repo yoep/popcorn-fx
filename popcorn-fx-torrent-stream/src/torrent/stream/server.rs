@@ -391,7 +391,7 @@ mod test {
     use log::info;
     use reqwest::Client;
 
-    use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback, TorrentEvent, TorrentStreamState};
+    use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState, TorrentStreamState};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
 
     use super::*;
@@ -418,6 +418,8 @@ mod test {
             .returning(|_: &[u32]| {});
         torrent.expect_sequential_mode()
             .returning(|| {});
+        torrent.expect_state()
+            .return_const(TorrentState::Downloading);
         torrent.expect_register()
             .returning(|callback: TorrentCallback| {
                 for i in 0..10 {
@@ -495,6 +497,8 @@ mod test {
                     callback(TorrentEvent::PieceFinished(i));
                 }
             });
+        torrent.expect_state()
+            .return_const(TorrentState::Downloading);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
         let expected_result = read_test_file(filename)
             .replace("\r\n", "\n");
@@ -539,6 +543,8 @@ mod test {
             .returning(|_: &[u32]| {});
         torrent.expect_register()
             .returning(|_: TorrentCallback| {});
+        torrent.expect_state()
+            .return_const(TorrentState::Downloading);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename);
 
         wait_for_server(&server);

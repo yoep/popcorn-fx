@@ -8,7 +8,7 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, VecSubtitleInfoC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -58,18 +58,22 @@ pub extern "C" fn platform_info(popcorn_fx: &mut PopcornFX) -> *mut PlatformInfo
 
 /// Retrieve the default options available for the subtitles.
 #[no_mangle]
-pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut VecSubtitleInfoC {
-    into_c_owned(VecSubtitleInfoC::from(popcorn_fx.subtitle_provider().default_subtitle_options().into_iter()
-        .map(|e| SubtitleInfoC::from(e))
-        .collect()))
+pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoSet {
+    trace!("Retrieving default subtitle options");
+    let subtitles = popcorn_fx.subtitle_provider().default_subtitle_options();
+    let subtitles: Vec<SubtitleInfoC> = subtitles.into_iter()
+        .map(SubtitleInfoC::from)
+        .collect();
+
+    into_c_owned(SubtitleInfoSet::from(subtitles))
 }
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
-/// It returns a reference to [VecSubtitleInfoC], else a [ptr::null_mut] on failure.
+/// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
 /// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
-pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetailsC) -> *mut VecSubtitleInfoC {
+pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetailsC) -> *mut SubtitleInfoSet {
     let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
     let movie_instance = movie.to_struct();
 
@@ -80,7 +84,7 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetai
                 .map(|e| SubtitleInfoC::from(e))
                 .collect();
 
-            into_c_owned(VecSubtitleInfoC::from(result))
+            into_c_owned(SubtitleInfoSet::from(result))
         }
         Err(e) => {
             error!("Movie subtitle search failed, {}", e);
@@ -91,7 +95,7 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetai
 
 /// Retrieve the given subtitles for the given episode
 #[no_mangle]
-pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetailsC, episode: &EpisodeC) -> *mut VecSubtitleInfoC {
+pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetailsC, episode: &EpisodeC) -> *mut SubtitleInfoSet {
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
     let show_instance = show.to_struct();
     let episode_instance = episode.to_struct();
@@ -103,18 +107,18 @@ pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetai
                 .map(|e| SubtitleInfoC::from(e))
                 .collect();
 
-            into_c_owned(VecSubtitleInfoC::from(result))
+            into_c_owned(SubtitleInfoSet::from(result))
         }
         Err(e) => {
             error!("Episode subtitle search failed, {}", e);
-            into_c_owned(VecSubtitleInfoC::from(vec![]))
+            into_c_owned(SubtitleInfoSet::from(vec![]))
         }
     }
 }
 
 /// Retrieve the available subtitles for the given filename
 #[no_mangle]
-pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut c_char) -> *mut VecSubtitleInfoC {
+pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut c_char) -> *mut SubtitleInfoSet {
     let filename_rust = from_c_string(filename);
     let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
@@ -125,11 +129,11 @@ pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut 
                 .map(|e| SubtitleInfoC::from(e))
                 .collect();
 
-            into_c_owned(VecSubtitleInfoC::from(result))
+            into_c_owned(SubtitleInfoSet::from(result))
         }
         Err(e) => {
             error!("Filename subtitle search failed, {}", e);
-            into_c_owned(VecSubtitleInfoC::from(vec![]))
+            into_c_owned(SubtitleInfoSet::from(vec![]))
         }
     }
 }
@@ -851,7 +855,7 @@ pub extern "C" fn torrent_collection_all(popcorn_fx: &mut PopcornFX) -> *mut Tor
         Err(e) => {
             error!("Failed to retrieve magnets, {}", e);
             ptr::null_mut()
-        },
+        }
     }
 }
 
@@ -928,10 +932,10 @@ mod test {
 
     use tempfile::tempdir;
 
+    use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
-    use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::testing::copy_test_file;
 
     use crate::popcorn::fx::popcorn_fx::PopcornFxOpts;
@@ -954,10 +958,35 @@ mod test {
     }
 
     #[no_mangle]
+    pub extern "C" fn prioritize_bytes_callback(_: i32, _: *mut u64) {}
+
+    #[no_mangle]
     pub extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
 
     #[no_mangle]
     pub extern "C" fn sequential_mode_callback() {}
+
+    #[no_mangle]
+    pub extern "C" fn torrent_state_callback() -> TorrentState {
+        TorrentState::Downloading
+    }
+
+    #[test]
+    fn test_default_subtitle_options() {
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+        let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
+
+        let set_ptr = from_c_owned(default_subtitle_options(&mut instance));
+        let result: Vec<SubtitleInfo> = from_c_vec(set_ptr.subtitles, set_ptr.len).into_iter()
+            .map(SubtitleInfo::from)
+            .collect();
+
+        assert_eq!(expected_result, result)
+    }
 
     #[test]
     fn test_create_and_dispose_popcorn_fx() {
@@ -1043,8 +1072,10 @@ mod test {
             has_byte_callback: has_bytes_callback,
             has_piece_callback: has_piece_callback,
             total_pieces: total_pieces_callback,
+            prioritize_bytes: prioritize_bytes_callback,
             prioritize_pieces: prioritize_pieces_callback,
             sequential_mode: sequential_mode_callback,
+            torrent_state: torrent_state_callback,
         };
         let (tx, rx) = channel();
 

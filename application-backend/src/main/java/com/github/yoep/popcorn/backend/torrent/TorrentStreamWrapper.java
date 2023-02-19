@@ -93,8 +93,8 @@ public class TorrentStreamWrapper extends Structure implements Closeable, Torren
     }
 
     @Override
-    public void prioritizeByte(long byteIndex) {
-        torrent.prioritizeByte(byteIndex);
+    public void prioritizeBytes(long... bytes) {
+        torrent.prioritizeBytes(bytes);
     }
 
     @Override

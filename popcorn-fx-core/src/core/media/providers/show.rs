@@ -7,7 +7,7 @@ use itertools::*;
 use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
-use crate::core::config::Application;
+use crate::core::config::ApplicationConfig;
 use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, ShowDetails, ShowOverview, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
@@ -23,7 +23,7 @@ pub struct ShowProvider {
 }
 
 impl ShowProvider {
-    pub fn new(settings: &Arc<Application>) -> Self {
+    pub fn new(settings: &Arc<ApplicationConfig>) -> Self {
         let uris = available_uris(settings, PROVIDER_NAME);
 
         Self {
@@ -103,7 +103,9 @@ mod test {
         init_logger();
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
-        let settings = Arc::new(Application::default());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
         let provider = ShowProvider::new(&settings);
 
         let result = provider.retrieve(&genre, &sort_by, &String::new(), 1)
@@ -117,7 +119,9 @@ mod test {
     async fn test_retrieve_details() {
         init_logger();
         let imdb_id = "tt2861424".to_string();
-        let settings = Arc::new(Application::default());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
         let provider = ShowProvider::new(&settings);
 
         let result = provider.retrieve_details(&imdb_id)

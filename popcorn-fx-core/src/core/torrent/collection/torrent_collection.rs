@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use log::{debug, error, info, trace, warn};
 use tokio::sync::Mutex;
 
@@ -14,14 +12,14 @@ const FILENAME: &str = "torrent-collection.json";
 /// This information can be queried later on for more information about the torrent itself.
 #[derive(Debug)]
 pub struct TorrentCollection {
-    storage: Arc<Storage>,
+    storage: Storage,
     cache: Mutex<Option<Collection>>,
 }
 
 impl TorrentCollection {
-    pub fn new(storage: &Arc<Storage>) -> Self {
+    pub fn new(storage_directory: &str) -> Self {
         Self {
-            storage: storage.clone(),
+            storage: Storage::from(storage_directory),
             cache: Mutex::new(None),
         }
     }
@@ -152,8 +150,7 @@ mod test {
         let magnet_uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let collection = TorrentCollection::new(&storage);
+        let collection = TorrentCollection::new(temp_path);
         copy_test_file(temp_path, "torrent-collection.json");
 
         let result = collection.is_stored(magnet_uri);
@@ -168,8 +165,7 @@ mod test {
         let uri = "magnet:?LoremIpsumConn";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let collection = TorrentCollection::new(&storage);
+        let collection = TorrentCollection::new(temp_path);
         let expected_result = vec![MagnetInfo {
             name: name.to_string(),
             magnet_uri: uri.to_string(),
@@ -190,8 +186,7 @@ mod test {
         let uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let collection = TorrentCollection::new(&storage);
+        let collection = TorrentCollection::new(temp_path);
         copy_test_file(temp_path, "torrent-collection.json");
         let expected_result = vec![
             MagnetInfo {

@@ -10,12 +10,11 @@ use log4rs::Config;
 use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
-use popcorn_fx_core::core::config::Application;
+use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
-use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrent::collection::TorrentCollection;
@@ -40,7 +39,8 @@ const DEFAULT_APP_DIRECTORY: fn() -> PathBuf = || {
 #[derive(Debug, Clone, Display)]
 #[display(fmt = "app_directory: {:?}", app_directory)]
 pub struct PopcornFxOpts {
-    /// The directory containing the app storage files
+    /// The directory containing the application files.
+    /// This directory is also referred to as the `storage_directory` or `storage_path` within the application.
     pub app_directory: PathBuf,
 }
 
@@ -56,17 +56,17 @@ impl Default for PopcornFxOpts {
 /// This is the main entry into the FX application and manages all known data.
 ///
 /// # Examples
-/// 
+///
 /// Create a simple instance with default values.
 /// This instance will have the [log4rs] loggers initialized.
 /// ```no_run
 /// use popcorn_fx::popcorn::fx::popcorn_fx::PopcornFX;
-/// 
+///
 /// let instance = PopcornFX::default();
 /// ```
 #[repr(C)]
 pub struct PopcornFX {
-    settings: Arc<Application>,
+    settings: Arc<ApplicationConfig>,
     subtitle_service: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
     subtitle_manager: Arc<SubtitleManager>,
@@ -78,7 +78,6 @@ pub struct PopcornFX {
     torrent_collection: Arc<TorrentCollection>,
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     providers: ProviderManager,
-    storage: Arc<Storage>,
     /// The options that were used to create this instance
     opts: PopcornFxOpts,
 }
@@ -86,19 +85,19 @@ pub struct PopcornFX {
 impl PopcornFX {
     pub fn new(opts: PopcornFxOpts) -> Self {
         Self::initialize_logger();
-        let storage = Arc::new(Storage::from(&opts.app_directory));
-        let settings = Arc::new(Application::new_auto(&storage));
+        let app_directory_path = opts.app_directory.to_str().expect("expected a valid application directory path");
+        let settings = Arc::new(ApplicationConfig::new_auto(app_directory_path));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let subtitle_manager = Arc::new(SubtitleManager::default());
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(&storage)) as Box<dyn FavoriteService>);
-        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(&storage)) as Box<dyn WatchedService>);
+        let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
+        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
         let torrent_manager = Arc::new(Box::new(RTTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
-        let torrent_collection = Arc::new(TorrentCollection::new(&storage));
-        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(&storage)) as Box<dyn AutoResumeService>);
+        let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
+        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
 
         Self {
             settings,
@@ -113,7 +112,6 @@ impl PopcornFX {
             torrent_collection,
             auto_resume_service,
             providers,
-            storage,
             opts,
         }
     }
@@ -206,7 +204,7 @@ impl PopcornFX {
         });
     }
 
-    fn default_providers(settings: &Arc<Application>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
+    fn default_providers(settings: &Arc<ApplicationConfig>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
         let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(&settings)));
         let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(&settings)));
         let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![

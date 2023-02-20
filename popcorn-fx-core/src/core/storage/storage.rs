@@ -12,7 +12,7 @@ use crate::core::storage::StorageError;
 
 /// The storage is responsible for storing & retrieving files from the file system.
 /// It uses the home directory for the main files of the application.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Storage {
     directory: PathBuf,
 }
@@ -132,7 +132,7 @@ mod test {
             directory: path
         };
 
-        let result = storage.read::<PopcornSettings>("simple-settings.json");
+        let result = storage.read::<PopcornSettings>("settings.json");
 
         assert!(result.is_ok(), "Expected the storage reading to have succeeded")
     }

@@ -10,8 +10,8 @@ use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 
 /// The subtitle provider is responsible for discovering & downloading of [Subtitle] files
 /// for [Media] items.
-#[async_trait]
 #[automock]
+#[async_trait]
 pub trait SubtitleProvider {
     /// The available default subtitle options.
     fn default_subtitle_options(&self) -> Vec<SubtitleInfo> {

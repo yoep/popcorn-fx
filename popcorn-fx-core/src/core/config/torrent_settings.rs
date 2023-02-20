@@ -19,20 +19,13 @@ const DEFAULT_AUTO_CLEANING: fn() -> bool = || true;
 pub struct TorrentSettings {
     /// The path to the torrent directory
     #[serde(default = "DEFAULT_DIRECTORY")]
-    directory: PathBuf,
+    pub directory: PathBuf,
     /// Indicates if the torrent directory should be cleaned
     #[serde(default = "DEFAULT_AUTO_CLEANING")]
-    auto_cleaning_enabled: bool,
+    pub auto_cleaning_enabled: bool,
 }
 
 impl TorrentSettings {
-    pub fn new(directory: &str, auto_cleaning_enabled: bool) -> Self {
-        Self {
-            directory: PathBuf::from(directory),
-            auto_cleaning_enabled,
-        }
-    }
-    
     /// The torrent directory to store the downloaded files
     pub fn directory(&self) -> &PathBuf {
         &self.directory
@@ -45,5 +38,22 @@ impl Default for TorrentSettings {
             directory: DEFAULT_DIRECTORY(),
             auto_cleaning_enabled: DEFAULT_AUTO_CLEANING(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_default() {
+        let expected_result = TorrentSettings {
+            directory: DEFAULT_DIRECTORY(),
+            auto_cleaning_enabled: DEFAULT_AUTO_CLEANING(),
+        };
+
+        let result = TorrentSettings::default();
+
+        assert_eq!(expected_result, result)
     }
 }

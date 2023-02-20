@@ -23,24 +23,32 @@ const DEFAULT_SUBTITLE_FAMILY: fn() -> SubtitleFamily = || SubtitleFamily::Arial
 #[display(fmt = "directory: {}, auto_cleaning_enabled: {}, default_subtitle: {}", directory, auto_cleaning_enabled, default_subtitle)]
 pub struct SubtitleSettings {
     #[serde(default = "DEFAULT_DIRECTORY")]
-    directory: String,
+    pub directory: String,
     #[serde(default = "DEFAULT_AUTO_CLEANING")]
-    auto_cleaning_enabled: bool,
+    pub auto_cleaning_enabled: bool,
     #[serde(default = "DEFAULT_SUBTITLE_LANGUAGE")]
-    default_subtitle: SubtitleLanguage,
+    pub default_subtitle: SubtitleLanguage,
     #[serde(default = "DEFAULT_SUBTITLE_FAMILY")]
-    font_family: SubtitleFamily,
+    pub font_family: SubtitleFamily,
 }
 
 impl SubtitleSettings {
-    pub fn new(directory: String, auto_cleaning_enabled: bool, default_subtitle: SubtitleLanguage, font_family: SubtitleFamily) -> Self {
-        Self { directory, auto_cleaning_enabled, default_subtitle, font_family }
+    pub fn new(directory: Option<String>, auto_cleaning_enabled: Option<bool>,
+               default_subtitle: Option<SubtitleLanguage>, font_family: Option<SubtitleFamily>) -> Self {
+        Self {
+            directory: directory.or_else(|| Some(DEFAULT_DIRECTORY())).unwrap(),
+            auto_cleaning_enabled: auto_cleaning_enabled.or_else(|| Some(DEFAULT_AUTO_CLEANING())).unwrap(),
+            default_subtitle: default_subtitle.or_else(|| Some(DEFAULT_SUBTITLE_LANGUAGE())).unwrap(),
+            font_family: font_family.or_else(|| Some(DEFAULT_SUBTITLE_FAMILY())).unwrap(),
+        }
     }
 
+    /// The directory storing the subtitles
     pub fn directory(&self) -> PathBuf {
         PathBuf::from(&self.directory)
     }
 
+    /// Indicates if the subtitles will be cleaned on closure of the application
     pub fn auto_cleaning_enabled(&self) -> &bool {
         &self.auto_cleaning_enabled
     }

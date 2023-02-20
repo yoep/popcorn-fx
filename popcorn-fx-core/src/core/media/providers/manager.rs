@@ -88,7 +88,7 @@ impl ProviderManager {
 mod test {
     use std::sync::Arc;
 
-    use crate::core::config::Application;
+    use crate::core::config::ApplicationConfig;
     use crate::core::media::providers::ShowProvider;
 
     use super::*;
@@ -110,7 +110,9 @@ mod test {
 
     #[test]
     fn test_get_supported_category() {
-        let settings = Arc::new(Application::default());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
         let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
         let manager = ProviderManager::with_providers(vec![Arc::new(provider)]);
 

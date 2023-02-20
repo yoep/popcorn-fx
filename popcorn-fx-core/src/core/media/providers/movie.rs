@@ -7,7 +7,7 @@ use itertools::*;
 use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
-use crate::core::config::Application;
+use crate::core::config::ApplicationConfig;
 use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, MovieDetails, MovieOverview, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
@@ -23,7 +23,7 @@ pub struct MovieProvider {
 }
 
 impl MovieProvider {
-    pub fn new(settings: &Arc<Application>) -> Self {
+    pub fn new(settings: &Arc<ApplicationConfig>) -> Self {
         let uris = available_uris(settings, PROVIDER_NAME);
 
         Self {
@@ -100,16 +100,20 @@ mod test {
 
     use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
     use crate::core::media::{Images, MediaIdentifier, Rating};
+    use crate::core::storage::Storage;
     use crate::testing::{init_logger, read_test_file};
 
     use super::*;
 
-    fn start_mock_server() -> (MockServer, Arc<Application>) {
+    fn start_mock_server() -> (MockServer, Arc<ApplicationConfig>) {
         let server = MockServer::start();
-        let settings = Arc::new(Application::new(
-            PopcornProperties::new_with_providers(SubtitleProperties::default(), create_providers(&server)),
-            PopcornSettings::default(),
-        ));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties::new_with_providers(SubtitleProperties::default(), create_providers(&server)),
+            settings: PopcornSettings::default(),
+        });
 
         (server, settings)
     }
@@ -164,7 +168,9 @@ mod test {
     async fn test_retrieve_details() {
         init_logger();
         let imdb_id = "tt14138650".to_string();
-        let settings = Arc::new(Application::default());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
         let provider = MovieProvider::new(&settings);
 
         let result = provider.retrieve_details(&imdb_id)

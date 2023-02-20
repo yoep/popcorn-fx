@@ -204,14 +204,13 @@ impl MediaProvider for FavoritesProvider {
 
 #[cfg(test)]
 mod test {
-    use crate::core::config::Application;
+    use crate::core::config::ApplicationConfig;
     use crate::core::media;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::core::media::favorites::MockFavoriteService;
     use crate::core::media::providers::MovieProvider;
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
-    use crate::core::storage::Storage;
     use crate::testing::{init_logger, test_resource_directory};
 
     use super::*;
@@ -251,8 +250,8 @@ mod test {
         init_logger();
         let imdb_id = "tt1156398";
         let resource_directory = test_resource_directory();
-        let settings = Arc::new(Application::default());
-        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
+        let resource_path = resource_directory.to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(resource_path));
         let mut favorites = MockFavoriteService::new();
         favorites.expect_find_id()
             .returning(|_id: &str| -> Option<Box<dyn MediaOverview>> {
@@ -265,7 +264,7 @@ mod test {
         let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(&storage))),
+            Arc::new(Box::new(DefaultWatchedService::new(resource_path))),
             vec![&movie_provider]);
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
@@ -353,11 +352,11 @@ mod test {
     fn test_sort_by_should_order_movie_before_show() {
         init_logger();
         let resource_directory = tempfile::tempdir().expect("expected a temp directory");
-        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
+        let resource_path = resource_directory.path().to_str().unwrap();
         let favorites = MockFavoriteService::new();
         let service = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(&storage))),
+            Arc::new(Box::new(DefaultWatchedService::new(resource_path))),
             vec![]);
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
         let movie = Box::new(MovieOverview::new(

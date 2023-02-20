@@ -12,7 +12,7 @@ use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
 
-use popcorn_fx_core::core::config::Application;
+use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -33,14 +33,14 @@ const PAGE_PARAM_KEY: &str = "page";
 const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 
 pub struct OpensubtitlesProvider {
-    settings: Arc<Application>,
+    settings: Arc<ApplicationConfig>,
     client: Client,
     parsers: HashMap<SubtitleType, Box<dyn Parser>>,
 }
 
 impl OpensubtitlesProvider {
     /// Create a new OpenSubtitles service instance.
-    pub fn new(settings: &Arc<Application>) -> Self {
+    pub fn new(settings: &Arc<ApplicationConfig>) -> Self {
         let mut default_headers = HeaderMap::new();
         let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
         let vtt_parser: Box<dyn Parser> = Box::new(VttParser::default());
@@ -512,6 +512,7 @@ mod test {
     use httpmock::MockServer;
 
     use popcorn_fx_core::core::config::*;
+    use popcorn_fx_core::core::storage::Storage;
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::{English, French};
     use popcorn_fx_core::core::subtitles::model::SubtitleType::Vtt;
@@ -519,26 +520,28 @@ mod test {
 
     use super::*;
 
-    fn start_mock_server() -> (MockServer, Arc<Application>) {
+    fn start_mock_server() -> (MockServer, Arc<ApplicationConfig>) {
         let server = MockServer::start();
         let temp_dir = tempfile::tempdir().unwrap();
-        let settings = Arc::new(Application::new(
-            PopcornProperties::new(SubtitleProperties::new(
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties::new(SubtitleProperties::new(
                 server.url(""),
                 String::new(),
                 String::new())),
-            PopcornSettings::new(
-                SubtitleSettings::new(
-                    temp_dir.into_path().to_str().unwrap().to_string(),
-                    false,
-                    English,
-                    SubtitleFamily::Arial,
-                ),
-                UiSettings::default(),
-                ServerSettings::default(),
-                TorrentSettings::default(),
-            ),
-        ));
+            settings: PopcornSettings {
+                subtitle_settings: SubtitleSettings {
+                    directory: temp_dir.into_path().to_str().unwrap().to_string(),
+                    auto_cleaning_enabled: false,
+                    default_subtitle: English,
+                    font_family: SubtitleFamily::Arial,
+                },
+                ui_settings: UiSettings::default(),
+                server_settings: ServerSettings::default(),
+                torrent_settings: TorrentSettings::default(),
+            },
+        });
 
         (server, settings)
     }
@@ -546,7 +549,9 @@ mod test {
     #[tokio::test]
     async fn test_movie_subtitles() {
         init_logger();
-        let settings = Arc::new(Application::default());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
         let imdb_id = "tt1156398".to_string();
         let movie = MovieDetails::new(
             "lorem".to_string(),
@@ -733,21 +738,31 @@ mod test {
         init_logger();
         let test_file = "subtitle_existing.srt";
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.into_path().to_str().unwrap().to_string();
-        let popcorn_settings = PopcornSettings::new(SubtitleSettings::new(
-            temp_path.clone(),
-            false,
-            English,
-            SubtitleFamily::Arial,
-        ), UiSettings::new(
-            "en".to_string(),
-            UiScale::new(1f32).expect("Expected ui scale to be valid"),
-            StartScreen::Movies,
-            false,
-            false,
-        ), ServerSettings::default(), TorrentSettings::default());
-        let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
-        let destination = copy_test_file(temp_path.clone().as_str(), test_file);
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let popcorn_settings = PopcornSettings {
+            subtitle_settings: SubtitleSettings
+            {
+                directory: temp_path.to_string(),
+                auto_cleaning_enabled: false,
+                default_subtitle: English,
+                font_family: SubtitleFamily::Arial,
+            },
+            ui_settings: UiSettings::new(
+                "en".to_string(),
+                UiScale::new(1f32).expect("Expected ui scale to be valid"),
+                StartScreen::Movies,
+                false,
+                false,
+            ),
+            server_settings: ServerSettings::default(),
+            torrent_settings: TorrentSettings::default(),
+        };
+        let settings = Arc::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties::default(),
+            settings: popcorn_settings,
+        });
+        let destination = copy_test_file(temp_path, test_file);
         let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new_with_files(Some("tt00001".to_string()), SubtitleLanguage::German, vec![
             SubtitleFile::new(10001111, "subtitle_existing.srt".to_string(), String::new(), 0.0, 0)
@@ -773,7 +788,8 @@ mod test {
         init_logger();
         let test_file = "subtitle_example.srt";
         let temp_dir = tempfile::tempdir().unwrap();
-        let settings = Arc::new(Application::default());
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
         let service = OpensubtitlesProvider::new(&settings);
         let destination = copy_test_file(temp_dir.into_path().to_str().unwrap(), test_file);
         let expected_result = Subtitle::new(
@@ -793,13 +809,24 @@ mod test {
     fn test_select_or_default_select_for_default_subtitle_language() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
-        let popcorn_settings = PopcornSettings::new(SubtitleSettings::new(
-            temp_dir.into_path().into_os_string().into_string().unwrap(),
-            false,
-            English,
-            SubtitleFamily::Arial,
-        ), UiSettings::default(), ServerSettings::default(), TorrentSettings::default());
-        let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let popcorn_settings = PopcornSettings {
+            subtitle_settings: SubtitleSettings
+            {
+                directory: temp_path.to_string(),
+                auto_cleaning_enabled: false,
+                default_subtitle: English,
+                font_family: SubtitleFamily::Arial,
+            },
+            ui_settings: UiSettings::default(),
+            server_settings: ServerSettings::default(),
+            torrent_settings: TorrentSettings::default(),
+        };
+        let settings = Arc::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties::default(),
+            settings: popcorn_settings,
+        });
         let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new("lorem".to_string(), English);
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
@@ -813,19 +840,30 @@ mod test {
     fn test_select_or_default_select_for_interface_language() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
-        let popcorn_settings = PopcornSettings::new(SubtitleSettings::new(
-            temp_dir.into_path().into_os_string().into_string().unwrap(),
-            false,
-            SubtitleLanguage::Croatian,
-            SubtitleFamily::Arial,
-        ), UiSettings::new(
-            "fr".to_string(),
-            UiScale::new(1f32).expect("Expected ui scale to be valid"),
-            StartScreen::Movies,
-            false,
-            false,
-        ), ServerSettings::default(), TorrentSettings::default());
-        let settings = Arc::new(Application::new(PopcornProperties::default(), popcorn_settings));
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let popcorn_settings = PopcornSettings {
+            subtitle_settings: SubtitleSettings {
+                directory: temp_path.to_string(),
+                auto_cleaning_enabled: false,
+                default_subtitle: SubtitleLanguage::Croatian,
+                font_family:
+                SubtitleFamily::Arial,
+            },
+            ui_settings: UiSettings::new(
+                "fr".to_string(),
+                UiScale::new(1f32).expect("Expected ui scale to be valid"),
+                StartScreen::Movies,
+                false,
+                false,
+            ),
+            server_settings: ServerSettings::default(),
+            torrent_settings: TorrentSettings::default(),
+        };
+        let settings = Arc::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties::default(),
+            settings: popcorn_settings,
+        });
         let service = OpensubtitlesProvider::new(&settings);
         let subtitle_info = SubtitleInfo::new("ipsum".to_string(), French);
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
@@ -897,7 +935,9 @@ mod test {
             None,
             String::new(),
         );
-        let settings = Arc::new(Application::default());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
         let service = OpensubtitlesProvider::new(&settings);
         let expected_result = read_test_file("example-conversion.vtt")
             .replace("\r\n", "\n");

@@ -111,7 +111,7 @@ impl TorrentCollection {
                         debug!("Creating new torrent collection file {}", file);
                         Ok(Collection::default())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load torrent collection, {}", error);
                         Err(TorrentError::TorrentCollectionLoadingFailed(error))
                     }
@@ -129,7 +129,7 @@ impl TorrentCollection {
     }
 
     async fn save_async(&self, collection: &Collection) {
-        match self.storage.write(FILENAME, &collection).await {
+        match self.storage.write_async(FILENAME, &collection).await {
             Ok(_) => info!("Torrent collection data has been saved"),
             Err(e) => error!("Failed to save torrent collection, {}", e)
         }
@@ -151,7 +151,7 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let collection = TorrentCollection::new(temp_path);
-        copy_test_file(temp_path, "torrent-collection.json");
+        copy_test_file(temp_path, "torrent-collection.json", None);
 
         let result = collection.is_stored(magnet_uri);
 
@@ -187,7 +187,7 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let collection = TorrentCollection::new(temp_path);
-        copy_test_file(temp_path, "torrent-collection.json");
+        copy_test_file(temp_path, "torrent-collection.json", None);
         let expected_result = vec![
             MagnetInfo {
                 name: "MyMagnet2".to_string(),

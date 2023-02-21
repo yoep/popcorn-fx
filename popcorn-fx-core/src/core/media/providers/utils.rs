@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use log::error;
 
 use crate::core::config::ApplicationConfig;
 
 /// Retrieve the available uri's from the settings for the given provider name.
-pub fn available_uris(settings: &Arc<ApplicationConfig>, provider_name: &str) -> Vec<String> {
+pub fn available_uris(settings: &ApplicationConfig, provider_name: &str) -> Vec<String> {
     let api_server = settings.user_settings().server().api_server();
     let mut uris: Vec<String> = vec![];
 
@@ -44,7 +42,7 @@ mod test {
         let provider_name = "my-provider".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig {
+        let settings = ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties::new_with_providers(
                 SubtitleProperties::default(),
@@ -61,7 +59,8 @@ mod test {
                 server_settings: ServerSettings::new(api_server.clone()),
                 torrent_settings: TorrentSettings::default(),
             },
-        });
+            callbacks: Default::default(),
+        };
         let expected_result = vec![
             api_server,
             provider,
@@ -78,7 +77,7 @@ mod test {
         let api_server = "https://www.google.com".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig {
+        let settings = ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties::new_with_providers(SubtitleProperties::default(),
                                                               HashMap::new()),
@@ -88,7 +87,8 @@ mod test {
                 server_settings: ServerSettings::new(api_server.clone()),
                 torrent_settings: TorrentSettings::default(),
             },
-        });
+            callbacks: Default::default(),
+        };
         let expected_result = vec![
             api_server,
         ];

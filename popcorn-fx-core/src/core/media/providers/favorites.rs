@@ -251,7 +251,7 @@ mod test {
         let imdb_id = "tt1156398";
         let resource_directory = test_resource_directory();
         let resource_path = resource_directory.to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::new_auto(resource_path));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(resource_path)));
         let mut favorites = MockFavoriteService::new();
         favorites.expect_find_id()
             .returning(|_id: &str| -> Option<Box<dyn MediaOverview>> {

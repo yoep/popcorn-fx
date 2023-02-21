@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -7,7 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::io::AsyncWriteExt;
 
-use crate::core::storage;
+use crate::core::{block_in_place, storage};
 use crate::core::storage::StorageError;
 
 /// The storage is responsible for storing & retrieving files from the file system.
@@ -39,7 +40,7 @@ impl Storage {
                     }
                     Err(e) => {
                         debug!("Application file {} is invalid, {}", filename, &e);
-                        Err(StorageError::CorruptRead(filename.to_string(), e.to_string()))
+                        Err(StorageError::ReadingFailed(filename.to_string(), e.to_string()))
                     }
                 }
             }
@@ -50,10 +51,20 @@ impl Storage {
         }
     }
 
-    /// Write the value to the given storage filename.
+    /// Write the given value to the storage.
+    /// It will be stored under the storage with the given `filename`.
     ///
-    /// It returns an error when the file failed to be written.
-    pub async fn write<T: Serialize>(&self, filename: &str, value: &T) -> storage::Result<()> {
+    /// This method will block the current thread until it completes.
+    /// Use [Storage::write_async] instead if you don't want to block the current thread.
+    pub fn write<T: Serialize + Debug>(&self, filename: &str, value: &T) -> storage::Result<()> {
+        block_in_place(async {
+            self.write_async(filename, value).await
+        })
+    }
+
+    /// Write the given value to the storage.
+    /// It will be stored under the storage with the given `filename`.
+    pub async fn write_async<T: Serialize + Debug>(&self, filename: &str, value: &T) -> storage::Result<()> {
         let path = self.directory.clone()
             .join(filename);
         let path_string = path.to_str().expect("expected path to be valid").to_string();
@@ -72,8 +83,8 @@ impl Storage {
         }
     }
 
-    async fn write_to<T: Serialize>(file: &mut tokio::fs::File, value: &T, path_string: &String) -> storage::Result<()> {
-        trace!("Serializing the data to write");
+    async fn write_to<T: Serialize + Debug>(file: &mut tokio::fs::File, value: &T, path_string: &String) -> storage::Result<()> {
+        trace!("Serializing storage data {:?}", value);
         match serde_json::to_string(value) {
             Ok(e) => {
                 trace!("Writing to storage {:?}, {}", &path_string, &e);
@@ -85,7 +96,7 @@ impl Storage {
                     Err(e) => Err(StorageError::WritingFailed(path_string.clone(), e.to_string()))
                 }
             }
-            Err(e) => Err(StorageError::CorruptWrite(e.to_string()))
+            Err(e) => Err(StorageError::WritingFailed(path_string.clone(), e.to_string()))
         }
     }
 }
@@ -108,7 +119,7 @@ impl From<&PathBuf> for Storage {
 
 #[cfg(test)]
 mod test {
-    use crate::core::config::{PopcornSettings, UiSettings};
+    use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
     use crate::testing::{init_logger, read_temp_dir_file, test_resource_directory};
 
     use super::*;
@@ -137,8 +148,8 @@ mod test {
         assert!(result.is_ok(), "Expected the storage reading to have succeeded")
     }
 
-    #[tokio::test]
-    async fn test_write() {
+    #[test]
+    fn test_write() {
         init_logger();
         let filename = "test";
         let temp_dir = tempfile::tempdir().unwrap();
@@ -149,10 +160,46 @@ mod test {
         let settings = UiSettings::default();
         let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
 
-        let result = storage.write(filename.clone(), &settings).await;
+        let result = storage.write(filename.clone(), &settings);
         assert!(result.is_ok(), "expected no error to have occurred");
         let contents = read_temp_dir_file(temp_path, filename);
 
         assert_eq!(expected_result, contents)
+    }
+
+    #[tokio::test]
+    async fn test_write_async() {
+        init_logger();
+        let filename = "test";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.into_path();
+        let storage = Storage {
+            directory: temp_path.clone(),
+        };
+        let settings = UiSettings::default();
+        let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
+
+        let result = storage.write_async(filename.clone(), &settings).await;
+        assert!(result.is_ok(), "expected no error to have occurred");
+        let contents = read_temp_dir_file(temp_path, filename);
+
+        assert_eq!(expected_result, contents)
+    }
+
+    #[test]
+    fn test_write_invalid_storage() {
+        init_logger();
+        let storage = Storage {
+            directory: PathBuf::from("/invalid/file/path"),
+        };
+        let settings = SubtitleSettings::default();
+
+        let result = storage.write("my-random-filename.txt", &settings);
+
+        assert_eq!(true, result.is_err(), "expected an error to be returned");
+        match result.err().unwrap() {
+            StorageError::WritingFailed(_, _) => {}
+            _ => assert!(false, "expected StorageError::WritingFailed to be returned")
+        }
     }
 }

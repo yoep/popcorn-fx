@@ -8,22 +8,12 @@ use crate::core::media::providers::MediaProvider;
 
 /// Manages available [MediaProvider]'s that can be used to retrieve [Media] items.
 /// Multiple providers for the same [Category] can be registered to overrule an existing one.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ProviderManager {
     providers: Vec<Arc<Box<dyn MediaProvider>>>,
 }
 
 impl ProviderManager {
-    /// Create a new manager for [MediaProvider]'s which is empty.
-    /// This manager won't support anything out-of-the-box.
-    ///
-    /// If you want to create an instance with providers, use [ProviderManager::with_providers] instead.
-    pub fn new() -> Self {
-        Self {
-            providers: vec![]
-        }
-    }
-
     /// Create a new manager which the given [MediaProvider]'s.
     /// The [Arc] reference counter is owned by this manager.
     pub fn with_providers(providers: Vec<Arc<Box<dyn MediaProvider>>>) -> Self {
@@ -63,7 +53,7 @@ impl ProviderManager {
         match self.provider(category) {
             None => {
                 warn!("Unable to reset api, category {} is not supported", category)
-            },
+            }
             Some(provider) => {
                 provider.reset_api()
             }
@@ -87,6 +77,8 @@ impl ProviderManager {
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
+
+    use tokio::sync::Mutex;
 
     use crate::core::config::ApplicationConfig;
     use crate::core::media::providers::ShowProvider;
@@ -112,7 +104,7 @@ mod test {
     fn test_get_supported_category() {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
         let manager = ProviderManager::with_providers(vec![Arc::new(provider)]);
 
@@ -123,8 +115,8 @@ mod test {
 
     #[test]
     fn test_get_not_supported_category() {
-        let manager = ProviderManager::new();
-
+        let manager = ProviderManager::default();
+        
         let result = manager.provider(&Category::MOVIES);
 
         assert!(result.is_none(), "Expected no supported provider to have been found")

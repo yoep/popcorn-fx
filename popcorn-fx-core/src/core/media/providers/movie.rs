@@ -23,8 +23,9 @@ pub struct MovieProvider {
 }
 
 impl MovieProvider {
-    pub fn new(settings: &Arc<ApplicationConfig>) -> Self {
-        let uris = available_uris(settings, PROVIDER_NAME);
+    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>) -> Self {
+        let mutex = settings.blocking_lock();
+        let uris = available_uris(&mutex, PROVIDER_NAME);
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris))),
@@ -97,6 +98,7 @@ mod test {
 
     use httpmock::Method::GET;
     use httpmock::MockServer;
+    use tokio::runtime;
 
     use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
     use crate::core::media::{Images, MediaIdentifier, Rating};
@@ -105,21 +107,22 @@ mod test {
 
     use super::*;
 
-    fn start_mock_server() -> (MockServer, Arc<ApplicationConfig>) {
+    fn start_mock_server() -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
         let server = MockServer::start();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig {
+        let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties::new_with_providers(SubtitleProperties::default(), create_providers(&server)),
             settings: PopcornSettings::default(),
-        });
+            callbacks: Default::default(),
+        }));
 
         (server, settings)
     }
 
-    #[tokio::test]
-    async fn test_retrieve() {
+    #[test]
+    fn test_retrieve() {
         init_logger();
         let (server, settings) = start_mock_server();
         let genre = Genre::all();
@@ -153,9 +156,9 @@ mod test {
                 .header("content-type", "application/json")
                 .body(read_test_file("movie-search.json"));
         });
+        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = provider.retrieve(&genre, &sort_by, &String::new(), 1)
-            .await
+        let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &String::new(), 1))
             .expect("expected media items to have been returned");
 
         assert!(result.len() > 0, "Expected at least one item to have been found");
@@ -164,17 +167,17 @@ mod test {
         assert_eq!(expected_result.title(), movie_result.title());
     }
 
-    #[tokio::test]
-    async fn test_retrieve_details() {
+    #[test]
+    fn test_retrieve_details() {
         init_logger();
         let imdb_id = "tt14138650".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let provider = MovieProvider::new(&settings);
+        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = provider.retrieve_details(&imdb_id)
-            .await
+        let result = runtime.block_on(provider.retrieve_details(&imdb_id))
             .expect("expected the details to have been returned")
             .into_any()
             .downcast::<MovieDetails>()

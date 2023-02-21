@@ -1,6 +1,7 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::sync::Arc;
 
+use derive_more::Display;
 use log::{debug, error, info, trace, warn};
 use mockall::automock;
 use tokio::runtime::Handle;
@@ -16,21 +17,14 @@ const FILENAME: &str = "favorites.json";
 /// The callback to listen on events of the favorite service.
 pub type FavoriteCallback = CoreCallback<FavoriteEvent>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum FavoriteEvent {
     /// Invoked when a media item's liked state has changed.
     ///
     /// - The IMDB ID of the media item for which the state changed.
     /// - The new state.
+    #[display(fmt = "Like state changed of {} to {}", _0, _1)]
     LikedStateChanged(String, bool)
-}
-
-impl Display for FavoriteEvent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FavoriteEvent::LikedStateChanged(id, new_state) => write!(f, "Like state changed of {} to {}", id, new_state),
-        }
-    }
 }
 
 #[automock]
@@ -89,7 +83,7 @@ impl DefaultFavoriteService {
     }
 
     async fn save_async(&self, favorites: &Favorites) {
-        match self.storage.write(FILENAME, &favorites).await {
+        match self.storage.write_async(FILENAME, &favorites).await {
             Ok(_) => info!("Favorites have been saved"),
             Err(e) => error!("Failed to save favorites, {}", e)
         }
@@ -123,7 +117,7 @@ impl DefaultFavoriteService {
                         debug!("Creating new favorites file {}", file);
                         Ok(Favorites::default())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load favorites, {}", error);
                         Err(MediaError::FavoritesLoadingFailed(error))
                     }

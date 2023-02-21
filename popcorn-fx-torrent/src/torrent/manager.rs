@@ -1,9 +1,7 @@
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::torrent;
 use popcorn_fx_core::core::torrent::{TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState};
 
@@ -13,7 +11,7 @@ pub struct RTTorrentManager {
 }
 
 impl RTTorrentManager {
-    pub fn new(settings: &Arc<ApplicationConfig>) -> Self {
+    pub fn new() -> Self {
         // let wrapper = TorrentManagerInner::new(settings);
         Self {
             // internal: Arc::new(wrapper),

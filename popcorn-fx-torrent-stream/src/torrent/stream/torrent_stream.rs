@@ -627,7 +627,7 @@ mod test {
             });
         mock.expect_state()
             .return_const(TorrentState::Downloading);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock));
 
         let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -653,7 +653,7 @@ mod test {
         mock.expect_has_bytes()
             .return_const(true);
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
         let bytes = read_test_file(filename).as_bytes().len();
         let expected_result = format!("bytes 0-{}/{}", bytes - 1, bytes);
@@ -675,7 +675,7 @@ mod test {
         mock.expect_has_bytes()
             .return_const(true);
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let stream = DefaultTorrentStreamingResource::new_offset(
             &torrent,
             1,
@@ -709,7 +709,7 @@ mod test {
             .times(1)
             .return_const(());
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file(filename);
         let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
 
@@ -742,7 +742,7 @@ mod test {
         mock.expect_prioritize_bytes()
             .return_const(());
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file(filename);
         let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
 
@@ -845,7 +845,7 @@ mod test {
             .returning(|_| {});
         mock.expect_state()
             .return_const(TorrentState::Downloading);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock));
 
         torrent_stream.stop_stream();

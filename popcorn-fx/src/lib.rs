@@ -878,6 +878,13 @@ pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_u
     popcorn_fx.torrent_collection().remove(magnet_uri.as_str());
 }
 
+/// Reload the settings of the application.
+#[no_mangle]
+pub extern "C" fn reload_settings(popcorn_fx: &mut PopcornFX) {
+    trace!("Reloading the popcorn fx settings");
+    popcorn_fx.reload_settings()
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -918,10 +925,8 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
 
 /// Delete the PopcornFX instance in a safe way.
 #[no_mangle]
-pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
-    info!("Disposing Popcorn FX");
-    popcorn_fx.dispose();
-    drop(popcorn_fx)
+pub extern "C" fn dispose_popcorn_fx(_: Box<PopcornFX>) {
+    info!("Disposing Popcorn FX instance");
 }
 
 #[cfg(test)]
@@ -1114,7 +1119,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxOpts {
             app_directory: PathBuf::from(temp_dir.path()),
         });
-        copy_test_file(temp_path, "torrent-collection.json");
+        copy_test_file(temp_path, "torrent-collection.json", None);
 
         let result = torrent_collection_is_stored(&mut instance, into_c_string(magnet_uri.to_string()));
 
@@ -1128,7 +1133,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxOpts {
             app_directory: PathBuf::from(temp_dir.path()),
         });
-        copy_test_file(temp_path, "torrent-collection.json");
+        copy_test_file(temp_path, "torrent-collection.json", None);
 
         let result = from_c_owned(torrent_collection_all(&mut instance));
 

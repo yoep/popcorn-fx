@@ -23,8 +23,9 @@ pub struct ShowProvider {
 }
 
 impl ShowProvider {
-    pub fn new(settings: &Arc<ApplicationConfig>) -> Self {
-        let uris = available_uris(settings, PROVIDER_NAME);
+    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>) -> Self {
+        let mutex = settings.blocking_lock();
+        let uris = available_uris(&mutex, PROVIDER_NAME);
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris))),
@@ -93,39 +94,41 @@ impl MediaProvider for ShowProvider {
 
 #[cfg(test)]
 mod test {
+    use tokio::runtime;
+
     use crate::core::media::MediaIdentifier;
     use crate::testing::init_logger;
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_retrieve() {
+    #[test]
+    fn test_retrieve() {
         init_logger();
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let provider = ShowProvider::new(&settings);
+        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = provider.retrieve(&genre, &sort_by, &String::new(), 1)
-            .await
+        let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &String::new(), 1))
             .expect("expected no error to have occurred");
 
         assert!(result.len() > 0, "Expected media items to have been found")
     }
 
-    #[tokio::test]
-    async fn test_retrieve_details() {
+    #[test]
+    fn test_retrieve_details() {
         init_logger();
         let imdb_id = "tt2861424".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::new_auto(temp_path));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let provider = ShowProvider::new(&settings);
+        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = provider.retrieve_details(&imdb_id)
-            .await
+        let result = runtime.block_on(provider.retrieve_details(&imdb_id))
             .expect("expected the details to have been returned")
             .into_any()
             .downcast::<ShowDetails>()

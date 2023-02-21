@@ -126,7 +126,7 @@ impl DefaultWatchedService {
                         debug!("Creating new watched file {}", file);
                         Ok(Watched::empty())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load watched items, {}", error);
                         Err(MediaError::WatchedLoadingFailed(error))
                     }
@@ -144,7 +144,7 @@ impl DefaultWatchedService {
     }
 
     async fn save_async(&self, watchable: &Watched) {
-        match self.storage.write(FILENAME, &watchable).await {
+        match self.storage.write_async(FILENAME, &watchable).await {
             Ok(_) => info!("Watched items have been saved"),
             Err(e) => error!("Failed to save watched items, {}", e)
         }
@@ -311,7 +311,7 @@ mod test {
             imdb_id,
             String::new(),
         );
-        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
         let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
@@ -330,7 +330,7 @@ mod test {
             imdb_id,
             String::new(),
         );
-        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
         let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
@@ -366,7 +366,7 @@ mod test {
             "tt541345",
             "tt3915174",
         ];
-        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
         let result = service.all()
             .expect("expected the watched ids to have been returned");

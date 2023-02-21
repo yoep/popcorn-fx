@@ -76,7 +76,7 @@ impl DefaultAutoResumeService {
                         debug!("Creating new auto-resume file {}", file);
                         Ok(AutoResume::default())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load auto-resume, {}", error);
                         Err(MediaError::AutoResumeLoadingFailed(error))
                     }
@@ -94,7 +94,7 @@ impl DefaultAutoResumeService {
     }
 
     async fn save_async(&self, resume: &AutoResume) {
-        match self.storage.write(FILENAME, &resume).await {
+        match self.storage.write_async(FILENAME, &resume).await {
             Ok(_) => info!("Auto-resume data has been saved"),
             Err(e) => error!("Failed to save auto-resume, {}", e)
         }
@@ -212,7 +212,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultAutoResumeService::new(temp_path);
-        copy_test_file(temp_path, "auto-resume.json");
+        copy_test_file(temp_path, "auto-resume.json", None);
 
         let result = service.resume_timestamp(None, Some(filename));
 
@@ -242,7 +242,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultAutoResumeService::new(temp_path);
-        copy_test_file(temp_path, "auto-resume.json");
+        copy_test_file(temp_path, "auto-resume.json", None);
 
         let result = service.resume_timestamp(Some(id), None);
 
@@ -317,7 +317,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultAutoResumeService::new(temp_path);
-        copy_test_file(temp_path, "auto-resume.json");
+        copy_test_file(temp_path, "auto-resume.json", None);
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),
             "tt11223344".to_string(),

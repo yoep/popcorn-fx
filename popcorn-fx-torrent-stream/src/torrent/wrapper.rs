@@ -100,7 +100,6 @@ impl Torrent for TorrentWrapper {
     fn prioritize_bytes(&self, bytes: &[u64]) {
         tokio::task::block_in_place(move || {
             let mutex = self.prioritize_bytes.blocking_lock();
-            ;
             mutex(bytes)
         })
     }

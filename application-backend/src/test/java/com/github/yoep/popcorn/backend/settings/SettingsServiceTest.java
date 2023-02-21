@@ -32,7 +32,7 @@ class SettingsServiceTest {
     @Mock
     private LocaleText localeText;
     @InjectMocks
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
 
     @Nested
     class UiScaleTest {
@@ -44,8 +44,8 @@ class SettingsServiceTest {
                             .uiScale(currentScale)
                             .build())
                     .build();
-            var expectedScale = SettingsService.supportedUIScales().get(SettingsService.supportedUIScales().indexOf(currentScale) + 1);
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
+            var expectedScale = ApplicationConfig.supportedUIScales().get(ApplicationConfig.supportedUIScales().indexOf(currentScale) + 1);
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
             when(optionsService.options()).thenReturn(ApplicationOptions.builder().build());
 
             settingsService.init();
@@ -57,13 +57,13 @@ class SettingsServiceTest {
 
         @Test
         void testIncreaseUIScale_whenUiScaleIsAtMaximum_shouldNotIncreaseUiScale() {
-            var currentScale = SettingsService.supportedUIScales().get(SettingsService.supportedUIScales().size() - 1);
+            var currentScale = ApplicationConfig.supportedUIScales().get(ApplicationConfig.supportedUIScales().size() - 1);
             var settings = ApplicationSettings.builder()
                     .uiSettings(UISettings.builder()
                             .uiScale(currentScale)
                             .build())
                     .build();
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
             when(optionsService.options()).thenReturn(ApplicationOptions.builder().build());
 
             settingsService.init();
@@ -81,8 +81,8 @@ class SettingsServiceTest {
                             .uiScale(currentScale)
                             .build())
                     .build();
-            var expectedScale = SettingsService.supportedUIScales().get(SettingsService.supportedUIScales().indexOf(currentScale) - 1);
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
+            var expectedScale = ApplicationConfig.supportedUIScales().get(ApplicationConfig.supportedUIScales().indexOf(currentScale) - 1);
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
             when(optionsService.options()).thenReturn(ApplicationOptions.builder().build());
 
             settingsService.init();
@@ -94,13 +94,13 @@ class SettingsServiceTest {
 
         @Test
         void testDecreaseUIScale_whenUiScaleIsAtMinimum_shouldNotDecreaseUiScale() {
-            var currentScale = SettingsService.supportedUIScales().get(0);
+            var currentScale = ApplicationConfig.supportedUIScales().get(0);
             var settings = ApplicationSettings.builder()
                     .uiSettings(UISettings.builder()
                             .uiScale(currentScale)
                             .build())
                     .build();
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
             when(optionsService.options()).thenReturn(ApplicationOptions.builder().build());
 
             settingsService.init();
@@ -122,14 +122,14 @@ class SettingsServiceTest {
                             .defaultLanguage(updatedLanguage)
                             .build())
                     .build();
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
             when(optionsService.options()).thenReturn(ApplicationOptions.builder().build());
 
             settingsService.init();
             settingsService.getSettings().getUiSettings().setDefaultLanguage(updatedLanguage);
             settingsService.save();
 
-            verify(storageService).store(SettingsService.STORAGE_NAME, expectedSettings);
+            verify(storageService).store(ApplicationConfig.STORAGE_NAME, expectedSettings);
         }
 
         @Test
@@ -140,22 +140,22 @@ class SettingsServiceTest {
                             .uiScale(new UIScale(2f))
                             .build())
                     .build();
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
             when(optionsService.options()).thenReturn(ApplicationOptions.builder().build());
 
             settingsService.init();
             settingsService.save(newSettings);
 
-            verify(storageService).store(SettingsService.STORAGE_NAME, newSettings);
+            verify(storageService).store(ApplicationConfig.STORAGE_NAME, newSettings);
         }
     }
 
     @Nested
-    class InitTest{
+    class InitTest {
         @Test
         void testInit_whenStorageIsEmpty_shouldCreateNewSettings() {
             var expectedResult = ApplicationSettings.builder().build();
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.empty());
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.empty());
             when(optionsService.options()).thenReturn(ApplicationOptions.builder().build());
 
             settingsService.init();
@@ -172,9 +172,9 @@ class SettingsServiceTest {
                             .uiScale(new UIScale(initialScale))
                             .build())
                     .build();
-            when(storageService.read(SettingsService.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
+            when(storageService.read(ApplicationConfig.STORAGE_NAME, ApplicationSettings.class)).thenReturn(Optional.of(settings));
             when(optionsService.options()).thenReturn(ApplicationOptions.builder()
-                            .bigPictureMode(true)
+                    .bigPictureMode(true)
                     .build());
 
             settingsService.init();

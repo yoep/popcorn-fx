@@ -186,6 +186,11 @@ impl PopcornProperties {
             .ok_or(ConfigError::UnknownProvider(name))
     }
 
+    /// Retrieve the default provider properties.
+    pub fn default_providers() -> HashMap<String, ProviderProperties> {
+        DEFAULT_PROVIDERS()
+    }
+
     fn find_existing_file(filename: &str) -> Option<File> {
         let mut result: Option<File> = None;
 
@@ -307,9 +312,9 @@ mod test {
     fn test_from_filename_when_not_found_should_return_defaults() {
         init_logger();
         let expected_result = PopcornProperties {
-            version: String::new(),
-            update_channel: String::new(),
-            providers: Default::default(),
+            version: "0.5.0".to_string(),
+            update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
+            providers: PopcornProperties::default_providers(),
             subtitle: SubtitleProperties {
                 url: String::from("https://api.opensubtitles.com/api/v1"),
                 user_agent: String::from("Popcorn Time v1"),
@@ -332,9 +337,9 @@ popcorn:
     user-agent: lorem
     api-token: ipsum";
         let expected_result = PopcornProperties {
-            version: String::new(),
-            update_channel: String::new(),
-            providers: Default::default(),
+            version: "0.5.0".to_string(),
+            update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
+            providers: PopcornProperties::default_providers(),
             subtitle: SubtitleProperties {
                 url: String::from("http://my-url"),
                 user_agent: "lorem".to_string(),
@@ -355,9 +360,9 @@ popcorn:
   subtitle:
     user-agent: lorem"#;
         let expected_result = PopcornProperties {
-            version: String::new(),
-            update_channel: String::new(),
-            providers: Default::default(),
+            version: "0.5.0".to_string(),
+            update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
+            providers: PopcornProperties::default_providers(),
             subtitle: SubtitleProperties {
                 url: String::from("https://api.opensubtitles.com/api/v1"),
                 user_agent: String::from("lorem"),

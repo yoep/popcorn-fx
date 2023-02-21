@@ -10,7 +10,7 @@ import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.player.PlayerEventService;
 import javafx.beans.property.ReadOnlyLongProperty;
@@ -47,7 +47,7 @@ public class PlayNextService {
     private final ApplicationEventPublisher eventPublisher;
     private final PlayerEventService playerEventService;
     private final PlayerManagerService playerManagerService;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
 
     private final ReadOnlyObjectWrapper<NextEpisode> nextEpisode = new ReadOnlyObjectWrapper<>(this, NEXT_EPISODE_PROPERTY);
     private final ReadOnlyLongWrapper playingIn = new ReadOnlyLongWrapper(this, PLAYING_IN_PROPERTY, COUNTDOWN_FROM);

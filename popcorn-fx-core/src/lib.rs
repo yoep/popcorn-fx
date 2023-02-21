@@ -6,6 +6,7 @@ use log::error;
 
 pub use crate::event_c::*;
 pub use crate::media_c::*;
+pub use crate::properties_c::*;
 pub use crate::subtitle_c::*;
 pub use crate::torrent_collection_c::*;
 
@@ -13,6 +14,7 @@ pub mod core;
 
 mod event_c;
 mod media_c;
+mod properties_c;
 mod subtitle_c;
 mod torrent_collection_c;
 

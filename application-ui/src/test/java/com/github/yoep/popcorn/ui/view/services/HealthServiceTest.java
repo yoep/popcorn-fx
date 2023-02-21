@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +21,7 @@ class HealthServiceTest {
     @Mock
     private TorrentService torrentService;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private ApplicationSettings settings;
     @Mock

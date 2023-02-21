@@ -21,7 +21,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -57,7 +57,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     private final TorrentService torrentService;
     private final TorrentStreamService torrentStreamService;
     private final ApplicationEventPublisher eventPublisher;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
     private final SubtitleService subtitleService;
 
     private final ChangeListener<SessionState> torrentSessionListener = createSessionListener();

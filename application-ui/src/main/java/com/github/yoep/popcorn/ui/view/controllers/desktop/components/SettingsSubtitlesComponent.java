@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
@@ -25,7 +25,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class SettingsSubtitlesComponent implements Initializable {
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
     private final LocaleText localeText;
 
     private final DirectoryChooser cacheChooser = new DirectoryChooser();

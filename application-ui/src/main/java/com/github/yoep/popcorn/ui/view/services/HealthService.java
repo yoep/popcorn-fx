@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class HealthService {
     private final TorrentService torrentService;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
 
     private CompletableFuture<TorrentHealth> healthFuture;
 

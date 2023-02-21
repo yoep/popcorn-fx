@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import javafx.beans.InvalidationListener;
@@ -18,7 +18,7 @@ public abstract class AbstractSettingsComponent {
 
     protected final ApplicationEventPublisher eventPublisher;
     protected final LocaleText localeText;
-    protected final SettingsService settingsService;
+    protected final ApplicationConfig settingsService;
 
     private long lastNotification;
 

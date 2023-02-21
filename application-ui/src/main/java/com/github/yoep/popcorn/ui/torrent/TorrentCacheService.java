@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.torrent;
 
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,7 @@ import java.io.IOException;
 @Service
 @RequiredArgsConstructor
 public class TorrentCacheService {
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
 
     //region PreDestroy
 

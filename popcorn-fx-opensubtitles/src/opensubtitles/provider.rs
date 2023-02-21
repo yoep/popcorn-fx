@@ -13,7 +13,6 @@ use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
@@ -46,13 +45,9 @@ impl OpensubtitlesProvider {
         let mut default_headers = HeaderMap::new();
         let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
         let vtt_parser: Box<dyn Parser> = Box::new(VttParser::default());
-        let (api_token, user_agent) = block_in_place(async {
-            let mutex = settings.lock().await;
-            let api_token = mutex.properties().subtitle().api_token().clone();
-            let user_agent = mutex.properties().subtitle().user_agent().clone();
-
-            (api_token, user_agent)
-        });
+        let mutex = settings.blocking_lock();
+        let api_token = mutex.properties().subtitle().api_token().to_string();
+        let user_agent = mutex.properties().subtitle().user_agent().to_string();
 
         default_headers.insert(USER_AGENT_HEADER_KEY, user_agent.parse().unwrap());
         default_headers.insert(API_HEADER_KEY, api_token.parse().unwrap());
@@ -244,7 +239,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn execute_download_request(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, download_response: DownloadResponse) -> Result<String> {
+    async fn execute_download_request(&self, file_id: &i32, path: &Path, download_response: DownloadResponse) -> Result<String> {
         let download_link = download_response.link();
 
         debug!("Downloading subtitle file from {}", download_link);
@@ -279,7 +274,7 @@ impl OpensubtitlesProvider {
         }
     }
 
-    async fn handle_download_response(&self, file_id: &i32, path: &Path, subtitle_info: &SubtitleInfo, response: Response) -> Result<String> {
+    async fn handle_download_response(&self, file_id: &i32, path: &Path, response: Response) -> Result<String> {
         match response.status() {
             StatusCode::OK => {
                 match response.json::<DownloadResponse>()
@@ -287,7 +282,7 @@ impl OpensubtitlesProvider {
                     .map_err(|err| SubtitleError::DownloadFailed(file_id.to_string(), err.to_string()))
                     .map(|download_response| async {
                         trace!("Received download link response {:?}", &download_response);
-                        self.execute_download_request(file_id, path, subtitle_info, download_response).await
+                        self.execute_download_request(file_id, path, download_response).await
                     })
                 {
                     Ok(e) => e.await,
@@ -438,7 +433,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
             .json(&DownloadRequest::new(subtitle_file.file_id().clone()))
             .send()
             .await {
-            Ok(response) => self.handle_download_response(file_id, path, subtitle_info, response).await,
+            Ok(response) => self.handle_download_response(file_id, path, response).await,
             Err(err) => Err(SubtitleError::DownloadFailed(file_id.to_string(), err.to_string()))
         }
     }
@@ -540,10 +535,16 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
-            properties: PopcornProperties::new(SubtitleProperties::new(
-                server.url(""),
-                String::new(),
-                String::new())),
+            properties: PopcornProperties {
+                version: String::new(),
+                update_channel: String::new(),
+                providers: Default::default(),
+                subtitle: SubtitleProperties {
+                    url: server.url(""),
+                    user_agent: String::new(),
+                    api_token: String::new(),
+                },
+            },
             settings: PopcornSettings {
                 subtitle_settings: SubtitleSettings {
                     directory: temp_dir.into_path().to_str().unwrap().to_string(),
@@ -574,7 +575,7 @@ mod test {
             "2021".to_string(),
         );
         let service = OpensubtitlesProvider::new(&settings);
-        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(service.movie_subtitles(movie));
 
@@ -623,7 +624,7 @@ mod test {
             service.movie_subtitles(movie1)
                 .await
                 .expect("Expected the first search to succeed");
-           service.movie_subtitles(movie2)
+            service.movie_subtitles(movie2)
                 .await
         });
 

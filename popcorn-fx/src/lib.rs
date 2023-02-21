@@ -8,7 +8,7 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -878,6 +878,15 @@ pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_u
     popcorn_fx.torrent_collection().remove(magnet_uri.as_str());
 }
 
+/// Retrieve the immutable configuration properties of the application.
+/// These properties stay the same throughout the lifecycle the popcorn FX instance.
+#[no_mangle]
+pub extern "C" fn application_properties(popcorn_fx: &mut PopcornFX) -> *mut PopcornPropertiesC {
+    trace!("Retrieving application configuration");
+    let mutex = popcorn_fx.settings();
+    into_c_owned(PopcornPropertiesC::from(mutex.properties()))
+}
+
 /// Reload the settings of the application.
 #[no_mangle]
 pub extern "C" fn reload_settings(popcorn_fx: &mut PopcornFX) {
@@ -938,6 +947,7 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::core::config::PopcornProperties;
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
@@ -979,8 +989,8 @@ mod test {
     #[test]
     fn test_default_subtitle_options() {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
             app_directory: PathBuf::from(temp_dir.path()),
         });
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
@@ -1117,6 +1127,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
             app_directory: PathBuf::from(temp_dir.path()),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1131,6 +1142,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
             app_directory: PathBuf::from(temp_dir.path()),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1138,6 +1150,20 @@ mod test {
         let result = from_c_owned(torrent_collection_all(&mut instance));
 
         assert_eq!(1, result.len)
+    }
+
+    #[test]
+    fn test_application_properties() {
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let defaults = PopcornProperties::default();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+
+        let result = from_c_owned(application_properties(&mut instance));
+
+        assert_eq!(defaults.update_channel, from_c_string(result.update_channel))
     }
 
     #[test]

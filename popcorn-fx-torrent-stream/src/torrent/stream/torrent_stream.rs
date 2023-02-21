@@ -2,7 +2,6 @@ use std::{fs, thread};
 use std::cmp::{max, min};
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
-use std::future::Future;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -591,7 +590,7 @@ struct Buffer {
 mod test {
     use std::sync::mpsc::channel;
 
-    use futures::{StreamExt, TryStreamExt};
+    use futures::TryStreamExt;
     use tokio::runtime;
 
     use popcorn_fx_core::core::torrent::{MockTorrent, StreamBytes};

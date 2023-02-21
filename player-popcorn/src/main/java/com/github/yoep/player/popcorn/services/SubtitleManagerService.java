@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
@@ -42,7 +42,7 @@ public class SubtitleManagerService {
     private final IntegerProperty subtitleSize = new SimpleIntegerProperty(this, SUBTITLE_SIZE_PROPERTY);
     private final LongProperty subtitleOffset = new SimpleLongProperty(this, SUBTITLE_OFFSET_PROPERTY);
     private final Queue<SubtitleListener> listeners = new ConcurrentLinkedDeque<>();
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
     private final VideoService videoService;
     private final SubtitleService subtitleService;
     private final SubtitlePickerService subtitlePickerService;

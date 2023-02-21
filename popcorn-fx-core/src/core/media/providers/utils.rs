@@ -28,7 +28,7 @@ pub fn available_uris(settings: &ApplicationConfig, provider_name: &str) -> Vec<
 mod test {
     use std::collections::HashMap;
 
-    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings, SubtitleProperties, SubtitleSettings, TorrentSettings, UiSettings};
+    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
     use crate::core::storage::Storage;
     use crate::testing::init_logger;
 
@@ -44,15 +44,19 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = ApplicationConfig {
             storage: Storage::from(temp_path),
-            properties: PopcornProperties::new_with_providers(
-                SubtitleProperties::default(),
-                HashMap::from([(provider_name.clone(),
-                                ProviderProperties::new(
-                                    vec![provider.clone()],
-                                    vec![],
-                                    vec![],
-                                ))
-                ])),
+            properties: PopcornProperties {
+                version: String::new(),
+                update_channel: String::new(),
+                providers: HashMap::from([
+                    (provider_name.clone(),
+                     ProviderProperties {
+                         uris: vec![provider.clone()],
+                         genres: vec![],
+                         sort_by: vec![],
+                     })
+                ]),
+                subtitle: Default::default(),
+            },
             settings: PopcornSettings {
                 subtitle_settings: SubtitleSettings::default(),
                 ui_settings: UiSettings::default(),
@@ -79,8 +83,12 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = ApplicationConfig {
             storage: Storage::from(temp_path),
-            properties: PopcornProperties::new_with_providers(SubtitleProperties::default(),
-                                                              HashMap::new()),
+            properties: PopcornProperties {
+                version: String::new(),
+                update_channel: String::new(),
+                providers: HashMap::new(),
+                subtitle: Default::default(),
+            },
             settings: PopcornSettings {
                 subtitle_settings: SubtitleSettings::default(),
                 ui_settings: UiSettings::default(),

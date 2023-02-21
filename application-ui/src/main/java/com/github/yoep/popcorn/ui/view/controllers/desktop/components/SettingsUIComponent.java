@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.StartScreen;
 import com.github.yoep.popcorn.backend.settings.models.UIScale;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
@@ -26,7 +26,7 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
     @FXML
     CheckBox nativeWindow;
 
-    public SettingsUIComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+    public SettingsUIComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
         super(eventPublisher, localeText, settingsService);
     }
 
@@ -49,7 +49,7 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
 
     private void initializeUIScale() {
         uiScale.getItems().clear();
-        uiScale.getItems().addAll(SettingsService.supportedUIScales());
+        uiScale.getItems().addAll(ApplicationConfig.supportedUIScales());
         uiScale.getSelectionModel().select(getUiSettings().getUiScale());
         uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
     }

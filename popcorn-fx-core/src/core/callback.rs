@@ -28,6 +28,7 @@ pub type CoreCallback<E> = Box<dyn Fn(E) + Send>;
 /// callbacks.add(callback);
 /// callbacks.invoke(CoreEvent::Change);
 /// ```
+#[derive(Clone)]
 pub struct CoreCallbacks<E>
     where E: Display + Clone {
     callbacks: Arc<Mutex<Vec<CoreCallback<E>>>>,

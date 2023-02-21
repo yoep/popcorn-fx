@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import javafx.beans.property.BooleanProperty;
@@ -25,7 +25,7 @@ class MaximizeServiceTest {
     @Mock
     private ViewManager viewManager;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private ApplicationSettings settings;
     @Mock

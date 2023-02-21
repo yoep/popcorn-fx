@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
@@ -40,7 +40,7 @@ class PlayNextServiceTest {
     @Mock
     private PlayerManagerService playerManagerService;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private ApplicationSettings settings;
     @Mock

@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -26,7 +26,7 @@ import java.beans.PropertyChangeEvent;
 public class PopcornPlayerSectionService extends AbstractListenerService<PopcornPlayerSectionListener> {
     private final PopcornPlayer player;
     private final ScreenService screenService;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
     private final SubtitleManagerService subtitleManagerService;
     private final VideoService videoService;
 

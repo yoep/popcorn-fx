@@ -9,7 +9,7 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::Config;
 use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
@@ -41,6 +41,9 @@ const DEFAULT_APP_DIRECTORY: fn() -> PathBuf = || {
 #[derive(Debug, Clone, Display)]
 #[display(fmt = "app_directory: {:?}", app_directory)]
 pub struct PopcornFxOpts {
+    /// Disable the default `log4rs` logger for popcorn FX.
+    /// This allows you to bring your own logger for the instance which should support [log].
+    pub disable_logger: bool,
     /// The directory containing the application files.
     /// This directory is also referred to as the `storage_directory` or `storage_path` within the application.
     pub app_directory: PathBuf,
@@ -49,6 +52,7 @@ pub struct PopcornFxOpts {
 impl Default for PopcornFxOpts {
     fn default() -> Self {
         Self {
+            disable_logger: false,
             app_directory: DEFAULT_APP_DIRECTORY(),
         }
     }
@@ -86,7 +90,10 @@ pub struct PopcornFX {
 
 impl PopcornFX {
     pub fn new(opts: PopcornFxOpts) -> Self {
-        Self::initialize_logger();
+        if !opts.disable_logger {
+            Self::initialize_logger();
+        }
+
         let app_directory_path = opts.app_directory.to_str().expect("expected a valid application directory path");
         let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(app_directory_path)));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
@@ -116,6 +123,11 @@ impl PopcornFX {
             providers,
             opts,
         }
+    }
+
+    /// Retrieve the locked settings of the popcorn FX instance.
+    pub fn settings(&self) -> MutexGuard<ApplicationConfig> {
+        self.settings.blocking_lock()
     }
 
     /// The platform service of the popcorn FX instance.

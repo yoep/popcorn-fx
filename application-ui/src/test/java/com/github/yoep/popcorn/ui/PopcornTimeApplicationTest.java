@@ -4,8 +4,8 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
@@ -32,7 +32,7 @@ class PopcornTimeApplicationTest {
     @Mock
     private ConfigurableApplicationContext applicationContext;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private OptionsService optionsService;
     @Mock
@@ -50,7 +50,7 @@ class PopcornTimeApplicationTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(applicationContext.getBean(SettingsService.class)).thenReturn(settingsService);
+        lenient().when(applicationContext.getBean(ApplicationConfig.class)).thenReturn(settingsService);
         lenient().when(applicationContext.getBean(ViewManager.class)).thenReturn(viewManager);
         lenient().when(applicationContext.getBean(OptionsService.class)).thenReturn(optionsService);
         lenient().when(applicationContext.getBean(PlatformProvider.class)).thenReturn(platformProvider);

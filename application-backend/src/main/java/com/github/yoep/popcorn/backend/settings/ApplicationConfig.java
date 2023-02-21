@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.backend.settings;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +21,7 @@ import static java.util.Arrays.asList;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SettingsService {
+public class ApplicationConfig {
     static final String STORAGE_NAME = "settings.json";
 
     private final StorageService storageService;
@@ -27,9 +29,14 @@ public class SettingsService {
     private final OptionsService optionsService;
     private final LocaleText localeText;
 
+    private ApplicationProperties properties;
     private ApplicationSettings currentSettings;
 
     //region Getters
+
+    public ApplicationProperties getProperties() {
+        return properties;
+    }
 
     /**
      * Get the application settings.
@@ -124,6 +131,9 @@ public class SettingsService {
     void init() {
         initializeSettings();
         initializeDefaultLanguage();
+        try (var properties = FxLib.INSTANCE.application_properties(PopcornFxInstance.INSTANCE.get())) {
+            this.properties = properties;
+        }
     }
 
     private void initializeSettings() {

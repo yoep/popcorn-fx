@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.TraktMessage;
@@ -40,7 +40,7 @@ import static java.util.Arrays.asList;
 public class TraktService {
     private final OAuth2RestOperations traktTemplate;
     private final PopcornProperties properties;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
     private final WatchedService watchedService;
     private final TaskExecutor taskExecutor;
     private final LocaleText localeText;

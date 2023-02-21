@@ -1,25 +1,22 @@
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 
+/// The response model of opensubtitles.com
+/// This is a pagination response of `json` data with a generic `T` type as data.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OpenSubtitlesResponse<T> {
-    total_pages: i32,
-    total_count: i32,
-    page: i32,
-    data: Vec<T>,
+    /// The total pages available for the query
+    pub total_pages: i32,
+    /// The total items available for the query
+    pub total_count: i32,
+    /// The current page index of the query
+    pub page: i32,
+    pub data: Vec<T>,
 }
 
 impl<T> OpenSubtitlesResponse<T> {
     pub fn total_pages(&self) -> &i32 {
         &self.total_pages
-    }
-
-    pub fn total_count(&self) -> &i32 {
-        &self.total_count
-    }
-
-    pub fn page(&self) -> &i32 {
-        &self.page
     }
 
     pub fn data(&self) -> &Vec<T> {

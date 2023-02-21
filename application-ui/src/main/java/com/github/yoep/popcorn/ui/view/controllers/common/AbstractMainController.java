@@ -5,8 +5,8 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
@@ -47,7 +47,7 @@ public abstract class AbstractMainController extends ScaleAwareImpl implements M
     protected final ViewLoader viewLoader;
     protected final ApplicationArguments arguments;
     protected final UrlService urlService;
-    protected final SettingsService settingsService;
+    protected final ApplicationConfig settingsService;
     protected final OptionsService optionsService;
     protected final TaskExecutor taskExecutor;
 

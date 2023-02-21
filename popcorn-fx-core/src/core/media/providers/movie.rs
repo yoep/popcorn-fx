@@ -100,7 +100,7 @@ mod test {
     use httpmock::MockServer;
     use tokio::runtime;
 
-    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
+    use crate::core::config::{PopcornProperties, ProviderProperties};
     use crate::core::media::{Images, MediaIdentifier, Rating};
     use crate::core::storage::Storage;
     use crate::testing::{init_logger, read_test_file};
@@ -113,8 +113,13 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
-            properties: PopcornProperties::new_with_providers(SubtitleProperties::default(), create_providers(&server)),
-            settings: PopcornSettings::default(),
+            properties: PopcornProperties {
+                version: String::new(),
+                update_channel: String::new(),
+                providers: create_providers(&server),
+                subtitle: Default::default(),
+            },
+            settings: Default::default(),
             callbacks: Default::default(),
         }));
 
@@ -188,13 +193,13 @@ mod test {
 
     fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {
         let mut map: HashMap<String, ProviderProperties> = HashMap::new();
-        map.insert(PROVIDER_NAME.to_string(), ProviderProperties::new(
-            vec![
+        map.insert(PROVIDER_NAME.to_string(), ProviderProperties {
+            uris: vec![
                 server.url("")
             ],
-            vec![],
-            vec![],
-        ));
+            genres: vec![],
+            sort_by: vec![],
+        });
         map
     }
 }

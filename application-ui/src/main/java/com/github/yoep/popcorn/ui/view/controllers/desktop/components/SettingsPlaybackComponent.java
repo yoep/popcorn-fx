@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
 import javafx.fxml.FXML;
@@ -27,7 +27,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
 
     //region Constructors
 
-    public SettingsPlaybackComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+    public SettingsPlaybackComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
         super(eventPublisher, localeText, settingsService);
     }
 

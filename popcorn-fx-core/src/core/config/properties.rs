@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Read;
+use std::string::ToString;
 
 use derive_more::Display;
 use log::{debug, trace, warn};
@@ -9,19 +10,20 @@ use serde::Deserialize;
 
 use crate::core::config::{ConfigError, ProviderProperties};
 
+const VERSION: fn() -> String = || "0.5.0".to_string();
 const DEFAULT_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
 const DEFAULT_USER_AGENT: fn() -> String = || "Popcorn Time v1".to_string();
 const DEFAULT_API_TOKEN: fn() -> String = || "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string();
 const DEFAULT_UPDATE_CHANNEL: fn() -> String = || "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string();
 const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
     let mut map: HashMap<String, ProviderProperties> = HashMap::new();
-    map.insert("movies".to_string(), ProviderProperties::new(
-        vec![
+    map.insert("movies".to_string(), ProviderProperties {
+        uris: vec![
             "https://popcorn-time.ga".to_string(),
             "https://movies-v2.api-fetch.am".to_string(),
             "https://movies-v2.api-fetch.website".to_string(),
             "https://movies-v2.api-fetch.sh".to_string()],
-        vec![
+        genres: vec![
             "all".to_string(),
             "action".to_string(),
             "adventure".to_string(),
@@ -45,7 +47,7 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
             "thriller".to_string(),
             "war".to_string(),
             "western".to_string()],
-        vec![
+        sort_by: vec![
             "trending".to_string(),
             "popularity".to_string(),
             "last added".to_string(),
@@ -53,14 +55,14 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
             "title".to_string(),
             "rating".to_string(),
         ],
-    ));
-    map.insert("series".to_string(), ProviderProperties::new(
-        vec![
+    });
+    map.insert("series".to_string(), ProviderProperties {
+        uris: vec![
             "https://popcorn-time.ga".to_string(),
             "https://tv-v2.api-fetch.am".to_string(),
             "https://tv-v2.api-fetch.website".to_string(),
             "https://tv-v2.api-fetch.sh".to_string()],
-        vec![
+        genres: vec![
             "all".to_string(),
             "action".to_string(),
             "adventure".to_string(),
@@ -87,14 +89,29 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
             "thriller".to_string(),
             "western".to_string(),
         ],
-        vec![
+        sort_by: vec![
             "trending".to_string(),
             "popularity".to_string(),
             "updated".to_string(),
             "year".to_string(),
             "name".to_string(),
             "rating".to_string(),
-        ]));
+        ],
+    });
+    map.insert("favorites".to_string(), ProviderProperties {
+        uris: vec![],
+        genres: vec![
+            "all".to_string(),
+            "movies".to_string(),
+            "tv".to_string(),
+        ],
+        sort_by: vec![
+            "watched".to_string(),
+            "year".to_string(),
+            "title".to_string(),
+            "rating".to_string(),
+        ],
+    });
     map
 };
 
@@ -112,46 +129,26 @@ struct PropertiesWrapper {
     pub popcorn: PopcornProperties,
 }
 
+/// The immutable properties of the application.
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
 #[display(fmt = "update_channel: {}, subtitle: {:?}", update_channel, subtitle)]
 pub struct PopcornProperties {
+    /// The version of the application
+    #[serde(skip, default = "VERSION")]
+    pub version: String,
     #[serde(default = "DEFAULT_UPDATE_CHANNEL")]
-    update_channel: String,
+    pub update_channel: String,
     #[serde(default = "DEFAULT_PROVIDERS")]
-    providers: HashMap<String, ProviderProperties>,
+    pub providers: HashMap<String, ProviderProperties>,
     #[serde(default)]
-    subtitle: SubtitleProperties,
+    pub subtitle: SubtitleProperties,
 }
 
 impl PopcornProperties {
-    /// Create a new [PopcornProperties] with the given properties.
-    pub fn new(subtitle: SubtitleProperties) -> Self {
-        Self {
-            update_channel: DEFAULT_UPDATE_CHANNEL(),
-            providers: DEFAULT_PROVIDERS(),
-            subtitle,
-        }
-    }
-
-    /// Create a new [PopcornProperties] with the given providers.
-    pub fn new_with_providers(subtitle: SubtitleProperties, providers: HashMap<String, ProviderProperties>) -> Self {
-        Self {
-            update_channel: DEFAULT_UPDATE_CHANNEL(),
-            providers,
-            subtitle,
-        }
-    }
-
     /// Create a new [PopcornProperties] which will look for the [DEFAULT_CONFIG_FILENAME] config file.
     /// It will parse the config file if found, else uses the defaults instead.
     pub fn new_auto() -> Self {
         Self::from_filename(DEFAULT_CONFIG_FILENAME)
-    }
-
-    /// Create [PopcornProperties] based on the defaults configured.
-    /// This function won't search or load any config files.
-    pub fn default() -> Self {
-        Self::from_str("")
     }
 
     pub fn from_filename(filename: &str) -> Self {
@@ -165,25 +162,19 @@ impl PopcornProperties {
             .or_else(|| Some(String::new()))
             .expect("Properties should have been loaded");
 
-        Self::from_str(config_value.as_str())
+        Self::from(config_value.as_str())
     }
 
-    pub fn from_str(config_data_value: &str) -> Self {
-        trace!("Parsing config data {}", config_data_value);
-        let data: PropertiesWrapper = match serde_yaml::from_str(config_data_value) {
-            Ok(properties) => properties,
-            Err(err) => {
-                warn!("Failed to parse config, {}, using defaults instead", err);
-                serde_yaml::from_str(String::new().as_str()).unwrap()
-            }
-        };
-
-        debug!("Parsed config data {:?}", &data);
-        data.popcorn
+    /// Retrieve the version of the application.
+    /// It returns the string slice of the version.
+    pub fn version(&self) -> &str {
+        self.version.as_str()
     }
 
-    pub fn update_channel(&self) -> &String {
-        &self.update_channel
+    /// Retrieve the update channel to query and retrieve updates from.
+    /// It returns the string slice of the configured channel.
+    pub fn update_channel(&self) -> &str {
+        self.update_channel.as_str()
     }
 
     pub fn subtitle(&self) -> &SubtitleProperties {
@@ -192,7 +183,7 @@ impl PopcornProperties {
 
     pub fn provider(&self, name: String) -> crate::core::config::Result<&ProviderProperties> {
         self.providers.get(&name)
-            .ok_or_else(|| ConfigError::UnknownProvider(name))
+            .ok_or(ConfigError::UnknownProvider(name))
     }
 
     fn find_existing_file(filename: &str) -> Option<File> {
@@ -222,9 +213,28 @@ impl PopcornProperties {
     }
 }
 
+impl From<&str> for PopcornProperties {
+    /// Convert the given configuration `json` data into properties.
+    /// If the given string slice is invalid, the defaults will be returned.
+    fn from(json_value: &str) -> Self {
+        trace!("Parsing configuration properties data {}", json_value);
+        let data: PropertiesWrapper = match serde_yaml::from_str(json_value) {
+            Ok(properties) => properties,
+            Err(err) => {
+                warn!("Failed to parse properties, using defaults instead, {}", err);
+                serde_yaml::from_str(String::new().as_str()).unwrap()
+            }
+        };
+
+        debug!("Parsed configuration properties data {:?}", &data);
+        data.popcorn
+    }
+}
+
 impl Default for PopcornProperties {
     fn default() -> Self {
         Self {
+            version: VERSION(),
             update_channel: DEFAULT_UPDATE_CHANNEL(),
             providers: DEFAULT_PROVIDERS(),
             subtitle: SubtitleProperties::default(),
@@ -235,15 +245,32 @@ impl Default for PopcornProperties {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SubtitleProperties {
     #[serde(default = "DEFAULT_URL")]
-    url: String,
+    pub url: String,
     #[serde(alias = "user-agent")]
     #[serde(alias = "userAgent")]
     #[serde(default = "DEFAULT_USER_AGENT")]
-    user_agent: String,
+    pub user_agent: String,
     #[serde(alias = "api-token")]
     #[serde(alias = "apiToken")]
     #[serde(default = "DEFAULT_API_TOKEN")]
-    api_token: String,
+    pub api_token: String,
+}
+
+impl SubtitleProperties {
+    /// Retrieve the subtitle base url to retrieve the subtitle info from.
+    pub fn url(&self) -> &str {
+        self.url.as_str()
+    }
+
+    /// Retrieve the user agent which needs to be used within the connection url.
+    pub fn user_agent(&self) -> &str {
+        self.user_agent.as_str()
+    }
+
+    /// Retrieve the api token to use while querying the subtitle provider.
+    pub fn api_token(&self) -> &str {
+        self.api_token.as_str()
+    }
 }
 
 impl Default for SubtitleProperties {
@@ -253,34 +280,6 @@ impl Default for SubtitleProperties {
             user_agent: DEFAULT_USER_AGENT(),
             api_token: DEFAULT_API_TOKEN(),
         }
-    }
-}
-
-impl SubtitleProperties {
-    /// Create new [SubtitleProperties] for the subtitle static properties.
-    /// * `url`         - The base url to use for retrieving subtitle info.
-    /// * `user_agent`  - The user agent to communicate to the subtitle url host.
-    /// * `api_token`   - The API token to use for authentication.
-    pub fn new(url: String, user_agent: String, api_token: String) -> Self {
-        Self {
-            url,
-            user_agent,
-            api_token,
-        }
-    }
-
-    /// Retrieve the subtitle base url to retrieve the subtitle info from.
-    pub fn url(&self) -> &String {
-        &self.url
-    }
-
-    /// Retrieve the user agent which needs to be used within the connection url.
-    pub fn user_agent(&self) -> &String {
-        &self.user_agent
-    }
-
-    pub fn api_token(&self) -> &String {
-        &self.api_token
     }
 }
 
@@ -307,7 +306,16 @@ mod test {
     #[test]
     fn test_from_filename_when_not_found_should_return_defaults() {
         init_logger();
-        let expected_result = PopcornProperties::new(SubtitleProperties::new(String::from("https://api.opensubtitles.com/api/v1"), String::from("Popcorn Time v1"), String::from("mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo")));
+        let expected_result = PopcornProperties {
+            version: String::new(),
+            update_channel: String::new(),
+            providers: Default::default(),
+            subtitle: SubtitleProperties {
+                url: String::from("https://api.opensubtitles.com/api/v1"),
+                user_agent: String::from("Popcorn Time v1"),
+                api_token: String::from("mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo"),
+            },
+        };
 
         let result = PopcornProperties::new_auto();
 
@@ -323,9 +331,18 @@ popcorn:
     url: http://my-url
     user-agent: lorem
     api-token: ipsum";
-        let expected_result = PopcornProperties::new(SubtitleProperties::new(String::from("http://my-url"), String::from("lorem"), String::from("ipsum")));
+        let expected_result = PopcornProperties {
+            version: String::new(),
+            update_channel: String::new(),
+            providers: Default::default(),
+            subtitle: SubtitleProperties {
+                url: String::from("http://my-url"),
+                user_agent: "lorem".to_string(),
+                api_token: "ipsum".to_string(),
+            },
+        };
 
-        let result = PopcornProperties::from_str(config_value);
+        let result = PopcornProperties::from(config_value);
 
         assert_eq!(expected_result, result)
     }
@@ -333,13 +350,22 @@ popcorn:
     #[test]
     fn test_from_str_when_partial_fields_are_present_should_complete_with_defaults() {
         init_logger();
-        let config_value = "
+        let config_value = r#"
 popcorn:
   subtitle:
-    user-agent: lorem";
-        let expected_result = PopcornProperties::new(SubtitleProperties::new(String::from("https://api.opensubtitles.com/api/v1"), String::from("lorem"), String::from("mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo")));
+    user-agent: lorem"#;
+        let expected_result = PopcornProperties {
+            version: String::new(),
+            update_channel: String::new(),
+            providers: Default::default(),
+            subtitle: SubtitleProperties {
+                url: String::from("https://api.opensubtitles.com/api/v1"),
+                user_agent: String::from("lorem"),
+                api_token: String::from("mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo"),
+            },
+        };
 
-        let result = PopcornProperties::from_str(config_value);
+        let result = PopcornProperties::from(config_value);
 
         assert_eq!(expected_result, result)
     }

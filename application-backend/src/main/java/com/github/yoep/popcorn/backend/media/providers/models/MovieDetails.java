@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.*;
@@ -22,17 +21,11 @@ public class MovieDetails extends MovieOverview implements Closeable {
     public String synopsis;
     public Integer runtime;
     public String trailer;
-    @JsonIgnore
     public Pointer genresRef;
-    @JsonIgnore
     public int genresLen;
-    @JsonIgnore
     public int genresCap;
-    @JsonIgnore
     public TorrentEntry.ByReference torrentEntry;
-    @JsonIgnore
     public int torrentLen;
-    @JsonIgnore
     public int torrentCap;
 
     private Map<String, Map<String, MediaTorrentInfo>> torrents;
@@ -55,7 +48,6 @@ public class MovieDetails extends MovieOverview implements Closeable {
     }
 
     @Override
-    @JsonIgnore
     public MediaType getType() {
         return MediaType.MOVIE;
     }

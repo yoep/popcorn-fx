@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
@@ -45,7 +45,7 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     protected final LocaleText localeText;
     protected final ImageService imageService;
     protected final HealthService healthService;
-    protected final SettingsService settingsService;
+    protected final ApplicationConfig settingsService;
 
     protected T media;
 

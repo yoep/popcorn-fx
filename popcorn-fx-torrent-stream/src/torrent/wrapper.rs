@@ -176,7 +176,7 @@ mod test {
 
     #[test]
     fn test_state() {
-        let has_bytes: HasBytesCallback = Box::new(move |byte| true);
+        let has_bytes: HasBytesCallback = Box::new(move |_| true);
         let has_piece = Box::new(|_: u32| true);
         let total_pieces = Box::new(|| 0);
         let prioritize_bytes = Box::new(|bytes: &[u64]| {});

@@ -53,7 +53,7 @@ class SubtitleManagerServiceTest {
     @Mock
     private ApplicationSettings settings;
     @Mock
-    private SubtitleSettings subtitleSettings;
+    private SubtitleSettings.ByValue subtitleSettings;
     @InjectMocks
     private SubtitleManagerService service;
 
@@ -193,9 +193,8 @@ class SubtitleManagerServiceTest {
     @Test
     void testSubtitleSettingsListener_whenSubtitleSizeIsChangeD_shouldUpdateSubtitleSize() {
         var expectedValue = 34;
-        var subtitleSettings = SubtitleSettings.builder()
-                .fontSize(12)
-                .build();
+        var subtitleSettings = mock(SubtitleSettings.ByValue.class);
+        when(subtitleSettings.getFontSize()).thenReturn(expectedValue);
         when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 

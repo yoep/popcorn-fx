@@ -10,15 +10,13 @@ import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.beans.PropertyChangeEvent;
 
 @Slf4j
 @Service
@@ -26,7 +24,7 @@ import java.beans.PropertyChangeEvent;
 public class PopcornPlayerSectionService extends AbstractListenerService<PopcornPlayerSectionListener> {
     private final PopcornPlayer player;
     private final ScreenService screenService;
-    private final ApplicationConfig settingsService;
+    private final ApplicationConfig applicationConfig;
     private final SubtitleManagerService subtitleManagerService;
     private final VideoService videoService;
 
@@ -73,7 +71,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     }
 
     public void provideSubtitleValues() {
-        var subtitleSettings = settingsService.getSettings().getSubtitleSettings();
+        var subtitleSettings = applicationConfig.getSettings().getSubtitleSettings();
 
         invokeListeners(e -> e.onSubtitleFamilyChanged(subtitleSettings.getFontFamily().getFamily()));
         invokeListeners(e -> e.onSubtitleFontWeightChanged(subtitleSettings.isBold()));
@@ -92,7 +90,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
 
     private void initializeListeners() {
         player.addListener(playerListener);
-        settingsService.getSettings().getSubtitleSettings().addListener(this::onSubtitleSettingsChanged);
+        applicationConfig.register(this::onSubtitleSettingsChanged);
         videoService.videoPlayerProperty().addListener((observableValue, videoPlayer, newVideoPlayer) -> onVideoViewChanged(newVideoPlayer));
         subtitleManagerService.subtitleSizeProperty().addListener((observableValue, number, newSize) -> onSubtitleSizeChanged(newSize));
         subtitleManagerService.registerListener(new SubtitleListener() {
@@ -121,12 +119,13 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         invokeListeners(e -> e.onSubtitleSizeChanged(newSize.intValue()));
     }
 
-    private void onSubtitleSettingsChanged(PropertyChangeEvent evt) {
-        switch (evt.getPropertyName()) {
-            case SubtitleSettings.FONT_FAMILY_PROPERTY -> invokeListeners(e -> e.onSubtitleFamilyChanged((String) evt.getNewValue()));
-            case SubtitleSettings.FONT_SIZE_PROPERTY -> invokeListeners(e -> e.onSubtitleSizeChanged((Integer) evt.getNewValue()));
-            case SubtitleSettings.BOLD_PROPERTY -> invokeListeners(e -> e.onSubtitleFontWeightChanged((Boolean) evt.getNewValue()));
-            case SubtitleSettings.DECORATION_PROPERTY -> invokeListeners(e -> e.onSubtitleDecorationChanged((DecorationType) evt.getNewValue()));
+    private void onSubtitleSettingsChanged(ApplicationConfigEvent.ByValue event) {
+        if (event.getTag() == ApplicationConfigEvent.Tag.SubtitleSettingsChanged) {
+            var settings = event.getUnion().getSubtitleSettings().getSettings();
+            invokeListeners(e -> e.onSubtitleFamilyChanged(settings.getFontFamily().getFamily()));
+            invokeListeners(e -> e.onSubtitleSizeChanged(settings.getFontSize()));
+            invokeListeners(e -> e.onSubtitleFontWeightChanged(settings.isBold()));
+            invokeListeners(e -> e.onSubtitleDecorationChanged(settings.getDecoration()));
         }
     }
 

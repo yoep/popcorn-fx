@@ -12,9 +12,8 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import static java.util.Arrays.asList;
 
@@ -28,9 +27,11 @@ public class ApplicationConfig {
     private final ViewLoader viewLoader;
     private final OptionsService optionsService;
     private final LocaleText localeText;
+    private final Queue<ApplicationConfigEventCallback> listeners = new ConcurrentLinkedDeque<>();
+    private final ApplicationConfigEventCallback callback = createCallback();
 
     private ApplicationProperties properties;
-    private ApplicationSettings currentSettings;
+    private ApplicationSettings settings;
 
     //region Getters
 
@@ -44,7 +45,7 @@ public class ApplicationConfig {
      * @return Returns the application settings.
      */
     public ApplicationSettings getSettings() {
-        return currentSettings;
+        return settings;
     }
 
     //endregion
@@ -85,7 +86,7 @@ public class ApplicationConfig {
      * Save the current application settings to the {@link #STORAGE_NAME} file.
      */
     public void save() {
-        save(currentSettings);
+        save(settings);
     }
 
     /**
@@ -95,12 +96,28 @@ public class ApplicationConfig {
      * @param settings The application settings to save.
      */
     public void save(ApplicationSettings settings) {
-        if (settings != currentSettings)
-            currentSettings = settings;
+        if (settings != this.settings)
+            this.settings = settings;
 
         log.debug("Saving application settings to storage");
         storageService.store(STORAGE_NAME, settings);
         log.info("Application settings have been saved");
+    }
+
+    public void register(ApplicationConfigEventCallback callback) {
+        Objects.requireNonNull(callback, "callback cannot be null");
+        listeners.add(callback);
+    }
+
+    /**
+     * Update the subtitle settings of the application with the new value.
+     *
+     * @param settings The new settings to use.
+     */
+    public void update(SubtitleSettings settings) {
+        Objects.requireNonNull(settings, "settings cannot be null");
+        var settings_c = new SubtitleSettings.ByValue(settings);
+        FxLib.INSTANCE.update_subtitle_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
     }
 
     /**
@@ -134,11 +151,17 @@ public class ApplicationConfig {
         try (var properties = FxLib.INSTANCE.application_properties(PopcornFxInstance.INSTANCE.get())) {
             this.properties = properties;
         }
+        try (var settings = FxLib.INSTANCE.application_settings(PopcornFxInstance.INSTANCE.get())) {
+            this.settings = settings;
+        }
+
+        FxLib.INSTANCE.register_settings_callback(PopcornFxInstance.INSTANCE.get(), callback);
     }
 
     private void initializeSettings() {
-        this.currentSettings = loadSettingsFromFile().orElseGet(this::createDefaultApplicationSettings);
-        var uiSettings = this.currentSettings.getUiSettings();
+        this.settings = loadSettingsFromFile()
+                .orElseGet(this::createDefaultApplicationSettings);
+        var uiSettings = this.settings.getUiSettings();
 
         uiSettings.addListener(event -> {
             if (event.getPropertyName().equals(UISettings.UI_SCALE_PROPERTY)) {
@@ -152,7 +175,7 @@ public class ApplicationConfig {
     }
 
     private void initializeDefaultLanguage() {
-        var uiSettings = this.currentSettings.getUiSettings();
+        var uiSettings = this.settings.getUiSettings();
 
         // update the locale text with the locale from the settings
         localeText.updateLocale(uiSettings.getDefaultLanguage());
@@ -193,14 +216,11 @@ public class ApplicationConfig {
 
     private Optional<ApplicationSettings> loadSettingsFromFile() {
         log.debug("Loading application settings from storage");
-        return storageService.read(STORAGE_NAME, ApplicationSettings.class);
+        return Optional.empty();
     }
 
     private ApplicationSettings createDefaultApplicationSettings() {
         return ApplicationSettings.builder()
-                .subtitleSettings(SubtitleSettings.builder()
-                        .directory(storageService.determineDirectoryWithinStorage(SubtitleSettings.DEFAULT_SUBTITLE_DIRECTORY))
-                        .build())
                 .torrentSettings(TorrentSettings.builder()
                         .directory(storageService.determineDirectoryWithinStorage(TorrentSettings.DEFAULT_TORRENT_DIRECTORY))
                         .build())
@@ -208,7 +228,7 @@ public class ApplicationConfig {
     }
 
     private int getCurrentUIScaleIndex() {
-        var uiSettings = currentSettings.getUiSettings();
+        var uiSettings = settings.getUiSettings();
         var scale = uiSettings.getUiScale();
         var index = supportedUIScales().indexOf(scale);
 
@@ -221,6 +241,19 @@ public class ApplicationConfig {
 
         log.trace("Current UI scale index: {}", index);
         return index;
+    }
+
+    private ApplicationConfigEventCallback createCallback() {
+        return event -> {
+            try (event) {
+                log.debug("Received settings event {}", event);
+                for (var listener : listeners) {
+                    listener.callback(event);
+                }
+            } catch (Exception ex) {
+                log.error("Failed to invoke settings listener, {}", ex.getMessage(), ex);
+            }
+        };
     }
 
     //endregion

@@ -5,7 +5,7 @@
     "font_family": "ARIAL",
     "font_size": 28,
     "decoration": "OUTLINE",
-    "bold": false
+    "bold": true
   },
   "ui_settings": {
     "default_language": "en"

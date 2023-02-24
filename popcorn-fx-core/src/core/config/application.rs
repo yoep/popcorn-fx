@@ -76,6 +76,16 @@ impl ApplicationConfig {
         &self.settings
     }
 
+    /// Update the subtitle settings of the application.
+    /// The update will be ignored if no fields have been changed.
+    pub fn update_subtitle(&mut self, subtitle_settings: SubtitleSettings) {
+        if self.settings.subtitle_settings != subtitle_settings {
+            self.settings.subtitle_settings = subtitle_settings;
+            debug!("Subtitle settings have been updated");
+            self.callbacks.invoke(ApplicationConfigEvent::SubtitleSettingsChanged(self.settings.subtitle_settings.clone()));
+        }
+    }
+
     /// Reload the application config.
     pub fn reload(&mut self) {
         trace!("Reloading application settings");
@@ -124,7 +134,7 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::config::{SubtitleFamily, SubtitleSettings};
+    use crate::core::config::{DecorationType, SubtitleFamily, SubtitleSettings};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::{copy_test_file, init_logger};
 
@@ -154,6 +164,9 @@ mod test {
                 Some(true),
                 Some(SubtitleLanguage::English),
                 Some(SubtitleFamily::Arial),
+                Some(28),
+                Some(DecorationType::Outline),
+                Some(true)
             ),
             ui_settings: Default::default(),
             server_settings: Default::default(),
@@ -222,6 +235,9 @@ mod test {
             auto_cleaning_enabled: false,
             default_subtitle: SubtitleLanguage::German,
             font_family: SubtitleFamily::Arial,
+            font_size: 24,
+            decoration: DecorationType::None,
+            bold: true,
         };
         application.storage.write(DEFAULT_SETTINGS_FILENAME, &PopcornSettings {
             subtitle_settings: expected_result.clone(),

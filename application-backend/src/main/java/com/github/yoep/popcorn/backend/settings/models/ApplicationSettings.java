@@ -1,23 +1,26 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
+import com.sun.jna.Structure;
 import lombok.*;
 
+import java.io.Closeable;
 import java.util.Objects;
 
+@Data
 @EqualsAndHashCode(callSuper = false)
-@ToString
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@SuppressWarnings("unused")
-public class ApplicationSettings extends AbstractSettings {
+@Structure.FieldOrder({"subtitleSettings"})
+public class ApplicationSettings extends Structure implements Closeable {
     public static final String TORRENT_PROPERTY = "torrentSettings";
-    public static final String SUBTITLE_PROPERTY = "subtitleSettings";
     public static final String UI_PROPERTY = "uiSettings";
     public static final String TRAKT_PROPERTY = "traktSettings";
     public static final String LOGGING_PROPERTY = "loggingSettings";
     public static final String PLAYBACK_PROPERTY = "playbackSettings";
     public static final String SERVER_PROPERTY = "serverSettings";
+
+    public SubtitleSettings.ByValue subtitleSettings;
 
     /**
      * The torrent settings of the application.
@@ -27,8 +30,6 @@ public class ApplicationSettings extends AbstractSettings {
     /**
      * The subtitle settings of the application.
      */
-    @Builder.Default
-    private SubtitleSettings subtitleSettings = SubtitleSettings.builder().build();
     /**
      * The ui settings of the application.
      */
@@ -57,13 +58,6 @@ public class ApplicationSettings extends AbstractSettings {
             torrentSettings = TorrentSettings.builder().build();
 
         return torrentSettings;
-    }
-
-    public SubtitleSettings getSubtitleSettings() {
-        if (subtitleSettings == null)
-            subtitleSettings = SubtitleSettings.builder().build();
-
-        return subtitleSettings;
     }
 
     public UISettings getUiSettings() {
@@ -100,16 +94,6 @@ public class ApplicationSettings extends AbstractSettings {
 
         var oldValue = this.torrentSettings;
         this.torrentSettings = torrentSettings;
-        changes.firePropertyChange(TORRENT_PROPERTY, oldValue, torrentSettings);
-    }
-
-    public void setSubtitleSettings(SubtitleSettings subtitleSettings) {
-        if (Objects.equals(this.subtitleSettings, subtitleSettings))
-            return;
-
-        var oldValue = this.subtitleSettings;
-        this.subtitleSettings = subtitleSettings;
-        changes.firePropertyChange(SUBTITLE_PROPERTY, oldValue, this.subtitleSettings);
     }
 
     public void setUiSettings(UISettings uiSettings) {
@@ -118,7 +102,6 @@ public class ApplicationSettings extends AbstractSettings {
 
         var oldValue = this.uiSettings;
         this.uiSettings = uiSettings;
-        changes.firePropertyChange(UI_PROPERTY, oldValue, this.uiSettings);
     }
 
     public void setTraktSettings(TraktSettings traktSettings) {
@@ -127,7 +110,6 @@ public class ApplicationSettings extends AbstractSettings {
 
         var oldValue = this.traktSettings;
         this.traktSettings = traktSettings;
-        changes.firePropertyChange(TRAKT_PROPERTY, oldValue, this.traktSettings);
     }
 
     public void setPlaybackSettings(PlaybackSettings playbackSettings) {
@@ -136,7 +118,6 @@ public class ApplicationSettings extends AbstractSettings {
 
         var oldValue = this.playbackSettings;
         this.playbackSettings = playbackSettings;
-        changes.firePropertyChange(PLAYBACK_PROPERTY, oldValue, this.playbackSettings);
     }
 
     public void setServerSettings(ServerSettings serverSettings) {
@@ -145,7 +126,12 @@ public class ApplicationSettings extends AbstractSettings {
 
         var oldValue = this.serverSettings;
         this.serverSettings = serverSettings;
-        changes.firePropertyChange(SERVER_PROPERTY, oldValue, this.serverSettings);
+    }
+
+    @Override
+    public void close() {
+        setAutoSynch(false);
+        subtitleSettings.close();
     }
 
     //endregion

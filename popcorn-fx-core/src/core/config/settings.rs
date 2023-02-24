@@ -66,7 +66,7 @@ impl From<&str> for PopcornSettings {
 
 #[cfg(test)]
 mod test {
-    use crate::core::config::SubtitleFamily;
+    use crate::core::config::{DecorationType, SubtitleFamily};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::init_logger;
 
@@ -75,13 +75,26 @@ mod test {
     #[test]
     fn test_settings_from_str_when_valid_should_return_expected_result() {
         init_logger();
-        let value = "{\"subtitle_settings\":{\"directory\":\"my-path/to-subtitles\",\"auto_cleaning_enabled\":false,\"default_subtitle\":\"ENGLISH\",\"font_family\":\"ARIAL\",\"font_size\":32,\"decoration\":\"OUTLINE\",\"bold\":false}}";
+        let value = r#"{
+  "subtitle_settings": {
+    "directory": "my-path/to-subtitles",
+    "auto_cleaning_enabled": false,
+    "default_subtitle": "ENGLISH",
+    "font_family": "ARIAL",
+    "font_size": 32,
+    "decoration": "OUTLINE",
+    "bold": false
+  }
+}"#;
         let expected_result = PopcornSettings {
             subtitle_settings: SubtitleSettings {
                 directory:  "my-path/to-subtitles".to_string(),
                 auto_cleaning_enabled: false,
                 default_subtitle: SubtitleLanguage::English,
                 font_family: SubtitleFamily::Arial,
+                font_size: 32,
+                decoration: DecorationType::Outline,
+                bold: false,
             },
             ui_settings: UiSettings::default(),
             server_settings: ServerSettings::default(),

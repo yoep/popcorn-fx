@@ -3,102 +3,84 @@ package com.github.yoep.popcorn.backend.settings.models;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
+import com.sun.jna.Structure;
 import lombok.*;
 
-import java.io.File;
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @EqualsAndHashCode(callSuper = false)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubtitleSettings extends AbstractSettings {
-    public static final String DEFAULT_SUBTITLE_PROPERTY = "defaultSubtitle";
-    public static final String DIRECTORY_PROPERTY = "directory";
-    public static final String AUTO_CLEANING_PROPERTY = "autoCleaningEnabled";
-    public static final String FONT_FAMILY_PROPERTY = "fontFamily";
-    public static final String FONT_SIZE_PROPERTY = "fontSize";
-    public static final String DECORATION_PROPERTY = "decoration";
-    public static final String BOLD_PROPERTY = "bold";
-    public static final String DEFAULT_SUBTITLE_DIRECTORY = "subtitles";
+@Structure.FieldOrder({"directory", "autoCleaningEnabled", "defaultSubtitle", "fontFamily", "fontSize", "decoration", "bold"})
+public class SubtitleSettings extends Structure implements Closeable {
+    public static class ByValue extends SubtitleSettings implements Structure.ByValue {
+        public ByValue() {
+        }
 
-    private static final String DEFAULT_FONT_FAMILY = "Arial";
-    private static final DecorationType DEFAULT_DECORATION = DecorationType.OUTLINE;
-    private static final int DEFAULT_SIZE = 28;
+        public ByValue(SubtitleSettings settings) {
+            Objects.requireNonNull(settings, "settings cannot be null");
+            this.directory = settings.directory;
+            this.autoCleaningEnabled = settings.autoCleaningEnabled;
+            this.defaultSubtitle = settings.defaultSubtitle;
+            this.fontFamily = settings.fontFamily;
+            this.fontSize = settings.fontSize;
+            this.decoration = settings.decoration;
+            this.bold = settings.bold;
+        }
+    }
 
     //region Properties
 
     /**
      * The directory to save the subtitles to.
      */
-    private File directory;
+    public String directory;
     /**
      * The indication if the subtitle directory should be cleaned if the application is closed.
      */
-    @Builder.Default
-    private boolean autoCleaningEnabled = true;
+    public boolean autoCleaningEnabled;
     /**
      * The default subtitle language to select for the media playback.
      */
-    @Builder.Default
-    private SubtitleLanguage defaultSubtitle = SubtitleLanguage.NONE;
+    public SubtitleLanguage defaultSubtitle;
     /**
      * The font family to use for the subtitles.
      */
-    @Builder.Default
-    private SubtitleFamily fontFamily = SubtitleFamily.ARIAL;
+    public SubtitleFamily fontFamily;
     /**
      * The size of the subtitle font.
      */
-    @Builder.Default
-    private int fontSize = DEFAULT_SIZE;
+    public int fontSize;
     /**
      * The subtitle decoration type.
      */
-    @Builder.Default
-    private DecorationType decoration = DEFAULT_DECORATION;
+    public DecorationType decoration;
     /**
      * The indication if the subtitle must always be in the style "bold".
      */
-    private boolean bold;
-
-    //endregion
-
-    //region Setters
-
-    public void setDefaultSubtitle(SubtitleLanguage defaultSubtitle) {
-        this.defaultSubtitle = updateProperty(this.defaultSubtitle, defaultSubtitle, DEFAULT_SUBTITLE_PROPERTY);
-    }
-
-    public void setDirectory(File directory) {
-        this.directory = updateProperty(this.directory, directory, DIRECTORY_PROPERTY);
-    }
-
-    public void setAutoCleaningEnabled(boolean autoCleaningEnabled) {
-        this.autoCleaningEnabled = updateProperty(this.autoCleaningEnabled, autoCleaningEnabled, AUTO_CLEANING_PROPERTY);
-    }
-
-    public void setFontFamily(SubtitleFamily fontFamily) {
-        this.fontFamily = updateProperty(this.fontFamily, fontFamily, FONT_FAMILY_PROPERTY);
-    }
-
-    public void setFontSize(int fontSize) {
-        this.fontSize = updateProperty(this.fontSize, fontSize, FONT_SIZE_PROPERTY);
-    }
-
-    public void setDecoration(DecorationType decoration) {
-        this.decoration = updateProperty(this.decoration, decoration, DECORATION_PROPERTY);
-    }
-
-    public void setBold(boolean bold) {
-        this.bold = updateProperty(this.bold, bold, BOLD_PROPERTY);
-    }
+    public byte bold;
 
     //endregion
 
     //region Methods
+
+    public boolean isBold() {
+        return bold == 1;
+    }
+
+    public void setBold(boolean bold) {
+        this.bold = (byte) (bold ? 1 : 0);
+    }
+
+    @Override
+    public void close() {
+        setAutoSynch(false);
+    }
 
     public static List<Integer> supportedFontSizes() {
         var sizes = new ArrayList<Integer>();

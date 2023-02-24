@@ -8,7 +8,8 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::core::config::SubtitleSettings;
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -887,11 +888,39 @@ pub extern "C" fn application_properties(popcorn_fx: &mut PopcornFX) -> *mut Pop
     into_c_owned(PopcornPropertiesC::from(mutex.properties()))
 }
 
+/// Retrieve the application settings.
+/// These are the setting preferences of the users for the popcorn FX instance.
+#[no_mangle]
+pub extern "C" fn application_settings(popcorn_fx: &mut PopcornFX) -> *mut PopcornSettingsC {
+    trace!("Retrieving application settings");
+    let mutex = popcorn_fx.settings();
+    into_c_owned(PopcornSettingsC::from(mutex.user_settings()))
+}
+
 /// Reload the settings of the application.
 #[no_mangle]
 pub extern "C" fn reload_settings(popcorn_fx: &mut PopcornFX) {
     trace!("Reloading the popcorn fx settings");
     popcorn_fx.reload_settings()
+}
+
+/// Register a new callback for all setting events.
+#[no_mangle]
+pub extern "C" fn register_settings_callback(popcorn_fx: &mut PopcornFX, callback: ApplicationConfigCallbackC) {
+    trace!("Registering application settings callback");
+    let wrapper = Box::new(move |event| {
+        callback(ApplicationConfigEventC::from(event))
+    });
+
+    popcorn_fx.settings().register(wrapper);
+}
+
+/// Update the subtitle settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_subtitle_settings(popcorn_fx: &mut PopcornFX, subtitle_settings: SubtitleSettingsC) {
+    trace!("Updating the subtitle settings from {:?}", subtitle_settings);
+    let subtitle = SubtitleSettings::from(subtitle_settings);
+    popcorn_fx.settings().update_subtitle(subtitle);
 }
 
 /// Dispose the given media item from memory.
@@ -951,7 +980,7 @@ mod test {
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
-    use popcorn_fx_core::testing::copy_test_file;
+    use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::popcorn::fx::popcorn_fx::PopcornFxOpts;
 
@@ -985,6 +1014,9 @@ mod test {
     pub extern "C" fn torrent_state_callback() -> TorrentState {
         TorrentState::Downloading
     }
+
+    #[no_mangle]
+    pub extern "C" fn settings_callback(_: ApplicationConfigEventC) {}
 
     #[test]
     fn test_default_subtitle_options() {
@@ -1164,6 +1196,29 @@ mod test {
         let result = from_c_owned(application_properties(&mut instance));
 
         assert_eq!(defaults.update_channel, from_c_string(result.update_channel))
+    }
+
+    #[test]
+    fn test_register_settings_callback() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let subtitle_c = SubtitleSettingsC::from(&SubtitleSettings::new(
+            Some(temp_path.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ));
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: true,
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+
+        register_settings_callback(&mut instance, settings_callback);
+        update_subtitle_settings(&mut instance, subtitle_c);
     }
 
     #[test]

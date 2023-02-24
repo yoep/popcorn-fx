@@ -25,7 +25,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class SettingsSubtitlesComponent implements Initializable {
-    private final ApplicationConfig settingsService;
+    private final ApplicationConfig applicationConfig;
     private final LocaleText localeText;
 
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
@@ -61,7 +61,10 @@ public class SettingsSubtitlesComponent implements Initializable {
 
         defaultSubtitle.getItems().addAll(SubtitleLanguage.values());
         defaultSubtitle.getSelectionModel().select(settings.getDefaultSubtitle());
-        defaultSubtitle.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> settings.setDefaultSubtitle(newValue));
+        defaultSubtitle.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            settings.setDefaultSubtitle(newValue);
+            applicationConfig.update(settings);
+        });
     }
 
     private void initializeFontFamily() {
@@ -69,7 +72,10 @@ public class SettingsSubtitlesComponent implements Initializable {
 
         fontFamily.getItems().addAll(SubtitleFamily.values());
         fontFamily.getSelectionModel().select(settings.getFontFamily());
-        fontFamily.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> settings.setFontFamily(newValue));
+        fontFamily.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            settings.setFontFamily(newValue);
+            applicationConfig.update(settings);
+        });
     }
 
     private void initializeDecoration() {
@@ -80,7 +86,10 @@ public class SettingsSubtitlesComponent implements Initializable {
 
         decoration.getItems().addAll(DecorationType.values());
         decoration.getSelectionModel().select(settings.getDecoration());
-        decoration.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> settings.setDecoration(newValue));
+        decoration.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            settings.setDecoration(newValue);
+            applicationConfig.update(settings);
+        });
     }
 
     private void initializeSize() {
@@ -88,27 +97,34 @@ public class SettingsSubtitlesComponent implements Initializable {
 
         fontSize.getItems().addAll(SubtitleSettings.supportedFontSizes());
         fontSize.getSelectionModel().select((Integer) settings.getFontSize());
-        fontSize.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> settings.setFontSize(newValue));
+        fontSize.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            settings.setFontSize(newValue);
+            applicationConfig.update(settings);
+        });
     }
 
     private void initializeBold() {
         SubtitleSettings settings = getSettings();
 
         fontBold.setSelected(settings.isBold());
-        fontBold.selectedProperty().addListener((observable, oldValue, newValue) -> settings.setBold(newValue));
+        fontBold.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            settings.setBold(newValue);
+            applicationConfig.update(settings);
+        });
     }
 
     private void initializeCacheDirectory() {
         var settings = getSettings();
         var directory = settings.getDirectory();
 
-        cacheChooser.setInitialDirectory(directory);
-        cacheDirectory.setText(directory.getAbsolutePath());
+        cacheChooser.setInitialDirectory(new File(directory));
+        cacheDirectory.setText(directory);
         cacheDirectory.textProperty().addListener((observable, oldValue, newValue) -> {
-            File newDirectory = new File(newValue);
+            var newDirectory = new File(newValue);
 
             if (newDirectory.isDirectory()) {
-                settings.setDirectory(newDirectory);
+                settings.setDirectory(newValue);
+                applicationConfig.update(settings);
                 cacheChooser.setInitialDirectory(newDirectory);
             }
         });
@@ -118,11 +134,15 @@ public class SettingsSubtitlesComponent implements Initializable {
         var settings = getSettings();
 
         clearCache.setSelected(settings.isAutoCleaningEnabled());
-        clearCache.selectedProperty().addListener((observable, oldValue, newValue) -> settings.setAutoCleaningEnabled(newValue));
+        clearCache.selectedProperty().addListener((observable, oldValue, newValue) ->
+        {
+            settings.setAutoCleaningEnabled(newValue);
+            applicationConfig.update(settings);
+        });
     }
 
     private SubtitleSettings getSettings() {
-        return settingsService.getSettings().getSubtitleSettings();
+        return applicationConfig.getSettings().getSubtitleSettings();
     }
 
     private ListCell<DecorationType> getDecorationCell() {

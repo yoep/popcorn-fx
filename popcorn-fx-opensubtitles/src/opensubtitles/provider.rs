@@ -771,13 +771,13 @@ mod test {
                 decoration: DecorationType::None,
                 bold: false,
             },
-            ui_settings: UiSettings::new(
-                "en".to_string(),
-                UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                StartScreen::Movies,
-                false,
-                false,
-            ),
+            ui_settings: UiSettings {
+                default_language: "en".to_string(),
+                ui_scale: UiScale::new(1f32).expect("Expected ui scale to be valid"),
+                start_screen: StartScreen::Movies,
+                maximized: false,
+                native_window_enabled: false,
+            },
             server_settings: ServerSettings::default(),
             torrent_settings: TorrentSettings::default(),
         };
@@ -880,13 +880,13 @@ mod test {
                 decoration: DecorationType::None,
                 bold: false,
             },
-            ui_settings: UiSettings::new(
-                "fr".to_string(),
-                UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                StartScreen::Movies,
-                false,
-                false,
-            ),
+            ui_settings: UiSettings {
+                default_language: "fr".to_string(),
+                ui_scale: UiScale::new(1f32).expect("Expected ui scale to be valid"),
+                start_screen: StartScreen::Movies,
+                maximized: false,
+                native_window_enabled: false,
+            },
             server_settings: ServerSettings::default(),
             torrent_settings: TorrentSettings::default(),
         };

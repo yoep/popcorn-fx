@@ -24,6 +24,13 @@ enum class PlatformType : int32_t {
   Linux = 2,
 };
 
+/// The start screen options
+enum class StartScreen : int32_t {
+  Movies = 0,
+  Shows = 1,
+  Favorites = 2,
+};
+
 /// The supported subtitle fonts to use for rendering subtitles.
 enum class SubtitleFamily : int32_t {
   Arial = 0,
@@ -131,6 +138,9 @@ struct TorrentStreamC;
 /// The wrapper containing the callbacks to retrieve the actual
 /// torrent information from C.
 struct TorrentWrapper;
+
+/// The UI scale of the application
+struct UiScale;
 
 struct RatingC {
   uint16_t percentage;
@@ -298,12 +308,28 @@ struct TorrentSettingsC {
   uint32_t upload_rate_limit;
 };
 
+/// The C compatible ui settings
+struct UiSettingsC {
+  /// The default language of the application
+  const char *default_language;
+  /// The ui scale of the application
+  UiScale ui_scale;
+  /// The default start screen of the application
+  StartScreen start_screen;
+  /// The indication if the UI was maximized the last time the application was closed
+  bool maximized;
+  /// The indication if the UI should use a native window rather than the borderless stage
+  bool native_window_enabled;
+};
+
 /// The C compatible application settings.
 struct PopcornSettingsC {
   /// The subtitle settings of the application
   SubtitleSettingsC subtitle_settings;
   /// The torrent settings of the application
   TorrentSettingsC torrent_settings;
+  /// The ui settings of the application
+  UiSettingsC ui_settings;
 };
 
 struct SubtitleFileC {
@@ -452,6 +478,8 @@ struct ApplicationConfigEventC {
     SubtitleSettingsChanged,
     /// Indicates that the torrent settings have been changed
     TorrentSettingsChanged,
+    /// Indicates that the ui settings have been changed
+    UISettingsChanged,
   };
 
   struct SubtitleSettingsChanged_Body {
@@ -462,10 +490,15 @@ struct ApplicationConfigEventC {
     TorrentSettingsC _0;
   };
 
+  struct UISettingsChanged_Body {
+    UiSettingsC _0;
+  };
+
   Tag tag;
   union {
     SubtitleSettingsChanged_Body subtitle_settings_changed;
     TorrentSettingsChanged_Body torrent_settings_changed;
+    UISettingsChanged_Body ui_settings_changed;
   };
 };
 

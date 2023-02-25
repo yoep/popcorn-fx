@@ -117,10 +117,13 @@ impl ApplicationConfig {
                 self.callbacks.invoke(ApplicationConfigEvent::SettingsLoaded);
 
                 if old_settings.subtitle_settings != self.settings.subtitle_settings {
-                    self.callbacks.invoke(ApplicationConfigEvent::SubtitleSettingsChanged(self.settings.subtitle_settings.clone()));
+                    self.callbacks.invoke(ApplicationConfigEvent::SubtitleSettingsChanged(self.settings.subtitle().clone()));
                 }
                 if old_settings.torrent_settings != self.settings.torrent_settings {
-                    self.callbacks.invoke(ApplicationConfigEvent::TorrentSettingsChanged(self.settings.torrent_settings.clone()))
+                    self.callbacks.invoke(ApplicationConfigEvent::TorrentSettingsChanged(self.settings.torrent().clone()))
+                }
+                if old_settings.ui_settings != self.settings.ui_settings {
+                    self.callbacks.invoke(ApplicationConfigEvent::UiSettingsChanged(self.settings.ui().clone()))
                 }
             }
             Err(e) => warn!("Failed to reload settings from storage, {}", e)

@@ -42,7 +42,7 @@ public class TorrentCacheService {
     //region Functions
 
     private File getTorrentDirectory() {
-        return getSettings().getDirectory();
+        return new File(getSettings().getDirectory());
     }
 
     private TorrentSettings getSettings() {

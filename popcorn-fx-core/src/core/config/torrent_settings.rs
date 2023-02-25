@@ -12,6 +12,9 @@ const DEFAULT_DIRECTORY: fn() -> PathBuf = || home::home_dir()
         .join(DEFAULT_TORRENT_DIRECTORY_NAME))
     .expect("Home directory should exist");
 const DEFAULT_AUTO_CLEANING: fn() -> bool = || true;
+const DEFAULT_CONNECTIONS_LIMIT: fn() -> u32 = || 300;
+const DEFAULT_DOWNLOAD_RATE_LIMIT: fn() -> u32 = || 0;
+const DEFAULT_UPLOAD_RATE_LIMIT: fn() -> u32 = || 0;
 
 /// The torrent user's settings for the application.
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -23,6 +26,15 @@ pub struct TorrentSettings {
     /// Indicates if the torrent directory should be cleaned
     #[serde(default = "DEFAULT_AUTO_CLEANING")]
     pub auto_cleaning_enabled: bool,
+    /// The max number of connections
+    #[serde(default = "DEFAULT_CONNECTIONS_LIMIT")]
+    pub connections_limit: u32,
+    /// The download rate limit, 0 means unlimited
+    #[serde(default = "DEFAULT_DOWNLOAD_RATE_LIMIT")]
+    pub download_rate_limit: u32,
+    /// The upload rate limit, 0 means unlimited
+    #[serde(default = "DEFAULT_UPLOAD_RATE_LIMIT")]
+    pub upload_rate_limit: u32,
 }
 
 impl TorrentSettings {
@@ -34,9 +46,12 @@ impl TorrentSettings {
 
 impl Default for TorrentSettings {
     fn default() -> Self {
-        TorrentSettings {
+        Self {
             directory: DEFAULT_DIRECTORY(),
             auto_cleaning_enabled: DEFAULT_AUTO_CLEANING(),
+            connections_limit: DEFAULT_CONNECTIONS_LIMIT(),
+            download_rate_limit: DEFAULT_DOWNLOAD_RATE_LIMIT(),
+            upload_rate_limit: DEFAULT_UPLOAD_RATE_LIMIT(),
         }
     }
 }
@@ -50,6 +65,9 @@ mod test {
         let expected_result = TorrentSettings {
             directory: DEFAULT_DIRECTORY(),
             auto_cleaning_enabled: DEFAULT_AUTO_CLEANING(),
+            connections_limit: DEFAULT_CONNECTIONS_LIMIT(),
+            download_rate_limit: DEFAULT_DOWNLOAD_RATE_LIMIT(),
+            upload_rate_limit: DEFAULT_UPLOAD_RATE_LIMIT(),
         };
 
         let result = TorrentSettings::default();

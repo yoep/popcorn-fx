@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -38,7 +39,7 @@ public class HealthService {
         cancelPreviousFutureIfNeeded();
         var torrentSettings = getTorrentSettings();
 
-        healthFuture = torrentService.getTorrentHealth(url, torrentSettings.getDirectory());
+        healthFuture = torrentService.getTorrentHealth(url, new File(torrentSettings.getDirectory()));
 
         return healthFuture;
     }

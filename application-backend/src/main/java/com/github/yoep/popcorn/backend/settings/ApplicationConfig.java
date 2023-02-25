@@ -5,14 +5,14 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.settings.models.*;
-import com.github.yoep.popcorn.backend.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 import static java.util.Arrays.asList;
@@ -21,9 +21,6 @@ import static java.util.Arrays.asList;
 @Service
 @RequiredArgsConstructor
 public class ApplicationConfig {
-    static final String STORAGE_NAME = "settings.json";
-
-    private final StorageService storageService;
     private final ViewLoader viewLoader;
     private final OptionsService optionsService;
     private final LocaleText localeText;
@@ -100,7 +97,7 @@ public class ApplicationConfig {
             this.settings = settings;
 
         log.debug("Saving application settings to storage");
-        storageService.store(STORAGE_NAME, settings);
+        //        storageService.store(STORAGE_NAME, settings);
         log.info("Application settings have been saved");
     }
 
@@ -118,6 +115,17 @@ public class ApplicationConfig {
         Objects.requireNonNull(settings, "settings cannot be null");
         var settings_c = new SubtitleSettings.ByValue(settings);
         FxLib.INSTANCE.update_subtitle_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+    }
+
+    /**
+     * Update the subtitle settings of the application with the new value.
+     *
+     * @param settings The new settings to use.
+     */
+    public void update(TorrentSettings settings) {
+        Objects.requireNonNull(settings, "settings cannot be null");
+        var settings_c = new TorrentSettings.ByValue(settings);
+        FxLib.INSTANCE.update_torrent_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
     }
 
     /**
@@ -146,8 +154,6 @@ public class ApplicationConfig {
 
     @PostConstruct
     void init() {
-        initializeSettings();
-        initializeDefaultLanguage();
         try (var properties = FxLib.INSTANCE.application_properties(PopcornFxInstance.INSTANCE.get())) {
             this.properties = properties;
         }
@@ -155,48 +161,40 @@ public class ApplicationConfig {
             this.settings = settings;
         }
 
+        initializeDefaultLanguage();
+        initializeSettings();
+
         FxLib.INSTANCE.register_settings_callback(PopcornFxInstance.INSTANCE.get(), callback);
     }
 
     private void initializeSettings() {
-        this.settings = loadSettingsFromFile()
-                .orElseGet(this::createDefaultApplicationSettings);
-        var uiSettings = this.settings.getUiSettings();
-
-        uiSettings.addListener(event -> {
-            if (event.getPropertyName().equals(UISettings.UI_SCALE_PROPERTY)) {
-                var uiScale = (UIScale) event.getNewValue();
-
-                updateUIScale(uiScale.getValue());
-            }
-        });
-
-        updateUIScale(uiSettings.getUiScale().getValue());
+        //        var uiSettings = this.settings.getUiSettings();
+        //
+        //        uiSettings.addListener(event -> {
+        //            if (event.getPropertyName().equals(UISettings.UI_SCALE_PROPERTY)) {
+        //                var uiScale = (UIScale) event.getNewValue();
+        //
+        //                updateUIScale(uiScale.getValue());
+        //            }
+        //        });
+        //
+        //        updateUIScale(uiSettings.getUiScale().getValue());
     }
 
     private void initializeDefaultLanguage() {
-        var uiSettings = this.settings.getUiSettings();
-
-        // update the locale text with the locale from the settings
-        localeText.updateLocale(uiSettings.getDefaultLanguage());
-
-        // add a listener to the default language for changing the language at runtime
-        uiSettings.addListener(event -> {
-            if (event.getPropertyName().equals(UISettings.LANGUAGE_PROPERTY)) {
-                var locale = (Locale) event.getNewValue();
-
-                localeText.updateLocale(locale);
-            }
-        });
-    }
-
-    //endregion
-
-    //region PreDestroy
-
-    @PreDestroy
-    void destroy() {
-        save();
+        //        var uiSettings = this.settings.getUiSettings();
+        //
+        //        // update the locale text with the locale from the settings
+        //        localeText.updateLocale(uiSettings.getDefaultLanguage());
+        //
+        //        // add a listener to the default language for changing the language at runtime
+        //        uiSettings.addListener(event -> {
+        //            if (event.getPropertyName().equals(UISettings.LANGUAGE_PROPERTY)) {
+        //                var locale = (Locale) event.getNewValue();
+        //
+        //                localeText.updateLocale(locale);
+        //            }
+        //        });
     }
 
     //endregion
@@ -212,19 +210,6 @@ public class ApplicationConfig {
             scale *= 2;
 
         viewLoader.setScale(scale);
-    }
-
-    private Optional<ApplicationSettings> loadSettingsFromFile() {
-        log.debug("Loading application settings from storage");
-        return Optional.empty();
-    }
-
-    private ApplicationSettings createDefaultApplicationSettings() {
-        return ApplicationSettings.builder()
-                .torrentSettings(TorrentSettings.builder()
-                        .directory(storageService.determineDirectoryWithinStorage(TorrentSettings.DEFAULT_TORRENT_DIRECTORY))
-                        .build())
-                .build();
     }
 
     private int getCurrentUIScaleIndex() {

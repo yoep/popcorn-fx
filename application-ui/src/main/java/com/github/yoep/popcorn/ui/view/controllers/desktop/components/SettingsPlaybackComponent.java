@@ -114,7 +114,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
     }
 
     private PlaybackSettings getPlaybackSettings() {
-        return settingsService.getSettings().getPlaybackSettings();
+        return applicationConfig.getSettings().getPlaybackSettings();
     }
 
     //endregion

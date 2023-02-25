@@ -19,6 +19,7 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.ApplicationProperties;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -160,6 +161,8 @@ public interface FxLib extends Library {
     void register_settings_callback(PopcornFx instance, ApplicationConfigEventCallback callback);
 
     void update_subtitle_settings(PopcornFx instance, SubtitleSettings.ByValue settings);
+
+    void update_torrent_settings(PopcornFx instance, TorrentSettings.ByValue settings);
 
     void dispose_media_item(MediaItem media);
 

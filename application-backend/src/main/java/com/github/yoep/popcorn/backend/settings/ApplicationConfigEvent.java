@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.settings;
 
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -28,6 +29,9 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
         if (Objects.requireNonNull(tag) == Tag.SubtitleSettingsChanged) {
             union.setType(ApplicationConfigEvent.SubtitleSettingsChanged_Body.class);
         }
+        if (Objects.requireNonNull(tag) == Tag.TorrentSettingsChanged) {
+            union.setType(ApplicationConfigEvent.TorrentSettingsChanged_Body.class);
+        }
         union.read();
     }
 
@@ -45,16 +49,25 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"settings"})
+    public static class TorrentSettingsChanged_Body extends Structure {
+        public TorrentSettings settings;
+    }
+
+    @Getter
+    @ToString
     public static class ApplicationConfigEventUnion extends Union {
         public static class ByValue extends ApplicationConfigEventUnion implements Union.ByValue {
         }
 
         public ApplicationConfigEvent.SubtitleSettingsChanged_Body subtitleSettings;
+        public ApplicationConfigEvent.TorrentSettingsChanged_Body torrentSettings;
     }
 
     public enum Tag implements NativeMapped {
         SettingsLoaded,
-        SubtitleSettingsChanged;
+        SubtitleSettingsChanged,
+        TorrentSettingsChanged;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

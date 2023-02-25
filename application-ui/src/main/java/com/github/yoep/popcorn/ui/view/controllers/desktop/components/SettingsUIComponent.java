@@ -90,6 +90,6 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
     }
 
     private UISettings getUiSettings() {
-        return settingsService.getSettings().getUiSettings();
+        return applicationConfig.getSettings().getUiSettings();
     }
 }

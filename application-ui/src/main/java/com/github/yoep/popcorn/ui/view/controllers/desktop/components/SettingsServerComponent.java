@@ -65,7 +65,7 @@ public class SettingsServerComponent extends AbstractSettingsUiComponent impleme
     }
 
     private ServerSettings getSettings() {
-        return settingsService.getSettings().getServerSettings();
+        return applicationConfig.getSettings().getServerSettings();
     }
 
     //endregion

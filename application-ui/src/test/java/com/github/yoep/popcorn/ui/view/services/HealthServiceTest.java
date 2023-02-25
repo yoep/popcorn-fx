@@ -35,7 +35,7 @@ class HealthServiceTest {
     void setUp() {
         lenient().when(settingsService.getSettings()).thenReturn(settings);
         lenient().when(settings.getTorrentSettings()).thenReturn(torrentSettings);
-        lenient().when(torrentSettings.getDirectory()).thenReturn(torrentDirectory);
+        lenient().when(torrentSettings.getDirectory()).thenReturn(torrentDirectory.getAbsolutePath());
     }
 
     @Test

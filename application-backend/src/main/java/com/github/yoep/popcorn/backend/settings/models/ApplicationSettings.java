@@ -11,7 +11,7 @@ import java.util.Objects;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Structure.FieldOrder({"subtitleSettings"})
+@Structure.FieldOrder({"subtitleSettings", "torrentSettings"})
 public class ApplicationSettings extends Structure implements Closeable {
     public static final String TORRENT_PROPERTY = "torrentSettings";
     public static final String UI_PROPERTY = "uiSettings";
@@ -21,12 +21,8 @@ public class ApplicationSettings extends Structure implements Closeable {
     public static final String SERVER_PROPERTY = "serverSettings";
 
     public SubtitleSettings.ByValue subtitleSettings;
-
-    /**
-     * The torrent settings of the application.
-     */
-    @Builder.Default
-    private TorrentSettings torrentSettings = TorrentSettings.builder().build();
+    public TorrentSettings torrentSettings;
+    
     /**
      * The subtitle settings of the application.
      */
@@ -132,6 +128,7 @@ public class ApplicationSettings extends Structure implements Closeable {
     public void close() {
         setAutoSynch(false);
         subtitleSettings.close();
+        torrentSettings.close();
     }
 
     //endregion

@@ -1,9 +1,10 @@
 use std::os::raw::c_char;
+use std::path::PathBuf;
 
 use log::trace;
 
 use crate::{from_c_string, into_c_string};
-use crate::core::config::{ApplicationConfigEvent, DecorationType, PopcornSettings, SubtitleFamily, SubtitleSettings};
+use crate::core::config::{ApplicationConfigEvent, DecorationType, PopcornSettings, SubtitleFamily, SubtitleSettings, TorrentSettings};
 use crate::core::subtitles::language::SubtitleLanguage;
 
 /// The C callback for the setting events.
@@ -17,13 +18,16 @@ pub enum ApplicationConfigEventC {
     SettingsLoaded,
     /// Indicates that the subtitle settings have been changed
     SubtitleSettingsChanged(SubtitleSettingsC),
+    /// Indicates that the torrent settings have been changed
+    TorrentSettingsChanged(TorrentSettingsC),
 }
 
 impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
     fn from(value: ApplicationConfigEvent) -> Self {
         match value {
             ApplicationConfigEvent::SettingsLoaded => ApplicationConfigEventC::SettingsLoaded,
-            ApplicationConfigEvent::SubtitleSettingsChanged(settings) => ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&settings))
+            ApplicationConfigEvent::SubtitleSettingsChanged(settings) => ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&settings)),
+            ApplicationConfigEvent::TorrentSettingsChanged(settings) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&settings))
         }
     }
 }
@@ -34,6 +38,8 @@ impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
 pub struct PopcornSettingsC {
     /// The subtitle settings of the application
     pub subtitle_settings: SubtitleSettingsC,
+    /// The torrent settings of the application
+    pub torrent_settings: TorrentSettingsC,
 }
 
 impl From<&PopcornSettings> for PopcornSettingsC {
@@ -41,6 +47,7 @@ impl From<&PopcornSettings> for PopcornSettingsC {
         trace!("Converting PopcornSettings to C for {:?}", value);
         Self {
             subtitle_settings: SubtitleSettingsC::from(value.subtitle()),
+            torrent_settings: TorrentSettingsC::from(value.torrent()),
         }
     }
 }
@@ -63,7 +70,7 @@ pub struct SubtitleSettingsC {
     /// The subtitle rendering decoration type
     pub decoration: DecorationType,
     /// Indicates if the subtitle should be rendered in a bold font
-    pub bold: bool
+    pub bold: bool,
 }
 
 impl From<&SubtitleSettings> for SubtitleSettingsC {
@@ -94,8 +101,50 @@ impl From<SubtitleSettingsC> for SubtitleSettings {
     }
 }
 
+/// The C compatible torrent settings.
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct TorrentSettingsC {
+    /// The torrent directory to store the torrents
+    pub directory: *const c_char,
+    /// Indicates if the torrents directory will be cleaned on closure
+    pub auto_cleaning_enabled: bool,
+    /// The max number of connections
+    pub connections_limit: u32,
+    /// The download rate limit
+    pub download_rate_limit: u32,
+    /// The upload rate limit
+    pub upload_rate_limit: u32,
+}
+
+impl From<&TorrentSettings> for TorrentSettingsC {
+    fn from(value: &TorrentSettings) -> Self {
+        Self {
+            directory: into_c_string(value.directory().to_str().unwrap().to_string()),
+            auto_cleaning_enabled: value.auto_cleaning_enabled,
+            connections_limit: value.connections_limit,
+            download_rate_limit: value.download_rate_limit,
+            upload_rate_limit: value.upload_rate_limit,
+        }
+    }
+}
+
+impl From<TorrentSettingsC> for TorrentSettings {
+    fn from(value: TorrentSettingsC) -> Self {
+        Self {
+            directory: PathBuf::from(from_c_string(value.directory)),
+            auto_cleaning_enabled: value.auto_cleaning_enabled,
+            connections_limit: value.connections_limit,
+            download_rate_limit: value.download_rate_limit,
+            upload_rate_limit: value.upload_rate_limit,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
     use crate::core::config::SubtitleFamily;
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::from_c_string;
@@ -161,6 +210,48 @@ mod test {
         };
 
         let result = SubtitleSettings::from(settings);
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_torrent_settings_c_from() {
+        let directory = "/tmp/lorem/torrent";
+        let settings = TorrentSettings {
+            directory: PathBuf::from(directory),
+            auto_cleaning_enabled: true,
+            connections_limit: 100,
+            download_rate_limit: 0,
+            upload_rate_limit: 0,
+        };
+
+        let result = TorrentSettingsC::from(&settings);
+
+        assert_eq!(directory.to_string(), from_c_string(result.directory));
+        assert_eq!(true, result.auto_cleaning_enabled);
+        assert_eq!(100, result.connections_limit);
+    }
+
+    #[test]
+    fn test_torrent_settings_from() {
+        let directory = "/tmp/lorem/torrent";
+        let connections_limit = 200;
+        let settings = TorrentSettingsC {
+            directory: into_c_string(directory.to_string()),
+            auto_cleaning_enabled: true,
+            connections_limit,
+            download_rate_limit: 10,
+            upload_rate_limit: 20,
+        };
+        let expected_result = TorrentSettings {
+            directory: PathBuf::from(directory),
+            auto_cleaning_enabled: true,
+            connections_limit,
+            download_rate_limit: 10,
+            upload_rate_limit: 20,
+        };
+
+        let result = TorrentSettings::from(settings);
 
         assert_eq!(expected_result, result)
     }

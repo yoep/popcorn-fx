@@ -103,13 +103,14 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         var settings = getSettings();
         var directory = settings.getDirectory();
 
-        cacheChooser.setInitialDirectory(directory);
-        cacheDirectory.setText(directory.getAbsolutePath());
+        cacheChooser.setInitialDirectory(new File(directory));
+        cacheDirectory.setText(directory);
         cacheDirectory.textProperty().addListener((observable, oldValue, newValue) -> {
-            File newDirectory = new File(newValue);
+            var newDirectory = new File(newValue);
 
             if (newDirectory.isDirectory()) {
-                settings.setDirectory(newDirectory);
+                settings.setDirectory(newValue);
+                applicationConfig.update(settings);
                 cacheChooser.setInitialDirectory(newDirectory);
                 showNotification();
             }
@@ -131,7 +132,7 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     }
 
     private TorrentSettings getSettings() {
-        return settingsService.getSettings().getTorrentSettings();
+        return applicationConfig.getSettings().getTorrentSettings();
     }
 
     @FXML

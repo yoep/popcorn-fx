@@ -38,6 +38,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -159,7 +160,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         if (torrentService.getSessionState() != SessionState.RUNNING)
             waitForTorrentStream();
 
-        currentFuture = torrentService.create(event.getTorrentFileInfo(), torrentSettings.getDirectory(), true)
+        currentFuture = torrentService.create(event.getTorrentFileInfo(), new File(torrentSettings.getDirectory()), true)
                 .thenCompose(this::retrieveAndDownloadAvailableSubtitles)
                 .thenCompose(this::startDownloadingTorrent)
                 .exceptionally(this::handleLoadTorrentError);
@@ -223,7 +224,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.CONNECTING));
 
         log.trace("Creating torrent for \"{}\"", mediaTorrent.getTorrent().getUrl());
-        return torrentService.create(torrentFileInfo, torrentSettings.getDirectory(), true);
+        return torrentService.create(torrentFileInfo, new File(torrentSettings.getDirectory()), true);
     }
 
     private CompletableFuture<Torrent> startDownloadingTorrent(Torrent torrent) {

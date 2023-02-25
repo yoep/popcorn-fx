@@ -8,8 +8,8 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
-use popcorn_fx_core::core::config::SubtitleSettings;
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::core::config::{SubtitleSettings, TorrentSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -921,6 +921,14 @@ pub extern "C" fn update_subtitle_settings(popcorn_fx: &mut PopcornFX, subtitle_
     trace!("Updating the subtitle settings from {:?}", subtitle_settings);
     let subtitle = SubtitleSettings::from(subtitle_settings);
     popcorn_fx.settings().update_subtitle(subtitle);
+}
+
+/// Update the torrent settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_torrent_settings(popcorn_fx: &mut PopcornFX, torrent_settings: TorrentSettingsC) {
+    trace!("Updating the torrent settings from {:?}", torrent_settings);
+    let settings = TorrentSettings::from(torrent_settings);
+    popcorn_fx.settings().update_torrent(settings);
 }
 
 /// Dispose the given media item from memory.

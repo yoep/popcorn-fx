@@ -21,7 +21,7 @@ impl RTTorrentManager {
     //     self.internal.clone()
     // }
 
-    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo> {
+    async fn info<'a>(&'a self, _url: &'a str) -> torrent::Result<TorrentInfo> {
         // self.internal.info(url).await
         todo!()
     }
@@ -34,12 +34,12 @@ impl TorrentManager for RTTorrentManager {
         todo!()
     }
 
-    fn register(&self, callback: TorrentManagerCallback) {
+    fn register(&self, _callback: TorrentManagerCallback) {
         // self.internal.register(callback)
         todo!()
     }
 
-    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo> {
+    async fn info<'a>(&'a self, _url: &'a str) -> torrent::Result<TorrentInfo> {
         // self.internal.info(url).await
         todo!()
     }

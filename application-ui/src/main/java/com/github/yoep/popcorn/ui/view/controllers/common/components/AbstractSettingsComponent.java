@@ -18,7 +18,7 @@ public abstract class AbstractSettingsComponent {
 
     protected final ApplicationEventPublisher eventPublisher;
     protected final LocaleText localeText;
-    protected final ApplicationConfig settingsService;
+    protected final ApplicationConfig applicationConfig;
 
     private long lastNotification;
 

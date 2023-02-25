@@ -284,10 +284,20 @@ struct SubtitleSettingsC {
   bool bold;
 };
 
+/// The C compatible torrent settings.
+struct TorrentSettingsC {
+  /// The torrent directory to store the torrents
+  const char *directory;
+  /// Indicates if the torrents directory will be cleaned on closure
+  bool auto_cleaning_enabled;
+};
+
 /// The C compatible application settings.
 struct PopcornSettingsC {
   /// The subtitle settings of the application
   SubtitleSettingsC subtitle_settings;
+  /// The torrent settings of the application
+  TorrentSettingsC torrent_settings;
 };
 
 struct SubtitleFileC {
@@ -434,15 +444,22 @@ struct ApplicationConfigEventC {
     SettingsLoaded,
     /// Indicates that the subtitle settings have been changed
     SubtitleSettingsChanged,
+    /// Indicates that the torrent settings have been changed
+    TorrentSettingsChanged,
   };
 
   struct SubtitleSettingsChanged_Body {
     SubtitleSettingsC _0;
   };
 
+  struct TorrentSettingsChanged_Body {
+    TorrentSettingsC _0;
+  };
+
   Tag tag;
   union {
     SubtitleSettingsChanged_Body subtitle_settings_changed;
+    TorrentSettingsChanged_Body torrent_settings_changed;
   };
 };
 
@@ -812,5 +829,8 @@ void update_subtitle_custom_file(PopcornFX *popcorn_fx, const char *custom_filep
 
 /// Update the subtitle settings with the new value.
 void update_subtitle_settings(PopcornFX *popcorn_fx, SubtitleSettingsC subtitle_settings);
+
+/// Update the torrent settings with the new value.
+void update_torrent_settings(PopcornFX *popcorn_fx, TorrentSettingsC torrent_settings);
 
 } // extern "C"

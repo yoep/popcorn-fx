@@ -11,7 +11,7 @@ import java.util.Objects;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Structure.FieldOrder({"subtitleSettings", "torrentSettings"})
+@Structure.FieldOrder({"subtitleSettings", "torrentSettings", "uiSettings"})
 public class ApplicationSettings extends Structure implements Closeable {
     public static final String TORRENT_PROPERTY = "torrentSettings";
     public static final String UI_PROPERTY = "uiSettings";
@@ -20,17 +20,9 @@ public class ApplicationSettings extends Structure implements Closeable {
     public static final String PLAYBACK_PROPERTY = "playbackSettings";
     public static final String SERVER_PROPERTY = "serverSettings";
 
-    public SubtitleSettings.ByValue subtitleSettings;
+    public SubtitleSettings subtitleSettings;
     public TorrentSettings torrentSettings;
-    
-    /**
-     * The subtitle settings of the application.
-     */
-    /**
-     * The ui settings of the application.
-     */
-    @Builder.Default
-    private UISettings uiSettings = UISettings.builder().build();
+    public UISettings uiSettings;
     /**
      * The trakt.tv settings of the application.
      */
@@ -48,20 +40,6 @@ public class ApplicationSettings extends Structure implements Closeable {
     private ServerSettings serverSettings = ServerSettings.builder().build();
 
     //region Getters & Setters
-
-    public TorrentSettings getTorrentSettings() {
-        if (torrentSettings == null)
-            torrentSettings = TorrentSettings.builder().build();
-
-        return torrentSettings;
-    }
-
-    public UISettings getUiSettings() {
-        if (uiSettings == null)
-            uiSettings = UISettings.builder().build();
-
-        return uiSettings;
-    }
 
     public TraktSettings getTraktSettings() {
         if (traktSettings == null)
@@ -82,22 +60,6 @@ public class ApplicationSettings extends Structure implements Closeable {
             serverSettings = ServerSettings.builder().build();
 
         return serverSettings;
-    }
-
-    public void setTorrentSettings(TorrentSettings torrentSettings) {
-        if (Objects.equals(this.torrentSettings, torrentSettings))
-            return;
-
-        var oldValue = this.torrentSettings;
-        this.torrentSettings = torrentSettings;
-    }
-
-    public void setUiSettings(UISettings uiSettings) {
-        if (Objects.equals(this.uiSettings, uiSettings))
-            return;
-
-        var oldValue = this.uiSettings;
-        this.uiSettings = uiSettings;
     }
 
     public void setTraktSettings(TraktSettings traktSettings) {
@@ -129,6 +91,7 @@ public class ApplicationSettings extends Structure implements Closeable {
         setAutoSynch(false);
         subtitleSettings.close();
         torrentSettings.close();
+        uiSettings.close();
     }
 
     //endregion

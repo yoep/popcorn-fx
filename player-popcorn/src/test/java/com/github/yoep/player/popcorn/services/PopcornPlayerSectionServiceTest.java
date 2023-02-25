@@ -147,8 +147,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testPlayerListener_whenPlayerTimeChanged_shouldInvokedListeners() {
         var value = 10200;
-        var subtitle = mock(SubtitleSettings.ByValue.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitle);
         service.init();
 
         listenerHolder.get().onTimeChanged(value);
@@ -159,8 +157,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testPlayerListener_whenPlayerStateChanged_shouldInvokedListeners() {
         var value = PlayerState.PLAYING;
-        var subtitle = mock(SubtitleSettings.ByValue.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitle);
         service.init();
 
         listenerHolder.get().onStateChanged(value);
@@ -172,9 +168,7 @@ class PopcornPlayerSectionServiceTest {
     void testVideoPlayerListener_whenVideoPlayerIsChanged_shouldInvokeListeners() {
         var videoPlayer = mock(VideoPlayback.class);
         var videoView = mock(Node.class);
-        var subtitle = mock(SubtitleSettings.ByValue.class);
         when(videoPlayer.getVideoSurface()).thenReturn(videoView);
-        when(settings.getSubtitleSettings()).thenReturn(subtitle);
         service.init();
 
         videoPlayerProperty.set(videoPlayer);
@@ -258,8 +252,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testSubtitleListener_whenSubtitleIsChanged_shouldInvokedListeners() {
         var subtitle = mock(Subtitle.class);
-        var subtitleSettings = mock(SubtitleSettings.ByValue.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         var listener = subtitleListenerHolder.get();
@@ -270,8 +262,6 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testSubtitleListener_whenSubtitleIsDisabled_shouldInvokedListeners() {
-        var subtitleSettings = mock(SubtitleSettings.ByValue.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         var listener = subtitleListenerHolder.get();
@@ -283,8 +273,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testSubtitleListener_whenSubtitleSizeIsChanged_shouldInvokedListeners() {
         var subtitleSize = 28;
-        var subtitleSettings = mock(SubtitleSettings.ByValue.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         subtitleSizeProperty.set(subtitleSize);
@@ -313,8 +301,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testListener_whenPlayerVolumeIsChanged_shouldInvokedListeners() {
         var volume = 75;
-        var subtitleSettings = mock(SubtitleSettings.ByValue.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         listenerHolder.get().onVolumeChanged(volume);

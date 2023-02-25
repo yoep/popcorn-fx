@@ -50,6 +50,7 @@ public class TorrentCacheServiceTest {
         when(settingsService.getSettings()).thenReturn(applicationSettings);
         when(applicationSettings.getTorrentSettings()).thenReturn(torrentSettings);
         when(torrentSettings.isAutoCleaningEnabled()).thenReturn(false);
+        when(torrentSettings.getDirectory()).thenReturn(tmpDir.getAbsolutePath());
 
         torrentCacheService.onDestroy();
 

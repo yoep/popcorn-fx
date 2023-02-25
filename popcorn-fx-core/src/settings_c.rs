@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use log::trace;
 
 use crate::{from_c_string, into_c_string};
-use crate::core::config::{ApplicationConfigEvent, DecorationType, PopcornSettings, SubtitleFamily, SubtitleSettings, TorrentSettings};
+use crate::core::config::{ApplicationConfigEvent, DecorationType, PopcornSettings, StartScreen, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
 use crate::core::subtitles::language::SubtitleLanguage;
 
 /// The C callback for the setting events.
@@ -20,6 +20,8 @@ pub enum ApplicationConfigEventC {
     SubtitleSettingsChanged(SubtitleSettingsC),
     /// Indicates that the torrent settings have been changed
     TorrentSettingsChanged(TorrentSettingsC),
+    /// Indicates that the ui settings have been changed
+    UISettingsChanged(UiSettingsC),
 }
 
 impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
@@ -27,7 +29,8 @@ impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
         match value {
             ApplicationConfigEvent::SettingsLoaded => ApplicationConfigEventC::SettingsLoaded,
             ApplicationConfigEvent::SubtitleSettingsChanged(settings) => ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&settings)),
-            ApplicationConfigEvent::TorrentSettingsChanged(settings) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&settings))
+            ApplicationConfigEvent::TorrentSettingsChanged(settings) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&settings)),
+            ApplicationConfigEvent::UiSettingsChanged(settings) => ApplicationConfigEventC::UISettingsChanged(UiSettingsC::from(&settings)),
         }
     }
 }
@@ -40,6 +43,8 @@ pub struct PopcornSettingsC {
     pub subtitle_settings: SubtitleSettingsC,
     /// The torrent settings of the application
     pub torrent_settings: TorrentSettingsC,
+    /// The ui settings of the application
+    pub ui_settings: UiSettingsC,
 }
 
 impl From<&PopcornSettings> for PopcornSettingsC {
@@ -48,6 +53,7 @@ impl From<&PopcornSettings> for PopcornSettingsC {
         Self {
             subtitle_settings: SubtitleSettingsC::from(value.subtitle()),
             torrent_settings: TorrentSettingsC::from(value.torrent()),
+            ui_settings: UiSettingsC::from(value.ui()),
         }
     }
 }
@@ -137,6 +143,46 @@ impl From<TorrentSettingsC> for TorrentSettings {
             connections_limit: value.connections_limit,
             download_rate_limit: value.download_rate_limit,
             upload_rate_limit: value.upload_rate_limit,
+        }
+    }
+}
+
+/// The C compatible ui settings
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct UiSettingsC {
+    /// The default language of the application
+    pub default_language: *const c_char,
+    /// The ui scale of the application
+    pub ui_scale: UiScale,
+    /// The default start screen of the application
+    pub start_screen: StartScreen,
+    /// The indication if the UI was maximized the last time the application was closed
+    pub maximized: bool,
+    /// The indication if the UI should use a native window rather than the borderless stage
+    pub native_window_enabled: bool,
+}
+
+impl From<&UiSettings> for UiSettingsC {
+    fn from(value: &UiSettings) -> Self {
+        Self {
+            default_language: into_c_string(value.default_language.clone()),
+            ui_scale: value.ui_scale.clone(),
+            start_screen: value.start_screen.clone(),
+            maximized: value.maximized,
+            native_window_enabled: value.native_window_enabled,
+        }
+    }
+}
+
+impl From<UiSettingsC> for UiSettings {
+    fn from(value: UiSettingsC) -> Self {
+        Self {
+            default_language: from_c_string(value.default_language),
+            ui_scale: value.ui_scale,
+            start_screen: value.start_screen,
+            maximized: value.maximized,
+            native_window_enabled: value.native_window_enabled,
         }
     }
 }
@@ -252,6 +298,51 @@ mod test {
         };
 
         let result = TorrentSettings::from(settings);
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_from_ui_settings() {
+        let language = "en";
+        let ui_scale = UiScale::new(1.0).unwrap();
+        let settings = UiSettings {
+            default_language: language.to_string(),
+            ui_scale: ui_scale.clone(),
+            start_screen: StartScreen::Movies,
+            maximized: true,
+            native_window_enabled: false,
+        };
+
+        let result = UiSettingsC::from(&settings);
+
+        assert_eq!(language.to_string(), from_c_string(result.default_language));
+        assert_eq!(ui_scale, result.ui_scale);
+        assert_eq!(StartScreen::Movies, result.start_screen);
+        assert_eq!(true, result.maximized);
+        assert_eq!(false, result.native_window_enabled);
+    }
+
+    #[test]
+    fn test_from_ui_settings_c() {
+        let language = "en";
+        let ui_scale = UiScale::new(1.0).unwrap();
+        let settings = UiSettingsC {
+            default_language: into_c_string("en".to_string()),
+            ui_scale: ui_scale.clone(),
+            start_screen: StartScreen::Shows,
+            maximized: true,
+            native_window_enabled: false,
+        };
+        let expected_result = UiSettings {
+            default_language: "en".to_string(),
+            ui_scale,
+            start_screen: StartScreen::Shows,
+            maximized: true,
+            native_window_enabled: false,
+        };
+
+        let result = UiSettings::from(settings);
 
         assert_eq!(expected_result, result)
     }

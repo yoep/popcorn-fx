@@ -43,7 +43,7 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         defaultLanguage.setButtonCell(createLanguageCell());
 
         defaultLanguage.getItems().addAll(UISettings.supportedLanguages());
-        defaultLanguage.getSelectionModel().select(getUiSettings().getDefaultLanguage());
+        defaultLanguage.getSelectionModel().select(Locale.forLanguageTag(getUiSettings().getDefaultLanguage()));
         defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
     }
 
@@ -69,7 +69,7 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
     }
 
     private void updateLanguage(Locale locale) {
-        getUiSettings().setDefaultLanguage(locale);
+        getUiSettings().setDefaultLanguage(locale.toString());
         showNotification();
         //TODO: force the UI to reload to apply the text changes
     }

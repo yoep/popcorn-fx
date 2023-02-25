@@ -66,7 +66,7 @@ class PopcornTimeApplicationTest {
         var options = mock(ApplicationOptions.class);
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
-                        .nativeWindowEnabled(false)
+                        .nativeWindowEnabled((byte) 0)
                         .build())
                 .build();
         when(settingsService.getSettings()).thenReturn(settings);
@@ -84,7 +84,7 @@ class PopcornTimeApplicationTest {
         var options = mock(ApplicationOptions.class);
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
-                        .nativeWindowEnabled(true)
+                        .nativeWindowEnabled((byte) 1)
                         .build())
                 .build();
         when(settingsService.getSettings()).thenReturn(settings);
@@ -103,7 +103,7 @@ class PopcornTimeApplicationTest {
                 .build();
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
-                        .nativeWindowEnabled(true)
+                        .nativeWindowEnabled((byte) 1)
                         .build())
                 .build();
         when(settingsService.getSettings()).thenReturn(settings);
@@ -122,7 +122,7 @@ class PopcornTimeApplicationTest {
                 .build();
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
-                        .nativeWindowEnabled(true)
+                        .nativeWindowEnabled((byte) 1)
                         .build())
                 .build();
         var expectedProperties = ViewProperties.builder()

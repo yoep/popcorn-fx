@@ -290,6 +290,12 @@ struct TorrentSettingsC {
   const char *directory;
   /// Indicates if the torrents directory will be cleaned on closure
   bool auto_cleaning_enabled;
+  /// The max number of connections
+  uint32_t connections_limit;
+  /// The download rate limit
+  uint32_t download_rate_limit;
+  /// The upload rate limit
+  uint32_t upload_rate_limit;
 };
 
 /// The C compatible application settings.

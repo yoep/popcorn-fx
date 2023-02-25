@@ -4,7 +4,10 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
-import com.github.yoep.popcorn.backend.settings.models.*;
+import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
+import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.backend.settings.models.UIScale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -138,7 +141,7 @@ public class ApplicationConfig {
                 new UIScale(0.25f),
                 new UIScale(0.5f),
                 new UIScale(0.75f),
-                UISettings.DEFAULT_UI_SCALE,
+                new UIScale(1.0f),
                 new UIScale(1.25f),
                 new UIScale(1.50f),
                 new UIScale(2.0f),
@@ -155,9 +158,11 @@ public class ApplicationConfig {
     @PostConstruct
     void init() {
         try (var properties = FxLib.INSTANCE.application_properties(PopcornFxInstance.INSTANCE.get())) {
+            log.debug("Retrieved properties {}", properties);
             this.properties = properties;
         }
         try (var settings = FxLib.INSTANCE.application_settings(PopcornFxInstance.INSTANCE.get())) {
+            log.debug("Retrieved settings {}", settings);
             this.settings = settings;
         }
 
@@ -168,17 +173,8 @@ public class ApplicationConfig {
     }
 
     private void initializeSettings() {
-        //        var uiSettings = this.settings.getUiSettings();
-        //
-        //        uiSettings.addListener(event -> {
-        //            if (event.getPropertyName().equals(UISettings.UI_SCALE_PROPERTY)) {
-        //                var uiScale = (UIScale) event.getNewValue();
-        //
-        //                updateUIScale(uiScale.getValue());
-        //            }
-        //        });
-        //
-        //        updateUIScale(uiSettings.getUiScale().getValue());
+        var uiSettings = this.settings.getUiSettings();
+        updateUIScale(uiSettings.getUiScale().getValue());
     }
 
     private void initializeDefaultLanguage() {
@@ -221,17 +217,25 @@ public class ApplicationConfig {
         // if not, return the index of the default
         if (index == -1) {
             log.warn("UI scale \"{}\" couldn't be found back in the supported UI scales", scale);
-            index = supportedUIScales().indexOf(UISettings.DEFAULT_UI_SCALE);
+            index = supportedUIScales().indexOf(new UIScale(1.0f));
         }
 
         log.trace("Current UI scale index: {}", index);
         return index;
     }
 
+    private void handleEvent(ApplicationConfigEvent.ByValue event) {
+        if (event.tag == ApplicationConfigEvent.Tag.UiSettingsChanged) {
+            var settings = event.getUnion().getUiSettings().getSettings();
+            updateUIScale(settings.getUiScale().getValue());
+        }
+    }
+
     private ApplicationConfigEventCallback createCallback() {
         return event -> {
             try (event) {
                 log.debug("Received settings event {}", event);
+                handleEvent(event);
                 for (var listener : listeners) {
                     listener.callback(event);
                 }

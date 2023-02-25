@@ -2,7 +2,7 @@ use derive_more::Display;
 use log::{debug, info, trace, warn};
 
 use crate::core::{CoreCallback, CoreCallbacks};
-use crate::core::config::{ConfigError, PopcornProperties, PopcornSettings, SubtitleSettings, TorrentSettings};
+use crate::core::config::{ConfigError, PopcornProperties, PopcornSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
@@ -25,6 +25,9 @@ pub enum ApplicationConfigEvent {
     /// Invoked when any of the torrent settings have been changed
     #[display(fmt = "Torrent settings have been changed")]
     TorrentSettingsChanged(TorrentSettings),
+    #[display(fmt = "UI settings have been changed")]
+    /// Invoked when the ui settings have been changed
+    UiSettingsChanged(UiSettings),
 }
 
 /// The application properties & settings of Popcorn FX.

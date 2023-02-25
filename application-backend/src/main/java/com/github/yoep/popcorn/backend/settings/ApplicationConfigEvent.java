@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.settings;
 
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -11,7 +12,6 @@ import lombok.ToString;
 
 import java.io.Closeable;
 import java.util.Arrays;
-import java.util.Objects;
 
 @Getter
 @ToString
@@ -26,11 +26,10 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
     @Override
     public void read() {
         super.read();
-        if (Objects.requireNonNull(tag) == Tag.SubtitleSettingsChanged) {
-            union.setType(ApplicationConfigEvent.SubtitleSettingsChanged_Body.class);
-        }
-        if (Objects.requireNonNull(tag) == Tag.TorrentSettingsChanged) {
-            union.setType(ApplicationConfigEvent.TorrentSettingsChanged_Body.class);
+        switch (tag) {
+            case SubtitleSettingsChanged -> union.setType(ApplicationConfigEvent.SubtitleSettingsChanged_Body.class);
+            case TorrentSettingsChanged -> union.setType(ApplicationConfigEvent.TorrentSettingsChanged_Body.class);
+            case UiSettingsChanged -> union.setType(ApplicationConfigEvent.UiSettingsChanged_Body.class);
         }
         union.read();
     }
@@ -56,18 +55,27 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"settings"})
+    public static class UiSettingsChanged_Body extends Structure {
+        public UISettings settings;
+    }
+
+    @Getter
+    @ToString
     public static class ApplicationConfigEventUnion extends Union {
         public static class ByValue extends ApplicationConfigEventUnion implements Union.ByValue {
         }
 
         public ApplicationConfigEvent.SubtitleSettingsChanged_Body subtitleSettings;
         public ApplicationConfigEvent.TorrentSettingsChanged_Body torrentSettings;
+        public ApplicationConfigEvent.UiSettingsChanged_Body uiSettings;
     }
 
     public enum Tag implements NativeMapped {
         SettingsLoaded,
         SubtitleSettingsChanged,
-        TorrentSettingsChanged;
+        TorrentSettingsChanged,
+        UiSettingsChanged;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

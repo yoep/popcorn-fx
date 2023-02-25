@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,10 +27,10 @@ class HealthServiceTest {
     private ApplicationSettings settings;
     @Mock
     private TorrentSettings torrentSettings;
-    @Mock
-    private File torrentDirectory;
     @InjectMocks
     private HealthService healthService;
+    @TempDir
+    public File torrentDirectory;
 
     @BeforeEach
     void setUp() {

@@ -70,22 +70,26 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
 
     private void updateLanguage(Locale locale) {
         getUiSettings().setDefaultLanguage(locale.toString());
+        applicationConfig.update(getUiSettings());
         showNotification();
         //TODO: force the UI to reload to apply the text changes
     }
 
     private void updateUIScale(UIScale newValue) {
         getUiSettings().setUiScale(newValue);
+        applicationConfig.update(getUiSettings());
         showNotification();
     }
 
     private void updateStartScreen(StartScreen startScreen) {
         getUiSettings().setStartScreen(startScreen);
+        applicationConfig.update(getUiSettings());
         showNotification();
     }
 
     private void updateNativeWindow(Boolean newValue) {
         getUiSettings().setNativeWindowEnabled(newValue);
+        applicationConfig.update(getUiSettings());
         showNotification();
     }
 

@@ -102,6 +102,16 @@ impl ApplicationConfig {
         }
     }
 
+    /// Update the ui settings of the application.
+    /// The update will be ignored if no fields have been changed.
+    pub fn update_ui(&mut self, ui_settings: UiSettings) {
+        if self.settings.ui_settings != ui_settings {
+            self.settings.ui_settings = ui_settings;
+            debug!("UI settings have been updated");
+            self.callbacks.invoke(ApplicationConfigEvent::UiSettingsChanged(self.settings.ui().clone()));
+        }
+    }
+
     /// Reload the application config.
     pub fn reload(&mut self) {
         trace!("Reloading application settings");
@@ -157,7 +167,7 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::config::{DecorationType, SubtitleFamily, SubtitleSettings};
+    use crate::core::config::{DecorationType, StartScreen, SubtitleFamily, SubtitleSettings, UiScale};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::{copy_test_file, init_logger};
 
@@ -356,6 +366,42 @@ mod test {
                 assert_eq!(settings, application.user_settings().torrent_settings);
             }
             _ => assert!(false, "expected ApplicationConfigEvent::TorrentSettingsChanged")
+        }
+    }
+
+    #[test]
+    fn test_update_ui() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let directory = "/tmp/lorem/torrents";
+        let settings = UiSettings {
+            default_language: "en".to_string(),
+            ui_scale: UiScale::new(1.2).unwrap(),
+            start_screen: StartScreen::Favorites,
+            maximized: false,
+            native_window_enabled: false,
+        };
+        let mut application = ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: Default::default(),
+            settings: Default::default(),
+            callbacks: Default::default(),
+        };
+        let (tx, rx) = channel();
+
+        application.register(Box::new(move |event| {
+            tx.send(event).unwrap()
+        }));
+        application.update_ui(settings.clone());
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+
+        match result {
+            ApplicationConfigEvent::UiSettingsChanged(result) => {
+                assert_eq!(settings, result);
+                assert_eq!(settings, application.user_settings().ui_settings);
+            }
+            _ => assert!(false, "expected ApplicationConfigEvent::UiSettingsChanged")
         }
     }
 }

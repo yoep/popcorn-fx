@@ -4,16 +4,14 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
-import com.github.yoep.popcorn.backend.settings.models.UIScale;
+import com.github.yoep.popcorn.backend.settings.models.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -131,6 +129,12 @@ public class ApplicationConfig {
         FxLib.INSTANCE.update_torrent_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
     }
 
+    public void update(UISettings settings) {
+        Objects.requireNonNull(settings, "settings cannot be null");
+        var settings_c = new UISettings.ByValue(settings);
+        FxLib.INSTANCE.update_ui_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+    }
+
     /**
      * Get the list of supported UI scales for this application.
      *
@@ -178,19 +182,10 @@ public class ApplicationConfig {
     }
 
     private void initializeDefaultLanguage() {
-        //        var uiSettings = this.settings.getUiSettings();
-        //
-        //        // update the locale text with the locale from the settings
-        //        localeText.updateLocale(uiSettings.getDefaultLanguage());
-        //
-        //        // add a listener to the default language for changing the language at runtime
-        //        uiSettings.addListener(event -> {
-        //            if (event.getPropertyName().equals(UISettings.LANGUAGE_PROPERTY)) {
-        //                var locale = (Locale) event.getNewValue();
-        //
-        //                localeText.updateLocale(locale);
-        //            }
-        //        });
+        var uiSettings = this.settings.getUiSettings();
+
+        // update the locale text with the locale from the settings
+        localeText.updateLocale(Locale.forLanguageTag(uiSettings.getDefaultLanguage()));
     }
 
     //endregion
@@ -228,6 +223,7 @@ public class ApplicationConfig {
         if (event.tag == ApplicationConfigEvent.Tag.UiSettingsChanged) {
             var settings = event.getUnion().getUiSettings().getSettings();
             updateUIScale(settings.getUiScale().getValue());
+            localeText.updateLocale(Locale.forLanguageTag(settings.getDefaultLanguage()));
         }
     }
 

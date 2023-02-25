@@ -872,4 +872,7 @@ void update_subtitle_settings(PopcornFX *popcorn_fx, SubtitleSettingsC subtitle_
 /// Update the torrent settings with the new value.
 void update_torrent_settings(PopcornFX *popcorn_fx, TorrentSettingsC torrent_settings);
 
+/// Update the ui settings with the new value.
+void update_ui_settings(PopcornFX *popcorn_fx, UiSettingsC ui_settings);
+
 } // extern "C"

@@ -44,7 +44,7 @@ import com.sun.jna.Pointer;
 public interface FxLib extends Library {
     FxLib INSTANCE = Native.load("popcorn_fx", FxLib.class);
 
-    PopcornFx new_popcorn_fx();
+    PopcornFx new_popcorn_fx(String[] args, int len);
 
     PlatformInfo platform_info(PopcornFx instance);
 

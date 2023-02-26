@@ -1,8 +1,8 @@
 use std::env;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Once};
 
+use clap::Parser;
 use derive_more::Display;
 use log::{info, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
@@ -31,29 +31,36 @@ const LOG_FILENAME: &str = "log4.yml";
 const LOG_FORMAT: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I} --- [{T:>15.15}] {M} : {m}{n}";
 const CONSOLE_APPENDER: &str = "stdout";
 const DEFAULT_APP_DIRECTORY_NAME: &str = ".popcorn-time";
-const DEFAULT_APP_DIRECTORY: fn() -> PathBuf = || {
+const DEFAULT_APP_DIRECTORY: fn() -> String = || {
     let mut app_path = home::home_dir().expect("expected a home dir to exist");
     app_path.push(DEFAULT_APP_DIRECTORY_NAME);
-    app_path
+    app_path.to_str().unwrap().to_string()
 };
 
 /// The options for the [PopcornFX] instance.
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, Parser)]
+#[command(name = "popcorn-fx")]
 #[display(fmt = "app_directory: {:?}", app_directory)]
-pub struct PopcornFxOpts {
-    /// Disable the default `log4rs` logger for popcorn FX.
-    /// This allows you to bring your own logger for the instance which should support [log].
-    pub disable_logger: bool,
+pub struct PopcornFxArgs {
     /// The directory containing the application files.
     /// This directory is also referred to as the `storage_directory` or `storage_path` within the application.
-    pub app_directory: PathBuf,
+    #[arg(long, default_value_t = DEFAULT_APP_DIRECTORY())]
+    pub app_directory: String,
+    /// Disable the default `log4rs` logger for popcorn FX.
+    /// This allows you to bring your own logger for the instance which should support [log].
+    #[arg(long, global = true, default_value_t = false)]
+    pub disable_logger: bool,
+    /// Disable the youtube video player.
+    #[arg(long, default_value_t = false)]
+    pub disable_youtube_video_player: bool,
 }
 
-impl Default for PopcornFxOpts {
+impl Default for PopcornFxArgs {
     fn default() -> Self {
         Self {
             disable_logger: false,
             app_directory: DEFAULT_APP_DIRECTORY(),
+            disable_youtube_video_player: false,
         }
     }
 }
@@ -85,16 +92,18 @@ pub struct PopcornFX {
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     providers: ProviderManager,
     /// The options that were used to create this instance
-    opts: PopcornFxOpts,
+    opts: PopcornFxArgs,
 }
 
 impl PopcornFX {
-    pub fn new(opts: PopcornFxOpts) -> Self {
-        if !opts.disable_logger {
+    /// Create a new Popcorn FX instance with the given [PopcornFxArgs].
+    pub fn new(args: PopcornFxArgs) -> Self {
+        if !args.disable_logger {
             Self::initialize_logger();
         }
 
-        let app_directory_path = opts.app_directory.to_str().expect("expected a valid application directory path");
+        info!("Creating new popcorn fx instance with {:?}", args);
+        let app_directory_path = args.app_directory.as_str();
         let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(app_directory_path)));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
@@ -121,7 +130,7 @@ impl PopcornFX {
             torrent_collection,
             auto_resume_service,
             providers,
-            opts,
+            opts: args,
         }
     }
 
@@ -240,7 +249,7 @@ impl PopcornFX {
 
 impl Default for PopcornFX {
     fn default() -> Self {
-        Self::new(PopcornFxOpts::default())
+        Self::new(PopcornFxArgs::default())
     }
 }
 
@@ -259,7 +268,14 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_new() {
-        let mut popcorn_fx = PopcornFX::default();
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
 
         let _ = popcorn_fx.platform_service().platform_info();
         let _ = popcorn_fx.subtitle_server();
@@ -273,8 +289,15 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_favorite() {
+        init_logger();
         let id = "tt00000021544";
-        let mut popcorn_fx = PopcornFX::default();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
 
         let result = popcorn_fx.favorite_service().is_liked(id);
 
@@ -283,8 +306,15 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_auto_resume() {
+        init_logger();
         let filename = "something-totally_random123qwe.mp4";
-        let mut popcorn_fx = PopcornFX::default();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
 
         let result = popcorn_fx.auto_resume_service().resume_timestamp(None, Some(filename));
 
@@ -293,7 +323,14 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_torrent_collection() {
-        let mut popcorn_fx = PopcornFX::default();
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
 
         let result = popcorn_fx.torrent_collection().is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet");
 
@@ -307,9 +344,10 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let mut popcorn_fx = PopcornFX::new(PopcornFxOpts {
+        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
-            app_directory: PathBuf::from(temp_path),
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "settings.json", None);
 

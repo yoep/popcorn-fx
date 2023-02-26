@@ -7,6 +7,8 @@ import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.BackendConstants;
+import com.github.yoep.popcorn.backend.FxLibInstance;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
@@ -34,6 +36,8 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
     public static void main(String[] args) {
         System.setProperty("log.dir", getLogDirectory());
+        var libArgs = createLibraryArguments(args);
+        PopcornFxInstance.INSTANCE.set(FxLibInstance.INSTANCE.get().new_popcorn_fx(libArgs, libArgs.length));
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
 
@@ -121,5 +125,12 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var loggingDirectory = new File(loggingDirectoryPath);
 
         return loggingDirectory.getAbsolutePath();
+    }
+
+    private static String[] createLibraryArguments(String[] args) {
+        var libArgs = new String[args.length + 1];
+        libArgs[0] = "popcorn-fx";
+        System.arraycopy(args, 0, libArgs, 1, args.length);
+        return libArgs;
     }
 }

@@ -5,10 +5,11 @@ use std::os::raw::c_char;
 use std::path::Path;
 use std::time::Instant;
 
+use clap::{CommandFactory, FromArgMatches};
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
@@ -21,7 +22,7 @@ use popcorn_fx_platform::PlatformInfoC;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 use crate::arrays::StringArray;
-use crate::popcorn::fx::popcorn_fx::PopcornFX;
+use crate::popcorn::fx::popcorn_fx::{PopcornFX, PopcornFxArgs};
 
 pub mod popcorn;
 mod arrays;
@@ -31,9 +32,17 @@ mod media_mappers;
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [delete_popcorn_fx].
 #[no_mangle]
-pub extern "C" fn new_popcorn_fx() -> *mut PopcornFX {
+pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut PopcornFX {
     let start = Instant::now();
-    let instance = PopcornFX::default();
+    let args = from_c_vec(args, len).into_iter()
+        .map(|e| from_c_string(e))
+        .collect::<Vec<String>>();
+    let matches = PopcornFxArgs::command()
+        .allow_external_subcommands(true)
+        .ignore_errors(true)
+        .get_matches_from(args);
+    let args = PopcornFxArgs::from_arg_matches(&matches).expect("expected valid args");
+    let instance = PopcornFX::new(args);
 
     info!("Created new Popcorn FX instance in {} millis", start.elapsed().as_millis());
     into_c_owned(instance)
@@ -1001,20 +1010,19 @@ pub extern "C" fn dispose_popcorn_fx(_: Box<PopcornFX>) {
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::{from_c_owned, from_c_vec, to_c_vec};
     use popcorn_fx_core::core::config::{DecorationType, PopcornProperties, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
-    use crate::popcorn::fx::popcorn_fx::PopcornFxOpts;
+    use crate::popcorn::fx::popcorn_fx::PopcornFxArgs;
 
     use super::*;
 
@@ -1051,11 +1059,27 @@ mod test {
     pub extern "C" fn settings_callback(_: ApplicationConfigEventC) {}
 
     #[test]
+    fn test_new_popcorn_fx() {
+        init_logger();
+        let (args, len) = to_c_vec(vec![
+            "popcorn-fx".to_string(),
+            "--disable-logger".to_string(),
+        ].into_iter()
+            .map(|e| into_c_string(e))
+            .collect());
+
+        new_popcorn_fx(args, len);
+    }
+
+    #[test]
     fn test_default_subtitle_options() {
+        init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let mut instance = PopcornFX::new(PopcornFxOpts {
-            disable_logger: false,
-            app_directory: PathBuf::from(temp_dir.path()),
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
         });
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
 
@@ -1069,14 +1093,27 @@ mod test {
 
     #[test]
     fn test_create_and_dispose_popcorn_fx() {
-        let instance = from_c_owned(new_popcorn_fx());
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
 
         dispose_popcorn_fx(Box::new(instance));
     }
 
     #[test]
     fn test_is_liked_movie_overview() {
-        let mut instance = from_c_owned(new_popcorn_fx());
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
         let movie = MovieOverview::new(
             "".to_string(),
             "tt0000000122".to_string(),
@@ -1091,7 +1128,13 @@ mod test {
 
     #[test]
     fn test_is_liked_movie_details() {
-        let mut instance = from_c_owned(new_popcorn_fx());
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
         let movie = MovieDetails::new(
             "".to_string(),
             "tt0000000111".to_string(),
@@ -1106,7 +1149,13 @@ mod test {
 
     #[test]
     fn test_auto_resume_timestamp() {
-        let mut instance = from_c_owned(new_popcorn_fx());
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
         let id = "tt0000001111".to_string();
         let filename = "lorem-ipsum-dolor-estla.mkv".to_string();
 
@@ -1129,7 +1178,13 @@ mod test {
             language2.clone(),
         );
         let info_c2 = SubtitleInfoC::from(subtitle2.clone());
-        let mut instance = from_c_owned(new_popcorn_fx());
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
 
         update_subtitle(&mut instance, &info_c1);
         let info_result = SubtitleInfo::from(&from_c_owned(retrieve_preferred_subtitle(&mut instance)));
@@ -1174,7 +1229,14 @@ mod test {
 
     #[test]
     fn test_disable_subtitle() {
-        let mut instance = from_c_owned(new_popcorn_fx());
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
 
         let disabled = is_subtitle_disabled(&mut instance);
         assert!(!disabled, "expected the subtitle track to be enabled by default");
@@ -1190,9 +1252,10 @@ mod test {
         let magnet_uri = "magnet:?MagnetA";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxOpts {
-            disable_logger: false,
-            app_directory: PathBuf::from(temp_dir.path()),
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
 
@@ -1203,11 +1266,13 @@ mod test {
 
     #[test]
     fn test_torrent_collection_all() {
+        init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxOpts {
-            disable_logger: false,
-            app_directory: PathBuf::from(temp_dir.path()),
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
 
@@ -1218,11 +1283,14 @@ mod test {
 
     #[test]
     fn test_application_properties() {
+        init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let defaults = PopcornProperties::default();
-        let mut instance = PopcornFX::new(PopcornFxOpts {
-            disable_logger: false,
-            app_directory: PathBuf::from(temp_dir.path()),
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
         });
 
         let result = from_c_owned(application_properties(&mut instance));
@@ -1244,9 +1312,10 @@ mod test {
             None,
             None,
         ));
-        let mut instance = PopcornFX::new(PopcornFxOpts {
+        let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
-            app_directory: PathBuf::from(temp_dir.path()),
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
         });
 
         register_settings_callback(&mut instance, settings_callback);
@@ -1258,9 +1327,10 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxOpts {
+        let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
-            app_directory: PathBuf::from(temp_dir.path()),
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
         });
         let settings = SubtitleSettings {
             directory: format!("{}/subtitles", temp_path),
@@ -1293,7 +1363,14 @@ mod test {
 
     #[test]
     fn test_dispose_media_items() {
-        let mut instance = from_c_owned(new_popcorn_fx());
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
         let genre = GenreC::from(Genre::all());
         let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
         let keywords = into_c_string(String::new());

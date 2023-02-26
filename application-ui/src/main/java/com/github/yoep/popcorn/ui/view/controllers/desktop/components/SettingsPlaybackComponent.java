@@ -96,6 +96,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
         var settings = getPlaybackSettings();
 
         settings.setQuality(newValue);
+        applicationConfig.update(settings);
         showNotification();
     }
 
@@ -103,6 +104,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
         var settings = getPlaybackSettings();
 
         settings.setFullscreen(newValue);
+        applicationConfig.update(settings);
         showNotification();
     }
 
@@ -110,6 +112,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
         var settings = getPlaybackSettings();
 
         settings.setAutoPlayNextEpisodeEnabled(newValue);
+        applicationConfig.update(settings);
         showNotification();
     }
 

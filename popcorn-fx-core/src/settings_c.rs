@@ -4,8 +4,8 @@ use std::ptr;
 
 use log::trace;
 
-use crate::{from_c_string, into_c_string};
-use crate::core::config::{ApplicationConfigEvent, DecorationType, PopcornSettings, ServerSettings, StartScreen, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
+use crate::{from_c_owned, from_c_string, into_c_owned, into_c_string};
+use crate::core::config::{ApplicationConfigEvent, DecorationType, PlaybackSettings, PopcornSettings, Quality, ServerSettings, StartScreen, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
 use crate::core::subtitles::language::SubtitleLanguage;
 
 /// The C callback for the setting events.
@@ -25,6 +25,8 @@ pub enum ApplicationConfigEventC {
     UiSettingsChanged(UiSettingsC),
     /// Invoked when the server settings have been changed
     ServerSettingsChanged(ServerSettingsC),
+    /// Invoked when the playback settings have been changed
+    PlaybackSettingsChanged(PlaybackSettingsC),
 }
 
 impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
@@ -35,6 +37,7 @@ impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
             ApplicationConfigEvent::TorrentSettingsChanged(settings) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&settings)),
             ApplicationConfigEvent::UiSettingsChanged(settings) => ApplicationConfigEventC::UiSettingsChanged(UiSettingsC::from(&settings)),
             ApplicationConfigEvent::ServerSettingsChanged(settings) => ApplicationConfigEventC::ServerSettingsChanged(ServerSettingsC::from(&settings)),
+            ApplicationConfigEvent::PlaybackSettingsChanged(settings) => ApplicationConfigEventC::PlaybackSettingsChanged(PlaybackSettingsC::from(&settings))
         }
     }
 }
@@ -51,6 +54,8 @@ pub struct PopcornSettingsC {
     pub ui_settings: UiSettingsC,
     /// The api server settings of the application
     pub server_settings: ServerSettingsC,
+    /// The playback settings of the application
+    pub playback_settings: PlaybackSettingsC,
 }
 
 impl From<&PopcornSettings> for PopcornSettingsC {
@@ -61,6 +66,7 @@ impl From<&PopcornSettings> for PopcornSettingsC {
             torrent_settings: TorrentSettingsC::from(value.torrent()),
             ui_settings: UiSettingsC::from(value.ui()),
             server_settings: ServerSettingsC::from(value.server()),
+            playback_settings: PlaybackSettingsC::from(value.playback()),
         }
     }
 }
@@ -227,6 +233,49 @@ impl From<ServerSettingsC> for ServerSettings {
     }
 }
 
+/// The C compatible playback settings
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct PlaybackSettingsC {
+    /// The default playback quality
+    pub quality: *mut Quality,
+    /// Indicates if the playback will be opened in fullscreen mode
+    pub fullscreen: bool,
+    /// Indicates if the next episode of the show will be played
+    pub auto_play_next_episode_enabled: bool,
+}
+
+impl From<&PlaybackSettings> for PlaybackSettingsC {
+    fn from(value: &PlaybackSettings) -> Self {
+        let quality = match &value.quality {
+            None => ptr::null_mut(),
+            Some(e) => into_c_owned(e.clone())
+        };
+
+        Self {
+            quality,
+            fullscreen: value.fullscreen,
+            auto_play_next_episode_enabled: value.auto_play_next_episode_enabled,
+        }
+    }
+}
+
+impl From<PlaybackSettingsC> for PlaybackSettings {
+    fn from(value: PlaybackSettingsC) -> Self {
+        let quality = if !value.quality.is_null() {
+            Some(from_c_owned(value.quality))
+        } else {
+            None
+        };
+
+        Self {
+            quality,
+            fullscreen: value.fullscreen,
+            auto_play_next_episode_enabled: value.auto_play_next_episode_enabled,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -260,7 +309,7 @@ mod test {
             ApplicationConfigEventC::SubtitleSettingsChanged(result) => {
                 let subtitle_result = SubtitleSettings::from(result);
                 assert_eq!(subtitle, subtitle_result)
-            },
+            }
             _ => assert!(false, "expected ApplicationConfigEventC::SubtitleSettingsChanged")
         }
     }
@@ -439,6 +488,39 @@ mod test {
         };
 
         let result = ServerSettings::from(settings);
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_from_playback_settings() {
+        let settings = PlaybackSettings {
+            quality: Some(Quality::P1080),
+            fullscreen: true,
+            auto_play_next_episode_enabled: false,
+        };
+
+        let result = PlaybackSettingsC::from(&settings);
+
+        assert_eq!(Quality::P1080, from_c_owned(result.quality));
+        assert_eq!(true, result.fullscreen);
+        assert_eq!(false, result.auto_play_next_episode_enabled);
+    }
+
+    #[test]
+    fn test_from_playback_settings_c() {
+        let settings = PlaybackSettingsC {
+            quality: ptr::null_mut(),
+            fullscreen: true,
+            auto_play_next_episode_enabled: true,
+        };
+        let expected_result = PlaybackSettings {
+            quality: None,
+            fullscreen: true,
+            auto_play_next_episode_enabled: true,
+        };
+
+        let result = PlaybackSettings::from(settings);
 
         assert_eq!(expected_result, result)
     }

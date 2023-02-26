@@ -1,9 +1,6 @@
 package com.github.yoep.popcorn.backend.settings;
 
-import com.github.yoep.popcorn.backend.settings.models.ServerSettings;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
-import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.backend.settings.models.*;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -32,6 +29,7 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
             case TorrentSettingsChanged -> union.setType(ApplicationConfigEvent.TorrentSettingsChanged_Body.class);
             case UiSettingsChanged -> union.setType(ApplicationConfigEvent.UiSettingsChanged_Body.class);
             case ServerSettingsChanged -> union.setType(ApplicationConfigEvent.ServerSettingsChanged_Body.class);
+            case PlaybackSettingsChanged -> union.setType(ApplicationConfigEvent.PlaybackSettingsChanged_Body.class);
         }
         union.read();
     }
@@ -71,6 +69,13 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"settings"})
+    public static class PlaybackSettingsChanged_Body extends Structure {
+        public PlaybackSettings settings;
+    }
+
+    @Getter
+    @ToString
     public static class ApplicationConfigEventUnion extends Union {
         public static class ByValue extends ApplicationConfigEventUnion implements Union.ByValue {
         }
@@ -79,6 +84,7 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
         public ApplicationConfigEvent.TorrentSettingsChanged_Body torrentSettings;
         public ApplicationConfigEvent.UiSettingsChanged_Body uiSettings;
         public ApplicationConfigEvent.ServerSettingsChanged_Body serverSettings;
+        public ApplicationConfigEvent.PlaybackSettingsChanged_Body playbackSettings;
     }
 
     public enum Tag implements NativeMapped {
@@ -86,7 +92,8 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
         SubtitleSettingsChanged,
         TorrentSettingsChanged,
         UiSettingsChanged,
-        ServerSettingsChanged;
+        ServerSettingsChanged,
+        PlaybackSettingsChanged;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

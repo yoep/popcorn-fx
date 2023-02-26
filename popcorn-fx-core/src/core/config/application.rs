@@ -2,7 +2,7 @@ use derive_more::Display;
 use log::{debug, info, trace, warn};
 
 use crate::core::{CoreCallback, CoreCallbacks};
-use crate::core::config::{ConfigError, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
+use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
@@ -28,9 +28,12 @@ pub enum ApplicationConfigEvent {
     #[display(fmt = "UI settings have been changed")]
     /// Invoked when the ui settings have been changed
     UiSettingsChanged(UiSettings),
-    #[display(fmt = "Server settings have been changed")]
     /// Invoked when the server settings have been changed
+    #[display(fmt = "Server settings have been changed")]
     ServerSettingsChanged(ServerSettings),
+    /// Invoked when the playback settings have been changed
+    #[display(fmt = "Playback settings have been changed")]
+    PlaybackSettingsChanged(PlaybackSettings),
 }
 
 /// The application properties & settings of Popcorn FX.
@@ -125,6 +128,16 @@ impl ApplicationConfig {
         }
     }
 
+    /// Update the playback settings of the application.
+    /// The update will be ignored if no fields have been changed.
+    pub fn update_playback(&mut self, settings: PlaybackSettings) {
+        if self.settings.playback_settings != settings {
+            self.settings.playback_settings = settings;
+            debug!("Playback settings have been updated");
+            self.callbacks.invoke(ApplicationConfigEvent::PlaybackSettingsChanged(self.settings.playback().clone()));
+        }
+    }
+
     /// Reload the application config.
     pub fn reload(&mut self) {
         trace!("Reloading application settings");
@@ -147,6 +160,12 @@ impl ApplicationConfig {
                 }
                 if old_settings.ui_settings != self.settings.ui_settings {
                     self.callbacks.invoke(ApplicationConfigEvent::UiSettingsChanged(self.settings.ui().clone()))
+                }
+                if old_settings.server_settings != self.settings.server_settings {
+                    self.callbacks.invoke(ApplicationConfigEvent::ServerSettingsChanged(self.settings.server().clone()))
+                }
+                if old_settings.playback_settings != self.settings.playback_settings {
+                    self.callbacks.invoke(ApplicationConfigEvent::PlaybackSettingsChanged(self.settings.playback().clone()))
                 }
             }
             Err(e) => warn!("Failed to reload settings from storage, {}", e)
@@ -217,6 +236,7 @@ mod test {
             ui_settings: Default::default(),
             server_settings: Default::default(),
             torrent_settings: Default::default(),
+            playback_settings: Default::default(),
         };
 
         let result = application.user_settings();
@@ -290,6 +310,7 @@ mod test {
             ui_settings: Default::default(),
             server_settings: Default::default(),
             torrent_settings: Default::default(),
+            playback_settings: Default::default(),
         })
             .expect("expected the test file to have been written");
 
@@ -414,6 +435,37 @@ mod test {
                 assert_eq!(settings, application.user_settings().ui_settings);
             }
             _ => assert!(false, "expected ApplicationConfigEvent::UiSettingsChanged")
+        }
+    }
+
+    #[test]
+    fn test_update_server() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = ServerSettings {
+            api_server: Some("http://localhost:8080".to_string()),
+        };
+        let mut application = ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: Default::default(),
+            settings: Default::default(),
+            callbacks: Default::default(),
+        };
+        let (tx, rx) = channel();
+
+        application.register(Box::new(move |event| {
+            tx.send(event).unwrap()
+        }));
+        application.update_server(settings.clone());
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+
+        match result {
+            ApplicationConfigEvent::ServerSettingsChanged(result) => {
+                assert_eq!(settings, result);
+                assert_eq!(settings, application.user_settings().server_settings);
+            }
+            _ => assert!(false, "expected ApplicationConfigEvent::ServerSettingsChanged")
         }
     }
 }

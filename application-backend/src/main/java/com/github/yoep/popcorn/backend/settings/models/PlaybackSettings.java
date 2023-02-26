@@ -1,8 +1,11 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
+import com.sun.jna.FromNativeContext;
+import com.sun.jna.NativeMapped;
+import com.sun.jna.Structure;
 import lombok.*;
-import org.springframework.lang.Nullable;
 
+import java.io.Closeable;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,59 +17,47 @@ import static java.util.Arrays.asList;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PlaybackSettings extends AbstractSettings {
-    public static final String QUALITY_PROPERTY = "quality";
-    public static final String FULLSCREEN_PROPERTY = "fullscreen";
-    public static final String NEXT_EPISODE_PROPERTY = "autoPlayNextEpisode";
+@Structure.FieldOrder({"quality", "fullscreen", "autoPlayNextEpisodeEnabled"})
+public class PlaybackSettings extends Structure implements Closeable {
+    public static class ByValue extends PlaybackSettings implements Structure.ByValue {
+        public ByValue() {
+        }
 
-    /**
-     * The default video playback quality.
-     */
-    @Nullable
-    private Quality quality;
-    /**
-     * Open the video playback in fullscreen.
-     */
-    private boolean fullscreen;
-    /**
-     * Automatically play the next episode.
-     */
-    @Builder.Default
-    private boolean autoPlayNextEpisodeEnabled = true;
+        public ByValue(PlaybackSettings settings) {
+            Objects.requireNonNull(settings, "settings cannot be null");
+            this.quality = settings.quality;
+            this.fullscreen = settings.fullscreen;
+            this.autoPlayNextEpisodeEnabled = settings.autoPlayNextEpisodeEnabled;
+        }
+    }
 
-    //region Setters
+    public Quality quality;
+    public byte fullscreen;
+    public byte autoPlayNextEpisodeEnabled;
 
-    public void setQuality(Quality quality) {
-        if (Objects.equals(this.quality, quality))
-            return;
-
-        var oldValue = this.quality;
-        this.quality = quality;
-        changes.firePropertyChange(QUALITY_PROPERTY, oldValue, quality);
+    public boolean isFullscreen() {
+        return fullscreen == 1;
     }
 
     public void setFullscreen(boolean fullscreen) {
-        if (Objects.equals(this.fullscreen, fullscreen))
-            return;
+        this.fullscreen = (byte) (fullscreen ? 1 : 0);
+    }
 
-        var oldValue = this.fullscreen;
-        this.fullscreen = fullscreen;
-        changes.firePropertyChange(FULLSCREEN_PROPERTY, oldValue, fullscreen);
+    public boolean isAutoPlayNextEpisodeEnabled() {
+        return autoPlayNextEpisodeEnabled == 1;
     }
 
     public void setAutoPlayNextEpisodeEnabled(boolean autoPlayNextEpisodeEnabled) {
-        if (Objects.equals(this.autoPlayNextEpisodeEnabled, autoPlayNextEpisodeEnabled))
-            return;
-
-        var oldValue = this.autoPlayNextEpisodeEnabled;
-        this.autoPlayNextEpisodeEnabled = autoPlayNextEpisodeEnabled;
-        changes.firePropertyChange(NEXT_EPISODE_PROPERTY, oldValue, autoPlayNextEpisodeEnabled);
+        this.autoPlayNextEpisodeEnabled = (byte) (autoPlayNextEpisodeEnabled ? 1 : 0);
     }
 
-    //endregion
+    @Override
+    public void close() {
+        setAutoSynch(false);
+    }
 
     @Getter
-    public enum Quality {
+    public enum Quality implements NativeMapped {
         p480(480),
         p720(720),
         p1080(1080),
@@ -121,6 +112,22 @@ public class PlaybackSettings extends AbstractSettings {
         @Override
         public String toString() {
             return res + "p";
+        }
+
+        @Override
+        public Object fromNative(Object nativeValue, FromNativeContext context) {
+            var ordinal = (int) nativeValue;
+            return values()[ordinal];
+        }
+
+        @Override
+        public Object toNative() {
+            return ordinal();
+        }
+
+        @Override
+        public Class<?> nativeType() {
+            return Integer.class;
         }
     }
 }

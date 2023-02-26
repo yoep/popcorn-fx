@@ -119,6 +119,12 @@ public class ApplicationConfig {
         FxLib.INSTANCE.update_server_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
     }
 
+    public void update(PlaybackSettings settings) {
+        Objects.requireNonNull(settings, "settings cannot be null");
+        var settings_c = new PlaybackSettings.ByValue(settings);
+        FxLib.INSTANCE.update_playback_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+    }
+
     /**
      * Get the list of supported UI scales for this application.
      *

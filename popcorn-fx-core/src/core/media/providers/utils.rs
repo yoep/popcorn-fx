@@ -28,7 +28,7 @@ pub fn available_uris(settings: &ApplicationConfig, provider_name: &str) -> Vec<
 mod test {
     use std::collections::HashMap;
 
-    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
+    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings};
     use crate::core::storage::Storage;
     use crate::testing::init_logger;
 
@@ -58,12 +58,13 @@ mod test {
                 subtitle: Default::default(),
             },
             settings: PopcornSettings {
-                subtitle_settings: SubtitleSettings::default(),
-                ui_settings: UiSettings::default(),
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
                 server_settings: ServerSettings {
                     api_server: Some(api_server.clone()),
                 },
-                torrent_settings: TorrentSettings::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
             },
             callbacks: Default::default(),
         };
@@ -92,12 +93,13 @@ mod test {
                 subtitle: Default::default(),
             },
             settings: PopcornSettings {
-                subtitle_settings: SubtitleSettings::default(),
-                ui_settings: UiSettings::default(),
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
                 server_settings: ServerSettings {
                     api_server: Some(api_server.clone()),
                 },
-                torrent_settings: TorrentSettings::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
             },
             callbacks: Default::default(),
         };

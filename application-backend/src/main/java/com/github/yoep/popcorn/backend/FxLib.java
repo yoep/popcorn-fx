@@ -166,6 +166,8 @@ public interface FxLib extends Library {
 
     void update_server_settings(PopcornFx instance, ServerSettings.ByValue settings);
 
+    void update_playback_settings(PopcornFx instance, PlaybackSettings.ByValue settings);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);

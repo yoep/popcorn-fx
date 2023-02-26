@@ -8,8 +8,8 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
-use popcorn_fx_core::core::config::{ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -947,6 +947,14 @@ pub extern "C" fn update_server_settings(popcorn_fx: &mut PopcornFX, settings: S
     popcorn_fx.settings().update_server(settings);
 }
 
+/// Update the playback settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings: PlaybackSettingsC) {
+    trace!("Updating the playback settings from {:?}", settings);
+    let settings = PlaybackSettings::from(settings);
+    popcorn_fx.settings().update_playback(settings);
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -1000,7 +1008,7 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
-    use popcorn_fx_core::core::config::PopcornProperties;
+    use popcorn_fx_core::core::config::{DecorationType, PopcornProperties, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
@@ -1243,6 +1251,32 @@ mod test {
 
         register_settings_callback(&mut instance, settings_callback);
         update_subtitle_settings(&mut instance, subtitle_c);
+    }
+
+    #[test]
+    fn test_update_subtitle_settings() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: true,
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+        let settings = SubtitleSettings {
+            directory: format!("{}/subtitles", temp_path),
+            auto_cleaning_enabled: false,
+            default_subtitle: SubtitleLanguage::German,
+            font_family: SubtitleFamily::Arial,
+            font_size: 32,
+            decoration: DecorationType::SeeThroughBackground,
+            bold: true,
+        };
+
+        update_subtitle_settings(&mut instance, SubtitleSettingsC::from(&settings));
+        let mutex = instance.settings();
+        let result = mutex.user_settings().subtitle();
+
+        assert_eq!(&settings, result)
     }
 
     #[test]

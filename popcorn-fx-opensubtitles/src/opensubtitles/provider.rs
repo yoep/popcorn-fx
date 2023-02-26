@@ -555,9 +555,10 @@ mod test {
                     decoration: DecorationType::None,
                     bold: false,
                 },
-                ui_settings: UiSettings::default(),
-                server_settings: ServerSettings::default(),
-                torrent_settings: TorrentSettings::default(),
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
             },
             callbacks: Default::default(),
         }));
@@ -780,6 +781,7 @@ mod test {
             },
             server_settings: ServerSettings::default(),
             torrent_settings: TorrentSettings::default(),
+            playback_settings: Default::default(),
         };
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
@@ -848,6 +850,7 @@ mod test {
             ui_settings: UiSettings::default(),
             server_settings: ServerSettings::default(),
             torrent_settings: TorrentSettings::default(),
+            playback_settings: Default::default(),
         };
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
@@ -887,8 +890,9 @@ mod test {
                 maximized: false,
                 native_window_enabled: false,
             },
-            server_settings: ServerSettings::default(),
-            torrent_settings: TorrentSettings::default(),
+            server_settings: Default::default(),
+            torrent_settings: Default::default(),
+            playback_settings: Default::default(),
         };
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),

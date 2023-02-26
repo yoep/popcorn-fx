@@ -24,6 +24,14 @@ enum class PlatformType : int32_t {
   Linux = 2,
 };
 
+/// The playback quality defined in a resolution size
+enum class Quality {
+  P480,
+  P720,
+  P1080,
+  P2160,
+};
+
 /// The start screen options
 enum class StartScreen : int32_t {
   Movies = 0,
@@ -330,6 +338,16 @@ struct ServerSettingsC {
   const char *api_server;
 };
 
+/// The C compatible playback settings
+struct PlaybackSettingsC {
+  /// The default playback quality
+  Quality *quality;
+  /// Indicates if the playback will be opened in fullscreen mode
+  bool fullscreen;
+  /// Indicates if the next episode of the show will be played
+  bool auto_play_next_episode_enabled;
+};
+
 /// The C compatible application settings.
 struct PopcornSettingsC {
   /// The subtitle settings of the application
@@ -340,6 +358,8 @@ struct PopcornSettingsC {
   UiSettingsC ui_settings;
   /// The api server settings of the application
   ServerSettingsC server_settings;
+  /// The playback settings of the application
+  PlaybackSettingsC playback_settings;
 };
 
 struct SubtitleFileC {
@@ -492,6 +512,8 @@ struct ApplicationConfigEventC {
     UiSettingsChanged,
     /// Invoked when the server settings have been changed
     ServerSettingsChanged,
+    /// Invoked when the playback settings have been changed
+    PlaybackSettingsChanged,
   };
 
   struct SubtitleSettingsChanged_Body {
@@ -510,12 +532,17 @@ struct ApplicationConfigEventC {
     ServerSettingsC _0;
   };
 
+  struct PlaybackSettingsChanged_Body {
+    PlaybackSettingsC _0;
+  };
+
   Tag tag;
   union {
     SubtitleSettingsChanged_Body subtitle_settings_changed;
     TorrentSettingsChanged_Body torrent_settings_changed;
     UiSettingsChanged_Body ui_settings_changed;
     ServerSettingsChanged_Body server_settings_changed;
+    PlaybackSettingsChanged_Body playback_settings_changed;
   };
 };
 
@@ -874,6 +901,9 @@ TorrentStreamState torrent_stream_state(TorrentStreamC *stream);
 /// The torrent wrapper for moving data between rust and java.
 /// This is a temp wrapper till the torrent component is replaced.
 TorrentWrapperC *torrent_wrapper(TorrentC torrent);
+
+/// Update the playback settings with the new value.
+void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);
 
 /// Update the server settings with the new value.
 void update_server_settings(PopcornFX *popcorn_fx, ServerSettingsC settings);

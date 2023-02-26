@@ -1,28 +1,53 @@
 package com.github.yoep.popcorn.backend.config.properties;
 
-import lombok.Data;
+import com.sun.jna.Pointer;
+import com.sun.jna.Structure;
+import lombok.EqualsAndHashCode;
 
-import javax.validation.constraints.NotNull;
-import java.net.URI;
+import java.io.Closeable;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
-@Data
-public class ProviderProperties {
-    /**
-     * The base url of the API that should be used by the provider.
-     */
-    private List<URI> uris;
+@EqualsAndHashCode(callSuper = false)
+@Structure.FieldOrder({"name", "genres", "genresLen", "sortBy", "sortByLen"})
+public class ProviderProperties extends Structure implements Closeable {
+    public static class ByReference extends ProviderProperties implements Structure.ByReference {
+    }
 
-    /**
-     * The supported genres by the Popcorn API.
-     * https://popcornofficial.docs.apiary.io/#reference/genres/page?console=1
-     */
-    @NotNull
-    private List<String> genres;
+    public String name;
+    public Pointer genres;
+    public int genresLen;
+    public Pointer sortBy;
+    public int sortByLen;
 
-    /**
-     * The supported "sort by" by the Popcorn API.
-     */
-    @NotNull
-    private List<String> sortBy;
+    private List<String> sortByCache;
+    private List<String> genresCache;
+
+    public List<String> getGenres() {
+        return genresCache;
+    }
+
+    public List<String> getSortBy() {
+        return sortByCache;
+    }
+
+    @Override
+    public void read() {
+        super.read();
+        sortByCache = Optional.ofNullable(sortBy)
+                .map(e -> e.getStringArray(0, sortByLen))
+                .map(Arrays::asList)
+                .orElse(Collections.emptyList());
+        genresCache = Optional.ofNullable(genres)
+                .map(e -> e.getStringArray(0, genresLen))
+                .map(Arrays::asList)
+                .orElse(Collections.emptyList());
+    }
+
+    @Override
+    public void close() {
+        setAutoSynch(false);
+    }
 }

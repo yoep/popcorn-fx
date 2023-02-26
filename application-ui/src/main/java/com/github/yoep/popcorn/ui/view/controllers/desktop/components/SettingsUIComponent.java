@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.StartScreen;
 import com.github.yoep.popcorn.backend.settings.models.UIScale;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
@@ -26,7 +26,7 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
     @FXML
     CheckBox nativeWindow;
 
-    public SettingsUIComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, SettingsService settingsService) {
+    public SettingsUIComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
         super(eventPublisher, localeText, settingsService);
     }
 
@@ -43,13 +43,13 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         defaultLanguage.setButtonCell(createLanguageCell());
 
         defaultLanguage.getItems().addAll(UISettings.supportedLanguages());
-        defaultLanguage.getSelectionModel().select(getUiSettings().getDefaultLanguage());
+        defaultLanguage.getSelectionModel().select(Locale.forLanguageTag(getUiSettings().getDefaultLanguage()));
         defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
     }
 
     private void initializeUIScale() {
         uiScale.getItems().clear();
-        uiScale.getItems().addAll(SettingsService.supportedUIScales());
+        uiScale.getItems().addAll(ApplicationConfig.supportedUIScales());
         uiScale.getSelectionModel().select(getUiSettings().getUiScale());
         uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
     }
@@ -69,27 +69,31 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
     }
 
     private void updateLanguage(Locale locale) {
-        getUiSettings().setDefaultLanguage(locale);
+        getUiSettings().setDefaultLanguage(locale.toString());
+        applicationConfig.update(getUiSettings());
         showNotification();
         //TODO: force the UI to reload to apply the text changes
     }
 
     private void updateUIScale(UIScale newValue) {
         getUiSettings().setUiScale(newValue);
+        applicationConfig.update(getUiSettings());
         showNotification();
     }
 
     private void updateStartScreen(StartScreen startScreen) {
         getUiSettings().setStartScreen(startScreen);
+        applicationConfig.update(getUiSettings());
         showNotification();
     }
 
     private void updateNativeWindow(Boolean newValue) {
         getUiSettings().setNativeWindowEnabled(newValue);
+        applicationConfig.update(getUiSettings());
         showNotification();
     }
 
     private UISettings getUiSettings() {
-        return settingsService.getSettings().getUiSettings();
+        return applicationConfig.getSettings().getUiSettings();
     }
 }

@@ -2,8 +2,9 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use log::{debug, trace};
-use tokio::runtime::Handle;
 use tokio::sync::Mutex;
+
+use crate::core::block_in_place;
 
 /// The callback type which handles callbacks for changes within the Popcorn FX.
 /// This is a generic type that can be reused within the [crate::core] package.
@@ -28,6 +29,7 @@ pub type CoreCallback<E> = Box<dyn Fn(E) + Send>;
 /// callbacks.add(callback);
 /// callbacks.invoke(CoreEvent::Change);
 /// ```
+#[derive(Clone)]
 pub struct CoreCallbacks<E>
     where E: Display + Clone {
     callbacks: Arc<Mutex<Vec<CoreCallback<E>>>>,
@@ -57,13 +59,7 @@ impl<E: Display + Clone> CoreCallbacks<E> {
             }
         };
 
-        match Handle::try_current() {
-            Ok(e) => e.block_on(execute),
-            Err(_) => {
-                let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
-                runtime.block_on(execute)
-            }
-        }
+        block_in_place(execute)
     }
 }
 

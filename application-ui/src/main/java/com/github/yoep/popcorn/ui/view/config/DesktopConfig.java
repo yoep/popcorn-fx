@@ -8,8 +8,8 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
@@ -37,7 +37,7 @@ public class DesktopConfig {
                                          TaskExecutor taskExecutor,
                                          ApplicationArguments arguments,
                                          UrlService urlService,
-                                         SettingsService settingsService,
+                                         ApplicationConfig settingsService,
                                          OptionsService optionsService) {
         return new MainDesktopController(eventPublisher, viewLoader, taskExecutor, arguments, urlService, settingsService, optionsService);
     }
@@ -105,19 +105,19 @@ public class DesktopConfig {
     @Bean
     public SettingsUIComponent settingsUIComponent(ApplicationEventPublisher eventPublisher,
                                                    LocaleText localeText,
-                                                   SettingsService settingsService) {
+                                                   ApplicationConfig settingsService) {
         return new SettingsUIComponent(eventPublisher, localeText, settingsService);
     }
 
     @Bean
-    public SettingsSubtitlesComponent settingsSubtitlesComponent(SettingsService settingsService, LocaleText localeText) {
+    public SettingsSubtitlesComponent settingsSubtitlesComponent(ApplicationConfig settingsService, LocaleText localeText) {
         return new SettingsSubtitlesComponent(settingsService, localeText);
     }
 
     @Bean
     public SettingsTorrentComponent settingsTorrentComponent(ApplicationEventPublisher eventPublisher,
                                                              LocaleText localeText,
-                                                             SettingsService settingsService,
+                                                             ApplicationConfig settingsService,
                                                              TorrentSettingService torrentSettingService) {
         return new SettingsTorrentComponent(eventPublisher, localeText, settingsService, torrentSettingService);
     }
@@ -130,14 +130,14 @@ public class DesktopConfig {
     @Bean
     public SettingsPlaybackComponent settingsPlaybackComponent(ApplicationEventPublisher eventPublisher,
                                                                LocaleText localeText,
-                                                               SettingsService settingsService) {
+                                                               ApplicationConfig settingsService) {
         return new SettingsPlaybackComponent(eventPublisher, localeText, settingsService);
     }
 
     @Bean
     public SettingsServerComponent settingsServerComponent(ApplicationEventPublisher eventPublisher,
                                                            LocaleText localeText,
-                                                           SettingsService settingsService) {
+                                                           ApplicationConfig settingsService) {
         return new SettingsServerComponent(eventPublisher, localeText, settingsService);
     }
 

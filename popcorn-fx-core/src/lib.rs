@@ -6,6 +6,8 @@ use log::error;
 
 pub use crate::event_c::*;
 pub use crate::media_c::*;
+pub use crate::properties_c::*;
+pub use crate::settings_c::*;
 pub use crate::subtitle_c::*;
 pub use crate::torrent_collection_c::*;
 
@@ -13,6 +15,8 @@ pub mod core;
 
 mod event_c;
 mod media_c;
+mod properties_c;
+mod settings_c;
 mod subtitle_c;
 mod torrent_collection_c;
 
@@ -125,13 +129,18 @@ pub mod testing {
         })
     }
 
-    pub fn copy_test_file(temp_dir: &str, filename: &str) -> String {
+    /// Copy a file from the test resources to the given temp directory.
+    /// It will use the same `filename` as the source when `output_filename` is [None].
+    ///
+    /// * `filename`        - The original filename to copy
+    /// * `output_filename` - The new filename within the temp directory
+    pub fn copy_test_file(temp_dir: &str, filename: &str, output_filename: Option<&str>) -> String {
         let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
         let mut source = PathBuf::from(root_dir);
         source.push("test");
         source.push(filename);
         let mut destination = PathBuf::from(temp_dir);
-        destination.push(filename);
+        destination.push(output_filename.or_else(|| Some(filename)).unwrap());
 
         fs::copy(&source, &destination).unwrap();
 

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.trakt.authorization;
 
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.OAuth2AccessTokenWrapper;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ import java.util.concurrent.ExecutionException;
 @RequiredArgsConstructor
 public class TraktAccessTokenProvider extends AuthorizationCodeAccessTokenProvider implements AccessTokenProvider {
     private final PopcornProperties properties;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
     private final AuthorizationService authorizationService;
 
     @Override

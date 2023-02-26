@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use log::{debug, error, info, trace, warn};
 use tokio::sync::Mutex;
 
@@ -14,14 +12,14 @@ const FILENAME: &str = "torrent-collection.json";
 /// This information can be queried later on for more information about the torrent itself.
 #[derive(Debug)]
 pub struct TorrentCollection {
-    storage: Arc<Storage>,
+    storage: Storage,
     cache: Mutex<Option<Collection>>,
 }
 
 impl TorrentCollection {
-    pub fn new(storage: &Arc<Storage>) -> Self {
+    pub fn new(storage_directory: &str) -> Self {
         Self {
-            storage: storage.clone(),
+            storage: Storage::from(storage_directory),
             cache: Mutex::new(None),
         }
     }
@@ -113,7 +111,7 @@ impl TorrentCollection {
                         debug!("Creating new torrent collection file {}", file);
                         Ok(Collection::default())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load torrent collection, {}", error);
                         Err(TorrentError::TorrentCollectionLoadingFailed(error))
                     }
@@ -131,7 +129,7 @@ impl TorrentCollection {
     }
 
     async fn save_async(&self, collection: &Collection) {
-        match self.storage.write(FILENAME, &collection).await {
+        match self.storage.write_async(FILENAME, &collection).await {
             Ok(_) => info!("Torrent collection data has been saved"),
             Err(e) => error!("Failed to save torrent collection, {}", e)
         }
@@ -152,9 +150,8 @@ mod test {
         let magnet_uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let collection = TorrentCollection::new(&storage);
-        copy_test_file(temp_path, "torrent-collection.json");
+        let collection = TorrentCollection::new(temp_path);
+        copy_test_file(temp_path, "torrent-collection.json", None);
 
         let result = collection.is_stored(magnet_uri);
 
@@ -168,8 +165,7 @@ mod test {
         let uri = "magnet:?LoremIpsumConn";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let collection = TorrentCollection::new(&storage);
+        let collection = TorrentCollection::new(temp_path);
         let expected_result = vec![MagnetInfo {
             name: name.to_string(),
             magnet_uri: uri.to_string(),
@@ -190,9 +186,8 @@ mod test {
         let uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let collection = TorrentCollection::new(&storage);
-        copy_test_file(temp_path, "torrent-collection.json");
+        let collection = TorrentCollection::new(temp_path);
+        copy_test_file(temp_path, "torrent-collection.json", None);
         let expected_result = vec![
             MagnetInfo {
                 name: "MyMagnet2".to_string(),

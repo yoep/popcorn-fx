@@ -7,7 +7,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.Map;
 
 @Data
 @Validated
@@ -15,57 +14,9 @@ import java.util.Map;
 @ConfigurationProperties("popcorn")
 public class PopcornProperties {
     /**
-     * The providers for the available categories in Popcorn FX.
-     */
-    @Valid
-    @NotNull
-    private Map<String, ProviderProperties> providers;
-
-    /**
-     * The subtitle properties of Popcorn FX.
-     */
-    @Valid
-    @NotNull
-    private SubtitleProperties subtitle;
-
-    /**
      * The trakt properties for Popcorn FX.
      */
     @Valid
     @NotNull
     private TraktProperties trakt;
-
-    /**
-     * The application version.
-     */
-    @NotNull
-    private String version;
-
-    /**
-     * The uri to use as the update channel for checking new application versions.
-     */
-    @NotNull
-    private String updateChannel;
-
-    /**
-     * The imdb service properties.
-     */
-    @Valid
-    @NotNull
-    private ImdbProperties imdb;
-
-    /**
-     * Get the provider with the given name.
-     *
-     * @param name The name of the provider to retrieve.
-     * @return Returns the provider if found.
-     * @throws ProviderNotFoundException Is thrown when the given provider name couldn't be found.
-     */
-    public ProviderProperties getProvider(String name) {
-        return providers.entrySet().stream()
-                .filter(e -> e.getKey().equalsIgnoreCase(name))
-                .findFirst()
-                .map(Map.Entry::getValue)
-                .orElseThrow(() -> new ProviderNotFoundException(name));
-    }
 }

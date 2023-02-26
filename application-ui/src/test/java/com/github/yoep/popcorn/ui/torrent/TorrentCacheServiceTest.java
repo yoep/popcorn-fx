@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.torrent;
 
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import org.apache.commons.io.FileUtils;
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 public class TorrentCacheServiceTest {
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private ApplicationSettings applicationSettings;
     @Mock
@@ -50,6 +50,7 @@ public class TorrentCacheServiceTest {
         when(settingsService.getSettings()).thenReturn(applicationSettings);
         when(applicationSettings.getTorrentSettings()).thenReturn(torrentSettings);
         when(torrentSettings.isAutoCleaningEnabled()).thenReturn(false);
+        when(torrentSettings.getDirectory()).thenReturn(tmpDir.getAbsolutePath());
 
         torrentCacheService.onDestroy();
 
@@ -61,7 +62,7 @@ public class TorrentCacheServiceTest {
         when(settingsService.getSettings()).thenReturn(applicationSettings);
         when(applicationSettings.getTorrentSettings()).thenReturn(torrentSettings);
         when(torrentSettings.isAutoCleaningEnabled()).thenReturn(true);
-        when(torrentSettings.getDirectory()).thenReturn(tmpDir);
+        when(torrentSettings.getDirectory()).thenReturn(tmpDir.getAbsolutePath());
 
         torrentCacheService.onDestroy();
 

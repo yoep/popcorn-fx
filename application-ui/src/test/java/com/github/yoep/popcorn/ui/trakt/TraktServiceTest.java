@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.trakt;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.OAuth2AccessTokenWrapper;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
@@ -30,7 +30,7 @@ class TraktServiceTest {
     @Mock
     private PopcornProperties properties;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private WatchedService watchedService;
     @Mock

@@ -9,13 +9,14 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::Config;
 use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
+use tokio::sync::{Mutex, MutexGuard};
 
-use popcorn_fx_core::core::config::Application;
+use popcorn_fx_core::core::block_in_place;
+use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
-use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrent::collection::TorrentCollection;
@@ -40,13 +41,18 @@ const DEFAULT_APP_DIRECTORY: fn() -> PathBuf = || {
 #[derive(Debug, Clone, Display)]
 #[display(fmt = "app_directory: {:?}", app_directory)]
 pub struct PopcornFxOpts {
-    /// The directory containing the app storage files
+    /// Disable the default `log4rs` logger for popcorn FX.
+    /// This allows you to bring your own logger for the instance which should support [log].
+    pub disable_logger: bool,
+    /// The directory containing the application files.
+    /// This directory is also referred to as the `storage_directory` or `storage_path` within the application.
     pub app_directory: PathBuf,
 }
 
 impl Default for PopcornFxOpts {
     fn default() -> Self {
         Self {
+            disable_logger: false,
             app_directory: DEFAULT_APP_DIRECTORY(),
         }
     }
@@ -56,17 +62,17 @@ impl Default for PopcornFxOpts {
 /// This is the main entry into the FX application and manages all known data.
 ///
 /// # Examples
-/// 
+///
 /// Create a simple instance with default values.
 /// This instance will have the [log4rs] loggers initialized.
 /// ```no_run
 /// use popcorn_fx::popcorn::fx::popcorn_fx::PopcornFX;
-/// 
+///
 /// let instance = PopcornFX::default();
 /// ```
 #[repr(C)]
 pub struct PopcornFX {
-    settings: Arc<Application>,
+    settings: Arc<Mutex<ApplicationConfig>>,
     subtitle_service: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
     subtitle_manager: Arc<SubtitleManager>,
@@ -78,27 +84,29 @@ pub struct PopcornFX {
     torrent_collection: Arc<TorrentCollection>,
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     providers: ProviderManager,
-    storage: Arc<Storage>,
     /// The options that were used to create this instance
     opts: PopcornFxOpts,
 }
 
 impl PopcornFX {
     pub fn new(opts: PopcornFxOpts) -> Self {
-        Self::initialize_logger();
-        let storage = Arc::new(Storage::from(&opts.app_directory));
-        let settings = Arc::new(Application::new_auto(&storage));
+        if !opts.disable_logger {
+            Self::initialize_logger();
+        }
+
+        let app_directory_path = opts.app_directory.to_str().expect("expected a valid application directory path");
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(app_directory_path)));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let subtitle_manager = Arc::new(SubtitleManager::default());
         let platform_service = Box::new(PlatformServiceImpl::new());
-        let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(&storage)) as Box<dyn FavoriteService>);
-        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(&storage)) as Box<dyn WatchedService>);
+        let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
+        let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
-        let torrent_manager = Arc::new(Box::new(RTTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
+        let torrent_manager = Arc::new(Box::new(RTTorrentManager::new()) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
-        let torrent_collection = Arc::new(TorrentCollection::new(&storage));
-        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(&storage)) as Box<dyn AutoResumeService>);
+        let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
+        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
 
         Self {
             settings,
@@ -113,9 +121,13 @@ impl PopcornFX {
             torrent_collection,
             auto_resume_service,
             providers,
-            storage,
             opts,
         }
+    }
+
+    /// Retrieve the locked settings of the popcorn FX instance.
+    pub fn settings(&self) -> MutexGuard<ApplicationConfig> {
+        self.settings.blocking_lock()
     }
 
     /// The platform service of the popcorn FX instance.
@@ -173,9 +185,13 @@ impl PopcornFX {
         &self.auto_resume_service
     }
 
-    /// Dispose the FX instance.
-    pub fn dispose(&self) {
-        self.settings.save();
+    /// Reload the settings of this instance.
+    /// This will read the settings from the storage and notify all subscribers of new changes.
+    pub fn reload_settings(&mut self) {
+        block_in_place(async {
+            let mut mutex = self.settings.lock().await;
+            mutex.reload()
+        })
     }
 
     fn initialize_logger() {
@@ -206,9 +222,9 @@ impl PopcornFX {
         });
     }
 
-    fn default_providers(settings: &Arc<Application>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
-        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(&settings)));
-        let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(&settings)));
+    fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
+        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(settings)));
+        let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(settings)));
         let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![
             &movie_provider,
             &show_provider,
@@ -230,7 +246,14 @@ impl Default for PopcornFX {
 
 #[cfg(test)]
 mod test {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
+    use tempfile::tempdir;
+
+    use popcorn_fx_core::core::config::ApplicationConfigEvent;
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use super::*;
 
@@ -275,5 +298,33 @@ mod test {
         let result = popcorn_fx.torrent_collection().is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet");
 
         assert_eq!(false, result)
+    }
+
+    #[test]
+    fn test_popcorn_fx_reload_settings() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, rx) = channel();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let mut popcorn_fx = PopcornFX::new(PopcornFxOpts {
+            disable_logger: true,
+            app_directory: PathBuf::from(temp_path),
+        });
+        copy_test_file(temp_path, "settings.json", None);
+
+        let mutex = popcorn_fx.settings();
+        mutex.register(Box::new(move |event| {
+            tx.send(event).unwrap()
+        }));
+        drop(mutex);
+
+        popcorn_fx.reload_settings();
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+
+        match result {
+            ApplicationConfigEvent::SettingsLoaded => {}
+            _ => assert!(false, "expected ApplicationConfigEvent::SettingsLoaded")
+        }
     }
 }

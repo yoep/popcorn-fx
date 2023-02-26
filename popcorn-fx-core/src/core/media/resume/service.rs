@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
 use mockall::automock;
@@ -38,14 +37,14 @@ pub trait AutoResumeService: Debug + Send + Sync {
 /// The default auto-resume service for Popcorn FX.
 #[derive(Debug)]
 pub struct DefaultAutoResumeService {
-    storage: Arc<Storage>,
+    storage: Storage,
     cache: Mutex<Option<AutoResume>>,
 }
 
 impl DefaultAutoResumeService {
-    pub fn new(storage: &Arc<Storage>) -> Self {
+    pub fn new(storage_directory: &str) -> Self {
         Self {
-            storage: storage.clone(),
+            storage: Storage::from(storage_directory),
             cache: Mutex::new(None),
         }
     }
@@ -69,7 +68,7 @@ impl DefaultAutoResumeService {
     }
 
     fn load_resume_from_storage(&self) -> media::Result<AutoResume> {
-        match self.storage.read::<AutoResume>(FILENAME) {
+        match self.storage.read(FILENAME) {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
@@ -77,7 +76,7 @@ impl DefaultAutoResumeService {
                         debug!("Creating new auto-resume file {}", file);
                         Ok(AutoResume::default())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load auto-resume, {}", error);
                         Err(MediaError::AutoResumeLoadingFailed(error))
                     }
@@ -95,7 +94,7 @@ impl DefaultAutoResumeService {
     }
 
     async fn save_async(&self, resume: &AutoResume) {
-        match self.storage.write(FILENAME, &resume).await {
+        match self.storage.write_async(FILENAME, &resume).await {
             Ok(_) => info!("Auto-resume data has been saved"),
             Err(e) => error!("Failed to save auto-resume, {}", e)
         }
@@ -212,9 +211,8 @@ mod test {
         let filename = "Lorem.mp4";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
-        copy_test_file(temp_path, "auto-resume.json");
+        let service = DefaultAutoResumeService::new(temp_path);
+        copy_test_file(temp_path, "auto-resume.json", None);
 
         let result = service.resume_timestamp(None, Some(filename));
 
@@ -230,8 +228,7 @@ mod test {
         let filename = "random-video-not-known.mkv";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
+        let service = DefaultAutoResumeService::new(temp_path);
 
         let result = service.resume_timestamp(None, Some(filename));
 
@@ -244,9 +241,8 @@ mod test {
         let id = "110999";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
-        copy_test_file(temp_path, "auto-resume.json");
+        let service = DefaultAutoResumeService::new(temp_path);
+        copy_test_file(temp_path, "auto-resume.json", None);
 
         let result = service.resume_timestamp(Some(id), None);
 
@@ -261,8 +257,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
+        let service = DefaultAutoResumeService::new(temp_path);
 
         let result = service.resume_timestamp(None, None);
 
@@ -274,8 +269,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
+        let service = DefaultAutoResumeService::new(temp_path);
         let event = PlayerStoppedEvent::new(
             "http://localhost/ipsum.mp4".to_string(),
             None,
@@ -295,8 +289,7 @@ mod test {
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
+        let service = DefaultAutoResumeService::new(temp_path);
         let expected_timestamp = 40000;
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),
@@ -323,9 +316,8 @@ mod test {
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
-        copy_test_file(temp_path, "auto-resume.json");
+        let service = DefaultAutoResumeService::new(temp_path);
+        copy_test_file(temp_path, "auto-resume.json", None);
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),
             "tt11223344".to_string(),
@@ -350,8 +342,7 @@ mod test {
         let id = "tt00001212";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Arc::new(Storage::from(temp_path));
-        let service = DefaultAutoResumeService::new(&storage);
+        let service = DefaultAutoResumeService::new(temp_path);
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),
             id.to_string(),

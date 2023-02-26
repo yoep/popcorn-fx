@@ -100,7 +100,6 @@ impl Torrent for TorrentWrapper {
     fn prioritize_bytes(&self, bytes: &[u64]) {
         tokio::task::block_in_place(move || {
             let mutex = self.prioritize_bytes.blocking_lock();
-            ;
             mutex(bytes)
         })
     }
@@ -153,7 +152,7 @@ mod test {
         });
         let has_piece = Box::new(|_: u32| true);
         let total_pieces = Box::new(|| 0);
-        let prioritize_bytes = Box::new(|bytes: &[u64]| {});
+        let prioritize_bytes = Box::new(|_: &[u64]| {});
         let prioritize_pieces = Box::new(|_: &[u32]| {});
         let sequential_mode = Box::new(|| {});
         let torrent_state = Box::new(|| TorrentState::Completed);
@@ -177,10 +176,10 @@ mod test {
 
     #[test]
     fn test_state() {
-        let has_bytes: HasBytesCallback = Box::new(move |byte| true);
+        let has_bytes: HasBytesCallback = Box::new(move |_| true);
         let has_piece = Box::new(|_: u32| true);
         let total_pieces = Box::new(|| 0);
-        let prioritize_bytes = Box::new(|bytes: &[u64]| {});
+        let prioritize_bytes = Box::new(|_: &[u64]| {});
         let prioritize_pieces = Box::new(|_: &[u32]| {});
         let sequential_mode = Box::new(|| {});
         let torrent_state = Box::new(|| TorrentState::Completed);

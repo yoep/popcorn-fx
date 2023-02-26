@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
@@ -25,11 +25,11 @@ import java.util.ResourceBundle;
 @ViewController
 @RequiredArgsConstructor
 public class AboutSectionController implements Initializable {
-    private final PopcornProperties properties;
     private final ApplicationContext applicationContext;
     private final AboutSectionService aboutService;
     private final PlatformProvider platformProvider;
     private final ImageService imageService;
+    private final ApplicationConfig settingsService;
 
     @FXML
     BackgroundImageCover backgroundCover;
@@ -64,7 +64,7 @@ public class AboutSectionController implements Initializable {
 
     private void initializeLabels() {
         titleLabel.setText(applicationContext.getId());
-        versionLabel.setText(properties.getVersion());
+        versionLabel.setText(settingsService.getProperties().getVersion());
     }
 
     private void initializeListeners() {

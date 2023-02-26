@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.StartScreen;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
@@ -19,7 +19,7 @@ public abstract class AbstractFilterSectionController {
     protected static final String ACTIVE_STYLE_CLASS = "active";
 
     protected final ApplicationEventPublisher eventPublisher;
-    protected final SettingsService settingsService;
+    protected final ApplicationConfig settingsService;
 
     @FXML
     protected Node moviesCategory;
@@ -36,7 +36,7 @@ public abstract class AbstractFilterSectionController {
 
     //region Constructors
 
-    protected AbstractFilterSectionController(ApplicationEventPublisher eventPublisher, SettingsService settingsService) {
+    protected AbstractFilterSectionController(ApplicationEventPublisher eventPublisher, ApplicationConfig settingsService) {
         Assert.notNull(eventPublisher, "eventPublisher cannot be null");
         Assert.notNull(settingsService, "settingsService cannot be null");
         this.eventPublisher = eventPublisher;

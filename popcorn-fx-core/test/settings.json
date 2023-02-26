@@ -1,0 +1,33 @@
+{
+  "subtitle_settings": {
+    "auto_cleaning_enabled": true,
+    "default_subtitle": "ENGLISH",
+    "font_family": "ARIAL",
+    "font_size": 28,
+    "decoration": "OUTLINE",
+    "bold": true
+  },
+  "ui_settings": {
+    "default_language": "en",
+    "ui_scale": {
+      "value": 1.0
+    },
+    "start_screen": "MOVIES",
+    "maximized": false,
+    "native_window_enabled": false
+  },
+  "server_settings": {
+    "api_server": null
+  },
+  "torrent_settings": {
+    "auto_cleaning_enabled": true,
+    "connections_limit": 300,
+    "download_rate_limit": 0,
+    "upload_rate_limit": 0
+  },
+  "playback_settings": {
+    "quality": null,
+    "fullscreen": true,
+    "auto_play_next_episode_enabled": true
+  }
+}

@@ -6,6 +6,14 @@
 #include <new>
 
 
+/// The decoration to apply to the subtitle during rendering.
+enum class DecorationType : int32_t {
+  None = 0,
+  Outline = 1,
+  OpaqueBackground = 2,
+  SeeThroughBackground = 3,
+};
+
 /// The platform type
 enum class PlatformType : int32_t {
   /// The windows platform
@@ -14,6 +22,31 @@ enum class PlatformType : int32_t {
   MacOs = 1,
   /// The linux platform
   Linux = 2,
+};
+
+/// The playback quality defined in a resolution size
+enum class Quality {
+  P480,
+  P720,
+  P1080,
+  P2160,
+};
+
+/// The start screen options
+enum class StartScreen : int32_t {
+  Movies = 0,
+  Shows = 1,
+  Favorites = 2,
+};
+
+/// The supported subtitle fonts to use for rendering subtitles.
+enum class SubtitleFamily : int32_t {
+  Arial = 0,
+  ComicSans = 1,
+  Georgia = 2,
+  Tahoma = 3,
+  TrebuchetMs = 4,
+  Verdana = 5,
 };
 
 /// The supported subtitle languages.
@@ -94,11 +127,24 @@ template<typename T = void>
 struct Box;
 
 /// The [PopcornFX] application instance.
+/// This is the main entry into the FX application and manages all known data.
+///
+/// # Examples
+///
+/// Create a simple instance with default values.
+/// This instance will have the [log4rs] loggers initialized.
+/// ```no_run
+/// use popcorn_fx::popcorn::fx::popcorn_fx::PopcornFX;
+///
+/// let instance = PopcornFX::default();
+/// ```
 struct PopcornFX;
 
 /// The C compatible struct for [TorrentStream].
 struct TorrentStreamC;
 
+/// The wrapper containing the callbacks to retrieve the actual
+/// torrent information from C.
 struct TorrentWrapper;
 
 struct RatingC {
@@ -208,26 +254,138 @@ struct MediaItemC {
   EpisodeC *episode;
 };
 
+/// The C compatible media provider properties.
+struct ProviderPropertiesC {
+  /// The name of the provider.
+  const char *name;
+  /// The array of available genres for the provider.
+  const char **genres;
+  /// The length of the genres array.
+  int32_t genres_len;
+  /// The array of available sorting options for the provider.
+  const char **sort_by;
+  /// The length of the sorting options array.
+  int32_t sort_by_len;
+};
+
+/// The C compatible properties of the application.
+struct PopcornPropertiesC {
+  /// The version of the application
+  const char *version;
+  /// The update channel to retrieve updates from
+  const char *update_channel;
+  /// The array of available provider properties
+  ProviderPropertiesC *provider_properties;
+  /// The length of the provider properties array
+  int32_t provider_properties_len;
+};
+
+/// The C compatible subtitle settings.
+struct SubtitleSettingsC {
+  /// The directory path for storing subtitles
+  const char *directory;
+  /// Indicates if the subtitle directory will be cleaned
+  /// when the application is closed
+  bool auto_cleaning;
+  /// The default selected subtitle language
+  SubtitleLanguage default_subtitle;
+  /// The subtitle font to use
+  SubtitleFamily font_family;
+  /// The subtitle font size to use
+  uint32_t font_size;
+  /// The subtitle rendering decoration type
+  DecorationType decoration;
+  /// Indicates if the subtitle should be rendered in a bold font
+  bool bold;
+};
+
+/// The C compatible torrent settings.
+struct TorrentSettingsC {
+  /// The torrent directory to store the torrents
+  const char *directory;
+  /// Indicates if the torrents directory will be cleaned on closure
+  bool auto_cleaning_enabled;
+  /// The max number of connections
+  uint32_t connections_limit;
+  /// The download rate limit
+  uint32_t download_rate_limit;
+  /// The upload rate limit
+  uint32_t upload_rate_limit;
+};
+
+/// The UI scale of the application
+struct UiScale {
+  float value;
+};
+
+/// The C compatible ui settings
+struct UiSettingsC {
+  /// The default language of the application
+  const char *default_language;
+  /// The ui scale of the application
+  UiScale ui_scale;
+  /// The default start screen of the application
+  StartScreen start_screen;
+  /// The indication if the UI was maximized the last time the application was closed
+  bool maximized;
+  /// The indication if the UI should use a native window rather than the borderless stage
+  bool native_window_enabled;
+};
+
+/// The C compatible server settings.
+struct ServerSettingsC {
+  /// The configured api server to use, can be `ptr::null()`
+  const char *api_server;
+};
+
+/// The C compatible playback settings
+struct PlaybackSettingsC {
+  /// The default playback quality
+  Quality *quality;
+  /// Indicates if the playback will be opened in fullscreen mode
+  bool fullscreen;
+  /// Indicates if the next episode of the show will be played
+  bool auto_play_next_episode_enabled;
+};
+
+/// The C compatible application settings.
+struct PopcornSettingsC {
+  /// The subtitle settings of the application
+  SubtitleSettingsC subtitle_settings;
+  /// The torrent settings of the application
+  TorrentSettingsC torrent_settings;
+  /// The ui settings of the application
+  UiSettingsC ui_settings;
+  /// The api server settings of the application
+  ServerSettingsC server_settings;
+  /// The playback settings of the application
+  PlaybackSettingsC playback_settings;
+};
+
 struct SubtitleFileC {
   int32_t file_id;
   const char *name;
   const char *url;
   float score;
   int32_t downloads;
-  int32_t *quality;
+  const int32_t *quality;
 };
 
+/// The C compatible struct for [SubtitleInfo].
 struct SubtitleInfoC {
+  /// The IMDB ID if known, this can be [ptr::null]
   const char *imdb_id;
   SubtitleLanguage language;
   SubtitleFileC *files;
   int32_t len;
 };
 
-struct VecSubtitleInfoC {
+/// The C array of available [SubtitleInfo].
+struct SubtitleInfoSet {
+  /// The available subtitle array
   SubtitleInfoC *subtitles;
+  /// The length of the array
   int32_t len;
-  int32_t cap;
 };
 
 /// Structure defining a set of media items.
@@ -239,16 +397,6 @@ struct MediaSetC {
   /// The show media items array.
   ShowOverviewC *shows;
   int32_t shows_len;
-};
-
-/// The subtitle matcher C compatible struct.
-/// It contains the information which should be matched when selecting a subtitle file to load.
-struct SubtitleMatcherC {
-  /// The nullable name of the media item.
-  const char *name;
-  /// The nullable quality of the media item.
-  /// This can be represented as `720p` or `720`.
-  const char *quality;
 };
 
 struct StyledTextC {
@@ -271,11 +419,44 @@ struct SubtitleCueC {
   int32_t number_of_lines;
 };
 
+/// The parsed subtitle representation for C.
+/// It contains the data of a subtitle file that can be displayed.
 struct SubtitleC {
+  /// The filepath that has been parsed
   const char *file;
-  SubtitleInfoC info;
+  /// The info of the parsed subtitle if available, else [ptr::null_mut]
+  SubtitleInfoC *info;
+  /// The parsed cues from the subtitle file
   SubtitleCueC *cues;
-  int32_t number_of_cues;
+  /// The total number of cue elements
+  int32_t len;
+};
+
+/// The C compatible struct for [MagnetInfo].
+struct MagnetInfoC {
+  /// The name of the magnet
+  const char *name;
+  /// The magnet uri to the torrent
+  const char *magnet_uri;
+};
+
+/// The collection of stored magnets.
+/// It contains the C compatible information for [std::ffi].
+struct TorrentCollectionSet {
+  /// The array of magnets
+  MagnetInfoC *magnets;
+  /// The length of the array
+  int32_t len;
+};
+
+/// The subtitle matcher C compatible struct.
+/// It contains the information which should be matched when selecting a subtitle file to load.
+struct SubtitleMatcherC {
+  /// The nullable name of the media item.
+  const char *name;
+  /// The nullable quality of the media item.
+  /// This can be represented as `720p` or `720`.
+  const char *quality;
 };
 
 /// The player stopped event which indicates a video playback has been stopped.
@@ -317,6 +498,56 @@ struct FavoriteEventC {
     LikedStateChanged_Body liked_state_changed;
   };
 };
+
+/// The C compatible application events.
+struct ApplicationConfigEventC {
+  enum class Tag {
+    /// Invoked when the application settings have been reloaded or loaded
+    SettingsLoaded,
+    /// Invoked when the subtitle settings have been changed
+    SubtitleSettingsChanged,
+    /// Invoked when the torrent settings have been changed
+    TorrentSettingsChanged,
+    /// Invoked when the ui settings have been changed
+    UiSettingsChanged,
+    /// Invoked when the server settings have been changed
+    ServerSettingsChanged,
+    /// Invoked when the playback settings have been changed
+    PlaybackSettingsChanged,
+  };
+
+  struct SubtitleSettingsChanged_Body {
+    SubtitleSettingsC _0;
+  };
+
+  struct TorrentSettingsChanged_Body {
+    TorrentSettingsC _0;
+  };
+
+  struct UiSettingsChanged_Body {
+    UiSettingsC _0;
+  };
+
+  struct ServerSettingsChanged_Body {
+    ServerSettingsC _0;
+  };
+
+  struct PlaybackSettingsChanged_Body {
+    PlaybackSettingsC _0;
+  };
+
+  Tag tag;
+  union {
+    SubtitleSettingsChanged_Body subtitle_settings_changed;
+    TorrentSettingsChanged_Body torrent_settings_changed;
+    UiSettingsChanged_Body ui_settings_changed;
+    ServerSettingsChanged_Body server_settings_changed;
+    PlaybackSettingsChanged_Body playback_settings_changed;
+  };
+};
+
+/// The C callback for the setting events.
+using ApplicationConfigCallbackC = void(*)(ApplicationConfigEventC);
 
 /// The C abi compatible torrent stream event.
 struct TorrentStreamEventC {
@@ -392,11 +623,17 @@ using HasPieceCallbackC = bool(*)(uint32_t);
 /// The callback to retrieve the total pieces of the torrent.
 using TotalPiecesCallbackC = int32_t(*)();
 
+/// The callback for prioritizing bytes.
+using PrioritizeBytesCallbackC = void(*)(int32_t, uint64_t*);
+
 /// The callback for prioritizing pieces.
 using PrioritizePiecesCallbackC = void(*)(int32_t, uint32_t*);
 
 /// The callback for update the torrent mode to sequential.
 using SequentialModeCallbackC = void(*)();
+
+/// The callback for retrieving the torrent state.
+using TorrentStateCallbackC = TorrentState(*)();
 
 /// The C compatible abi struct for a [Torrent].
 /// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
@@ -406,8 +643,10 @@ struct TorrentC {
   HasByteCallbackC has_byte_callback;
   HasPieceCallbackC has_piece_callback;
   TotalPiecesCallbackC total_pieces;
+  PrioritizeBytesCallbackC prioritize_bytes;
   PrioritizePiecesCallbackC prioritize_pieces;
   SequentialModeCallbackC sequential_mode;
+  TorrentStateCallbackC torrent_state;
 };
 
 
@@ -420,11 +659,19 @@ void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 /// Add the given media item to the watched list.
 void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
+/// Retrieve the immutable configuration properties of the application.
+/// These properties stay the same throughout the lifecycle the popcorn FX instance.
+PopcornPropertiesC *application_properties(PopcornFX *popcorn_fx);
+
+/// Retrieve the application settings.
+/// These are the setting preferences of the users for the popcorn FX instance.
+PopcornSettingsC *application_settings(PopcornFX *popcorn_fx);
+
 /// Retrieve the auto-resume timestamp for the given media id and/or filename.
 uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const char *filename);
 
 /// Retrieve the default options available for the subtitles.
-VecSubtitleInfoC *default_subtitle_options(PopcornFX *popcorn_fx);
+SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 
 /// Disable the screensaver on the current platform
 void disable_screensaver(PopcornFX *popcorn_fx);
@@ -440,7 +687,13 @@ void dispose_media_item(Box<MediaItemC> media);
 void dispose_media_items(Box<MediaSetC> media);
 
 /// Delete the PopcornFX instance in a safe way.
-void dispose_popcorn_fx(Box<PopcornFX> popcorn_fx);
+void dispose_popcorn_fx(Box<PopcornFX>);
+
+/// Dispose the given subtitle.
+void dispose_subtitle(Box<SubtitleC> subtitle);
+
+/// Dispose the [TorrentCollectionSet] from memory.
+void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
 /// Dispose the torrent stream.
 /// Make sure [stop_stream] has been called before dropping the instance.
@@ -460,10 +713,10 @@ SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfo
 void enable_screensaver(PopcornFX *popcorn_fx);
 
 /// Retrieve the given subtitles for the given episode
-VecSubtitleInfoC *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *show, const EpisodeC *episode);
+SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *show, const EpisodeC *episode);
 
 /// Retrieve the available subtitles for the given filename
-VecSubtitleInfoC *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
+SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
 /// Handle the player stopped event.
 /// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
@@ -489,9 +742,9 @@ bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
-/// It returns a reference to [VecSubtitleInfoC], else a [ptr::null_mut] on failure.
+/// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
 /// <i>The returned reference should be managed by the caller.</i>
-VecSubtitleInfoC *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *movie);
+SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *movie);
 
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
@@ -509,11 +762,17 @@ PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
+/// Register a new callback for all setting events.
+void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallbackC callback);
+
 /// Register a new callback for the torrent stream.
 void register_torrent_stream_callback(TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
 
 /// Register a new callback listener for watched events.
 void register_watched_event_callback(PopcornFX *popcorn_fx, void (*callback)(WatchedEventC));
+
+/// Reload the settings of the application.
+void reload_settings(PopcornFX *popcorn_fx);
 
 /// Remove the media item from favorites.
 void remove_from_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
@@ -610,6 +869,23 @@ TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torre
 /// Stop the given torrent stream.
 void stop_stream(PopcornFX *popcorn_fx, TorrentStreamC *stream);
 
+/// Add the given magnet info to the torrent collection.
+void torrent_collection_add(PopcornFX *popcorn_fx, const char *name, const char *magnet_uri);
+
+/// Retrieve all stored magnets from the torrent collection.
+/// It returns the set on success, else [ptr::null_mut].
+TorrentCollectionSet *torrent_collection_all(PopcornFX *popcorn_fx);
+
+/// Verify if the given magnet uri has already been stored.
+bool torrent_collection_is_stored(PopcornFX *popcorn_fx, const char *magnet_uri);
+
+/// Remove the given magnet uri from the torrent collection.
+void torrent_collection_remove(PopcornFX *popcorn_fx, const char *magnet_uri);
+
+/// Resolve the given torrent url into meta information of the torrent.
+/// The url can be a magnet, http or file url to the torrent file.
+void torrent_info(PopcornFX *popcorn_fx, const char *url);
+
 /// Inform the FX core that a piece for the torrent has finished downloading.
 void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
 
@@ -626,6 +902,12 @@ TorrentStreamState torrent_stream_state(TorrentStreamC *stream);
 /// This is a temp wrapper till the torrent component is replaced.
 TorrentWrapperC *torrent_wrapper(TorrentC torrent);
 
+/// Update the playback settings with the new value.
+void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);
+
+/// Update the server settings with the new value.
+void update_server_settings(PopcornFX *popcorn_fx, ServerSettingsC settings);
+
 /// Update the preferred subtitle for the [Media] item playback.
 /// This action will reset any custom configured subtitle files.
 void update_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle);
@@ -633,5 +915,14 @@ void update_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle);
 /// Update the preferred subtitle to a custom subtitle filepath.
 /// This action will reset any preferred subtitle.
 void update_subtitle_custom_file(PopcornFX *popcorn_fx, const char *custom_filepath);
+
+/// Update the subtitle settings with the new value.
+void update_subtitle_settings(PopcornFX *popcorn_fx, SubtitleSettingsC subtitle_settings);
+
+/// Update the torrent settings with the new value.
+void update_torrent_settings(PopcornFX *popcorn_fx, TorrentSettingsC torrent_settings);
+
+/// Update the ui settings with the new value.
+void update_ui_settings(PopcornFX *popcorn_fx, UiSettingsC settings);
 
 } // extern "C"

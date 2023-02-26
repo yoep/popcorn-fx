@@ -8,8 +8,8 @@ import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.scene.paint.Color;
@@ -57,7 +57,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     }
 
     private void updateStageType(Stage stage) {
-        var settingsService = applicationContext.getBean(SettingsService.class);
+        var settingsService = applicationContext.getBean(ApplicationConfig.class);
         var uiSettings = settingsService.getSettings().getUiSettings();
 
         if (uiSettings.isNativeWindowEnabled()) {
@@ -86,7 +86,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         if (options.isBigPictureMode() || options.isKioskMode() || options.isMaximized()) {
             maximizeService.setMaximized(true);
         } else {
-            var settingsService = applicationContext.getBean(SettingsService.class);
+            var settingsService = applicationContext.getBean(ApplicationConfig.class);
             var uiSettings = settingsService.getSettings().getUiSettings();
 
             maximizeService.setMaximized(uiSettings.isMaximized());

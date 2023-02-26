@@ -4,7 +4,8 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformType;
 import com.github.yoep.popcorn.backend.config.RestConfig;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.settings.ApplicationProperties;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -40,11 +41,13 @@ class UpdaterServiceTest {
     @Mock
     private PlatformProvider platformProvider;
     @Mock
-    private PopcornProperties properties;
-    @Mock
     private StorageService storageService;
     @Mock
     private TaskExecutor taskExecutor;
+    @Mock
+    private ApplicationConfig settingsService;
+    @Mock
+    private ApplicationProperties properties;
 
     private UpdateService updaterService;
 
@@ -52,6 +55,7 @@ class UpdaterServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(settingsService.getProperties()).thenReturn(properties);
         lenient().when(properties.getUpdateChannel()).thenReturn(MOCK_WEB_SERVER.url("/").toString());
         lenient().doAnswer(invocation -> {
             executorHolder.set(invocation.getArgument(0, Runnable.class));
@@ -62,7 +66,8 @@ class UpdaterServiceTest {
         var objectMapperBuilder = restConfig.jacksonObjectMapperBuilder(asList(
                 new JsonComponentModule(), restConfig.javaTimeModule(), restConfig.jdk8Module()));
 
-        updaterService = new UpdateService(platformProvider, properties, restConfig.webClient(objectMapperBuilder.createXmlMapper(false).build(), createDefaultCodecProperties()), storageService, taskExecutor);
+        updaterService = new UpdateService(platformProvider, restConfig.webClient(objectMapperBuilder.createXmlMapper(false).build(),
+                createDefaultCodecProperties()), storageService, settingsService, taskExecutor);
     }
 
     @Test

@@ -210,9 +210,9 @@ mod test {
     #[test]
     fn test_srt_parser_parse_single_cue() {
         init_logger();
-        let mut reader = BufReader::new("1
+        let mut reader = BufReader::new(r#"1
 00:00:30,296 --> 00:00:34,790
-<i>Drink up, me hearties, yo ho</i>".as_bytes());
+<i>Drink up, me hearties, yo ho</i>"#.as_bytes());
         let parser = SrtParser::new();
         let expected_result: SubtitleCue = SubtitleCue::new("1".to_string(), 30296, 34790, vec![
             SubtitleLine::new(vec![StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)])
@@ -226,14 +226,14 @@ mod test {
     #[test]
     fn test_srt_parser_parse_multiple_cues() {
         init_logger();
-        let mut reader = BufReader::new("1526
+        let mut reader = BufReader::new(r#"1526
 02:12:21,051 --> 02:12:22,951
 This is the path
 you've chosen, is it?
 
 1527
 02:12:26,757 --> 02:12:28,952
-The <i>Black Pearl</i> is yours.".as_bytes());
+The <i>Black Pearl</i> is yours."#.as_bytes());
         let parser = SrtParser::new();
         let expected_result: Vec<SubtitleCue> = vec![
             SubtitleCue::new("1526".to_string(), 7941051, 7942951, vec![
@@ -291,10 +291,10 @@ The <i>Black Pearl</i> is yours.".as_bytes());
             vec![SubtitleLine::new(
                 vec![StyledText::new("lorem".to_string(), true, false, false)])])];
         let parser = SrtParser::new();
-        let expected_result = "1
+        let expected_result = r#"1
 00:00:30,000 --> 00:00:48,100
 <i>lorem</i>
-".to_string();
+"#.to_string();
 
         let result = parser.convert(&cues);
 

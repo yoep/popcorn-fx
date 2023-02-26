@@ -2,59 +2,32 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::core::config::{ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
-use crate::core::storage::Storage;
+use crate::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 
-const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
 const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = SubtitleSettings::default;
 const DEFAULT_UI: fn() -> UiSettings = UiSettings::default;
 const DEFAULT_SERVER: fn() -> ServerSettings = ServerSettings::default;
 const DEFAULT_TORRENT: fn() -> TorrentSettings = TorrentSettings::default;
+const DEFAULT_PLAYBACK: fn() -> PlaybackSettings = PlaybackSettings::default;
 
 /// The Popcorn FX user settings.
 /// These contain the preferences of the user for the application.
 #[derive(Debug, Display, Default, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "subtitle_settings: {}, ui_settings: {}", subtitle_settings, ui_settings)]
+#[display(fmt = "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}", subtitle_settings, ui_settings, server_settings, torrent_settings, playback_settings)]
 pub struct PopcornSettings {
     #[serde(default = "DEFAULT_SUBTITLES")]
-    subtitle_settings: SubtitleSettings,
+    pub subtitle_settings: SubtitleSettings,
     #[serde(default = "DEFAULT_UI")]
-    ui_settings: UiSettings,
+    pub ui_settings: UiSettings,
     #[serde(default = "DEFAULT_SERVER")]
-    server_settings: ServerSettings,
+    pub server_settings: ServerSettings,
     #[serde(default = "DEFAULT_TORRENT")]
-    torrent_settings: TorrentSettings,
+    pub torrent_settings: TorrentSettings,
+    #[serde(default = "DEFAULT_PLAYBACK")]
+    pub playback_settings: PlaybackSettings,
 }
 
 impl PopcornSettings {
-    pub fn new(subtitle_settings: SubtitleSettings, ui_settings: UiSettings, server_settings: ServerSettings,
-               torrent_settings: TorrentSettings) -> Self {
-        Self {
-            subtitle_settings,
-            ui_settings,
-            server_settings,
-            torrent_settings,
-        }
-    }
-
-    /// Create new settings which will search for the [DEFAULT_SETTINGS_FILENAME].
-    /// It will be parsed if found and valid, else the defaults will be returned.
-    pub fn new_auto(storage: &Storage) -> Self {
-        Self::from_filename(DEFAULT_SETTINGS_FILENAME, storage)
-    }
-
-    /// Create new settings from the given filename.
-    /// This file will be searched within the home directory of the user.
-    pub fn from_filename(filename: &str, storage: &Storage) -> Self {
-        match storage.read::<Self>(filename) {
-            Ok(e) => e,
-            Err(e) => {
-                warn!("Failed to read settings file {}, using defaults instead", e);
-                Self::default()
-            }
-        }
-    }
-
     /// Retrieve the subtitle settings of the application.
     pub fn subtitle(&self) -> &SubtitleSettings {
         &self.subtitle_settings
@@ -73,6 +46,11 @@ impl PopcornSettings {
     /// Retrieve the torrent settings of the application.
     pub fn torrent(&self) -> &TorrentSettings {
         &self.torrent_settings
+    }
+
+    /// Retrieve the playback settings of the application.
+    pub fn playback(&self) -> &PlaybackSettings {
+        &self.playback_settings
     }
 }
 
@@ -96,34 +74,41 @@ impl From<&str> for PopcornSettings {
 
 #[cfg(test)]
 mod test {
-    use tempfile::tempdir;
-
-    use crate::core::config::SubtitleFamily;
+    use crate::core::config::{DecorationType, SubtitleFamily};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::init_logger;
 
     use super::*;
 
     #[test]
-    fn test_new_auto_should_always_return_settings() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = Storage::from(temp_path);
-
-        PopcornSettings::new_auto(&storage);
-    }
-
-    #[test]
     fn test_settings_from_str_when_valid_should_return_expected_result() {
         init_logger();
-        let value = "{\"subtitle_settings\":{\"directory\":\"my-path/to-subtitles\",\"auto_cleaning_enabled\":false,\"default_subtitle\":\"ENGLISH\",\"font_family\":\"ARIAL\",\"font_size\":32,\"decoration\":\"OUTLINE\",\"bold\":false}}";
-        let expected_result = PopcornSettings::new(
-            SubtitleSettings::new("my-path/to-subtitles".to_string(), false, SubtitleLanguage::English, SubtitleFamily::Arial),
-            UiSettings::default(),
-            ServerSettings::default(),
-            TorrentSettings::default(),
-        );
+        let value = r#"{
+  "subtitle_settings": {
+    "directory": "my-path/to-subtitles",
+    "auto_cleaning_enabled": false,
+    "default_subtitle": "ENGLISH",
+    "font_family": "ARIAL",
+    "font_size": 32,
+    "decoration": "OUTLINE",
+    "bold": false
+  }
+}"#;
+        let expected_result = PopcornSettings {
+            subtitle_settings: SubtitleSettings {
+                directory: "my-path/to-subtitles".to_string(),
+                auto_cleaning_enabled: false,
+                default_subtitle: SubtitleLanguage::English,
+                font_family: SubtitleFamily::Arial,
+                font_size: 32,
+                decoration: DecorationType::Outline,
+                bold: false,
+            },
+            ui_settings: Default::default(),
+            server_settings: Default::default(),
+            torrent_settings: Default::default(),
+            playback_settings: Default::default(),
+        };
 
         let result = PopcornSettings::from(value);
 

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.updater;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.storage.StorageService;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -34,9 +34,9 @@ public class UpdateService {
     static final String DOWNLOAD_NAME = "update";
 
     private final PlatformProvider platformProvider;
-    private final PopcornProperties properties;
     private final WebClient webClient;
     private final StorageService storageService;
+    private final ApplicationConfig settingsService;
     private final TaskExecutor taskExecutor;
 
     private final SimpleObjectProperty<VersionInfo> updateInfo = new SimpleObjectProperty<>(this, UPDATE_INFO_PROPERTY);
@@ -107,7 +107,7 @@ public class UpdateService {
 
     private void checkForNewVersion() {
         try {
-            var uri = new URI(properties.getUpdateChannel() + "/" + UPDATE_FILE_INFO);
+            var uri = new URI(settingsService.getProperties().getUpdateChannel() + "/" + UPDATE_FILE_INFO);
 
             log.trace("Retrieving version update information from {}", uri);
             var response = webClient.get()
@@ -178,7 +178,7 @@ public class UpdateService {
     }
 
     private Version currentVersion() {
-        var currentVersion = properties.getVersion().replace(SNAPSHOT_SUFFIX, "");
+        var currentVersion = settingsService.getProperties().getVersion().replace(SNAPSHOT_SUFFIX, "");
         return Version.parse(currentVersion);
     }
 

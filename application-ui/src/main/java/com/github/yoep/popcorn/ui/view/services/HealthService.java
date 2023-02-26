@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -18,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class HealthService {
     private final TorrentService torrentService;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
 
     private CompletableFuture<TorrentHealth> healthFuture;
 
@@ -38,7 +39,7 @@ public class HealthService {
         cancelPreviousFutureIfNeeded();
         var torrentSettings = getTorrentSettings();
 
-        healthFuture = torrentService.getTorrentHealth(url, torrentSettings.getDirectory());
+        healthFuture = torrentService.getTorrentHealth(url, new File(torrentSettings.getDirectory()));
 
         return healthFuture;
     }

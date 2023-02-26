@@ -1,12 +1,13 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,21 +22,21 @@ class HealthServiceTest {
     @Mock
     private TorrentService torrentService;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private ApplicationSettings settings;
     @Mock
     private TorrentSettings torrentSettings;
-    @Mock
-    private File torrentDirectory;
     @InjectMocks
     private HealthService healthService;
+    @TempDir
+    public File torrentDirectory;
 
     @BeforeEach
     void setUp() {
         lenient().when(settingsService.getSettings()).thenReturn(settings);
         lenient().when(settings.getTorrentSettings()).thenReturn(torrentSettings);
-        lenient().when(torrentSettings.getDirectory()).thenReturn(torrentDirectory);
+        lenient().when(torrentSettings.getDirectory()).thenReturn(torrentDirectory.getAbsolutePath());
     }
 
     @Test

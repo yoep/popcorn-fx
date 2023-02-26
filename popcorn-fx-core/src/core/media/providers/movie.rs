@@ -7,7 +7,7 @@ use itertools::*;
 use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
-use crate::core::config::Application;
+use crate::core::config::ApplicationConfig;
 use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, MovieDetails, MovieOverview, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
@@ -23,8 +23,9 @@ pub struct MovieProvider {
 }
 
 impl MovieProvider {
-    pub fn new(settings: &Arc<Application>) -> Self {
-        let uris = available_uris(settings, PROVIDER_NAME);
+    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>) -> Self {
+        let mutex = settings.blocking_lock();
+        let uris = available_uris(&mutex, PROVIDER_NAME);
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris))),
@@ -97,25 +98,36 @@ mod test {
 
     use httpmock::Method::GET;
     use httpmock::MockServer;
+    use tokio::runtime;
 
-    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, SubtitleProperties};
+    use crate::core::config::{PopcornProperties, ProviderProperties};
     use crate::core::media::{Images, MediaIdentifier, Rating};
+    use crate::core::storage::Storage;
     use crate::testing::{init_logger, read_test_file};
 
     use super::*;
 
-    fn start_mock_server() -> (MockServer, Arc<Application>) {
+    fn start_mock_server() -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
         let server = MockServer::start();
-        let settings = Arc::new(Application::new(
-            PopcornProperties::new_with_providers(SubtitleProperties::default(), create_providers(&server)),
-            PopcornSettings::default(),
-        ));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(Mutex::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties {
+                version: String::new(),
+                update_channel: String::new(),
+                providers: create_providers(&server),
+                subtitle: Default::default(),
+            },
+            settings: Default::default(),
+            callbacks: Default::default(),
+        }));
 
         (server, settings)
     }
 
-    #[tokio::test]
-    async fn test_retrieve() {
+    #[test]
+    fn test_retrieve() {
         init_logger();
         let (server, settings) = start_mock_server();
         let genre = Genre::all();
@@ -149,9 +161,9 @@ mod test {
                 .header("content-type", "application/json")
                 .body(read_test_file("movie-search.json"));
         });
+        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = provider.retrieve(&genre, &sort_by, &String::new(), 1)
-            .await
+        let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &String::new(), 1))
             .expect("expected media items to have been returned");
 
         assert!(result.len() > 0, "Expected at least one item to have been found");
@@ -160,15 +172,17 @@ mod test {
         assert_eq!(expected_result.title(), movie_result.title());
     }
 
-    #[tokio::test]
-    async fn test_retrieve_details() {
+    #[test]
+    fn test_retrieve_details() {
         init_logger();
         let imdb_id = "tt14138650".to_string();
-        let settings = Arc::new(Application::default());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let provider = MovieProvider::new(&settings);
+        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = provider.retrieve_details(&imdb_id)
-            .await
+        let result = runtime.block_on(provider.retrieve_details(&imdb_id))
             .expect("expected the details to have been returned")
             .into_any()
             .downcast::<MovieDetails>()
@@ -179,13 +193,13 @@ mod test {
 
     fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {
         let mut map: HashMap<String, ProviderProperties> = HashMap::new();
-        map.insert(PROVIDER_NAME.to_string(), ProviderProperties::new(
-            vec![
+        map.insert(PROVIDER_NAME.to_string(), ProviderProperties {
+            uris: vec![
                 server.url("")
             ],
-            vec![],
-            vec![],
-        ));
+            genres: vec![],
+            sort_by: vec![],
+        });
         map
     }
 }

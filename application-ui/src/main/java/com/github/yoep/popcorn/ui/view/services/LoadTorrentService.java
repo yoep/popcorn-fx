@@ -21,7 +21,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -38,6 +38,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -57,7 +58,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     private final TorrentService torrentService;
     private final TorrentStreamService torrentStreamService;
     private final ApplicationEventPublisher eventPublisher;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
     private final SubtitleService subtitleService;
 
     private final ChangeListener<SessionState> torrentSessionListener = createSessionListener();
@@ -159,7 +160,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         if (torrentService.getSessionState() != SessionState.RUNNING)
             waitForTorrentStream();
 
-        currentFuture = torrentService.create(event.getTorrentFileInfo(), torrentSettings.getDirectory(), true)
+        currentFuture = torrentService.create(event.getTorrentFileInfo(), new File(torrentSettings.getDirectory()), true)
                 .thenCompose(this::retrieveAndDownloadAvailableSubtitles)
                 .thenCompose(this::startDownloadingTorrent)
                 .exceptionally(this::handleLoadTorrentError);
@@ -223,7 +224,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.CONNECTING));
 
         log.trace("Creating torrent for \"{}\"", mediaTorrent.getTorrent().getUrl());
-        return torrentService.create(torrentFileInfo, torrentSettings.getDirectory(), true);
+        return torrentService.create(torrentFileInfo, new File(torrentSettings.getDirectory()), true);
     }
 
     private CompletableFuture<Torrent> startDownloadingTorrent(Torrent torrent) {

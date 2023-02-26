@@ -1,67 +1,51 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
+import com.sun.jna.Structure;
 import lombok.*;
 
-import java.io.File;
+import java.io.Closeable;
+import java.util.Objects;
 
 @EqualsAndHashCode(callSuper = false)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TorrentSettings extends AbstractSettings {
-    public static final String DIRECTORY_PROPERTY = "directory";
-    public static final String AUTO_CLEANING_PROPERTY = "autoCleaningEnabled";
-    public static final String CONNECTIONS_LIMIT_PROPERTY = "connectionsLimit";
-    public static final String DOWNLOAD_RATE_PROPERTY = "downloadRateLimit";
-    public static final String UPLOAD_RATE_PROPERTY = "uploadRateLimit";
-    public static final String DEFAULT_TORRENT_DIRECTORY = "torrents";
+@Structure.FieldOrder({"directory", "autoCleaningEnabled", "connectionsLimit", "downloadRateLimit", "uploadRateLimit"})
+public class TorrentSettings extends Structure implements Closeable {
+    public static class ByValue extends TorrentSettings implements Structure.ByValue {
+        public ByValue() {
+        }
 
-    /**
-     * The directory to save the torrents to.
-     */
-    private File directory;
-    /**
-     * The indication if the torrent directory should be cleaned if the application is closed.
-     */
-    @Builder.Default
-    private boolean autoCleaningEnabled = true;
-    /**
-     * Maximum number of connections.
-     */
-    @Builder.Default
-    private int connectionsLimit = 300;
-    /**
-     * The download rate limit.
-     */
-    @Builder.Default
-    private int downloadRateLimit = 0;
-    /**
-     * The upload rate limit.
-     */
-    @Builder.Default
-    private int uploadRateLimit = 0;
+        public ByValue(TorrentSettings settings) {
+            Objects.requireNonNull(settings, "settings cannot be null");
+            this.directory = settings.directory;
+            this.autoCleaningEnabled = settings.autoCleaningEnabled;
+            this.connectionsLimit = settings.connectionsLimit;
+            this.downloadRateLimit = settings.downloadRateLimit;
+            this.uploadRateLimit = settings.uploadRateLimit;
+        }
+    }
 
-    //region Setters
+    public String directory;
+    public byte autoCleaningEnabled;
+    public int connectionsLimit;
+    public int downloadRateLimit;
+    public int uploadRateLimit;
 
-    public void setDirectory(File directory) {
-        this.directory = updateProperty(this.directory, directory, DIRECTORY_PROPERTY);
+    //region Methods
+
+    public boolean isAutoCleaningEnabled() {
+        return autoCleaningEnabled == 1;
     }
 
     public void setAutoCleaningEnabled(boolean autoCleaningEnabled) {
-        this.autoCleaningEnabled = updateProperty(this.autoCleaningEnabled, autoCleaningEnabled, AUTO_CLEANING_PROPERTY);
+        this.autoCleaningEnabled = (byte) (autoCleaningEnabled ? 1 : 0);
     }
 
-    public void setConnectionsLimit(int connectionsLimit) {
-        this.connectionsLimit = updateProperty(this.connectionsLimit, connectionsLimit, CONNECTIONS_LIMIT_PROPERTY);
-    }
-
-    public void setDownloadRateLimit(int downloadRateLimit) {
-        this.downloadRateLimit = updateProperty(this.downloadRateLimit, downloadRateLimit, DOWNLOAD_RATE_PROPERTY);
-    }
-
-    public void setUploadRateLimit(int uploadRateLimit) {
-        this.uploadRateLimit = updateProperty(this.uploadRateLimit, uploadRateLimit, UPLOAD_RATE_PROPERTY);
+    @Override
+    public void close() {
+        setAutoSynch(false);
     }
 
     //endregion

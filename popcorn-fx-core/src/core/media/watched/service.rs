@@ -83,15 +83,15 @@ pub trait WatchedService: Debug + Send + Sync {
 /// The standard Popcorn FX watched service.
 #[derive(Debug)]
 pub struct DefaultWatchedService {
-    storage: Arc<Storage>,
+    storage: Storage,
     cache: Arc<Mutex<Option<Watched>>>,
     callbacks: CoreCallbacks<WatchedEvent>,
 }
 
 impl DefaultWatchedService {
-    pub fn new(storage: &Arc<Storage>) -> Self {
+    pub fn new(storage_directory: &str) -> Self {
         Self {
-            storage: storage.clone(),
+            storage: Storage::from(storage_directory),
             cache: Arc::new(Mutex::new(None)),
             callbacks: CoreCallbacks::default(),
         }
@@ -118,7 +118,7 @@ impl DefaultWatchedService {
     }
 
     fn load_watched_from_storage(&self) -> media::Result<Watched> {
-        match self.storage.read::<Watched>(FILENAME) {
+        match self.storage.read(FILENAME) {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
@@ -126,7 +126,7 @@ impl DefaultWatchedService {
                         debug!("Creating new watched file {}", file);
                         Ok(Watched::empty())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load watched items, {}", error);
                         Err(MediaError::WatchedLoadingFailed(error))
                     }
@@ -144,7 +144,7 @@ impl DefaultWatchedService {
     }
 
     async fn save_async(&self, watchable: &Watched) {
-        match self.storage.write(FILENAME, &watchable).await {
+        match self.storage.write_async(FILENAME, &watchable).await {
             Ok(_) => info!("Watched items have been saved"),
             Err(e) => error!("Failed to save watched items, {}", e)
         }
@@ -248,7 +248,7 @@ impl WatchedService for DefaultWatchedService {
                 let watched = cache.as_mut().expect("expected the cache to have been loaded");
                 let id = watchable.imdb_id();
 
-                watched.remove(id.clone());
+                watched.remove(id);
                 self.save(watched);
                 self.callbacks.invoke(WatchedEvent::WatchedStateChanged(id.to_string(), false));
             }
@@ -304,14 +304,14 @@ mod test {
         init_logger();
         let imdb_id = "tt548723".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from(temp_dir.path().to_str().unwrap()));
-        let service = DefaultWatchedService::new(&storage);
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(temp_path);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
             String::new(),
         );
-        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
         let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
@@ -323,14 +323,14 @@ mod test {
         init_logger();
         let imdb_id = "tt548766".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from(temp_dir.path().to_str().unwrap()));
-        let service = DefaultWatchedService::new(&storage);
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(temp_path);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
             String::new(),
         );
-        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
         let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
 
@@ -342,8 +342,8 @@ mod test {
         init_logger();
         let imdb_id = "tt541345".to_string();
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = DefaultWatchedService::new(&storage);
+        let resource_path = resource_directory.to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -359,14 +359,14 @@ mod test {
     fn test_all() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from(temp_dir.path().to_str().unwrap()));
-        let service = DefaultWatchedService::new(&storage);
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(temp_path);
         let expected_result = vec![
             "tt548723",
             "tt541345",
             "tt3915174",
         ];
-        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json");
+        copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
         let result = service.all()
             .expect("expected the watched ids to have been returned");
@@ -379,8 +379,8 @@ mod test {
         init_logger();
         let imdb_id = "tt548795".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = DefaultWatchedService::new(&storage);
+        let resource_path = resource_directory.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id.clone(),
@@ -399,8 +399,8 @@ mod test {
         init_logger();
         let imdb_id = "tt88877554".to_string();
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = DefaultWatchedService::new(&storage);
+        let resource_path = resource_directory.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path);
         let show = ShowOverview::new(
             imdb_id.clone(),
             String::new(),
@@ -423,8 +423,8 @@ mod test {
         init_logger();
         let id = "tt8744557";
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = DefaultWatchedService::new(&storage);
+        let resource_path = resource_directory.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path);
         let (tx, rx) = channel();
         let callback: WatchedCallback = Box::new(move |e| {
             tx.send(e).unwrap();
@@ -452,8 +452,8 @@ mod test {
         init_logger();
         let id = "tt8744557";
         let resource_directory = tempfile::tempdir().unwrap();
-        let storage = Arc::new(Storage::from(resource_directory.path().to_str().expect("expected resource path to be valid")));
-        let service = DefaultWatchedService::new(&storage);
+        let resource_path = resource_directory.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path);
         let (tx, rx) = channel();
         let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(
             String::new(),

@@ -7,7 +7,9 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
@@ -25,8 +27,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,7 +42,7 @@ class PopcornPlayerSectionServiceTest {
     @Mock
     private ScreenService screenService;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig applicationConfig;
     @Mock
     private SubtitleManagerService subtitleManagerService;
     @Mock
@@ -66,7 +66,7 @@ class PopcornPlayerSectionServiceTest {
             return null;
         }).when(player).addListener(isA(PlayerListener.class));
         lenient().when(videoService.videoPlayerProperty()).thenReturn(videoPlayerProperty);
-        lenient().when(settingsService.getSettings()).thenReturn(settings);
+        lenient().when(applicationConfig.getSettings()).thenReturn(settings);
         lenient().when(subtitleManagerService.subtitleSizeProperty()).thenReturn(subtitleSizeProperty);
         lenient().doAnswer(invocation -> {
             subtitleListenerHolder.set(invocation.getArgument(0, SubtitleListener.class));
@@ -147,7 +147,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testPlayerListener_whenPlayerTimeChanged_shouldInvokedListeners() {
         var value = 10200;
-        when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder().build());
         service.init();
 
         listenerHolder.get().onTimeChanged(value);
@@ -158,7 +157,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testPlayerListener_whenPlayerStateChanged_shouldInvokedListeners() {
         var value = PlayerState.PLAYING;
-        when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder().build());
         service.init();
 
         listenerHolder.get().onStateChanged(value);
@@ -171,7 +169,6 @@ class PopcornPlayerSectionServiceTest {
         var videoPlayer = mock(VideoPlayback.class);
         var videoView = mock(Node.class);
         when(videoPlayer.getVideoSurface()).thenReturn(videoView);
-        when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder().build());
         service.init();
 
         videoPlayerProperty.set(videoPlayer);
@@ -182,9 +179,9 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testProvideSubtitleValues_whenInvoked_shouldSetSubtitleFontFamily() {
         var value = SubtitleFamily.ARIAL;
-        when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder()
-                .fontFamily(value)
-                .build());
+        var subtitle = mock(SubtitleSettings.ByValue.class);
+        when(subtitle.getFontFamily()).thenReturn(value);
+        when(settings.getSubtitleSettings()).thenReturn(subtitle);
         service.init();
 
         service.provideSubtitleValues();
@@ -194,23 +191,22 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testProvideSubtitleValues_whenInvoked_shouldSetSubtitleFontWeight() {
-        var value = true;
-        when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder()
-                .bold(value)
-                .build());
+        var subtitle = mock(SubtitleSettings.ByValue.class);
+        when(subtitle.isBold()).thenReturn(true);
+        when(settings.getSubtitleSettings()).thenReturn(subtitle);
         service.init();
 
         service.provideSubtitleValues();
 
-        verify(listener).onSubtitleFontWeightChanged(value);
+        verify(listener).onSubtitleFontWeightChanged(true);
     }
 
     @Test
     void testProvideSubtitleValues_whenInvoked_shouldSetSubtitleSize() {
         var fontSize = 22;
-        when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder()
-                .fontSize(fontSize)
-                .build());
+        var subtitle = mock(SubtitleSettings.ByValue.class);
+        when(subtitle.getFontSize()).thenReturn(fontSize);
+        when(settings.getSubtitleSettings()).thenReturn(subtitle);
         service.init();
 
         service.provideSubtitleValues();
@@ -221,9 +217,9 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testProvideSubtitleValues_whenInvoked_shouldSetSubtitleDecoration() {
         var value = DecorationType.OUTLINE;
-        when(settings.getSubtitleSettings()).thenReturn(SubtitleSettings.builder()
-                .decoration(value)
-                .build());
+        var subtitle = mock(SubtitleSettings.ByValue.class);
+        when(subtitle.getDecoration()).thenReturn(value);
+        when(settings.getSubtitleSettings()).thenReturn(subtitle);
         service.init();
 
         service.provideSubtitleValues();
@@ -235,61 +231,27 @@ class PopcornPlayerSectionServiceTest {
     void testSubtitleSettingsListener_whenFontFamilyIsChanged_shouldInvokeListeners() {
         var value = SubtitleFamily.ARIAL.getFamily();
         var subtitleSettings = mock(SubtitleSettings.class);
-        var settingsListener = new AtomicReference<PropertyChangeListener>();
-        var changeEvent = new PropertyChangeEvent(this, SubtitleSettings.FONT_FAMILY_PROPERTY, null, value);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
+        var settingsListener = new AtomicReference<ApplicationConfigEventCallback>();
+        var event = new ApplicationConfigEvent.ByValue();
+        event.tag = ApplicationConfigEvent.Tag.SubtitleSettingsChanged;
+        event.union = new ApplicationConfigEvent.ApplicationConfigEventUnion.ByValue();
+        event.union.subtitleSettings = new ApplicationConfigEvent.SubtitleSettingsChanged_Body();
+        event.union.subtitleSettings.settings = subtitleSettings;
         doAnswer(invocation -> {
-            settingsListener.set(invocation.getArgument(0, PropertyChangeListener.class));
+            settingsListener.set(invocation.getArgument(0, ApplicationConfigEventCallback.class));
             return null;
-        }).when(subtitleSettings).addListener(isA(PropertyChangeListener.class));
+        }).when(applicationConfig).register(isA(ApplicationConfigEventCallback.class));
+        when(subtitleSettings.getFontFamily()).thenReturn(SubtitleFamily.ARIAL);
         service.init();
 
-        settingsListener.get().propertyChange(changeEvent);
+        settingsListener.get().callback(event);
 
         verify(listener).onSubtitleFamilyChanged(value);
     }
 
     @Test
-    void testSubtitleSettingsListener_whenFontSizeIsChanged_shouldInvokeListeners() {
-        var value = 20;
-        var subtitleSettings = mock(SubtitleSettings.class);
-        var settingsListener = new AtomicReference<PropertyChangeListener>();
-        var changeEvent = new PropertyChangeEvent(this, SubtitleSettings.FONT_SIZE_PROPERTY, null, value);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
-        doAnswer(invocation -> {
-            settingsListener.set(invocation.getArgument(0, PropertyChangeListener.class));
-            return null;
-        }).when(subtitleSettings).addListener(isA(PropertyChangeListener.class));
-        service.init();
-
-        settingsListener.get().propertyChange(changeEvent);
-
-        verify(listener).onSubtitleSizeChanged(value);
-    }
-
-    @Test
-    void testSubtitleSettingsListener_whenFontWeightIsChanged_shouldInvokeListeners() {
-        var value = true;
-        var subtitleSettings = mock(SubtitleSettings.class);
-        var settingsListener = new AtomicReference<PropertyChangeListener>();
-        var changeEvent = new PropertyChangeEvent(this, SubtitleSettings.BOLD_PROPERTY, null, value);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
-        doAnswer(invocation -> {
-            settingsListener.set(invocation.getArgument(0, PropertyChangeListener.class));
-            return null;
-        }).when(subtitleSettings).addListener(isA(PropertyChangeListener.class));
-        service.init();
-
-        settingsListener.get().propertyChange(changeEvent);
-
-        verify(listener).onSubtitleFontWeightChanged(value);
-    }
-
-    @Test
     void testSubtitleListener_whenSubtitleIsChanged_shouldInvokedListeners() {
         var subtitle = mock(Subtitle.class);
-        var subtitleSettings = mock(SubtitleSettings.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         var listener = subtitleListenerHolder.get();
@@ -300,8 +262,6 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testSubtitleListener_whenSubtitleIsDisabled_shouldInvokedListeners() {
-        var subtitleSettings = mock(SubtitleSettings.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         var listener = subtitleListenerHolder.get();
@@ -313,8 +273,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testSubtitleListener_whenSubtitleSizeIsChanged_shouldInvokedListeners() {
         var subtitleSize = 28;
-        var subtitleSettings = mock(SubtitleSettings.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         subtitleSizeProperty.set(subtitleSize);
@@ -343,8 +301,6 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testListener_whenPlayerVolumeIsChanged_shouldInvokedListeners() {
         var volume = 75;
-        var subtitleSettings = mock(SubtitleSettings.class);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         listenerHolder.get().onVolumeChanged(volume);

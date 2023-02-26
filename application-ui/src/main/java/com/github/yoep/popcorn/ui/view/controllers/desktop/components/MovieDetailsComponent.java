@@ -11,7 +11,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -68,7 +68,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                                  SubtitleService subtitleService,
                                  SubtitlePickerService subtitlePickerService,
                                  ImageService imageService,
-                                 SettingsService settingsService,
+                                 ApplicationConfig settingsService,
                                  DetailsComponentService service,
                                  PlayerManagerService playerService,
                                  PlatformProvider platformProvider,

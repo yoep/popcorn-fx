@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -22,7 +22,7 @@ public class MaximizeService {
     public static final String MAXIMIZED_PROPERTY = "maximized";
 
     private final ViewManager viewManager;
-    private final SettingsService settingsService;
+    private final ApplicationConfig settingsService;
 
     private final BooleanProperty maximized = new SimpleBooleanProperty(this, MAXIMIZED_PROPERTY);
 

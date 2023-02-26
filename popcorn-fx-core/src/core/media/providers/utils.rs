@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use log::error;
 
-use crate::core::config::Application;
+use crate::core::config::ApplicationConfig;
 
 /// Retrieve the available uri's from the settings for the given provider name.
-pub fn available_uris(settings: &Arc<Application>, provider_name: &str) -> Vec<String> {
+pub fn available_uris(settings: &ApplicationConfig, provider_name: &str) -> Vec<String> {
     let api_server = settings.user_settings().server().api_server();
     let mut uris: Vec<String> = vec![];
 
@@ -30,7 +28,8 @@ pub fn available_uris(settings: &Arc<Application>, provider_name: &str) -> Vec<S
 mod test {
     use std::collections::HashMap;
 
-    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings, SubtitleProperties, SubtitleSettings, TorrentSettings, UiSettings};
+    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings};
+    use crate::core::storage::Storage;
     use crate::testing::init_logger;
 
     use super::*;
@@ -41,17 +40,34 @@ mod test {
         let api_server = "http://lorem".to_string();
         let provider = "http://ipsum".to_string();
         let provider_name = "my-provider".to_string();
-        let settings = Arc::new(Application::new(
-            PopcornProperties::new_with_providers(SubtitleProperties::default(), HashMap::from([
-                (provider_name.clone(), ProviderProperties::new(
-                    vec![provider.clone()],
-                    vec![],
-                    vec![],
-                ))
-            ])),
-            PopcornSettings::new(SubtitleSettings::default(), UiSettings::default(),
-                                 ServerSettings::new(api_server.clone()), TorrentSettings::default()),
-        ));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties {
+                version: String::new(),
+                update_channel: String::new(),
+                providers: HashMap::from([
+                    (provider_name.clone(),
+                     ProviderProperties {
+                         uris: vec![provider.clone()],
+                         genres: vec![],
+                         sort_by: vec![],
+                     })
+                ]),
+                subtitle: Default::default(),
+            },
+            settings: PopcornSettings {
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
+                server_settings: ServerSettings {
+                    api_server: Some(api_server.clone()),
+                },
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+            },
+            callbacks: Default::default(),
+        };
         let expected_result = vec![
             api_server,
             provider,
@@ -66,11 +82,27 @@ mod test {
     fn test_available_uris_provider_not_available() {
         init_logger();
         let api_server = "https://www.google.com".to_string();
-        let settings = Arc::new(Application::new(
-            PopcornProperties::new_with_providers(SubtitleProperties::default(), HashMap::new()),
-            PopcornSettings::new(SubtitleSettings::default(), UiSettings::default(),
-                                 ServerSettings::new(api_server.clone()), TorrentSettings::default()),
-        ));
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties {
+                version: String::new(),
+                update_channel: String::new(),
+                providers: HashMap::new(),
+                subtitle: Default::default(),
+            },
+            settings: PopcornSettings {
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
+                server_settings: ServerSettings {
+                    api_server: Some(api_server.clone()),
+                },
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+            },
+            callbacks: Default::default(),
+        };
         let expected_result = vec![
             api_server,
         ];

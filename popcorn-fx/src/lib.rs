@@ -8,7 +8,8 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -878,6 +879,82 @@ pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_u
     popcorn_fx.torrent_collection().remove(magnet_uri.as_str());
 }
 
+/// Retrieve the immutable configuration properties of the application.
+/// These properties stay the same throughout the lifecycle the popcorn FX instance.
+#[no_mangle]
+pub extern "C" fn application_properties(popcorn_fx: &mut PopcornFX) -> *mut PopcornPropertiesC {
+    trace!("Retrieving application configuration");
+    let mutex = popcorn_fx.settings();
+    into_c_owned(PopcornPropertiesC::from(mutex.properties()))
+}
+
+/// Retrieve the application settings.
+/// These are the setting preferences of the users for the popcorn FX instance.
+#[no_mangle]
+pub extern "C" fn application_settings(popcorn_fx: &mut PopcornFX) -> *mut PopcornSettingsC {
+    trace!("Retrieving application settings");
+    let mutex = popcorn_fx.settings();
+    into_c_owned(PopcornSettingsC::from(mutex.user_settings()))
+}
+
+/// Reload the settings of the application.
+#[no_mangle]
+pub extern "C" fn reload_settings(popcorn_fx: &mut PopcornFX) {
+    trace!("Reloading the popcorn fx settings");
+    popcorn_fx.reload_settings()
+}
+
+/// Register a new callback for all setting events.
+#[no_mangle]
+pub extern "C" fn register_settings_callback(popcorn_fx: &mut PopcornFX, callback: ApplicationConfigCallbackC) {
+    trace!("Registering application settings callback");
+    let wrapper = Box::new(move |event| {
+        callback(ApplicationConfigEventC::from(event))
+    });
+
+    popcorn_fx.settings().register(wrapper);
+}
+
+/// Update the subtitle settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_subtitle_settings(popcorn_fx: &mut PopcornFX, subtitle_settings: SubtitleSettingsC) {
+    trace!("Updating the subtitle settings from {:?}", subtitle_settings);
+    let subtitle = SubtitleSettings::from(subtitle_settings);
+    popcorn_fx.settings().update_subtitle(subtitle);
+}
+
+/// Update the torrent settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_torrent_settings(popcorn_fx: &mut PopcornFX, torrent_settings: TorrentSettingsC) {
+    trace!("Updating the torrent settings from {:?}", torrent_settings);
+    let settings = TorrentSettings::from(torrent_settings);
+    popcorn_fx.settings().update_torrent(settings);
+}
+
+/// Update the ui settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_ui_settings(popcorn_fx: &mut PopcornFX, settings: UiSettingsC) {
+    trace!("Updating the ui settings from {:?}", settings);
+    let settings = UiSettings::from(settings);
+    popcorn_fx.settings().update_ui(settings);
+}
+
+/// Update the server settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_server_settings(popcorn_fx: &mut PopcornFX, settings: ServerSettingsC) {
+    trace!("Updating the server settings from {:?}", settings);
+    let settings = ServerSettings::from(settings);
+    popcorn_fx.settings().update_server(settings);
+}
+
+/// Update the playback settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings: PlaybackSettingsC) {
+    trace!("Updating the playback settings from {:?}", settings);
+    let settings = PlaybackSettings::from(settings);
+    popcorn_fx.settings().update_playback(settings);
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -918,10 +995,8 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
 
 /// Delete the PopcornFX instance in a safe way.
 #[no_mangle]
-pub extern "C" fn dispose_popcorn_fx(popcorn_fx: Box<PopcornFX>) {
-    info!("Disposing Popcorn FX");
-    popcorn_fx.dispose();
-    drop(popcorn_fx)
+pub extern "C" fn dispose_popcorn_fx(_: Box<PopcornFX>) {
+    info!("Disposing Popcorn FX instance");
 }
 
 #[cfg(test)]
@@ -933,10 +1008,11 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::core::config::{DecorationType, PopcornProperties, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
-    use popcorn_fx_core::testing::copy_test_file;
+    use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::popcorn::fx::popcorn_fx::PopcornFxOpts;
 
@@ -971,11 +1047,14 @@ mod test {
         TorrentState::Downloading
     }
 
+    #[no_mangle]
+    pub extern "C" fn settings_callback(_: ApplicationConfigEventC) {}
+
     #[test]
     fn test_default_subtitle_options() {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
             app_directory: PathBuf::from(temp_dir.path()),
         });
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
@@ -1112,9 +1191,10 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
             app_directory: PathBuf::from(temp_dir.path()),
         });
-        copy_test_file(temp_path, "torrent-collection.json");
+        copy_test_file(temp_path, "torrent-collection.json", None);
 
         let result = torrent_collection_is_stored(&mut instance, into_c_string(magnet_uri.to_string()));
 
@@ -1126,13 +1206,77 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
             app_directory: PathBuf::from(temp_dir.path()),
         });
-        copy_test_file(temp_path, "torrent-collection.json");
+        copy_test_file(temp_path, "torrent-collection.json", None);
 
         let result = from_c_owned(torrent_collection_all(&mut instance));
 
         assert_eq!(1, result.len)
+    }
+
+    #[test]
+    fn test_application_properties() {
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let defaults = PopcornProperties::default();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: false,
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+
+        let result = from_c_owned(application_properties(&mut instance));
+
+        assert_eq!(defaults.update_channel, from_c_string(result.update_channel))
+    }
+
+    #[test]
+    fn test_register_settings_callback() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let subtitle_c = SubtitleSettingsC::from(&SubtitleSettings::new(
+            Some(temp_path.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ));
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: true,
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+
+        register_settings_callback(&mut instance, settings_callback);
+        update_subtitle_settings(&mut instance, subtitle_c);
+    }
+
+    #[test]
+    fn test_update_subtitle_settings() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxOpts {
+            disable_logger: true,
+            app_directory: PathBuf::from(temp_dir.path()),
+        });
+        let settings = SubtitleSettings {
+            directory: format!("{}/subtitles", temp_path),
+            auto_cleaning_enabled: false,
+            default_subtitle: SubtitleLanguage::German,
+            font_family: SubtitleFamily::Arial,
+            font_size: 32,
+            decoration: DecorationType::SeeThroughBackground,
+            bold: true,
+        };
+
+        update_subtitle_settings(&mut instance, SubtitleSettingsC::from(&settings));
+        let mutex = instance.settings();
+        let result = mutex.user_settings().subtitle();
+
+        assert_eq!(&settings, result)
     }
 
     #[test]

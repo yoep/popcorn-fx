@@ -13,7 +13,7 @@ use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANG
 use warp::hyper::HeaderMap;
 
 use popcorn_fx_core::core::torrent;
-use popcorn_fx_core::core::torrent::{Torrent, TorrentError, TorrentStream, TorrentStreamingResource, TorrentStreamServer, TorrentStreamServerState};
+use popcorn_fx_core::core::torrent::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
 
 use crate::torrent::stream::{DefaultTorrentStream, MediaType, MediaTypeFactory, Range};
 
@@ -426,7 +426,7 @@ mod test {
                     callback(TorrentEvent::PieceFinished(i));
                 }
             });
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
         wait_for_server(&server);
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
@@ -499,7 +499,7 @@ mod test {
             });
         torrent.expect_state()
             .return_const(TorrentState::Downloading);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file(filename)
             .replace("\r\n", "\n");
 
@@ -545,7 +545,7 @@ mod test {
             .returning(|_: TorrentCallback| {});
         torrent.expect_state()
             .return_const(TorrentState::Downloading);
-        copy_test_file(temp_dir.path().to_str().unwrap(), filename);
+        copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
         wait_for_server(&server);
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)

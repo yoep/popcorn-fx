@@ -18,19 +18,19 @@ const DEFAULT_NATIVE_WINDOW: fn() -> bool = || false;
 pub struct UiSettings {
     /// The default language of the application
     #[serde(default = "DEFAULT_LANGUAGE")]
-    default_language: String,
+    pub default_language: String,
     /// The ui scale of the application
     #[serde(default = "DEFAULT_UI_SCALE")]
-    ui_scale: UiScale,
+    pub ui_scale: UiScale,
     /// The default start screen of the application
     #[serde(default = "DEFAULT_START_SCREEN")]
-    start_screen: StartScreen,
+    pub start_screen: StartScreen,
     /// The indication if the UI was maximized the last time the application was closed
     #[serde(default = "DEFAULT_MAXIMIZED")]
-    maximized: bool,
+    pub maximized: bool,
     /// The indication if the UI should use a native window rather than the borderless stage
     #[serde(default = "DEFAULT_NATIVE_WINDOW")]
-    native_window_enabled: bool,
+    pub native_window_enabled: bool,
 }
 
 impl Default for UiSettings {
@@ -46,21 +46,13 @@ impl Default for UiSettings {
 }
 
 impl UiSettings {
-    pub fn new(default_language: String, ui_scale: UiScale, start_screen: StartScreen, maximized: bool, native_window_enabled: bool) -> Self {
-        Self {
-            default_language,
-            ui_scale,
-            start_screen,
-            maximized,
-            native_window_enabled,
-        }
-    }
-
     pub fn default_language(&self) -> &String {
         &self.default_language
     }
 }
 
+/// The UI scale of the application
+#[repr(C)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UiScale {
     value: f32,
@@ -86,17 +78,34 @@ impl Display for UiScale {
     }
 }
 
+/// The start screen options
+#[repr(i32)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum StartScreen {
-    Movies,
-    Shows,
-    Favorites,
+    Movies = 0,
+    Shows = 1,
+    Favorites = 2,
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_ui_settings_default() {
+        let expected_result = UiSettings {
+            default_language: DEFAULT_LANGUAGE(),
+            ui_scale: DEFAULT_UI_SCALE(),
+            start_screen: DEFAULT_START_SCREEN(),
+            maximized: DEFAULT_MAXIMIZED(),
+            native_window_enabled: DEFAULT_NATIVE_WINDOW(),
+        };
+
+        let result = UiSettings::default();
+
+        assert_eq!(expected_result, result)
+    }
 
     #[test]
     fn test_ui_scale_display_text() {

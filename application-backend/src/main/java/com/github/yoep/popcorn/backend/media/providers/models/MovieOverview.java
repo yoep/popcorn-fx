@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sun.jna.Structure;
 import lombok.*;
 
@@ -15,7 +13,6 @@ import java.util.Optional;
 @EqualsAndHashCode(callSuper = false, exclude = {"rating"})
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"title", "imdbId", "year", "rating", "images"})
 public class MovieOverview extends Structure implements Media, Closeable {
     public static class ByReference extends MovieOverview implements Structure.ByReference {
@@ -52,7 +49,6 @@ public class MovieOverview extends Structure implements Media, Closeable {
     }
 
     @Override
-    @JsonIgnore
     public List<String> getGenres() {
         return Collections.emptyList();
     }

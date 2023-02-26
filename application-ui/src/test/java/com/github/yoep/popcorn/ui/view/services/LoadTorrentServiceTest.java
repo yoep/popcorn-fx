@@ -11,7 +11,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
@@ -47,7 +47,7 @@ class LoadTorrentServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private SubtitleService subtitleService;
     @Mock
@@ -63,7 +63,7 @@ class LoadTorrentServiceTest {
     void setUp() {
         lenient().when(settingsService.getSettings()).thenReturn(settings);
         lenient().when(settings.getTorrentSettings()).thenReturn(torrentSettings);
-        lenient().when(torrentSettings.getDirectory()).thenReturn(workingDir);
+        lenient().when(torrentSettings.getDirectory()).thenReturn(workingDir.getAbsolutePath());
     }
 
     @Test

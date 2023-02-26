@@ -10,7 +10,7 @@ import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SubtitleManagerServiceTest {
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private VideoService videoService;
     @Mock
@@ -53,7 +53,7 @@ class SubtitleManagerServiceTest {
     @Mock
     private ApplicationSettings settings;
     @Mock
-    private SubtitleSettings subtitleSettings;
+    private SubtitleSettings.ByValue subtitleSettings;
     @InjectMocks
     private SubtitleManagerService service;
 
@@ -193,9 +193,8 @@ class SubtitleManagerServiceTest {
     @Test
     void testSubtitleSettingsListener_whenSubtitleSizeIsChangeD_shouldUpdateSubtitleSize() {
         var expectedValue = 34;
-        var subtitleSettings = SubtitleSettings.builder()
-                .fontSize(12)
-                .build();
+        var subtitleSettings = mock(SubtitleSettings.ByValue.class);
+        when(subtitleSettings.getFontSize()).thenReturn(expectedValue);
         when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 

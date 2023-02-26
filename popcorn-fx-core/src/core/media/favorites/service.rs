@@ -1,9 +1,9 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::sync::Arc;
 
+use derive_more::Display;
 use log::{debug, error, info, trace, warn};
 use mockall::automock;
-use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, CoreCallback, CoreCallbacks, media};
@@ -16,21 +16,14 @@ const FILENAME: &str = "favorites.json";
 /// The callback to listen on events of the favorite service.
 pub type FavoriteCallback = CoreCallback<FavoriteEvent>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum FavoriteEvent {
     /// Invoked when a media item's liked state has changed.
     ///
     /// - The IMDB ID of the media item for which the state changed.
     /// - The new state.
+    #[display(fmt = "Like state changed of {} to {}", _0, _1)]
     LikedStateChanged(String, bool)
-}
-
-impl Display for FavoriteEvent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FavoriteEvent::LikedStateChanged(id, new_state) => write!(f, "Like state changed of {} to {}", id, new_state),
-        }
-    }
 }
 
 #[automock]
@@ -73,9 +66,12 @@ pub struct DefaultFavoriteService {
 }
 
 impl DefaultFavoriteService {
-    pub fn new(storage: &Arc<Storage>) -> Self {
+    /// Create a new favorite service with default behavior.
+    ///
+    /// * `storage_directory` - The directory to use to read & store the favorites.
+    pub fn new(storage_path: &str) -> Self {
         Self {
-            storage: storage.clone(),
+            storage: Arc::new(Storage::from(storage_path)),
             cache: Arc::new(Mutex::new(None)),
             callbacks: CoreCallbacks::default(),
         }
@@ -86,7 +82,7 @@ impl DefaultFavoriteService {
     }
 
     async fn save_async(&self, favorites: &Favorites) {
-        match self.storage.write(FILENAME, &favorites).await {
+        match self.storage.write_async(FILENAME, &favorites).await {
             Ok(_) => info!("Favorites have been saved"),
             Err(e) => error!("Failed to save favorites, {}", e)
         }
@@ -112,7 +108,7 @@ impl DefaultFavoriteService {
     }
 
     fn load_favorites_from_storage(&self) -> media::Result<Favorites> {
-        match self.storage.read::<Favorites>(FILENAME) {
+        match self.storage.read(FILENAME) {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
@@ -120,7 +116,7 @@ impl DefaultFavoriteService {
                         debug!("Creating new favorites file {}", file);
                         Ok(Favorites::default())
                     }
-                    StorageError::CorruptRead(_, error) => {
+                    StorageError::ReadingFailed(_, error) => {
                         error!("Failed to load favorites, {}", error);
                         Err(MediaError::FavoritesLoadingFailed(error))
                     }
@@ -256,7 +252,8 @@ impl FavoriteService for DefaultFavoriteService {
 impl Drop for DefaultFavoriteService {
     fn drop(&mut self) {
         let mutex = self.cache.clone();
-        let execute = async move {
+
+        block_in_place(async move {
             let favorites = mutex.lock().await;
 
             if favorites.is_some() {
@@ -264,18 +261,7 @@ impl Drop for DefaultFavoriteService {
                 let e = favorites.as_ref().expect("Expected the favorites to be present");
                 self.save_async(e).await
             }
-        };
-
-        match Handle::try_current() {
-            Ok(e) => {
-                trace!("Using handle on exit");
-                e.block_on(execute)
-            }
-            Err(_) => {
-                let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
-                runtime.block_on(execute)
-            }
-        }
+        })
     }
 }
 
@@ -296,8 +282,8 @@ mod test {
         init_logger();
         let imdb_id = String::from("tt9387250");
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = DefaultFavoriteService::new(&storage);
+        let resource_path = resource_directory.to_str().unwrap();
+        let service = DefaultFavoriteService::new(resource_path);
 
         let result = service.is_liked(imdb_id.as_str());
 
@@ -309,8 +295,8 @@ mod test {
         init_logger();
         let imdb_id = String::from("tt1156398");
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = DefaultFavoriteService::new(&storage);
+        let resource_path = resource_directory.to_str().unwrap();
+        let service = DefaultFavoriteService::new(resource_path);
 
         let result = service.is_liked(imdb_id.as_str());
 
@@ -321,8 +307,8 @@ mod test {
     fn test_all() {
         init_logger();
         let resource_directory = test_resource_directory();
-        let storage = Arc::new(Storage::from(resource_directory.to_str().expect("expected resource path to be valid")));
-        let service = DefaultFavoriteService::new(&storage);
+        let resource_path = resource_directory.to_str().unwrap();
+        let service = DefaultFavoriteService::new(resource_path);
         let result = service.all()
             .expect("Expected the favorites to have been retrieved");
 
@@ -339,8 +325,8 @@ mod test {
         let imdb_id = "tt12345678";
         let title = "lorem ipsum";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let storage = Arc::new(Storage::from(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
-        let service = DefaultFavoriteService::new(&storage);
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultFavoriteService::new(temp_path);
         let movie = Box::new(MovieOverview::new(
             String::from(title),
             String::from(imdb_id),
@@ -364,8 +350,8 @@ mod test {
         let imdb_id = "tt12345666";
         let title = "lorem ipsum";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let storage = Arc::new(Storage::from(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
-        let service = DefaultFavoriteService::new(&storage);
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultFavoriteService::new(temp_path);
         let movie = MovieOverview::new(
             String::from(title),
             String::from(imdb_id),
@@ -386,8 +372,8 @@ mod test {
         init_logger();
         let id = "tt1122333";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let storage = Arc::new(Storage::from(temp_dir.path().to_str().expect("expected temp dir path to be valid")));
-        let service = DefaultFavoriteService::new(&storage);
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultFavoriteService::new(temp_path);
         let (tx, rx) = channel();
         let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(
             String::new(),

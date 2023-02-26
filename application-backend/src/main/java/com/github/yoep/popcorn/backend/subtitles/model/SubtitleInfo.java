@@ -12,7 +12,10 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import java.io.Closeable;
-import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * The subtitle info contains information about available subtitles for a certain IMDB ID.
@@ -23,7 +26,7 @@ import java.io.Serializable;
 @ToString
 @EqualsAndHashCode(of = {"imdbId", "language"}, callSuper = false)
 @Structure.FieldOrder({"imdbId", "language", "files", "len"})
-public class SubtitleInfo extends Structure implements Comparable<SubtitleInfo>, Serializable, Closeable {
+public class SubtitleInfo extends Structure implements Closeable {
     public static class ByReference extends SubtitleInfo implements Structure.ByReference {
     }
 
@@ -33,6 +36,8 @@ public class SubtitleInfo extends Structure implements Comparable<SubtitleInfo>,
     public SubtitleLanguage language;
     public SubtitleFile.ByReference files;
     public int len;
+
+    private List<SubtitleFile> cache;
 
     //region Constructors
 
@@ -111,25 +116,28 @@ public class SubtitleInfo extends Structure implements Comparable<SubtitleInfo>,
         return new ClassPathResource(ViewLoader.IMAGE_DIRECTORY + "/flags/" + language.getCode() + ".png");
     }
 
-    //endregion
-
-    //region Comparable
-
-    @Override
-    public int compareTo(SubtitleInfo compare) {
-        if (getLanguage() == SubtitleLanguage.NONE)
-            return -1;
-
-        if (compare.getLanguage() == SubtitleLanguage.NONE)
-            return 1;
-
-        return this.getLanguage().compareTo(compare.getLanguage());
+    public List<SubtitleFile> getFiles() {
+        return cache;
     }
 
     //endregion
+
+    //region Methods
+
+    @Override
+    public void read() {
+        super.read();
+        cache = Optional.ofNullable(files)
+                .map(e -> (SubtitleFile[]) files.toArray(len))
+                .map(Arrays::asList)
+                .orElse(Collections.emptyList());
+    }
 
     @Override
     public void close() {
         setAutoSynch(false);
+        cache.forEach(SubtitleFile::close);
     }
+
+    //endregion
 }

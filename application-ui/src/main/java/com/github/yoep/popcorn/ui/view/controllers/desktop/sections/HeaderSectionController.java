@@ -4,12 +4,10 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
-import com.github.yoep.popcorn.backend.config.properties.ProviderProperties;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
 import com.github.yoep.popcorn.ui.events.*;
@@ -36,17 +34,15 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 
 import java.net.URL;
-import java.util.List;
 import java.util.ResourceBundle;
-import java.util.stream.Collectors;
 
 @Slf4j
 @ViewController
 public class HeaderSectionController extends AbstractFilterSectionController implements Initializable {
-    private final PopcornProperties properties;
     private final LocaleText localeText;
     private final PlatformProvider platformProvider;
     private final UpdateSectionService updateSectionService;
+    private final ApplicationConfig applicationConfig;
 
     private final Transition updateAvailableAnimation = createColorTransition();
 
@@ -73,13 +69,13 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     //region Constructors
 
-    public HeaderSectionController(ApplicationEventPublisher eventPublisher, PopcornProperties properties, LocaleText localeText,
-                                   SettingsService settingsService, PlatformProvider platformProvider, UpdateSectionService updateSectionService) {
+    public HeaderSectionController(ApplicationEventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService,
+                                   PlatformProvider platformProvider, UpdateSectionService updateSectionService, ApplicationConfig applicationConfig) {
         super(eventPublisher, settingsService);
-        this.properties = properties;
         this.localeText = localeText;
         this.platformProvider = platformProvider;
         this.updateSectionService = updateSectionService;
+        this.applicationConfig = applicationConfig;
     }
 
     //endregion
@@ -178,27 +174,35 @@ public class HeaderSectionController extends AbstractFilterSectionController imp
 
     @Override
     protected void updateGenres(Category category) {
-        ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
-        List<Genre> genres = providerProperties.getGenres().stream()
-                .map(e -> new Genre(e, localeText.get("genre_" + e)))
-                .sorted()
-                .collect(Collectors.toList());
+        applicationConfig.getProperties().getProvider(category.getProviderName())
+                .ifPresentOrElse(
+                        properties -> {
+                            var genres = properties.getGenres().stream()
+                                    .map(e -> new Genre(e, localeText.get("genre_" + e)))
+                                    .sorted()
+                                    .toList();
 
-        genreCombo.getItems().clear();
-        genreCombo.getItems().addAll(genres);
-        genreCombo.getSelectionModel().select(0);
+                            genreCombo.getItems().clear();
+                            genreCombo.getItems().addAll(genres);
+                            genreCombo.getSelectionModel().select(0);
+                        },
+                        () -> log.error("Unable to retrieve genres for {}", category));
     }
 
     @Override
     protected void updateSortBy(Category category) {
-        ProviderProperties providerProperties = properties.getProvider(category.getProviderName());
-        List<SortBy> sortBy = providerProperties.getSortBy().stream()
-                .map(e -> new SortBy(e, localeText.get("sort-by_" + e)))
-                .collect(Collectors.toList());
+        applicationConfig.getProperties().getProvider(category.getProviderName())
+                .ifPresentOrElse(
+                        properties -> {
+                            var sortBy = properties.getSortBy().stream()
+                                    .map(e -> new SortBy(e, localeText.get("sort-by_" + e)))
+                                    .toList();
 
-        sortByCombo.getItems().clear();
-        sortByCombo.getItems().addAll(sortBy);
-        sortByCombo.getSelectionModel().select(0);
+                            sortByCombo.getItems().clear();
+                            sortByCombo.getItems().addAll(sortBy);
+                            sortByCombo.getSelectionModel().select(0);
+                        },
+                        () -> log.error("Unable to retrieve sort by for {}", category));
     }
 
     private void switchGenre(Genre genre) {

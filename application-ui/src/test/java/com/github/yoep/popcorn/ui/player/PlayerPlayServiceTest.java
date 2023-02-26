@@ -16,7 +16,7 @@ import com.github.yoep.popcorn.backend.media.resume.AutoResumeService;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.player.model.StreamPlayRequest;
-import com.github.yoep.popcorn.backend.settings.SettingsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
@@ -42,7 +42,7 @@ class PlayerPlayServiceTest {
     @Mock
     private ScreenService screenService;
     @Mock
-    private SettingsService settingsService;
+    private ApplicationConfig settingsService;
     @Mock
     private ApplicationSettings settings;
     @Mock

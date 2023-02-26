@@ -1,7 +1,7 @@
 use derive_more::Display;
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 
-use crate::core::{CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, CoreCallback, CoreCallbacks};
 use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use crate::core::storage::Storage;
 
@@ -179,8 +179,15 @@ impl ApplicationConfig {
 
     /// Save the application settings.
     pub fn save(&self) {
-        debug!("Saving the application settings");
-        // todo
+        block_in_place(self.save_async(self.user_settings()))
+    }
+
+    async fn save_async(&self, settings: &PopcornSettings) {
+        trace!("Saving application settings");
+        match self.storage.write_async(DEFAULT_SETTINGS_FILENAME, settings).await {
+            Ok(_) => info!("Settings have been saved"),
+            Err(e) => error!("Failed to save settings, {}", e)
+        }
     }
 }
 
@@ -188,6 +195,13 @@ impl PartialEq for ApplicationConfig {
     fn eq(&self, other: &Self) -> bool {
         self.properties == other.properties
             && self.settings == other.settings
+    }
+}
+
+impl Drop for ApplicationConfig {
+    fn drop(&mut self) {
+        debug!("Saving settings on exit");
+        self.save()
     }
 }
 
@@ -199,9 +213,9 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::config::{DecorationType, StartScreen, SubtitleFamily, SubtitleSettings, UiScale};
+    use crate::core::config::{DecorationType, Quality, StartScreen, SubtitleFamily, SubtitleSettings, UiScale};
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::testing::{copy_test_file, init_logger};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file};
 
     use super::*;
 
@@ -467,5 +481,37 @@ mod test {
             }
             _ => assert!(false, "expected ApplicationConfigEvent::ServerSettingsChanged")
         }
+    }
+
+    #[test]
+    fn test_save() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut application = ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: Default::default(),
+            settings: Default::default(),
+            callbacks: Default::default(),
+        };
+        let playback = PlaybackSettings {
+            quality: Some(Quality::P1080),
+            fullscreen: true,
+            auto_play_next_episode_enabled: true,
+        };
+        let server = ServerSettings {
+            api_server: Some("http://localhost:8080".to_string()),
+        };
+
+        application.update_server(server.clone());
+        application.update_playback(playback.clone());
+        application.save();
+
+        let result = read_temp_dir_file(PathBuf::from(temp_path), DEFAULT_SETTINGS_FILENAME);
+        assert!(!result.is_empty(), "expected a non-empty json file");
+
+        let settings: PopcornSettings = serde_json::from_str(result.as_str()).unwrap();
+        assert_eq!(server, settings.server_settings);
+        assert_eq!(playback, settings.playback_settings);
     }
 }

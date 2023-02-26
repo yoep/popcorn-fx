@@ -189,7 +189,7 @@ impl PopcornFX {
     /// This will read the settings from the storage and notify all subscribers of new changes.
     pub fn reload_settings(&mut self) {
         block_in_place(async {
-            let mut mutex = self.settings.blocking_lock();
+            let mut mutex = self.settings.lock().await;
             mutex.reload()
         })
     }
@@ -246,7 +246,14 @@ impl Default for PopcornFX {
 
 #[cfg(test)]
 mod test {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
+    use tempfile::tempdir;
+
+    use popcorn_fx_core::core::config::ApplicationConfigEvent;
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use super::*;
 
@@ -291,5 +298,33 @@ mod test {
         let result = popcorn_fx.torrent_collection().is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet");
 
         assert_eq!(false, result)
+    }
+
+    #[test]
+    fn test_popcorn_fx_reload_settings() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, rx) = channel();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let mut popcorn_fx = PopcornFX::new(PopcornFxOpts {
+            disable_logger: true,
+            app_directory: PathBuf::from(temp_path),
+        });
+        copy_test_file(temp_path, "settings.json", None);
+
+        let mutex = popcorn_fx.settings();
+        mutex.register(Box::new(move |event| {
+            tx.send(event).unwrap()
+        }));
+        drop(mutex);
+
+        popcorn_fx.reload_settings();
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+
+        match result {
+            ApplicationConfigEvent::SettingsLoaded => {}
+            _ => assert!(false, "expected ApplicationConfigEvent::SettingsLoaded")
+        }
     }
 }

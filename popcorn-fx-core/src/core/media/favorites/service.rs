@@ -4,7 +4,6 @@ use std::sync::Arc;
 use derive_more::Display;
 use log::{debug, error, info, trace, warn};
 use mockall::automock;
-use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, CoreCallback, CoreCallbacks, media};
@@ -253,7 +252,8 @@ impl FavoriteService for DefaultFavoriteService {
 impl Drop for DefaultFavoriteService {
     fn drop(&mut self) {
         let mutex = self.cache.clone();
-        let execute = async move {
+
+        block_in_place(async move {
             let favorites = mutex.lock().await;
 
             if favorites.is_some() {
@@ -261,18 +261,7 @@ impl Drop for DefaultFavoriteService {
                 let e = favorites.as_ref().expect("Expected the favorites to be present");
                 self.save_async(e).await
             }
-        };
-
-        match Handle::try_current() {
-            Ok(e) => {
-                trace!("Using handle on exit");
-                e.block_on(execute)
-            }
-            Err(_) => {
-                let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
-                runtime.block_on(execute)
-            }
-        }
+        })
     }
 }
 

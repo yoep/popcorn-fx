@@ -156,13 +156,14 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      */
     protected String getDefaultVideoResolution(List<String> availableResolutions) {
         var settings = getPlaybackSettings();
-        var defaultQuality = settings.getQuality();
+        var defaultQualityOptional = settings.getQuality();
 
-        if (defaultQuality != null) {
+        if (defaultQualityOptional.isPresent()) {
+            var defaultQuality = defaultQualityOptional.get();
             // check if we can find the request playback quality within the available resolutions
             var defaultResolution = getResolutionForPlaybackQuality(availableResolutions, defaultQuality)
                     .orElseGet(() -> defaultQuality.lower() // if not found, try the quality below the current one if possible
-                            .flatMap(e -> getResolutionForPlaybackQuality(availableResolutions, e))
+                            .flatMap(x -> getResolutionForPlaybackQuality(availableResolutions, x))
                             .orElse(null));
 
             // check if the default resolution could be found

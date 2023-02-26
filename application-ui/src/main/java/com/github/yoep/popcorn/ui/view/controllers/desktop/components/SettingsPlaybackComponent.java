@@ -51,7 +51,7 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
 
         quality.setCellFactory(param -> createQualityCell());
         quality.setButtonCell(createQualityCell());
-        quality.getSelectionModel().select(settings.getQuality());
+        quality.getSelectionModel().select(settings.getQuality().orElse(null));
         quality.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
     }
 

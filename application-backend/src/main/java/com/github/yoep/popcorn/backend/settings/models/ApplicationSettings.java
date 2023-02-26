@@ -4,14 +4,13 @@ import com.sun.jna.Structure;
 import lombok.*;
 
 import java.io.Closeable;
-import java.util.Objects;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Structure.FieldOrder({"subtitleSettings", "torrentSettings", "uiSettings"})
+@Structure.FieldOrder({"subtitleSettings", "torrentSettings", "uiSettings", "serverSettings"})
 public class ApplicationSettings extends Structure implements Closeable {
     public static final String TORRENT_PROPERTY = "torrentSettings";
     public static final String UI_PROPERTY = "uiSettings";
@@ -23,6 +22,7 @@ public class ApplicationSettings extends Structure implements Closeable {
     public SubtitleSettings subtitleSettings;
     public TorrentSettings torrentSettings;
     public UISettings uiSettings;
+    public ServerSettings serverSettings;
     /**
      * The trakt.tv settings of the application.
      */
@@ -33,11 +33,6 @@ public class ApplicationSettings extends Structure implements Closeable {
      */
     @Builder.Default
     private PlaybackSettings playbackSettings = PlaybackSettings.builder().build();
-    /**
-     * The server settings of the application.
-     */
-    @Builder.Default
-    private ServerSettings serverSettings = ServerSettings.builder().build();
 
     //region Getters & Setters
 
@@ -62,36 +57,13 @@ public class ApplicationSettings extends Structure implements Closeable {
         return serverSettings;
     }
 
-    public void setTraktSettings(TraktSettings traktSettings) {
-        if (Objects.equals(this.traktSettings, traktSettings))
-            return;
-
-        var oldValue = this.traktSettings;
-        this.traktSettings = traktSettings;
-    }
-
-    public void setPlaybackSettings(PlaybackSettings playbackSettings) {
-        if (Objects.equals(this.playbackSettings, playbackSettings))
-            return;
-
-        var oldValue = this.playbackSettings;
-        this.playbackSettings = playbackSettings;
-    }
-
-    public void setServerSettings(ServerSettings serverSettings) {
-        if (Objects.equals(this.serverSettings, serverSettings))
-            return;
-
-        var oldValue = this.serverSettings;
-        this.serverSettings = serverSettings;
-    }
-
     @Override
     public void close() {
         setAutoSynch(false);
         subtitleSettings.close();
         torrentSettings.close();
         uiSettings.close();
+        serverSettings.close();
     }
 
     //endregion

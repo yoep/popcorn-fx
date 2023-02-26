@@ -17,10 +17,7 @@ import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.ApplicationProperties;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
-import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -166,6 +163,8 @@ public interface FxLib extends Library {
     void update_torrent_settings(PopcornFx instance, TorrentSettings.ByValue settings);
 
     void update_ui_settings(PopcornFx instance, UISettings.ByValue settings);
+
+    void update_server_settings(PopcornFx instance, ServerSettings.ByValue settings);
 
     void dispose_media_item(MediaItem media);
 

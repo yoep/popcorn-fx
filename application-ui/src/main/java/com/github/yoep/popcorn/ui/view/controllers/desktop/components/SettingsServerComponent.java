@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.net.URI;
 import java.net.URL;
 import java.util.ResourceBundle;
 
@@ -38,9 +37,7 @@ public class SettingsServerComponent extends AbstractSettingsUiComponent impleme
     private void initializeApiServer() {
         var settings = getSettings();
 
-        apiServer.setValue(settings.getApiServer()
-                .map(URI::toString)
-                .orElse(null));
+        apiServer.setValue(settings.getApiServer());
         apiServer.valueProperty().addListener((observable, oldValue, newValue) -> onApiServerChanged(newValue));
     }
 
@@ -53,11 +50,12 @@ public class SettingsServerComponent extends AbstractSettingsUiComponent impleme
 
         try {
             if (StringUtils.isNotEmpty(newValue)) {
-                settings.setApiServer(URI.create(newValue));
+                settings.setApiServer(newValue);
             } else {
                 settings.setApiServer(null);
             }
 
+            applicationConfig.update(settings);
             showNotification();
         } catch (IllegalArgumentException ex) {
             log.warn("API server is invalid, " + ex.getMessage(), ex);

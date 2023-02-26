@@ -1,45 +1,32 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
+import com.sun.jna.Structure;
 import lombok.*;
-import org.springframework.lang.Nullable;
 
-import java.net.URI;
+import java.io.Closeable;
 import java.util.Objects;
-import java.util.Optional;
 
 @EqualsAndHashCode(callSuper = false)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ServerSettings extends AbstractSettings {
-    public static final String API_SERVER_PROPERTY = "apiServer";
+@Structure.FieldOrder({"apiServer"})
+public class ServerSettings extends Structure implements Closeable {
+    public static class ByValue extends ServerSettings implements Structure.ByValue {
+        public ByValue() {
+        }
 
-    //region Properties
-
-    /**
-     * The custom api server to use for retrieving {@link com.github.yoep.popcorn.ui.media.providers.models.Media} information.
-     * This server will be added on the top of the api list if configured.
-     */
-    @Nullable
-    private URI apiServer;
-
-    //endregion
-
-    //region Getters & Setters
-
-    public Optional<URI> getApiServer() {
-        return Optional.ofNullable(apiServer);
+        public ByValue(ServerSettings settings) {
+            Objects.requireNonNull(settings, "settings cannot be null");
+            this.apiServer = settings.apiServer;
+        }
     }
 
-    public void setApiServer(URI apiServer) {
-        if (Objects.equals(this.apiServer, apiServer))
-            return;
+    public String apiServer;
 
-        var oldValue = this.apiServer;
-        this.apiServer = apiServer;
-        changes.firePropertyChange(API_SERVER_PROPERTY, oldValue, apiServer);
+    @Override
+    public void close() {
+        setAutoSynch(false);
     }
-
-    //endregion
 }

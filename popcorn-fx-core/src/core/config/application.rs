@@ -2,7 +2,7 @@ use derive_more::Display;
 use log::{debug, info, trace, warn};
 
 use crate::core::{CoreCallback, CoreCallbacks};
-use crate::core::config::{ConfigError, PopcornProperties, PopcornSettings, SubtitleSettings, TorrentSettings, UiSettings};
+use crate::core::config::{ConfigError, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
@@ -28,6 +28,9 @@ pub enum ApplicationConfigEvent {
     #[display(fmt = "UI settings have been changed")]
     /// Invoked when the ui settings have been changed
     UiSettingsChanged(UiSettings),
+    #[display(fmt = "Server settings have been changed")]
+    /// Invoked when the server settings have been changed
+    ServerSettingsChanged(ServerSettings),
 }
 
 /// The application properties & settings of Popcorn FX.
@@ -109,6 +112,16 @@ impl ApplicationConfig {
             self.settings.ui_settings = ui_settings;
             debug!("UI settings have been updated");
             self.callbacks.invoke(ApplicationConfigEvent::UiSettingsChanged(self.settings.ui().clone()));
+        }
+    }
+
+    /// Update the api server settings of the application.
+    /// The update will be ignored if no fields have been changed.
+    pub fn update_server(&mut self, settings: ServerSettings) {
+        if self.settings.server_settings != settings {
+            self.settings.server_settings = settings;
+            debug!("Server settings have been updated");
+            self.callbacks.invoke(ApplicationConfigEvent::ServerSettingsChanged(self.settings.server().clone()));
         }
     }
 
@@ -374,7 +387,6 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let directory = "/tmp/lorem/torrents";
         let settings = UiSettings {
             default_language: "en".to_string(),
             ui_scale: UiScale::new(1.2).unwrap(),

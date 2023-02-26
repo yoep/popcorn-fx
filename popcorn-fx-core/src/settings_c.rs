@@ -1,10 +1,11 @@
 use std::os::raw::c_char;
 use std::path::PathBuf;
+use std::ptr;
 
 use log::trace;
 
 use crate::{from_c_string, into_c_string};
-use crate::core::config::{ApplicationConfigEvent, DecorationType, PopcornSettings, StartScreen, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
+use crate::core::config::{ApplicationConfigEvent, DecorationType, PopcornSettings, ServerSettings, StartScreen, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
 use crate::core::subtitles::language::SubtitleLanguage;
 
 /// The C callback for the setting events.
@@ -14,14 +15,16 @@ pub type ApplicationConfigCallbackC = extern "C" fn(ApplicationConfigEventC);
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub enum ApplicationConfigEventC {
-    /// Indicates that the settings have been changed
+    /// Invoked when the application settings have been reloaded or loaded
     SettingsLoaded,
-    /// Indicates that the subtitle settings have been changed
+    /// Invoked when the subtitle settings have been changed
     SubtitleSettingsChanged(SubtitleSettingsC),
-    /// Indicates that the torrent settings have been changed
+    /// Invoked when the torrent settings have been changed
     TorrentSettingsChanged(TorrentSettingsC),
-    /// Indicates that the ui settings have been changed
-    UISettingsChanged(UiSettingsC),
+    /// Invoked when the ui settings have been changed
+    UiSettingsChanged(UiSettingsC),
+    /// Invoked when the server settings have been changed
+    ServerSettingsChanged(ServerSettingsC),
 }
 
 impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
@@ -30,7 +33,8 @@ impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
             ApplicationConfigEvent::SettingsLoaded => ApplicationConfigEventC::SettingsLoaded,
             ApplicationConfigEvent::SubtitleSettingsChanged(settings) => ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&settings)),
             ApplicationConfigEvent::TorrentSettingsChanged(settings) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&settings)),
-            ApplicationConfigEvent::UiSettingsChanged(settings) => ApplicationConfigEventC::UISettingsChanged(UiSettingsC::from(&settings)),
+            ApplicationConfigEvent::UiSettingsChanged(settings) => ApplicationConfigEventC::UiSettingsChanged(UiSettingsC::from(&settings)),
+            ApplicationConfigEvent::ServerSettingsChanged(settings) => ApplicationConfigEventC::ServerSettingsChanged(ServerSettingsC::from(&settings)),
         }
     }
 }
@@ -45,6 +49,8 @@ pub struct PopcornSettingsC {
     pub torrent_settings: TorrentSettingsC,
     /// The ui settings of the application
     pub ui_settings: UiSettingsC,
+    /// The api server settings of the application
+    pub server_settings: ServerSettingsC,
 }
 
 impl From<&PopcornSettings> for PopcornSettingsC {
@@ -54,6 +60,7 @@ impl From<&PopcornSettings> for PopcornSettingsC {
             subtitle_settings: SubtitleSettingsC::from(value.subtitle()),
             torrent_settings: TorrentSettingsC::from(value.torrent()),
             ui_settings: UiSettingsC::from(value.ui()),
+            server_settings: ServerSettingsC::from(value.server()),
         }
     }
 }
@@ -187,6 +194,39 @@ impl From<UiSettingsC> for UiSettings {
     }
 }
 
+/// The C compatible server settings.
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct ServerSettingsC {
+    /// The configured api server to use, can be `ptr::null()`
+    pub api_server: *const c_char,
+}
+
+impl From<&ServerSettings> for ServerSettingsC {
+    fn from(value: &ServerSettings) -> Self {
+        Self {
+            api_server: match value.api_server() {
+                None => ptr::null(),
+                Some(e) => into_c_string(e.clone())
+            },
+        }
+    }
+}
+
+impl From<ServerSettingsC> for ServerSettings {
+    fn from(value: ServerSettingsC) -> Self {
+        let api_server = if !value.api_server.is_null() {
+            Some(from_c_string(value.api_server))
+        } else {
+            None
+        };
+
+        Self {
+            api_server,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -199,11 +239,30 @@ mod test {
 
     #[test]
     fn test_from_application_settings_event() {
+        let subtitle_directory = "/tmp/lorem/ipsum_subtitles";
+        let subtitle = SubtitleSettings {
+            directory: subtitle_directory.to_string(),
+            auto_cleaning_enabled: false,
+            default_subtitle: SubtitleLanguage::None,
+            font_family: SubtitleFamily::Arial,
+            font_size: 22,
+            decoration: DecorationType::None,
+            bold: false,
+        };
         let loaded_event = ApplicationConfigEvent::SettingsLoaded;
+        let subtitle_event = ApplicationConfigEvent::SubtitleSettingsChanged(subtitle.clone());
 
         let loaded_result = ApplicationConfigEventC::from(loaded_event);
+        let subtitle_result = ApplicationConfigEventC::from(subtitle_event);
 
         assert_eq!(ApplicationConfigEventC::SettingsLoaded, loaded_result);
+        match subtitle_result {
+            ApplicationConfigEventC::SubtitleSettingsChanged(result) => {
+                let subtitle_result = SubtitleSettings::from(result);
+                assert_eq!(subtitle, subtitle_result)
+            },
+            _ => assert!(false, "expected ApplicationConfigEventC::SubtitleSettingsChanged")
+        }
     }
 
     #[test]
@@ -325,7 +384,6 @@ mod test {
 
     #[test]
     fn test_from_ui_settings_c() {
-        let language = "en";
         let ui_scale = UiScale::new(1.0).unwrap();
         let settings = UiSettingsC {
             default_language: into_c_string("en".to_string()),
@@ -343,6 +401,44 @@ mod test {
         };
 
         let result = UiSettings::from(settings);
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_from_server_settings() {
+        let api_server = "http://localhost:8080";
+        let settings = ServerSettings {
+            api_server: Some(api_server.to_string()),
+        };
+
+        let result = ServerSettingsC::from(&settings);
+
+        assert_eq!(api_server.to_string(), from_c_string(result.api_server))
+    }
+
+    #[test]
+    fn test_from_server_settings_none_api_server() {
+        let settings = ServerSettings {
+            api_server: None,
+        };
+
+        let result = ServerSettingsC::from(&settings);
+
+        assert_eq!(ptr::null(), result.api_server)
+    }
+
+    #[test]
+    fn test_from_server_settings_c() {
+        let api_server = "http://localhost:8080";
+        let settings = ServerSettingsC {
+            api_server: into_c_string(api_server.to_string()),
+        };
+        let expected_result = ServerSettings {
+            api_server: Some(api_server.to_string()),
+        };
+
+        let result = ServerSettings::from(settings);
 
         assert_eq!(expected_result, result)
     }

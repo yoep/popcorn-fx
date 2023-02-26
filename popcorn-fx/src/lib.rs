@@ -8,8 +8,8 @@ use std::time::Instant;
 use log::{debug, error, info, trace, warn};
 
 use media_mappers::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
-use popcorn_fx_core::core::config::{SubtitleSettings, TorrentSettings, UiSettings};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::core::config::{ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -933,10 +933,18 @@ pub extern "C" fn update_torrent_settings(popcorn_fx: &mut PopcornFX, torrent_se
 
 /// Update the ui settings with the new value.
 #[no_mangle]
-pub extern "C" fn update_ui_settings(popcorn_fx: &mut PopcornFX, ui_settings: UiSettingsC) {
-    trace!("Updating the ui settings from {:?}", ui_settings);
-    let settings = UiSettings::from(ui_settings);
+pub extern "C" fn update_ui_settings(popcorn_fx: &mut PopcornFX, settings: UiSettingsC) {
+    trace!("Updating the ui settings from {:?}", settings);
+    let settings = UiSettings::from(settings);
     popcorn_fx.settings().update_ui(settings);
+}
+
+/// Update the server settings with the new value.
+#[no_mangle]
+pub extern "C" fn update_server_settings(popcorn_fx: &mut PopcornFX, settings: ServerSettingsC) {
+    trace!("Updating the server settings from {:?}", settings);
+    let settings = ServerSettings::from(settings);
+    popcorn_fx.settings().update_server(settings);
 }
 
 /// Dispose the given media item from memory.

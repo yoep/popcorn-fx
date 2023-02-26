@@ -139,9 +139,6 @@ struct TorrentStreamC;
 /// torrent information from C.
 struct TorrentWrapper;
 
-/// The UI scale of the application
-struct UiScale;
-
 struct RatingC {
   uint16_t percentage;
   uint32_t watching;
@@ -308,6 +305,11 @@ struct TorrentSettingsC {
   uint32_t upload_rate_limit;
 };
 
+/// The UI scale of the application
+struct UiScale {
+  float value;
+};
+
 /// The C compatible ui settings
 struct UiSettingsC {
   /// The default language of the application
@@ -322,6 +324,12 @@ struct UiSettingsC {
   bool native_window_enabled;
 };
 
+/// The C compatible server settings.
+struct ServerSettingsC {
+  /// The configured api server to use, can be `ptr::null()`
+  const char *api_server;
+};
+
 /// The C compatible application settings.
 struct PopcornSettingsC {
   /// The subtitle settings of the application
@@ -330,6 +338,8 @@ struct PopcornSettingsC {
   TorrentSettingsC torrent_settings;
   /// The ui settings of the application
   UiSettingsC ui_settings;
+  /// The api server settings of the application
+  ServerSettingsC server_settings;
 };
 
 struct SubtitleFileC {
@@ -472,14 +482,16 @@ struct FavoriteEventC {
 /// The C compatible application events.
 struct ApplicationConfigEventC {
   enum class Tag {
-    /// Indicates that the settings have been changed
+    /// Invoked when the application settings have been reloaded or loaded
     SettingsLoaded,
-    /// Indicates that the subtitle settings have been changed
+    /// Invoked when the subtitle settings have been changed
     SubtitleSettingsChanged,
-    /// Indicates that the torrent settings have been changed
+    /// Invoked when the torrent settings have been changed
     TorrentSettingsChanged,
-    /// Indicates that the ui settings have been changed
-    UISettingsChanged,
+    /// Invoked when the ui settings have been changed
+    UiSettingsChanged,
+    /// Invoked when the server settings have been changed
+    ServerSettingsChanged,
   };
 
   struct SubtitleSettingsChanged_Body {
@@ -490,15 +502,20 @@ struct ApplicationConfigEventC {
     TorrentSettingsC _0;
   };
 
-  struct UISettingsChanged_Body {
+  struct UiSettingsChanged_Body {
     UiSettingsC _0;
+  };
+
+  struct ServerSettingsChanged_Body {
+    ServerSettingsC _0;
   };
 
   Tag tag;
   union {
     SubtitleSettingsChanged_Body subtitle_settings_changed;
     TorrentSettingsChanged_Body torrent_settings_changed;
-    UISettingsChanged_Body ui_settings_changed;
+    UiSettingsChanged_Body ui_settings_changed;
+    ServerSettingsChanged_Body server_settings_changed;
   };
 };
 
@@ -858,6 +875,9 @@ TorrentStreamState torrent_stream_state(TorrentStreamC *stream);
 /// This is a temp wrapper till the torrent component is replaced.
 TorrentWrapperC *torrent_wrapper(TorrentC torrent);
 
+/// Update the server settings with the new value.
+void update_server_settings(PopcornFX *popcorn_fx, ServerSettingsC settings);
+
 /// Update the preferred subtitle for the [Media] item playback.
 /// This action will reset any custom configured subtitle files.
 void update_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle);
@@ -873,6 +893,6 @@ void update_subtitle_settings(PopcornFX *popcorn_fx, SubtitleSettingsC subtitle_
 void update_torrent_settings(PopcornFX *popcorn_fx, TorrentSettingsC torrent_settings);
 
 /// Update the ui settings with the new value.
-void update_ui_settings(PopcornFX *popcorn_fx, UiSettingsC ui_settings);
+void update_ui_settings(PopcornFX *popcorn_fx, UiSettingsC settings);
 
 } // extern "C"

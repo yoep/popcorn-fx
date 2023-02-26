@@ -52,6 +52,7 @@ impl UiSettings {
 }
 
 /// The UI scale of the application
+#[repr(C)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UiScale {
     value: f32,

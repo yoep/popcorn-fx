@@ -60,7 +60,9 @@ mod test {
             settings: PopcornSettings {
                 subtitle_settings: SubtitleSettings::default(),
                 ui_settings: UiSettings::default(),
-                server_settings: ServerSettings::new(api_server.clone()),
+                server_settings: ServerSettings {
+                    api_server: Some(api_server.clone()),
+                },
                 torrent_settings: TorrentSettings::default(),
             },
             callbacks: Default::default(),
@@ -92,7 +94,9 @@ mod test {
             settings: PopcornSettings {
                 subtitle_settings: SubtitleSettings::default(),
                 ui_settings: UiSettings::default(),
-                server_settings: ServerSettings::new(api_server.clone()),
+                server_settings: ServerSettings {
+                    api_server: Some(api_server.clone()),
+                },
                 torrent_settings: TorrentSettings::default(),
             },
             callbacks: Default::default(),

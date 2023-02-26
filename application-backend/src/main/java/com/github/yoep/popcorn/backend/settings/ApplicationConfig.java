@@ -80,28 +80,6 @@ public class ApplicationConfig {
         uiSettings.setUiScale(supportedUIScales.get(index - 1));
     }
 
-    /**
-     * Save the current application settings to the {@link #STORAGE_NAME} file.
-     */
-    public void save() {
-        save(settings);
-    }
-
-    /**
-     * Save the given application settings.
-     * This replaces the currently stored settings.
-     *
-     * @param settings The application settings to save.
-     */
-    public void save(ApplicationSettings settings) {
-        if (settings != this.settings)
-            this.settings = settings;
-
-        log.debug("Saving application settings to storage");
-        //        storageService.store(STORAGE_NAME, settings);
-        log.info("Application settings have been saved");
-    }
-
     public void register(ApplicationConfigEventCallback callback) {
         Objects.requireNonNull(callback, "callback cannot be null");
         listeners.add(callback);
@@ -133,6 +111,12 @@ public class ApplicationConfig {
         Objects.requireNonNull(settings, "settings cannot be null");
         var settings_c = new UISettings.ByValue(settings);
         FxLib.INSTANCE.update_ui_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+    }
+
+    public void update(ServerSettings settings) {
+        Objects.requireNonNull(settings, "settings cannot be null");
+        var settings_c = new ServerSettings.ByValue(settings);
+        FxLib.INSTANCE.update_server_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
     }
 
     /**

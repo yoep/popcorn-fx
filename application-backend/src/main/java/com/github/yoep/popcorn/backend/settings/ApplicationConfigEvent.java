@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.settings;
 
+import com.github.yoep.popcorn.backend.settings.models.ServerSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
@@ -30,6 +31,7 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
             case SubtitleSettingsChanged -> union.setType(ApplicationConfigEvent.SubtitleSettingsChanged_Body.class);
             case TorrentSettingsChanged -> union.setType(ApplicationConfigEvent.TorrentSettingsChanged_Body.class);
             case UiSettingsChanged -> union.setType(ApplicationConfigEvent.UiSettingsChanged_Body.class);
+            case ServerSettingsChanged -> union.setType(ApplicationConfigEvent.ServerSettingsChanged_Body.class);
         }
         union.read();
     }
@@ -62,6 +64,13 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"settings"})
+    public static class ServerSettingsChanged_Body extends Structure {
+        public ServerSettings settings;
+    }
+
+    @Getter
+    @ToString
     public static class ApplicationConfigEventUnion extends Union {
         public static class ByValue extends ApplicationConfigEventUnion implements Union.ByValue {
         }
@@ -69,13 +78,15 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
         public ApplicationConfigEvent.SubtitleSettingsChanged_Body subtitleSettings;
         public ApplicationConfigEvent.TorrentSettingsChanged_Body torrentSettings;
         public ApplicationConfigEvent.UiSettingsChanged_Body uiSettings;
+        public ApplicationConfigEvent.ServerSettingsChanged_Body serverSettings;
     }
 
     public enum Tag implements NativeMapped {
         SettingsLoaded,
         SubtitleSettingsChanged,
         TorrentSettingsChanged,
-        UiSettingsChanged;
+        UiSettingsChanged,
+        ServerSettingsChanged;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

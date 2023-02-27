@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.screen;
 
 import com.github.spring.boot.javafx.view.ViewManager;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
@@ -26,6 +27,7 @@ public class ScreenServiceImpl implements ScreenService {
 
     private final ViewManager viewManager;
     private final OptionsService optionsService;
+    private final PlatformProvider platformProvider;
 
     private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, FULLSCREEN_PROPERTY, false);
 
@@ -54,7 +56,7 @@ public class ScreenServiceImpl implements ScreenService {
         if (System.currentTimeMillis() - lastChange < 300)
             return;
 
-        Platform.runLater(() -> {
+        platformProvider.runOnRenderer(() -> {
             lastChange = System.currentTimeMillis();
             primaryStage.setFullScreen(!primaryStage.isFullScreen());
         });
@@ -62,7 +64,7 @@ public class ScreenServiceImpl implements ScreenService {
 
     @Override
     public void fullscreen(final boolean isFullscreenEnabled) {
-        Platform.runLater(() -> {
+        platformProvider.runOnRenderer(() -> {
             lastChange = System.currentTimeMillis();
             primaryStage.setFullScreen(isFullscreenEnabled);
         });
@@ -84,7 +86,7 @@ public class ScreenServiceImpl implements ScreenService {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         initializeViewManagerListeners();
     }
 

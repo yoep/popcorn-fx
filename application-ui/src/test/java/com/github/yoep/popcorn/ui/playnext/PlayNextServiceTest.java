@@ -236,6 +236,35 @@ class PlayNextServiceTest {
     }
 
     @Test
+    void testOnTimeChanged_whenPlaybackIsRewindedBeyondThreshold_shouldUpdatePlayingInToUndefined() {
+        var episode = createEpisode(1);
+        var nextEpisode = createEpisode(2);
+        var show = mock(ShowDetails.class);
+        when(show.getImages()).thenReturn(Images.builder().build());
+        when(show.getEpisodes()).thenReturn(asList(episode, nextEpisode));
+        var activity = PlayMediaEvent.mediaBuilder()
+                .source(this)
+                .url("my-url")
+                .title("my-title")
+                .torrent(mock(Torrent.class))
+                .torrentStream(mock(TorrentStream.class))
+                .media(show)
+                .subMediaItem(episode)
+                .build();
+        when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
+
+        playNextService.onPlayVideo(activity);
+        listenerHolder.get().onDurationChanged(300000);
+
+        listenerHolder.get().onTimeChanged(240000);
+        assertEquals(60, playNextService.getPlayingIn());
+
+        listenerHolder.get().onTimeChanged(239000);
+        assertEquals(PlayNextService.UNDEFINED, playNextService.getPlayingIn());
+    }
+
+    @Test
     void testOnTimeChanged_whenPlayNextIsEnabledAndRemainingTimeIsZero_shouldTriggerTheNextEpisodePlayback() {
         var episode1 = createEpisode(1);
         var episode2 = createEpisode(2);

@@ -184,6 +184,8 @@ public class PlayNextService {
             if (remainingTime <= 1) {
                 onPlayNextEpisode();
             }
+        } else if (playingIn.get() != UNDEFINED) {
+            playingIn.set(UNDEFINED);
         }
     }
 

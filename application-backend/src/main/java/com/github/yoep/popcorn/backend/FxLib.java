@@ -164,9 +164,11 @@ public interface FxLib extends Library {
 
     void update_playback_settings(PopcornFx instance, PlaybackSettings.ByValue settings);
 
-    byte is_youtube_player_disabled(PopcornFx instance);
+    byte is_youtube_video_player_disabled(PopcornFx instance);
 
-    byte is_fx_player_disabled(PopcornFx instance);
+    byte is_fx_video_player_disabled(PopcornFx instance);
+
+    byte is_vlc_video_player_disabled(PopcornFx instance);
 
     void dispose_media_item(MediaItem media);
 

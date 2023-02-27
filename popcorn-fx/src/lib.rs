@@ -952,16 +952,22 @@ pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings:
     popcorn_fx.settings().update_playback(settings);
 }
 
-/// Verify if the youtube player has been disabled.
+/// Verify if the youtube video player has been disabled.
 #[no_mangle]
-pub extern "C" fn is_youtube_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
+pub extern "C" fn is_youtube_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
     popcorn_fx.opts().disable_youtube_video_player
 }
 
-/// Verify if the FX embedded player has been disabled.
+/// Verify if the FX embedded video player has been disabled.
 #[no_mangle]
-pub extern "C" fn is_fx_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
+pub extern "C" fn is_fx_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
     popcorn_fx.opts().disable_fx_video_player
+}
+
+/// Verify if the vlc video player has been disabled.
+#[no_mangle]
+pub extern "C" fn is_vlc_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().disable_vlc_video_player
 }
 
 /// Dispose the given media item from memory.
@@ -1082,6 +1088,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
@@ -1103,6 +1110,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1117,6 +1125,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieOverview::new(
@@ -1139,6 +1148,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieDetails::new(
@@ -1161,6 +1171,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let id = "tt0000001111".to_string();
@@ -1191,6 +1202,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1244,6 +1256,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1265,6 +1278,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1283,6 +1297,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1302,6 +1317,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1328,6 +1344,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1344,6 +1361,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let settings = SubtitleSettings {
@@ -1384,6 +1402,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let genre = GenreC::from(Genre::all());

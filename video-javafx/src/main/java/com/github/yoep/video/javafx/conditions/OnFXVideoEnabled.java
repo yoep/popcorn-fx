@@ -10,6 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OnFXVideoEnabled {
     public static boolean matches(FxLib fxLib, PopcornFx instance) {
-        return fxLib.is_fx_player_disabled(instance) == 0;
+        return fxLib.is_fx_video_player_disabled(instance) == 0;
     }
 }

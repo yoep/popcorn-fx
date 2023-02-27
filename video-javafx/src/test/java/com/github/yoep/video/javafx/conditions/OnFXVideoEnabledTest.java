@@ -20,7 +20,7 @@ class OnFXVideoEnabledTest {
 
     @Test
     void testMatches_whenIsDisabled_shouldReturnFalse() {
-        when(fxLib.is_fx_player_disabled(instance)).thenReturn((byte) 1);
+        when(fxLib.is_fx_video_player_disabled(instance)).thenReturn((byte) 1);
 
         var result = OnFXVideoEnabled.matches(fxLib, instance);
 
@@ -29,7 +29,7 @@ class OnFXVideoEnabledTest {
 
     @Test
     void testMatches_whenIsEnabled_shouldReturnTrue() {
-        when(fxLib.is_fx_player_disabled(instance)).thenReturn((byte) 0);
+        when(fxLib.is_fx_video_player_disabled(instance)).thenReturn((byte) 0);
 
         var result = OnFXVideoEnabled.matches(fxLib, instance);
 

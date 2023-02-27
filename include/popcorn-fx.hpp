@@ -720,8 +720,8 @@ SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 /// * `event`   - The C event instance of the player stopped data.
 void handle_player_stopped_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
 
-/// Verify if the FX embedded player has been disabled.
-bool is_fx_player_disabled(PopcornFX *popcorn_fx);
+/// Verify if the FX embedded video player has been disabled.
+bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
 
 /// Verify if the given media item is liked/favorite of the user.
 /// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
@@ -739,8 +739,11 @@ bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 /// It returns true when the subtitle track should be disabled, else false.
 bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 
-/// Verify if the youtube player has been disabled.
-bool is_youtube_player_disabled(PopcornFX *popcorn_fx);
+/// Verify if the vlc video player has been disabled.
+bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
+
+/// Verify if the youtube video player has been disabled.
+bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///

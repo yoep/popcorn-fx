@@ -10,6 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OnYoutubeVideoEnabled {
     public static boolean matches(FxLib fxLib, PopcornFx instance) {
-        return fxLib.is_youtube_player_disabled(instance) == 0;
+        return fxLib.is_youtube_video_player_disabled(instance) == 0;
     }
 }

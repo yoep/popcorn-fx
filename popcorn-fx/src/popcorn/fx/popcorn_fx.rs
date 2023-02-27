@@ -56,6 +56,9 @@ pub struct PopcornFxArgs {
     /// Disable the FX embedded video player.
     #[arg(long, default_value_t = false)]
     pub disable_fx_video_player: bool,
+    /// Disable the VLC video player.
+    #[arg(long, default_value_t = false)]
+    pub disable_vlc_video_player: bool,
 }
 
 impl Default for PopcornFxArgs {
@@ -65,6 +68,7 @@ impl Default for PopcornFxArgs {
             disable_logger: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
         }
     }
 }
@@ -289,6 +293,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -312,6 +317,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -330,6 +336,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -347,6 +354,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -365,6 +373,7 @@ mod test {
             disable_logger: true,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
+            disable_vlc_video_player: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "settings.json", None);

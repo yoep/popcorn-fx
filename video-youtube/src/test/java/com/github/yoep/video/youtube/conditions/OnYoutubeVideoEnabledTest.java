@@ -20,7 +20,7 @@ class OnYoutubeVideoEnabledTest {
 
     @Test
     void testMatches_whenDisableOptionIsNotPresent_shouldReturnTrue() {
-        when(fxLib.is_youtube_player_disabled(instance)).thenReturn((byte) 0);
+        when(fxLib.is_youtube_video_player_disabled(instance)).thenReturn((byte) 0);
 
         var result = OnYoutubeVideoEnabled.matches(fxLib, instance);
 
@@ -36,7 +36,7 @@ class OnYoutubeVideoEnabledTest {
 
     @Test
     void testMatches_whenDisableOptionIsPresent_shouldReturnFalse() {
-        when(fxLib.is_youtube_player_disabled(instance)).thenReturn((byte) 1);
+        when(fxLib.is_youtube_video_player_disabled(instance)).thenReturn((byte) 1);
 
         var result = OnYoutubeVideoEnabled.matches(fxLib, instance);
 

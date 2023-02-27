@@ -30,7 +30,7 @@ mod media_mappers;
 
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
-/// The instance can be safely deleted by using [delete_popcorn_fx].
+/// The instance can be safely deleted by using [dispose_popcorn_fx].
 #[no_mangle]
 pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut PopcornFX {
     let start = Instant::now();
@@ -964,6 +964,12 @@ pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings:
     popcorn_fx.settings().update_playback(settings);
 }
 
+/// Verify if thew youtube player has been disabled.
+#[no_mangle]
+pub extern "C" fn is_youtube_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().disable_youtube_video_player
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -1002,7 +1008,9 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
     trace!("Disposing collection set {:?}", collection_set)
 }
 
-/// Delete the PopcornFX instance in a safe way.
+/// Delete the PopcornFX instance, given as a [ptr], in a safe way.
+/// All data within the instance will be deleted from memory making the instance unusable.
+/// This means that the original pointer will become invalid.
 #[no_mangle]
 pub extern "C" fn dispose_popcorn_fx(_: Box<PopcornFX>) {
     info!("Disposing Popcorn FX instance");

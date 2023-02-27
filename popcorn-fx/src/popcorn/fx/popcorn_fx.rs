@@ -203,6 +203,12 @@ impl PopcornFX {
         })
     }
 
+    /// Retrieve the option that were used to create this instance.
+    /// It returns a read-only reference to the options as they can't be changed anymore during the runtime.
+    pub fn opts(&self) -> &PopcornFxArgs {
+        &self.opts
+    }
+
     fn initialize_logger() {
         INIT.call_once(|| {
             let config: Config;
@@ -343,7 +349,6 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
-        let runtime = tokio::runtime::Runtime::new().unwrap();
         let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,

@@ -686,7 +686,9 @@ void dispose_media_item(Box<MediaItemC> media);
 /// Dispose all given media items from memory.
 void dispose_media_items(Box<MediaSetC> media);
 
-/// Delete the PopcornFX instance in a safe way.
+/// Delete the PopcornFX instance, given as a [ptr], in a safe way.
+/// All data within the instance will be deleted from memory making the instance unusable.
+/// This means that the original pointer will become invalid.
 void dispose_popcorn_fx(Box<PopcornFX>);
 
 /// Dispose the given subtitle.
@@ -740,6 +742,9 @@ bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 /// It returns true when the subtitle track should be disabled, else false.
 bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 
+/// Verify if thew youtube player has been disabled.
+bool is_youtube_player_disabled(PopcornFX *popcorn_fx);
+
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
 /// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
@@ -748,7 +753,7 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
-/// The instance can be safely deleted by using [delete_popcorn_fx].
+/// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 
 /// Parse the given subtitle file.

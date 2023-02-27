@@ -204,6 +204,8 @@ impl MediaProvider for FavoritesProvider {
 
 #[cfg(test)]
 mod test {
+    use tempfile::tempdir;
+
     use crate::core::config::ApplicationConfig;
     use crate::core::media;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
@@ -211,7 +213,7 @@ mod test {
     use crate::core::media::providers::MovieProvider;
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
-    use crate::testing::{init_logger, test_resource_directory};
+    use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
 
@@ -249,9 +251,10 @@ mod test {
     fn test_retrieve_details() {
         init_logger();
         let imdb_id = "tt1156398";
-        let resource_directory = test_resource_directory();
-        let resource_path = resource_directory.to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(resource_path)));
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "settings.json", None);
+        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let mut favorites = MockFavoriteService::new();
         favorites.expect_find_id()
             .returning(|_id: &str| -> Option<Box<dyn MediaOverview>> {
@@ -264,7 +267,7 @@ mod test {
         let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(resource_path))),
+            Arc::new(Box::new(DefaultWatchedService::new(temp_path))),
             vec![&movie_provider]);
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 

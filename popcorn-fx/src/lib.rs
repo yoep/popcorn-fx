@@ -964,10 +964,16 @@ pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings:
     popcorn_fx.settings().update_playback(settings);
 }
 
-/// Verify if thew youtube player has been disabled.
+/// Verify if the youtube player has been disabled.
 #[no_mangle]
 pub extern "C" fn is_youtube_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
     popcorn_fx.opts().disable_youtube_video_player
+}
+
+/// Verify if the FX embedded player has been disabled.
+#[no_mangle]
+pub extern "C" fn is_fx_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().disable_fx_video_player
 }
 
 /// Dispose the given media item from memory.

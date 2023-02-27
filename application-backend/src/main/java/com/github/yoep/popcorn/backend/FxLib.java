@@ -170,6 +170,8 @@ public interface FxLib extends Library {
 
     byte is_youtube_player_disabled(PopcornFx instance);
 
+    byte is_fx_player_disabled(PopcornFx instance);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);

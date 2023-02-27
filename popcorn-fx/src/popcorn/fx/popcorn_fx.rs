@@ -53,14 +53,18 @@ pub struct PopcornFxArgs {
     /// Disable the youtube video player.
     #[arg(long, default_value_t = false)]
     pub disable_youtube_video_player: bool,
+    /// Disable the FX embedded player.
+    #[arg(long, default_value_t = false)]
+    pub disable_fx_video_player: bool,
 }
 
 impl Default for PopcornFxArgs {
     fn default() -> Self {
         Self {
-            disable_logger: false,
             app_directory: DEFAULT_APP_DIRECTORY(),
+            disable_logger: false,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
         }
     }
 }

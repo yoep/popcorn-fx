@@ -3,6 +3,9 @@ package com.github.yoep.popcorn.ui.config;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
+import com.github.yoep.video.javafx.VideoPlayerFX;
+import com.github.yoep.video.javafx.conditions.OnFXVideoEnabled;
+import com.github.yoep.video.javafx.conditions.OnMediaSupportedCondition;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
 import com.github.yoep.video.vlc.VideoPlayerVlcError;
 import com.github.yoep.video.youtube.VideoPlayerYoutube;
@@ -39,6 +42,17 @@ public class VideoConfig {
         } else {
             log.warn("Failed to discover VLC library");
             return new VideoPlayerVlcError();
+        }
+    }
+
+    @Bean
+    @Order
+    public VideoPlayback javaFxVideoPlayer(FxLib fxLib, PopcornFx instance) {
+        if (OnFXVideoEnabled.matches(fxLib, instance) && OnMediaSupportedCondition.matches()) {
+            log.info("Using JavaFX player as fallback player");
+            return new VideoPlayerFX();
+        } else {
+            return null;
         }
     }
 

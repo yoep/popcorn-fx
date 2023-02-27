@@ -13,36 +13,36 @@ proc-macro = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1"
+async-trait = "0"
 bytes = "1"
-chrono = "0.4"
-derive_more = "0.99"
-downcast-rs = "1.2"
-futures = "0.3"
-home = "0.5"
-html-escape = "0.2"
-itertools = "0.10"
-local-ip-address = "0.5"
-log = "0.4"
+chrono = "0"
+derive_more = "0"
+downcast-rs = "1"
+futures = "0"
+home = "0"
+html-escape = "0"
+itertools = "0"
+local-ip-address = "0"
+log = "0"
 log4rs = { version = "1", features = ["console_writer"], optional = true }
-mockall = "0.11"
+mockall = "0"
 percent-encoding = "2"
-regex = "1.6"
-reqwest = { version = "0.11", features = ["serde_json", "json"] }
-serde = "1.0"
-serde_json = "1.0"
-serde_yaml = "0.9"
-thiserror = "1.0"
+regex = "1"
+reqwest = { version = "0", features = ["serde_json", "json"] }
+serde = "1"
+serde_json = "1"
+serde_yaml = "0"
+thiserror = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
-tokio-stream = "0.1"
+tokio-stream = "0"
 url = "2"
-warp = "0.3"
+warp = "0"
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-mockall = "0.11"
-httpmock = "0.6"
+mockall = "0"
+httpmock = "0"
 tempfile = "3"
 tokio = { version = "1", features = ["test-util", "macros"] }
 

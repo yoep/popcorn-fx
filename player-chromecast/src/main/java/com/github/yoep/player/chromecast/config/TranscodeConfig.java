@@ -3,7 +3,6 @@ package com.github.yoep.player.chromecast.config;
 import com.github.yoep.player.chromecast.services.TranscodeService;
 import com.github.yoep.player.chromecast.transcode.NoOpTranscodeService;
 import com.github.yoep.player.chromecast.transcode.VlcTranscodeService;
-import com.github.yoep.vlc.conditions.ConditionalOnVlcVideoEnabled;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +17,6 @@ import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 public class TranscodeConfig {
     @Bean
     @Order(Ordered.LOWEST_PRECEDENCE - 20)
-    @ConditionalOnVlcVideoEnabled
     public TranscodeService vlcTranscodeService(NativeDiscovery discovery) {
         return new VlcTranscodeService(new MediaPlayerFactory(discovery));
     }

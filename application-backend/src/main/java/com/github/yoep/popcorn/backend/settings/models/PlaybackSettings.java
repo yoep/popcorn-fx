@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
-import com.sun.jna.FromNativeContext;
-import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
-import lombok.*;
+import com.sun.jna.ptr.IntByReference;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 import java.io.Closeable;
 import java.util.Arrays;
@@ -13,10 +13,6 @@ import java.util.Optional;
 import static java.util.Arrays.asList;
 
 @EqualsAndHashCode(callSuper = false)
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Structure.FieldOrder({"quality", "fullscreen", "autoPlayNextEpisodeEnabled"})
 public class PlaybackSettings extends Structure implements Closeable {
     public static class ByValue extends PlaybackSettings implements Structure.ByValue {
@@ -31,9 +27,24 @@ public class PlaybackSettings extends Structure implements Closeable {
         }
     }
 
-    public Quality quality;
+    public IntByReference quality;
     public byte fullscreen;
     public byte autoPlayNextEpisodeEnabled;
+
+    public Optional<Quality> getQuality() {
+        if (quality != null) {
+            return Optional.of(Quality.values()[quality.getValue()]);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public void setQuality(Quality quality) {
+        this.quality = Optional.ofNullable(quality)
+                .map(Enum::ordinal)
+                .map(IntByReference::new)
+                .orElse(null);
+    }
 
     public boolean isFullscreen() {
         return fullscreen == 1;
@@ -57,7 +68,7 @@ public class PlaybackSettings extends Structure implements Closeable {
     }
 
     @Getter
-    public enum Quality implements NativeMapped {
+    public enum Quality {
         p480(480),
         p720(720),
         p1080(1080),
@@ -96,38 +107,9 @@ public class PlaybackSettings extends Structure implements Closeable {
             return (index >= 0) ? Optional.of(qualities.get(index)) : Optional.empty();
         }
 
-        /**
-         * Get the quality which is above the current one.
-         *
-         * @return Returns the higher quality if possible, else {@link Optional#empty()} if this is already the highest quality.
-         */
-        public Optional<Quality> higher() {
-            var qualities = asList(values());
-            var index = qualities.indexOf(this) + 1;
-            var maxIndex = qualities.size() - 1;
-
-            return (index <= maxIndex) ? Optional.of(qualities.get(index)) : Optional.empty();
-        }
-
         @Override
         public String toString() {
             return res + "p";
-        }
-
-        @Override
-        public Object fromNative(Object nativeValue, FromNativeContext context) {
-            var ordinal = (int) nativeValue;
-            return values()[ordinal];
-        }
-
-        @Override
-        public Object toNative() {
-            return ordinal();
-        }
-
-        @Override
-        public Class<?> nativeType() {
-            return Integer.class;
         }
     }
 }

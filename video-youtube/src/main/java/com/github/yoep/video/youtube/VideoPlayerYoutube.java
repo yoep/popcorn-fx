@@ -40,7 +40,8 @@ import java.util.regex.Pattern;
 public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlayback {
     static final Pattern VIDEO_ID_PATTERN = Pattern.compile("watch\\?v=([^#&?]*)");
     static final String YOUTUBE_URL_INDICATOR = "youtu";
-    private static final String NAME = "Youtube";
+    static final String NAME = "Youtube";
+    static final String DESCRIPTION = "Video playback backend which uses a dedicated web view for playback of Youtube videos.";
     private static final int BRIDGE_TIMEOUT = 3000;
 
     private final YoutubePlayerBridge playerBridge = new YoutubePlayerBridge();
@@ -60,7 +61,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
     @Override
     public String getDescription() {
-        return "Video playback backend which uses a dedicated web view for playback of Youtube videos.";
+        return DESCRIPTION;
     }
 
     @Override
@@ -194,7 +195,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         log.trace("Initializing youtube player");
         Platform.runLater(() -> {
             try {

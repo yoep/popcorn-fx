@@ -44,7 +44,7 @@ import com.sun.jna.Pointer;
 public interface FxLib extends Library {
     FxLib INSTANCE = Native.load("popcorn_fx", FxLib.class);
 
-    PopcornFx new_popcorn_fx();
+    PopcornFx new_popcorn_fx(String[] args, int len);
 
     PlatformInfo platform_info(PopcornFx instance);
 
@@ -106,10 +106,6 @@ public interface FxLib extends Library {
 
     String serve_subtitle(PopcornFx instance, Subtitle subtitle, int type);
 
-    void disable_screensaver(PopcornFx instance);
-
-    void enable_screensaver(PopcornFx instance);
-
     boolean is_media_watched(PopcornFx instance, MediaItem media);
 
     StringArray retrieve_watched_movies(PopcornFx instance);
@@ -167,6 +163,12 @@ public interface FxLib extends Library {
     void update_server_settings(PopcornFx instance, ServerSettings.ByValue settings);
 
     void update_playback_settings(PopcornFx instance, PlaybackSettings.ByValue settings);
+
+    byte is_youtube_video_player_disabled(PopcornFx instance);
+
+    byte is_fx_video_player_disabled(PopcornFx instance);
+
+    byte is_vlc_video_player_disabled(PopcornFx instance);
 
     void dispose_media_item(MediaItem media);
 

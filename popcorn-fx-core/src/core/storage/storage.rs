@@ -119,17 +119,20 @@ impl From<&PathBuf> for Storage {
 
 #[cfg(test)]
 mod test {
+    use tempfile::tempdir;
+
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
-    use crate::testing::{init_logger, read_temp_dir_file, test_resource_directory};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file};
 
     use super::*;
 
     #[test]
     fn test_from_directory_should_use_given_path() {
-        let resource_directory = test_resource_directory();
-        let expected_result = PathBuf::from(resource_directory.to_str().expect("expected the testing directory to be valid"));
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let expected_result = PathBuf::from(temp_path);
 
-        let storage = Storage::from(resource_directory.to_str().expect("expected path to be valid"));
+        let storage = Storage::from(temp_path);
 
         assert_eq!(expected_result, storage.directory)
     }
@@ -137,8 +140,10 @@ mod test {
     #[test]
     fn test_read_settings() {
         init_logger();
-        let resource_directory = test_resource_directory();
-        let path = PathBuf::from(resource_directory.to_str().expect("expected the testing directory to be valid"));
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "settings.json", None);
+        let path = PathBuf::from(temp_path);
         let storage = Storage {
             directory: path
         };

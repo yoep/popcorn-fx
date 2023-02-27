@@ -17,12 +17,12 @@
 
     <modules>
         <module>application-backend</module>
+        <module>application-platform</module>
         <module>application-ui</module>
         <module>application</module>
         <module>player-chromecast</module>
         <module>player-popcorn</module>
         <module>player-vlc</module>
-        <module>popcorn-fx-platform</module>
         <module>shared-vlc</module>
         <module>torrent-frostwire</module>
         <module>video-javafx</module>
@@ -74,7 +74,7 @@
         <commons-io.version>2.11.0</commons-io.version>
         <commons-text.version>1.10.0</commons-text.version>
         <commons-collections.version>4.4</commons-collections.version>
-        <jna.version>5.12.1</jna.version>
+        <jna.version>5.13.0</jna.version>
         <testfx.version>4.0.16-alpha</testfx.version>
         <javapackager.version>1.6.3</javapackager.version>
         <vlcj.version>4.7.3</vlcj.version>

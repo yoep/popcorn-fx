@@ -2,21 +2,14 @@ package com.github.yoep.video.youtube.conditions;
 
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.ConditionContext;
-import org.springframework.context.annotation.ConfigurationCondition;
-import org.springframework.core.type.AnnotatedTypeMetadata;
 
 @Slf4j
-public class OnWebkitSupportedCondition implements ConfigurationCondition {
-
-    @Override
-    public ConfigurationPhase getConfigurationPhase() {
-        return ConfigurationPhase.REGISTER_BEAN;
-    }
-
-    @Override
-    public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public class OnWebkitSupportedCondition {
+    public static boolean matches() {
         boolean supported = Platform.isSupported(ConditionalFeature.WEB);
 
         if (!supported)

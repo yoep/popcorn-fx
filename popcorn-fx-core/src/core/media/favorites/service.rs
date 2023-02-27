@@ -273,7 +273,7 @@ mod test {
     use tempfile::tempdir;
 
     use crate::core::media::MovieOverview;
-    use crate::testing::{init_logger, test_resource_directory};
+    use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
 
@@ -281,9 +281,10 @@ mod test {
     fn test_is_liked_when_favorable_is_not_liked_should_return_false() {
         init_logger();
         let imdb_id = String::from("tt9387250");
-        let resource_directory = test_resource_directory();
-        let resource_path = resource_directory.to_str().unwrap();
-        let service = DefaultFavoriteService::new(resource_path);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "settings.json", None);
+        let service = DefaultFavoriteService::new(temp_path);
 
         let result = service.is_liked(imdb_id.as_str());
 
@@ -294,9 +295,10 @@ mod test {
     fn test_is_liked_when_favorable_is_liked_should_return_true() {
         init_logger();
         let imdb_id = String::from("tt1156398");
-        let resource_directory = test_resource_directory();
-        let resource_path = resource_directory.to_str().unwrap();
-        let service = DefaultFavoriteService::new(resource_path);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "favorites.json", None);
+        let service = DefaultFavoriteService::new(temp_path);
 
         let result = service.is_liked(imdb_id.as_str());
 
@@ -306,9 +308,10 @@ mod test {
     #[test]
     fn test_all() {
         init_logger();
-        let resource_directory = test_resource_directory();
-        let resource_path = resource_directory.to_str().unwrap();
-        let service = DefaultFavoriteService::new(resource_path);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "favorites.json", None);
+        let service = DefaultFavoriteService::new(temp_path);
         let result = service.all()
             .expect("Expected the favorites to have been retrieved");
 

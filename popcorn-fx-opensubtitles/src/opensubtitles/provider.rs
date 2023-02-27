@@ -380,8 +380,14 @@ impl OpensubtitlesProvider {
         let extension = normalized_extension.to_str()
             .expect("expected the extension to be a valid unicode");
         let invalid_extensions: Vec<&str> = vec![
+            "com",
+            "de",
             "en",
+            "eng",
+            "fr",
             "lol",
+            "ned",
+            "nl",
         ];
 
         invalid_extensions.contains(&extension)

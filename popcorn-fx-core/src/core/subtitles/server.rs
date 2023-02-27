@@ -115,9 +115,10 @@ impl SubtitleServer {
             let server = warp::serve(routes);
             let mut state_lock = state.lock().await;
 
+            trace!("Binding subtitle server to socket {:?}", socket);
             match server.try_bind_ephemeral((socket.ip(), socket.port())) {
                 Ok((_, e)) => {
-                    debug!("Subtitle server is running on {}:{}", socket.ip(), socket.port());
+                    info!("Subtitle server is running on {}:{}", socket.ip(), socket.port());
                     let _ = state_lock.borrow_mut().insert(ServerState::Running);
                     drop(state_lock);
                     e.await

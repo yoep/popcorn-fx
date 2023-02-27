@@ -2,7 +2,6 @@ package com.github.yoep.player.vlc.services;
 
 import com.github.yoep.player.vlc.VlcListener;
 import com.github.yoep.player.vlc.VlcPlayerConstants;
-import com.github.yoep.player.vlc.config.VlcDiscoveryConfig;
 import com.github.yoep.player.vlc.model.VlcState;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
@@ -50,7 +49,7 @@ class VlcPlayerServiceTest {
     @Mock
     private SubtitleService subtitleService;
     @Spy
-    private WebClient webClient = new VlcDiscoveryConfig().vlcWebClient();
+    private WebClient webClient = WebClient.builder().build();
     @InjectMocks
     private VlcPlayerService service;
 

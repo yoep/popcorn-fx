@@ -4,7 +4,7 @@ use log::trace;
 
 use popcorn_fx_core::into_c_string;
 
-use crate::popcorn::fx::platform::platform_info::{PlatformInfo, PlatformType};
+use crate::platform::{PlatformInfo, PlatformType};
 
 #[repr(C)]
 pub struct PlatformInfoC {
@@ -28,8 +28,7 @@ impl From<&PlatformInfo> for PlatformInfoC {
 mod test {
     use popcorn_fx_core::from_c_string;
 
-    use crate::PlatformInfoC;
-    use crate::popcorn::fx::platform::platform_info::PlatformInfo;
+    use super::*;
 
     #[test]
     fn test_from() {

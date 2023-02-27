@@ -294,8 +294,10 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use tempfile::tempdir;
+
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::testing::{copy_test_file, init_logger, test_resource_directory};
+    use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
 
@@ -303,7 +305,7 @@ mod test {
     fn test_is_watched_when_item_is_watched_should_return_true() {
         init_logger();
         let imdb_id = "tt548723".to_string();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultWatchedService::new(temp_path);
         let movie = MovieOverview::new(
@@ -322,7 +324,7 @@ mod test {
     fn test_is_watched_when_item_is_not_watched_should_return_false() {
         init_logger();
         let imdb_id = "tt548766".to_string();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultWatchedService::new(temp_path);
         let movie = MovieOverview::new(
@@ -341,9 +343,10 @@ mod test {
     fn test_is_watched_boxed() {
         init_logger();
         let imdb_id = "tt541345".to_string();
-        let resource_directory = test_resource_directory();
-        let resource_path = resource_directory.to_str().unwrap();
-        let service = DefaultWatchedService::new(resource_path);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "watched.json", None);
+        let service = DefaultWatchedService::new(temp_path);
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -358,7 +361,7 @@ mod test {
     #[test]
     fn test_all() {
         init_logger();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultWatchedService::new(temp_path);
         let expected_result = vec![
@@ -378,7 +381,7 @@ mod test {
     fn test_add_movie() {
         init_logger();
         let imdb_id = "tt548795".to_string();
-        let resource_directory = tempfile::tempdir().unwrap();
+        let resource_directory = tempdir().unwrap();
         let resource_path = resource_directory.path().to_str().unwrap();
         let service = DefaultWatchedService::new(resource_path);
         let movie = MovieOverview::new(
@@ -398,7 +401,7 @@ mod test {
     fn test_add_show() {
         init_logger();
         let imdb_id = "tt88877554".to_string();
-        let resource_directory = tempfile::tempdir().unwrap();
+        let resource_directory = tempdir().unwrap();
         let resource_path = resource_directory.path().to_str().unwrap();
         let service = DefaultWatchedService::new(resource_path);
         let show = ShowOverview::new(
@@ -422,7 +425,7 @@ mod test {
     fn test_register_when_add_is_called_should_invoke_callbacks() {
         init_logger();
         let id = "tt8744557";
-        let resource_directory = tempfile::tempdir().unwrap();
+        let resource_directory = tempdir().unwrap();
         let resource_path = resource_directory.path().to_str().unwrap();
         let service = DefaultWatchedService::new(resource_path);
         let (tx, rx) = channel();
@@ -451,7 +454,7 @@ mod test {
     fn test_register_when_remove_is_called_should_invoke_callbacks() {
         init_logger();
         let id = "tt8744557";
-        let resource_directory = tempfile::tempdir().unwrap();
+        let resource_directory = tempdir().unwrap();
         let resource_path = resource_directory.path().to_str().unwrap();
         let service = DefaultWatchedService::new(resource_path);
         let (tx, rx) = channel();

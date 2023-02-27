@@ -673,9 +673,6 @@ uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const cha
 /// Retrieve the default options available for the subtitles.
 SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 
-/// Disable the screensaver on the current platform
-void disable_screensaver(PopcornFX *popcorn_fx);
-
 /// Disable the subtitle track on request of the user.
 /// This will make the [is_subtitle_disabled] return `true`.
 void disable_subtitle(PopcornFX *popcorn_fx);
@@ -686,7 +683,9 @@ void dispose_media_item(Box<MediaItemC> media);
 /// Dispose all given media items from memory.
 void dispose_media_items(Box<MediaSetC> media);
 
-/// Delete the PopcornFX instance in a safe way.
+/// Delete the PopcornFX instance, given as a [ptr], in a safe way.
+/// All data within the instance will be deleted from memory making the instance unusable.
+/// This means that the original pointer will become invalid.
 void dispose_popcorn_fx(Box<PopcornFX>);
 
 /// Dispose the given subtitle.
@@ -709,9 +708,6 @@ const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
-/// Enable the screensaver on the current platform
-void enable_screensaver(PopcornFX *popcorn_fx);
-
 /// Retrieve the given subtitles for the given episode
 SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *show, const EpisodeC *episode);
 
@@ -723,6 +719,9 @@ SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 ///
 /// * `event`   - The C event instance of the player stopped data.
 void handle_player_stopped_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
+
+/// Verify if the FX embedded video player has been disabled.
+bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
 
 /// Verify if the given media item is liked/favorite of the user.
 /// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
@@ -740,6 +739,12 @@ bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 /// It returns true when the subtitle track should be disabled, else false.
 bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 
+/// Verify if the vlc video player has been disabled.
+bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
+
+/// Verify if the youtube video player has been disabled.
+bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
+
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
 /// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
@@ -748,8 +753,8 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
-/// The instance can be safely deleted by using [delete_popcorn_fx].
-PopcornFX *new_popcorn_fx();
+/// The instance can be safely deleted by using [dispose_popcorn_fx].
+PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 
 /// Parse the given subtitle file.
 ///

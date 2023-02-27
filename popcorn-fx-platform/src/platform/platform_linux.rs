@@ -1,4 +1,4 @@
-use crate::popcorn::fx::platform::platform::Platform;
+use crate::platform::Platform;
 
 pub struct PlatformLinux {
 

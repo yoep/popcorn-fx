@@ -1,5 +1,9 @@
-pub mod platform_info;
-pub mod platform;
+pub use platform::*;
+pub use platform_info::*;
+
+mod platform_info;
+mod platform;
+
 #[cfg(target_os = "windows")]
 pub mod platform_win;
 #[cfg(target_os = "macos")]

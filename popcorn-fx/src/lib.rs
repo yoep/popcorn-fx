@@ -48,18 +48,6 @@ pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut Pop
     into_c_owned(instance)
 }
 
-/// Enable the screensaver on the current platform
-#[no_mangle]
-pub extern "C" fn enable_screensaver(popcorn_fx: &mut PopcornFX) {
-    popcorn_fx.platform_service().enable_screensaver();
-}
-
-/// Disable the screensaver on the current platform
-#[no_mangle]
-pub extern "C" fn disable_screensaver(popcorn_fx: &mut PopcornFX) {
-    popcorn_fx.platform_service().disable_screensaver();
-}
-
 /// Retrieve the platform information
 #[no_mangle]
 pub extern "C" fn platform_info(popcorn_fx: &mut PopcornFX) -> *mut PlatformInfoC {
@@ -1093,6 +1081,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
@@ -1106,13 +1095,14 @@ mod test {
     }
 
     #[test]
-    fn test_create_and_dispose_popcorn_fx() {
+    fn test_dispose_popcorn_fx() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1126,6 +1116,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieOverview::new(
@@ -1147,6 +1138,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieDetails::new(
@@ -1168,6 +1160,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let id = "tt0000001111".to_string();
@@ -1197,6 +1190,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1249,6 +1243,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1269,6 +1264,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1286,6 +1282,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1304,6 +1301,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1329,6 +1327,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1344,6 +1343,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let settings = SubtitleSettings {
@@ -1383,6 +1383,7 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         let genre = GenreC::from(Genre::all());

@@ -106,10 +106,6 @@ public interface FxLib extends Library {
 
     String serve_subtitle(PopcornFx instance, Subtitle subtitle, int type);
 
-    void disable_screensaver(PopcornFx instance);
-
-    void enable_screensaver(PopcornFx instance);
-
     boolean is_media_watched(PopcornFx instance, MediaItem media);
 
     StringArray retrieve_watched_movies(PopcornFx instance);

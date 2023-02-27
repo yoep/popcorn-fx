@@ -29,7 +29,7 @@
         </dependency>
         <dependency>
             <groupId>com.github.yoep</groupId>
-            <artifactId>popcorn-fx-platform</artifactId>
+            <artifactId>application-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
 

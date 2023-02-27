@@ -673,9 +673,6 @@ uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const cha
 /// Retrieve the default options available for the subtitles.
 SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 
-/// Disable the screensaver on the current platform
-void disable_screensaver(PopcornFX *popcorn_fx);
-
 /// Disable the subtitle track on request of the user.
 /// This will make the [is_subtitle_disabled] return `true`.
 void disable_subtitle(PopcornFX *popcorn_fx);
@@ -710,9 +707,6 @@ const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
-
-/// Enable the screensaver on the current platform
-void enable_screensaver(PopcornFX *popcorn_fx);
 
 /// Retrieve the given subtitles for the given episode
 SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *show, const EpisodeC *episode);

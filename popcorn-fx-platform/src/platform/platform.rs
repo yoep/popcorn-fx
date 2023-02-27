@@ -1,12 +1,12 @@
 use log::trace;
 
-use crate::popcorn::fx::platform::platform_info::PlatformInfo;
 #[cfg(target_os = "linux")]
-use crate::popcorn::fx::platform::platform_linux::PlatformLinux;
+use crate::platform::platform_linux::PlatformLinux;
 #[cfg(target_os = "macos")]
-use crate::popcorn::fx::platform::platform_mac::PlatformMac;
+use crate::platform::platform_mac::PlatformMac;
 #[cfg(target_os = "windows")]
-use crate::popcorn::fx::platform::platform_win::PlatformWin;
+use crate::platform::platform_win::PlatformWin;
+use crate::platform::PlatformInfo;
 
 /// Platform defines native system functions
 pub trait Platform {
@@ -19,7 +19,7 @@ pub trait Platform {
     fn enable_screensaver(&mut self) -> bool;
 }
 
-pub trait PlatformService : Platform {
+pub trait PlatformService: Platform {
     /// Retrieve the platform info of the current system.
     fn platform_info(&self) -> &PlatformInfo;
 }
@@ -27,13 +27,13 @@ pub trait PlatformService : Platform {
 /// Initialize a new platform
 #[cfg(target_os = "windows")]
 pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformWin::new())
+    return Box::new(PlatformWin::new());
 }
 
 /// Initialize a new platform
 #[cfg(target_os = "macos")]
 pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformMac::new())
+    return Box::new(PlatformMac::new());
 }
 
 /// Initialize a new platform
@@ -52,7 +52,7 @@ impl PlatformServiceImpl {
     pub fn new() -> Self {
         Self {
             platform: new_platform(),
-            platform_info: PlatformInfo::new()
+            platform_info: PlatformInfo::new(),
         }
     }
 }
@@ -74,9 +74,15 @@ impl PlatformService for PlatformServiceImpl {
     }
 }
 
+impl Drop for PlatformServiceImpl {
+    fn drop(&mut self) {
+        self.enable_screensaver();
+    }
+}
+
 #[cfg(test)]
-mod test{
-    use crate::popcorn::fx::platform::platform::new_platform;
+mod test {
+    use super::*;
 
     #[test]
     fn test_new_platform_should_return_platform() {

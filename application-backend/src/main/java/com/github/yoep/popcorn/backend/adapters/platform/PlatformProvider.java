@@ -31,11 +31,6 @@ public interface PlatformProvider {
     void runOnRenderer(Runnable runnable);
 
     /**
-     * Disable the screensaver function on the platform.
-     */
-    void disableScreensaver();
-
-    /**
      * Launch the given process path on the current platform.
      *
      * @param path The process path that needs to be started.

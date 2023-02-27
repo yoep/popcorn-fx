@@ -21,7 +21,7 @@ use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, Subtit
 use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrent::collection::TorrentCollection;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
-use popcorn_fx_platform::popcorn::fx::platform::platform::{PlatformService, PlatformServiceImpl};
+use popcorn_fx_platform::platform::{Platform, PlatformService, PlatformServiceImpl};
 use popcorn_fx_torrent::torrent::RTTorrentManager;
 use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 
@@ -53,7 +53,7 @@ pub struct PopcornFxArgs {
     /// Disable the youtube video player.
     #[arg(long, default_value_t = false)]
     pub disable_youtube_video_player: bool,
-    /// Disable the FX embedded player.
+    /// Disable the FX embedded video player.
     #[arg(long, default_value_t = false)]
     pub disable_fx_video_player: bool,
 }
@@ -102,6 +102,7 @@ pub struct PopcornFX {
 impl PopcornFX {
     /// Create a new Popcorn FX instance with the given [PopcornFxArgs].
     pub fn new(args: PopcornFxArgs) -> Self {
+        // check if we need to enabled the logger
         if !args.disable_logger {
             Self::initialize_logger();
         }
@@ -112,7 +113,7 @@ impl PopcornFX {
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let subtitle_manager = Arc::new(SubtitleManager::default());
-        let platform_service = Box::new(PlatformServiceImpl::new());
+        let mut platform_service = Box::new(PlatformServiceImpl::new());
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
@@ -120,6 +121,9 @@ impl PopcornFX {
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
+
+        // disable the screensaver
+        platform_service.disable_screensaver();
 
         Self {
             settings,
@@ -284,6 +288,7 @@ mod test {
         let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -306,6 +311,7 @@ mod test {
         let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -323,6 +329,7 @@ mod test {
         let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -339,6 +346,7 @@ mod test {
         let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -356,6 +364,7 @@ mod test {
         let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_youtube_video_player: false,
+            disable_fx_video_player: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "settings.json", None);

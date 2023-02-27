@@ -5,7 +5,7 @@ use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Power::{PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerSetRequest};
 use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0};
 
-use crate::popcorn::fx::platform::platform::Platform;
+use crate::platform::Platform;
 
 // TODO: integrate ISystemMediaTransportControls (https://docs.microsoft.com/en-us/windows/win32/api/systemmediatransportcontrolsinterop/nn-systemmediatransportcontrolsinterop-isystemmediatransportcontrolsinterop)
 

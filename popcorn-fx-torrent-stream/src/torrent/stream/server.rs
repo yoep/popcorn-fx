@@ -122,10 +122,10 @@ impl TorrentStreamServerInner {
             let mut state_lock = instance.state.lock().await;
             let socket = instance.socket.clone();
 
-            trace!("Binding torrent stream to socket ");
+            trace!("Binding torrent stream to socket {:?}", socket);
             match server.try_bind_ephemeral((socket.ip(), socket.port())) {
                 Ok((_, e)) => {
-                    debug!("Torrent stream server is running on {}:{}", socket.ip(), socket.port());
+                    info!("Torrent stream server is running on {}:{}", socket.ip(), socket.port());
                     *state_lock = TorrentStreamServerState::Running;
                     drop(state_lock);
                     e.await

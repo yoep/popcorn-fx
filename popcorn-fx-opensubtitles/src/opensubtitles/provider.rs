@@ -542,7 +542,6 @@ mod test {
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
-                version: String::new(),
                 update_channel: String::new(),
                 providers: Default::default(),
                 subtitle: SubtitleProperties {

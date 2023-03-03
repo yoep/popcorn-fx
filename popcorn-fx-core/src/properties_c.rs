@@ -9,8 +9,6 @@ use crate::core::config::PopcornProperties;
 #[repr(C)]
 #[derive(Debug)]
 pub struct PopcornPropertiesC {
-    /// The version of the application
-    pub version: *const c_char,
     /// The update channel to retrieve updates from
     pub update_channel: *const c_char,
     /// The array of available provider properties
@@ -42,7 +40,6 @@ impl From<&PopcornProperties> for PopcornPropertiesC {
             .collect());
 
         Self {
-            version: into_c_string(value.version().to_string()),
             update_channel: into_c_string(value.update_channel().to_string()),
             provider_properties,
             provider_properties_len,
@@ -74,10 +71,8 @@ mod test {
 
     #[test]
     fn test_properties_from() {
-        let version = "1.0.0";
         let update_channel = "https://my-update-channel.com";
         let properties = PopcornProperties {
-            version: version.to_string(),
             update_channel: update_channel.to_string(),
             providers: Default::default(),
             subtitle: Default::default(),
@@ -85,7 +80,6 @@ mod test {
 
         let result = PopcornPropertiesC::from(&properties);
 
-        assert_eq!(version.to_string(), from_c_string(result.version));
         assert_eq!(update_channel.to_string(), from_c_string(result.update_channel));
     }
 }

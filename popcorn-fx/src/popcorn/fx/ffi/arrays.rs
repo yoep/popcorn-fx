@@ -26,7 +26,7 @@ impl StringArray {
 mod test {
     use popcorn_fx_core::{from_c_string, from_c_vec};
 
-    use crate::arrays::StringArray;
+    use super::*;
 
     #[test]
     fn test_string_array_from() {

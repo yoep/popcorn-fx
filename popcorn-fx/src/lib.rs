@@ -8,8 +8,7 @@ use std::time::Instant;
 use clap::{CommandFactory, FromArgMatches};
 use log::{debug, error, info, trace, warn};
 
-use media_mappers::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PlayerStoppedEventC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, VERSION, WatchedEventC};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
@@ -18,15 +17,13 @@ use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
-use popcorn_fx_platform::PlatformInfoC;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
-use crate::arrays::StringArray;
+#[cfg(feature = "ffi")]
+use crate::popcorn::fx::ffi::*;
 use crate::popcorn::fx::popcorn_fx::{PopcornFX, PopcornFxArgs};
 
 pub mod popcorn;
-mod arrays;
-mod media_mappers;
 
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
@@ -46,12 +43,6 @@ pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut Pop
 
     info!("Created new Popcorn FX instance in {} millis", start.elapsed().as_millis());
     into_c_owned(instance)
-}
-
-/// Retrieve the platform information
-#[no_mangle]
-pub extern "C" fn platform_info(popcorn_fx: &mut PopcornFX) -> *mut PlatformInfoC {
-    into_c_owned(PlatformInfoC::from(popcorn_fx.platform_service().platform_info()))
 }
 
 /// Retrieve the default options available for the subtitles.
@@ -970,6 +961,29 @@ pub extern "C" fn is_vlc_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bo
     popcorn_fx.opts().disable_vlc_video_player
 }
 
+/// Retrieve the latest release version information.
+#[no_mangle]
+pub extern "C" fn version_info(popcorn_fx: &mut PopcornFX) -> *mut VersionInfoC {
+    trace!("Retrieving version info");
+    let runtime = popcorn_fx.runtime();
+    match runtime.block_on(popcorn_fx.updater().version_info()) {
+        Ok(version) => into_c_owned(VersionInfoC::from(&version)),
+        Err(e) => {
+            error!("Failed to poll version information, {}", e);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Register a new callback for update events.
+#[no_mangle]
+pub extern "C" fn register_update_callback(popcorn_fx: &mut PopcornFX, callback: UpdateCallbackC) {
+    trace!("Registering new update callback from C");
+    popcorn_fx.updater().register(Box::new(move |event| {
+        callback(UpdateEventC::from(event))
+    }))
+}
+
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -1014,6 +1028,12 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
 #[no_mangle]
 pub extern "C" fn dispose_popcorn_fx(_: Box<PopcornFX>) {
     info!("Disposing Popcorn FX instance");
+}
+
+/// Retrieve the version of Popcorn FX.
+#[no_mangle]
+pub extern "C" fn version() -> *const c_char {
+    into_c_string(VERSION.to_string())
 }
 
 #[cfg(test)]
@@ -1382,6 +1402,24 @@ mod test {
     }
 
     #[test]
+    fn test_version_info() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
+
+        let result = version_info(&mut instance);
+
+        assert!(!result.is_null())
+    }
+
+    #[test]
     fn test_dispose_media_item() {
         let movie = MovieOverview::new(
             String::new(),
@@ -1436,5 +1474,12 @@ mod test {
         let subtitle_c = SubtitleC::from(subtitle);
 
         dispose_subtitle(Box::new(subtitle_c))
+    }
+
+    #[test]
+    fn test_version() {
+        let result = version();
+
+        assert_eq!(VERSION.to_string(), from_c_string(result))
     }
 }

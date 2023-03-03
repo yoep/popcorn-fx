@@ -17,6 +17,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 derive_more = "0"
 log = "0"
+tokio = "1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0", features = [

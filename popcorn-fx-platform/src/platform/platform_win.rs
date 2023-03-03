@@ -1,30 +1,24 @@
 use log::{info, trace, warn};
+use tokio::sync::Mutex;
 use windows::core::PWSTR;
 use windows::core::Result;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Power::{PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerSetRequest};
 use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0};
 
-use crate::platform::Platform;
+use popcorn_fx_core::core::platform::Platform;
 
 // TODO: integrate ISystemMediaTransportControls (https://docs.microsoft.com/en-us/windows/win32/api/systemmediatransportcontrolsinterop/nn-systemmediatransportcontrolsinterop-isystemmediatransportcontrolsinterop)
 
 /// Windows specific platform instructions
+#[derive(Debug)]
 pub struct PlatformWin {
     /// The power request which has been made to the windows system
-    screensaver_request: Option<HANDLE>,
-}
-
-impl PlatformWin {
-    /// Create a new windows platform instance.
-    /// It returns the created instance.
-    pub fn new() -> PlatformWin {
-        return PlatformWin { screensaver_request: None };
-    }
+    screensaver_request: Mutex<Option<HANDLE>>,
 }
 
 impl Platform for PlatformWin {
-    fn disable_screensaver(&mut self) -> bool {
+    fn disable_screensaver(&self) -> bool {
         let mut encoded = "Popcorn FX playing media"
             .encode_utf16()
             .chain([0u16])
@@ -49,7 +43,8 @@ impl Platform for PlatformWin {
                 }
                 Ok(handle) => {
                     trace!("Storing windows screensaver handle");
-                    self.screensaver_request = Some(handle);
+                    let mut mutex = self.screensaver_request.blocking_lock();
+                    *mutex = Some(handle);
 
                     if PowerSetRequest(handle, PowerRequestDisplayRequired).as_bool() {
                         info!("Screensaver has been disabled");
@@ -62,25 +57,32 @@ impl Platform for PlatformWin {
         }
     }
 
-    fn enable_screensaver(&mut self) -> bool {
+    fn enable_screensaver(&self) -> bool {
         // verify if a request was made before to disable it
         // otherwise, ignore this call
-        return match self.screensaver_request {
-            None => {
-                trace!("Windows screensaver not disabled, not trying to clear power request");
+        let mut mutex = self.screensaver_request.blocking_lock();
+
+        if let Some(handle) = *mutex {
+            if unsafe { PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() } {
+                info!("Screensaver has been enabled");
+                *mutex = None;
                 true
+            } else {
+                warn!("Failed to enabled windows screensaver");
+                false
             }
-            Some(handle) => unsafe {
-                if PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() {
-                    info!("Screensaver has been enabled");
-                    self.screensaver_request = None;
-                    true
-                } else {
-                    warn!("Failed to enabled windows screensaver");
-                    false
-                }
-            }
-        };
+        } else {
+            trace!("Windows screensaver not disabled, not trying to clear power request");
+            true
+        }
+    }
+}
+
+impl Default for PlatformWin {
+    fn default() -> Self {
+        Self {
+            screensaver_request: Mutex::new(None)
+        }
     }
 }
 
@@ -90,14 +92,14 @@ mod test {
 
     #[test]
     fn test_windows_disable_screensaver() {
-        let mut platform = PlatformWin::new();
+        let mut platform = PlatformWin::default();
 
         assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
     }
 
     #[test]
     fn test_windows_enable_screensaver() {
-        let mut platform = PlatformWin::new();
+        let mut platform = PlatformWin::default();
 
         assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
         assert_eq!(platform.enable_screensaver(), true, "Expected the screensaver to have been enabled");

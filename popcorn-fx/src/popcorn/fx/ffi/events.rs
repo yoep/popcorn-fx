@@ -1,7 +1,7 @@
 use std::os::raw::c_char;
 
-use crate::{from_c_owned, from_c_string, MediaItemC};
-use crate::core::events::PlayerStoppedEvent;
+use popcorn_fx_core::{from_c_owned, from_c_string, MediaItemC};
+use popcorn_fx_core::core::events::PlayerStoppedEvent;
 
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
@@ -47,8 +47,8 @@ impl From<&PlayerStoppedEventC> for PlayerStoppedEvent {
 
 #[cfg(test)]
 mod test {
-    use crate::{into_c_owned, into_c_string};
-    use crate::core::media::MovieOverview;
+    use popcorn_fx_core::{into_c_owned, into_c_string};
+    use popcorn_fx_core::core::media::MovieOverview;
 
     use super::*;
 

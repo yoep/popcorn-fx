@@ -28,9 +28,13 @@ log4rs = { version = "1", features = ["console_writer"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [dev-dependencies]
+popcorn-fx = { path = ".", features = ["ffi"] }
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
 tempfile = "3"
 
 [build-dependencies]
 cbindgen = "0"
+
+[features]
+ffi = []

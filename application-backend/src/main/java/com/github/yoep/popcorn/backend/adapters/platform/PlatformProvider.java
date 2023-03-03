@@ -17,13 +17,6 @@ public interface PlatformProvider {
     boolean isTransparentWindowSupported();
 
     /**
-     * Retrieve the current platform information.
-     *
-     * @return Returns the detected platform information.
-     */
-    PlatformInfo platformInfo();
-
-    /**
      * Run the given action on the rendering thread of the platform.
      *
      * @param runnable The action to execute on the rendering thread.

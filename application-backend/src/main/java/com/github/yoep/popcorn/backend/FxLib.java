@@ -14,7 +14,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
-import com.github.yoep.popcorn.backend.platform.PlatformInfo;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.ApplicationProperties;
 import com.github.yoep.popcorn.backend.settings.models.*;
@@ -28,6 +27,8 @@ import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
+import com.github.yoep.popcorn.backend.updater.UpdateCallback;
+import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -45,8 +46,6 @@ public interface FxLib extends Library {
     FxLib INSTANCE = Native.load("popcorn_fx", FxLib.class);
 
     PopcornFx new_popcorn_fx(String[] args, int len);
-
-    PlatformInfo platform_info(PopcornFx instance);
 
     SubtitleInfoSet default_subtitle_options(PopcornFx instance);
 
@@ -170,6 +169,10 @@ public interface FxLib extends Library {
 
     byte is_vlc_video_player_disabled(PopcornFx instance);
 
+    VersionInfo version_info(PopcornFx instance);
+
+    void register_update_callback(PopcornFx instance, UpdateCallback callback);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);
@@ -181,4 +184,6 @@ public interface FxLib extends Library {
     void dispose_torrent_collection(StoredTorrentSet set);
 
     void dispose_popcorn_fx(PopcornFx instance);
+
+    String version();
 }

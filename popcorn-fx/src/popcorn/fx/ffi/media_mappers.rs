@@ -27,9 +27,9 @@ pub fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavorit
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::core::media::{Images, MediaOverview, MovieOverview, ShowOverview};
+    use popcorn_fx_core::core::media::Images;
 
-    use crate::media_mappers::favorites_to_c;
+    use super::*;
 
     #[test]
     fn test_favorites_to_c_movie() {

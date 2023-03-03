@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.updater.UpdateState;
+import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.github.yoep.popcorn.ui.updater.UpdateService;
-import com.github.yoep.popcorn.ui.updater.UpdateState;
-import com.github.yoep.popcorn.ui.updater.VersionInfo;
 import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,8 +28,12 @@ public class UpdateSectionService extends AbstractListenerService<UpdateListener
 
     @PostConstruct
     void init() {
-        updateService.updateInfoProperty().addListener((observable, oldValue, newValue) -> onUpdateInfoChanged(newValue));
-        updateService.stateProperty().addListener((observable, oldValue, newValue) -> onUpdateStateChanged(newValue));
+        updateService.register(event -> {
+            switch (event.getTag()) {
+                case StateChanged -> onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
+                case UpdateAvailable -> onUpdateInfoChanged(event.getUnion().getUpdate_available().getNewVersion());
+            }
+        });
     }
 
     private void onUpdateStateChanged(UpdateState newValue) {

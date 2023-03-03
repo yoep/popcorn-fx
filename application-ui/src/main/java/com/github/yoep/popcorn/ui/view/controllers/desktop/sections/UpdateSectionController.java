@@ -3,10 +3,10 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.updater.Changelog;
+import com.github.yoep.popcorn.backend.updater.UpdateState;
+import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.github.yoep.popcorn.ui.messages.UpdateMessage;
-import com.github.yoep.popcorn.ui.updater.Changelog;
-import com.github.yoep.popcorn.ui.updater.UpdateState;
-import com.github.yoep.popcorn.ui.updater.VersionInfo;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
@@ -109,13 +108,11 @@ public class UpdateSectionController implements Initializable {
             changelogFeaturesLabel.setText(Optional.ofNullable(versionInfo.getChangelog())
                     .map(Changelog::getFeatures)
                     .stream()
-                    .flatMap(Arrays::stream)
                     .map(e -> "- " + e)
                     .collect(Collectors.joining("\n")));
             changelogBugfixesLabel.setText(Optional.ofNullable(versionInfo.getChangelog())
                     .map(Changelog::getBugfixes)
                     .stream()
-                    .flatMap(Arrays::stream)
                     .map(e -> "- " + e)
                     .collect(Collectors.joining("\n")));
         });

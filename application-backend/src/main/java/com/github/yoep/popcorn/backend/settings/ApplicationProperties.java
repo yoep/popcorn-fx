@@ -15,9 +15,8 @@ import java.util.Optional;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"version", "updateChannel", "providers", "providersLen"})
+@Structure.FieldOrder({"updateChannel", "providers", "providersLen"})
 public class ApplicationProperties extends Structure implements Closeable {
-    public String version;
     public String updateChannel;
     public ProviderProperties.ByReference providers;
     public int providersLen;

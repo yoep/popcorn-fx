@@ -14,16 +14,6 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
-/// The platform type
-enum class PlatformType : int32_t {
-  /// The windows platform
-  Windows = 0,
-  /// The macos platform
-  MacOs = 1,
-  /// The linux platform
-  Linux = 2,
-};
-
 /// The playback quality defined in a resolution size
 enum class Quality {
   P480,
@@ -118,6 +108,17 @@ enum class TorrentStreamState : int32_t {
   Streaming = 1,
   /// The torrent has been stopped and can not longer be streamed.
   Stopped = 2,
+};
+
+/// The state of the updater
+enum class UpdateState : int32_t {
+  CheckingForNewVersion = 0,
+  UpdateAvailable = 1,
+  NoUpdateAvailable = 2,
+  Downloading = 3,
+  DownloadFinished = 4,
+  Installing = 5,
+  Error = 6,
 };
 
 template<typename T = void>
@@ -270,8 +271,6 @@ struct ProviderPropertiesC {
 
 /// The C compatible properties of the application.
 struct PopcornPropertiesC {
-  /// The version of the application
-  const char *version;
   /// The update channel to retrieve updates from
   const char *update_channel;
   /// The array of available provider properties
@@ -472,13 +471,6 @@ struct PlayerStoppedEventC {
   MediaItemC *media;
 };
 
-struct PlatformInfoC {
-  /// The platform type
-  PlatformType platform_type;
-  /// The cpu architecture of the platform
-  const char *arch;
-};
-
 struct FavoriteEventC {
   enum class Tag {
     /// Event indicating that the like state of a media item changed.
@@ -564,6 +556,52 @@ struct TorrentStreamEventC {
     StateChanged_Body state_changed;
   };
 };
+
+/// The C compatible changelog
+struct ChangelogC {
+  /// The new features array string
+  const char **features;
+  /// The length of the features array
+  int32_t features_len;
+  /// The new bugfixes array string
+  const char **bugfixes;
+  /// The length of the bugfixes array
+  int32_t bugfixes_len;
+};
+
+/// The version information from the update channel.
+struct VersionInfoC {
+  /// The latest release version on the update channel
+  const char *version;
+  ChangelogC changelog;
+};
+
+/// The C compatible update events.
+struct UpdateEventC {
+  enum class Tag {
+    /// Invoked when the state of the updater has changed
+    StateChanged,
+    /// Invoked when a new update is available
+    UpdateAvailable,
+  };
+
+  struct StateChanged_Body {
+    UpdateState _0;
+  };
+
+  struct UpdateAvailable_Body {
+    VersionInfoC _0;
+  };
+
+  Tag tag;
+  union {
+    StateChanged_Body state_changed;
+    UpdateAvailable_Body update_available;
+  };
+};
+
+/// The C compatible callback for update events.
+using UpdateCallbackC = void(*)(UpdateEventC);
 
 struct WatchedEventC {
   enum class Tag {
@@ -761,9 +799,6 @@ PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 /// It returns the parsed subtitle on success, else null.
 SubtitleC *parse_subtitle(PopcornFX *popcorn_fx, const char *file_path);
 
-/// Retrieve the platform information
-PlatformInfoC *platform_info(PopcornFX *popcorn_fx);
-
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
@@ -772,6 +807,9 @@ void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallback
 
 /// Register a new callback for the torrent stream.
 void register_torrent_stream_callback(TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
+
+/// Register a new callback for update events.
+void register_update_callback(PopcornFX *popcorn_fx, UpdateCallbackC callback);
 
 /// Register a new callback listener for watched events.
 void register_watched_event_callback(PopcornFX *popcorn_fx, void (*callback)(WatchedEventC));
@@ -929,5 +967,11 @@ void update_torrent_settings(PopcornFX *popcorn_fx, TorrentSettingsC torrent_set
 
 /// Update the ui settings with the new value.
 void update_ui_settings(PopcornFX *popcorn_fx, UiSettingsC settings);
+
+/// Retrieve the version of Popcorn FX.
+const char *version();
+
+/// Retrieve the latest release version information.
+VersionInfoC *version_info(PopcornFX *popcorn_fx);
 
 } // extern "C"

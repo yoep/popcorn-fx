@@ -1,6 +1,7 @@
 use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Once};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use clap::Parser;
 use derive_more::Display;
@@ -9,6 +10,7 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::Config;
 use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
+use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
@@ -17,11 +19,13 @@ use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteSe
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
+use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrent::collection::TorrentCollection;
+use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
-use popcorn_fx_platform::platform::{Platform, PlatformService, PlatformServiceImpl};
+use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::RTTorrentManager;
 use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 
@@ -91,7 +95,7 @@ pub struct PopcornFX {
     subtitle_service: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
     subtitle_manager: Arc<SubtitleManager>,
-    platform_service: Box<dyn PlatformService>,
+    platform: Arc<Box<dyn PlatformData>>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
@@ -99,6 +103,9 @@ pub struct PopcornFX {
     torrent_collection: Arc<TorrentCollection>,
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     providers: ProviderManager,
+    updater: Arc<Updater>,
+    /// The runtime pool to use for async tasks
+    runtime: Runtime,
     /// The options that were used to create this instance
     opts: PopcornFxArgs,
 }
@@ -117,7 +124,7 @@ impl PopcornFX {
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let subtitle_manager = Arc::new(SubtitleManager::default());
-        let mut platform_service = Box::new(PlatformServiceImpl::new());
+        let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
@@ -125,16 +132,17 @@ impl PopcornFX {
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
+        let updater = Arc::new(Updater::new(&settings, &platform));
 
         // disable the screensaver
-        platform_service.disable_screensaver();
+        platform.disable_screensaver();
 
         Self {
             settings,
             subtitle_service,
             subtitle_server,
             subtitle_manager,
-            platform_service,
+            platform,
             favorites_service,
             watched_service,
             torrent_manager,
@@ -142,6 +150,17 @@ impl PopcornFX {
             torrent_collection,
             auto_resume_service,
             providers,
+            updater,
+            runtime: tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(3)
+                .thread_name_fn(|| {
+                    static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
+                    let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
+                    format!("popcorn-fx-{}", id)
+                })
+                .build()
+                .expect("expected a new runtime"),
             opts: args,
         }
     }
@@ -166,9 +185,9 @@ impl PopcornFX {
         &mut self.subtitle_manager
     }
 
-    /// The platform service of the popcorn FX instance.
-    pub fn platform_service(&mut self) -> &mut Box<dyn PlatformService> {
-        &mut self.platform_service
+    /// The system platform on which the Popcorn FX instance is running.
+    pub fn platform(&mut self) -> &Arc<Box<dyn PlatformData>> {
+        &self.platform
     }
 
     /// The available [popcorn_fx_core::core::media::Media] providers of the [PopcornFX].
@@ -206,6 +225,11 @@ impl PopcornFX {
         &self.auto_resume_service
     }
 
+    /// The application updater
+    pub fn updater(&self) -> &Arc<Updater> {
+        &self.updater
+    }
+
     /// Reload the settings of this instance.
     /// This will read the settings from the storage and notify all subscribers of new changes.
     pub fn reload_settings(&mut self) {
@@ -213,6 +237,11 @@ impl PopcornFX {
             let mut mutex = self.settings.lock().await;
             mutex.reload()
         })
+    }
+
+    /// Retrieve the given runtime pool from this Popcorn FX instance.
+    pub fn runtime(&self) -> &Runtime {
+        &self.runtime
     }
 
     /// Retrieve the option that were used to create this instance.
@@ -297,7 +326,7 @@ mod test {
             app_directory: temp_path.to_string(),
         });
 
-        let _ = popcorn_fx.platform_service().platform_info();
+        let _ = popcorn_fx.platform().info();
         let _ = popcorn_fx.subtitle_server();
 
         let preferred_language = popcorn_fx.subtitle_manager().preferred_language();

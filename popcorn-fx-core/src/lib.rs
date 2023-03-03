@@ -4,7 +4,6 @@ use std::os::raw::c_char;
 
 use log::error;
 
-pub use crate::event_c::*;
 pub use crate::media_c::*;
 pub use crate::properties_c::*;
 pub use crate::settings_c::*;
@@ -13,12 +12,14 @@ pub use crate::torrent_collection_c::*;
 
 pub mod core;
 
-mod event_c;
 mod media_c;
 mod properties_c;
 mod settings_c;
 mod subtitle_c;
 mod torrent_collection_c;
+
+/// The version of Popcorn FX.
+pub const VERSION: &str = "0.5.0";
 
 /// Convert the given [String] into a C compatible string.
 pub fn into_c_string(value: String) -> *const c_char {

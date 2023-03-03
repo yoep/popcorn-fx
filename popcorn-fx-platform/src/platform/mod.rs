@@ -1,7 +1,5 @@
 pub use platform::*;
-pub use platform_info::*;
 
-mod platform_info;
 mod platform;
 
 #[cfg(target_os = "windows")]

@@ -507,7 +507,7 @@ mod test {
         application.update_playback(playback.clone());
         application.save();
 
-        let result = read_temp_dir_file(PathBuf::from(temp_path), DEFAULT_SETTINGS_FILENAME);
+        let result = read_temp_dir_file(&temp_dir, DEFAULT_SETTINGS_FILENAME);
         assert!(!result.is_empty(), "expected a non-empty json file");
 
         let settings: PopcornSettings = serde_json::from_str(result.as_str()).unwrap();

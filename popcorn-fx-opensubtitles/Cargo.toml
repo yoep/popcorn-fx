@@ -16,14 +16,15 @@ proc-macro = true
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 async-trait = "0"
+bytes = "1.4"
 derive-new = "0"
 futures = "0"
 itertools = "0"
 log = "0"
-reqwest = { version = "0", features = ["serde_json", "json"] }
+reqwest = { version = "0", features = ["serde_json", "json", "stream"] }
 serde = "1"
 serde_json = "1"
-tokio = "1"
+tokio = {version = "1", features = ["fs"]}
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
 use log::trace;
+
+use popcorn_fx_core::core::platform::{Platform, PlatformData, PlatformInfo, PlatformType};
 
 #[cfg(target_os = "linux")]
 use crate::platform::platform_linux::PlatformLinux;
@@ -6,28 +10,18 @@ use crate::platform::platform_linux::PlatformLinux;
 use crate::platform::platform_mac::PlatformMac;
 #[cfg(target_os = "windows")]
 use crate::platform::platform_win::PlatformWin;
-use crate::platform::PlatformInfo;
 
-/// Platform defines native system functions
-pub trait Platform {
-    /// Disable the screensaver on the current platform
-    /// It returns `true` if the screensaver was disabled with success, else `false`.
-    fn disable_screensaver(&mut self) -> bool;
-
-    /// Enable the screensaver on the current platform
-    /// It returns `true` if the screensaver was enabled with success, else `false`.
-    fn enable_screensaver(&mut self) -> bool;
-}
-
-pub trait PlatformService: Platform {
-    /// Retrieve the platform info of the current system.
-    fn platform_info(&self) -> &PlatformInfo;
-}
+#[cfg(target_arch = "x86_64")]
+const X64: &str = "x86-64";
+#[cfg(target_arch = "arm")]
+const ARM: &str = "arm";
+#[cfg(target_arch = "aarch64")]
+const ARCH64: &str = "aarch64";
 
 /// Initialize a new platform
 #[cfg(target_os = "windows")]
 pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformWin::new());
+    return Box::new(PlatformWin::default());
 }
 
 /// Initialize a new platform
@@ -39,42 +33,93 @@ pub fn new_platform() -> Box<dyn Platform> {
 /// Initialize a new platform
 #[cfg(target_os = "linux")]
 pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformLinux::new());
+    return Box::new(PlatformLinux::default());
 }
 
-/// A basic implementation of the platform service which handles most system actions and information.
-pub struct PlatformServiceImpl {
-    platform: Box<dyn Platform>,
+#[cfg(target_os = "windows")]
+#[cfg(target_arch = "x86_64")]
+pub fn platform_info() -> PlatformInfo {
+    trace!("Retrieving windows platform info");
+    PlatformInfo {
+        platform_type: PlatformType::Windows,
+        arch: String::from(X64),
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[cfg(target_arch = "x86_64")]
+pub fn platform_info() -> PlatformInfo {
+    trace!("Retrieving macos platform info");
+    PlatformInfo {
+        platform_type: PlatformType::MacOs,
+        arch: String::from(X64),
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "x86_64")]
+pub fn platform_info() -> PlatformInfo {
+    trace!("Retrieving linux platform info");
+    PlatformInfo {
+        platform_type: PlatformType::Linux,
+        arch: String::from(X64),
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "aarch64")]
+pub fn platform_info() -> PlatformInfo {
+    trace!("Retrieving linux platform info");
+    PlatformInfo {
+        platform_type: PlatformType::Linux,
+        arch: String::from(ARCH64.to_string()),
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "arm")]
+pub fn platform_info() -> PlatformInfo {
+    trace!("Retrieving linux platform info");
+    PlatformInfo {
+        platform_type: PlatformType::Linux,
+        arch: String::from(ARM.to_string()),
+    }
+}
+
+/// A default implementation of the [PlatformData] which handles most system specific actions and information.
+#[derive(Debug)]
+pub struct DefaultPlatform {
+    platform: Arc<Box<dyn Platform>>,
     platform_info: PlatformInfo,
 }
 
-impl PlatformServiceImpl {
-    pub fn new() -> Self {
-        Self {
-            platform: new_platform(),
-            platform_info: PlatformInfo::new(),
-        }
-    }
-}
-
-impl Platform for PlatformServiceImpl {
-    fn disable_screensaver(&mut self) -> bool {
+impl Platform for DefaultPlatform {
+    fn disable_screensaver(&self) -> bool {
         self.platform.disable_screensaver()
     }
 
-    fn enable_screensaver(&mut self) -> bool {
+    fn enable_screensaver(&self) -> bool {
         self.platform.enable_screensaver()
     }
 }
 
-impl PlatformService for PlatformServiceImpl {
-    fn platform_info(&self) -> &PlatformInfo {
+impl PlatformData for DefaultPlatform {
+    fn info(&self) -> &PlatformInfo {
         trace!("Retrieving system information");
         &self.platform_info
     }
 }
 
-impl Drop for PlatformServiceImpl {
+impl Default for DefaultPlatform {
+    fn default() -> Self {
+        Self {
+            platform: Arc::new(new_platform()),
+            platform_info: platform_info(),
+        }
+    }
+}
+
+impl Drop for DefaultPlatform {
     fn drop(&mut self) {
         self.enable_screensaver();
     }
@@ -86,6 +131,66 @@ mod test {
 
     #[test]
     fn test_new_platform_should_return_platform() {
-        new_platform();
+        let platform = new_platform();
+
+        assert!(platform.enable_screensaver(), "expected the screensaver to have been enabled")
+    }
+
+    #[test]
+    fn test_default_platform() {
+        let platform = DefaultPlatform::default();
+        let expected_result = platform_info();
+
+        let result = platform.info();
+
+        assert_eq!(&expected_result, result)
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_platform_info() {
+        let info = platform_info();
+
+        assert!(matches!(info.platform_type, PlatformType::Windows));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_platform_info() {
+        let info = platform_info();
+
+        assert!(matches!(info.platform_type, PlatformType::Linux));
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_platform_info() {
+        let info = platform_info();
+
+        assert!(matches!(info.platform_type, PlatformType::MacOs));
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_platform_info_new_should_return_x64_info() {
+        let info = platform_info();
+
+        assert_eq!(X64, String::from(info.arch))
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_platform_info_new_should_return_aarch64_info() {
+        let info = platform_info();
+
+        assert_eq!(ARCH64, String::from(info.arch))
+    }
+
+    #[test]
+    #[cfg(target_arch = "arm")]
+    fn test_platform_info_new_should_return_arm_info() {
+        let info = platform_info();
+
+        assert_eq!(ARM, String::from(info.arch))
     }
 }

@@ -45,7 +45,6 @@ mod test {
         let settings = ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
-                version: String::new(),
                 update_channel: String::new(),
                 providers: HashMap::from([
                     (provider_name.clone(),
@@ -87,7 +86,6 @@ mod test {
         let settings = ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
-                version: String::new(),
                 update_channel: String::new(),
                 providers: HashMap::new(),
                 subtitle: Default::default(),

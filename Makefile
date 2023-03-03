@@ -44,11 +44,11 @@ clean: prerequisites ## Clean the output
 
 test-cargo: prerequisites ## The test cargo section of the application
 	$(info Running cargo tests)
-	@cargo llvm-cov --lcov --output-path target/lcov.info nextest
+	@cargo llvm-cov --lcov --features ffi --output-path target/lcov.info nextest
 
 cov-cargo: prerequisites ## Test coverage of the cargo section as std output
 	$(info Running cargo tests)
-	@cargo llvm-cov nextest
+	@cargo llvm-cov nextest --features ffi
 
 test-java: prerequisites ## The test java section of the application
 	$(info Running maven tests)
@@ -59,12 +59,12 @@ test: prerequisites test-java test-cargo ## Test the application code
 build-cargo: ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
-	@cargo build
+	@cargo build --features ffi
 
 build-cargo-release: test-cargo ## Build the rust part of the application in release profile
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
-	@cargo build --release
+	@cargo build --release --features ffi
 
 ## Copy the cargo libraries to the java resources
 ifeq ($(SYSTEM),Windows)

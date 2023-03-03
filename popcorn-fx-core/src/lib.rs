@@ -4,7 +4,6 @@ use std::os::raw::c_char;
 
 use log::error;
 
-pub use crate::event_c::*;
 pub use crate::media_c::*;
 pub use crate::properties_c::*;
 pub use crate::settings_c::*;
@@ -13,12 +12,14 @@ pub use crate::torrent_collection_c::*;
 
 pub mod core;
 
-mod event_c;
 mod media_c;
 mod properties_c;
 mod settings_c;
 mod subtitle_c;
 mod torrent_collection_c;
+
+/// The version of Popcorn FX.
+pub const VERSION: &str = "0.5.0";
 
 /// Convert the given [String] into a C compatible string.
 pub fn into_c_string(value: String) -> *const c_char {
@@ -116,6 +117,7 @@ pub mod testing {
     use log4rs::Config;
     use log4rs::config::{Appender, Root};
     use log::LevelFilter;
+    use tempfile::TempDir;
 
     static INIT: Once = Once::new();
 
@@ -177,11 +179,9 @@ pub mod testing {
     }
 
     /// Read a file from the temp directory.
-    pub fn read_temp_dir_file(temp_dir: PathBuf, filename: &str) -> String {
-        let mut path = temp_dir.clone();
-        path.push(filename);
-
-        fs::read_to_string(&path).unwrap()
+    pub fn read_temp_dir_file(temp_dir: &TempDir, filename: &str) -> String {
+        let path = temp_dir.path().join(filename);
+        fs::read_to_string(path).unwrap()
     }
 }
 

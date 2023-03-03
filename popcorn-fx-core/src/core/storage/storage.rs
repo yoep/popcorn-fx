@@ -158,16 +158,16 @@ mod test {
         init_logger();
         let filename = "test";
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.into_path();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let storage = Storage {
-            directory: temp_path.clone(),
+            directory: PathBuf::from(temp_path),
         };
         let settings = UiSettings::default();
         let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
 
         let result = storage.write(filename.clone(), &settings);
         assert!(result.is_ok(), "expected no error to have occurred");
-        let contents = read_temp_dir_file(temp_path, filename);
+        let contents = read_temp_dir_file(&temp_dir, filename);
 
         assert_eq!(expected_result, contents)
     }
@@ -177,16 +177,16 @@ mod test {
         init_logger();
         let filename = "test";
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.into_path();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let storage = Storage {
-            directory: temp_path.clone(),
+            directory: PathBuf::from(temp_path),
         };
         let settings = UiSettings::default();
         let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
 
         let result = storage.write_async(filename.clone(), &settings).await;
         assert!(result.is_ok(), "expected no error to have occurred");
-        let contents = read_temp_dir_file(temp_path, filename);
+        let contents = read_temp_dir_file(&temp_dir, filename);
 
         assert_eq!(expected_result, contents)
     }

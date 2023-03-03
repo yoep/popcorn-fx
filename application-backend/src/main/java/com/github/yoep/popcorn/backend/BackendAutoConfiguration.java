@@ -15,7 +15,6 @@ import javax.annotation.PreDestroy;
         MediaConfig.class,
         RestConfig.class,
         SettingsConfig.class,
-        StorageConfig.class,
         ThreadConfig.class,
         TorrentStreamConfig.class,
         UtilsConfig.class,

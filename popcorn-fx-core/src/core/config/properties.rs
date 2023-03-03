@@ -10,7 +10,6 @@ use serde::Deserialize;
 
 use crate::core::config::{ConfigError, ProviderProperties};
 
-const VERSION: fn() -> String = || "0.5.0".to_string();
 const DEFAULT_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
 const DEFAULT_USER_AGENT: fn() -> String = || "Popcorn Time v1".to_string();
 const DEFAULT_API_TOKEN: fn() -> String = || "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string();
@@ -133,9 +132,6 @@ struct PropertiesWrapper {
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
 #[display(fmt = "update_channel: {}, subtitle: {:?}", update_channel, subtitle)]
 pub struct PopcornProperties {
-    /// The version of the application
-    #[serde(skip, default = "VERSION")]
-    pub version: String,
     #[serde(default = "DEFAULT_UPDATE_CHANNEL")]
     pub update_channel: String,
     #[serde(default = "DEFAULT_PROVIDERS")]
@@ -163,12 +159,6 @@ impl PopcornProperties {
             .expect("Properties should have been loaded");
 
         Self::from(config_value.as_str())
-    }
-
-    /// Retrieve the version of the application.
-    /// It returns the string slice of the version.
-    pub fn version(&self) -> &str {
-        self.version.as_str()
     }
 
     /// Retrieve the update channel to query and retrieve updates from.
@@ -239,7 +229,6 @@ impl From<&str> for PopcornProperties {
 impl Default for PopcornProperties {
     fn default() -> Self {
         Self {
-            version: VERSION(),
             update_channel: DEFAULT_UPDATE_CHANNEL(),
             providers: DEFAULT_PROVIDERS(),
             subtitle: SubtitleProperties::default(),
@@ -312,7 +301,6 @@ mod test {
     fn test_from_filename_when_not_found_should_return_defaults() {
         init_logger();
         let expected_result = PopcornProperties {
-            version: "0.5.0".to_string(),
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
             subtitle: SubtitleProperties {
@@ -337,7 +325,6 @@ popcorn:
     user-agent: lorem
     api-token: ipsum";
         let expected_result = PopcornProperties {
-            version: "0.5.0".to_string(),
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
             subtitle: SubtitleProperties {
@@ -360,7 +347,6 @@ popcorn:
   subtitle:
     user-agent: lorem"#;
         let expected_result = PopcornProperties {
-            version: "0.5.0".to_string(),
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
             subtitle: SubtitleProperties {

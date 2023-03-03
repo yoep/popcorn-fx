@@ -23,7 +23,6 @@ logging:
       total-size-cap: 100MB
 
 popcorn:
-  version: @project.version@
   update-channel: https://raw.githubusercontent.com/yoep/popcorn-fx/master/
   providers:
     movies:

@@ -1,10 +1,10 @@
-use log::{debug, info, warn};
+use std::os::raw::c_int;
 
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
-use libc::c_int;
+use log::{debug, info, warn};
 
-use crate::platform::Platform;
+use popcorn_fx_core::core::platform::Platform;
 
 const KIOPMASSERTIONLEVEL_ON: u32 = 255;
 const KIOPMASSERTIONLEVEL_OFF: u32 = 0;
@@ -15,6 +15,7 @@ extern {
     fn IOPMAssertionCreateWithName(AssertionType: CFStringRef, AssertionLevel: u32, AssertionName: CFStringRef, AssertionID: *mut u32) -> c_int;
 }
 
+#[derive(Debug)]
 pub struct PlatformMac {}
 
 impl PlatformMac {
@@ -22,7 +23,7 @@ impl PlatformMac {
         return PlatformMac {};
     }
 
-    fn call_io_assertion(&mut self, assertion_level: u32) -> bool {
+    fn call_io_assertion(&self, assertion_level: u32) -> bool {
         let prevent_sleep = CFString::new("PreventUserIdleSystemSleep");
         let reason = CFString::new("Media playback application is active");
         #[allow(unused_mut)]
@@ -44,13 +45,13 @@ impl PlatformMac {
 }
 
 impl Platform for PlatformMac {
-    fn disable_screensaver(&mut self) -> bool {
+    fn disable_screensaver(&self) -> bool {
         let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_ON);
         info!("Disable screensaver returned state {}", result);
         result
     }
 
-    fn enable_screensaver(&mut self) -> bool {
+    fn enable_screensaver(&self) -> bool {
         let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_OFF);
         info!("Enable screensaver returned state {}", result);
         result
@@ -59,6 +60,8 @@ impl Platform for PlatformMac {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
     #[test]
     fn disable_screensaver_macos_should_return_true() {
         let mut platform = PlatformMac::new();

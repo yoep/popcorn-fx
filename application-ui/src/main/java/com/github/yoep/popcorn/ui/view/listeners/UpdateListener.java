@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.listeners;
 
-import com.github.yoep.popcorn.ui.updater.UpdateState;
-import com.github.yoep.popcorn.ui.updater.VersionInfo;
+import com.github.yoep.popcorn.backend.updater.UpdateState;
+import com.github.yoep.popcorn.backend.updater.VersionInfo;
 
 public interface UpdateListener {
     /**

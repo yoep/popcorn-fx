@@ -33,7 +33,7 @@ pub fn new_platform() -> Box<dyn Platform> {
 /// Initialize a new platform
 #[cfg(target_os = "linux")]
 pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformLinux::new());
+    return Box::new(PlatformLinux::default());
 }
 
 #[cfg(target_os = "windows")]

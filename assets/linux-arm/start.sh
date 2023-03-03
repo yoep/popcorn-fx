@@ -3,23 +3,21 @@
 # switch working directory
 cd "/opt/popcorn-time" || return
 
-export OPENJFX=/opt/openjfx/13/lib/
-export PATH=/opt/popcorn-time/:${OPENJFX}:/usr/lib/arm-linux-gnueabihf:${PATH}
-export DISPLAY=:0
+export OPENJFX=/opt/openjfx/lib/
+export PATH=/opt/popcorn-time/:${OPENJFX}:/usr/lib/aarch64-linux-gnu/:${PATH}
 
 retries=0
 
 start() {
   java \
-    -Dvlc.path=/usr/lib/arm-linux-gnueabihf \
-    -Djava.library.path="${PATH}" \
-    -Djavafx.platform=gtk \
-    -Dprism.verbose=true \
-    -Dprism.lcdtext=false \
-    -Dprism.dirtyopts=false \
-    -Dsun.awt.disablegrab=true \
+    -Degl.displayid=/dev/dri/card0 \
+    -Dmonocle.egl.lib=${OPENJFX}/libgluon_drm-1.1.7.so \
+    -Dmonocle.platform.traceConfig=false \
+    -Dmonocle.platform=EGL \
+    -Dprism.forceGPU=true \
     -XX:+UseG1GC \
-    -Xmx400M \
+    -Djna.library.path="${PATH}" \
+    -Djava.library.path="${PATH}" \
     -Xms100M \
     -p "${OPENJFX}" \
     --add-modules javafx.controls,javafx.fxml,javafx.graphics \

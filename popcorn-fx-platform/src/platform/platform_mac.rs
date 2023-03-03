@@ -1,13 +1,10 @@
 use std::os::raw::c_int;
 
-use log::{debug, info, warn};
-
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
-use libc::c_int;
-use popcorn_fx_core::core::platform::Platform;
+use log::{debug, info, warn};
 
-use crate::platform::Platform;
+use popcorn_fx_core::core::platform::Platform;
 
 const KIOPMASSERTIONLEVEL_ON: u32 = 255;
 const KIOPMASSERTIONLEVEL_OFF: u32 = 0;
@@ -63,6 +60,8 @@ impl Platform for PlatformMac {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
     #[test]
     fn disable_screensaver_macos_should_return_true() {
         let mut platform = PlatformMac::new();

@@ -1,3 +1,5 @@
+use log::warn;
+
 use popcorn_fx_core::core::platform::Platform;
 
 /// The linux platform specific implementation
@@ -8,11 +10,13 @@ pub struct PlatformLinux {
 
 impl Platform for PlatformLinux {
     fn disable_screensaver(&self) -> bool {
-        false
+        warn!("disable_screensaver has not been implemented for Linux");
+        true
     }
 
     fn enable_screensaver(&self) -> bool {
-        false
+        warn!("enable_screensaver has not been implemented for Linux");
+        true
     }
 }
 

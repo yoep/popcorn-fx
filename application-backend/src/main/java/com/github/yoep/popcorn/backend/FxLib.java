@@ -176,6 +176,8 @@ public interface FxLib extends Library {
 
     void download_update(PopcornFx instance);
 
+    void install_update(PopcornFx instance);
+
     void register_update_callback(PopcornFx instance, UpdateCallback callback);
 
     void dispose_media_item(MediaItem media);

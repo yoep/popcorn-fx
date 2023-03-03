@@ -1,10 +1,7 @@
 use std::os::raw::c_char;
 
 use popcorn_fx_core::{into_c_string, to_c_vec};
-use popcorn_fx_core::core::updater::{ChangeLog, UpdateEvent, UpdateState, VersionInfo};
-
-/// The C compatible callback for update events.
-pub type UpdateCallbackC = extern "C" fn(UpdateEventC);
+use popcorn_fx_core::core::updater::{ChangeLog, VersionInfo};
 
 /// The version information from the update channel.
 #[repr(C)]
@@ -56,24 +53,6 @@ impl From<&ChangeLog> for ChangelogC {
     }
 }
 
-/// The C compatible update events.
-#[repr(C)]
-#[derive(Debug)]
-pub enum UpdateEventC {
-    /// Invoked when the state of the updater has changed
-    StateChanged(UpdateState),
-    /// Invoked when a new update is available
-    UpdateAvailable(VersionInfoC),
-}
-
-impl From<UpdateEvent> for UpdateEventC {
-    fn from(value: UpdateEvent) -> Self {
-        match value {
-            UpdateEvent::StateChanged(state) => UpdateEventC::StateChanged(state),
-            UpdateEvent::UpdateAvailable(version) => UpdateEventC::UpdateAvailable(VersionInfoC::from(&version)),
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {
@@ -122,17 +101,5 @@ mod test {
 
         assert_eq!(features, features_result);
         assert_eq!(bugfixes, bugfixes_result);
-    }
-
-    #[test]
-    fn test_from_update_event() {
-        let event = UpdateEvent::StateChanged(UpdateState::UpdateAvailable);
-
-        let result = UpdateEventC::from(event);
-
-        match result {
-            UpdateEventC::StateChanged(state) => assert_eq!(UpdateState::UpdateAvailable, state),
-            _ => assert!(false, "expected UpdateEventC::StateChanged")
-        }
     }
 }

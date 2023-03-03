@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Arc;
 
 use derive_more::Display;
@@ -35,16 +36,17 @@ pub enum UpdateEvent {
 }
 
 /// The state of the updater
-#[repr(i32)]
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum UpdateState {
-    CheckingForNewVersion = 0,
-    UpdateAvailable = 1,
-    NoUpdateAvailable = 2,
-    Downloading = 3,
-    DownloadFinished = 4,
-    Installing = 5,
-    Error = 6,
+    CheckingForNewVersion,
+    UpdateAvailable,
+    NoUpdateAvailable,
+    Downloading,
+    /// Indicates that the download has finished.
+    /// The `String` points to the downloaded file on the system.
+    DownloadFinished(String),
+    Installing,
+    Error,
 }
 
 /// The updater of the application which is responsible of retrieving
@@ -100,6 +102,12 @@ impl Updater {
         self.inner.download().await
     }
 
+    /// Install the downloaded update.
+    /// It will return an error when no update is downloaded.
+    pub fn install(&self) -> updater::Result<()> {
+        self.inner.install(self.inner.clone())
+    }
+
     /// Start polling the update channel on a new thread
     fn start_polling(&self) {
         let updater = self.inner.clone();
@@ -119,7 +127,7 @@ struct InnerUpdater {
     cache: Mutex<Option<VersionInfo>>,
     /// The last know state of the updater
     state: Mutex<UpdateState>,
-    runtime: tokio::runtime::Runtime,
+    runtime: Arc<tokio::runtime::Runtime>,
     /// The event callbacks for the updater
     callbacks: CoreCallbacks<UpdateEvent>,
     storage_path: PathBuf,
@@ -142,7 +150,7 @@ impl InnerUpdater {
                 .unwrap(),
             cache: Mutex::new(None),
             state: Mutex::new(CheckingForNewVersion),
-            runtime: tokio::runtime::Runtime::new().unwrap(),
+            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap()),
             callbacks: core_callbacks,
             storage_path: PathBuf::from(storage_path),
         }
@@ -175,7 +183,7 @@ impl InnerUpdater {
             Ok(mut url) => {
                 url = url.join(UPDATE_INFO_FILE).unwrap();
                 let response = self.poll_info_from_url(url).await?;
-                let version_info = Self::handle_response(response).await?;
+                let version_info = Self::handle_query_response(response).await?;
 
                 self.update_version_info(&version_info).await;
                 Ok(version_info)
@@ -287,8 +295,10 @@ impl InnerUpdater {
                         })?;
                     }
 
-                    info!("Update has been stored in {}", directory.join(filename).to_str().unwrap());
-                    self.update_state_async(UpdateState::DownloadFinished).await;
+                    let filepath_buf = directory.join(filename);
+                    let filepath = filepath_buf.to_str().unwrap();
+                    info!("Update has been stored in {}", filepath);
+                    self.update_state_async(UpdateState::DownloadFinished(filepath.to_string())).await;
                     return Ok(());
                 }
 
@@ -330,6 +340,31 @@ impl InnerUpdater {
         }
     }
 
+    fn install(&self, inner: Arc<InnerUpdater>) -> updater::Result<()> {
+        trace!("Starting installer");
+        let mutex = self.state.blocking_lock();
+        match mutex.clone() {
+            UpdateState::DownloadFinished(filepath) => {
+                debug!("Starting update installation of {}", filepath);
+                let runtime = inner.runtime.clone();
+                let clone = inner.clone();
+
+                runtime.spawn(async move {
+                    Command::new(filepath)
+                        .spawn()
+                        .expect("failed to start update");
+                    clone.update_state_async(UpdateState::Installing).await;
+                });
+
+                Ok(())
+            }
+            _ => {
+                warn!("Unable to start update, update state is {}", *mutex);
+                Err(UpdateError::UpdateNotAvailable(mutex.clone()))
+            }
+        }
+    }
+
     fn register(&self, callback: UpdateCallback) {
         self.callbacks.add(callback)
     }
@@ -352,16 +387,16 @@ impl InnerUpdater {
         format!("{}.{}", platform.platform_type.name(), platform.arch)
     }
 
-    async fn handle_response(response: Response) -> updater::Result<VersionInfo> {
-        match response.json::<VersionInfo>().await {
-            Ok(version) => {
-                debug!("Retrieved latest version info {:?}", version);
-                Ok(version)
-            }
-            Err(e) => {
+    async fn handle_query_response(response: Response) -> updater::Result<VersionInfo> {
+        let status_code = response.status();
+
+        if status_code == StatusCode::OK {
+            response.json::<VersionInfo>().await.map_err(|e| {
                 error!("Failed to parse update info, {}", e);
-                Err(UpdateError::Response(e.to_string()))
-            }
+                UpdateError::Response(e.to_string())
+            })
+        } else {
+            Err(UpdateError::Response(format!("received invalid status code {} from update channel", status_code)))
         }
     }
 
@@ -571,13 +606,11 @@ mod test {
                 .path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
-  "version": "99.0.0",
+                .body(format!(r#"{{"version": "99.0.0",
   "platforms": {{
     "debian.x86_64": "{}"
   }},
-  "changelog": {{}}
-}}"#, url));
+  "changelog": {{}} }}"#, url));
         });
         let mut platform_mock = MockDummyPlatformData::new();
         platform_mock.expect_info()
@@ -597,6 +630,44 @@ mod test {
         match result.err().unwrap() {
             UpdateError::DownloadFailed(status, _) => assert_eq!(StatusCode::NOT_FOUND.to_string(), status),
             _ => assert!(false, "expected UpdateError::DownloadFailed")
+        }
+    }
+
+    #[test]
+    fn test_install_no_update() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (server, settings) = create_server_and_settings(temp_path);
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{"version": "0.0.1",
+  "platforms": {},
+  "changelog": {}}"#);
+        });
+        let mut platform_mock = MockDummyPlatformData::new();
+        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let (tx, rx) = channel();
+        let updater = Updater::new_with_callbacks(&settings, &platform, temp_path, vec![
+            Box::new(move |event| {
+                tx.send(event).unwrap()
+            })
+        ]);
+
+        rx.recv_timeout(Duration::from_millis(100))
+            .expect("expected the state changed event");
+
+        if let Err(result) = updater.install() {
+            match result {
+                UpdateError::UpdateNotAvailable(state) => assert_eq!(UpdateState::NoUpdateAvailable, state),
+                _ => assert!(false, "expected UpdateError::UpdateNotAvailable")
+            }
+        } else {
+            assert!(false, "expected an error to have been returned")
         }
     }
 

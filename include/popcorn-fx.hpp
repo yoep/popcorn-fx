@@ -110,12 +110,13 @@ enum class TorrentStreamState : int32_t {
   Stopped = 2,
 };
 
-/// The state of the updater
-enum class UpdateState : int32_t {
+/// The C compatible update state
+enum class UpdateStateC : int32_t {
   CheckingForNewVersion = 0,
   UpdateAvailable = 1,
   NoUpdateAvailable = 2,
   Downloading = 3,
+  /// Indicates that the download has finished.
   DownloadFinished = 4,
   Installing = 5,
   Error = 6,
@@ -586,7 +587,7 @@ struct UpdateEventC {
   };
 
   struct StateChanged_Body {
-    UpdateState _0;
+    UpdateStateC _0;
   };
 
   struct UpdateAvailable_Body {
@@ -760,6 +761,9 @@ SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 ///
 /// * `event`   - The C event instance of the player stopped data.
 void handle_player_stopped_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
+
+/// Install the latest available update.
+void install_update(PopcornFX *popcorn_fx);
 
 /// Verify if the FX embedded video player has been disabled.
 bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
@@ -955,7 +959,7 @@ void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings)
 void update_server_settings(PopcornFX *popcorn_fx, ServerSettingsC settings);
 
 /// Retrieve the current update state of the application.
-UpdateState update_state(PopcornFX *popcorn_fx);
+UpdateStateC update_state(PopcornFX *popcorn_fx);
 
 /// Update the preferred subtitle for the [Media] item playback.
 /// This action will reset any custom configured subtitle files.

@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.updater;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,6 +21,8 @@ class UpdateServiceTest {
     private FxLib fxLib;
     @Mock
     private PopcornFx instance;
+    @Mock
+    private PlatformProvider platform;
     @InjectMocks
     private UpdateService service;
 
@@ -57,6 +60,32 @@ class UpdateServiceTest {
         service.register(callback);
         listenerHolder.get().callback(event);
 
-        verify(callback).callback(event);
+        verify(callback, timeout(150)).callback(event);
+    }
+
+    @Test
+    void testCallbackListener_onUpdateInstalling() {
+        var listenerHolder = new AtomicReference<UpdateCallback>();
+        var event = new UpdateEvent.ByValue();
+        event.tag = UpdateEvent.Tag.StateChanged;
+        event.union = new UpdateEvent.UpdateEventCUnion.ByValue();
+        event.union.state_changed = new UpdateEvent.StateChangedBody();
+        event.union.state_changed.newState = UpdateState.INSTALLING;
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
+            return null;
+        }).when(fxLib).register_update_callback(eq(instance), isA(UpdateCallback.class));
+        service.init();
+
+        listenerHolder.get().callback(event);
+
+        verify(platform, timeout(150)).exit();
+    }
+
+    @Test
+    void testStartUpdateAndExit() {
+        service.startUpdateAndExit();
+
+        verify(fxLib).install_update(instance);
     }
 }

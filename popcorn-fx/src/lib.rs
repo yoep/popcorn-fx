@@ -17,7 +17,6 @@ use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
-use popcorn_fx_core::core::updater::UpdateState;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 #[cfg(feature = "ffi")]
@@ -967,8 +966,8 @@ pub extern "C" fn version_info(popcorn_fx: &mut PopcornFX) -> *mut VersionInfoC 
 
 /// Retrieve the current update state of the application.
 #[no_mangle]
-pub extern "C" fn update_state(popcorn_fx: &mut PopcornFX) -> UpdateState {
-    popcorn_fx.updater().state()
+pub extern "C" fn update_state(popcorn_fx: &mut PopcornFX) -> UpdateStateC {
+    UpdateStateC::from(popcorn_fx.updater().state())
 }
 
 /// Start downloading the application update if available.
@@ -980,6 +979,15 @@ pub extern "C" fn download_update(popcorn_fx: &mut PopcornFX) {
             error!("Failed to download update, {}", e)
         }
     });
+}
+
+/// Install the latest available update.
+#[no_mangle]
+pub extern "C" fn install_update(popcorn_fx: &mut PopcornFX) {
+    trace!("Starting installation update from C");
+    if let Err(e) = popcorn_fx.updater().install() {
+        error!("Failed to start update, {}", e);
+    }
 }
 
 /// Register a new callback for update events.

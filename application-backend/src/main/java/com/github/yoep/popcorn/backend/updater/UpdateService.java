@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.backend.updater;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
@@ -13,11 +13,11 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class UpdateService {
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final PlatformProvider platform;
 
     private final Queue<UpdateCallback> listeners = new ConcurrentLinkedDeque<>();
     private final UpdateCallback callback = createCallback();
@@ -42,6 +42,7 @@ public class UpdateService {
     //region Methods
 
     public void startUpdateAndExit() {
+        fxLib.install_update(instance);
     }
 
     public void downloadUpdate() {
@@ -61,13 +62,18 @@ public class UpdateService {
     }
 
     private UpdateCallback createCallback() {
-        return event -> {
+        return event -> new Thread(() -> {
             log.debug("Received update callback event {}", event);
+            if (event.getTag() == UpdateEvent.Tag.StateChanged &&
+                    event.getUnion().getState_changed().getNewState() == UpdateState.INSTALLING) {
+                platform.exit();
+            }
+
             try {
                 listeners.forEach(e -> e.callback(event));
             } catch (Exception ex) {
                 log.error("Failed to invoke update callbacks, {}", ex.getMessage(), ex);
             }
-        };
+        }).start();
     }
 }

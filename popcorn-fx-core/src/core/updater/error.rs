@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::core::updater::UpdateState;
+
 /// The result type for the updater package.
 pub type Result<T> = std::result::Result<T, UpdateError>;
 
@@ -18,4 +20,6 @@ pub enum UpdateError {
     /// Indicates that an issue occurred during an io operation
     #[error("Failed to write update file to {0}")]
     IO(String),
+    #[error("No update available to start")]
+    UpdateNotAvailable(UpdateState),
 }

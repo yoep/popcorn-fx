@@ -357,7 +357,7 @@ mod test {
         let expected_result = "{\"video_timestamps\":[{\"id\":\"tt00001212\",\"filename\":\"already-started-watching.mkv\",\"last_known_time\":20000}]}";
 
         service.player_stopped(&event);
-        let result = read_temp_dir_file(temp_dir.into_path(), FILENAME)
+        let result = read_temp_dir_file(&temp_dir, FILENAME)
             .replace("\r\n", "\n");
 
         assert_eq!(expected_result, result.as_str())

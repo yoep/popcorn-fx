@@ -132,7 +132,7 @@ impl PopcornFX {
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
-        let updater = Arc::new(Updater::new(&settings, &platform));
+        let updater = Arc::new(Updater::new(&settings, &platform, app_directory_path));
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -171,8 +171,8 @@ impl PopcornFX {
     }
 
     /// The platform service of the popcorn FX instance.
-    pub fn subtitle_provider(&mut self) -> &mut Arc<Box<dyn SubtitleProvider>> {
-        &mut self.subtitle_service
+    pub fn subtitle_provider(&self) -> &Arc<Box<dyn SubtitleProvider>> {
+        &self.subtitle_service
     }
 
     /// Retrieve the subtitle server instance.
@@ -191,8 +191,8 @@ impl PopcornFX {
     }
 
     /// The available [popcorn_fx_core::core::media::Media] providers of the [PopcornFX].
-    pub fn providers(&mut self) -> &mut ProviderManager {
-        &mut self.providers
+    pub fn providers(&self) -> &ProviderManager {
+        &self.providers
     }
 
     /// The favorite service of [PopcornFX] which handles all liked items and actions.

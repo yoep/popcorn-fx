@@ -746,6 +746,9 @@ const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
+/// Start downloading the application update if available.
+void download_update(PopcornFX *popcorn_fx);
+
 /// Retrieve the given subtitles for the given episode
 SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *show, const EpisodeC *episode);
 
@@ -950,6 +953,9 @@ void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings)
 
 /// Update the server settings with the new value.
 void update_server_settings(PopcornFX *popcorn_fx, ServerSettingsC settings);
+
+/// Retrieve the current update state of the application.
+UpdateState update_state(PopcornFX *popcorn_fx);
 
 /// Update the preferred subtitle for the [Media] item playback.
 /// This action will reset any custom configured subtitle files.

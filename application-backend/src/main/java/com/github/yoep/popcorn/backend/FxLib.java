@@ -28,6 +28,7 @@ import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
+import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
@@ -170,6 +171,10 @@ public interface FxLib extends Library {
     byte is_vlc_video_player_disabled(PopcornFx instance);
 
     VersionInfo version_info(PopcornFx instance);
+
+    UpdateState update_state(PopcornFx instance);
+
+    void download_update(PopcornFx instance);
 
     void register_update_callback(PopcornFx instance, UpdateCallback callback);
 

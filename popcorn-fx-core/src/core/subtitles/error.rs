@@ -15,6 +15,8 @@ pub enum SubtitleError {
     SearchFailed(String),
     #[error("Failed to download subtitle {0}, {1}")]
     DownloadFailed(String, String),
+    #[error("Failed to write subtitle file to {0}")]
+    WritingFailed(String),
     #[error("Failed to parse file {0}, {1}")]
     ParseFileError(String, String),
     #[error("Failed to parse url, {0}")]

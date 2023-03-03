@@ -107,14 +107,16 @@ public class UpdateSectionController implements Initializable {
             versionLabel.setText(versionInfo.getVersion());
             changelogFeaturesLabel.setText(Optional.ofNullable(versionInfo.getChangelog())
                     .map(Changelog::getFeatures)
-                    .stream()
-                    .map(e -> "- " + e)
-                    .collect(Collectors.joining("\n")));
+                    .map(e -> e.stream()
+                            .map(x -> "- " + x)
+                            .collect(Collectors.joining("\n")))
+                    .orElse(null));
             changelogBugfixesLabel.setText(Optional.ofNullable(versionInfo.getChangelog())
                     .map(Changelog::getBugfixes)
-                    .stream()
-                    .map(e -> "- " + e)
-                    .collect(Collectors.joining("\n")));
+                    .map(e -> e.stream()
+                            .map(x -> "- " + x)
+                            .collect(Collectors.joining("\n")))
+                    .orElse(null));
         });
     }
 

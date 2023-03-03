@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
@@ -257,15 +257,22 @@ impl OpensubtitlesProvider {
                 trace!("Storing subtitle response of {} into {:?}", file_id, path);
                 match File::create(path) {
                     Ok(mut file) => {
-                        let mut content = Cursor::new(response.bytes().await.unwrap());
-                        match std::io::copy(&mut content, &mut file) {
-                            Ok(_) => {
-                                let path = path.to_str().expect("expected the path to be a valid str");
-                                info!("Downloaded subtitle file {}", path);
-                                Ok(path.to_string())
-                            }
-                            Err(err) => return Err(SubtitleError::DownloadFailed(file_id.to_string(), err.to_string()))
+                        let mut stream = response.bytes_stream();
+                        while let Some(chunk) = stream.next().await {
+                            let chunk = chunk.map_err(|e| {
+                                error!("Failed to read subtitle response chunk, {}", e);
+                                SubtitleError::WritingFailed(path.to_str().unwrap().to_string())
+                            })?;
+
+                            std::io::copy(&mut chunk.as_ref(), &mut file).map_err(|e| {
+                                error!("Failed to write subtitle file, {}", e);
+                                SubtitleError::WritingFailed(path.to_str().unwrap().to_string())
+                            })?;
                         }
+
+                        let path = path.to_str().expect("expected the path to be a valid str");
+                        info!("Downloaded subtitle file {}", path);
+                        Ok(path.to_string())
                     }
                     Err(err) => Err(SubtitleError::DownloadFailed(file_id.to_string(), err.to_string()))
                 }

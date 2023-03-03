@@ -1,15 +1,9 @@
-package com.github.yoep.popcorn.ui.updater;
+package com.github.yoep.popcorn.backend.updater;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.updater.UpdateCallback;
-import com.github.yoep.popcorn.backend.updater.UpdateState;
-import com.github.yoep.popcorn.backend.updater.VersionInfo;
-import javafx.beans.property.SimpleObjectProperty;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -22,12 +16,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Service
 @RequiredArgsConstructor
 public class UpdateService {
-    public static final String UPDATE_STATE_PROPERTY = "state";
+    private final FxLib fxLib;
+    private final PopcornFx instance;
 
-    private final PlatformProvider platformProvider;
-    private final TaskExecutor taskExecutor;
-
-    private final SimpleObjectProperty<UpdateState> state = new SimpleObjectProperty<>(this, UPDATE_STATE_PROPERTY, UpdateState.CHECKING_FOR_NEW_VERSION);
     private final Queue<UpdateCallback> listeners = new ConcurrentLinkedDeque<>();
     private final UpdateCallback callback = createCallback();
 
@@ -39,11 +30,11 @@ public class UpdateService {
      * @return Returns the version info if available, else {@link Optional#empty()}.
      */
     public Optional<VersionInfo> getUpdateInfo() {
-        return Optional.ofNullable(FxLib.INSTANCE.version_info(PopcornFxInstance.INSTANCE.get()));
+        return Optional.ofNullable(fxLib.version_info(instance));
     }
 
     public UpdateState getState() {
-        return state.get();
+        return fxLib.update_state(instance);
     }
 
     //endregion
@@ -51,11 +42,10 @@ public class UpdateService {
     //region Methods
 
     public void startUpdateAndExit() {
-        taskExecutor.execute(this::doInternalUpdate);
     }
 
     public void downloadUpdate() {
-
+        fxLib.download_update(instance);
     }
 
     public void register(UpdateCallback listener) {
@@ -67,16 +57,7 @@ public class UpdateService {
 
     @PostConstruct
     void init() {
-        FxLib.INSTANCE.register_update_callback(PopcornFxInstance.INSTANCE.get(), callback);
-    }
-
-    private void doInternalDownload(String downloadUri) {
-
-    }
-
-    private void doInternalUpdate() {
-        state.set(UpdateState.INSTALLING);
-        platformProvider.exit();
+        fxLib.register_update_callback(instance, callback);
     }
 
     private UpdateCallback createCallback() {

@@ -9,5 +9,13 @@ pub enum UpdateError {
     #[error("The update channel \"{0}\" is invalid and cannot be queried")]
     InvalidUpdateChannel(String),
     #[error("Received invalid update channel response, {0}")]
-    Response(String)
+    Response(String),
+    #[error("The specified download url {0} is invalid")]
+    InvalidDownloadUrl(String),
+    /// Indicates that the download failed with the `StatusCode` and `Filename`
+    #[error("The update couldn't be downloaded")]
+    DownloadFailed(String, String),
+    /// Indicates that an issue occurred during an io operation
+    #[error("Failed to write update file to {0}")]
+    IO(String),
 }

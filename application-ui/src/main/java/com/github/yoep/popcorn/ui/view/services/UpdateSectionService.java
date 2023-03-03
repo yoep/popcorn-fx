@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
-import com.github.yoep.popcorn.ui.updater.UpdateService;
 import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

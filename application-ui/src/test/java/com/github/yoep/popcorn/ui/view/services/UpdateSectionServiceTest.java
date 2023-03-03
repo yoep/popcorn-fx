@@ -1,10 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.updater.UpdateCallback;
-import com.github.yoep.popcorn.backend.updater.UpdateEvent;
-import com.github.yoep.popcorn.backend.updater.UpdateState;
-import com.github.yoep.popcorn.backend.updater.VersionInfo;
-import com.github.yoep.popcorn.ui.updater.UpdateService;
+import com.github.yoep.popcorn.backend.updater.*;
 import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

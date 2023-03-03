@@ -10,10 +10,10 @@
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.UpdateSectionController"
           styleClass="loader,about-section">
     <columnConstraints>
-        <ColumnConstraints percentWidth="30"/>
+        <ColumnConstraints percentWidth="15"/>
         <ColumnConstraints/>
         <ColumnConstraints hgrow="ALWAYS"/>
-        <ColumnConstraints percentWidth="30"/>
+        <ColumnConstraints percentWidth="15"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints percentHeight="10"/>

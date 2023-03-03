@@ -17,6 +17,7 @@ use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
+use popcorn_fx_core::core::updater::UpdateState;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 #[cfg(feature = "ffi")]
@@ -63,10 +64,9 @@ pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut S
 /// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetailsC) -> *mut SubtitleInfoSet {
-    let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
     let movie_instance = movie.to_struct();
 
-    match runtime.block_on(popcorn_fx.subtitle_provider().movie_subtitles(movie_instance)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().movie_subtitles(movie_instance)) {
         Ok(e) => {
             debug!("Found movie subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -85,11 +85,10 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetai
 /// Retrieve the given subtitles for the given episode
 #[no_mangle]
 pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetailsC, episode: &EpisodeC) -> *mut SubtitleInfoSet {
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
     let show_instance = show.to_struct();
     let episode_instance = episode.to_struct();
 
-    match runtime.block_on(popcorn_fx.subtitle_provider().episode_subtitles(show_instance, episode_instance)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().episode_subtitles(show_instance, episode_instance)) {
         Ok(e) => {
             debug!("Found episode subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -109,9 +108,8 @@ pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetai
 #[no_mangle]
 pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut c_char) -> *mut SubtitleInfoSet {
     let filename_rust = from_c_string(filename);
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.subtitle_provider().file_subtitles(&filename_rust)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().file_subtitles(&filename_rust)) {
         Ok(e) => {
             debug!("Found filename subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -211,9 +209,8 @@ pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC,
     trace!("Starting subtitle download for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
         Ok(e) => {
             debug!("Returning subtitle filepath {:?}", &e);
             into_c_string(e)
@@ -232,9 +229,8 @@ pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC,
 pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
     let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.subtitle_provider().download_and_parse(&subtitle_info, &matcher)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().download_and_parse(&subtitle_info, &matcher)) {
         Ok(e) => {
             let result = SubtitleC::from(e);
             debug!("Returning parsed subtitle {:?}", result);
@@ -275,9 +271,8 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.providers().retrieve(&Category::MOVIES, &genre, &sort_by, &keywords, page)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::MOVIES, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} movies, {:?}", e.len(), &e);
             let movies: Vec<MovieOverview> = e.into_iter()
@@ -308,9 +303,8 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
 #[no_mangle]
 pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MovieDetailsC {
     let imdb_id = from_c_string(imdb_id);
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.providers().retrieve_details(&Category::MOVIES, &imdb_id)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::MOVIES, &imdb_id)) {
         Ok(e) => {
             trace!("Returning movie details {:?}", &e);
             into_c_owned(MovieDetailsC::from(*e
@@ -340,9 +334,8 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.providers().retrieve(&Category::SERIES, &genre, &sort_by, &keywords, page)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::SERIES, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} shows, {:?}", e.len(), &e);
             let shows: Vec<ShowOverview> = e.into_iter()
@@ -373,9 +366,8 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
 #[no_mangle]
 pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut ShowDetailsC {
     let imdb_id = from_c_string(imdb_id);
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.providers().retrieve_details(&Category::SERIES, &imdb_id)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::SERIES, &imdb_id)) {
         Ok(e) => {
             trace!("Returning show details {:?}", &e);
             into_c_owned(ShowDetailsC::from(*e
@@ -405,9 +397,8 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.providers().retrieve(&Category::FAVORITES, &genre, &sort_by, &keywords, page)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::FAVORITES, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);
             favorites_to_c(e)
@@ -426,9 +417,8 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
 #[no_mangle]
 pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MediaItemC {
     let imdb_id = from_c_string(imdb_id);
-    let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
 
-    match runtime.block_on(popcorn_fx.providers().retrieve_details(&Category::FAVORITES, &imdb_id)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::FAVORITES, &imdb_id)) {
         Ok(e) => {
             trace!("Returning favorite details {:?}", &e);
             match e.media_type() {
@@ -975,6 +965,23 @@ pub extern "C" fn version_info(popcorn_fx: &mut PopcornFX) -> *mut VersionInfoC 
     }
 }
 
+/// Retrieve the current update state of the application.
+#[no_mangle]
+pub extern "C" fn update_state(popcorn_fx: &mut PopcornFX) -> UpdateState {
+    popcorn_fx.updater().state()
+}
+
+/// Start downloading the application update if available.
+#[no_mangle]
+pub extern "C" fn download_update(popcorn_fx: &mut PopcornFX) {
+    let updater = popcorn_fx.updater().clone();
+    popcorn_fx.runtime().spawn(async move {
+        if let Err(e) = updater.download().await {
+            error!("Failed to download update, {}", e)
+        }
+    });
+}
+
 /// Register a new callback for update events.
 #[no_mangle]
 pub extern "C" fn register_update_callback(popcorn_fx: &mut PopcornFX, callback: UpdateCallbackC) {
@@ -1417,6 +1424,22 @@ mod test {
         let result = version_info(&mut instance);
 
         assert!(!result.is_null())
+    }
+
+    #[test]
+    fn test_download_update() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
+
+        download_update(&mut instance);
     }
 
     #[test]

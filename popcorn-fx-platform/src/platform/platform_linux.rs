@@ -1,7 +1,5 @@
 use popcorn_fx_core::core::platform::Platform;
 
-use crate::platform::Platform;
-
 /// The linux platform specific implementation
 #[derive(Debug)]
 pub struct PlatformLinux {

@@ -8,7 +8,7 @@
 <VBox styleClass="header" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.HeaderSectionController" fx:id="headerPane">
     <!-- Title bar -->
-    <fx:include fx:id="titleBar" source="../components/title-bar.component.fxml"/>
+    <fx:include fx:id="titleBar" source="../../desktop/components/title-bar.component.fxml"/>
 
     <!-- Header -->
     <GridPane styleClass="bar">

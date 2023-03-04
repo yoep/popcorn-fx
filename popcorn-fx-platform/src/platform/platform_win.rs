@@ -92,14 +92,14 @@ mod test {
 
     #[test]
     fn test_windows_disable_screensaver() {
-        let mut platform = PlatformWin::default();
+        let platform = PlatformWin::default();
 
         assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
     }
 
     #[test]
     fn test_windows_enable_screensaver() {
-        let mut platform = PlatformWin::default();
+        let platform = PlatformWin::default();
 
         assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
         assert_eq!(platform.enable_screensaver(), true, "Expected the screensaver to have been enabled");

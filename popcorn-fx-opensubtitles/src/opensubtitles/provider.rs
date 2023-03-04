@@ -11,6 +11,7 @@ use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
+use tokio::fs::OpenOptions;
 use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::config::ApplicationConfig;
@@ -254,28 +255,41 @@ impl OpensubtitlesProvider {
     async fn handle_download_binary_response(&self, file_id: &i32, path: &Path, response: Response) -> Result<String> {
         match response.status() {
             StatusCode::OK => {
-                trace!("Storing subtitle response of {} into {:?}", file_id, path);
-                match File::create(path) {
-                    Ok(mut file) => {
-                        let mut stream = response.bytes_stream();
-                        while let Some(chunk) = stream.next().await {
-                            let chunk = chunk.map_err(|e| {
-                                error!("Failed to read subtitle response chunk, {}", e);
-                                SubtitleError::WritingFailed(path.to_str().unwrap().to_string())
-                            })?;
+                // create the parent directory if needed
+                let directory_path = path.to_path_buf();
+                let directory = directory_path.parent().unwrap();
+                trace!("Creating subtitle directory {}", directory.to_str().unwrap());
+                fs::create_dir_all(directory)
+                    .map_err(|e| SubtitleError::IO(directory.to_str().unwrap().to_string(), e.to_string()))?;
 
-                            std::io::copy(&mut chunk.as_ref(), &mut file).map_err(|e| {
-                                error!("Failed to write subtitle file, {}", e);
-                                SubtitleError::WritingFailed(path.to_str().unwrap().to_string())
-                            })?;
-                        }
+                // open the subtitle file that will be written
+                let filepath = path.to_str().unwrap();
+                trace!("Opening subtitle file {}", filepath);
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(path)
+                    .await
+                    .map_err(|e| SubtitleError::IO(filepath.to_string(), e.to_string()))?;
 
-                        let path = path.to_str().expect("expected the path to be a valid str");
-                        info!("Downloaded subtitle file {}", path);
-                        Ok(path.to_string())
-                    }
-                    Err(err) => Err(SubtitleError::DownloadFailed(file_id.to_string(), err.to_string()))
+                // stream the bytes to the opened file
+                debug!("Writing subtitle file {} to {}", file_id, filepath);
+                let mut stream = response.bytes_stream();
+                while let Some(chunk) = stream.next().await {
+                    let chunk = chunk.map_err(|e| {
+                        error!("Failed to read subtitle response chunk, {}", e);
+                        SubtitleError::DownloadFailed(filepath.to_string(), e.to_string())
+                    })?;
+
+                    tokio::io::copy(&mut chunk.as_ref(), &mut file).await.map_err(|e| {
+                        error!("Failed to write subtitle file, {}", e);
+                        SubtitleError::IO(filepath.to_string(), e.to_string())
+                    })?;
                 }
+
+                info!("Downloaded subtitle file {}", filepath);
+                Ok(filepath.to_string())
             }
             _ => Err(SubtitleError::DownloadFailed(file_id.to_string(), format!("download failed with status code {}", response.status())))
         }
@@ -516,6 +530,7 @@ impl Drop for OpensubtitlesProvider {
                             }
                         }
                     }
+                    info!("Subtitle directory {} has been cleaned", path.to_str().unwrap());
                 }
                 Err(err) => {
                     warn!("Failed to clean subtitle directory {:?}, {}", &path, err)
@@ -543,6 +558,10 @@ mod test {
     use super::*;
 
     fn start_mock_server() -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
+        start_mock_server_with_subtitle_dir(None)
+    }
+
+    fn start_mock_server_with_subtitle_dir(subdirectory: Option<&str>) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
         let server = MockServer::start();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -559,7 +578,7 @@ mod test {
             },
             settings: PopcornSettings {
                 subtitle_settings: SubtitleSettings {
-                    directory: temp_dir.into_path().to_str().unwrap().to_string(),
+                    directory: PathBuf::from(temp_path).join(subdirectory.or_else(|| Some("")).unwrap()).to_str().unwrap().to_string(),
                     auto_cleaning_enabled: false,
                     default_subtitle: English,
                     font_family: SubtitleFamily::Arial,
@@ -765,6 +784,45 @@ mod test {
         let result = runtime.block_on(service.download_and_parse(&subtitle_info, &matcher)).unwrap();
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_download_should_create_subtitle_directory() {
+        init_logger();
+        let subdirectory = "subtitles";
+        let (server, settings) = start_mock_server_with_subtitle_dir(Some(subdirectory));
+        let temp_dir = settings.blocking_lock().user_settings().subtitle().directory().to_str().unwrap().to_string();
+        let service = OpensubtitlesProvider::new(&settings);
+        let filename = "test-subtitle-file.srt".to_string();
+        let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
+            SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
+        ]);
+        let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
+        let response_body = read_test_file("download_response.json");
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/download");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(response_body
+                    .replace("[[host]]", server.host().as_str())
+                    .replace("[[port]]", server.port().to_string().as_str()));
+        });
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/download/example.srt");
+            then.status(200)
+                .header("content-type", "text")
+                .body(read_test_file("subtitle_example.srt"));
+        });
+        let runtime = runtime::Runtime::new().unwrap();
+
+        let _ = runtime.block_on(service.download_and_parse(&subtitle_info, &matcher))
+            .expect("expected the download to succeed");
+
+        // the temp_dir already contains the subdirectory
+        assert!(PathBuf::from(temp_dir.as_str()).exists(), "expected the subtitle directory to have been created");
+        assert!(PathBuf::from(temp_dir.as_str()).join(filename).exists(), "expected the subtitle to have been created");
     }
 
     #[test]

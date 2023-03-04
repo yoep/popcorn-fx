@@ -101,6 +101,6 @@ build-release: prerequisites build-cargo-release build-java-release ## Build the
 package: build-release ## Package the application for distribution
 	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
 
-release: bump-minor build-release ## Release a new version of the application with increased minor
+release: bump-minor test-cargo build-release ## Release a new version of the application with increased minor
 
-release-bugfix: bump-patch build-release ## Release a patch of the application
+release-bugfix: bump-patch test-cargo build-release ## Release a patch of the application

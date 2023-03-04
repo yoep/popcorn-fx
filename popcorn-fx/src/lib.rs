@@ -1,7 +1,4 @@
 extern crate core;
-extern crate popcorn_fx_core;
-extern crate popcorn_fx_opensubtitles;
-extern crate popcorn_fx_platform;
 
 use std::{mem, ptr, slice};
 use std::os::raw::c_char;
@@ -10,7 +7,7 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, VERSION, WatchedEventC};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, VERSION, WatchedEventC};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;

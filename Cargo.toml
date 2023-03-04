@@ -14,4 +14,7 @@ log = "0"
 tokio = "1"
 
 [profile.release]
-opt-level = 1
+opt-level = 3
+debug = false
+strip = true
+lto = true

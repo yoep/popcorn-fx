@@ -37,6 +37,13 @@ prerequisites: ## Install the requirements for the application
 	@cargo install grcov
 	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
 
+bump-dependencies: ## Install required bump dependencies
+	@python.exe -m pip install --upgrade pip
+	@pip install bump2version --user
+
+bump-%: bump-dependencies ## Bump the (major, minor, patch) version of the application
+	@bumpversion $*
+
 clean: prerequisites ## Clean the output
 	$(info Cleaning output directories)
 	@cargo clean
@@ -61,7 +68,7 @@ build-cargo: ## Build the rust part of the application
 	$(info Building cargo packages)
 	@cargo build --features ffi
 
-build-cargo-release: test-cargo ## Build the rust part of the application in release profile
+build-cargo-release:  ## Build the rust part of the application in release profile
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
 	@cargo build --release --features ffi
@@ -86,7 +93,7 @@ build: prerequisites build-cargo lib-copy build-java ## Build the application
 package: prerequisites build ## Package the application for distribution
 	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
 
-release: prerequisites build-cargo-release lib-copy ## Release a new version of the application
-	$(info Starting maven gitflow release)
-	@mvn -B -P$(PROFILE) gitflow:release
+release: bump-minor prerequisites build-cargo-release build-java ## Release a new version of the application
+
+release-bugfix: bump-patch prerequisites build-cargo-release build-java ## Release a patch of the application
 

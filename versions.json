@@ -1,27 +1,26 @@
 {
-  "version": "0.4.1",
+  "version": "0.5.0",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.1/popcorn-time_0.4.1.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.1/popcorn-time_0.4.1_arm64.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.1/popcorn-time_0.4.1.dmg",
-    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.4.1/popcorn-time_0.4.1.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0.dmg",
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0.exe"
   },
   "changelog": {
     "features": [
-      "Application starts on active screen instead of always the main screen",
-      "Using OpenSubtitles REST api",
-      "VTT endpoint using rust backend",
-      "Reworked media providers within rust",
-      "Added media playback shortcuts to external player view"
+      "Improved the auto updater",
+      "Improved settings handling",
+      "Improved subtitle actions",
+      "Improved auto-resume of media items",
+      "Improved streaming",
+      "Improved the liked items actions",
+      "Improved the watched items actions",
+      "Optimized startup time"
     ],
     "bugfixes": [
-      "MacOS compilation",
-      "MacOS icons not always visible",
-      "MacOS install package not working",
-      "Application not launching on MacOS",
-      "Favorite button not working within serie details",
-      "Screensaver activating during media playback",
-      "Player going outside of the window"
+      "Fixed a crash when selecting a subtitle for playback",
+      "Fixed a crash on MacOS when a default subtitle is being selected",
+      "Fixed release build"
     ]
   }
 }

@@ -8,7 +8,6 @@ license-file = "../LICENSE"
 
 [lib]
 crate-type = ["rlib"]
-proc-macro = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,11 +19,11 @@ bytes = "1.4"
 derive-new = "0"
 futures = "0"
 itertools = "0"
-log = "0"
+log.workspace = true
 reqwest = { version = "0", features = ["serde_json", "json", "stream"] }
 serde = "1"
 serde_json = "1"
-tokio = {version = "1", features = ["fs"]}
+tokio = {workspace = true, features = ["fs"]}
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

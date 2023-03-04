@@ -57,11 +57,11 @@ pub struct Updater {
 }
 
 impl Updater {
-    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str) -> Self {
+    pub fn new(settings: &Arc<tokio::sync::Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str) -> Self {
         Self::new_with_callbacks(settings, platform, storage_path, vec![])
     }
 
-    pub fn new_with_callbacks(settings: &Arc<Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
+    pub fn new_with_callbacks(settings: &Arc<tokio::sync::Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
         let instance = Self {
             inner: Arc::new(InnerUpdater::new(settings, platform, storage_path, callbacks))
         };
@@ -124,9 +124,9 @@ struct InnerUpdater {
     /// The client used for polling the information
     client: Client,
     /// The cached version information if available
-    cache: Mutex<Option<VersionInfo>>,
+    cache: tokio::sync::Mutex<Option<VersionInfo>>,
     /// The last know state of the updater
-    state: Mutex<UpdateState>,
+    state: tokio::sync::Mutex<UpdateState>,
     runtime: Arc<tokio::runtime::Runtime>,
     /// The event callbacks for the updater
     callbacks: CoreCallbacks<UpdateEvent>,
@@ -134,7 +134,7 @@ struct InnerUpdater {
 }
 
 impl InnerUpdater {
-    fn new(settings: &Arc<Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
+    fn new(settings: &Arc<tokio::sync::Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
         let core_callbacks: CoreCallbacks<UpdateEvent> = Default::default();
 
         // add the given callbacks to the initial list
@@ -148,8 +148,8 @@ impl InnerUpdater {
             client: ClientBuilder::new()
                 .build()
                 .unwrap(),
-            cache: Mutex::new(None),
-            state: Mutex::new(CheckingForNewVersion),
+            cache: tokio::sync::Mutex::new(None),
+            state: tokio::sync::Mutex::new(CheckingForNewVersion),
             runtime: Arc::new(tokio::runtime::Runtime::new().unwrap()),
             callbacks: core_callbacks,
             storage_path: PathBuf::from(storage_path),
@@ -648,9 +648,8 @@ mod test {
   "platforms": {},
   "changelog": {}}"#);
         });
-        let mut platform_mock = MockDummyPlatformData::new();
+        let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let runtime = tokio::runtime::Runtime::new().unwrap();
         let (tx, rx) = channel();
         let updater = Updater::new_with_callbacks(&settings, &platform, temp_path, vec![
             Box::new(move |event| {
@@ -675,7 +674,7 @@ mod test {
         let server = MockServer::start();
         let update_channel = server.url("");
 
-        (server, Arc::new(Mutex::new(ApplicationConfig {
+        (server, Arc::new(tokio::sync::Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
                 update_channel,

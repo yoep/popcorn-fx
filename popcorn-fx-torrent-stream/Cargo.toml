@@ -8,7 +8,6 @@ license-file = "../LICENSE"
 
 [lib]
 crate-type = ["rlib"]
-proc-macro = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,10 +20,10 @@ futures = "0.3"
 hyper = { version = "0.14", features = ["http2", "server", "stream"] }
 itertools = "0.10"
 local-ip-address = "0.5"
-log = "0"
+log.workspace = true
 percent-encoding = "2"
 thiserror = "1.0"
-tokio = { version = "1", features = ["rt-multi-thread", "fs"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["io"] }
 url = "2"

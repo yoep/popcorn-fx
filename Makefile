@@ -37,6 +37,13 @@ prerequisites: ## Install the requirements for the application
 	@cargo install grcov
 	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
 
+bump-dependencies: ## Install required bump dependencies
+	@python.exe -m pip install --upgrade pip
+	@pip install bump2version --user
+
+bump-%: bump-dependencies ## Bump the (major, minor, patch) version of the application
+	@bumpversion $*
+
 clean: prerequisites ## Clean the output
 	$(info Cleaning output directories)
 	@cargo clean
@@ -61,32 +68,39 @@ build-cargo: ## Build the rust part of the application
 	$(info Building cargo packages)
 	@cargo build --features ffi
 
-build-cargo-release: test-cargo ## Build the rust part of the application in release profile
+build-cargo-release:  ## Build the rust part of the application in release profile
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
 	@cargo build --release --features ffi
 
 ## Copy the cargo libraries to the java resources
 ifeq ($(SYSTEM),Windows)
-lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
-	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),xcopy ".\target\debug\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(ASSETS)\" /R /I /F /Y && ) echo.
+lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
+	$(info Copying windows libraries to assets)
+	@$(foreach file,$(LIBRARIES),xcopy ".\target\$*\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(ASSETS)\" /R /I /F /Y && ) echo.
 else
-lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
-	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),cp "target/debug/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(ASSETS)/";)
+lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
+	$(info Copying unix libraries to assets)
+	@$(foreach file,$(LIBRARIES),cp "target/$*/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(ASSETS)/";)
 endif
 
-build-java: lib-copy ## Build the java part of the application
+lib-copy: lib-copy-debug ## The default lib-copy target
+
+build-java: lib-copy-debug ## Build the java part of the application
 	$(info Building java)
 	@mvn -B compile -P$(PROFILE)
 
-build: prerequisites build-cargo lib-copy build-java ## Build the application
+build-java-release: lib-copy-release ## Build the java part of the application
+	$(info Building java)
+	@mvn -B compile -P$(PROFILE)
 
-package: prerequisites build ## Package the application for distribution
+build: prerequisites build-cargo build-java ## Build the application in debug mode
+
+build-release: prerequisites build-cargo-release build-java-release ## Build the application in release mode (slower build time)
+
+package: build-release ## Package the application for distribution
 	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
 
-release: prerequisites build-cargo-release lib-copy ## Release a new version of the application
-	$(info Starting maven gitflow release)
-	@mvn -B -P$(PROFILE) gitflow:release
+release: bump-minor build-release ## Release a new version of the application with increased minor
 
+release-bugfix: bump-patch build-release ## Release a patch of the application

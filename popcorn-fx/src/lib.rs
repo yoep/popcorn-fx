@@ -1211,6 +1211,26 @@ mod test {
         let language_result = retrieve_preferred_subtitle_language(&mut instance);
         assert_eq!(subtitle2, info_result);
         assert_eq!(language2, language_result);
+
+        reset_subtitle(&mut instance);
+        let preferred_result = retrieve_preferred_subtitle_language(&mut instance);
+        assert_eq!(SubtitleLanguage::None, preferred_result);
+    }
+
+    #[test]
+    fn test_reset_movie_apis() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            app_directory: temp_path.to_string(),
+        });
+
+        reset_movie_apis(&mut instance);
     }
 
     #[test]

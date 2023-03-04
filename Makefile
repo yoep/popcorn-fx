@@ -76,11 +76,11 @@ build-cargo-release:  ## Build the rust part of the application in release profi
 ## Copy the cargo libraries to the java resources
 ifeq ($(SYSTEM),Windows)
 lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
-	$(info Copying libraries to java resources)
+	$(info Copying windows libraries to assets)
 	@$(foreach file,$(LIBRARIES),xcopy ".\target\$*\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(ASSETS)\" /R /I /F /Y && ) echo.
 else
 lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
-	$(info Copying libraries to java resources)
+	$(info Copying unix libraries to assets)
 	@$(foreach file,$(LIBRARIES),cp "target/$*/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(ASSETS)/";)
 endif
 

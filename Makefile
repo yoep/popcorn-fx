@@ -94,12 +94,13 @@ build-java-release: lib-copy-release ## Build the java part of the application
 	$(info Building java)
 	@mvn -B compile -P$(PROFILE)
 
-build: prerequisites build-cargo lib-copy-debug build-java ## Build the application
+build: prerequisites build-cargo build-java ## Build the application in debug mode
 
-package: prerequisites build ## Package the application for distribution
+build-release: prerequisites build-cargo-release build-java-release ## Build the application in release mode (slower build time)
+
+package: build-release ## Package the application for distribution
 	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
 
-release: bump-minor prerequisites build-cargo-release build-java-release ## Release a new version of the application
+release: bump-minor build-release ## Release a new version of the application with increased minor
 
-release-bugfix: bump-patch prerequisites build-cargo-release build-java-release ## Release a patch of the application
-
+release-bugfix: bump-patch build-release ## Release a patch of the application

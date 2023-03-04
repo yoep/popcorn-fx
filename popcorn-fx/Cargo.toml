@@ -9,7 +9,6 @@ description = "The main Popcorn FX package"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-proc-macro = true
 
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }

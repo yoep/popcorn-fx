@@ -55,7 +55,9 @@ mod test {
             .map(|e| into_c_string(e))
             .collect());
 
-        new_popcorn_fx(args, len);
+        let result = new_popcorn_fx(args, len);
+
+        assert!(!result.is_null(), "expected a valid instance pointer")
     }
 
     #[test]

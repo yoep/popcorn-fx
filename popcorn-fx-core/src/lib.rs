@@ -17,7 +17,7 @@ mod subtitle_c;
 mod torrent_collection_c;
 
 /// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.5.0";
+pub const VERSION: &str = "0.5.1";
 
 /// Convert the given [String] into a C compatible string.
 pub fn into_c_string(value: String) -> *const c_char {

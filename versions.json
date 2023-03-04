@@ -1,26 +1,16 @@
 {
-  "version": "0.5.0",
+  "version": "0.5.1",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0_arm64.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0.dmg",
-    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.0/popcorn-time_0.5.0.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1.dmg",
+    "windows.x86-64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1.exe"
   },
   "changelog": {
     "features": [
-      "Improved the auto updater",
-      "Improved settings handling",
-      "Improved subtitle actions",
-      "Improved auto-resume of media items",
-      "Improved streaming",
-      "Improved the liked items actions",
-      "Improved the watched items actions",
-      "Optimized startup time"
     ],
     "bugfixes": [
-      "Fixed a crash when selecting a subtitle for playback",
-      "Fixed a crash on MacOS when a default subtitle is being selected",
-      "Fixed release build"
+      "Fixed subtitles directory not being created"
     ]
   }
 }

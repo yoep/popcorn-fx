@@ -170,6 +170,10 @@ public interface FxLib extends Library {
 
     byte is_vlc_video_player_disabled(PopcornFx instance);
 
+    byte is_tv_mode(PopcornFx instance);
+
+    byte is_maximized(PopcornFx instance);
+
     VersionInfo version_info(PopcornFx instance);
 
     UpdateState update_state(PopcornFx instance);

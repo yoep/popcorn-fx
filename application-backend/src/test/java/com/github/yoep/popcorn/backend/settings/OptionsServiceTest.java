@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend.settings;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,6 +16,10 @@ import static org.mockito.Mockito.when;
 class OptionsServiceTest {
     @Mock
     private ApplicationArguments arguments;
+    @Mock
+    private FxLib fxLib;
+    @Mock
+    private PopcornFx instance;
     @InjectMocks
     private OptionsService optionsService;
 
@@ -37,34 +43,9 @@ class OptionsServiceTest {
     }
 
     @Test
-    void testInit_whenTvModeIsEnabled_shouldSetTheTvModeOption() {
-        when(arguments.containsOption(OptionsService.BIG_PICTURE_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.KIOSK_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.TV_MODE_OPTION)).thenReturn(true);
-
-        optionsService.init();
-
-        assertTrue(optionsService.options().isTvMode());
-    }
-
-    @Test
-    void testInit_whenMaximizedIsEnabled_shouldSetTheMaximizedOption() {
-        when(arguments.containsOption(OptionsService.BIG_PICTURE_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.KIOSK_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.TV_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.MAXIMIZED_OPTION)).thenReturn(true);
-
-        optionsService.init();
-
-        assertTrue(optionsService.options().isMaximized());
-    }
-
-    @Test
     void testInit_whenMouseIsDisabled_shouldSetTheMouseDisabledOption() {
         when(arguments.containsOption(OptionsService.BIG_PICTURE_MODE_OPTION)).thenReturn(false);
         when(arguments.containsOption(OptionsService.KIOSK_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.TV_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.MAXIMIZED_OPTION)).thenReturn(false);
         when(arguments.containsOption(OptionsService.DISABLE_MOUSE_OPTION)).thenReturn(true);
 
         optionsService.init();
@@ -73,16 +54,20 @@ class OptionsServiceTest {
     }
 
     @Test
-    void testInit_whenKeepAliveIsDisabled_shouldSetTheKeepAliveDisabledOption() {
-        when(arguments.containsOption(OptionsService.BIG_PICTURE_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.KIOSK_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.TV_MODE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.MAXIMIZED_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.DISABLE_MOUSE_OPTION)).thenReturn(false);
-        when(arguments.containsOption(OptionsService.DISABLE_KEEP_ALIVE_OPTION)).thenReturn(true);
+    void testIsTvMode() {
+        when(fxLib.is_tv_mode(instance)).thenReturn((byte)1);
 
-        optionsService.init();
+        var result = optionsService.isTvMode();
 
-        assertTrue(optionsService.options().isKeepAliveDisabled());
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsMaximized() {
+        when(fxLib.is_maximized(instance)).thenReturn((byte)1);
+
+        var result = optionsService.isMaximized();
+
+        assertTrue(result);
     }
 }

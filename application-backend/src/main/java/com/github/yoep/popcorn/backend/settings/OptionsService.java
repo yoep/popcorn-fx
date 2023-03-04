@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend.settings;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,12 +21,11 @@ import javax.annotation.PostConstruct;
 public class OptionsService {
     public static final String BIG_PICTURE_MODE_OPTION = "big-picture";
     public static final String KIOSK_MODE_OPTION = "kiosk";
-    public static final String TV_MODE_OPTION = "tv";
-    public static final String MAXIMIZED_OPTION = "maximized";
     public static final String DISABLE_MOUSE_OPTION = "disable-mouse";
-    public static final String DISABLE_KEEP_ALIVE_OPTION = "disable-keep-alive";
 
     private final ApplicationArguments arguments;
+    private final FxLib fxLib;
+    private final PopcornFx instance;
 
     private ApplicationOptions options;
 
@@ -37,33 +38,31 @@ public class OptionsService {
         return options;
     }
 
+    public boolean isTvMode() {
+        return fxLib.is_tv_mode(instance) == 1;
+    }
+
+    public boolean isMaximized() {
+        return fxLib.is_maximized(instance) == 1;
+    }
+
     @PostConstruct
     void init() {
         var bigPictureMode = arguments.containsOption(BIG_PICTURE_MODE_OPTION);
         var kioskMode = arguments.containsOption(KIOSK_MODE_OPTION);
-        var tvMode = arguments.containsOption(TV_MODE_OPTION);
-        var maximized = arguments.containsOption(MAXIMIZED_OPTION);
         var disableMouse = arguments.containsOption(DISABLE_MOUSE_OPTION);
-        var disableKeepAlive = arguments.containsOption(DISABLE_KEEP_ALIVE_OPTION);
 
         if (bigPictureMode)
             log.debug("Activating big-picture mode");
         if (kioskMode)
             log.debug("Activating kiosk mode");
-        if (tvMode)
-            log.debug("Activating tv mode");
         if (disableMouse)
             log.debug("Disabling mouse application wide");
-        if (disableKeepAlive)
-            log.debug("Disabling keep alive service");
 
         options = ApplicationOptions.builder()
                 .bigPictureMode(bigPictureMode)
                 .kioskMode(kioskMode)
-                .tvMode(tvMode)
-                .maximized(maximized)
                 .mouseDisabled(disableMouse)
-                .keepAliveDisabled(disableKeepAlive)
                 .build();
     }
 }

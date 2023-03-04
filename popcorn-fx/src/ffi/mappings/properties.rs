@@ -2,15 +2,13 @@ use std::os::raw::c_char;
 
 use log::trace;
 
-use crate::{into_c_string, to_c_vec};
-use crate::core::config::PopcornProperties;
+use popcorn_fx_core::{into_c_string, to_c_vec};
+use popcorn_fx_core::core::config::PopcornProperties;
 
 /// The C compatible properties of the application.
 #[repr(C)]
 #[derive(Debug)]
 pub struct PopcornPropertiesC {
-    /// The update channel to retrieve updates from
-    pub update_channel: *const c_char,
     /// The array of available provider properties
     pub provider_properties: *mut ProviderPropertiesC,
     /// The length of the provider properties array
@@ -40,7 +38,6 @@ impl From<&PopcornProperties> for PopcornPropertiesC {
             .collect());
 
         Self {
-            update_channel: into_c_string(value.update_channel().to_string()),
             provider_properties,
             provider_properties_len,
         }
@@ -65,8 +62,6 @@ pub struct ProviderPropertiesC {
 
 #[cfg(test)]
 mod test {
-    use crate::from_c_string;
-
     use super::*;
 
     #[test]
@@ -80,6 +75,6 @@ mod test {
 
         let result = PopcornPropertiesC::from(&properties);
 
-        assert_eq!(update_channel.to_string(), from_c_string(result.update_channel));
+        assert_eq!(3, result.provider_properties_len)
     }
 }

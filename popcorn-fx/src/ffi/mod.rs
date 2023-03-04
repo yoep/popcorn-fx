@@ -1,5 +1,9 @@
 pub use main::*;
 pub use mappings::*;
+pub use options::*;
+pub use update::*;
 
-mod mappings;
 mod main;
+mod mappings;
+mod options;
+mod update;

@@ -90,12 +90,6 @@ public class PopcornTimePreloader extends Preloader {
             log.trace("Hiding preloader cursor");
             scene.setCursor(Cursor.NONE);
         }
-
-        // check if the preload should be maximized
-        if (containsOption(OptionsService.MAXIMIZED_OPTION)) {
-            log.trace("Maximizing preloader window");
-            primaryStage.setMaximized(true);
-        }
     }
 
     private ClassPathResource getIconResource() {

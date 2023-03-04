@@ -19,19 +19,7 @@ public class ApplicationOptions {
      */
     private final boolean kioskMode;
     /**
-     * Indicates if the tv mode is enabled.
-     */
-    private final boolean tvMode;
-    /**
-     * Indicates if the window should be maximized on startup.
-     */
-    private final boolean maximized;
-    /**
      * Indicates if the mouse should be permanently disabled from the application.
      */
     private final boolean mouseDisabled;
-    /**
-     * Indicates if the keep alive should be permanently disabled from the application.
-     */
-    private final boolean keepAliveDisabled;
 }

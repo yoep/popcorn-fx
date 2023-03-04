@@ -7,7 +7,7 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, VERSION, WatchedEventC};
+use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
@@ -912,73 +912,6 @@ pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings:
     popcorn_fx.settings().update_playback(settings);
 }
 
-/// Verify if the youtube video player has been disabled.
-#[no_mangle]
-pub extern "C" fn is_youtube_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
-    popcorn_fx.opts().disable_youtube_video_player
-}
-
-/// Verify if the FX embedded video player has been disabled.
-#[no_mangle]
-pub extern "C" fn is_fx_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
-    popcorn_fx.opts().disable_fx_video_player
-}
-
-/// Verify if the vlc video player has been disabled.
-#[no_mangle]
-pub extern "C" fn is_vlc_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
-    popcorn_fx.opts().disable_vlc_video_player
-}
-
-/// Retrieve the latest release version information.
-#[no_mangle]
-pub extern "C" fn version_info(popcorn_fx: &mut PopcornFX) -> *mut VersionInfoC {
-    trace!("Retrieving version info");
-    let runtime = popcorn_fx.runtime();
-    match runtime.block_on(popcorn_fx.updater().version_info()) {
-        Ok(version) => into_c_owned(VersionInfoC::from(&version)),
-        Err(e) => {
-            error!("Failed to poll version information, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
-/// Retrieve the current update state of the application.
-#[no_mangle]
-pub extern "C" fn update_state(popcorn_fx: &mut PopcornFX) -> UpdateStateC {
-    UpdateStateC::from(popcorn_fx.updater().state())
-}
-
-/// Start downloading the application update if available.
-#[no_mangle]
-pub extern "C" fn download_update(popcorn_fx: &mut PopcornFX) {
-    let updater = popcorn_fx.updater().clone();
-    popcorn_fx.runtime().spawn(async move {
-        if let Err(e) = updater.download().await {
-            error!("Failed to download update, {}", e)
-        }
-    });
-}
-
-/// Install the latest available update.
-#[no_mangle]
-pub extern "C" fn install_update(popcorn_fx: &mut PopcornFX) {
-    trace!("Starting installation update from C");
-    if let Err(e) = popcorn_fx.updater().install() {
-        error!("Failed to start update, {}", e);
-    }
-}
-
-/// Register a new callback for update events.
-#[no_mangle]
-pub extern "C" fn register_update_callback(popcorn_fx: &mut PopcornFX, callback: UpdateCallbackC) {
-    trace!("Registering new update callback from C");
-    popcorn_fx.updater().register(Box::new(move |event| {
-        callback(UpdateEventC::from(event))
-    }))
-}
-
 /// Dispose the given media item from memory.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
@@ -1015,12 +948,6 @@ pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
 #[no_mangle]
 pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollectionSet>) {
     trace!("Disposing collection set {:?}", collection_set)
-}
-
-/// Retrieve the version of Popcorn FX.
-#[no_mangle]
-pub extern "C" fn version() -> *const c_char {
-    into_c_string(VERSION.to_string())
 }
 
 #[cfg(test)]
@@ -1083,6 +1010,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
@@ -1105,6 +1034,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1120,6 +1051,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieOverview::new(
@@ -1143,6 +1076,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieDetails::new(
@@ -1166,6 +1101,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         let id = "tt0000001111".to_string();
@@ -1197,6 +1134,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1227,6 +1166,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1271,6 +1212,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1293,6 +1236,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1312,6 +1257,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1332,12 +1279,14 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
         let result = from_c_owned(application_properties(&mut instance));
 
-        assert_eq!(defaults.update_channel, from_c_string(result.update_channel))
+        assert_eq!(defaults.providers.len() as i32, result.provider_properties_len)
     }
 
     #[test]
@@ -1359,6 +1308,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1376,6 +1327,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         let settings = SubtitleSettings {
@@ -1393,40 +1346,6 @@ mod test {
         let result = mutex.user_settings().subtitle();
 
         assert_eq!(&settings, result)
-    }
-
-    #[test]
-    fn test_version_info() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            app_directory: temp_path.to_string(),
-        });
-
-        let result = version_info(&mut instance);
-
-        assert!(!result.is_null())
-    }
-
-    #[test]
-    fn test_download_update() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            app_directory: temp_path.to_string(),
-        });
-
-        download_update(&mut instance);
     }
 
     #[test]
@@ -1451,6 +1370,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         let genre = GenreC::from(Genre::all());
@@ -1484,12 +1405,5 @@ mod test {
         let subtitle_c = SubtitleC::from(subtitle);
 
         dispose_subtitle(Box::new(subtitle_c))
-    }
-
-    #[test]
-    fn test_version() {
-        let result = version();
-
-        assert_eq!(VERSION.to_string(), from_c_string(result))
     }
 }

@@ -272,8 +272,6 @@ struct ProviderPropertiesC {
 
 /// The C compatible properties of the application.
 struct PopcornPropertiesC {
-  /// The update channel to retrieve updates from
-  const char *update_channel;
   /// The array of available provider properties
   ProviderPropertiesC *provider_properties;
   /// The length of the provider properties array
@@ -768,6 +766,9 @@ void install_update(PopcornFX *popcorn_fx);
 /// Verify if the FX embedded video player has been disabled.
 bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
 
+/// Verify if the application should be maximized on startup.
+bool is_maximized(PopcornFX *popcorn_fx);
+
 /// Verify if the given media item is liked/favorite of the user.
 /// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
 ///
@@ -783,6 +784,9 @@ bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 ///
 /// It returns true when the subtitle track should be disabled, else false.
 bool is_subtitle_disabled(PopcornFX *popcorn_fx);
+
+/// Verify if the TV mode is activated for the application.
+bool is_tv_mode(PopcornFX *popcorn_fx);
 
 /// Verify if the vlc video player has been disabled.
 bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);

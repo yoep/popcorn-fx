@@ -8,3 +8,10 @@ members = [
     "popcorn-fx-torrent",
     "popcorn-fx-torrent-stream",
 ]
+
+[workspace.dependencies]
+log = "0"
+tokio = "1"
+
+[profile.release]
+opt-level = 1

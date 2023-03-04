@@ -8,6 +8,7 @@ use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
+use tokio::sync::Mutex;
 use url::Url;
 
 use crate::core::{CoreCallback, CoreCallbacks, updater};
@@ -118,7 +119,7 @@ impl Updater {
 
 #[derive(Debug)]
 struct InnerUpdater {
-    settings: Arc<tokio::sync::Mutex<ApplicationConfig>>,
+    settings: Arc<Mutex<ApplicationConfig>>,
     platform: Arc<Box<dyn PlatformData>>,
     /// The client used for polling the information
     client: Client,

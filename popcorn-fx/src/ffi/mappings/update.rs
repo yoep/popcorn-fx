@@ -1,6 +1,6 @@
 use popcorn_fx_core::core::updater::{UpdateEvent, UpdateState};
 
-use crate::popcorn::fx::ffi::VersionInfoC;
+use crate::ffi::VersionInfoC;
 
 /// The C compatible callback for update events.
 pub type UpdateCallbackC = extern "C" fn(UpdateEventC);

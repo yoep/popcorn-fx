@@ -75,25 +75,31 @@ build-cargo-release:  ## Build the rust part of the application in release profi
 
 ## Copy the cargo libraries to the java resources
 ifeq ($(SYSTEM),Windows)
-lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
+lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),xcopy ".\target\debug\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(ASSETS)\" /R /I /F /Y && ) echo.
+	@$(foreach file,$(LIBRARIES),xcopy ".\target\$*\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(ASSETS)\" /R /I /F /Y && ) echo.
 else
-lib-copy: build-cargo $(RESOURCE_DIRECTORIES)
+lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying libraries to java resources)
-	@$(foreach file,$(LIBRARIES),cp "target/debug/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(ASSETS)/";)
+	@$(foreach file,$(LIBRARIES),cp "target/$*/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(ASSETS)/";)
 endif
 
-build-java: lib-copy ## Build the java part of the application
+lib-copy: lib-copy-debug ## The default lib-copy target
+
+build-java: lib-copy-debug ## Build the java part of the application
 	$(info Building java)
 	@mvn -B compile -P$(PROFILE)
 
-build: prerequisites build-cargo lib-copy build-java ## Build the application
+build-java-release: lib-copy-release ## Build the java part of the application
+	$(info Building java)
+	@mvn -B compile -P$(PROFILE)
+
+build: prerequisites build-cargo lib-copy-debug build-java ## Build the application
 
 package: prerequisites build ## Package the application for distribution
 	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
 
-release: bump-minor prerequisites build-cargo-release build-java ## Release a new version of the application
+release: bump-minor prerequisites build-cargo-release build-java-release ## Release a new version of the application
 
-release-bugfix: bump-patch prerequisites build-cargo-release build-java ## Release a patch of the application
+release-bugfix: bump-patch prerequisites build-cargo-release build-java-release ## Release a patch of the application
 

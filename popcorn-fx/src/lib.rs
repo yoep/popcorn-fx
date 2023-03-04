@@ -1,13 +1,15 @@
 extern crate core;
+extern crate popcorn_fx_core;
+extern crate popcorn_fx_opensubtitles;
+extern crate popcorn_fx_platform;
 
 use std::{mem, ptr, slice};
 use std::os::raw::c_char;
 use std::path::Path;
-use std::time::Instant;
 
-use clap::{CommandFactory, FromArgMatches};
 use log::{debug, error, info, trace, warn};
 
+pub use fx::*;
 use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PopcornPropertiesC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, VERSION, WatchedEventC};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
@@ -20,30 +22,11 @@ use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
 use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 #[cfg(feature = "ffi")]
-use crate::popcorn::fx::ffi::*;
-use crate::popcorn::fx::popcorn_fx::{PopcornFX, PopcornFxArgs};
+use crate::ffi::*;
 
-pub mod popcorn;
-
-/// Create a new PopcornFX instance.
-/// The caller will become responsible for managing the memory of the struct.
-/// The instance can be safely deleted by using [dispose_popcorn_fx].
-#[no_mangle]
-pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut PopcornFX {
-    let start = Instant::now();
-    let args = from_c_vec(args, len).into_iter()
-        .map(|e| from_c_string(e))
-        .collect::<Vec<String>>();
-    let matches = PopcornFxArgs::command()
-        .allow_external_subcommands(true)
-        .ignore_errors(true)
-        .get_matches_from(args);
-    let args = PopcornFxArgs::from_arg_matches(&matches).expect("expected valid args");
-    let instance = PopcornFX::new(args);
-
-    info!("Created new Popcorn FX instance in {} millis", start.elapsed().as_millis());
-    into_c_owned(instance)
-}
+mod fx;
+#[cfg(feature = "ffi")]
+pub mod ffi;
 
 /// Retrieve the default options available for the subtitles.
 #[no_mangle]
@@ -1037,14 +1020,6 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
     trace!("Disposing collection set {:?}", collection_set)
 }
 
-/// Delete the PopcornFX instance, given as a [ptr], in a safe way.
-/// All data within the instance will be deleted from memory making the instance unusable.
-/// This means that the original pointer will become invalid.
-#[no_mangle]
-pub extern "C" fn dispose_popcorn_fx(_: Box<PopcornFX>) {
-    info!("Disposing Popcorn FX instance");
-}
-
 /// Retrieve the version of Popcorn FX.
 #[no_mangle]
 pub extern "C" fn version() -> *const c_char {
@@ -1058,14 +1033,14 @@ mod test {
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec, to_c_vec};
+    use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::config::{DecorationType, PopcornProperties, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
-    use crate::popcorn::fx::popcorn_fx::PopcornFxArgs;
+    use crate::fx::PopcornFxArgs;
 
     use super::*;
 
@@ -1100,19 +1075,6 @@ mod test {
 
     #[no_mangle]
     pub extern "C" fn settings_callback(_: ApplicationConfigEventC) {}
-
-    #[test]
-    fn test_new_popcorn_fx() {
-        init_logger();
-        let (args, len) = to_c_vec(vec![
-            "popcorn-fx".to_string(),
-            "--disable-logger".to_string(),
-        ].into_iter()
-            .map(|e| into_c_string(e))
-            .collect());
-
-        new_popcorn_fx(args, len);
-    }
 
     #[test]
     fn test_default_subtitle_options() {

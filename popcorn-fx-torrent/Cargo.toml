@@ -16,8 +16,8 @@ proc-macro = true
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 async-trait = "0.1"
-log = "0.4"
-tokio = { version = "1", features = ["rt-multi-thread"] }
+log.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

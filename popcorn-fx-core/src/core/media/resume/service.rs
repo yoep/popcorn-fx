@@ -72,7 +72,7 @@ impl DefaultAutoResumeService {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
-                    StorageError::FileNotFound(file) => {
+                    StorageError::NotFound(file) => {
                         debug!("Creating new auto-resume file {}", file);
                         Ok(AutoResume::default())
                     }

@@ -674,7 +674,7 @@ mod test {
         let server = MockServer::start();
         let update_channel = server.url("");
 
-        (server, Arc::new(tokio::sync::Mutex::new(ApplicationConfig {
+        (server, Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
                 update_channel,

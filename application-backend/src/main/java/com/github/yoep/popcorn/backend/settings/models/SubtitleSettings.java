@@ -43,7 +43,7 @@ public class SubtitleSettings extends Structure implements Closeable {
     /**
      * The indication if the subtitle directory should be cleaned if the application is closed.
      */
-    public boolean autoCleaningEnabled;
+    public byte autoCleaningEnabled;
     /**
      * The default subtitle language to select for the media playback.
      */
@@ -68,6 +68,14 @@ public class SubtitleSettings extends Structure implements Closeable {
     //endregion
 
     //region Methods
+
+    public boolean isAutoCleaningEnabled() {
+        return autoCleaningEnabled == 1;
+    }
+
+    public void setAutoCleaningEnabled(boolean autoCleaningEnabled) {
+        this.autoCleaningEnabled = (byte) (autoCleaningEnabled ? 1 : 0);
+    }
 
     public boolean isBold() {
         return bold == 1;

@@ -112,7 +112,7 @@ impl DefaultFavoriteService {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
-                    StorageError::FileNotFound(file) => {
+                    StorageError::NotFound(file) => {
                         debug!("Creating new favorites file {}", file);
                         Ok(Favorites::default())
                     }

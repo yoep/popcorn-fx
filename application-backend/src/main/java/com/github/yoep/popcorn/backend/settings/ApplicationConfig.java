@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.backend.settings;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,11 +25,13 @@ public class ApplicationConfig {
     private final ViewLoader viewLoader;
     private final OptionsService optionsService;
     private final LocaleText localeText;
+    private final FxLib fxLib;
+    private final PopcornFx instance;
+    
     private final Queue<ApplicationConfigEventCallback> listeners = new ConcurrentLinkedDeque<>();
     private final ApplicationConfigEventCallback callback = createCallback();
 
     private ApplicationProperties properties;
-    private ApplicationSettings settings;
 
     //region Getters
 
@@ -43,7 +45,10 @@ public class ApplicationConfig {
      * @return Returns the application settings.
      */
     public ApplicationSettings getSettings() {
-        return settings;
+        try (var settings = fxLib.application_settings(instance)) {
+            log.debug("Retrieved settings {}", settings);
+            return settings;
+        }
     }
 
     //endregion
@@ -93,7 +98,7 @@ public class ApplicationConfig {
     public void update(SubtitleSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
         var settings_c = new SubtitleSettings.ByValue(settings);
-        FxLib.INSTANCE.update_subtitle_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+        fxLib.update_subtitle_settings(instance, settings_c);
     }
 
     /**
@@ -104,25 +109,25 @@ public class ApplicationConfig {
     public void update(TorrentSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
         var settings_c = new TorrentSettings.ByValue(settings);
-        FxLib.INSTANCE.update_torrent_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+        fxLib.update_torrent_settings(instance, settings_c);
     }
 
     public void update(UISettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
         var settings_c = new UISettings.ByValue(settings);
-        FxLib.INSTANCE.update_ui_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+        fxLib.update_ui_settings(instance, settings_c);
     }
 
     public void update(ServerSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
         var settings_c = new ServerSettings.ByValue(settings);
-        FxLib.INSTANCE.update_server_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+        fxLib.update_server_settings(instance, settings_c);
     }
 
     public void update(PlaybackSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
         var settings_c = new PlaybackSettings.ByValue(settings);
-        FxLib.INSTANCE.update_playback_settings(PopcornFxInstance.INSTANCE.get(), settings_c);
+        fxLib.update_playback_settings(instance, settings_c);
     }
 
     /**
@@ -151,30 +156,18 @@ public class ApplicationConfig {
 
     @PostConstruct
     void init() {
-        try (var properties = FxLib.INSTANCE.application_properties(PopcornFxInstance.INSTANCE.get())) {
+        try (var properties = fxLib.application_properties(instance)) {
             log.debug("Retrieved properties {}", properties);
             this.properties = properties;
         }
-        try (var settings = FxLib.INSTANCE.application_settings(PopcornFxInstance.INSTANCE.get())) {
-            log.debug("Retrieved settings {}", settings);
-            this.settings = settings;
-        }
 
-        initializeDefaultLanguage();
         initializeSettings();
-
-        FxLib.INSTANCE.register_settings_callback(PopcornFxInstance.INSTANCE.get(), callback);
+        fxLib.register_settings_callback(instance, callback);
     }
 
     private void initializeSettings() {
-        var uiSettings = this.settings.getUiSettings();
+        var uiSettings = getSettings().getUiSettings();
         updateUIScale(uiSettings.getUiScale().getValue());
-    }
-
-    private void initializeDefaultLanguage() {
-        var uiSettings = this.settings.getUiSettings();
-
-        // update the locale text with the locale from the settings
         localeText.updateLocale(Locale.forLanguageTag(uiSettings.getDefaultLanguage()));
     }
 
@@ -194,7 +187,7 @@ public class ApplicationConfig {
     }
 
     private int getCurrentUIScaleIndex() {
-        var uiSettings = settings.getUiSettings();
+        var uiSettings = getSettings().getUiSettings();
         var scale = uiSettings.getUiScale();
         var index = supportedUIScales().indexOf(scale);
 

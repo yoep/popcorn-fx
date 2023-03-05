@@ -1,7 +1,8 @@
 use std::fmt::Debug;
+use std::fs;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use log::{debug, trace};
 use serde::de::DeserializeOwned;
@@ -46,7 +47,7 @@ impl Storage {
             }
             Err(e) => {
                 trace!("Application file {} does not exist, {}", filename, e);
-                Err(StorageError::FileNotFound(filename.to_string()))
+                Err(StorageError::NotFound(filename.to_string()))
             }
         }
     }
@@ -81,6 +82,38 @@ impl Storage {
                 Err(StorageError::WritingFailed(path_string, e.to_string()))
             }
         }
+    }
+
+    /// Clean the given directory path.
+    /// This will not delete the directory itself, only the files within the directory.
+    ///
+    /// It returns a [StorageError] when the directory couldn't be cleaned.
+    pub fn clean_directory(path: impl AsRef<Path>) -> storage::Result<()> {
+        let path_value = path.as_ref().to_str().unwrap().to_string();
+        // check if the directory exist before we try to clean it
+        if !path.as_ref().exists() {
+            return Err(StorageError::NotFound(path_value));
+        }
+
+        let dir_entry = fs::read_dir(path)
+            .map_err(|e| StorageError::IO(path_value, e.to_string()))?;
+        for file in dir_entry {
+            let filepath = file.expect("expected path entry to be valid").path();
+
+            // check if the path is an actual file
+            if filepath.is_file() {
+                trace!("Removing file {:?}", filepath);
+                fs::remove_file(&filepath).map_err(|e| {
+                    StorageError::IO(filepath.to_str().unwrap().to_string(), e.to_string())
+                })?;
+            } else {
+                trace!("Removing directory {:?}", filepath);
+                let filepath_value = filepath.to_str().unwrap().to_string();
+                fs::remove_dir_all(filepath).map_err(|e| StorageError::IO(filepath_value, e.to_string()))?;
+            }
+        }
+
+        Ok(())
     }
 
     async fn write_to<T: Serialize + Debug>(file: &mut tokio::fs::File, value: &T, path_string: &String) -> storage::Result<()> {
@@ -205,6 +238,34 @@ mod test {
         match result.err().unwrap() {
             StorageError::WritingFailed(_, _) => {}
             _ => assert!(false, "expected StorageError::WritingFailed to be returned")
+        }
+    }
+
+    #[test]
+    fn test_clean_directory() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "auto-resume.json", None);
+
+        Storage::clean_directory(Path::new(temp_path))
+            .expect("expected the directory to be cleaned");
+
+        assert_eq!(true, temp_dir.path().read_dir().unwrap().next().is_none())
+    }
+
+    #[test]
+    fn test_clean_directory_non_existing_path() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+
+        let result = Storage::clean_directory(PathBuf::from(temp_path).join("lorem"))
+            .err().expect("expected an error to be returned");
+
+        match result {
+            StorageError::NotFound(_) => {},
+            _ => assert!(false, "expected StorageError::NotFound")
         }
     }
 }

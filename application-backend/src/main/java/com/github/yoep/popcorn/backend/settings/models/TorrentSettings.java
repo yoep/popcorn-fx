@@ -1,16 +1,14 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
 import com.sun.jna.Structure;
-import lombok.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.io.Closeable;
 import java.util.Objects;
 
-@EqualsAndHashCode(callSuper = false)
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"directory", "autoCleaningEnabled", "connectionsLimit", "downloadRateLimit", "uploadRateLimit"})
 public class TorrentSettings extends Structure implements Closeable {
     public static class ByValue extends TorrentSettings implements Structure.ByValue {

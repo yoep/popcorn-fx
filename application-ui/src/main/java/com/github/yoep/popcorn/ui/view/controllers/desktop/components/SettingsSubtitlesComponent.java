@@ -31,19 +31,19 @@ public class SettingsSubtitlesComponent implements Initializable {
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
 
     @FXML
-    private ComboBox<SubtitleLanguage> defaultSubtitle;
+    ComboBox<SubtitleLanguage> defaultSubtitle;
     @FXML
-    private ComboBox<SubtitleFamily> fontFamily;
+    ComboBox<SubtitleFamily> fontFamily;
     @FXML
-    private ComboBox<DecorationType> decoration;
+    ComboBox<DecorationType> decoration;
     @FXML
-    private ComboBox<Integer> fontSize;
+    ComboBox<Integer> fontSize;
     @FXML
-    private CheckBox fontBold;
+    CheckBox fontBold;
     @FXML
-    private TextField cacheDirectory;
+    TextField cacheDirectory;
     @FXML
-    private CheckBox clearCache;
+    CheckBox clearCache;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {

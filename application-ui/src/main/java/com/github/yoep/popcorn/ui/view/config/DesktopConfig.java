@@ -9,18 +9,15 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
-import com.github.yoep.popcorn.ui.view.controllers.MainController;
-import com.github.yoep.popcorn.ui.view.controllers.desktop.MainDesktopController;
+import com.github.yoep.popcorn.ui.view.controllers.ContentSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.*;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
-import com.github.yoep.popcorn.ui.view.services.UrlService;
-import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,25 +28,15 @@ import java.util.List;
 @Configuration
 public class DesktopConfig {
 
-    @Bean
-    public MainController mainController(ApplicationEventPublisher eventPublisher,
-                                         ViewLoader viewLoader,
-                                         TaskExecutor taskExecutor,
-                                         ApplicationArguments arguments,
-                                         UrlService urlService,
-                                         ApplicationConfig settingsService,
-                                         OptionsService optionsService) {
-        return new MainDesktopController(eventPublisher, viewLoader, taskExecutor, arguments, urlService, settingsService, optionsService);
-    }
-
     //region Sections
 
     @Bean
     public ContentSectionController contentSectionController(ViewLoader viewLoader,
                                                              TaskExecutor taskExecutor,
                                                              LocaleText localeText,
-                                                             ApplicationEventPublisher eventPublisher) {
-        return new ContentSectionController(viewLoader, taskExecutor, localeText, eventPublisher);
+                                                             ApplicationEventPublisher eventPublisher,
+                                                             MaximizeService maximizeService) {
+        return new ContentSectionController(viewLoader, taskExecutor, localeText, eventPublisher, maximizeService);
     }
 
     @Bean

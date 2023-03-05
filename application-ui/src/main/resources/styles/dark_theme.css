@@ -207,22 +207,22 @@
     -fx-padding: 0 0 0 0;
 }
 
-.root .header .title-bar .os-buttons {
+.root .content-section .os-buttons {
     -fx-pref-width: 141px;
     -fx-max-width: 141px;
 }
 
-.root .header .title-bar .os-buttons .os-button {
+.root .content-section .os-buttons .os-button {
     -fx-pref-width: 47px;
     -fx-pref-height: 28px;
     -fx-cursor: hand;
 }
 
-.root .header .title-bar .os-buttons .os-button:hover {
+.root .content-section .os-buttons .os-button:hover {
     -fx-background-color: #333437;
 }
 
-.root .header .title-bar .os-buttons .os-button.close:hover {
+.root .content-section .os-buttons .os-button.close:hover {
     -fx-background-color: #e81123;
 }
 

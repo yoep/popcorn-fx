@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.WindowComponent" styleClass="os-buttons">
+    <StackPane styleClass="os-button" onMouseClicked="#onMinimizeClicked">
+        <ImageView cache="true" cacheHint="SCALE">
+            <Image url="/images/windows/minimize.png"/>
+        </ImageView>
+    </StackPane>
+    <StackPane styleClass="os-button" onMouseClicked="#onMaximizedClicked">
+        <ImageView fx:id="maximizeImageView"/>
+    </StackPane>
+    <StackPane styleClass="os-button, close" onMouseClicked="#onCloseClicked">
+        <ImageView cache="true" cacheHint="SCALE">
+            <Image url="/images/windows/close.png"/>
+        </ImageView>
+    </StackPane>
+</HBox>

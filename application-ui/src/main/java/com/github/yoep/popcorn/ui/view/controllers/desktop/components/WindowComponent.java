@@ -2,15 +2,12 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -23,35 +20,25 @@ import java.util.ResourceBundle;
 @Slf4j
 @ViewController
 @RequiredArgsConstructor
-public class TitleBarComponent implements Initializable {
+public class WindowComponent implements Initializable {
     private final MaximizeService maximizeService;
-    private final OptionsService optionsService;
     private final PlatformProvider platformProvider;
 
     private Image restoreImage;
     private Image maximizeImage;
 
     @FXML
-    private ImageView maximizeImageView;
-    @FXML
-    private Pane osButtons;
+    ImageView maximizeImageView;
 
     //region Initializable
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeMaximizeImage();
-        initializeOsButtons();
     }
 
     private void initializeMaximizeImage() {
         onMaximizedStateChanged(maximizeService.isMaximized());
-    }
-
-    private void initializeOsButtons() {
-        var options = optionsService.options();
-
-        osButtons.setVisible(!options.isKioskMode());
     }
 
     //endregion
@@ -59,7 +46,7 @@ public class TitleBarComponent implements Initializable {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         initializeListeners();
         initializeImages();
     }
@@ -97,29 +84,21 @@ public class TitleBarComponent implements Initializable {
     }
 
     @FXML
-    private void onMinimizeClicked(MouseEvent event) {
+    void onMinimizeClicked(MouseEvent event) {
         event.consume();
         maximizeService.minimize();
     }
 
     @FXML
-    private void onMaximizedClicked(MouseEvent event) {
+    void onMaximizedClicked(MouseEvent event) {
         event.consume();
         switchMaximizedState();
     }
 
     @FXML
-    private void onCloseClicked(MouseEvent event) {
+    void onCloseClicked(MouseEvent event) {
         event.consume();
         platformProvider.exit();
-    }
-
-    @FXML
-    private void onTitleBarClicked(MouseEvent event) {
-        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-            event.consume();
-            maximizeService.setMaximized(!maximizeService.isMaximized());
-        }
     }
 
     //endregion

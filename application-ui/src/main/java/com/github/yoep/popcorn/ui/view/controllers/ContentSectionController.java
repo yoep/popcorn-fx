@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
+package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
@@ -6,9 +6,11 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.messages.ContentMessage;
+import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class ContentSectionController implements Initializable {
     private final TaskExecutor taskExecutor;
     private final LocaleText localeText;
     private final ApplicationEventPublisher eventPublisher;
+    private final MaximizeService maximizeService;
 
     private Pane listPane;
     private Pane detailsPane;
@@ -39,7 +42,7 @@ public class ContentSectionController implements Initializable {
     private ContentType activeType;
 
     @FXML
-    private Pane contentPane;
+    Pane contentPane;
 
     //region Methods
 
@@ -94,9 +97,19 @@ public class ContentSectionController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        initializeContentPaneListener();
         initializePanes();
 
         switchContent(ContentType.LIST);
+    }
+
+    private void initializeContentPaneListener() {
+        contentPane.setOnMouseClicked(event -> {
+            if (event.getSceneY() <= 40 && event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+                event.consume();
+                maximizeService.setMaximized(!maximizeService.isMaximized());
+            }
+        });
     }
 
     private void initializePanes() {
@@ -145,7 +158,7 @@ public class ContentSectionController implements Initializable {
         }
 
         Platform.runLater(() -> {
-            if (contentPane.getChildren().size() > 1)
+            if (contentPane.getChildren().size() > 2)
                 contentPane.getChildren().remove(0);
 
             try {

@@ -175,11 +175,6 @@
     -fx-text-fill: #fff;
 }
 
-.root .header .shadow {
-    -fx-pref-height: 10;
-    -fx-background-color: linear-gradient(rgba(0, 0, 0, 1) 10%, rgba(255, 255, 255, 0) 100%);
-}
-
 .root .content-section .os-buttons {
     -fx-pref-width: 141px;
     -fx-max-width: 141px;
@@ -199,64 +194,80 @@
     -fx-background-color: #e81123;
 }
 
-.root .header .bar .filter-bar ComboBox {
+.root .filter-bar .label {
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+    -fx-cursor: hand;
+    -fx-alignment: center-left;
+    -fx-label-padding: 0 8 0 0;
+}
+
+.root .filter-bar ComboBox {
     -fx-min-width: 100;
     -fx-max-width: 100;
     -fx-padding: 6 0 0 0;
     -fx-cursor: hand;
 }
 
-.root .header .bar .filter-bar ComboBox > .list-cell {
+.root .filter-bar .label,
+.root .filter-bar ComboBox {
+    -fx-font-size: 1.2em;
+    -fx-pref-height: 2em;
+    -fx-padding: 0 0 0 0;
+}
+
+.root .filter-bar ComboBox > .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #2d72d9;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .arrow {
+.root .filter-bar ComboBox:focused > .list-cell,
+.root .filter-bar ComboBox:focused {
+    -fx-background-color: #0d2240;
+}
+
+.root .filter-bar .filterGroup ComboBox .arrow {
     -fx-padding: 5 8 0 0;
     -fx-background-color: #c3c5c7;
 }
 
-.root .header .bar .filter-bar .filterGroup:hover ComboBox .arrow {
+.root .filter-bar .filterGroup:hover ComboBox .arrow {
     -fx-background-color: #fff;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar {
+.root .filter-bar .filterGroup ComboBox .scroll-bar {
     -fx-padding: 0 0 0 0;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar,
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view,
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell,
+.root .filter-bar .filterGroup ComboBox .scroll-bar,
+.root .filter-bar .filterGroup ComboBox .list-view,
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell,
 .root .movie-details .subtitle-group ComboBox .scroll-bar,
 .root .movie-details .subtitle-group ComboBox .list-view,
 .root .movie-details .subtitle-group ComboBox .list-view .list-cell {
     -fx-background-color: rgba(23, 24, 27, 0.8);
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell {
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #c3c5c7;
     -fx-cursor: hand;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 4;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell:selected {
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell:selected {
     -fx-text-fill: #fff;
     -fx-background-color: #0b131f;
-    -fx-border-width: 0 0 0 4;
     -fx-border-color: #c3c5c7;
     -fx-border-style: solid;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell:hover {
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell:hover {
     -fx-text-fill: #fff;
     -fx-background-color: #0b131f;
-    -fx-border-width: 0 0 0 4;
     -fx-border-color: #2d72d9;
     -fx-border-style: solid;
-}
-
-.root .header .bar .filter-icon-bar {
-
 }
 
 .root .header .bar .filter-icon-bar .icon {
@@ -349,6 +360,7 @@
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 10, 0, 0, 0);
 }
 
+.root .list-section .poster-item:focused .poster .poster-image,
 .root .list-section .poster-item:hover .poster .poster-image {
     -fx-effect: dropshadow(three-pass-box, #2d72d9, 15, 0, 0, 0);
 }
@@ -1341,13 +1353,15 @@
     -fx-font-style: italic;
 }
 
-/* ================= */
-/*      SIDEBAR      */
-/* ================= */
+/* region SideBar */
+
+.root .content-section .sidebar {
+    -fx-background-color: rgba(24, 25, 28, 0.5);
+}
 
 .root .content-section .sidebar .logo {
-    -fx-min-width: 4.5em;
-    -fx-max-width: 4.5em;
+    -fx-min-width: 64px;
+    -fx-max-width: 64px;
 }
 
 .root .content-section .sidebar .label {
@@ -1362,7 +1376,7 @@
     -fx-text-alignment: center;
     -fx-border-color: transparent;
     -fx-border-width: 0 0 0 3;
-    -fx-border-style: inset;
+    -fx-border-style: solid;
 }
 
 .root .content-section .sidebar .icon-text {
@@ -1389,9 +1403,11 @@
 
 .root .content-section .sidebar .icon.active,
 .root .content-section .sidebar .icon-text.active {
-    -fx-background-color: #0b1b33;
+    -fx-background-color: rgba(11, 27, 51, 0.5);
 }
 
 .root .content-section .sidebar .icon-text {
     -fx-text-overrun: clip;
 }
+
+/* endregion */

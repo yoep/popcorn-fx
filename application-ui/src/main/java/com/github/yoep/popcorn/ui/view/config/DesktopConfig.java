@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.config;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -13,6 +14,7 @@ import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
 import com.github.yoep.popcorn.ui.view.controllers.ContentSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.common.sections.DetailsSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.*;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -33,9 +35,10 @@ public class DesktopConfig {
     @Bean
     public ContentSectionController contentSectionController(ViewLoader viewLoader,
                                                              LocaleText localeText,
-                                                             ApplicationEventPublisher eventPublisher,
+                                                             ApplicationEventPublisher applicationEventPublisher,
+                                                             EventPublisher eventPublisher,
                                                              MaximizeService maximizeService) {
-        return new ContentSectionController(viewLoader, localeText, eventPublisher, maximizeService);
+        return new ContentSectionController(viewLoader, localeText, applicationEventPublisher, eventPublisher, maximizeService);
     }
 
     @Bean
@@ -52,8 +55,10 @@ public class DesktopConfig {
                                                        ViewLoader viewLoader,
                                                        LocaleText localeText,
                                                        ApplicationEventPublisher eventPublisher,
+                                                       EventPublisher publisher,
                                                        ImageService imageService) {
-        return new ListSectionController(providerServices, favoriteService, watchedService, viewLoader, localeText, eventPublisher, imageService);
+        return new ListSectionController(providerServices, favoriteService, watchedService, viewLoader, localeText, eventPublisher, imageService,
+                publisher);
     }
 
     @Bean

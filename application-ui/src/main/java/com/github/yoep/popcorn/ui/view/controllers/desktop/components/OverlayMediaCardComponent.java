@@ -11,6 +11,8 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
@@ -35,13 +37,13 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     private final WatchedEventCallback watchedEventCallback = createWatchedCallback(media);
 
     @FXML
-    private Pane posterItem;
+    Pane posterItem;
     @FXML
-    private Label ratingValue;
+    Label ratingValue;
     @FXML
-    private Icon favorite;
+    Icon favorite;
     @FXML
-    private Stars ratingStars;
+    Stars ratingStars;
 
     public OverlayMediaCardComponent(Media media,
                                      LocaleText localeText,
@@ -147,8 +149,14 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         };
     }
 
+    private void onShowDetails() {
+        synchronized (listeners) {
+            listeners.forEach(e -> e.onClicked(media));
+        }
+    }
+
     @FXML
-    private void onWatchedClicked(MouseEvent event) {
+    void onWatchedClicked(MouseEvent event) {
         event.consume();
         boolean newValue = !metadataProvider.isWatched(media);
 
@@ -158,7 +166,7 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     }
 
     @FXML
-    private void onFavoriteClicked(MouseEvent event) {
+    void onFavoriteClicked(MouseEvent event) {
         event.consume();
         boolean newState = !metadataProvider.isLiked(media);
 
@@ -168,9 +176,15 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     }
 
     @FXML
-    private void showDetails() {
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onClicked(media));
+    void showDetails() {
+        onShowDetails();
+    }
+
+    @FXML
+    void onKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onShowDetails();
         }
     }
 }

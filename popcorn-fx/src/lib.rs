@@ -836,15 +836,6 @@ pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_u
     popcorn_fx.torrent_collection().remove(magnet_uri.as_str());
 }
 
-/// Retrieve the immutable configuration properties of the application.
-/// These properties stay the same throughout the lifecycle the popcorn FX instance.
-#[no_mangle]
-pub extern "C" fn application_properties(popcorn_fx: &mut PopcornFX) -> *mut PopcornPropertiesC {
-    trace!("Retrieving application configuration");
-    let mutex = popcorn_fx.settings();
-    into_c_owned(PopcornPropertiesC::from(mutex.properties()))
-}
-
 /// Retrieve the application settings.
 /// These are the setting preferences of the users for the popcorn FX instance.
 #[no_mangle]
@@ -958,7 +949,7 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
-    use popcorn_fx_core::core::config::{DecorationType, PopcornProperties, SubtitleFamily};
+    use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
@@ -1266,27 +1257,6 @@ mod test {
         let result = from_c_owned(torrent_collection_all(&mut instance));
 
         assert_eq!(1, result.len)
-    }
-
-    #[test]
-    fn test_application_properties() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let defaults = PopcornProperties::default();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            app_directory: temp_path.to_string(),
-        });
-
-        let result = from_c_owned(application_properties(&mut instance));
-
-        assert_eq!(defaults.providers.len() as i32, result.provider_properties_len)
     }
 
     #[test]

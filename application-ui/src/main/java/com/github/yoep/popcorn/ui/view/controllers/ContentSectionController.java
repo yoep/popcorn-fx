@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.messages.ContentMessage;
@@ -27,20 +28,22 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ContentSectionController implements Initializable {
     private final ViewLoader viewLoader;
     private final LocaleText localeText;
-    private final ApplicationEventPublisher eventPublisher;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final EventPublisher eventPublisher;
     private final MaximizeService maximizeService;
 
-    private Pane listPane;
-    private Pane detailsPane;
-    private Pane watchlistPane;
-    private Pane torrentCollectionPane;
-    private Pane settingsPane;
-    private Pane aboutPane;
-    private Pane updatePane;
-    private ContentType activeType;
+    Pane detailsPane;
+    Pane watchlistPane;
+    Pane torrentCollectionPane;
+    Pane settingsPane;
+    Pane aboutPane;
+    Pane updatePane;
+    ContentType activeType;
 
     @FXML
     Pane contentPane;
+    @FXML
+    Pane listPane;
 
     //region Methods
 
@@ -59,11 +62,6 @@ public class ContentSectionController implements Initializable {
         switchContent(ContentType.TORRENT_COLLECTION);
     }
 
-    @EventListener(ShowSettingsEvent.class)
-    public void onShowSettings() {
-        switchContent(ContentType.SETTINGS);
-    }
-
     @EventListener(ShowAboutEvent.class)
     public void onShowAbout() {
         switchContent(ContentType.ABOUT);
@@ -72,11 +70,6 @@ public class ContentSectionController implements Initializable {
     @EventListener(ShowUpdateEvent.class)
     public void onShowUpdate() {
         switchContent(ContentType.UPDATE);
-    }
-
-    @EventListener(CategoryChangedEvent.class)
-    public void onCategoryChanged() {
-        switchContent(ContentType.LIST);
     }
 
     @EventListener(CloseDetailsEvent.class)
@@ -99,6 +92,14 @@ public class ContentSectionController implements Initializable {
         initializePanes();
 
         switchContent(ContentType.LIST);
+        eventPublisher.register(CategoryChangedEvent.class, event -> {
+            switchContent(ContentType.LIST);
+            return event;
+        });
+        eventPublisher.register(ShowSettingsEvent.class, event -> {
+            switchContent(ContentType.SETTINGS);
+            return event;
+        });
     }
 
     private void initializeContentPaneListener() {
@@ -111,14 +112,9 @@ public class ContentSectionController implements Initializable {
     }
 
     private void initializePanes() {
-        // load the list pane on the main thread
-        // this blocks Spring from completing the startup stage while this pane is being loaded
-        listPane = viewLoader.load("sections/list.section.fxml");
-        setAnchor(listPane);
-
         // load the details pane on a different thread
         new Thread(() -> {
-            detailsPane = viewLoader.load("sections/details.section.fxml");
+            detailsPane = viewLoader.load("common/sections/details.section.fxml");
             torrentCollectionPane = viewLoader.load("sections/torrent-collection.section.fxml");
             watchlistPane = viewLoader.load("sections/watchlist.section.fxml");
             settingsPane = viewLoader.load("sections/settings.section.fxml");
@@ -131,7 +127,7 @@ public class ContentSectionController implements Initializable {
             setAnchor(settingsPane);
             setAnchor(aboutPane);
             setAnchor(updatePane);
-        }, "content-views").start();
+        }, "content-loader").start();
     }
 
     //endregion
@@ -163,21 +159,21 @@ public class ContentSectionController implements Initializable {
                 contentPane.getChildren().add(0, pane.get());
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
-                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ContentMessage.CONTENT_PANE_FAILED)));
+                applicationEventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ContentMessage.CONTENT_PANE_FAILED)));
             }
         });
     }
 
     private void setAnchor(Pane pane) {
-        AnchorPane.setTopAnchor(pane, 20d);
-        AnchorPane.setRightAnchor(pane, 0d);
-        AnchorPane.setBottomAnchor(pane, 0d);
-        AnchorPane.setLeftAnchor(pane, 64d);
+        AnchorPane.setTopAnchor(pane, 0.0);
+        AnchorPane.setRightAnchor(pane, 0.0);
+        AnchorPane.setBottomAnchor(pane, 0.0);
+        AnchorPane.setLeftAnchor(pane, 0.0);
     }
 
     //endregion
 
-    private enum ContentType {
+    enum ContentType {
         LIST,
         DETAILS,
         WATCHLIST,

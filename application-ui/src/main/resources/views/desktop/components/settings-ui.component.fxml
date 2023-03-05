@@ -20,7 +20,7 @@
 
     <!-- User interface title -->
     <Label styleClass="subsection-title" text="%settings_user_interface"
-           GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+           GridPane.valignment="TOP" GridPane.rowSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
     <!-- Default language -->
     <Label text="%settings_ui_language"

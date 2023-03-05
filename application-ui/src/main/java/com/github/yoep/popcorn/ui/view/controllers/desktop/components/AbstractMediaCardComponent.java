@@ -29,11 +29,11 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
     protected final ImageService imageService;
 
     @FXML
-    protected Label title;
+    Label title;
     @FXML
-    protected Label year;
+    Label year;
     @FXML
-    protected Label seasons;
+    Label seasons;
 
     //region Constructors
 

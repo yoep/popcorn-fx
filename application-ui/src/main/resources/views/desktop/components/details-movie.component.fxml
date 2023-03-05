@@ -7,7 +7,8 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.MovieDetailsComponent" styleClass="movie-details">
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.MovieDetailsComponent"
+            styleClass="movie-details">
     <!-- Background image cover -->
     <BackgroundImageCover fx:id="backgroundImage"
                           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
@@ -118,7 +119,7 @@
 
     <!-- Close button -->
     <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2"
-          AnchorPane.topAnchor="5" AnchorPane.rightAnchor="15">
+          AnchorPane.topAnchor="15" AnchorPane.leftAnchor="70">
         <Icon fx:constant="TIMES_UNICODE"/>
     </Icon>
 </AnchorPane>

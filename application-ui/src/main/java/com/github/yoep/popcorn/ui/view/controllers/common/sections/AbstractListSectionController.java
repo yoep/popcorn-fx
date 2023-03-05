@@ -13,17 +13,13 @@ import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
-import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
-import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.ListMessage;
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollItemFactory;
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollPane;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
@@ -36,21 +32,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.util.Assert;
 import org.springframework.web.client.HttpStatusCodeException;
 
-import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-public abstract class AbstractListSectionController implements Initializable {
+public abstract class AbstractListSectionController {
     protected final List<ProviderService<? extends Media>> providerServices;
     protected final ViewLoader viewLoader;
     protected final LocaleText localeText;
-    protected final ApplicationEventPublisher eventPublisher;
+    protected final ApplicationEventPublisher applicationEventPublisher;
 
     protected Category category;
     protected Genre genre;
@@ -78,8 +72,8 @@ public abstract class AbstractListSectionController implements Initializable {
 
     protected AbstractListSectionController(List<ProviderService<? extends Media>> providerServices,
                                             ViewLoader viewLoader,
-                                            LocaleText localeText, ApplicationEventPublisher eventPublisher) {
-        this.eventPublisher = eventPublisher;
+                                            LocaleText localeText, ApplicationEventPublisher applicationEventPublisher) {
+        this.applicationEventPublisher = applicationEventPublisher;
         Assert.notNull(providerServices, "providerServices cannot be null");
         Assert.notNull(viewLoader, "viewLoader cannot be null");
         Assert.notNull(localeText, "localeText cannot be null");
@@ -91,33 +85,6 @@ public abstract class AbstractListSectionController implements Initializable {
     //endregion
 
     //region Methods
-
-    @EventListener
-    public void onCategoryChanged(CategoryChangedEvent event) {
-        this.category = event.getCategory();
-        // reset the genre & sort by as they might be different in the new category
-        // these will be automatically filled in again as the category change also triggers a GenreChangeActivity & SortByChangeActivity
-        this.genre = null;
-        this.sortBy = null;
-
-        reset();
-    }
-
-    @EventListener
-    public void onGenreChange(GenreChangeEvent event) {
-        this.genre = event.getGenre();
-
-        reset();
-        invokeNewPageLoad();
-    }
-
-    @EventListener
-    public void onSortByChange(SortByChangeEvent event) {
-        this.sortBy = event.getSortBy();
-
-        reset();
-        invokeNewPageLoad();
-    }
 
     @EventListener
     public void onSearch(SearchEvent event) {
@@ -135,13 +102,6 @@ public abstract class AbstractListSectionController implements Initializable {
 
     //region Initializable
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-        initializeScrollPane();
-        initializeFailedPane();
-        initializeOverlay();
-    }
-
     protected void initializeScrollPane() {
         scrollPane.setLoaderFactory(() -> viewLoader.load("common/components/loading-card.component.fxml"));
         scrollPane.setItemFactory(new InfiniteScrollItemFactory<>() {
@@ -157,6 +117,7 @@ public abstract class AbstractListSectionController implements Initializable {
                 return createItemNode(item);
             }
         });
+        scrollPane.requestFocus();
     }
 
     protected void initializeFailedPane() {
@@ -281,7 +242,7 @@ public abstract class AbstractListSectionController implements Initializable {
             if (numberOfPageFailures < 2) {
                 log.warn("Media page {} has been skipped due to a parsing error, loading next page", scrollPane.getPage());
                 numberOfPageFailures++;
-                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_INVALID_RESPONSE_RECEIVED)));
+                applicationEventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_INVALID_RESPONSE_RECEIVED)));
                 // force load the next page as this method is currently in the updating state
                 // of the scroll pane, calling the normal load won't do anything
                 scrollPane.forceLoadNewPage();
@@ -301,7 +262,7 @@ public abstract class AbstractListSectionController implements Initializable {
             hideOverlay();
         });
 
-        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ListMessage.RETRIEVAL_FAILED)));
+        applicationEventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ListMessage.RETRIEVAL_FAILED)));
         return new Media[0];
     }
 
@@ -324,13 +285,13 @@ public abstract class AbstractListSectionController implements Initializable {
             Platform.runLater(this::hideOverlay);
 
             if (media instanceof MovieDetails) {
-                eventPublisher.publishEvent(new ShowMovieDetailsEvent(this, (MovieDetails) media));
+                applicationEventPublisher.publishEvent(new ShowMovieDetailsEvent(this, (MovieDetails) media));
             } else if (media instanceof ShowDetails) {
-                eventPublisher.publishEvent(new ShowSerieDetailsEvent(this, (ShowDetails) media));
+                applicationEventPublisher.publishEvent(new ShowSerieDetailsEvent(this, (ShowDetails) media));
             }
         } else {
             log.error(throwable.getMessage(), throwable);
-            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
+            applicationEventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_FAILED_TO_LOAD)));
             Platform.runLater(this::hideOverlay);
         }
     }

@@ -3,7 +3,7 @@
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.ui.view.controls.SizedImageView?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx"
@@ -20,10 +20,11 @@
         <RowConstraints valignment="CENTER"/>
         <RowConstraints valignment="CENTER"/>
         <RowConstraints valignment="CENTER"/>
+        <RowConstraints valignment="CENTER"/>
         <RowConstraints vgrow="ALWAYS" maxHeight="Infinity"/>
     </rowConstraints>
     <padding>
-        <Insets top="8" bottom="8"/>
+        <Insets top="5" bottom="5"/>
     </padding>
 
     <BorderPane GridPane.valignment="TOP" GridPane.halignment="LEFT" styleClass="logo"
@@ -46,23 +47,31 @@
           GridPane.columnIndex="0" GridPane.rowIndex="2">
         <Icon fx:constant="FILM_UNICODE"/>
     </Icon>
-    <Label fx:id="movieText" labelFor="$movieIcon" text="%filter_movies" styleClass="icon-text"
+    <Label fx:id="movieText" labelFor="$movieIcon" text="%filter_movies" styleClass="icon-text" onMouseClicked="#onCategoryClicked"
            GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
     <Icon fx:id="serieIcon" focusTraversable="true" onMouseClicked="#onCategoryClicked" onKeyPressed="#onCategoryPressed"
           GridPane.columnIndex="0" GridPane.rowIndex="3">
         <Icon fx:constant="TV_UNICODE"/>
     </Icon>
-    <Label fx:id="serieText" labelFor="$serieIcon" text="%filter_series" styleClass="icon-text"
+    <Label fx:id="serieText" labelFor="$serieIcon" text="%filter_series" styleClass="icon-text" onMouseClicked="#onCategoryClicked"
            GridPane.columnIndex="1" GridPane.rowIndex="3"/>
 
     <Icon fx:id="favoriteIcon" focusTraversable="true" onMouseClicked="#onCategoryClicked" onKeyPressed="#onCategoryPressed"
           GridPane.columnIndex="0" GridPane.rowIndex="4">
         <Icon fx:constant="HEART_UNICODE"/>
     </Icon>
-    <Label fx:id="favoriteText" labelFor="$favoriteIcon" text="%filter_favorites" styleClass="icon-text"
+    <Label fx:id="favoriteText" labelFor="$favoriteIcon" text="%filter_favorites" styleClass="icon-text" onMouseClicked="#onCategoryClicked"
            GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 
+    <!-- SETTINGS -->
+    <Icon fx:id="settingsIcon" focusTraversable="true" onMouseClicked="#onSettingsClicked" onKeyPressed="#onSettingsPressed"
+          GridPane.columnIndex="0" GridPane.rowIndex="5">
+        <Icon fx:constant="GEAR_UNICODE"/>
+    </Icon>
+    <Label fx:id="settingsText" labelFor="$settingsIcon" text="%settings" styleClass="icon-text" onMouseClicked="#onSettingsClicked"
+           GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
     <!-- EMPTY SPACE -->
-    <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+    <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="6"/>
 </GridPane>

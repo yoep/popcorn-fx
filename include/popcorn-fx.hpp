@@ -256,28 +256,6 @@ struct MediaItemC {
   EpisodeC *episode;
 };
 
-/// The C compatible media provider properties.
-struct ProviderPropertiesC {
-  /// The name of the provider.
-  const char *name;
-  /// The array of available genres for the provider.
-  const char **genres;
-  /// The length of the genres array.
-  int32_t genres_len;
-  /// The array of available sorting options for the provider.
-  const char **sort_by;
-  /// The length of the sorting options array.
-  int32_t sort_by_len;
-};
-
-/// The C compatible properties of the application.
-struct PopcornPropertiesC {
-  /// The array of available provider properties
-  ProviderPropertiesC *provider_properties;
-  /// The length of the provider properties array
-  int32_t provider_properties_len;
-};
-
 /// The C compatible subtitle settings.
 struct SubtitleSettingsC {
   /// The directory path for storing subtitles
@@ -629,9 +607,12 @@ struct VecFavoritesC {
   int32_t shows_len;
 };
 
-/// Structure holding the values of a string array.
+/// The C compatible string array.
+/// It's mainly used for returning string arrays as result of C function calls.
 struct StringArray {
+  /// The string array
   const char **values;
+  /// The length of the string array
   int32_t len;
 };
 
@@ -695,10 +676,6 @@ void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 
 /// Add the given media item to the watched list.
 void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
-
-/// Retrieve the immutable configuration properties of the application.
-/// These properties stay the same throughout the lifecycle the popcorn FX instance.
-PopcornPropertiesC *application_properties(PopcornFX *popcorn_fx);
 
 /// Retrieve the application settings.
 /// These are the setting preferences of the users for the popcorn FX instance.
@@ -892,6 +869,16 @@ SubtitleInfoC *retrieve_preferred_subtitle(PopcornFX *popcorn_fx);
 ///
 /// It returns the preferred subtitle language.
 SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFX *popcorn_fx);
+
+/// Retrieve the array of available genres for the given provider.
+///
+/// It returns an empty list when the provider name doesn't exist.
+StringArray *retrieve_provider_genres(PopcornFX *popcorn_fx, const char *name);
+
+/// Retrieve the array of available sorts for the given provider.
+///
+/// It returns an empty list when the provider name doesn't exist.
+StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, const char *name);
 
 /// Retrieve the details of a show based on the given IMDB ID.
 /// The details contain all information about the show such as episodes and descriptions.

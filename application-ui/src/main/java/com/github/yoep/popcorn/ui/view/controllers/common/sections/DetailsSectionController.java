@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
+package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
@@ -9,6 +9,8 @@ import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +35,7 @@ public class DetailsSectionController {
     private Pane previousPane;
 
     @FXML
-    private Pane detailPane;
+    Pane detailPane;
 
     //region Methods
 
@@ -67,7 +69,7 @@ public class DetailsSectionController {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
+    void init() {
         initializePanes();
     }
 
@@ -145,6 +147,14 @@ public class DetailsSectionController {
         AnchorPane.setRightAnchor(node, 0.0);
         AnchorPane.setBottomAnchor(node, 0.0);
         AnchorPane.setLeftAnchor(node, 0.0);
+    }
+
+    @FXML
+    void onDetailsPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ESCAPE || event.getCode() == KeyCode.BACK_SPACE) {
+            event.consume();
+            eventPublisher.publishEvent(new CloseDetailsEvent(this));
+        }
     }
 
     private enum DetailsType {

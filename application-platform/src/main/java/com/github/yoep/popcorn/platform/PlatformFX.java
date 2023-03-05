@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Objects;
 
 @Slf4j
@@ -25,11 +24,6 @@ public class PlatformFX implements PlatformProvider {
         } else {
             Platform.runLater(runnable);
         }
-    }
-
-    @Override
-    public boolean launch(Path path) {
-        return launch(path.toString());
     }
 
     @Override

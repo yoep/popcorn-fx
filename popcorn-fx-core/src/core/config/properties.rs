@@ -171,9 +171,11 @@ impl PopcornProperties {
         &self.subtitle
     }
 
-    pub fn provider(&self, name: String) -> crate::core::config::Result<&ProviderProperties> {
-        self.providers.get(&name)
-            .ok_or(ConfigError::UnknownProvider(name))
+    /// Retrieve the provider properties for the given name.
+    /// It returns the properties when found, else the [ConfigError].
+    pub fn provider(&self, name: &str) -> crate::core::config::Result<&ProviderProperties> {
+        self.providers.get(&name.to_string())
+            .ok_or(ConfigError::UnknownProvider(name.to_string()))
     }
 
     /// Retrieve the default provider properties.
@@ -359,5 +361,22 @@ popcorn:
         let result = PopcornProperties::from(config_value);
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_provider_unknown_name() {
+        init_logger();
+        let provider = "lorem ipsum";
+        let properties = PopcornProperties::default();
+
+        let result = properties.provider(provider)
+            .err()
+            .expect("expected an error");
+
+        if let ConfigError::UnknownProvider(name) = result {
+            assert_eq!(provider.to_string(), name)
+        } else {
+            assert!(false, "expected ConfigError::UnknownProvider")
+        }
     }
 }

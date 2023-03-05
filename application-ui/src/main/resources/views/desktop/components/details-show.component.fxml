@@ -8,7 +8,13 @@
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.ShowDetailsComponent" styleClass="show-details-section">
-    <GridPane maxHeight="215" minHeight="215" styleClass="show-header" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
+
+    <!-- Background -->
+    <BackgroundImageCover fx:id="backgroundImage" maxHeight="215" minHeight="215"
+                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <GridPane maxHeight="215" minHeight="215" styleClass="show-header"
+              AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="64">
         <columnConstraints>
             <ColumnConstraints minWidth="198"/>
             <ColumnConstraints minWidth="5"/>
@@ -21,10 +27,6 @@
             <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
             <RowConstraints valignment="BOTTOM"/>
         </rowConstraints>
-
-        <!-- Background -->
-        <BackgroundImageCover fx:id="backgroundImage"
-                              GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.rowIndex="0" GridPane.rowSpan="4"/>
 
         <!-- Image -->
         <StackPane fx:id="posterHolder" styleClass="poster"
@@ -90,7 +92,7 @@
     </GridPane>
 
     <GridPane styleClass="show-details"
-              AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="215">
+              AnchorPane.topAnchor="215" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64">
         <columnConstraints>
             <ColumnConstraints minWidth="200" maxWidth="200"/>
             <ColumnConstraints hgrow="ALWAYS"/>

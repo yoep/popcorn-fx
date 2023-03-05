@@ -27,17 +27,11 @@ public class ApplicationConfig {
     private final LocaleText localeText;
     private final FxLib fxLib;
     private final PopcornFx instance;
-    
+
     private final Queue<ApplicationConfigEventCallback> listeners = new ConcurrentLinkedDeque<>();
     private final ApplicationConfigEventCallback callback = createCallback();
 
-    private ApplicationProperties properties;
-
     //region Getters
-
-    public ApplicationProperties getProperties() {
-        return properties;
-    }
 
     /**
      * Get the application settings.
@@ -156,11 +150,6 @@ public class ApplicationConfig {
 
     @PostConstruct
     void init() {
-        try (var properties = fxLib.application_properties(instance)) {
-            log.debug("Retrieved properties {}", properties);
-            this.properties = properties;
-        }
-
         initializeSettings();
         fxLib.register_settings_callback(instance, callback);
     }

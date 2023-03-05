@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollPane?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.ListSectionController"
+            fx:id="listSection" styleClass="list-section">
+    <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true"
+                        AnchorPane.topAnchor="35" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64"/>
+
+    <VBox fx:id="failedPane" styleClass="failed" alignment="CENTER"
+          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">
+        <Icon>
+            <Icon fx:constant="MEH_O_UNICODE"/>
+        </Icon>
+        <Label fx:id="failedText" text="%list_failed_generic"/>
+        <Button text="%list_failed_retry" onMouseClicked="#onRetryListLoading">
+            <graphic>
+                <Icon>
+                    <Icon fx:constant="REFRESH_UNICODE"/>
+                </Icon>
+            </graphic>
+        </Button>
+    </VBox>
+
+    <StackPane fx:id="overlay" styleClass="overlay"
+               AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+</AnchorPane>

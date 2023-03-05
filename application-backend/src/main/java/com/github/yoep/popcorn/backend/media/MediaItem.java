@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
 import lombok.ToString;
@@ -39,7 +39,7 @@ public class MediaItem extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        FxLib.INSTANCE.dispose_media_item(this);
+        FxLibInstance.INSTANCE.get().dispose_media_item(this);
     }
 
     public static MediaItem from(Media media) {

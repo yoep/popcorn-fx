@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.FilterComponent"
+      styleClass="filter-bar">
+    <spacing>10</spacing>
+
+    <HBox styleClass="filterGroup">
+        <Label labelFor="$genreCombo" text="%filter_genre" onMouseClicked="#onGenreClicked"/>
+        <ComboBox fx:id="genreCombo"/>
+    </HBox>
+
+    <HBox styleClass="filterGroup">
+        <Label labelFor="$sortByCombo" text="%filter_sort_by" onMouseClicked="#onSortClicked"/>
+        <ComboBox fx:id="sortByCombo"/>
+    </HBox>
+</HBox>

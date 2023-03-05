@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
@@ -61,7 +61,7 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     @Override
     public boolean isDisabled() {
-        return FxLib.INSTANCE.is_subtitle_disabled(PopcornFxInstance.INSTANCE.get()) == 1;
+        return FxLibInstance.INSTANCE.get().is_subtitle_disabled(PopcornFxInstance.INSTANCE.get()) == 1;
     }
 
     //endregion
@@ -72,7 +72,7 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final MovieDetails media) {
         Objects.requireNonNull(media, "media cannot be null");
-        try (var set = FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), media)) {
+        try (var set = FxLibInstance.INSTANCE.get().movie_subtitles(PopcornFxInstance.INSTANCE.get(), media)) {
             var subtitles = Optional.ofNullable(set)
                     .map(SubtitleInfoSet::getSubtitles)
                     .orElse(Collections.emptyList());
@@ -88,7 +88,7 @@ public class SubtitleServiceImpl implements SubtitleService {
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final ShowDetails media, final Episode episode) {
         Objects.requireNonNull(media, "media cannot be null");
         Objects.requireNonNull(episode, "episode cannot be null");
-        var subtitles = Optional.ofNullable(FxLib.INSTANCE.episode_subtitles(PopcornFxInstance.INSTANCE.get(), media, episode))
+        var subtitles = Optional.ofNullable(FxLibInstance.INSTANCE.get().episode_subtitles(PopcornFxInstance.INSTANCE.get(), media, episode))
                 .map(SubtitleInfoSet::getSubtitles)
                 .orElse(Collections.emptyList());
 
@@ -101,7 +101,7 @@ public class SubtitleServiceImpl implements SubtitleService {
     @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final String filename) {
         Assert.hasText(filename, "filename cannot be empty");
-        var subtitles = Optional.ofNullable(FxLib.INSTANCE.filename_subtitles(PopcornFxInstance.INSTANCE.get(), filename))
+        var subtitles = Optional.ofNullable(FxLibInstance.INSTANCE.get().filename_subtitles(PopcornFxInstance.INSTANCE.get(), filename))
                 .map(SubtitleInfoSet::getSubtitles)
                 .orElse(Collections.emptyList());
 
@@ -114,7 +114,7 @@ public class SubtitleServiceImpl implements SubtitleService {
     public CompletableFuture<Subtitle> parse(File file, Charset encoding) {
         Objects.requireNonNull(file, "file cannot be null");
         synchronized (mutex) {
-            return CompletableFuture.completedFuture(FxLib.INSTANCE.parse_subtitle(PopcornFxInstance.INSTANCE.get(), file.getAbsolutePath()));
+            return CompletableFuture.completedFuture(FxLibInstance.INSTANCE.get().parse_subtitle(PopcornFxInstance.INSTANCE.get(), file.getAbsolutePath()));
         }
     }
 
@@ -124,7 +124,7 @@ public class SubtitleServiceImpl implements SubtitleService {
         Objects.requireNonNull(matcher, "matcher cannot be null");
         synchronized (mutex) {
             log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-            return CompletableFuture.completedFuture(FxLib.INSTANCE.download(PopcornFxInstance.INSTANCE.get(), subtitleInfo, matcher));
+            return CompletableFuture.completedFuture(FxLibInstance.INSTANCE.get().download(PopcornFxInstance.INSTANCE.get(), subtitleInfo, matcher));
         }
     }
 
@@ -134,7 +134,7 @@ public class SubtitleServiceImpl implements SubtitleService {
         Objects.requireNonNull(matcher, "matcher cannot be null");
         synchronized (mutex) {
             log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-            var subtitle = FxLib.INSTANCE.download_and_parse_subtitle(PopcornFxInstance.INSTANCE.get(), subtitleInfo, matcher);
+            var subtitle = FxLibInstance.INSTANCE.get().download_and_parse_subtitle(PopcornFxInstance.INSTANCE.get(), subtitleInfo, matcher);
             log.info("Downloaded and parsed subtitle info {} to {}", subtitleInfo, subtitle.getFilepath());
             return CompletableFuture.completedFuture(subtitle);
         }
@@ -159,7 +159,7 @@ public class SubtitleServiceImpl implements SubtitleService {
         }
 
         synchronized (mutex) {
-            return FxLib.INSTANCE.select_or_default_subtitle(PopcornFxInstance.INSTANCE.get(), array, count);
+            return FxLibInstance.INSTANCE.get().select_or_default_subtitle(PopcornFxInstance.INSTANCE.get(), array, count);
         }
     }
 
@@ -167,21 +167,21 @@ public class SubtitleServiceImpl implements SubtitleService {
     public String serve(Subtitle subtitle, SubtitleType type) {
         Objects.requireNonNull(subtitle, "subtitle cannot be null");
         synchronized (mutex) {
-            return FxLib.INSTANCE.serve_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle, type.ordinal());
+            return FxLibInstance.INSTANCE.get().serve_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle, type.ordinal());
         }
     }
 
     @Override
     public Optional<SubtitleInfo> preferredSubtitle() {
         synchronized (mutex) {
-            return Optional.ofNullable(FxLib.INSTANCE.retrieve_preferred_subtitle(PopcornFxInstance.INSTANCE.get()));
+            return Optional.ofNullable(FxLibInstance.INSTANCE.get().retrieve_preferred_subtitle(PopcornFxInstance.INSTANCE.get()));
         }
     }
 
     @Override
     public SubtitleLanguage preferredSubtitleLanguage() {
         synchronized (mutex) {
-            return FxLib.INSTANCE.retrieve_preferred_subtitle_language(PopcornFxInstance.INSTANCE.get());
+            return FxLibInstance.INSTANCE.get().retrieve_preferred_subtitle_language(PopcornFxInstance.INSTANCE.get());
         }
     }
 
@@ -190,10 +190,10 @@ public class SubtitleServiceImpl implements SubtitleService {
         synchronized (mutex) {
             if (subtitle != null) {
                 log.trace("Updating subtitle to {}", subtitle);
-                FxLib.INSTANCE.update_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle);
+                FxLibInstance.INSTANCE.get().update_subtitle(PopcornFxInstance.INSTANCE.get(), subtitle);
             } else {
                 log.trace("Clearing the preferred subtitle");
-                FxLib.INSTANCE.reset_subtitle(PopcornFxInstance.INSTANCE.get());
+                FxLibInstance.INSTANCE.get().reset_subtitle(PopcornFxInstance.INSTANCE.get());
             }
         }
     }
@@ -203,19 +203,19 @@ public class SubtitleServiceImpl implements SubtitleService {
         Objects.requireNonNull(subtitleFilepath, "subtitleFilepath cannot be null");
         synchronized (mutex) {
             log.trace("Updating subtitle custom filepath to {}", subtitleFilepath);
-            FxLib.INSTANCE.update_subtitle_custom_file(PopcornFxInstance.INSTANCE.get(), subtitleFilepath);
+            FxLibInstance.INSTANCE.get().update_subtitle_custom_file(PopcornFxInstance.INSTANCE.get(), subtitleFilepath);
         }
     }
 
     @Override
     public void disableSubtitle() {
-        FxLib.INSTANCE.disable_subtitle(PopcornFxInstance.INSTANCE.get());
+        FxLibInstance.INSTANCE.get().disable_subtitle(PopcornFxInstance.INSTANCE.get());
     }
 
     //endregion
 
     private static List<SubtitleInfo> defaultOptions() {
-        try (var set = FxLib.INSTANCE.default_subtitle_options(PopcornFxInstance.INSTANCE.get())) {
+        try (var set = FxLibInstance.INSTANCE.get().default_subtitle_options(PopcornFxInstance.INSTANCE.get())) {
             return set.getSubtitles();
         }
     }

@@ -12,7 +12,7 @@ public abstract class AbstractCardComponent {
     private static final String POSTER_HOLDER = "/images/posterholder.png";
 
     @FXML
-    private Pane poster;
+    Pane poster;
 
     /**
      * Get the poster holder image resource.

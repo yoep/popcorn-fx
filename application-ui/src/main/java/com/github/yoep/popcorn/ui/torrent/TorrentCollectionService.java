@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.torrent;
 
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
@@ -23,7 +23,7 @@ public class TorrentCollectionService {
      */
     public boolean isStored(String magnetUri) {
         Objects.requireNonNull(magnetUri, "magnetUri cannot be empty");
-        return FxLib.INSTANCE.torrent_collection_is_stored(PopcornFxInstance.INSTANCE.get(), magnetUri) == 1;
+        return FxLibInstance.INSTANCE.get().torrent_collection_is_stored(PopcornFxInstance.INSTANCE.get(), magnetUri) == 1;
     }
 
     /**
@@ -32,7 +32,7 @@ public class TorrentCollectionService {
      * @return Returns the stored torrents.
      */
     public List<StoredTorrent> getStoredTorrents() {
-        try (var set = FxLib.INSTANCE.torrent_collection_all(PopcornFxInstance.INSTANCE.get())) {
+        try (var set = FxLibInstance.INSTANCE.get().torrent_collection_all(PopcornFxInstance.INSTANCE.get())) {
             return set.getMagnets();
         }
     }
@@ -45,7 +45,7 @@ public class TorrentCollectionService {
      */
     public void addTorrent(String magnetUri, TorrentInfo torrent) {
         Objects.requireNonNull(torrent, "torrent cannot be null");
-        FxLib.INSTANCE.torrent_collection_add(PopcornFxInstance.INSTANCE.get(), torrent.getName(), magnetUri);
+        FxLibInstance.INSTANCE.get().torrent_collection_add(PopcornFxInstance.INSTANCE.get(), torrent.getName(), magnetUri);
     }
 
     /**
@@ -55,6 +55,6 @@ public class TorrentCollectionService {
      */
     public void removeTorrent(String magnetUri) {
         Objects.requireNonNull(magnetUri, "magnetUri cannot be null");
-        FxLib.INSTANCE.torrent_collection_remove(PopcornFxInstance.INSTANCE.get(), magnetUri);
+        FxLibInstance.INSTANCE.get().torrent_collection_remove(PopcornFxInstance.INSTANCE.get(), magnetUri);
     }
 }

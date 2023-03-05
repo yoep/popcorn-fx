@@ -2,6 +2,10 @@ package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
+import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -11,13 +15,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -27,7 +34,9 @@ class ContentSectionControllerTest {
     @Mock
     private LocaleText localeText;
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private ApplicationEventPublisher applicationEventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher();
     @Mock
     private MaximizeService maximizeService;
     @Mock
@@ -41,6 +50,28 @@ class ContentSectionControllerTest {
     void setUp() {
         lenient().when(viewLoader.load(isA(String.class))).thenReturn(new Pane());
         controller.contentPane = new Pane();
+        controller.listPane = new Pane();
+    }
+
+    @Test
+    void testOnCategoryChangedEvent() {
+        controller.initialize(url, resourceBundle);
+
+        eventPublisher.publish(new CategoryChangedEvent(controller, Category.SERIES));
+
+        assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);
+        assertEquals(controller.listPane, controller.contentPane.getChildren().get(0));
+    }
+
+    @Test
+    void testOnShowSettingsEvent() {
+        controller.initialize(url, resourceBundle);
+
+        eventPublisher.publish(new ShowSettingsEvent(controller));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertEquals(ContentSectionController.ContentType.SETTINGS, controller.activeType);
+        assertEquals(controller.settingsPane, controller.contentPane.getChildren().get(0));
     }
 
     @Test

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
@@ -63,7 +63,7 @@ public class AboutSectionController implements Initializable {
 
     private void initializeLabels() {
         titleLabel.setText(applicationContext.getId());
-        versionLabel.setText(FxLib.INSTANCE.version());
+        versionLabel.setText(FxLibInstance.INSTANCE.get().version());
     }
 
     private void initializeListeners() {

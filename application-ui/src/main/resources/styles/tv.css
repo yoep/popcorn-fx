@@ -495,3 +495,24 @@
 .root .content-section .settings-section .sub-section .check-box:focused .box {
     -fx-border-color: #2d72d9;
 }
+
+/* ==================================================== */
+/* NEW SECTION AFTER REWORK                             */
+/* EVERYTHING ABOVE SHOULD BE REMOVED AS IT'S NOT USED  */
+/* ==================================================== */
+
+.root,
+.root .viewport,
+.root .scroll-bar,
+.root .list-cell,
+.root .table-row-cell,
+.root .scroll-pane,
+.root .list-view,
+.root .table-view,
+.root .header .bar,
+.root .loader,
+.root .player-external,
+.root .overlay,
+.root .content-section {
+    -fx-font-size: 24px;
+}

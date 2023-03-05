@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.task.TaskExecutor;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -27,7 +26,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class ContentSectionController implements Initializable {
     private final ViewLoader viewLoader;
-    private final TaskExecutor taskExecutor;
     private final LocaleText localeText;
     private final ApplicationEventPublisher eventPublisher;
     private final MaximizeService maximizeService;
@@ -119,7 +117,7 @@ public class ContentSectionController implements Initializable {
         setAnchor(listPane);
 
         // load the details pane on a different thread
-        taskExecutor.execute(() -> {
+        new Thread(() -> {
             detailsPane = viewLoader.load("sections/details.section.fxml");
             torrentCollectionPane = viewLoader.load("sections/torrent-collection.section.fxml");
             watchlistPane = viewLoader.load("sections/watchlist.section.fxml");
@@ -133,7 +131,7 @@ public class ContentSectionController implements Initializable {
             setAnchor(settingsPane);
             setAnchor(aboutPane);
             setAnchor(updatePane);
-        });
+        }, "content-views").start();
     }
 
     //endregion
@@ -171,10 +169,10 @@ public class ContentSectionController implements Initializable {
     }
 
     private void setAnchor(Pane pane) {
-        AnchorPane.setTopAnchor(pane, 64d);
+        AnchorPane.setTopAnchor(pane, 20d);
         AnchorPane.setRightAnchor(pane, 0d);
         AnchorPane.setBottomAnchor(pane, 0d);
-        AnchorPane.setLeftAnchor(pane, 0d);
+        AnchorPane.setLeftAnchor(pane, 64d);
     }
 
     //endregion

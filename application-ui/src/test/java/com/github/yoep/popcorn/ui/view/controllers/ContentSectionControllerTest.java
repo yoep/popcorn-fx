@@ -13,7 +13,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.core.task.TaskExecutor;
 import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.net.URL;
@@ -25,8 +24,6 @@ import static org.mockito.Mockito.*;
 class ContentSectionControllerTest {
     @Mock
     private ViewLoader viewLoader;
-    @Mock
-    private TaskExecutor taskExecutor;
     @Mock
     private LocaleText localeText;
     @Mock

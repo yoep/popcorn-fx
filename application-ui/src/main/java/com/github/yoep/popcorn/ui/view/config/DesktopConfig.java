@@ -32,11 +32,10 @@ public class DesktopConfig {
 
     @Bean
     public ContentSectionController contentSectionController(ViewLoader viewLoader,
-                                                             TaskExecutor taskExecutor,
                                                              LocaleText localeText,
                                                              ApplicationEventPublisher eventPublisher,
                                                              MaximizeService maximizeService) {
-        return new ContentSectionController(viewLoader, taskExecutor, localeText, eventPublisher, maximizeService);
+        return new ContentSectionController(viewLoader, localeText, eventPublisher, maximizeService);
     }
 
     @Bean

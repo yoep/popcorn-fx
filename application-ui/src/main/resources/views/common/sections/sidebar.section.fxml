@@ -1,8 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.AnchorPane?>
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.SidebarController">
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.SizedImageView?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx"
+          xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.SidebarController"
+          fx:id="sidebar" styleClass="sidebar" onMouseEntered="#onHovering" onMouseExited="#onHoverStopped">
+    <columnConstraints>
+        <ColumnConstraints halignment="LEFT" maxWidth="64"/>
+        <ColumnConstraints halignment="LEFT" hgrow="ALWAYS" maxWidth="0" />
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints vgrow="ALWAYS" maxHeight="Infinity"/>
+        <RowConstraints valignment="CENTER"/>
+        <RowConstraints valignment="CENTER"/>
+        <RowConstraints valignment="CENTER"/>
+        <RowConstraints valignment="CENTER"/>
+        <RowConstraints vgrow="ALWAYS" maxHeight="Infinity"/>
+    </rowConstraints>
+    <padding>
+        <Insets top="8" bottom="8"/>
+    </padding>
 
-</AnchorPane>
+    <BorderPane GridPane.valignment="TOP" GridPane.halignment="LEFT" styleClass="logo"
+                GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <SizedImageView preserveRatio="true">
+            <Image url="/images/icon-sidebar-dark_128.png"/>
+        </SizedImageView>
+    </BorderPane>
+
+    <!-- SEARCH -->
+    <Icon fx:id="searchIcon" focusTraversable="true"
+          GridPane.columnIndex="0" GridPane.rowIndex="1">
+        <Icon fx:constant="SEARCH_UNICODE"/>
+    </Icon>
+    <Label labelFor="$searchIcon" text="%header_search" styleClass="icon-text"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+    <!-- CATEGORIES -->
+    <Icon fx:id="movieIcon" focusTraversable="true" onMouseClicked="#onCategoryClicked" onKeyPressed="#onCategoryPressed"
+          GridPane.columnIndex="0" GridPane.rowIndex="2">
+        <Icon fx:constant="FILM_UNICODE"/>
+    </Icon>
+    <Label fx:id="movieText" labelFor="$movieIcon" text="%filter_movies" styleClass="icon-text"
+           GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+    <Icon fx:id="serieIcon" focusTraversable="true" onMouseClicked="#onCategoryClicked" onKeyPressed="#onCategoryPressed"
+          GridPane.columnIndex="0" GridPane.rowIndex="3">
+        <Icon fx:constant="TV_UNICODE"/>
+    </Icon>
+    <Label fx:id="serieText" labelFor="$serieIcon" text="%filter_series" styleClass="icon-text"
+           GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+    <Icon fx:id="favoriteIcon" focusTraversable="true" onMouseClicked="#onCategoryClicked" onKeyPressed="#onCategoryPressed"
+          GridPane.columnIndex="0" GridPane.rowIndex="4">
+        <Icon fx:constant="HEART_UNICODE"/>
+    </Icon>
+    <Label fx:id="favoriteText" labelFor="$favoriteIcon" text="%filter_favorites" styleClass="icon-text"
+           GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+    <!-- EMPTY SPACE -->
+    <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+</GridPane>

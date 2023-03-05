@@ -27,15 +27,15 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     private final TorrentSettingService torrentSettingService;
 
     @FXML
-    private DelayedTextField downloadLimit;
+    DelayedTextField downloadLimit;
     @FXML
-    private DelayedTextField uploadLimit;
+    DelayedTextField uploadLimit;
     @FXML
-    private DelayedTextField connectionLimit;
+    DelayedTextField connectionLimit;
     @FXML
-    private TextField cacheDirectory;
+    TextField cacheDirectory;
     @FXML
-    private CheckBox clearCache;
+    CheckBox clearCache;
 
     public SettingsTorrentComponent(ApplicationEventPublisher eventPublisher,
                                     LocaleText localeText,
@@ -128,6 +128,7 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         var settings = getSettings();
 
         settings.setAutoCleaningEnabled(newValue);
+        applicationConfig.update(settings);
         showNotification();
     }
 

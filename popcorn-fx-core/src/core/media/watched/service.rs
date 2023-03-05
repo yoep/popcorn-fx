@@ -122,7 +122,7 @@ impl DefaultWatchedService {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
-                    StorageError::FileNotFound(file) => {
+                    StorageError::NotFound(file) => {
                         debug!("Creating new watched file {}", file);
                         Ok(Watched::empty())
                     }

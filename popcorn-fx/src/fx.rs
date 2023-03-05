@@ -26,7 +26,7 @@ use popcorn_fx_core::core::torrent::collection::TorrentCollection;
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
-use popcorn_fx_torrent::torrent::RTTorrentManager;
+use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 
 static INIT: Once = Once::new();
@@ -136,7 +136,7 @@ impl PopcornFX {
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
         let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
-        let torrent_manager = Arc::new(Box::new(RTTorrentManager::new()) as Box<dyn TorrentManager>);
+        let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);

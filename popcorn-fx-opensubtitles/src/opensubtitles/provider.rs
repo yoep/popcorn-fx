@@ -16,6 +16,7 @@ use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
+use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
@@ -517,24 +518,8 @@ impl Drop for OpensubtitlesProvider {
         if *settings.auto_cleaning_enabled() {
             let path = settings.directory();
             debug!("Cleaning subtitle directory {:?}", &path);
-
-            match fs::read_dir(&path) {
-                Ok(e) => {
-                    for file in e {
-                        let sub_path = file.expect("expected file entry to be valid").path();
-
-                        match fs::remove_file(&sub_path) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                warn!("Failed to delete subtitle file {:?}, {}", &sub_path, err);
-                            }
-                        }
-                    }
-                    info!("Subtitle directory {} has been cleaned", path.to_str().unwrap());
-                }
-                Err(err) => {
-                    warn!("Failed to clean subtitle directory {:?}, {}", &path, err)
-                }
+            if let Err(e) = Storage::clean_directory(path) {
+                error!("Failed to clean subtitle directory, {}", e);
             }
         } else {
             trace!("Skipping subtitle directory cleaning")

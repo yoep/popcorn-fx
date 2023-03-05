@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,5 +58,17 @@ class ApplicationConfigTest {
         config.update(settings);
 
         verify(fxLib).update_subtitle_settings(instance, expected);
+    }
+
+    @Test
+    void testUpdateTorrentSettings() {
+        var settings = new TorrentSettings();
+        settings.autoCleaningEnabled = (byte) 1;
+        var expected = new TorrentSettings.ByValue();
+        expected.autoCleaningEnabled = (byte) 1;
+
+        config.update(settings);
+
+        verify(fxLib).update_torrent_settings(instance, expected);
     }
 }

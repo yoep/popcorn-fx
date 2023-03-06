@@ -830,7 +830,7 @@ mod test {
             ui_settings: UiSettings {
                 default_language: "en".to_string(),
                 ui_scale: UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                start_screen: StartScreen::Movies,
+                start_screen: Category::Movies,
                 maximized: false,
                 native_window_enabled: false,
             },
@@ -941,7 +941,7 @@ mod test {
             ui_settings: UiSettings {
                 default_language: "fr".to_string(),
                 ui_scale: UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                start_screen: StartScreen::Movies,
+                start_screen: Category::Movies,
                 maximized: false,
                 native_window_enabled: false,
             },

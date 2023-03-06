@@ -5,11 +5,12 @@ use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
 use crate::core::config::ConfigError;
+use crate::core::media::Category;
 
 const UI_SCALE_SUFFIX: &str = "%";
 const DEFAULT_LANGUAGE: fn() -> String = || "en".to_string();
 const DEFAULT_UI_SCALE: fn() -> UiScale = || UiScale::new(1f32).expect("Expected the ui scale to be valid");
-const DEFAULT_START_SCREEN: fn() -> StartScreen = || StartScreen::Movies;
+const DEFAULT_START_SCREEN: fn() -> Category = || Category::Movies;
 const DEFAULT_MAXIMIZED: fn() -> bool = || false;
 const DEFAULT_NATIVE_WINDOW: fn() -> bool = || false;
 
@@ -24,7 +25,7 @@ pub struct UiSettings {
     pub ui_scale: UiScale,
     /// The default start screen of the application
     #[serde(default = "DEFAULT_START_SCREEN")]
-    pub start_screen: StartScreen,
+    pub start_screen: Category,
     /// The indication if the UI was maximized the last time the application was closed
     #[serde(default = "DEFAULT_MAXIMIZED")]
     pub maximized: bool,
@@ -76,16 +77,6 @@ impl Display for UiScale {
 
         write!(f, "{}{}", display_value, UI_SCALE_SUFFIX)
     }
-}
-
-/// The start screen options
-#[repr(i32)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum StartScreen {
-    Movies = 0,
-    Shows = 1,
-    Favorites = 2,
 }
 
 #[cfg(test)]

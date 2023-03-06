@@ -42,7 +42,7 @@ impl Display for MovieProvider {
 #[async_trait]
 impl MediaProvider for MovieProvider {
     fn supports(&self, category: &Category) -> bool {
-        category == &Category::MOVIES
+        category == &Category::Movies
     }
 
     fn reset_api(&self) {

@@ -129,8 +129,8 @@ impl FavoritesProvider {
 
     fn media_type_to_category(media_type: MediaType) -> Option<Category> {
         match media_type {
-            MediaType::Movie => Some(Category::MOVIES),
-            MediaType::Show => Some(Category::SERIES),
+            MediaType::Movie => Some(Category::Movies),
+            MediaType::Show => Some(Category::Series),
             _ => {
                 error!("Media type {} doesn't support any categories", media_type);
                 None
@@ -168,7 +168,7 @@ impl Display for FavoritesProvider {
 #[async_trait]
 impl MediaProvider for FavoritesProvider {
     fn supports(&self, category: &Category) -> bool {
-        category == &Category::FAVORITES
+        category == &Category::Favorites
     }
 
     fn reset_api(&self) {

@@ -213,7 +213,8 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::config::{DecorationType, Quality, StartScreen, SubtitleFamily, SubtitleSettings, UiScale};
+    use crate::core::config::{DecorationType, Quality, SubtitleFamily, SubtitleSettings, UiScale};
+    use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file};
 
@@ -425,7 +426,7 @@ mod test {
         let settings = UiSettings {
             default_language: "en".to_string(),
             ui_scale: UiScale::new(1.2).unwrap(),
-            start_screen: StartScreen::Favorites,
+            start_screen: Category::Favorites,
             maximized: false,
             native_window_enabled: false,
         };

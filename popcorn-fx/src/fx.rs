@@ -94,7 +94,6 @@ impl Default for PopcornFxArgs {
 /// This instance will have the [log4rs] loggers initialized.
 /// ```no_run
 /// use popcorn_fx::PopcornFX;
-///
 /// let instance = PopcornFX::default();
 /// ```
 #[repr(C)]

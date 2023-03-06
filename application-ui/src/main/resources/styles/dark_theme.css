@@ -425,7 +425,7 @@
 }
 
 .root .list-section .poster-item .title {
-    -fx-font-family: "Open Sans Semibold";
+    -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1em;
     -fx-text-fill: #fff;
     -fx-padding: 4 0 2 0;
@@ -433,8 +433,9 @@
 
 .root .list-section .poster-item .year,
 .root .list-section .poster-item .seasons {
-    -fx-text-fill: #5b5b5b;
-    -fx-fill: #5b5b5b;
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #808080;
+    -fx-fill: #808080;
     -fx-font-size: 0.85em;
 }
 

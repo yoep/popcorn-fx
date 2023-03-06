@@ -6,6 +6,14 @@
 #include <new>
 
 
+/// The available categories of [crate::core::media::Media] items.
+/// These can be used as filter to retrieve data from the API.
+enum class Category : int32_t {
+  Movies = 0,
+  Series = 1,
+  Favorites = 2,
+};
+
 /// The decoration to apply to the subtitle during rendering.
 enum class DecorationType : int32_t {
   None = 0,
@@ -20,13 +28,6 @@ enum class Quality {
   P720,
   P1080,
   P2160,
-};
-
-/// The start screen options
-enum class StartScreen : int32_t {
-  Movies = 0,
-  Shows = 1,
-  Favorites = 2,
 };
 
 /// The supported subtitle fonts to use for rendering subtitles.
@@ -137,7 +138,6 @@ struct Box;
 /// This instance will have the [log4rs] loggers initialized.
 /// ```no_run
 /// use popcorn_fx::PopcornFX;
-///
 /// let instance = PopcornFX::default();
 /// ```
 struct PopcornFX;
@@ -301,7 +301,7 @@ struct UiSettingsC {
   /// The ui scale of the application
   UiScale ui_scale;
   /// The default start screen of the application
-  StartScreen start_screen;
+  Category start_screen;
   /// The indication if the UI was maximized the last time the application was closed
   bool maximized;
   /// The indication if the UI should use a native window rather than the borderless stage

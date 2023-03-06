@@ -4,9 +4,10 @@ use std::ptr;
 
 use log::trace;
 
-use crate::{from_c_owned, from_c_string, into_c_owned, into_c_string};
-use crate::core::config::{ApplicationConfigEvent, DecorationType, PlaybackSettings, PopcornSettings, Quality, ServerSettings, StartScreen, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
-use crate::core::subtitles::language::SubtitleLanguage;
+use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned, into_c_string};
+use popcorn_fx_core::core::config::{ApplicationConfigEvent, DecorationType, PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
+use popcorn_fx_core::core::media::Category;
+use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 
 /// The C callback for the setting events.
 pub type ApplicationConfigCallbackC = extern "C" fn(ApplicationConfigEventC);
@@ -169,7 +170,7 @@ pub struct UiSettingsC {
     /// The ui scale of the application
     pub ui_scale: UiScale,
     /// The default start screen of the application
-    pub start_screen: StartScreen,
+    pub start_screen: Category,
     /// The indication if the UI was maximized the last time the application was closed
     pub maximized: bool,
     /// The indication if the UI should use a native window rather than the borderless stage
@@ -280,8 +281,9 @@ impl From<PlaybackSettingsC> for PlaybackSettings {
 mod test {
     use std::path::PathBuf;
 
-    use crate::core::config::SubtitleFamily;
-    use crate::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::config::SubtitleFamily;
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+
     use crate::from_c_string;
 
     use super::*;
@@ -417,7 +419,7 @@ mod test {
         let settings = UiSettings {
             default_language: language.to_string(),
             ui_scale: ui_scale.clone(),
-            start_screen: StartScreen::Movies,
+            start_screen: Category::Movies,
             maximized: true,
             native_window_enabled: false,
         };
@@ -426,7 +428,7 @@ mod test {
 
         assert_eq!(language.to_string(), from_c_string(result.default_language));
         assert_eq!(ui_scale, result.ui_scale);
-        assert_eq!(StartScreen::Movies, result.start_screen);
+        assert_eq!(Category::Movies, result.start_screen);
         assert_eq!(true, result.maximized);
         assert_eq!(false, result.native_window_enabled);
     }
@@ -437,14 +439,14 @@ mod test {
         let settings = UiSettingsC {
             default_language: into_c_string("en".to_string()),
             ui_scale: ui_scale.clone(),
-            start_screen: StartScreen::Shows,
+            start_screen: Category::Series,
             maximized: true,
             native_window_enabled: false,
         };
         let expected_result = UiSettings {
             default_language: "en".to_string(),
             ui_scale,
-            start_screen: StartScreen::Shows,
+            start_screen: Category::Series,
             maximized: true,
             native_window_enabled: false,
         };

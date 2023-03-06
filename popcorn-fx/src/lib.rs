@@ -7,7 +7,7 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{ApplicationConfigCallbackC, ApplicationConfigEventC, EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, PlaybackSettingsC, PopcornSettingsC, ServerSettingsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, SubtitleSettingsC, TorrentCollectionSet, TorrentSettingsC, UiSettingsC, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
@@ -251,7 +251,7 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::MOVIES, &genre, &sort_by, &keywords, page)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Movies, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} movies, {:?}", e.len(), &e);
             let movies: Vec<MovieOverview> = e.into_iter()
@@ -283,7 +283,7 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
 pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MovieDetailsC {
     let imdb_id = from_c_string(imdb_id);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::MOVIES, &imdb_id)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Movies, &imdb_id)) {
         Ok(e) => {
             trace!("Returning movie details {:?}", &e);
             into_c_owned(MovieDetailsC::from(*e
@@ -302,7 +302,7 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
 /// This will make all disabled api's available again.
 #[no_mangle]
 pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
-    popcorn_fx.providers().reset_api(&Category::MOVIES)
+    popcorn_fx.providers().reset_api(&Category::Movies)
 }
 
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
@@ -314,7 +314,7 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::SERIES, &genre, &sort_by, &keywords, page)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Series, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} shows, {:?}", e.len(), &e);
             let shows: Vec<ShowOverview> = e.into_iter()
@@ -346,7 +346,7 @@ pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &G
 pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut ShowDetailsC {
     let imdb_id = from_c_string(imdb_id);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::SERIES, &imdb_id)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Series, &imdb_id)) {
         Ok(e) => {
             trace!("Returning show details {:?}", &e);
             into_c_owned(ShowDetailsC::from(*e
@@ -365,7 +365,7 @@ pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *co
 /// This will make all disabled api's available again.
 #[no_mangle]
 pub extern "C" fn reset_show_apis(popcorn_fx: &mut PopcornFX) {
-    popcorn_fx.providers().reset_api(&Category::SERIES)
+    popcorn_fx.providers().reset_api(&Category::Series)
 }
 
 /// Retrieve all liked favorite media items.
@@ -377,7 +377,7 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::FAVORITES, &genre, &sort_by, &keywords, page)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Favorites, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);
             favorites_to_c(e)
@@ -397,7 +397,7 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
 pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MediaItemC {
     let imdb_id = from_c_string(imdb_id);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::FAVORITES, &imdb_id)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Favorites, &imdb_id)) {
         Ok(e) => {
             trace!("Returning favorite details {:?}", &e);
             match e.media_type() {

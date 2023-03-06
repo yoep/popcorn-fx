@@ -27,8 +27,11 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
-import java.time.Duration;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -194,10 +197,15 @@ class SidebarControllerTest {
     }
 
     @Test
-    void testOnCloseSettingsEvent_shouldActiveLastKnownCategory() {
+    void testOnCloseSettingsEvent_shouldActiveLastKnownCategory() throws ExecutionException, InterruptedException, TimeoutException {
         var event = mock(MouseEvent.class);
+        var trigger = new CompletableFuture<Void>();
         when(event.getSource()).thenReturn(controller.serieIcon);
         when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        eventPublisher.register(ShowSettingsEvent.class, e -> {
+            trigger.complete(null);
+            return null;
+        }, EventPublisher.LOWEST_ORDER);
         controller.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
@@ -206,6 +214,8 @@ class SidebarControllerTest {
         verify(eventPublisher).publish(new ShowSettingsEvent(controller));
 
         eventPublisher.publish(new CloseSettingsEvent(this));
-        assertTimeout(Duration.ofMillis(100), () -> assertTrue(controller.serieIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE)));
+        trigger.get(100, TimeUnit.MILLISECONDS);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertTrue(controller.serieIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
     }
 }

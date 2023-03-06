@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
 <?import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollPane?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
@@ -8,6 +9,9 @@
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.ListSectionController"
             fx:id="listSection" styleClass="list-section">
+    <BackgroundImageCover fx:id="backgroundImage"
+                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" />
+
     <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true"
                         AnchorPane.topAnchor="35" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64"/>
 

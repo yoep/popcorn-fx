@@ -16,18 +16,18 @@
     </columnConstraints>
     <rowConstraints>
         <RowConstraints vgrow="ALWAYS" maxHeight="Infinity"/>
-        <RowConstraints valignment="CENTER"/>
-        <RowConstraints valignment="CENTER"/>
-        <RowConstraints valignment="CENTER"/>
-        <RowConstraints valignment="CENTER"/>
-        <RowConstraints valignment="CENTER"/>
+        <RowConstraints />
+        <RowConstraints />
+        <RowConstraints />
+        <RowConstraints />
+        <RowConstraints />
         <RowConstraints vgrow="ALWAYS" maxHeight="Infinity"/>
     </rowConstraints>
     <padding>
         <Insets top="5" bottom="5"/>
     </padding>
 
-    <BorderPane GridPane.valignment="TOP" GridPane.halignment="LEFT" styleClass="logo"
+    <BorderPane GridPane.valignment="TOP" GridPane.halignment="CENTER" styleClass="logo"
                 GridPane.columnIndex="0" GridPane.rowIndex="0">
         <SizedImageView preserveRatio="true">
             <Image url="/images/icon-sidebar-dark_128.png"/>
@@ -71,7 +71,4 @@
     </Icon>
     <Label fx:id="settingsText" labelFor="$settingsIcon" text="%settings" styleClass="icon-text" onMouseClicked="#onSettingsClicked"
            GridPane.columnIndex="1" GridPane.rowIndex="5"/>
-
-    <!-- EMPTY SPACE -->
-    <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="6"/>
 </GridPane>

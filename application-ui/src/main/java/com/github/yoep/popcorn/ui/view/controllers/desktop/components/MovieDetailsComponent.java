@@ -123,6 +123,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         loadSubtitles();
         loadFavoriteAndWatched();
         loadQualitySelection(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
+        Platform.runLater(() -> watchNowButton.requestFocus());
     }
 
     @Override
@@ -215,8 +216,13 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         });
     }
 
+    private void closeDetails() {
+        eventPublisher.publishEvent(new CloseDetailsEvent(this));
+        reset();
+    }
+
     @FXML
-    private void onMagnetClicked(MouseEvent event) {
+    void onMagnetClicked(MouseEvent event) {
         event.consume();
         var torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
 
@@ -228,7 +234,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @FXML
-    private void onWatchNowClicked(MouseEvent event) {
+    void onWatchNowClicked(MouseEvent event) {
         event.consume();
 
         var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
@@ -236,35 +242,28 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     @FXML
-    private void onTrailerClicked(MouseEvent event) {
+    void onTrailerClicked(MouseEvent event) {
         event.consume();
 
         eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
     }
 
     @FXML
-    private void onSubtitleLabelClicked(MouseEvent event) {
+    void onSubtitleLabelClicked(MouseEvent event) {
         event.consume();
         languageSelection.show();
     }
 
     @FXML
-    private void onFavoriteClicked(MouseEvent event) {
+    void onFavoriteClicked(MouseEvent event) {
         event.consume();
         service.toggleLikedState();
     }
 
     @FXML
-    private void onWatchedClicked(MouseEvent event) {
+    void onWatchedClicked(MouseEvent event) {
         event.consume();
         service.toggleWatchedState();
-    }
-
-    @FXML
-    private void close(MouseEvent event) {
-        event.consume();
-        eventPublisher.publishEvent(new CloseDetailsEvent(this));
-        reset();
     }
 
     //endregion

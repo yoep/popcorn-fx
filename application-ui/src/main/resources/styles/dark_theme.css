@@ -25,9 +25,24 @@
 .root .player-external,
 .root .overlay,
 .root .content-section {
-    -fx-background-color: #17181b;
     -fx-border-width: 0;
     -fx-font-size: 12px;
+}
+
+.root,
+.root .scroll-bar,
+.root .table-row-cell,
+.root .table-view,
+.root .loader,
+.root .player-external,
+.root .overlay,
+.root .content-section {
+    -fx-background-color: #17181b;
+}
+
+.root .viewport,
+.root .scroll-pane {
+    -fx-background-color: transparent;
 }
 
 .root .text {
@@ -91,23 +106,29 @@
 .root .split-menu-button,
 .root .split-menu-button .label,
 .root .split-menu-button .arrow-button,
-.root Button {
+.root .button {
     -fx-font-family: "Open Sans Bold";
     -fx-background-color: #1f375f;
     -fx-text-fill: #fff;
     -fx-cursor: hand;
 }
 
+.root .button .icon {
+    -fx-text-fill: #fff;
+}
+
 .root .split-menu-button .label,
 .root .split-menu-button .arrow-button,
-.root Button {
+.root .button {
     -fx-padding: 10 15 10 15;
 }
 
 .root .split-menu-button:hover .label,
 .root .split-menu-button:hover .arrow-button,
-.root Button:hover,
-.root Button:focused {
+.root .split-menu-button:focused .label,
+.root .split-menu-button:focused .arrow-button,
+.root .button:hover,
+.root .button:focused {
     -fx-background-color: #225694;
 }
 
@@ -577,11 +598,18 @@
     -fx-text-fill: #fff;
     -fx-cursor: hand;
     -fx-padding: 2 10 2 10;
+    -fx-background-radius: 5em;
 }
 
 .root .movie-details .quality-selection .quality.active {
     -fx-background-color: rgba(43, 110, 210, 0.84);
-    -fx-background-radius: 5em;
+}
+
+.root .movie-details .quality-selection .quality:hover,
+.root .movie-details .quality-selection .quality:focused,
+.root .movie-details .quality-selection .quality.active:hover,
+.root .movie-details .quality-selection .quality.active:focused {
+    -fx-background-color: rgba(46, 119, 230, 0.5);
 }
 
 .root .movie-details .subtitle-group Tooltip {
@@ -1360,8 +1388,8 @@
 }
 
 .root .content-section .sidebar .logo {
-    -fx-min-width: 64px;
-    -fx-max-width: 64px;
+    -fx-min-width: 32px;
+    -fx-max-width: 32px;
 }
 
 .root .content-section .sidebar .label {

@@ -63,21 +63,21 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected String quality;
 
     @FXML
-    protected Icon favoriteIcon;
+    Icon favoriteIcon;
     @FXML
-    protected Icon watchedIcon;
+    Icon watchedIcon;
     @FXML
-    protected Icon magnetLink;
+    Icon magnetLink;
     @FXML
-    protected Pane qualitySelectionPane;
+    Pane qualitySelectionPane;
     @FXML
-    protected LanguageFlagSelection languageSelection;
+    LanguageFlagSelection languageSelection;
     @FXML
-    protected PlayerDropDownButton watchNowButton;
+    PlayerDropDownButton watchNowButton;
     @FXML
-    protected Tooltip watchedTooltip;
+    Tooltip watchedTooltip;
     @FXML
-    protected Tooltip favoriteTooltip;
+    Tooltip favoriteTooltip;
 
     //region Constructors
 
@@ -296,6 +296,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
         label.getStyleClass().add("quality");
         label.setOnMouseClicked(this::onQualityClicked);
+        label.setFocusTraversable(true);
 
         return label;
     }

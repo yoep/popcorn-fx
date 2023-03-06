@@ -1,7 +1,6 @@
-package com.github.yoep.popcorn.ui.view.controllers.common.sections;
+package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
@@ -14,27 +13,22 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.core.task.TaskExecutor;
 import org.testfx.framework.junit5.ApplicationExtension;
 
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class DetailsSectionControllerTest {
+class SettingsSectionControllerTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
-    @Mock
-    private ViewLoader viewLoader;
-    @Mock
-    private TaskExecutor taskExecutor;
     @InjectMocks
-    private DetailsSectionController controller;
+    private SettingsSectionController controller;
 
     @BeforeEach
     void setUp() {
-        controller.detailPane = new Pane();
-        controller.detailPane.setOnKeyPressed(controller::onDetailsPressed);
-        controller.detailPane.setOnMousePressed(controller::onDetailsPressed);
+        controller.settings = new Pane();
+        controller.settings.setOnKeyPressed(controller::onSettingsPressed);
+        controller.settings.setOnMousePressed(controller::onSettingsPressed);
     }
 
     @Test
@@ -43,27 +37,25 @@ class DetailsSectionControllerTest {
         when(escEvent.getCode()).thenReturn(KeyCode.ESCAPE);
         var backspaceEvent = mock(KeyEvent.class);
         when(backspaceEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
-        controller.init();
 
-        controller.detailPane.getOnKeyPressed().handle(escEvent);
+        controller.settings.getOnKeyPressed().handle(escEvent);
         verify(escEvent).consume();
-        verify(eventPublisher).publishEvent(new CloseDetailsEvent(controller));
+        verify(eventPublisher).publishEvent(new CloseSettingsEvent(controller));
         reset(eventPublisher);
 
-        controller.detailPane.getOnKeyPressed().handle(backspaceEvent);
+        controller.settings.getOnKeyPressed().handle(backspaceEvent);
         verify(backspaceEvent).consume();
-        verify(eventPublisher).publishEvent(new CloseDetailsEvent(controller));
+        verify(eventPublisher).publishEvent(new CloseSettingsEvent(controller));
     }
 
     @Test
     void testOnDetailsPressed_whenMouseBackEvent_shouldCloseTheDetails() {
         var event = mock(MouseEvent.class);
         when(event.getButton()).thenReturn(MouseButton.BACK);
-        controller.init();
 
-        controller.detailPane.getOnMousePressed().handle(event);
+        controller.settings.getOnMousePressed().handle(event);
 
         verify(event).consume();
-        verify(eventPublisher).publishEvent(new CloseDetailsEvent(controller));
+        verify(eventPublisher).publishEvent(new CloseSettingsEvent(controller));
     }
 }

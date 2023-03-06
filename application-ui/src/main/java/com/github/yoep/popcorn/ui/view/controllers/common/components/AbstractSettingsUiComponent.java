@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.StartScreen;
 import javafx.scene.control.ListCell;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -28,10 +28,10 @@ public abstract class AbstractSettingsUiComponent extends AbstractSettingsCompon
         };
     }
 
-    protected ListCell<StartScreen> createStartScreenCell() {
+    protected ListCell<Category> createStartScreenCell() {
         return new ListCell<>() {
             @Override
-            protected void updateItem(StartScreen item, boolean empty) {
+            protected void updateItem(Category item, boolean empty) {
                 super.updateItem(item, empty);
 
                 if (!empty) {

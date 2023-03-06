@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
+import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
 import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
@@ -35,6 +36,7 @@ public class SidebarController implements Initializable {
     private final EventPublisher eventPublisher;
 
     final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500.0), new Pane());
+    Category lastKnownSelectedCategory;
 
     @FXML
     GridPane sidebar;
@@ -61,6 +63,7 @@ public class SidebarController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeSlideAnimation();
         initializeFocusListeners();
+        initializeEventListeners();
         initializeActiveIcon();
     }
 
@@ -74,19 +77,20 @@ public class SidebarController implements Initializable {
 
     private void initializeActiveIcon() {
         var settings = applicationConfig.getSettings().getUiSettings();
-        Platform.runLater(() -> {
-            switch (settings.getStartScreen()) {
-                case MOVIES -> switchCategory(movieIcon);
-                case SERIES -> switchCategory(serieIcon);
-                case FAVORITES -> switchCategory(favoriteIcon);
-            }
-        });
+        switchCategory(settings.getStartScreen(), true);
     }
 
     private void initializeFocusListeners() {
         for (Node child : sidebar.getChildren()) {
             child.focusedProperty().addListener((observable, oldValue, newValue) -> focusChanged(newValue));
         }
+    }
+
+    private void initializeEventListeners() {
+        eventPublisher.register(CloseSettingsEvent.class, event -> {
+            switchCategory(lastKnownSelectedCategory, false);
+            return event;
+        });
     }
 
     private void focusChanged(boolean newValue) {
@@ -101,7 +105,21 @@ public class SidebarController implements Initializable {
         }
     }
 
+    private void switchCategory(Category category, boolean publishEvent) {
+        Platform.runLater(() -> {
+            switch (category) {
+                case MOVIES -> switchCategory(movieIcon, publishEvent);
+                case SERIES -> switchCategory(serieIcon, publishEvent);
+                case FAVORITES -> switchCategory(favoriteIcon, publishEvent);
+            }
+        });
+    }
+
     private void switchCategory(Icon icon) {
+        switchCategory(icon, true);
+    }
+
+    private void switchCategory(Icon icon, boolean publishEvent) {
         var category = Category.MOVIES;
         if (icon == serieIcon) {
             category = Category.SERIES;
@@ -112,8 +130,11 @@ public class SidebarController implements Initializable {
 
         switchActiveItem(icon);
 
-        log.trace("Category is being changed to \"{}\"", category);
-        eventPublisher.publish(new CategoryChangedEvent(this, category));
+        if (publishEvent) {
+            log.trace("Category is being changed to \"{}\"", category);
+            lastKnownSelectedCategory = category;
+            eventPublisher.publish(new CategoryChangedEvent(this, category));
+        }
     }
 
     private void switchActiveItem(Icon icon) {
@@ -187,6 +208,6 @@ public class SidebarController implements Initializable {
     @FXML
     void onHoverStopped(MouseEvent event) {
         focusChanged(sidebar.getChildren().stream()
-            .anyMatch(Node::isFocused));
+                .anyMatch(Node::isFocused));
     }
 }

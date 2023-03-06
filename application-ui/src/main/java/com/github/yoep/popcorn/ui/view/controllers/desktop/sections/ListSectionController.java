@@ -16,6 +16,7 @@ import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractListS
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayMediaCardComponent;
+import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -40,6 +41,8 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     @FXML
     AnchorPane listSection;
+    @FXML
+    BackgroundImageCover backgroundImage;
 
     //region Constructors
 
@@ -66,10 +69,16 @@ public class ListSectionController extends AbstractListSectionController impleme
         initializeFailedPane();
         initializeOverlay();
         initializeFilter();
+        initializeBackgroundImage();
 
         eventPublisher.register(CategoryChangedEvent.class, this::onCategoryChanged, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(GenreChangeEvent.class, this::onGenreChange);
         eventPublisher.register(SortByChangeEvent.class, this::onSortByChange);
+    }
+
+    private void initializeBackgroundImage() {
+        imageService.loadResource("placeholder-background.jpg")
+                        .thenAccept(e -> backgroundImage.setBackgroundImage(e));
     }
 
     private void initializeFilter() {
@@ -77,7 +86,7 @@ public class ListSectionController extends AbstractListSectionController impleme
         AnchorPane.setTopAnchor(filter, 5d);
         AnchorPane.setLeftAnchor(filter, 64d);
         AnchorPane.setRightAnchor(filter, 0d);
-        listSection.getChildren().add(0, filter);
+        listSection.getChildren().add(1, filter);
     }
 
     @Override

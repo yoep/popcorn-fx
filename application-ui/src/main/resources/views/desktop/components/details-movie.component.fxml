@@ -88,7 +88,7 @@
                 <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
                     <Icon fx:constant="MAGNET_UNICODE"/>
                 </Icon>
-                <HealthIcon fx:id="health" styleClass="health" />
+                <HealthIcon fx:id="health" styleClass="health"/>
             </HBox>
 
             <!-- Overview text -->
@@ -116,10 +116,4 @@
             </HBox>
         </GridPane>
     </GridPane>
-
-    <!-- Close button -->
-    <Icon styleClass="close-button" onMouseClicked="#close" sizeFactor="2"
-          AnchorPane.topAnchor="15" AnchorPane.leftAnchor="70">
-        <Icon fx:constant="TIMES_UNICODE"/>
-    </Icon>
 </AnchorPane>

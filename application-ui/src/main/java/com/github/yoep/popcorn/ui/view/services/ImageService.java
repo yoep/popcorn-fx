@@ -128,19 +128,13 @@ public class ImageService {
     @Async
     public CompletableFuture<Image> loadResource(String url) {
         Objects.requireNonNull(url, "url cannot be empty");
-        var classpathUrl = "images/" + url;
-        var resource = new ClassPathResource(classpathUrl);
+        var classpathUrl = "/images/" + url;
 
-        if (resource.exists()) {
-            try {
-                var inputStream = resource.getInputStream();
-                return CompletableFuture.completedFuture(new Image(inputStream));
-            } catch (IOException ex) {
-                throw new ImageException(classpathUrl, ex.getMessage(), ex);
-            }
+        try (var resource = getClass().getResource(classpathUrl).openStream()) {
+            return CompletableFuture.completedFuture(new Image(resource));
+        } catch (IOException ex) {
+            throw new ImageException(classpathUrl, ex.getMessage(), ex);
         }
-
-        throw new ImageException(classpathUrl, "resource file doesn't exist");
     }
 
     //endregion

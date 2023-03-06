@@ -23,13 +23,14 @@ import static java.util.Arrays.asList;
 @RequiredArgsConstructor
 public class ApplicationConfig {
     private final ViewLoader viewLoader;
-    private final OptionsService optionsService;
     private final LocaleText localeText;
     private final FxLib fxLib;
     private final PopcornFx instance;
 
     private final Queue<ApplicationConfigEventCallback> listeners = new ConcurrentLinkedDeque<>();
     private final ApplicationConfigEventCallback callback = createCallback();
+
+    private ApplicationSettings cachedSettings;
 
     //region Getters
 
@@ -39,10 +40,14 @@ public class ApplicationConfig {
      * @return Returns the application settings.
      */
     public ApplicationSettings getSettings() {
-        try (var settings = fxLib.application_settings(instance)) {
-            log.debug("Retrieved settings {}", settings);
-            return settings;
+        if (cachedSettings == null) {
+            try (var settings = fxLib.application_settings(instance)) {
+                log.debug("Retrieved settings {}", settings);
+                cachedSettings = settings;
+            }
         }
+
+        return cachedSettings;
     }
 
     //endregion
@@ -60,8 +65,9 @@ public class ApplicationConfig {
         if (index == supportedUIScales.size() - 1)
             return;
 
-        var uiSettings = getSettings().getUiSettings();
-        uiSettings.setUiScale(supportedUIScales.get(index + 1));
+        var settings = getSettings().getUiSettings();
+        settings.setUiScale(supportedUIScales.get(index + 1));
+        update(settings);
     }
 
     /**
@@ -75,8 +81,9 @@ public class ApplicationConfig {
         if (index == 0)
             return;
 
-        var uiSettings = getSettings().getUiSettings();
-        uiSettings.setUiScale(supportedUIScales.get(index - 1));
+        var settings = getSettings().getUiSettings();
+        settings.setUiScale(supportedUIScales.get(index - 1));
+        update(settings);
     }
 
     public void register(ApplicationConfigEventCallback callback) {
@@ -165,13 +172,6 @@ public class ApplicationConfig {
     //region Functions
 
     private void updateUIScale(float scale) {
-        var options = optionsService.options();
-
-        // check if the big-picture mode is activated
-        // if so, double the UI scale
-        if (options.isBigPictureMode())
-            scale *= 2;
-
         viewLoader.setScale(scale);
     }
 

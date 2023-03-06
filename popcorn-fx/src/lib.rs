@@ -857,7 +857,9 @@ pub extern "C" fn reload_settings(popcorn_fx: &mut PopcornFX) {
 pub extern "C" fn register_settings_callback(popcorn_fx: &mut PopcornFX, callback: ApplicationConfigCallbackC) {
     trace!("Registering application settings callback");
     let wrapper = Box::new(move |event| {
-        callback(ApplicationConfigEventC::from(event))
+        let event_c = ApplicationConfigEventC::from(event);
+        trace!("Invoking ApplicationConfigEventC {:?}", event_c);
+        callback(event_c)
     });
 
     popcorn_fx.settings().register(wrapper);

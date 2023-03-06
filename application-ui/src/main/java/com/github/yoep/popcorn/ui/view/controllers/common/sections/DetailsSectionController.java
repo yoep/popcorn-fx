@@ -9,8 +9,7 @@ import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
+import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
@@ -150,10 +149,17 @@ public class DetailsSectionController {
     }
 
     @FXML
-    void onDetailsPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.ESCAPE || event.getCode() == KeyCode.BACK_SPACE) {
-            event.consume();
-            eventPublisher.publishEvent(new CloseDetailsEvent(this));
+    void onDetailsPressed(InputEvent event) {
+        if (event instanceof KeyEvent keyEvent) {
+            if (keyEvent.getCode() == KeyCode.ESCAPE || keyEvent.getCode() == KeyCode.BACK_SPACE) {
+                event.consume();
+                eventPublisher.publishEvent(new CloseDetailsEvent(this));
+            }
+        } else if (event instanceof MouseEvent mouseEvent) {
+            if (mouseEvent.getButton() == MouseButton.BACK) {
+                event.consume();
+                eventPublisher.publishEvent(new CloseDetailsEvent(this));
+            }
         }
     }
 

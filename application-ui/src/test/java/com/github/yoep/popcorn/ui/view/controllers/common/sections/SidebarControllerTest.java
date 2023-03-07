@@ -8,7 +8,9 @@ import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
+import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.view.controls.SearchField;
 import javafx.animation.Animation;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
@@ -46,6 +48,7 @@ class SidebarControllerTest {
     private UISettings settings;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher();
+    private SearchField searchInput;
     @Mock
     private URL url;
     @Mock
@@ -57,8 +60,10 @@ class SidebarControllerTest {
     void setUp() {
         lenient().when(applicationConfig.getSettings()).thenReturn(applicationSettings);
         lenient().when(applicationSettings.getUiSettings()).thenReturn(settings);
+        searchInput = spy(new SearchField());
         controller.sidebar = new GridPane();
         controller.searchIcon = new Icon("searchIcon");
+        controller.searchInput = searchInput;
         controller.movieIcon = new Icon("movieIcon");
         controller.movieText = new Label("movieText");
         controller.serieIcon = new Icon("serieIcon");
@@ -74,6 +79,8 @@ class SidebarControllerTest {
         controller.serieText.setLabelFor(controller.serieIcon);
         controller.favoriteText.setLabelFor(controller.favoriteIcon);
         controller.settingsText.setLabelFor(controller.settingsIcon);
+        controller.searchIcon.setOnMouseClicked(controller::onSearchClicked);
+        controller.searchIcon.setOnKeyPressed(controller::onSearchPressed);
     }
 
     @Test
@@ -217,5 +224,46 @@ class SidebarControllerTest {
         trigger.get(100, TimeUnit.MILLISECONDS);
         WaitForAsyncUtils.waitForFxEvents();
         assertTrue(controller.serieIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
+    }
+
+    @Test
+    void testOnSearchClicked() {
+        var event = mock(MouseEvent.class);
+
+        controller.searchIcon.getOnMouseClicked().handle(event);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(event).consume();
+        verify(searchInput).requestFocus();
+    }
+
+    @Test
+    void testOnSearchPressed() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(KeyCode.ENTER);
+
+        controller.searchIcon.getOnKeyPressed().handle(event);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(event).consume();
+        verify(searchInput).requestFocus();
+    }
+
+    @Test
+    void testOnSearchValueChanged() throws ExecutionException, InterruptedException, TimeoutException {
+        var value = "lorem";
+        var trigger = new CompletableFuture<SearchEvent>();
+        eventPublisher.register(SearchEvent.class, event -> {
+            trigger.complete(event);
+            return event;
+        });
+        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        controller.initialize(url, resourceBundle);
+
+        controller.searchInput.setText(value);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        var result = trigger.get(300, TimeUnit.MILLISECONDS);
+        assertEquals(value, result.getValue().get());
     }
 }

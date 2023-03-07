@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -40,6 +41,8 @@ class ContentSectionControllerTest {
     @Mock
     private MaximizeService maximizeService;
     @Mock
+    private OptionsService optionsService;
+    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
@@ -51,6 +54,9 @@ class ContentSectionControllerTest {
         lenient().when(viewLoader.load(isA(String.class))).thenReturn(new Pane());
         controller.contentPane = new Pane();
         controller.listPane = new Pane();
+
+        controller.contentPane.getChildren().add(controller.listPane);
+        controller.contentPane.getChildren().add(new Pane());
     }
 
     @Test
@@ -65,6 +71,7 @@ class ContentSectionControllerTest {
 
     @Test
     void testOnShowSettingsEvent() {
+        when(viewLoader.load(ContentSectionController.SETTINGS_SECTION)).thenReturn(new Pane());
         controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowSettingsEvent(controller));
@@ -86,5 +93,23 @@ class ContentSectionControllerTest {
         action.handle(event);
 
         verify(maximizeService).setMaximized(true);
+    }
+
+    @Test
+    void testWhenDesktop_shouldLoadWindowComponent() {
+        when(optionsService.isTvMode()).thenReturn(false);
+
+        controller.initialize(url, resourceBundle);
+
+        verify(viewLoader).load(ContentSectionController.WINDOW_COMPONENT);
+    }
+
+    @Test
+    void testWhenTv_shouldLoadSystemTimeComponent() {
+        when(optionsService.isTvMode()).thenReturn(true);
+
+        controller.initialize(url, resourceBundle);
+
+        verify(viewLoader).load(ContentSectionController.SYSTEM_TIME_COMPONENT);
     }
 }

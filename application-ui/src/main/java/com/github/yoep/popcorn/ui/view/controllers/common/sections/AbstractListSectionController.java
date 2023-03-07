@@ -13,7 +13,6 @@ import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.ListMessage;
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollItemFactory;
@@ -27,14 +26,12 @@ import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.util.Assert;
 import org.springframework.web.client.HttpStatusCodeException;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -80,22 +77,6 @@ public abstract class AbstractListSectionController {
         this.providerServices = providerServices;
         this.viewLoader = viewLoader;
         this.localeText = localeText;
-    }
-
-    //endregion
-
-    //region Methods
-
-    @EventListener
-    public void onSearch(SearchEvent event) {
-        var newValue = event.getValue().orElse(null);
-
-        if (Objects.equals(search, newValue))
-            return;
-
-        this.search = newValue;
-        reset();
-        invokeNewPageLoad();
     }
 
     //endregion

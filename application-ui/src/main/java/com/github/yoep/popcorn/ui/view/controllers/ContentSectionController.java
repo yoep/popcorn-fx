@@ -27,6 +27,10 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @RequiredArgsConstructor
 public class ContentSectionController implements Initializable {
+    static final String SYSTEM_TIME_COMPONENT = "components/system-time.component.fxml";
+    static final String WINDOW_COMPONENT = "components/window.component.fxml";
+    static final String SETTINGS_SECTION = "sections/settings.section.fxml";
+
     private final ViewLoader viewLoader;
     private final LocaleText localeText;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -80,11 +84,6 @@ public class ContentSectionController implements Initializable {
         switchContent(ContentType.LIST);
     }
 
-    @EventListener(CloseSettingsEvent.class)
-    public void onCloseSettings() {
-        switchContent(ContentType.LIST);
-    }
-
     //endregion
 
     //region Initializable
@@ -114,7 +113,7 @@ public class ContentSectionController implements Initializable {
             detailsPane = viewLoader.load("common/sections/details.section.fxml");
             torrentCollectionPane = viewLoader.load("sections/torrent-collection.section.fxml");
             watchlistPane = viewLoader.load("sections/watchlist.section.fxml");
-            settingsPane = viewLoader.load("sections/settings.section.fxml");
+            settingsPane = viewLoader.load(SETTINGS_SECTION);
             aboutPane = viewLoader.load("sections/about.section.fxml");
             updatePane = viewLoader.load("sections/update.section.fxml");
 
@@ -136,13 +135,17 @@ public class ContentSectionController implements Initializable {
             switchContent(ContentType.SETTINGS);
             return event;
         });
+        eventPublisher.register(CloseSettingsEvent.class, event -> {
+            switchContent(ContentType.LIST);
+            return event;
+        });
     }
 
     private void initializeMode() {
         if (optionsService.isTvMode()) {
-            rightTopSection = viewLoader.load("components/system-time.component.fxml");
+            rightTopSection = viewLoader.load(SYSTEM_TIME_COMPONENT);
         } else {
-            rightTopSection = viewLoader.load("components/window.component.fxml");
+            rightTopSection = viewLoader.load(WINDOW_COMPONENT);
         }
 
         AnchorPane.setTopAnchor(rightTopSection, 0.0);

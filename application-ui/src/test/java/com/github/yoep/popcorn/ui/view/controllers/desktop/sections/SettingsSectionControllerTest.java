@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.testfx.framework.junit5.ApplicationExtension;
 
 import static org.mockito.Mockito.*;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class SettingsSectionControllerTest {
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private EventPublisher eventPublisher;
     @InjectMocks
     private SettingsSectionController controller;
 

@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
+import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.AbstractListSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
@@ -29,6 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -74,6 +76,7 @@ public class ListSectionController extends AbstractListSectionController impleme
         eventPublisher.register(CategoryChangedEvent.class, this::onCategoryChanged, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(GenreChangeEvent.class, this::onGenreChange);
         eventPublisher.register(SortByChangeEvent.class, this::onSortByChange);
+        eventPublisher.register(SearchEvent.class, this::onSearch);
     }
 
     private void initializeBackgroundImage() {
@@ -126,6 +129,18 @@ public class ListSectionController extends AbstractListSectionController impleme
     private SortByChangeEvent onSortByChange(SortByChangeEvent event) {
         this.sortBy = event.getSortBy();
 
+        reset();
+        invokeNewPageLoad();
+        return event;
+    }
+
+    private SearchEvent onSearch(SearchEvent event) {
+        var newValue = event.getValue().orElse(null);
+
+        if (Objects.equals(search, newValue))
+            return event;
+
+        this.search = newValue;
         reset();
         invokeNewPageLoad();
         return event;

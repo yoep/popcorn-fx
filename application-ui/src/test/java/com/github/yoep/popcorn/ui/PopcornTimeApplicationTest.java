@@ -97,10 +97,8 @@ class PopcornTimeApplicationTest {
     }
 
     @Test
-    void testStart_whenBigPictureModeIsEnabled_shouldMaximizeOnStartup() throws Exception {
-        var options = ApplicationOptions.builder()
-                .bigPictureMode(true)
-                .build();
+    void testStart_whenTvModeIsEnabled_shouldMaximizeOnStartup() throws Exception {
+        var options = ApplicationOptions.builder().build();
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
                         .nativeWindowEnabled((byte) 1)
@@ -108,6 +106,7 @@ class PopcornTimeApplicationTest {
                 .build();
         when(settingsService.getSettings()).thenReturn(settings);
         when(optionsService.options()).thenReturn(options);
+        when(optionsService.isTvMode()).thenReturn(true);
 
         application.start(stage);
 

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.SearchField?>
 <?import com.github.yoep.popcorn.ui.view.controls.SizedImageView?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx"
@@ -35,11 +36,11 @@
     </BorderPane>
 
     <!-- SEARCH -->
-    <Icon fx:id="searchIcon" focusTraversable="true"
+    <Icon fx:id="searchIcon" focusTraversable="true" onMouseClicked="#onSearchClicked" onKeyPressed="#onSearchPressed"
           GridPane.columnIndex="0" GridPane.rowIndex="1">
         <Icon fx:constant="SEARCH_UNICODE"/>
     </Icon>
-    <Label labelFor="$searchIcon" text="%header_search" styleClass="icon-text"
+    <SearchField fx:id="searchInput" promptText="%header_search" styleClass="icon-text"
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>
 
     <!-- CATEGORIES -->

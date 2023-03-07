@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,13 +21,11 @@ public class SearchField extends StackPane {
     private static final int MILLIS_BETWEEN_INVOKES = 500;
     private static final int WATCHER_TTL = 5000;
     private static final String STYLE_CLASS = "search-field";
-    private static final String STYLE_CLASS_SEARCH_ICON = "search-icon";
     private static final String STYLE_CLASS_CLOSE_ICON = "clear-icon";
     private static final String STYLE_CLASS_TEXT_FIELD = "textfield";
 
     private final List<SearchListener> listeners = new ArrayList<>();
 
-    private Icon searchIcon;
     private Icon clearIcon;
     private TextField textField;
 
@@ -115,9 +114,21 @@ public class SearchField extends StackPane {
         onCleared();
     }
 
+    public ReadOnlyBooleanProperty textFocusProperty() {
+        return textField.focusedProperty();
+    }
+
+    public boolean isTextFocused() {
+        return textField.isFocused();
+    }
+
+    @Override
+    public void requestFocus() {
+        textField.requestFocus();
+    }
+
     private void init() {
         initializeTextField();
-        initializeSearchIcon();
         initializeCloseIcon();
         initializeStyles();
         initializeListener();
@@ -127,13 +138,6 @@ public class SearchField extends StackPane {
         textField = new TextField();
         textField.setPadding(new Insets(2, 25, 2, 25));
         getChildren().add(textField);
-    }
-
-    private void initializeSearchIcon() {
-        searchIcon = new Icon(Icon.SEARCH_UNICODE);
-        searchIcon.setCursor(Cursor.HAND);
-        StackPane.setAlignment(searchIcon, Pos.CENTER_LEFT);
-        getChildren().add(searchIcon);
     }
 
     private void initializeCloseIcon() {
@@ -147,7 +151,6 @@ public class SearchField extends StackPane {
 
     private void initializeStyles() {
         this.getStyleClass().add(STYLE_CLASS);
-        this.searchIcon.getStyleClass().add(STYLE_CLASS_SEARCH_ICON);
         this.clearIcon.getStyleClass().add(STYLE_CLASS_CLOSE_ICON);
         this.textField.getStyleClass().add(STYLE_CLASS_TEXT_FIELD);
     }
@@ -211,7 +214,7 @@ public class SearchField extends StackPane {
                     if (System.currentTimeMillis() - lastUserInput > WATCHER_TTL)
                         keepWatcherAlive = false;
 
-                    Thread.sleep(100);
+                    Thread.sleep(50);
                 }
             } catch (InterruptedException ex) {
                 log.error(ex.getMessage(), ex);

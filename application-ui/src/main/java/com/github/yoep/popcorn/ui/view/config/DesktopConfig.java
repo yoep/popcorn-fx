@@ -69,7 +69,7 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsSectionController settingsSectionController(ApplicationEventPublisher eventPublisher) {
+    public SettingsSectionController settingsSectionController(EventPublisher eventPublisher) {
         return new SettingsSectionController(eventPublisher);
     }
 

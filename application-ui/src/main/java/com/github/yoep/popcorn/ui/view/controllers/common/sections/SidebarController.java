@@ -7,7 +7,10 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
+import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.view.controls.SearchField;
+import com.github.yoep.popcorn.ui.view.controls.SearchListener;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -43,6 +46,8 @@ public class SidebarController implements Initializable {
     @FXML
     Icon searchIcon;
     @FXML
+    SearchField searchInput;
+    @FXML
     Icon movieIcon;
     @FXML
     Label movieText;
@@ -65,6 +70,7 @@ public class SidebarController implements Initializable {
         initializeFocusListeners();
         initializeEventListeners();
         initializeActiveIcon();
+        initializeSearchListener();
 
         sidebar.getColumnConstraints().get(0).setPrefWidth(searchIcon.getPrefWidth());
     }
@@ -86,12 +92,27 @@ public class SidebarController implements Initializable {
         for (Node child : sidebar.getChildren()) {
             child.focusedProperty().addListener((observable, oldValue, newValue) -> focusChanged(newValue));
         }
+        searchInput.textFocusProperty().addListener((observableValue, aBoolean, newValue) -> focusChanged(newValue));
     }
 
     private void initializeEventListeners() {
         eventPublisher.register(CloseSettingsEvent.class, event -> {
             switchCategory(lastKnownSelectedCategory, false);
             return event;
+        });
+    }
+
+    private void initializeSearchListener() {
+        searchInput.addListener(new SearchListener() {
+            @Override
+            public void onSearchValueChanged(String newValue) {
+                eventPublisher.publish(new SearchEvent(this, newValue));
+            }
+
+            @Override
+            public void onSearchValueCleared() {
+                eventPublisher.publish(new SearchEvent(this, null));
+            }
         });
     }
 
@@ -210,6 +231,20 @@ public class SidebarController implements Initializable {
     @FXML
     void onHoverStopped(MouseEvent event) {
         focusChanged(sidebar.getChildren().stream()
-                .anyMatch(Node::isFocused));
+                .anyMatch(Node::isFocused) || searchInput.isTextFocused());
+    }
+
+    @FXML
+    void onSearchClicked(MouseEvent event) {
+        event.consume();
+        searchInput.requestFocus();
+    }
+
+    @FXML
+    void onSearchPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            searchInput.requestFocus();
+        }
     }
 }

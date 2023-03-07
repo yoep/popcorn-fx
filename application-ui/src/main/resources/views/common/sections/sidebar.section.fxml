@@ -11,7 +11,7 @@
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.SidebarController"
           fx:id="sidebar" styleClass="sidebar" onMouseEntered="#onHovering" onMouseExited="#onHoverStopped">
     <columnConstraints>
-        <ColumnConstraints halignment="LEFT" maxWidth="64"/>
+        <ColumnConstraints halignment="LEFT"/>
         <ColumnConstraints halignment="LEFT" hgrow="ALWAYS" maxWidth="0" />
     </columnConstraints>
     <rowConstraints>

@@ -74,9 +74,9 @@ public class DetailsSectionController {
 
     private void initializePanes() {
         taskExecutor.execute(() -> {
-            movieDetailsPane = viewLoader.load("components/details-movie.component.fxml");
-            showDetailsPane = viewLoader.load("components/details-show.component.fxml");
-            torrentDetailsPane = viewLoader.load("components/details-torrent.component.fxml");
+            movieDetailsPane = viewLoader.load("common/components/details-movie.component.fxml");
+            showDetailsPane = viewLoader.load("common/components/details-show.component.fxml");
+            torrentDetailsPane = viewLoader.load("common/components/details-torrent.component.fxml");
 
             anchor(movieDetailsPane);
             anchor(showDetailsPane);

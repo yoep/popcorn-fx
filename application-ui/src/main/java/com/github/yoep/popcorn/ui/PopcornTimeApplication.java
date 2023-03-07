@@ -87,7 +87,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         // check if the big-picture or kiosk mode or maximized is enabled
         // if so, force the application to be maximized
-        if (options.isBigPictureMode() || options.isKioskMode() || optionsService.isMaximized()) {
+        if (optionsService.isTvMode() || options.isKioskMode() || optionsService.isMaximized()) {
             maximizeService.setMaximized(true);
         } else {
             var settingsService = applicationContext.getBean(ApplicationConfig.class);

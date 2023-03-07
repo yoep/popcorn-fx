@@ -32,7 +32,7 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class FilterComponentTest {
+class DesktopFilterComponentTest {
     @Mock
     private LocaleText localeText;
     @Mock
@@ -45,7 +45,7 @@ class FilterComponentTest {
     @Mock
     private ResourceBundle resources;
     @InjectMocks
-    private FilterComponent component;
+    private DesktopFilterComponent component;
 
     private AtomicReference<Function<CategoryChangedEvent, CategoryChangedEvent>> listener = new AtomicReference<>();
 

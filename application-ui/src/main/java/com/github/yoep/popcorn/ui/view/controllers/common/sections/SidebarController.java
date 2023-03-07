@@ -65,6 +65,8 @@ public class SidebarController implements Initializable {
         initializeFocusListeners();
         initializeEventListeners();
         initializeActiveIcon();
+
+        sidebar.getColumnConstraints().get(0).setPrefWidth(searchIcon.getPrefWidth());
     }
 
     private void initializeSlideAnimation() {

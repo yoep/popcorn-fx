@@ -9,6 +9,4 @@
 
     <fx:include source="sidebar.section.fxml"
                 AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
-    <fx:include fx:id="windowActions" source="../components/window.component.fxml"
-                AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0"/>
 </AnchorPane>

@@ -4,7 +4,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.HBox?>
 <HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.FilterComponent"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopFilterComponent"
       styleClass="filter-bar">
     <spacing>10</spacing>
 

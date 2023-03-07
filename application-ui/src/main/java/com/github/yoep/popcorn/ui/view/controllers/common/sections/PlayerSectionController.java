@@ -21,7 +21,7 @@ import javax.annotation.PostConstruct;
 @ViewController
 @RequiredArgsConstructor
 public class PlayerSectionController {
-    static final String EXTERNAL_PLAYER_VIEW = "components/player-external.component.fxml";
+    static final String EXTERNAL_PLAYER_VIEW = "common/components/player-external.component.fxml";
 
     private final PlayerManagerService playerManagerService;
     private final ViewLoader viewLoader;

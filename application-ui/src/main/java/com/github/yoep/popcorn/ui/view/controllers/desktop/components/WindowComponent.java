@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.fxml.FXML;
@@ -18,7 +17,6 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
 @RequiredArgsConstructor
 public class WindowComponent implements Initializable {
     private final MaximizeService maximizeService;

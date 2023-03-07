@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
@@ -25,8 +24,7 @@ import java.util.ResourceBundle;
 
 @Slf4j
 @RequiredArgsConstructor
-@ViewController
-public class FilterComponent implements Initializable {
+public class DesktopFilterComponent implements Initializable {
     private final LocaleText localeText;
     private final EventPublisher eventPublisher;
     private final FxLib fxLib;

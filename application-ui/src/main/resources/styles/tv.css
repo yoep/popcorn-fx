@@ -520,8 +520,30 @@
 /* region Sidebar */
 
 .root .content-section .sidebar .logo {
-    -fx-min-width: 6.5em;
-    -fx-max-width: 6.5em;
+    -fx-min-width: 64px;
+    -fx-max-width: 64px;
+}
+
+.root .content-section .sidebar .icon {
+    -fx-pref-width: 128px;
+    -fx-font-size: 3em;
+}
+
+.root .content-section .sidebar .icon-text {
+    -fx-pref-width: 250px;
+    -fx-font-size: 2em;
+}
+
+.root .content-section .sidebar .icon,
+.root .content-section .sidebar .icon-text {
+    -fx-pref-height: 110px;
 }
 
 /* endregion */
+
+.root .content-section .system-time {
+    -fx-font-size: 2em;
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-padding: 5 25 0 0;
+}

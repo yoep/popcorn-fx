@@ -39,6 +39,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @RequiredArgsConstructor
 public class MainController extends ScaleAwareImpl implements Initializable {
+    static final String TV_STYLESHEET = "/styles/tv.css";
+
     private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.ADD, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_2 = new KeyCodeCombination(KeyCode.PLUS, KeyCombination.CONTROL_DOWN);
@@ -102,6 +104,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         initializeOptions();
         initializeStageHeader();
         initializeSceneEvents();
+        initializeTvStylesheet();
     }
 
     private void initializeStageHeader() {
@@ -133,6 +136,12 @@ public class MainController extends ScaleAwareImpl implements Initializable {
                     newValue.setCursor(Cursor.NONE);
                 }
             });
+        }
+    }
+
+    private void initializeTvStylesheet() {
+        if (optionsService.isTvMode()) {
+            rootPane.getStylesheets().add(TV_STYLESHEET);
         }
     }
 

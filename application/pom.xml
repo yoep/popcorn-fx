@@ -254,6 +254,7 @@
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
                                 <param>-Dprism.lcdtext=false</param>
+                                <param>-Dprism.verbose=true</param>
                                 <param>-Xms100M</param>
                                 <param>-XX:+UseG1GC</param>
                             </vmArgs>
@@ -289,6 +290,7 @@
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
                                 <param>-Dprism.lcdtext=false</param>
+                                <param>-Dprism.verbose=true</param>
                                 <param>-Xms100M</param>
                                 <param>-XX:+UseG1GC</param>
                             </vmArgs>
@@ -323,8 +325,8 @@
                                 <param>-Djava.library.path=".:$PATH"</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
-                                <param>-Dprism.forceUploadingPainter=true</param>
                                 <param>-Dprism.lcdtext=false</param>
+                                <param>-Dprism.verbose=true</param>
                                 <param>-Xms100M</param>
                                 <param>-XX:+UseG1GC</param>
                             </vmArgs>
@@ -359,8 +361,8 @@
                                 <param>-Djavafx.platform=gtk</param>
                                 <param>-Dsun.awt.disablegrab=true</param>
                                 <param>-Dprism.dirtyopts=false</param>
-                                <param>-Dprism.forceUploadingPainter=true</param>
                                 <param>-Dprism.lcdtext=false</param>
+                                <param>-Dprism.verbose=true</param>
                                 <param>-XX:+UseG1GC</param>
                                 <param>-Xmx400M</param>
                                 <param>-Xms100M</param>

@@ -5,6 +5,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.messages.ContentMessage;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -31,6 +32,7 @@ public class ContentSectionController implements Initializable {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final EventPublisher eventPublisher;
     private final MaximizeService maximizeService;
+    private final OptionsService optionsService;
 
     Pane detailsPane;
     Pane watchlistPane;
@@ -38,6 +40,7 @@ public class ContentSectionController implements Initializable {
     Pane settingsPane;
     Pane aboutPane;
     Pane updatePane;
+    Pane rightTopSection;
     ContentType activeType;
 
     @FXML
@@ -90,16 +93,10 @@ public class ContentSectionController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeContentPaneListener();
         initializePanes();
+        initializeEventListeners();
+        initializeMode();
 
         switchContent(ContentType.LIST);
-        eventPublisher.register(CategoryChangedEvent.class, event -> {
-            switchContent(ContentType.LIST);
-            return event;
-        });
-        eventPublisher.register(ShowSettingsEvent.class, event -> {
-            switchContent(ContentType.SETTINGS);
-            return event;
-        });
     }
 
     private void initializeContentPaneListener() {
@@ -128,6 +125,29 @@ public class ContentSectionController implements Initializable {
             setAnchor(aboutPane);
             setAnchor(updatePane);
         }, "content-loader").start();
+    }
+
+    private void initializeEventListeners() {
+        eventPublisher.register(CategoryChangedEvent.class, event -> {
+            switchContent(ContentType.LIST);
+            return event;
+        });
+        eventPublisher.register(ShowSettingsEvent.class, event -> {
+            switchContent(ContentType.SETTINGS);
+            return event;
+        });
+    }
+
+    private void initializeMode() {
+        if (optionsService.isTvMode()) {
+            rightTopSection = viewLoader.load("components/system-time.component.fxml");
+        } else {
+            rightTopSection = viewLoader.load("components/window.component.fxml");
+        }
+
+        AnchorPane.setTopAnchor(rightTopSection, 0.0);
+        AnchorPane.setRightAnchor(rightTopSection, 0.0);
+        contentPane.getChildren().add(2, rightTopSection);
     }
 
     //endregion

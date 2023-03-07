@@ -54,15 +54,6 @@
             </CornerButton>
         </StackPane>
 
-        <!-- Close -->
-        <Icon onMouseClicked="#close" sizeFactor="2" styleClass="close-button" GridPane.columnIndex="3" GridPane.halignment="RIGHT" GridPane.rowIndex="0"
-              GridPane.rowSpan="4" GridPane.valignment="TOP">
-            <padding>
-                <Insets right="15" top="5"/>
-            </padding>
-            <Icon fx:constant="TIMES_UNICODE"/>
-        </Icon>
-
         <!-- Title -->
         <Label fx:id="title" styleClass="title" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 

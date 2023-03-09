@@ -1,15 +1,15 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.scene.control.ListCell;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Locale;
 
 public abstract class AbstractSettingsUiComponent extends AbstractSettingsComponent {
-    protected AbstractSettingsUiComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
+    protected AbstractSettingsUiComponent(EventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
         super(eventPublisher, localeText, settingsService);
     }
 

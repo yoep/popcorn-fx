@@ -30,8 +30,6 @@ public class SubtitleInfo extends Structure implements Closeable {
     public static class ByReference extends SubtitleInfo implements Structure.ByReference {
     }
 
-    private static final SubtitleInfo NONE = new SubtitleInfo(SubtitleLanguage.NONE);
-
     public String imdbId;
     public SubtitleLanguage language;
     public SubtitleFile.ByReference files;
@@ -42,6 +40,7 @@ public class SubtitleInfo extends Structure implements Closeable {
     //region Constructors
 
     public SubtitleInfo() {
+        super();
     }
 
     private SubtitleInfo(SubtitleLanguage language) {
@@ -58,26 +57,6 @@ public class SubtitleInfo extends Structure implements Closeable {
     //endregion
 
     //region Getters & Setters
-
-    /**
-     * Get the special "none" subtitle instance.
-     * This instance is always the same.
-     *
-     * @return Returns the special none subtitle.
-     */
-    public static SubtitleInfo none() {
-        return NONE;
-    }
-
-    /**
-     * Get a new special "custom" subtitle instance.
-     * This instance is always unique/new for each invocation.
-     *
-     * @return Returns the special custom subtitle.
-     */
-    public static SubtitleInfo custom() {
-        return new SubtitleInfo(SubtitleLanguage.CUSTOM);
-    }
 
     /**
      * Check if this subtitle is a special subtitle.

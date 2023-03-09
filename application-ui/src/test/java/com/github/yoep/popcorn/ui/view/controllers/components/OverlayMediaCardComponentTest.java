@@ -1,7 +1,9 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -29,7 +31,7 @@ class OverlayMediaCardComponentTest {
         var event = mock(KeyEvent.class);
         var listener = mock(OverlayItemListener.class);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
-        var component = new OverlayMediaCardComponent(media, localeText, imageService, metadataProvider, listener);
+        var component = new DesktopMediaCardComponent(media, localeText, imageService, metadataProvider, listener);
 
         component.onKeyPressed(event);
 

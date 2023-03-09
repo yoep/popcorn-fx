@@ -151,6 +151,7 @@ public class SidebarController implements Initializable {
             category = Category.FAVORITES;
         }
 
+        searchInput.clear();
         switchActiveItem(icon);
 
         if (publishEvent) {

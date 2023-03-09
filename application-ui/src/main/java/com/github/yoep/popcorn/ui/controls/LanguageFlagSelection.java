@@ -28,6 +28,7 @@ import org.springframework.util.Assert;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Control for selecting the subtitle language through flags.
@@ -325,11 +326,17 @@ public class LanguageFlagSelection extends StackPane {
     }
 
     private void loadImage(ImageView imageView, Resource imageResource) {
-        try {
-            imageView.setImage(new Image(imageResource.getInputStream()));
-        } catch (IOException ex) {
-            log.error(ex.getMessage(), ex);
-        }
+        Optional.ofNullable(imageResource)
+                .map(e -> {
+                    try {
+                        return e.getInputStream();
+                    } catch (IOException ex) {
+                        log.error(ex.getMessage(), ex);
+                        return null;
+                    }
+                })
+                .map(Image::new)
+                .ifPresent(imageView::setImage);
     }
 
     private void updateFactory(LanguageFlagCell newValue) {

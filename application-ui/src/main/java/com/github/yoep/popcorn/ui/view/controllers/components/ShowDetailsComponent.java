@@ -1,19 +1,17 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
-import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -21,12 +19,12 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.controls.WatchedCellCallbacks;
-import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.controls.Episodes;
 import com.github.yoep.popcorn.ui.view.controls.Seasons;
+import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -42,26 +40,20 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 
 import java.io.IOException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @ViewController
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
-
     private static final double POSTER_WIDTH = 198.0;
     private static final double POSTER_HEIGHT = 215.0;
 
     private final ShowHelperService showHelperService;
-    private final WatchedEventCallback watchedEventCallback = createCallback();
 
     private Episode episode;
     private boolean batchUpdating;
@@ -95,7 +87,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     //region Constructors
 
-    public ShowDetailsComponent(ApplicationEventPublisher eventPublisher,
+    public ShowDetailsComponent(EventPublisher eventPublisher,
                                 LocaleText localeText,
                                 HealthService healthService,
                                 SubtitleService subtitleService,
@@ -105,9 +97,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
                                 PlayerManagerService playerService,
-                                PlatformProvider platformProvider,
-                                WatchedService watchedService,
-                                FavoriteService favoriteService) {
+                                FxLib fxLib) {
         super(eventPublisher,
                 localeText,
                 healthService,
@@ -116,22 +106,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                 imageService,
                 settingsService,
                 service,
-                playerService,
-                platformProvider,
-                watchedService,
-                favoriteService);
+                playerService, fxLib);
 
         this.showHelperService = showHelperService;
-        watchedService.registerListener(watchedEventCallback);
-    }
-
-    //endregion
-
-    //region Methods
-
-    @EventListener
-    public void onShowSerieDetails(ShowSerieDetailsEvent event) {
-        Platform.runLater(() -> load(event.getMedia()));
+        service.addListener(createCallback());
     }
 
     //endregion
@@ -145,12 +123,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         loadText();
         loadButtons();
         loadSeasons();
-        loadFavoriteAndWatched();
-    }
-
-    @Override
-    protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
-        return imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT);
     }
 
     @Override
@@ -166,7 +138,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         genres.setText(StringUtils.EMPTY);
         seasons.getItems().clear();
         episodes.getItems().clear();
-        poster.setImage(null);
     }
 
     //endregion
@@ -175,12 +146,21 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        super.initialize(url, resourceBundle);
         initializeSeasons();
         initializeEpisodes();
         initializeLanguageSelection();
         initializeTooltips();
+        initializeListeners();
 
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerService, watchNowButton);
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerService, watchNowButton);
+    }
+
+    private void initializeListeners() {
+        eventPublisher.register(ShowSerieDetailsEvent.class, event -> {
+            Platform.runLater(() -> load(event.getMedia()));
+            return event;
+        });
     }
 
     //endregion
@@ -225,12 +205,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         var cellCallbacks = new WatchedCellCallbacks() {
             @Override
             public void updateWatchedState(Media media, boolean newState, Icon icon) {
-                if (newState) {
-                    watchedService.addToWatchList(media);
-                } else {
-                    watchedService.removeFromWatchList(media);
-                }
-
+                service.updateWatchedStated(media, newState);
                 onEpisodeWatchedChanged(newState, (Episode) media, icon);
             }
         };
@@ -345,13 +320,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void markSeasonAsWatched(Season season) {
         batchUpdating = true;
-        showHelperService.getSeasonEpisodes(season, media).forEach(watchedService::addToWatchList);
+        showHelperService.getSeasonEpisodes(season, media).forEach(e -> service.updateWatchedStated(e, true));
         batchUpdating = false;
     }
 
     private void unmarkSeasonAsWatched(Season season) {
         batchUpdating = true;
-        showHelperService.getSeasonEpisodes(season, media).forEach(watchedService::removeFromWatchList);
+        showHelperService.getSeasonEpisodes(season, media).forEach(e -> service.updateWatchedStated(e, false));
         batchUpdating = false;
     }
 
@@ -412,22 +387,25 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         seasons.updateWatchedState(season, isSeasonWatched(season));
     }
 
-    private WatchedEventCallback createCallback() {
-        return event -> {
-            switch (event.getTag()) {
-                case WatchedStateChanged -> {
-                    var stateChanged = event.getUnion().getWatched_state_changed();
-                    episodes.getItems().stream()
-                            .filter(e -> e.getId().equals(stateChanged.getImdbId()))
-                            .findFirst()
-                            .ifPresent(e -> episodes.updateWatchedState(e, stateChanged.getNewState()));
-                }
+    private DetailsComponentListener createCallback() {
+        return new DetailsComponentListener() {
+            @Override
+            public void onWatchChanged(String id, boolean newState) {
+                episodes.getItems().stream()
+                        .filter(e -> e.getId().equals(id))
+                        .findFirst()
+                        .ifPresent(e -> episodes.updateWatchedState(e, newState));
+            }
+
+            @Override
+            public void onLikedChanged(boolean newState) {
+                // no-op
             }
         };
     }
 
     @FXML
-    private void onMagnetClicked(MouseEvent event) {
+    void onMagnetClicked(MouseEvent event) {
         MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {
@@ -438,28 +416,22 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     @FXML
-    private void onWatchedClicked(MouseEvent event) {
+    void onWatchedClicked(MouseEvent event) {
         event.consume();
         service.toggleWatchedState();
     }
 
     @FXML
-    private void onFavoriteClicked(MouseEvent event) {
+    void onFavoriteClicked(MouseEvent event) {
         event.consume();
         service.toggleLikedState();
     }
 
     @FXML
-    private void onWatchNowClicked() {
+    void onWatchNowClicked() {
         var mediaTorrentInfo = episode.getTorrents().get(quality);
 
         eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, quality, subtitle));
-    }
-
-    @FXML
-    private void close() {
-        eventPublisher.publishEvent(new CloseDetailsEvent(this));
-        reset();
     }
 
     //endregion

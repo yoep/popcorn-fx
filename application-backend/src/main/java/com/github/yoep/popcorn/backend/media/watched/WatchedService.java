@@ -2,12 +2,12 @@ package com.github.yoep.popcorn.backend.media.watched;
 
 import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -22,11 +22,15 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Service
 public class WatchedService {
     private static final int WATCHED_PERCENTAGE_THRESHOLD = 85;
+
+    private final EventPublisher eventPublisher;
+
     private final Object lock = new Object();
     private final WatchedEventCallback callback = createCallback();
     private final ConcurrentLinkedDeque<WatchedEventCallback> listeners = new ConcurrentLinkedDeque<>();
 
-    public WatchedService() {
+    public WatchedService(EventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
         init();
     }
 
@@ -106,8 +110,18 @@ public class WatchedService {
         listeners.remove(callback);
     }
 
-    @EventListener
-    public void onPlayerStopped(PlayerStoppedEvent event) {
+    //endregion
+    private void init() {
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            onPlayerStoppedEvent(event);
+            return event;
+        });
+        synchronized (lock) {
+            FxLibInstance.INSTANCE.get().register_watched_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
+        }
+    }
+
+    private void onPlayerStoppedEvent(PlayerStoppedEvent event) {
         // check if the media is present
         // if not, the played video might have been a trailer or video file
         if (event.getMedia().isEmpty())
@@ -130,14 +144,6 @@ public class WatchedService {
         if (percentageWatched >= WATCHED_PERCENTAGE_THRESHOLD) {
             log.debug("Marking media \"{}\" ({}) automatically as watched", media.getTitle(), media.getId());
             addToWatchList(media);
-        }
-    }
-
-    //endregion
-
-    private void init() {
-        synchronized (lock) {
-            FxLibInstance.INSTANCE.get().register_watched_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
         }
     }
 

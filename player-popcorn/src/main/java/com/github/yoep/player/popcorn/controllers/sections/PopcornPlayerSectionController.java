@@ -9,12 +9,14 @@ import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -31,7 +33,6 @@ import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -49,6 +50,7 @@ public class PopcornPlayerSectionController implements Initializable {
     private final SubtitleManagerService subtitleManagerService;
     private final LocaleText localeText;
     private final PlatformProvider platformProvider;
+    private final EventPublisher eventPublisher;
     private final PauseTransition idleTimer = getIdleTimer();
     private final PauseTransition offsetTimer = getOffsetTimer();
 
@@ -78,18 +80,6 @@ public class PopcornPlayerSectionController implements Initializable {
     @FXML
     SubtitleTrack subtitleTrack;
 
-    //region Methods
-
-    @EventListener(PlayerStoppedEvent.class)
-    public void reset() {
-        platformProvider.runOnRenderer(() -> {
-            subtitleTrack.clear();
-            errorText.setText(null);
-        });
-    }
-
-    //endregion
-
     //region Initializable
 
     @Override
@@ -99,6 +89,13 @@ public class PopcornPlayerSectionController implements Initializable {
         initializeListeners();
         initializePaneListeners();
         initializeSubtitleTrack();
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            Platform.runLater(() -> {
+                subtitleTrack.clear();
+                errorText.setText(null);
+            });
+            return event;
+        });
     }
 
     private void initializeSceneEvents() {

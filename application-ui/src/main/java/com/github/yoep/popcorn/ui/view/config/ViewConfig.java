@@ -4,24 +4,30 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.view.PopcornViewLoader;
+import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
+import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
+import com.github.yoep.popcorn.ui.view.controllers.ContentSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
+import com.github.yoep.popcorn.ui.view.controllers.common.sections.DetailsSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.components.DesktopPosterComponent;
+import com.github.yoep.popcorn.ui.view.controllers.components.TvPosterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopFilterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.WindowComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.SystemTimeComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent;
+import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -31,7 +37,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class ViewConfig {
     @Bean
-    public MainController mainController(ApplicationEventPublisher eventPublisher,
+    public MainController mainController(EventPublisher eventPublisher,
                                          ViewLoader viewLoader,
                                          ApplicationArguments arguments,
                                          UrlService urlService,
@@ -39,6 +45,22 @@ public class ViewConfig {
                                          OptionsService optionsService,
                                          TaskExecutor taskExecutor) {
         return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, optionsService, taskExecutor);
+    }
+
+    @Bean
+    public ContentSectionController contentSectionController(ViewLoader viewLoader,
+                                                             LocaleText localeText,
+                                                             EventPublisher eventPublisher,
+                                                             MaximizeService maximizeService,
+                                                             OptionsService optionsService) {
+        return new ContentSectionController(viewLoader, localeText, eventPublisher, maximizeService, optionsService);
+    }
+
+    @Bean
+    public DetailsSectionController detailsSectionController(EventPublisher eventPublisher,
+                                                             ViewLoader viewLoader,
+                                                             TaskExecutor taskExecutor) {
+        return new DetailsSectionController(eventPublisher, viewLoader, taskExecutor);
     }
 
     @Bean
@@ -52,46 +74,49 @@ public class ViewConfig {
     }
 
     @Bean
+    @ConditionalOnDesktopMode
     public DesktopFilterComponent desktopFilterComponent(LocaleText localeText,
                                                          EventPublisher eventPublisher,
                                                          FxLib fxLib,
                                                          PopcornFx instance) {
-        if (!isTvModeEnabled()) {
-            return new DesktopFilterComponent(localeText, eventPublisher, fxLib, instance);
-        }
-
-        return null;
+        return new DesktopFilterComponent(localeText, eventPublisher, fxLib, instance);
     }
 
     @Bean
-    public TvFilterComponent tvFilterComponent() {
-        if (isTvModeEnabled()) {
-            return new TvFilterComponent();
-        }
-
-        return null;
+    @ConditionalOnTvMode
+    public TvFilterComponent tvFilterComponent(EventPublisher eventPublisher,
+                                               FxLib fxLib,
+                                               PopcornFx instance) {
+        return new TvFilterComponent(eventPublisher, fxLib, instance);
     }
 
     @Bean
+    @ConditionalOnDesktopMode
     public WindowComponent windowComponent(MaximizeService maximizeService,
                                            PlatformProvider platformProvider) {
-        if (!isTvModeEnabled()) {
-            return new WindowComponent(maximizeService, platformProvider);
-        }
-
-        return null;
+        return new WindowComponent(maximizeService, platformProvider);
     }
 
     @Bean
+    @ConditionalOnTvMode
     public SystemTimeComponent systemTimeComponent() {
-        if (isTvModeEnabled()) {
-            return new SystemTimeComponent();
-        }
-
-        return null;
+        return new SystemTimeComponent();
     }
 
-    private static boolean isTvModeEnabled() {
-        return FxLibInstance.INSTANCE.get().is_tv_mode(PopcornFxInstance.INSTANCE.get()) == 1;
+    @Bean
+    @ConditionalOnDesktopMode
+    public DesktopPosterComponent desktopPosterComponent(EventPublisher eventPublisher,
+                                                         ImageService imageService,
+                                                         FavoriteService favoriteService,
+                                                         WatchedService watchedService,
+                                                         LocaleText localeText) {
+        return new DesktopPosterComponent(eventPublisher, imageService, favoriteService, watchedService, localeText);
+    }
+
+    @Bean
+    @ConditionalOnTvMode
+    public TvPosterComponent tvPosterComponent(EventPublisher eventPublisher,
+                                               ImageService imageServic) {
+        return new TvPosterComponent(eventPublisher, imageServic);
     }
 }

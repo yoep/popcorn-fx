@@ -7,6 +7,7 @@ import com.github.yoep.player.popcorn.controls.StreamInfoCell;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.player.popcorn.services.PlayerHeaderService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -14,7 +15,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -24,6 +24,7 @@ import java.util.ResourceBundle;
 public class PlayerHeaderComponent implements Initializable {
     private final PlayerHeaderService headerService;
     private final LocaleText localeText;
+    private final EventPublisher eventPublisher;
 
     @FXML
     Label title;
@@ -32,26 +33,21 @@ public class PlayerHeaderComponent implements Initializable {
     @FXML
     StreamInfo streamInfo;
 
-    //region Methods
-
-    @EventListener(PlayerStoppedEvent.class)
-    public void reset() {
-        Platform.runLater(() -> {
-            title.setText(null);
-            quality.setText(null);
-            quality.setVisible(false);
-            streamInfo.setVisible(false);
-        });
-    }
-
-    //endregion
-
     //region Initializable
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeStreamInfo();
         initializeListener();
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            Platform.runLater(() -> {
+                title.setText(null);
+                quality.setText(null);
+                quality.setVisible(false);
+                streamInfo.setVisible(false);
+            });
+            return event;
+        });
     }
 
     private void initializeStreamInfo() {

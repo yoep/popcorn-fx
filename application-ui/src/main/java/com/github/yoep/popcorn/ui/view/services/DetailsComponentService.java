@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
@@ -9,10 +10,10 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -24,22 +25,13 @@ import java.util.Objects;
 public class DetailsComponentService extends AbstractListenerService<DetailsComponentListener> {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
+    private final OptionsService optionsService;
+    private final EventPublisher eventPublisher;
 
     private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback();
     private final WatchedEventCallback watchedEventCallback = createWatchedCallback();
 
     private Media lastShownMediaItem;
-
-    @EventListener
-    public void onShowDetails(ShowDetailsEvent event) {
-        if (event instanceof ShowMovieDetailsEvent movieEvent) {
-            lastShownMediaItem = movieEvent.getMedia();
-        } else if (event instanceof ShowSerieDetailsEvent serieEvent) {
-            lastShownMediaItem = serieEvent.getMedia();
-        } else {
-            log.warn("Unknown details events received, event: {}", event.getClass().getSimpleName());
-        }
-    }
 
     public boolean isWatched(Media media) {
         return watchedService.isWatched(media);
@@ -47,6 +39,10 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
 
     public boolean isLiked(Media media) {
         return favoriteService.isLiked(media);
+    }
+
+    public boolean isTvMode() {
+        return optionsService.isTvMode();
     }
 
     public void updateWatchedStated(Media media, boolean isWatched) {
@@ -81,9 +77,19 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     }
 
     @PostConstruct
-    private void init() {
+    void init() {
         favoriteService.registerListener(favoriteEventCallback);
         watchedService.registerListener(watchedEventCallback);
+        eventPublisher.register(ShowDetailsEvent.class, event -> {
+            if (event instanceof ShowMovieDetailsEvent movieEvent) {
+                lastShownMediaItem = movieEvent.getMedia();
+            } else if (event instanceof ShowSerieDetailsEvent serieEvent) {
+                lastShownMediaItem = serieEvent.getMedia();
+            } else {
+                log.warn("Unknown details events received, event: {}", event.getClass().getSimpleName());
+            }
+            return event;
+        });
     }
 
     private FavoriteEventCallback createFavoriteCallback() {
@@ -102,7 +108,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
             switch (event.tag) {
                 case WatchedStateChanged -> {
                     var stateChanged = event.getUnion().getWatched_state_changed();
-                    invokeListeners(e -> e.onWatchChanged(stateChanged.getNewState()));
+                    invokeListeners(e -> e.onWatchChanged(stateChanged.getImdbId(), stateChanged.getNewState()));
                 }
             }
         };

@@ -85,55 +85,6 @@
     -fx-padding: 5 15 5 15;
 }
 
-.root .list-section .poster-item {
-    -fx-min-height: 368;
-    -fx-max-height: 368;
-    -fx-pref-height: 368;
-    -fx-min-width: 250;
-    -fx-max-width: 250;
-    -fx-pref-width: 250;
-    -fx-padding: 1;
-}
-
-.root .list-section .poster-item:focused,
-.root .list-section .poster-item.watched:focused {
-    -fx-opacity: 1;
-}
-
-.root .list-section .poster-item:focused .poster-image {
-    -fx-border-color: transparent;
-    -fx-border-width: 5px;
-    -fx-border-style: solid;
-}
-
-.root .list-section .poster-item:focused .poster-image {
-    -fx-border-color: #2d72d9;
-}
-
-.root .list-section .poster-item .poster-details {
-    -fx-background-color: linear-gradient(rgba(23, 24, 27, 0.3) 0%, rgba(23, 24, 27, 0.8) 70%);
-}
-
-.root .list-section .poster-item:focused .poster-details {
-    -fx-background-color: linear-gradient(rgba(45, 114, 217, 0.3) 0%, rgba(45, 114, 217, 0.8) 70%);
-}
-
-.root .list-section .poster-item .poster-details .title {
-    -fx-font-size: 1.5em;
-}
-
-.root .list-section .poster-item .year,
-.root .list-section .poster-item .seasons {
-    -fx-font-size: 1em;
-    -fx-text-fill: #737373;
-    -fx-fill: #737373;
-}
-
-.root .list-section .poster-item:focused .year,
-.root .list-section .poster-item:focused .seasons {
-    -fx-text-fill: #fff;
-}
-
 .root .movie-details .overview,
 .root .show-details-section .overview {
     -fx-font-size: 1.25em;
@@ -527,6 +478,7 @@
 .root .content-section .sidebar .icon {
     -fx-pref-width: 128px;
     -fx-font-size: 3em;
+    -fx-border-width: 0 0 0 6;
 }
 
 .root .content-section .sidebar .icon-text {
@@ -547,3 +499,44 @@
     -fx-text-fill: #fff;
     -fx-padding: 5 25 0 0;
 }
+
+/* region Media Card */
+
+.root .list-section .poster-item {
+    -fx-pref-height: 450;
+    -fx-pref-width: 300;
+    -fx-padding: 1;
+}
+
+.root .list-section .poster-item:focused {
+    -fx-opacity: 1;
+}
+
+.root .list-section .poster-item:focused .poster-image {
+    -fx-border-color: transparent;
+    -fx-border-width: 5px;
+    -fx-border-style: solid;
+}
+
+.root .list-section .poster-item:focused .poster-image {
+    -fx-border-color: #2d72d9;
+}
+
+.root .list-section .poster-item .poster-details {
+    -fx-background-color: linear-gradient(rgba(23, 24, 27, 0.3) 0%, rgba(23, 24, 27, 0.8) 70%);
+}
+
+.root .list-section .poster-item:focused .poster-details {
+    -fx-background-color: linear-gradient(rgba(45, 114, 217, 0.3) 0%, rgba(45, 114, 217, 0.8) 70%);
+}
+
+/* endregion */
+
+/* region Loader */
+
+.root .loader .progress-status,
+.root .player-external .progress-status {
+    -fx-max-width: 800;
+}
+
+/* endregion */

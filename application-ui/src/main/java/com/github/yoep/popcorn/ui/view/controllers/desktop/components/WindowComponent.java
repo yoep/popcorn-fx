@@ -70,6 +70,9 @@ public class WindowComponent implements Initializable {
     //region Functions
 
     private void onMaximizedStateChanged(boolean maximized) {
+        if (maximizeImageView == null)
+            return;
+
         if (maximized) {
             maximizeImageView.setImage(restoreImage);
         } else {

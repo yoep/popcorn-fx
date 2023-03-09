@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
@@ -27,8 +28,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.File;
 import java.util.Optional;
@@ -44,8 +45,8 @@ class LoadTorrentServiceTest {
     private TorrentService torrentService;
     @Mock
     private TorrentStreamService torrentStreamService;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher();
     @Mock
     private ApplicationConfig settingsService;
     @Mock
@@ -83,7 +84,7 @@ class LoadTorrentServiceTest {
         when(future.thenCompose(isA(Function.class))).thenReturn(future);
         when(future.exceptionally(isA(Function.class))).thenReturn(future);
 
-        service.onLoadMediaTorrent(event);
+        eventPublisher.publish(event);
         service.cancel();
 
         verify(eventPublisher).publishEvent(new CloseLoadEvent(service));
@@ -104,7 +105,7 @@ class LoadTorrentServiceTest {
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(new CompletableFuture<>());
 
-        service.onLoadMediaTorrent(event);
+        eventPublisher.publish(event);
         service.retryLoadingTorrent();
 
         verify(eventPublisher).publishEvent(event);
@@ -150,7 +151,7 @@ class LoadTorrentServiceTest {
         when(subtitleService.preferredSubtitleLanguage()).thenReturn(SubtitleLanguage.ENGLISH);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
 
-        service.onLoadMediaTorrent(event);
+        eventPublisher.publish(event);
 
         verify(subtitleService).download(subtitleInfo, subtitleMatcher);
     }
@@ -199,7 +200,7 @@ class LoadTorrentServiceTest {
             return null;
         }).when(torrentStream).addListener(isA(TorrentStreamListener.class));
 
-        service.onLoadMediaTorrent(event);
+        eventPublisher.publish(event);
         listenerHolder.get().onStreamReady();
 
         verify(eventPublisher).publishEvent(expectedMediaEvent);
@@ -246,7 +247,7 @@ class LoadTorrentServiceTest {
             return null;
         }).when(torrentStream).addListener(isA(TorrentStreamListener.class));
 
-        service.onLoadUrlTorrent(event);
+        eventPublisher.publish(event);
         listenerHolder.get().onStreamReady();
 
         verify(eventPublisher).publishEvent(expectedResult);

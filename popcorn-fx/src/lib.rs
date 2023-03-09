@@ -25,17 +25,7 @@ mod fx;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 
-/// Retrieve the default options available for the subtitles.
-#[no_mangle]
-pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoSet {
-    trace!("Retrieving default subtitle options");
-    let subtitles = popcorn_fx.subtitle_provider().default_subtitle_options();
-    let subtitles: Vec<SubtitleInfoC> = subtitles.into_iter()
-        .map(SubtitleInfoC::from)
-        .collect();
 
-    into_c_owned(SubtitleInfoSet::from(subtitles))
-}
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
@@ -950,7 +940,7 @@ mod test {
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -992,30 +982,6 @@ mod test {
 
     #[no_mangle]
     pub extern "C" fn settings_callback(_: ApplicationConfigEventC) {}
-
-    #[test]
-    fn test_default_subtitle_options() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            app_directory: temp_path.to_string(),
-        });
-        let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
-
-        let set_ptr = from_c_owned(default_subtitle_options(&mut instance));
-        let result: Vec<SubtitleInfo> = from_c_vec(set_ptr.subtitles, set_ptr.len).into_iter()
-            .map(SubtitleInfo::from)
-            .collect();
-
-        assert_eq!(expected_result, result)
-    }
 
     #[test]
     fn test_dispose_popcorn_fx() {

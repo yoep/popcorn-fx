@@ -20,7 +20,7 @@ public class ShowTorrentDetailsEvent extends ShowDetailsEvent {
     private final TorrentInfo torrentInfo;
 
     public ShowTorrentDetailsEvent(Object source, String magnetUri, TorrentInfo torrentInfo) {
-        super(source);
+        super(source, null);
         Assert.notNull(magnetUri, "magnetUri cannot be null");
         Assert.notNull(torrentInfo, "torrentInfo cannot be null");
         this.magnetUri = magnetUri;

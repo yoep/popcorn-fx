@@ -46,6 +46,10 @@ public interface FxLib extends Library {
 
     SubtitleInfoSet default_subtitle_options(PopcornFx instance);
 
+    SubtitleInfo subtitle_none();
+
+    SubtitleInfo subtitle_custom();
+
     SubtitleInfoSet movie_subtitles(PopcornFx instance, MovieDetails movie);
 
     SubtitleInfoSet episode_subtitles(PopcornFx instance, ShowDetails show, Episode episode);

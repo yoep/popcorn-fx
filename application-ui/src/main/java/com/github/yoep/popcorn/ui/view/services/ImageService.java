@@ -28,8 +28,6 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 public class ImageService {
-    static final int POSTER_WIDTH = 201;
-    static final int POSTER_HEIGHT = 294;
     static final String POSTER_HOLDER = "/images/posterholder.png";
 
     private final RestTemplate restTemplate;
@@ -150,7 +148,7 @@ public class ImageService {
         try {
             var resource = getPosterHolderResource();
 
-            posterHolder = new Image(resource.getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
+            posterHolder = new Image(resource.getInputStream());
         } catch (Exception ex) {
             log.error("Failed to load poster holder, " + ex.getMessage(), ex);
         }

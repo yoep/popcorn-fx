@@ -5,6 +5,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -13,7 +14,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 
 import javax.annotation.PostConstruct;
 
@@ -25,28 +25,24 @@ public class PlayerSectionController {
 
     private final PlayerManagerService playerManagerService;
     private final ViewLoader viewLoader;
+    private final EventPublisher eventPublisher;
 
     @FXML
     Pane playerSectionPane;
 
     Pane externalPlayerPane;
 
-    //region Methods
-
-    @EventListener(PlayVideoEvent.class)
-    public void onPlayVideo() {
-        playerManagerService.getActivePlayer().ifPresentOrElse(
-                this::onPlayVideo,
-                () -> log.error("Unable to update player section, no player is active"));
-    }
-
-    //endregion
-
     //region PostConstruct
 
     @PostConstruct
     void init() {
         loadExternalPlayerPane();
+        eventPublisher.register(PlayVideoEvent.class, event -> {
+            playerManagerService.getActivePlayer().ifPresentOrElse(
+                    this::onPlayVideo,
+                    () -> log.error("Unable to update player section, no player is active"));
+            return event;
+        });
     }
 
     //endregion

@@ -1,7 +1,8 @@
-package com.github.yoep.popcorn.ui.view.controllers.common.components;
+package com.github.yoep.popcorn.ui.view.controllers.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
@@ -10,42 +11,34 @@ import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.HealthIcon;
-import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Tooltip;
-import javafx.scene.image.Image;
-import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.util.Assert;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.net.URL;
+import java.util.*;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
-public abstract class AbstractDetailsComponent<T extends Media> {
-    private static final String POSTER_HOLDER_URI = "/images/posterholder.png";
-    private static final Image POSTER_HOLDER = loadPosterHolder();
+public abstract class AbstractDetailsComponent<T extends Media> implements Initializable {
     private static final Pattern QUALITY_PATTERN = Pattern.compile("(?i)[0-9]+p?");
 
     protected final LocaleText localeText;
     protected final ImageService imageService;
     protected final HealthService healthService;
     protected final ApplicationConfig settingsService;
+    protected final EventPublisher eventPublisher;
 
     protected T media;
 
@@ -54,21 +47,16 @@ public abstract class AbstractDetailsComponent<T extends Media> {
     @FXML
     protected Stars ratingStars;
     @FXML
-    protected Pane posterHolder;
-    @FXML
-    protected ImageCover poster;
-    @FXML
     protected BackgroundImageCover backgroundImage;
 
     //region Methods
 
-    /**
-     * Invoked when the details are being closed.
-     * This method will reset the details events.
-     */
-    @EventListener(CloseDetailsEvent.class)
-    public void onCloseDetails() {
-        reset();
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        eventPublisher.register(CloseDetailsEvent.class, event -> {
+            Platform.runLater(this::reset);
+            return event;
+        });
     }
 
     /**
@@ -81,21 +69,12 @@ public abstract class AbstractDetailsComponent<T extends Media> {
         // as the onCloseDetails might have been bypassed through another event
         reset();
 
-        Assert.notNull(media, "media cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
         this.media = media;
 
         loadBackgroundImage();
-        loadPosterImage();
         loadStars();
     }
-
-    /**
-     * Load the media poster for the given media.
-     *
-     * @param media The media to load the poster of.
-     * @return Returns the completable future of the poster load action.
-     */
-    protected abstract CompletableFuture<Optional<Image>> loadPoster(Media media);
 
     /**
      * Load the stars component.
@@ -224,26 +203,11 @@ public abstract class AbstractDetailsComponent<T extends Media> {
      */
     protected void reset() {
         this.media = null;
-        this.poster.reset();
     }
 
     //endregion
 
     //region Functions
-
-    private void loadPosterImage() {
-        // set the poster holder as the default image
-        poster.setImage(POSTER_HOLDER);
-
-        loadPoster(media).whenComplete((image, throwable) -> {
-            if (throwable == null) {
-                // replace the poster holder with the actual image if present
-                image.ifPresent(e -> poster.setImage(e));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
-    }
 
     private void loadBackgroundImage() {
         backgroundImage.reset();
@@ -291,22 +255,6 @@ public abstract class AbstractDetailsComponent<T extends Media> {
 
     private PlaybackSettings getPlaybackSettings() {
         return settingsService.getSettings().getPlaybackSettings();
-    }
-
-    private static Image loadPosterHolder() {
-        try {
-            var resource = new ClassPathResource(POSTER_HOLDER_URI);
-
-            if (resource.exists()) {
-                return new Image(resource.getInputStream());
-            } else {
-                log.warn("Poster holder url \"{}\" does not exist", POSTER_HOLDER_URI);
-            }
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
-        }
-
-        return null;
     }
 
     //endregion

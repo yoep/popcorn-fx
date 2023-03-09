@@ -54,6 +54,8 @@ class SubtitleManagerServiceTest {
     private ApplicationSettings settings;
     @Mock
     private SubtitleSettings.ByValue subtitleSettings;
+    @Mock
+    private SubtitleInfo subtitleNone;
     @InjectMocks
     private SubtitleManagerService service;
 
@@ -64,6 +66,7 @@ class SubtitleManagerServiceTest {
         lenient().when(settingsService.getSettings()).thenReturn(settings);
         lenient().when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         lenient().when(subtitleService.activeSubtitleProperty()).thenReturn(activeSubtitleProperty);
+        lenient().when(subtitleNone.isNone()).thenReturn(true);
     }
 
     @Test
@@ -90,7 +93,7 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleIsNone_shouldDisableSubtitleTrack() {
-        service.updateSubtitle(SubtitleInfo.none());
+        service.updateSubtitle(subtitleNone);
 
         verify(subtitleService).disableSubtitle();
     }
@@ -150,6 +153,7 @@ class SubtitleManagerServiceTest {
         var quality = "720p";
         var title = "my-video-title";
         var subtitle = mock(Subtitle.class);
+        var custom = mock(SubtitleInfo.class);
         var videoEvent = PlayVideoEvent.builder()
                 .source(this)
                 .url(url)
@@ -167,7 +171,8 @@ class SubtitleManagerServiceTest {
                 .torrentStream(mock(TorrentStream.class))
                 .build();
         var expected_filepath = "/lorem/ipsum.srt";
-        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(SubtitleInfo.custom()));
+        when(custom.isCustom()).thenReturn(true);
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(custom));
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(expected_filepath));
         service.init();
         service.onPlayVideo(videoEvent);
@@ -181,7 +186,9 @@ class SubtitleManagerServiceTest {
     @Test
     void testSubtitleListener_whenSubtitleIsChangedToCustomAndUserCancels_shouldDisableTheSubtitleTrack() {
         var subtitle = mock(Subtitle.class);
-        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(SubtitleInfo.custom()));
+        var custom = mock(SubtitleInfo.class);
+        when(custom.isCustom()).thenReturn(true);
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(custom));
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.empty());
         service.init();
 

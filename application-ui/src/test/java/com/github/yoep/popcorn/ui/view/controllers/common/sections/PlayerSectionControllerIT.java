@@ -4,12 +4,15 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
@@ -26,6 +29,8 @@ class PlayerSectionControllerIT {
     private PlayerManagerService playerManagerService;
     @Mock
     private ViewLoader viewLoader;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher();
     @InjectMocks
     private PlayerSectionController controller;
 
@@ -52,12 +57,13 @@ class PlayerSectionControllerIT {
     void testPlayVideo_whenPlayerDoesNotSupportEmbedding_shouldUseExternalPlayerView() {
         var player = mock(Player.class);
         var externalPlayerPane = new Pane();
+        var event = mock(PlayVideoEvent.class);
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(externalPlayerPane);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(player.isEmbeddedPlaybackSupported()).thenReturn(false);
         controller.init();
 
-        controller.onPlayVideo();
+        eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
 
         assertEquals(2, controller.playerSectionPane.getChildren().size(), "Expected a player to have been added");
@@ -69,13 +75,14 @@ class PlayerSectionControllerIT {
         var player = mock(EmbeddablePlayer.class);
         var playerViewNode = new Pane();
         var externalPlayerPane = new Pane();
+        var event = mock(PlayVideoEvent.class);
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(externalPlayerPane);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(player.isEmbeddedPlaybackSupported()).thenReturn(true);
         when(player.getEmbeddedPlayer()).thenReturn(playerViewNode);
         controller.init();
 
-        controller.onPlayVideo();
+        eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
 
         assertEquals(2, controller.playerSectionPane.getChildren().size(), "Expected a player to have been added");
@@ -89,6 +96,7 @@ class PlayerSectionControllerIT {
         var player1ViewNode = new Pane();
         var player2ViewNode = new Pane();
         var externalPlayerPane = new Pane();
+        var event = mock(PlayVideoEvent.class);
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(externalPlayerPane);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player1), Optional.of(player2));
         when(player1.isEmbeddedPlaybackSupported()).thenReturn(true);
@@ -97,9 +105,9 @@ class PlayerSectionControllerIT {
         when(player2.getEmbeddedPlayer()).thenReturn(player2ViewNode);
         controller.init();
 
-        controller.onPlayVideo();
+        eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
-        controller.onPlayVideo();
+        eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
 
         assertEquals(2, controller.playerSectionPane.getChildren().size(), "Expected the previous player to have been cleared");

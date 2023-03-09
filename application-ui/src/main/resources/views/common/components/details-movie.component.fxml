@@ -2,18 +2,21 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection?>
-<?import com.github.yoep.popcorn.ui.view.controls.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
+<?import com.github.yoep.popcorn.ui.view.controls.HealthIcon?>
+<?import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton?>
+<?import com.github.yoep.popcorn.ui.view.controls.Stars?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.MovieDetailsComponent"
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.components.MovieDetailsComponent"
             styleClass="movie-details">
     <!-- Background image cover -->
     <BackgroundImageCover fx:id="backgroundImage"
                           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
-    <GridPane AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75" AnchorPane.leftAnchor="75">
+    <GridPane fx:id="detailsContentPane" AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" percentWidth="35" halignment="RIGHT"/>
             <ColumnConstraints hgrow="NEVER" minWidth="10"/>
@@ -23,30 +26,7 @@
             <RowConstraints vgrow="ALWAYS"/>
         </rowConstraints>
 
-        <StackPane fx:id="posterHolder" styleClass="poster"
-                   GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <ImageCover fx:id="poster" styleClass="poster-image"/>
-
-            <CornerButton position="TOP_LEFT" onMouseClicked="#onWatchedClicked"
-                          StackPane.alignment="TOP_LEFT">
-                <Icon fx:id="watchedIcon" styleClass="view">
-                    <Icon fx:constant="EYE_SLASH_UNICODE"/>
-                    <tooltip>
-                        <Tooltip fx:id="watchedTooltip"/>
-                    </tooltip>
-                </Icon>
-            </CornerButton>
-
-            <CornerButton position="TOP_RIGHT" onMouseClicked="#onFavoriteClicked"
-                          StackPane.alignment="TOP_RIGHT">
-                <Icon fx:id="favoriteIcon" styleClass="like">
-                    <Icon fx:constant="HEART_UNICODE"/>
-                    <tooltip>
-                        <Tooltip fx:id="favoriteTooltip"/>
-                    </tooltip>
-                </Icon>
-            </CornerButton>
-        </StackPane>
+        <!-- Placeholder of the poster -->
 
         <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
             <columnConstraints>
@@ -98,7 +78,8 @@
             <!-- Play actions -->
             <HBox alignment="CENTER_LEFT" spacing="5"
                   GridPane.columnIndex="0" GridPane.rowIndex="4">
-                <PlayerDropDownButton fx:id="watchNowButton" styleClass="watch-now" text="%details_watch_now" onMouseClicked="#onWatchNowClicked"/>
+                <PlayerDropDownButton fx:id="watchNowButton" styleClass="watch-now" text="%details_watch_now"
+                                      onMouseClicked="#onWatchNowClicked" onKeyPressed="#onWatchNowPressed"/>
 
                 <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
             </HBox>

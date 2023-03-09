@@ -14,14 +14,14 @@ import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
-import com.github.yoep.popcorn.ui.view.controllers.ContentSectionController;
-import com.github.yoep.popcorn.ui.view.controllers.common.sections.DetailsSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.common.sections.ListSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.common.sections.LoaderSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
-import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.*;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.SettingsSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.TorrentCollectionSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.WatchlistSectionController;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -34,38 +34,21 @@ public class DesktopConfig {
     //region Sections
 
     @Bean
-    public ContentSectionController contentSectionController(ViewLoader viewLoader,
-                                                             LocaleText localeText,
-                                                             ApplicationEventPublisher applicationEventPublisher,
-                                                             EventPublisher eventPublisher,
-                                                             MaximizeService maximizeService,
-                                                             OptionsService optionsService) {
-        return new ContentSectionController(viewLoader, localeText, applicationEventPublisher, eventPublisher, maximizeService, optionsService);
-    }
-
-    @Bean
-    public DetailsSectionController detailsSectionController(ApplicationEventPublisher eventPublisher,
-                                                             ViewLoader viewLoader,
-                                                             TaskExecutor taskExecutor) {
-        return new DetailsSectionController(eventPublisher, viewLoader, taskExecutor);
-    }
-
-    @Bean
     public ListSectionController listSectionController(List<ProviderService<? extends Media>> providerServices,
                                                        FavoriteService favoriteService,
                                                        WatchedService watchedService,
                                                        ViewLoader viewLoader,
                                                        LocaleText localeText,
-                                                       ApplicationEventPublisher eventPublisher,
-                                                       EventPublisher publisher,
-                                                       ImageService imageService) {
+                                                       EventPublisher eventPublisher,
+                                                       ImageService imageService,
+                                                       OptionsService optionsService) {
         return new ListSectionController(providerServices, favoriteService, watchedService, viewLoader, localeText, eventPublisher, imageService,
-                publisher);
+                optionsService);
     }
 
     @Bean
-    public LoaderSectionController loaderSectionController(ViewLoader viewLoader, TaskExecutor taskExecutor) {
-        return new LoaderSectionController(viewLoader, taskExecutor);
+    public LoaderSectionController loaderSectionController(ViewLoader viewLoader, TaskExecutor taskExecutor, EventPublisher eventPublisher) {
+        return new LoaderSectionController(viewLoader, taskExecutor, eventPublisher);
     }
 
     @Bean
@@ -74,14 +57,14 @@ public class DesktopConfig {
     }
 
     @Bean
-    public TorrentCollectionSectionController torrentCollectionSectionController(ApplicationEventPublisher eventPublisher,
+    public TorrentCollectionSectionController torrentCollectionSectionController(EventPublisher eventPublisher,
                                                                                  TorrentCollectionService torrentCollectionService,
                                                                                  LocaleText localeText) {
         return new TorrentCollectionSectionController(eventPublisher, torrentCollectionService, localeText);
     }
 
     @Bean
-    public WatchlistSectionController watchlistSectionController(ApplicationEventPublisher eventPublisher,
+    public WatchlistSectionController watchlistSectionController(EventPublisher eventPublisher,
                                                                  ViewLoader viewLoader,
                                                                  LocaleText localeText,
                                                                  TraktService traktService,
@@ -96,7 +79,7 @@ public class DesktopConfig {
     //region Components
 
     @Bean
-    public SettingsUIComponent settingsUIComponent(ApplicationEventPublisher eventPublisher,
+    public SettingsUIComponent settingsUIComponent(EventPublisher eventPublisher,
                                                    LocaleText localeText,
                                                    ApplicationConfig settingsService) {
         return new SettingsUIComponent(eventPublisher, localeText, settingsService);
@@ -108,7 +91,7 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsTorrentComponent settingsTorrentComponent(ApplicationEventPublisher eventPublisher,
+    public SettingsTorrentComponent settingsTorrentComponent(EventPublisher eventPublisher,
                                                              LocaleText localeText,
                                                              ApplicationConfig settingsService,
                                                              TorrentSettingService torrentSettingService) {
@@ -121,14 +104,14 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsPlaybackComponent settingsPlaybackComponent(ApplicationEventPublisher eventPublisher,
+    public SettingsPlaybackComponent settingsPlaybackComponent(EventPublisher eventPublisher,
                                                                LocaleText localeText,
                                                                ApplicationConfig settingsService) {
         return new SettingsPlaybackComponent(eventPublisher, localeText, settingsService);
     }
 
     @Bean
-    public SettingsServerComponent settingsServerComponent(ApplicationEventPublisher eventPublisher,
+    public SettingsServerComponent settingsServerComponent(EventPublisher eventPublisher,
                                                            LocaleText localeText,
                                                            ApplicationConfig settingsService) {
         return new SettingsServerComponent(eventPublisher, localeText, settingsService);

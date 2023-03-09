@@ -2,15 +2,16 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
@@ -20,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 public class HealthService {
     private final TorrentService torrentService;
     private final ApplicationConfig settingsService;
+    private final EventPublisher eventPublisher;
 
     private CompletableFuture<TorrentHealth> healthFuture;
 
@@ -44,17 +46,21 @@ public class HealthService {
         return healthFuture;
     }
 
-    /**
-     * Cancel the current health retrieval when the media details are being closed or the media is being played.
-     */
-    @EventListener({LoadEvent.class, CloseDetailsEvent.class})
-    public void onCancelHealthRetrieval() {
-        cancelPreviousFutureIfNeeded();
-    }
-
     //endregion
 
     //region Functions
+
+    @PostConstruct
+    void init() {
+        eventPublisher.register(LoadEvent.class, event -> {
+            cancelPreviousFutureIfNeeded();
+            return event;
+        });
+        eventPublisher.register(CloseDetailsEvent.class, event -> {
+            cancelPreviousFutureIfNeeded();
+            return event;
+        });
+    }
 
     private void cancelPreviousFutureIfNeeded() {
         if (healthFuture != null && !healthFuture.isDone()) {

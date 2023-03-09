@@ -18,6 +18,9 @@ mod torrent_collection_c;
 pub const VERSION: &str = "0.5.1";
 
 /// Convert the given [String] into a C compatible string.
+///
+/// This function will consume the provided data and use the underlying bytes to construct a new string, ensuring that there is a trailing 0 byte.
+/// This trailing 0 byte will be appended by this function; the provided data should not contain any 0 bytes in it.
 pub fn into_c_string(value: String) -> *const c_char {
     // DO NOT use [CString::into_raw] as Rust still cleans the original string which the pointer uses
     let c_string = CString::new(value.as_bytes()).unwrap();

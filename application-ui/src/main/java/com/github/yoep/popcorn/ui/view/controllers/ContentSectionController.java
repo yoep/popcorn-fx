@@ -17,8 +17,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -33,7 +31,6 @@ public class ContentSectionController implements Initializable {
 
     private final ViewLoader viewLoader;
     private final LocaleText localeText;
-    private final ApplicationEventPublisher applicationEventPublisher;
     private final EventPublisher eventPublisher;
     private final MaximizeService maximizeService;
     private final OptionsService optionsService;
@@ -51,40 +48,6 @@ public class ContentSectionController implements Initializable {
     Pane contentPane;
     @FXML
     Pane listPane;
-
-    //region Methods
-
-    @EventListener(ShowDetailsEvent.class)
-    public void onShowDetails() {
-        switchContent(ContentType.DETAILS);
-    }
-
-    @EventListener(ShowWatchlistEvent.class)
-    public void onShowWatchlist() {
-        switchContent(ContentType.WATCHLIST);
-    }
-
-    @EventListener(ShowTorrentCollectionEvent.class)
-    public void onShowTorrentCollection() {
-        switchContent(ContentType.TORRENT_COLLECTION);
-    }
-
-    @EventListener(ShowAboutEvent.class)
-    public void onShowAbout() {
-        switchContent(ContentType.ABOUT);
-    }
-
-    @EventListener(ShowUpdateEvent.class)
-    public void onShowUpdate() {
-        switchContent(ContentType.UPDATE);
-    }
-
-    @EventListener(CloseDetailsEvent.class)
-    public void onCloseDetails() {
-        switchContent(ContentType.LIST);
-    }
-
-    //endregion
 
     //region Initializable
 
@@ -111,18 +74,18 @@ public class ContentSectionController implements Initializable {
         // load the details pane on a different thread
         new Thread(() -> {
             detailsPane = viewLoader.load("common/sections/details.section.fxml");
-            torrentCollectionPane = viewLoader.load("sections/torrent-collection.section.fxml");
-            watchlistPane = viewLoader.load("sections/watchlist.section.fxml");
+            torrentCollectionPane = viewLoader.load("common/sections/torrent-collection.section.fxml");
+            watchlistPane = viewLoader.load("common/sections/watchlist.section.fxml");
             settingsPane = viewLoader.load(SETTINGS_SECTION);
-            aboutPane = viewLoader.load("sections/about.section.fxml");
-            updatePane = viewLoader.load("sections/update.section.fxml");
+            aboutPane = viewLoader.load("common/sections/about.section.fxml");
+            //            updatePane = viewLoader.load("sections/update.section.fxml");
 
             setAnchor(detailsPane);
             setAnchor(torrentCollectionPane);
             setAnchor(watchlistPane);
             setAnchor(settingsPane);
             setAnchor(aboutPane);
-            setAnchor(updatePane);
+            //            setAnchor(updatePane);
         }, "content-loader").start();
     }
 
@@ -136,6 +99,30 @@ public class ContentSectionController implements Initializable {
             return event;
         });
         eventPublisher.register(CloseSettingsEvent.class, event -> {
+            switchContent(ContentType.LIST);
+            return event;
+        });
+        eventPublisher.register(ShowDetailsEvent.class, event -> {
+            switchContent(ContentType.DETAILS);
+            return event;
+        });
+        eventPublisher.register(ShowWatchlistEvent.class, event -> {
+            switchContent(ContentType.WATCHLIST);
+            return event;
+        });
+        eventPublisher.register(ShowTorrentCollectionEvent.class, event -> {
+            switchContent(ContentType.TORRENT_COLLECTION);
+            return event;
+        });
+        eventPublisher.register(ShowAboutEvent.class, event -> {
+            switchContent(ContentType.ABOUT);
+            return event;
+        });
+        eventPublisher.register(ShowUpdateEvent.class, event -> {
+            switchContent(ContentType.UPDATE);
+            return event;
+        });
+        eventPublisher.register(CloseDetailsEvent.class, event -> {
             switchContent(ContentType.LIST);
             return event;
         });
@@ -182,7 +169,7 @@ public class ContentSectionController implements Initializable {
                 contentPane.getChildren().add(0, pane.get());
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
-                applicationEventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ContentMessage.CONTENT_PANE_FAILED)));
+                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ContentMessage.CONTENT_PANE_FAILED)));
             }
         });
     }

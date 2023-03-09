@@ -50,7 +50,7 @@ class WatchNowUtilsIT {
         var player = mock(Player.class);
         var players = asList(mock(Player.class), player);
         when(playerManagerService.getPlayers()).thenReturn(players);
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, watchNowButton);
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
 
         playerProperty.put("myPlayer", player);
 
@@ -63,7 +63,7 @@ class WatchNowUtilsIT {
         var player2 = mock(Player.class);
         var players = asList(player2, player);
         when(playerManagerService.getPlayers()).thenReturn(players);
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, watchNowButton);
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
 
         watchNowButton.select(player2);
 

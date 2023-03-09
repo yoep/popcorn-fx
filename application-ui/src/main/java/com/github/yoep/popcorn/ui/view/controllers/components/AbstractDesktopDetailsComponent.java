@@ -1,13 +1,12 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
-import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -17,9 +16,7 @@ import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractDetailsComponent;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
-import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -33,9 +30,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 
-import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
 
@@ -46,26 +41,17 @@ import java.util.Map;
  */
 @Slf4j
 public abstract class AbstractDesktopDetailsComponent<T extends Media> extends AbstractDetailsComponent<T> implements Initializable {
-    protected static final String LIKED_STYLE_CLASS = "liked";
-    protected static final String WATCHED_STYLE_CLASS = "seen";
     protected static final String QUALITY_ACTIVE_CLASS = "active";
 
-    protected final ApplicationEventPublisher eventPublisher;
     protected final SubtitleService subtitleService;
     protected final SubtitlePickerService subtitlePickerService;
     protected final DetailsComponentService service;
     protected final PlayerManagerService playerService;
-    protected final PlatformProvider platformProvider;
-    protected final WatchedService watchedService;
-    protected final FavoriteService favoriteService;
+    protected final FxLib fxLib;
 
     protected SubtitleInfo subtitle;
     protected String quality;
 
-    @FXML
-    Icon favoriteIcon;
-    @FXML
-    Icon watchedIcon;
     @FXML
     Icon magnetLink;
     @FXML
@@ -74,14 +60,10 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     LanguageFlagSelection languageSelection;
     @FXML
     PlayerDropDownButton watchNowButton;
-    @FXML
-    Tooltip watchedTooltip;
-    @FXML
-    Tooltip favoriteTooltip;
 
     //region Constructors
 
-    protected AbstractDesktopDetailsComponent(ApplicationEventPublisher eventPublisher,
+    protected AbstractDesktopDetailsComponent(EventPublisher eventPublisher,
                                               LocaleText localeText,
                                               HealthService healthService,
                                               SubtitleService subtitleService,
@@ -89,19 +71,13 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               ImageService imageService,
                                               ApplicationConfig settingsService,
                                               DetailsComponentService service,
-                                              PlayerManagerService playerService,
-                                              PlatformProvider platformProvider,
-                                              WatchedService watchedService,
-                                              FavoriteService favoriteService) {
-        super(localeText, imageService, healthService, settingsService);
-        this.eventPublisher = eventPublisher;
+                                              PlayerManagerService playerService, FxLib fxLib) {
+        super(localeText, imageService, healthService, settingsService, eventPublisher);
         this.subtitleService = subtitleService;
         this.subtitlePickerService = subtitlePickerService;
         this.service = service;
         this.playerService = playerService;
-        this.platformProvider = platformProvider;
-        this.watchedService = watchedService;
-        this.favoriteService = favoriteService;
+        this.fxLib = fxLib;
     }
 
     //endregion
@@ -119,34 +95,12 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
 
     //endregion
 
-    //region Init
-
-    @PostConstruct
-    void init() {
-        service.addListener(new DetailsComponentListener() {
-            @Override
-            public void onWatchChanged(boolean newState) {
-                switchWatched(newState);
-            }
-
-            @Override
-            public void onLikedChanged(boolean newState) {
-                switchLiked(newState);
-            }
-        });
-    }
-
-    //endregion
-
     //region Functions
 
     protected void initializeTooltips() {
         var tooltip = new Tooltip(localeText.get(DetailsMessage.MAGNET_LINK));
         instantTooltip(tooltip);
         Tooltip.install(magnetLink, tooltip);
-
-        instantTooltip(watchedTooltip);
-        instantTooltip(favoriteTooltip);
     }
 
     protected void loadQualitySelection(Map<String, MediaTorrentInfo> torrents) {
@@ -161,39 +115,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         qualitySelectionPane.getChildren().addAll(qualities);
 
         switchActiveQuality(defaultQuality);
-    }
-
-    protected void loadFavoriteAndWatched() {
-        switchLiked(service.isLiked(media));
-        switchWatched(service.isWatched(media));
-    }
-
-    private void switchWatched(boolean isWatched) {
-        Platform.runLater(() -> {
-            if (isWatched) {
-                watchedIcon.setText(Icon.CHECK_UNICODE);
-                watchedIcon.getStyleClass().add(WATCHED_STYLE_CLASS);
-                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_NOT_SEEN));
-            } else {
-                watchedIcon.setText(Icon.EYE_SLASH_UNICODE);
-                watchedIcon.getStyleClass().removeIf(e -> e.equals(WATCHED_STYLE_CLASS));
-                watchedTooltip.setText(localeText.get(DetailsMessage.MARK_AS_SEEN));
-            }
-        });
-    }
-
-    private void switchLiked(boolean isLiked) {
-        Platform.runLater(() -> {
-            if (isLiked) {
-                favoriteIcon.setText(Icon.HEART_UNICODE);
-                favoriteTooltip.setText(localeText.get(DetailsMessage.REMOVE_FROM_BOOKMARKS));
-                favoriteIcon.getStyleClass().add(LIKED_STYLE_CLASS);
-            } else {
-                favoriteIcon.setText(Icon.HEART_O_UNICODE);
-                favoriteTooltip.setText(localeText.get(DetailsMessage.ADD_TO_BOOKMARKS));
-                favoriteIcon.getStyleClass().removeIf(e -> e.equals(LIKED_STYLE_CLASS));
-            }
-        });
     }
 
     protected void openMagnetLink(MediaTorrentInfo torrentInfo) {
@@ -271,11 +192,11 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     }
 
     /**
-     * Reset the language selection to the special type {@link SubtitleInfo#none()}.
+     * Reset the language selection to the special type subtitle_none.
      */
     protected void resetLanguageSelection() {
         languageSelection.getItems().clear();
-        languageSelection.getItems().add(SubtitleInfo.none());
+        languageSelection.getItems().add(fxLib.subtitle_none());
         languageSelection.select(0);
     }
 
@@ -287,7 +208,7 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
             // otherwise, the subtitle pick was cancelled and we need to reset the selected language to disabled
             subtitleInfo.ifPresentOrElse(
                     subtitleService::updateCustomSubtitle,
-                    () -> languageSelection.select(SubtitleInfo.none()));
+                    () -> languageSelection.select(fxLib.subtitle_none()));
         });
     }
 

@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
@@ -14,8 +15,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 
 import javax.annotation.PostConstruct;
@@ -24,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @RequiredArgsConstructor
 public class DetailsSectionController {
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
     private final TaskExecutor taskExecutor;
 
@@ -36,40 +35,31 @@ public class DetailsSectionController {
     @FXML
     Pane detailPane;
 
-    //region Methods
-
-    @EventListener(ShowMovieDetailsEvent.class)
-    public void onShowMovieDetails() {
-        switchContent(DetailsType.MOVIE_DETAILS);
-    }
-
-    @EventListener(ShowSerieDetailsEvent.class)
-    public void onShowSerieDetails() {
-        switchContent(DetailsType.SHOW_DETAILS);
-    }
-
-    @EventListener(ShowTorrentDetailsEvent.class)
-    public void onShowTorrentDetails() {
-        switchContent(DetailsType.TORRENT_DETAILS);
-    }
-
-    @EventListener(CloseDetailsEvent.class)
-    public void onCloseDetails() {
-        onDetailsClosed();
-    }
-
-    @EventListener(CloseTorrentDetailsEvent.class)
-    public void onCloseTorrentDetails() {
-        onTorrentDetailsClosed();
-    }
-
-    //endregion
-
     //region PostConstruct
 
     @PostConstruct
     void init() {
         initializePanes();
+        eventPublisher.register(ShowMovieDetailsEvent.class, event -> {
+            switchContent(DetailsType.MOVIE_DETAILS);
+            return event;
+        });
+        eventPublisher.register(ShowSerieDetailsEvent.class, event -> {
+            switchContent(DetailsType.SHOW_DETAILS);
+            return event;
+        });
+        eventPublisher.register(ShowTorrentDetailsEvent.class, event -> {
+            switchContent(DetailsType.TORRENT_DETAILS);
+            return event;
+        });
+        eventPublisher.register(CloseDetailsEvent.class, event -> {
+            onDetailsClosed();
+            return event;
+        });
+        eventPublisher.register(CloseTorrentDetailsEvent.class, event -> {
+            onTorrentDetailsClosed();
+            return event;
+        });
     }
 
     private void initializePanes() {

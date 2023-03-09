@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.screen;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import javafx.application.Platform;
@@ -14,7 +15,6 @@ import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -28,6 +28,7 @@ public class ScreenServiceImpl implements ScreenService {
     private final ViewManager viewManager;
     private final OptionsService optionsService;
     private final PlatformProvider platformProvider;
+    private final EventPublisher eventPublisher;
 
     private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, FULLSCREEN_PROPERTY, false);
 
@@ -56,7 +57,7 @@ public class ScreenServiceImpl implements ScreenService {
         if (System.currentTimeMillis() - lastChange < 300)
             return;
 
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             lastChange = System.currentTimeMillis();
             primaryStage.setFullScreen(!primaryStage.isFullScreen());
         });
@@ -64,21 +65,10 @@ public class ScreenServiceImpl implements ScreenService {
 
     @Override
     public void fullscreen(final boolean isFullscreenEnabled) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             lastChange = System.currentTimeMillis();
             primaryStage.setFullScreen(isFullscreenEnabled);
         });
-    }
-
-    //endregion
-
-    //region Methods
-
-    @EventListener(PlayerStoppedEvent.class)
-    public void onClosePlayer() {
-        if (!optionsService.options().isKioskMode()) {
-            Platform.runLater(() -> primaryStage.setFullScreen(false));
-        }
     }
 
     //endregion
@@ -88,6 +78,12 @@ public class ScreenServiceImpl implements ScreenService {
     @PostConstruct
     void init() {
         initializeViewManagerListeners();
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            if (!optionsService.options().isKioskMode()) {
+                Platform.runLater(() -> primaryStage.setFullScreen(false));
+            }
+            return event;
+        });
     }
 
     private void initializeViewManagerListeners() {

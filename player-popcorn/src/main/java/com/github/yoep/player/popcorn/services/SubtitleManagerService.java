@@ -4,10 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
-import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -19,8 +16,6 @@ import javafx.beans.property.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
@@ -47,7 +42,7 @@ public class SubtitleManagerService {
     private final SubtitleService subtitleService;
     private final SubtitlePickerService subtitlePickerService;
     private final LocaleText localeText;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
 
     private String quality;
     private String url;
@@ -118,22 +113,6 @@ public class SubtitleManagerService {
         listeners.add(listener);
     }
 
-    @EventListener
-    public void onPlayVideo(PlayVideoEvent activity) {
-        this.url = activity.getUrl();
-    }
-
-    @EventListener
-    public void onPlayMedia(PlayMediaEvent activity) {
-        this.quality = activity.getQuality();
-    }
-
-    @EventListener(PlayerStoppedEvent.class)
-    public void onPlayerStopped() {
-        this.url = null;
-        this.quality = null;
-    }
-
     //endregion
 
     //region PostConstruct
@@ -143,6 +122,19 @@ public class SubtitleManagerService {
         log.trace("Initializing video player subtitle service");
         initializeSubtitleSize();
         initializeSubtitleListener();
+        eventPublisher.register(PlayVideoEvent.class, event -> {
+            this.url = event.getUrl();
+            return event;
+        });
+        eventPublisher.register(PlayMediaEvent.class, event -> {
+            this.quality = event.getQuality();
+            return event;
+        });
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            this.url = null;
+            this.quality = null;
+            return event;
+        });
     }
 
     private void initializeSubtitleSize() {

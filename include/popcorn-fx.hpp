@@ -910,6 +910,12 @@ TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torre
 /// Stop the given torrent stream.
 void stop_stream(PopcornFX *popcorn_fx, TorrentStreamC *stream);
 
+/// Retrieve a special [SubtitleInfo::custom] type instance of the application.
+SubtitleInfoC *subtitle_custom();
+
+/// Retrieve a special [SubtitleInfo::none] type instance of the application.
+SubtitleInfoC *subtitle_none();
+
 /// Add the given magnet info to the torrent collection.
 void torrent_collection_add(PopcornFX *popcorn_fx, const char *name, const char *magnet_uri);
 

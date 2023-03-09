@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.LoaderTorrentComponent"
-          styleClass="loader">
+          styleClass="loader" onKeyPressed="#onLoaderKeyPressed">
     <columnConstraints>
         <ColumnConstraints minWidth="20" percentWidth="20"/>
         <ColumnConstraints minWidth="400" percentWidth="60" hgrow="ALWAYS"/>
@@ -73,7 +73,7 @@
                     </Icon>
                 </graphic>
             </Button>
-            <Button text="%torrent_cancel" onMouseClicked="#onCancelClicked"/>
+            <Button text="%torrent_cancel" onMouseClicked="#onCancelClicked" onKeyPressed="#onCancelPressed"/>
         </HBox>
     </VBox>
 </GridPane>

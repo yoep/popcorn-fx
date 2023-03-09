@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
@@ -9,14 +10,13 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.TextFormatter;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractSettingsComponent {
     private static final int NOTIFICATION_TIME_BETWEEN = 750;
     private static final double LIST_VIEW_ITEM_HEIGHT = 50.0;
 
-    protected final ApplicationEventPublisher eventPublisher;
+    protected final EventPublisher eventPublisher;
     protected final LocaleText localeText;
     protected final ApplicationConfig applicationConfig;
 

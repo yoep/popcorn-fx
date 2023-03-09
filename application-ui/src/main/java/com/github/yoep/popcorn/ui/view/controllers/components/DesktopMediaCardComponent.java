@@ -1,37 +1,34 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.ui.messages.MediaMessage;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
-import static java.util.Arrays.asList;
-
 @Slf4j
-public class OverlayMediaCardComponent extends AbstractMediaCardComponent implements Initializable {
+public class DesktopMediaCardComponent extends TvMediaCardComponent {
     private static final String LIKED_STYLE_CLASS = "liked";
     private static final String WATCHED_STYLE_CLASS = "watched";
 
-    private final List<OverlayItemListener> listeners = new ArrayList<>();
+    private final LocaleText localeText;
     private final OverlayItemMetadataProvider metadataProvider;
     private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback(media);
     private final WatchedEventCallback watchedEventCallback = createWatchedCallback(media);
@@ -44,15 +41,21 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     Icon favorite;
     @FXML
     Stars ratingStars;
+    @FXML
+    Label title;
+    @FXML
+    Label year;
+    @FXML
+    Label seasons;
 
-    public OverlayMediaCardComponent(Media media,
+    public DesktopMediaCardComponent(Media media,
                                      LocaleText localeText,
                                      ImageService imageService,
                                      OverlayItemMetadataProvider metadataProvider,
                                      OverlayItemListener... listeners) {
-        super(media, localeText, imageService);
+        super(media, imageService, listeners);
+        this.localeText = localeText;
         this.metadataProvider = metadataProvider;
-        this.listeners.addAll(asList(listeners));
 
         metadataProvider.addListener(favoriteEventCallback);
         metadataProvider.addListener(watchedEventCallback);
@@ -61,22 +64,29 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         super.initialize(location, resources);
+        initializeText();
         initializeRating();
         initializeStars();
         initializeMetadata();
         initializeParentListener();
     }
 
-    /**
-     * Add a listener to this instance.
-     *
-     * @param listener The listener to add.
-     */
-    public void addListener(OverlayItemListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        synchronized (listeners) {
-            listeners.add(listener);
+    private void initializeText() {
+        title.setText(media.getTitle());
+        year.setText(media.getYear());
+
+        if (media instanceof ShowOverview) {
+            var show = (ShowOverview) media;
+            var text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
+
+            if (show.getNumberOfSeasons() > 1) {
+                text += localeText.get(MediaMessage.PLURAL);
+            }
+
+            seasons.setText(text);
         }
+
+        Tooltip.install(title, new Tooltip(media.getTitle()));
     }
 
     private void initializeRating() {
@@ -149,12 +159,6 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
         };
     }
 
-    private void onShowDetails() {
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onClicked(media));
-        }
-    }
-
     @FXML
     void onWatchedClicked(MouseEvent event) {
         event.consume();
@@ -172,19 +176,6 @@ public class OverlayMediaCardComponent extends AbstractMediaCardComponent implem
 
         synchronized (listeners) {
             listeners.forEach(e -> e.onFavoriteChanged(media, newState));
-        }
-    }
-
-    @FXML
-    void showDetails() {
-        onShowDetails();
-    }
-
-    @FXML
-    void onKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.ENTER) {
-            event.consume();
-            onShowDetails();
         }
     }
 }

@@ -336,11 +336,7 @@
 
 .root .list-section .poster-item {
     -fx-padding: 10;
-    -fx-min-height: 252;
-    -fx-max-height: 252;
     -fx-pref-height: 252;
-    -fx-min-width: 154;
-    -fx-max-width: 154;
     -fx-pref-width: 154;
     -fx-cursor: hand;
 }

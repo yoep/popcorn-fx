@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers;
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -24,11 +25,8 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.ApplicationArguments;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -49,7 +47,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private static final KeyCodeCombination UI_REDUCE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.SUBTRACT, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_REDUCE_KEY_COMBINATION_2 = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
 
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
     private final ApplicationArguments arguments;
     private final UrlService urlService;
@@ -65,39 +63,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     Pane notificationPane;
     SectionType currentSection;
 
-    //region Methods
-
-    @EventListener(ShowDetailsEvent.class)
-    public void onShowDetails() {
-        switchSection(SectionType.CONTENT);
-    }
-
-    @EventListener(PlayVideoEvent.class)
-    public void onPlayVideo() {
-        switchSection(SectionType.PLAYER);
-    }
-
-    @EventListener(LoadEvent.class)
-    public void onLoad() {
-        switchSection(SectionType.LOADER);
-    }
-
-    @EventListener(ClosePlayerEvent.class)
-    public void onClosePlayer() {
-        switchSection(SectionType.CONTENT);
-    }
-
-    @EventListener(CloseLoadEvent.class)
-    public void onCloseLoad() {
-        switchSection(SectionType.CONTENT);
-    }
-
-    //endregion
-
     //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializePanes();
         initializeNotificationPane();
         initializeSceneListeners();
         initializeSection();
@@ -105,6 +75,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         initializeStageHeader();
         initializeSceneEvents();
         initializeTvStylesheet();
+        initializeListeners();
     }
 
     private void initializeStageHeader() {
@@ -139,6 +110,29 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         }
     }
 
+    private void initializeListeners() {
+        eventPublisher.register(ShowDetailsEvent.class, event -> {
+            switchSection(SectionType.CONTENT);
+            return event;
+        });
+        eventPublisher.register(PlayVideoEvent.class, event -> {
+            switchSection(SectionType.PLAYER);
+            return event;
+        });
+        eventPublisher.register(LoadEvent.class, event -> {
+            switchSection(SectionType.LOADER);
+            return event;
+        });
+        eventPublisher.register(ClosePlayerEvent.class, event -> {
+            switchSection(SectionType.CONTENT);
+            return event;
+        });
+        eventPublisher.register(CloseLoadEvent.class, event -> {
+            switchSection(SectionType.CONTENT);
+            return event;
+        });
+    }
+
     private void initializeTvStylesheet() {
         if (optionsService.isTvMode()) {
             rootPane.getStylesheets().add(TV_STYLESHEET);
@@ -148,11 +142,6 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     //endregion
 
     //region Functions
-
-    @PostConstruct
-    void init() {
-        initializePanes();
-    }
 
     /**
      * Initializes/loads the panes required for this controller.
@@ -168,7 +157,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         // load the other panes on a different thread
         taskExecutor.execute(() -> {
             playerPane = viewLoader.load("common/sections/player.section.fxml");
-            loaderPane = viewLoader.load("sections/loader.section.fxml");
+            loaderPane = viewLoader.load("common/sections/loader.section.fxml");
 
             anchor(playerPane);
             anchor(loaderPane);

@@ -2,6 +2,7 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
@@ -9,11 +10,8 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,10 +37,13 @@ class PlayerSubtitleServiceTest {
     private SubtitleManagerService subtitleManagerService;
     @Mock
     private PlayerSubtitleListener listener;
+    @Mock
+    private FxLib fxLib;
+    @Mock
+    private SubtitleInfo subtitleNone;
     @InjectMocks
     private PlayerSubtitleService service;
 
-    private final ObjectProperty<Subtitle> subtitleProperty = new SimpleObjectProperty<>();
     private final AtomicReference<PlaybackListener> listenerHolder = new AtomicReference<>();
 
     @BeforeEach
@@ -51,7 +52,7 @@ class PlayerSubtitleServiceTest {
             listenerHolder.set(invocation.getArgument(0, PlaybackListener.class));
             return null;
         }).when(videoService).addListener(isA(PlaybackListener.class));
-        lenient().when(subtitleService.activeSubtitleProperty()).thenReturn(subtitleProperty);
+        lenient().when(fxLib.subtitle_none()).thenReturn(subtitleNone);
 
         service.addListener(listener);
     }
@@ -90,21 +91,8 @@ class PlayerSubtitleServiceTest {
     }
 
     @Test
-    void testSubtitlePropertyListener_whenChanged_shouldInvokedListeners() {
-        var subtitle = mock(Subtitle.class);
-        var subtitleInfo = mock(SubtitleInfo.class);
-        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(subtitleInfo));
-        service.init();
-
-        subtitleProperty.set(subtitle);
-
-        verify(listener).onActiveSubtitleChanged(subtitleInfo);
-    }
-
-    @Test
     void testPlaybackListener_whenRequestIsMoviePlayRequest_shouldInvokeListenersWithAvailableSubtitles() {
         var movie = MovieDetails.builder().build();
-        var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);
         var request = MediaPlayRequest.mediaBuilder()
@@ -127,7 +115,6 @@ class PlayerSubtitleServiceTest {
                 .episode(2)
                 .build();
         var show = mock(ShowDetails.class);
-        var subtitle = mock(Subtitle.class);
         var activeSubtitle = mock(SubtitleInfo.class);
         var torrentStream = mock(TorrentStream.class);
         var request = MediaPlayRequest.mediaBuilder()
@@ -170,6 +157,6 @@ class PlayerSubtitleServiceTest {
 
         listenerHolder.get().onPlay(request);
 
-        verify(listener).onAvailableSubtitlesChanged(availableSubtitles, SubtitleInfo.none());
+        verify(listener).onAvailableSubtitlesChanged(availableSubtitles, subtitleNone);
     }
 }

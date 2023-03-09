@@ -1,57 +1,51 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.components;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
-import com.github.yoep.popcorn.ui.messages.MediaMessage;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractCardComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Label;
-import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.layout.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
+import org.springframework.core.io.ClassPathResource;
 
 import java.net.URL;
 import java.text.MessageFormat;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public abstract class AbstractMediaCardComponent extends AbstractCardComponent implements Initializable {
+public abstract class AbstractCardComponent implements Initializable {
     private static final Image POSTER_HOLDER_IMAGE = loadPosterHolderImage();
 
-    protected final Media media;
-    protected final LocaleText localeText;
+    protected static final int POSTER_WIDTH = 201;
+    protected static final int POSTER_HEIGHT = 294;
+
+    private static final String POSTER_HOLDER = "/images/posterholder.png";
+
     protected final ImageService imageService;
+    protected final Media media;
 
-    @FXML
-    Label title;
-    @FXML
-    Label year;
-    @FXML
-    Label seasons;
-
-    //region Constructors
-
-    protected AbstractMediaCardComponent(Media media, LocaleText localeText, ImageService imageService) {
-        Assert.notNull(media, "media cannot be null");
-        Assert.notNull(localeText, "localeText cannot be null");
-        Assert.notNull(imageService, "imageService cannot be null");
-        this.media = media;
-        this.localeText = localeText;
+    protected AbstractCardComponent(ImageService imageService) {
+        Objects.requireNonNull(imageService, "imageService cannot be null");
         this.imageService = imageService;
+        this.media = null;
     }
 
-    //endregion
+    protected AbstractCardComponent(ImageService imageService, Media media) {
+        Objects.requireNonNull(imageService, "imageService cannot be null");
+        this.imageService = imageService;
+        this.media = media;
+    }
+
+    @FXML
+    Pane poster;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeImage();
-        initializeText();
     }
 
     protected void initializeImage() {
@@ -59,24 +53,6 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
 
         var loadPosterFuture = imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT);
         handlePosterLoadFuture(loadPosterFuture);
-    }
-
-    protected void initializeText() {
-        title.setText(media.getTitle());
-        year.setText(media.getYear());
-
-        if (media instanceof ShowOverview) {
-            var show = (ShowOverview) media;
-            var text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
-
-            if (show.getNumberOfSeasons() > 1) {
-                text += localeText.get(MediaMessage.PLURAL);
-            }
-
-            seasons.setText(text);
-        }
-
-        Tooltip.install(title, new Tooltip(media.getTitle()));
     }
 
     protected void setPosterHolderImage() {
@@ -98,10 +74,31 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
         });
     }
 
+    /**
+     * Get the poster holder image resource.
+     *
+     * @return Returns the image resource.
+     */
+    protected static ClassPathResource getPosterHolderResource() {
+        return new ClassPathResource(POSTER_HOLDER);
+    }
+
+    /**
+     * Set the given image as poster node background image.
+     *
+     * @param image The image to use as background.
+     * @param cover Whether the image should be sized to "cover" the Region
+     */
+    protected void setBackgroundImage(Image image, boolean cover) {
+        BackgroundSize size = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, cover);
+        BackgroundImage backgroundImage = new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, size);
+        poster.setBackground(new Background(backgroundImage));
+    }
+
     private static Image loadPosterHolderImage() {
         try {
             var inputStream = getPosterHolderResource().getInputStream();
-            var image = new Image(inputStream, POSTER_WIDTH, POSTER_HEIGHT, true, true);
+            var image = new Image(inputStream);
 
             if (!image.isError()) {
                 return image;

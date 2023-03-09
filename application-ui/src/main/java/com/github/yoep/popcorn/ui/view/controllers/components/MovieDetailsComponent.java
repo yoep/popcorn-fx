@@ -1,22 +1,20 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
-import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
@@ -29,40 +27,44 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @ViewController
 public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<MovieDetails> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
 
+    private final ViewLoader viewLoader;
+
     @FXML
-    private Label title;
+    GridPane detailsContentPane;
     @FXML
-    private Label overview;
+    Label title;
     @FXML
-    private Label year;
+    Label overview;
     @FXML
-    private Label duration;
+    Label year;
     @FXML
-    private Label genres;
+    Label duration;
     @FXML
-    private Button watchTrailerButton;
+    Label genres;
+    @FXML
+    Button watchTrailerButton;
 
     //region Constructors
 
-    public MovieDetailsComponent(ApplicationEventPublisher eventPublisher,
+    public MovieDetailsComponent(EventPublisher eventPublisher,
                                  LocaleText localeText,
                                  HealthService healthService,
                                  SubtitleService subtitleService,
@@ -71,9 +73,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                                  ApplicationConfig settingsService,
                                  DetailsComponentService service,
                                  PlayerManagerService playerService,
-                                 PlatformProvider platformProvider,
-                                 WatchedService watchedService,
-                                 FavoriteService favoriteService) {
+                                 FxLib fxLib,
+                                 ViewLoader viewLoader) {
         super(eventPublisher,
                 localeText,
                 healthService,
@@ -83,19 +84,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                 settingsService,
                 service,
                 playerService,
-                platformProvider,
-                watchedService,
-                favoriteService);
+                fxLib);
 
-    }
-
-    //endregion
-
-    //region Methods
-
-    @EventListener
-    public void onShowMovieDetails(ShowMovieDetailsEvent event) {
-        Platform.runLater(() -> load(event.getMedia()));
+        this.viewLoader = viewLoader;
     }
 
     //endregion
@@ -104,10 +95,21 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        super.initialize(location, resources);
         initializeTooltips();
         initializeLanguageSelection();
+        initializePoster();
+        initializeListeners();
 
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerService, watchNowButton);
+        AnchorPane.setLeftAnchor(detailsContentPane, service.isTvMode() ? 150.0 : 75.0);
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerService, watchNowButton);
+    }
+
+    private void initializeListeners() {
+        eventPublisher.register(ShowMovieDetailsEvent.class, event -> {
+            Platform.runLater(() -> load(event.getMedia()));
+            return event;
+        });
     }
 
     //endregion
@@ -121,14 +123,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         loadText();
         loadButtons();
         loadSubtitles();
-        loadFavoriteAndWatched();
         loadQualitySelection(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
         Platform.runLater(() -> watchNowButton.requestFocus());
-    }
-
-    @Override
-    protected CompletableFuture<Optional<Image>> loadPoster(Media media) {
-        return imageService.loadPoster(media);
     }
 
     @Override
@@ -141,10 +137,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         year.setText(StringUtils.EMPTY);
         duration.setText(StringUtils.EMPTY);
         genres.setText(StringUtils.EMPTY);
-        favoriteIcon.getStyleClass().remove(LIKED_STYLE_CLASS);
-        watchedIcon.getStyleClass().remove(WATCHED_STYLE_CLASS);
         qualitySelectionPane.getChildren().clear();
-        poster.setImage(null);
     }
 
     //endregion
@@ -189,6 +182,11 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         resetLanguageSelection();
     }
 
+    private void initializePoster() {
+        var poster = viewLoader.load("components/movie-poster.component.fxml");
+        detailsContentPane.add(poster, 0, 0);
+    }
+
     private void loadText() {
         title.setText(media.getTitle());
         overview.setText(media.getSynopsis());
@@ -216,9 +214,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         });
     }
 
-    private void closeDetails() {
-        eventPublisher.publishEvent(new CloseDetailsEvent(this));
-        reset();
+    private void startMediaPlayback() {
+        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, null, quality, subtitle));
     }
 
     @FXML
@@ -237,8 +235,15 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     void onWatchNowClicked(MouseEvent event) {
         event.consume();
 
-        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, null, quality, subtitle));
+        startMediaPlayback();
+    }
+
+    @FXML
+    void onWatchNowPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            startMediaPlayback();
+        }
     }
 
     @FXML
@@ -252,18 +257,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     void onSubtitleLabelClicked(MouseEvent event) {
         event.consume();
         languageSelection.show();
-    }
-
-    @FXML
-    void onFavoriteClicked(MouseEvent event) {
-        event.consume();
-        service.toggleLikedState();
-    }
-
-    @FXML
-    void onWatchedClicked(MouseEvent event) {
-        event.consume();
-        service.toggleWatchedState();
     }
 
     //endregion

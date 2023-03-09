@@ -7,13 +7,13 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.ListSectionController"
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.ListSectionController"
             fx:id="listSection" styleClass="list-section">
     <BackgroundImageCover fx:id="backgroundImage"
                           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" />
 
-    <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true"
-                        AnchorPane.topAnchor="35" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64"/>
+    <InfiniteScrollPane fx:id="scrollPane" shortKeysEnabled="false" GridPane.fillWidth="true"
+                        AnchorPane.topAnchor="35" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" />
 
     <VBox fx:id="failedPane" styleClass="failed" alignment="CENTER"
           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">

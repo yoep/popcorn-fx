@@ -6,6 +6,7 @@ import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
@@ -39,6 +41,8 @@ class PlayerControlsComponentIT {
     private ResourceBundle resources;
     @Mock
     private ProgressSliderControl playProgress;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerControlsComponent component;
 

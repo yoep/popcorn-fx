@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
@@ -26,8 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.File;
 import java.util.Optional;
@@ -48,8 +49,8 @@ class SubtitleManagerServiceTest {
     private SubtitlePickerService subtitlePickerService;
     @Mock
     private LocaleText localeText;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ApplicationSettings settings;
     @Mock
@@ -175,8 +176,8 @@ class SubtitleManagerServiceTest {
         when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(custom));
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(expected_filepath));
         service.init();
-        service.onPlayVideo(videoEvent);
-        service.onPlayMedia(mediaUrl);
+        eventPublisher.publish(videoEvent);
+        eventPublisher.publish(mediaUrl);
 
         activeSubtitleProperty.set(subtitle);
 

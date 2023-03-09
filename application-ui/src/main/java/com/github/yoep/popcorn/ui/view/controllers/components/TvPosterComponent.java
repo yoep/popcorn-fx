@@ -2,8 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -31,14 +29,6 @@ public class TvPosterComponent {
 
     @PostConstruct
     void init() {
-        eventPublisher.register(ShowMovieDetailsEvent.class, e -> {
-            onPlayEvent(e.getMedia());
-            return e;
-        });
-        eventPublisher.register(ShowSerieDetailsEvent.class, e -> {
-            onPlayEvent(e.getMedia());
-            return e;
-        });
         eventPublisher.register(ShowDetailsEvent.class, e -> {
             onPlayEvent(e.getMedia());
             return e;

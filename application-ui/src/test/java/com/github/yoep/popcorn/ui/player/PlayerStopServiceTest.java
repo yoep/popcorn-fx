@@ -36,7 +36,7 @@ class PlayerStopServiceTest {
     @Mock
     private SubtitleService subtitleService;
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerStopService service;
 

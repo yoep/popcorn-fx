@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListene
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.player.model.StreamPlayRequest;
@@ -15,8 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -31,8 +32,8 @@ class PlayerHeaderServiceTest {
     private VideoService videoService;
     @Mock
     private PlayerHeaderListener listener;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerHeaderService service;
 

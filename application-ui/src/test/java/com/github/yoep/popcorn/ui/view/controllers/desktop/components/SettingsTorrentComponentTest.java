@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
@@ -14,8 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.io.File;
@@ -26,8 +27,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class SettingsTorrentComponentTest {
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private LocaleText localeText;
     @Mock

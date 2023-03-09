@@ -33,6 +33,21 @@ public class EventPublisher {
     public static final int LOWEST_ORDER = Integer.MAX_VALUE;
 
     private final Queue<ListenerHolder<? extends ApplicationEvent>> listeners = new ConcurrentLinkedQueue<>();
+    private boolean useThreading = true;
+
+
+    public EventPublisher() {
+    }
+
+    /**
+     * Create a new event publisher with the given threading option.
+     * When disabling the threading, the events will be invoked on the callers thread making it blocking.
+     *
+     * @param useThreading The indication if threading needs to be used.
+     */
+    public EventPublisher(boolean useThreading) {
+        this.useThreading = useThreading;
+    }
 
     /**
      * Notify all matching listeners registered with this event publisher.
@@ -44,30 +59,11 @@ public class EventPublisher {
         if (event == null)
             return;
 
-        new Thread(() -> {
-            var eventType = event.getClass().getSimpleName();
-            log.debug("Received event {}", eventType);
-
-            try {
-                // retrieve a list of listeners that need to be invoked
-                var eventCopy = event;
-                var eventChain = listeners.stream()
-                        .filter(e -> e.clazz.isAssignableFrom(event.getClass()))
-                        .map(e -> (ListenerHolder<T>) e)
-                        .toList();
-
-                log.trace("Invoking a total of {} listeners for {}", eventChain.size(), eventType);
-                for (ListenerHolder<T> invocation : eventChain.stream().sorted().toList()) {
-                    eventCopy = invocation.action.apply(eventCopy);
-
-                    if (eventCopy == null) {
-                        break;
-                    }
-                }
-            } catch (Exception ex) {
-                log.error("An error occurred during the event loop, {}", ex.getMessage(), ex);
-            }
-        }, "event-publisher").start();
+        if (useThreading) {
+            new Thread(() -> doInternalPublish(event), "event-publisher").start();
+        } else {
+            doInternalPublish(event);
+        }
     }
 
     /**
@@ -103,6 +99,31 @@ public class EventPublisher {
         Objects.requireNonNull(clazz, "clazz cannot be null");
         Objects.requireNonNull(action, "action cannot be null");
         listeners.add(new ListenerHolder<>(clazz, order, action));
+    }
+
+    private <T extends ApplicationEvent> void doInternalPublish(T event) {
+        var eventType = event.getClass().getSimpleName();
+        log.debug("Received event {}", event);
+
+        try {
+            // retrieve a list of listeners that need to be invoked
+            var eventCopy = event;
+            var eventChain = listeners.stream()
+                    .filter(e -> e.clazz.isAssignableFrom(event.getClass()))
+                    .map(e -> (ListenerHolder<T>) e)
+                    .toList();
+
+            log.trace("Invoking a total of {} listeners for {}", eventChain.size(), eventType);
+            for (ListenerHolder<T> invocation : eventChain.stream().sorted().toList()) {
+                eventCopy = invocation.action.apply(eventCopy);
+
+                if (eventCopy == null) {
+                    break;
+                }
+            }
+        } catch (Exception ex) {
+            log.error("An error occurred during the event loop, {}", ex.getMessage(), ex);
+        }
     }
 
     private record ListenerHolder<T extends ApplicationEvent>(Class<T> clazz, int order, Function<T, T> action) implements Comparable<ListenerHolder<T>> {

@@ -35,7 +35,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PlayNextServiceTest {
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private PlayerEventService playerEventService;
     @Mock
@@ -65,6 +65,7 @@ class PlayNextServiceTest {
     void testOnPlayVideo_whenEventIsPlayTorrentEvent_shouldNotUpdateNextEpisode() {
         var activity = mock(PlayTorrentEvent.class);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
         eventPublisher.publish(activity);
 
@@ -76,6 +77,7 @@ class PlayNextServiceTest {
         var activity = mock(PlayMediaEvent.class);
         when(activity.getMedia()).thenReturn(mock(MovieDetails.class));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
         eventPublisher.publish(activity);
 
@@ -88,6 +90,7 @@ class PlayNextServiceTest {
         var episode = mock(Episode.class);
         lenient().when(activity.getMedia()).thenReturn(episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(false);
+        playNextService.init();
 
         eventPublisher.publish(activity);
 
@@ -116,6 +119,7 @@ class PlayNextServiceTest {
                 .build();
         var expectedResult = new PlayNextService.NextEpisode(show, episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
         eventPublisher.publish(activity);
         var result = playNextService.getNextEpisode();
@@ -141,6 +145,7 @@ class PlayNextServiceTest {
                 .subMediaItem(episode2)
                 .build();
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
         eventPublisher.publish(activity);
         var result = playNextService.getNextEpisode();
@@ -167,6 +172,7 @@ class PlayNextServiceTest {
                 .subMediaItem(episode2)
                 .build();
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
         eventPublisher.publish(activity);
         var result = playNextService.getNextEpisode();

@@ -11,14 +11,28 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class EventPublisherTest {
     @InjectMocks
     private EventPublisher publisher;
+
+    @Test
+    void testPublishNoThreading() throws ExecutionException, InterruptedException {
+        var event = mock(PlayMediaEvent.class);
+        var future = new CompletableFuture<Boolean>();
+        var eventPublisher = new EventPublisher(false);
+
+        eventPublisher.register(PlayMediaEvent.class, e -> {
+            future.complete(true);
+            return e;
+        });
+        eventPublisher.publish(event);
+
+        assertTrue(future.get());
+    }
 
     @Test
     void testPublishEvent() throws ExecutionException, InterruptedException, TimeoutException {

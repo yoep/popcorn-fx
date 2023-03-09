@@ -46,7 +46,7 @@ class LoadTorrentServiceTest {
     @Mock
     private TorrentStreamService torrentStreamService;
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ApplicationConfig settingsService;
     @Mock
@@ -83,6 +83,7 @@ class LoadTorrentServiceTest {
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(future);
         when(future.thenCompose(isA(Function.class))).thenReturn(future);
         when(future.exceptionally(isA(Function.class))).thenReturn(future);
+        service.init();
 
         eventPublisher.publish(event);
         service.cancel();
@@ -104,6 +105,7 @@ class LoadTorrentServiceTest {
                 .build();
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(new CompletableFuture<>());
+        service.init();
 
         eventPublisher.publish(event);
         service.retryLoadingTorrent();
@@ -150,6 +152,7 @@ class LoadTorrentServiceTest {
         when(subtitleService.download(subtitleInfo, subtitleMatcher)).thenReturn(CompletableFuture.completedFuture(""));
         when(subtitleService.preferredSubtitleLanguage()).thenReturn(SubtitleLanguage.ENGLISH);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        service.init();
 
         eventPublisher.publish(event);
 
@@ -199,6 +202,7 @@ class LoadTorrentServiceTest {
             listenerHolder.set(invocation.getArgument(0, TorrentStreamListener.class));
             return null;
         }).when(torrentStream).addListener(isA(TorrentStreamListener.class));
+        service.init();
 
         eventPublisher.publish(event);
         listenerHolder.get().onStreamReady();
@@ -246,6 +250,7 @@ class LoadTorrentServiceTest {
             listenerHolder.set(invocation.getArgument(0, TorrentStreamListener.class));
             return null;
         }).when(torrentStream).addListener(isA(TorrentStreamListener.class));
+        service.init();
 
         eventPublisher.publish(event);
         listenerHolder.get().onStreamReady();

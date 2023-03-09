@@ -29,7 +29,7 @@ class DetailsComponentServiceTest {
     @Mock
     private OptionsService optionsService;
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private DetailsComponentService service;
 
@@ -76,7 +76,7 @@ class DetailsComponentServiceTest {
     }
 
     @Test
-    void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist() {
+    void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist()  {
         var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()

@@ -45,7 +45,7 @@ class PlayerPlayServiceTest {
     @Mock
     private PlaybackSettings playbackSettings;
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private LocaleText localeText;
     @InjectMocks
@@ -61,6 +61,7 @@ class PlayerPlayServiceTest {
         var event = mock(PlayVideoEvent.class);
         when(event.getUrl()).thenReturn("my play video event url");
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.empty());
+        service.init();
 
         eventPublisher.publish(event);
 
@@ -79,6 +80,7 @@ class PlayerPlayServiceTest {
                 .build();
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
+        service.init();
 
         eventPublisher.publish(event);
 
@@ -92,6 +94,7 @@ class PlayerPlayServiceTest {
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(true);
+        service.init();
 
         eventPublisher.publish(event);
 
@@ -106,6 +109,7 @@ class PlayerPlayServiceTest {
         var timestamp = 18000L;
         var player = mock(Player.class);
         var media = MovieDetails.builder()
+                .imdbId(id)
                 .images(Images.builder().build())
                 .build();
         var torrent = mock(Torrent.class);
@@ -129,10 +133,11 @@ class PlayerPlayServiceTest {
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(false);
         when(autoResumeService.getResumeTimestamp(id, url)).thenReturn(Optional.of(timestamp));
+        service.init();
 
         eventPublisher.publish(event);
 
-//        verify(player).play(request);
+        verify(player).play(request);
     }
 
     @Test
@@ -160,6 +165,7 @@ class PlayerPlayServiceTest {
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(false);
         when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.of(timestamp));
+        service.init();
 
         eventPublisher.publish(event);
 
@@ -186,6 +192,7 @@ class PlayerPlayServiceTest {
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(false);
         when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.of(timestamp));
+        service.init();
 
         eventPublisher.publish(event);
 
@@ -212,6 +219,7 @@ class PlayerPlayServiceTest {
         when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.empty());
         when(localeText.get(MediaMessage.VIDEO_PLAYBACK_FAILED)).thenReturn(errorMessage);
         doThrow(new RuntimeException("my player error")).when(player).play(request);
+        service.init();
 
         eventPublisher.publish(event);
 

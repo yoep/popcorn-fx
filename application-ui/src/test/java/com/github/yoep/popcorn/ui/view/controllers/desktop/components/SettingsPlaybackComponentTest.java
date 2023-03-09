@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
@@ -11,17 +12,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class SettingsPlaybackComponentTest {
-    @Mock
-    private ApplicationEventPublisher activityManager;
+    @Spy
+    private EventPublisher activityManager = new EventPublisher(false);
     @Mock
     private LocaleText localeText;
     @Mock

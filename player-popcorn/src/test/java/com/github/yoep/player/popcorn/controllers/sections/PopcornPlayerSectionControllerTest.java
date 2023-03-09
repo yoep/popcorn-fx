@@ -7,6 +7,7 @@ import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import javafx.scene.control.Label;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.Pane;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
@@ -27,7 +29,7 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class PopcornPlayerSectionControllerIT {
+class PopcornPlayerSectionControllerTest {
     @Mock
     private URL url;
     @Mock
@@ -40,6 +42,8 @@ class PopcornPlayerSectionControllerIT {
     private LocaleText localeText;
     @Mock
     private PlatformProvider platformProvider;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PopcornPlayerSectionController controller;
 

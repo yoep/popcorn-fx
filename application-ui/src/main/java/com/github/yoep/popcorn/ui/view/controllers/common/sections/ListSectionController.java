@@ -100,6 +100,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private void initializeScrollPane() {
+        AnchorPane.setTopAnchor(scrollPane, optionsService.isTvMode() ? 50.0 : 35.0);
         AnchorPane.setLeftAnchor(scrollPane, optionsService.isTvMode() ? 128.0 : 64.0);
         scrollPane.setLoaderFactory(() -> viewLoader.load("common/components/loading-card.component.fxml"));
         scrollPane.setItemFactory(new InfiniteScrollItemFactory<>() {

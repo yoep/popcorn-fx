@@ -39,16 +39,7 @@ public class PlayerStopService {
 
     @PostConstruct
     void init() {
-        eventPublisher.register(PlayMediaEvent.class, event -> {
-            this.media = event.getSubMediaItem().orElse(event.getMedia());
-            this.quality = event.getQuality();
-            this.url = event.getUrl();
-            return event;
-        });
-        eventPublisher.register(PlayTorrentEvent.class, event -> {
-            this.url = event.getUrl();
-            return event;
-        });
+        initializeEventListener();
         playerEventService.addListener(new PlayerListener() {
             @Override
             public void onDurationChanged(long newDuration) {
@@ -79,6 +70,19 @@ public class PlayerStopService {
     //endregion
 
     //region Functions
+
+    private void initializeEventListener() {
+        eventPublisher.register(PlayMediaEvent.class, event -> {
+            this.media = event.getSubMediaItem().orElse(event.getMedia());
+            this.quality = event.getQuality();
+            this.url = event.getUrl();
+            return event;
+        });
+        eventPublisher.register(PlayTorrentEvent.class, event -> {
+            this.url = event.getUrl();
+            return event;
+        });
+    }
 
     private void reset() {
         this.media = null;

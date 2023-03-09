@@ -13,7 +13,7 @@
                           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" />
 
     <InfiniteScrollPane fx:id="scrollPane" shortKeysEnabled="false" GridPane.fillWidth="true"
-                        AnchorPane.topAnchor="35" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" />
+                        AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" />
 
     <VBox fx:id="failedPane" styleClass="failed" alignment="CENTER"
           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0">

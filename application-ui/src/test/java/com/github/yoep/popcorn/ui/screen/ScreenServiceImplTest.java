@@ -1,18 +1,18 @@
 package com.github.yoep.popcorn.ui.screen;
 
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
 import javafx.beans.property.ReadOnlyProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.stage.Stage;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
@@ -31,22 +31,13 @@ class ScreenServiceImplTest {
     @Mock
     private OptionsService optionsService;
     @Mock
-    private PlatformProvider platformProvider;
-    @Mock
     private ApplicationOptions options;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private ScreenServiceImpl screenService;
 
     private AtomicReference<ChangeListener<Stage>> primaryStageListener = new AtomicReference<>();
-
-    @BeforeEach
-    void setUp() {
-        doAnswer(invocation -> {
-            var runnable = invocation.getArgument(0, Runnable.class);
-            runnable.run();
-            return null;
-        }).when(platformProvider).runOnRenderer(isA(Runnable.class));
-    }
 
     @Test
     void testToggleFullscreen() {

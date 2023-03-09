@@ -4,7 +4,6 @@
 <?import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection?>
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
 <?import com.github.yoep.popcorn.ui.view.controls.HealthIcon?>
-<?import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton?>
 <?import com.github.yoep.popcorn.ui.view.controls.Stars?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
@@ -16,7 +15,7 @@
     <BackgroundImageCover fx:id="backgroundImage"
                           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 
-    <GridPane fx:id="detailsContentPane" AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75">
+    <GridPane fx:id="detailsContent" AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" percentWidth="35" halignment="RIGHT"/>
             <ColumnConstraints hgrow="NEVER" minWidth="10"/>
@@ -26,9 +25,9 @@
             <RowConstraints vgrow="ALWAYS"/>
         </rowConstraints>
 
-        <!-- Placeholder of the poster -->
+        <!-- PLACEHOLDER OF THE POSTER -->
 
-        <GridPane GridPane.columnIndex="2" GridPane.rowIndex="0">
+        <GridPane fx:id="detailsDescription" GridPane.columnIndex="2" GridPane.rowIndex="0">
             <columnConstraints>
                 <ColumnConstraints/>
                 <ColumnConstraints hgrow="ALWAYS"/>
@@ -75,14 +74,8 @@
             <Label fx:id="overview" styleClass="overview" wrapText="true"
                    GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
 
-            <!-- Play actions -->
-            <HBox alignment="CENTER_LEFT" spacing="5"
-                  GridPane.columnIndex="0" GridPane.rowIndex="4">
-                <PlayerDropDownButton fx:id="watchNowButton" styleClass="watch-now" text="%details_watch_now"
-                                      onMouseClicked="#onWatchNowClicked" onKeyPressed="#onWatchNowPressed"/>
+            <!-- PLACEHOLDER PLAY ACTIONS -->
 
-                <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked"/>
-            </HBox>
             <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
                   GridPane.columnIndex="1" GridPane.rowIndex="4">
                 <padding>

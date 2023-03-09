@@ -6,6 +6,7 @@ import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
@@ -20,9 +21,11 @@ import com.github.yoep.popcorn.ui.view.controllers.common.sections.DetailsSectio
 import com.github.yoep.popcorn.ui.view.controllers.components.DesktopPosterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.components.TvPosterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopFilterComponent;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopMovieActionsComponent;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.WindowComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.SystemTimeComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent;
+import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvMovieActionsComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
@@ -118,5 +121,18 @@ public class ViewConfig {
     public TvPosterComponent tvPosterComponent(EventPublisher eventPublisher,
                                                ImageService imageServic) {
         return new TvPosterComponent(eventPublisher, imageServic);
+    }
+
+    @Bean
+    @ConditionalOnDesktopMode
+    public DesktopMovieActionsComponent desktopMovieActionsComponent(PlayerManagerService playerService,
+                                                                     EventPublisher eventPublisher) {
+        return new DesktopMovieActionsComponent(playerService, eventPublisher);
+    }
+
+    @Bean
+    @ConditionalOnTvMode
+    public TvMovieActionsComponent tvMovieActionsComponent(EventPublisher eventPublisher) {
+        return new TvMovieActionsComponent(eventPublisher);
     }
 }

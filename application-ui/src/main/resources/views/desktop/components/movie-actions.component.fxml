@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.HBox?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopMovieActionsComponent"
+      alignment="CENTER_LEFT" spacing="5">
+    <PlayerDropDownButton fx:id="watchNowButton" styleClass="watch-now" text="%details_watch_now"
+                          onMouseClicked="#onWatchNowClicked" onKeyPressed="#onWatchNowPressed"/>
+
+    <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked" onKeyPressed="#onTrailerPressed"/>
+</HBox>

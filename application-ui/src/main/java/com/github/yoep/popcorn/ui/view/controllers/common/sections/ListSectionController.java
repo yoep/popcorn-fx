@@ -137,7 +137,7 @@ public class ListSectionController extends AbstractListSectionController impleme
         TvMediaCardComponent mediaCardComponent;
 
         if (optionsService.isTvMode()) {
-            mediaCardComponent = new TvMediaCardComponent(item, imageService, overlayItemListener);
+            mediaCardComponent = new TvMediaCardComponent(item, imageService, metadataProvider, overlayItemListener);
         } else {
             // load a new media card controller and inject it into the view
             mediaCardComponent = new DesktopMediaCardComponent(item, localeText, imageService, metadataProvider, overlayItemListener);

@@ -4,7 +4,6 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
@@ -21,7 +20,6 @@ import com.github.yoep.popcorn.ui.controls.WatchedCell;
 import com.github.yoep.popcorn.ui.controls.WatchedCellCallbacks;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.controls.Episodes;
 import com.github.yoep.popcorn.ui.view.controls.Seasons;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
@@ -50,9 +48,6 @@ import java.util.ResourceBundle;
 @Slf4j
 @ViewController
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
-    private static final double POSTER_WIDTH = 198.0;
-    private static final double POSTER_HEIGHT = 215.0;
-
     private final ShowHelperService showHelperService;
 
     private Episode episode;
@@ -96,7 +91,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                                 ApplicationConfig settingsService,
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
-                                PlayerManagerService playerService,
                                 FxLib fxLib) {
         super(eventPublisher,
                 localeText,
@@ -106,7 +100,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                 imageService,
                 settingsService,
                 service,
-                playerService, fxLib);
+                fxLib);
 
         this.showHelperService = showHelperService;
         service.addListener(createCallback());
@@ -121,7 +115,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         super.load(media);
 
         loadText();
-        loadButtons();
         loadSeasons();
     }
 
@@ -152,8 +145,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         initializeLanguageSelection();
         initializeTooltips();
         initializeListeners();
-
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerService, watchNowButton);
     }
 
     private void initializeListeners() {
@@ -258,10 +249,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         status.setText(media.getStatus());
         genres.setText(String.join(" / ", media.getGenres()));
         overview.setText(media.getSynopsis());
-    }
-
-    private void loadButtons() {
-        watchNowButton.select(playerService.getActivePlayer().orElse(null));
     }
 
     private void loadSeasons() {

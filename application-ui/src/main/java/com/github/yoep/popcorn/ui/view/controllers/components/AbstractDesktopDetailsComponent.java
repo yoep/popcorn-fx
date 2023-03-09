@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.ui.view.controllers.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
@@ -16,7 +15,6 @@ import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -46,7 +44,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     protected final SubtitleService subtitleService;
     protected final SubtitlePickerService subtitlePickerService;
     protected final DetailsComponentService service;
-    protected final PlayerManagerService playerService;
     protected final FxLib fxLib;
 
     protected SubtitleInfo subtitle;
@@ -58,8 +55,6 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
     Pane qualitySelectionPane;
     @FXML
     LanguageFlagSelection languageSelection;
-    @FXML
-    PlayerDropDownButton watchNowButton;
 
     //region Constructors
 
@@ -71,12 +66,11 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
                                               ImageService imageService,
                                               ApplicationConfig settingsService,
                                               DetailsComponentService service,
-                                              PlayerManagerService playerService, FxLib fxLib) {
+                                              FxLib fxLib) {
         super(localeText, imageService, healthService, settingsService, eventPublisher);
         this.subtitleService = subtitleService;
         this.subtitlePickerService = subtitlePickerService;
         this.service = service;
-        this.playerService = playerService;
         this.fxLib = fxLib;
     }
 

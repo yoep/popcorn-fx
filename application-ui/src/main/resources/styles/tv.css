@@ -544,4 +544,17 @@
     -fx-font-size: 1.5em;
 }
 
+.root .movie-details .button {
+    -fx-padding: 15 25 15 25;
+}
+
+.root .movie-details .button .icon {
+    -fx-padding: 0 8 0 0;
+}
+
+.root .movie-details .button .text,
+.root .movie-details .button .icon {
+    -fx-font-size: 1.5em;
+}
+
 /* endregion */

@@ -37,7 +37,7 @@ class PlayerExternalComponentServiceTest {
     @Mock
     private PlayerEventService playerEventService;
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerExternalComponentService service;
 

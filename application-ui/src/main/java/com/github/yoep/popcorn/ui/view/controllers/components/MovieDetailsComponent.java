@@ -4,10 +4,9 @@ import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.backend.events.WatchNowEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -16,19 +15,15 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
-import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
@@ -48,7 +43,9 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     private final ViewLoader viewLoader;
 
     @FXML
-    GridPane detailsContentPane;
+    GridPane detailsContent;
+    @FXML
+    GridPane detailsDescription;
     @FXML
     Label title;
     @FXML
@@ -59,8 +56,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     Label duration;
     @FXML
     Label genres;
-    @FXML
-    Button watchTrailerButton;
 
     //region Constructors
 
@@ -72,7 +67,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                                  ImageService imageService,
                                  ApplicationConfig settingsService,
                                  DetailsComponentService service,
-                                 PlayerManagerService playerService,
                                  FxLib fxLib,
                                  ViewLoader viewLoader) {
         super(eventPublisher,
@@ -83,7 +77,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                 imageService,
                 settingsService,
                 service,
-                playerService,
                 fxLib);
 
         this.viewLoader = viewLoader;
@@ -99,10 +92,10 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         initializeTooltips();
         initializeLanguageSelection();
         initializePoster();
+        initializeActions();
         initializeListeners();
 
-        AnchorPane.setLeftAnchor(detailsContentPane, service.isTvMode() ? 150.0 : 75.0);
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerService, watchNowButton);
+        AnchorPane.setLeftAnchor(detailsContent, service.isTvMode() ? 150.0 : 75.0);
     }
 
     private void initializeListeners() {
@@ -110,6 +103,17 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
             Platform.runLater(() -> load(event.getMedia()));
             return event;
         });
+        eventPublisher.register(WatchNowEvent.class, event -> {
+            startMediaPlayback();
+            return event;
+        });
+    }
+
+    private void initializeActions() {
+        var pane = viewLoader.load("components/movie-actions.component.fxml");
+        GridPane.setColumnIndex(pane, 0);
+        GridPane.setRowIndex(pane, 4);
+        detailsDescription.getChildren().add(4, pane);
     }
 
     //endregion
@@ -121,10 +125,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         super.load(media);
 
         loadText();
-        loadButtons();
         loadSubtitles();
         loadQualitySelection(media.getTorrents().get(DEFAULT_TORRENT_AUDIO));
-        Platform.runLater(() -> watchNowButton.requestFocus());
     }
 
     @Override
@@ -184,7 +186,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
 
     private void initializePoster() {
         var poster = viewLoader.load("components/movie-poster.component.fxml");
-        detailsContentPane.add(poster, 0, 0);
+        detailsContent.add(poster, 0, 0);
     }
 
     private void loadText() {
@@ -193,11 +195,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         year.setText(media.getYear());
         duration.setText(media.getRuntime() + " min");
         genres.setText(String.join(" / ", media.getGenres()));
-    }
-
-    private void loadButtons() {
-        watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
-        watchNowButton.select(playerService.getActivePlayer().orElse(null));
     }
 
     private void loadSubtitles() {
@@ -229,28 +226,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         } else {
             openMagnetLink(torrentInfo);
         }
-    }
-
-    @FXML
-    void onWatchNowClicked(MouseEvent event) {
-        event.consume();
-
-        startMediaPlayback();
-    }
-
-    @FXML
-    void onWatchNowPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.ENTER) {
-            event.consume();
-            startMediaPlayback();
-        }
-    }
-
-    @FXML
-    void onTrailerClicked(MouseEvent event) {
-        event.consume();
-
-        eventPublisher.publishEvent(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
     }
 
     @FXML

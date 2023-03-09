@@ -346,7 +346,8 @@
 }
 
 .root .list-section .poster-item.watched:hover,
-.root .list-section .poster-item:hover {
+.root .list-section .poster-item.watched:hover,
+.root .list-section .poster-item.watched:focused {
     -fx-opacity: 1;
 }
 
@@ -487,6 +488,7 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
+    -fx-padding: 10 0 0 0;
 }
 
 .root .movie-details .magnet-link,

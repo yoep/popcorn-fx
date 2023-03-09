@@ -8,12 +8,10 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
-import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,8 +66,6 @@ class MovieDetailsComponentTest {
         component.qualitySelectionPane = new Pane();
         component.backgroundImage = new BackgroundImageCover();
         component.ratingStars = new Stars();
-        component.watchTrailerButton = new Button();
-        component.watchNowButton = new PlayerDropDownButton();
     }
 
 

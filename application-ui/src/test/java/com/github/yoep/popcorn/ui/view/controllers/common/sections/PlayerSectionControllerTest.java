@@ -24,7 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class PlayerSectionControllerIT {
+class PlayerSectionControllerTest {
     @Mock
     private PlayerManagerService playerManagerService;
     @Mock

@@ -4,7 +4,7 @@
 <?import com.github.yoep.popcorn.ui.view.controls.SearchField?>
 <?import com.github.yoep.popcorn.ui.view.controls.SizedImageView?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx"
@@ -17,6 +17,7 @@
     </columnConstraints>
     <rowConstraints>
         <RowConstraints vgrow="ALWAYS" maxHeight="Infinity"/>
+        <RowConstraints />
         <RowConstraints />
         <RowConstraints />
         <RowConstraints />
@@ -72,4 +73,12 @@
     </Icon>
     <Label fx:id="settingsText" labelFor="$settingsIcon" text="%settings" styleClass="icon-text" onMouseClicked="#onSettingsClicked"
            GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+    <!-- INFO -->
+    <Icon fx:id="infoIcon" focusTraversable="true" onMouseClicked="#onInfoClicked" onKeyPressed="#onInfoPressed"
+          GridPane.columnIndex="0" GridPane.rowIndex="6">
+        <Icon fx:constant="INFO_CIRCLE_UNICODE"/>
+    </Icon>
+    <Label fx:id="infoText" labelFor="$infoIcon" text="%header_about" styleClass="icon-text" onMouseClicked="#onInfoClicked"
+           GridPane.columnIndex="1" GridPane.rowIndex="6"/>
 </GridPane>

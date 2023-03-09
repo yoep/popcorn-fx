@@ -10,7 +10,7 @@
             onMouseClicked="#onWatchNowClicked" onKeyPressed="#onWatchNowPressed">
         <graphic>
             <Icon>
-                <Icon fx:constant="PLAY_CIRCLE_UNICODE" />
+                <Icon fx:constant="PLAY_UNICODE" />
             </Icon>
         </graphic>
     </Button>

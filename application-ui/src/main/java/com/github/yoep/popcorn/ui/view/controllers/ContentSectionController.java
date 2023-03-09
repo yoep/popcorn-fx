@@ -126,6 +126,10 @@ public class ContentSectionController implements Initializable {
             switchContent(ContentType.LIST);
             return event;
         });
+        eventPublisher.register(CloseAboutEvent.class, event -> {
+            switchContent(ContentType.LIST);
+            return event;
+        });
     }
 
     private void initializeMode() {

@@ -5,10 +5,7 @@ import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
-import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
-import com.github.yoep.popcorn.ui.events.SearchEvent;
-import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.controls.SearchField;
 import com.github.yoep.popcorn.ui.view.controls.SearchListener;
 import javafx.animation.FadeTransition;
@@ -63,6 +60,10 @@ public class SidebarController implements Initializable {
     Icon settingsIcon;
     @FXML
     Label settingsText;
+    @FXML
+    Icon infoIcon;
+    @FXML
+    Label infoText;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -97,6 +98,10 @@ public class SidebarController implements Initializable {
 
     private void initializeEventListeners() {
         eventPublisher.register(CloseSettingsEvent.class, event -> {
+            switchCategory(lastKnownSelectedCategory, false);
+            return event;
+        });
+        eventPublisher.register(CloseAboutEvent.class, event -> {
             switchCategory(lastKnownSelectedCategory, false);
             return event;
         });
@@ -163,14 +168,8 @@ public class SidebarController implements Initializable {
 
     private void switchActiveItem(Icon icon) {
         var text = movieText;
-        movieIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-        movieText.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-        serieIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-        serieText.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-        favoriteIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-        favoriteText.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-        settingsIcon.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-        settingsText.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
+        sidebar.getChildren().forEach(child ->
+                child.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE)));
 
         if (icon == serieText.getLabelFor()) {
             text = serieText;
@@ -181,6 +180,9 @@ public class SidebarController implements Initializable {
         if (icon == settingsText.getLabelFor()) {
             text = settingsText;
         }
+        if (icon == infoText.getLabelFor()) {
+            text = infoText;
+        }
 
         icon.getStyleClass().add(ACTIVE_STYLE);
         text.getStyleClass().add(ACTIVE_STYLE);
@@ -189,6 +191,11 @@ public class SidebarController implements Initializable {
     private void onSettingsActivated() {
         switchActiveItem(settingsIcon);
         eventPublisher.publish(new ShowSettingsEvent(this));
+    }
+
+    private void onInfoActivated() {
+        switchActiveItem(infoIcon);
+        eventPublisher.publish(new ShowAboutEvent(this));
     }
 
     @FXML
@@ -221,6 +228,20 @@ public class SidebarController implements Initializable {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             onSettingsActivated();
+        }
+    }
+
+    @FXML
+    void onInfoClicked(MouseEvent event) {
+        event.consume();
+        onInfoActivated();
+    }
+
+    @FXML
+    void onInfoPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onInfoActivated();
         }
     }
 

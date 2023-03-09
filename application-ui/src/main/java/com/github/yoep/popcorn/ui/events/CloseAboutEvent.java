@@ -4,8 +4,8 @@ import lombok.EqualsAndHashCode;
 import org.springframework.context.ApplicationEvent;
 
 @EqualsAndHashCode(callSuper = false)
-public class ShowAboutEvent extends ApplicationEvent {
-    public ShowAboutEvent(Object source) {
+public class CloseAboutEvent extends ApplicationEvent {
+    public CloseAboutEvent(Object source) {
         super(source);
     }
 }

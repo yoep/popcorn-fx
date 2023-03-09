@@ -6,10 +6,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
-import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
-import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
-import com.github.yoep.popcorn.ui.events.SearchEvent;
-import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.controls.SearchField;
 import javafx.animation.Animation;
 import javafx.scene.control.Label;
@@ -73,6 +70,8 @@ class SidebarControllerTest {
         controller.favoriteText = new Label("favoriteText");
         controller.settingsIcon = new Icon("settingsIcon");
         controller.settingsText = new Label("settingsText");
+        controller.infoIcon = new Icon("infoIcon");
+        controller.infoText = new Label("infoText");
 
         controller.sidebar.getColumnConstraints().add(new ColumnConstraints());
         controller.sidebar.getColumnConstraints().add(new ColumnConstraints());
@@ -80,8 +79,10 @@ class SidebarControllerTest {
         controller.serieText.setLabelFor(controller.serieIcon);
         controller.favoriteText.setLabelFor(controller.favoriteIcon);
         controller.settingsText.setLabelFor(controller.settingsIcon);
+        controller.infoText.setLabelFor(controller.infoIcon);
         controller.searchIcon.setOnMouseClicked(controller::onSearchClicked);
         controller.searchIcon.setOnKeyPressed(controller::onSearchPressed);
+        controller.infoIcon.setOnKeyPressed(controller::onInfoPressed);
     }
 
     @Test
@@ -202,6 +203,31 @@ class SidebarControllerTest {
 
         verify(event).consume();
         verify(eventPublisher).publish(new ShowSettingsEvent(controller));
+    }
+
+    @Test
+    void testOnInfoClicked() {
+        var event = mock(MouseEvent.class);
+        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        controller.initialize(url, resourceBundle);
+
+        controller.onInfoClicked(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new ShowAboutEvent(controller));
+    }
+
+    @Test
+    void testOnInfoPressed() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(KeyCode.ENTER);
+        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        controller.initialize(url, resourceBundle);
+
+        controller.onInfoPressed(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new ShowAboutEvent(controller));
     }
 
     @Test

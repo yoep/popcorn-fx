@@ -158,8 +158,9 @@ public class SidebarController implements Initializable {
 
     private void switchActiveItem(Icon icon) {
         var text = movieText;
-        sidebar.getChildren().forEach(child ->
-                child.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE)));
+        for (var child : sidebar.getChildren()) {
+            child.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
+        }
 
         if (icon == serieText.getLabelFor()) {
             text = serieText;
@@ -186,6 +187,10 @@ public class SidebarController implements Initializable {
     private void onInfoActivated() {
         switchActiveItem(infoIcon);
         eventPublisher.publish(new ShowAboutEvent(this));
+    }
+
+    private void onSearchFocusRequest() {
+        eventPublisher.publish(new RequestSearchFocus(this));
     }
 
     @FXML
@@ -249,12 +254,14 @@ public class SidebarController implements Initializable {
     @FXML
     void onSearchClicked(MouseEvent event) {
         event.consume();
+        onSearchFocusRequest();
     }
 
     @FXML
     void onSearchPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
+            onSearchFocusRequest();
         }
     }
 }

@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
+import com.github.yoep.popcorn.ui.events.RequestSearchFocus;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.view.controls.SearchListener;
 import com.github.yoep.popcorn.ui.view.controls.SearchTextField;
@@ -41,6 +42,10 @@ public class DesktopSidebarSearchComponent implements Initializable {
     private void initializeEvents() {
         eventPublisher.register(CategoryChangedEvent.class, event -> {
             Platform.runLater(() -> searchInput.clear());
+            return event;
+        });
+        eventPublisher.register(RequestSearchFocus.class, event -> {
+            Platform.runLater(() -> searchInput.requestFocus());
             return event;
         });
     }

@@ -6,6 +6,8 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
+import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
+import com.github.yoep.popcorn.ui.events.ShowAboutEvent;
 import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.scene.input.MouseButton;
@@ -18,7 +20,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -34,10 +35,8 @@ class ContentSectionControllerTest {
     private ViewLoader viewLoader;
     @Mock
     private LocaleText localeText;
-    @Mock
-    private ApplicationEventPublisher applicationEventPublisher;
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private MaximizeService maximizeService;
     @Mock
@@ -111,5 +110,18 @@ class ContentSectionControllerTest {
         controller.initialize(url, resourceBundle);
 
         verify(viewLoader).load(ContentSectionController.SYSTEM_TIME_COMPONENT);
+    }
+
+    @Test
+    void testOnCloseAbout() {
+        controller.initialize(url, resourceBundle);
+
+        eventPublisher.publish(new ShowAboutEvent(this));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(ContentSectionController.ContentType.ABOUT, controller.activeType);
+
+        eventPublisher.publish(new CloseAboutEvent(this));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);
     }
 }

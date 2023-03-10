@@ -27,6 +27,7 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.components.WindowComp
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.SystemTimeComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvMovieActionsComponent;
+import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvSidebarSearchComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
@@ -89,9 +90,10 @@ public class ViewConfig {
     @Bean
     @ConditionalOnTvMode
     public TvFilterComponent tvFilterComponent(EventPublisher eventPublisher,
+                                               LocaleText localeText,
                                                FxLib fxLib,
                                                PopcornFx instance) {
-        return new TvFilterComponent(eventPublisher, fxLib, instance);
+        return new TvFilterComponent(eventPublisher, localeText, fxLib, instance);
     }
 
     @Bean
@@ -141,5 +143,11 @@ public class ViewConfig {
     @ConditionalOnDesktopMode
     public DesktopSidebarSearchComponent desktopSidebarSearchComponent(EventPublisher eventPublisher) {
         return new DesktopSidebarSearchComponent(eventPublisher);
+    }
+
+    @Bean
+    @ConditionalOnTvMode
+    public TvSidebarSearchComponent tvSidebarSearchComponent(EventPublisher eventPublisher) {
+        return new TvSidebarSearchComponent(eventPublisher);
     }
 }

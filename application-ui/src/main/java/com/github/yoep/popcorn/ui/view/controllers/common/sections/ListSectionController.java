@@ -52,6 +52,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class ListSectionController extends AbstractListSectionController implements Initializable {
+    static final double LEFT_SPACING_DESKTOP = 64.0;
+    static final double LEFT_SPACING_TV = 128.0;
+
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
     private final ImageService imageService;
@@ -90,8 +93,8 @@ public class ListSectionController extends AbstractListSectionController impleme
         initializeScrollPane();
         initializeFailedPane();
         initializeOverlay();
-        initializeFilter();
         initializeBackgroundImage();
+        initializeFilter();
 
         eventPublisher.register(CategoryChangedEvent.class, this::onCategoryChanged, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(GenreChangeEvent.class, this::onGenreChange);
@@ -101,7 +104,7 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     private void initializeScrollPane() {
         AnchorPane.setTopAnchor(scrollPane, optionsService.isTvMode() ? 50.0 : 35.0);
-        AnchorPane.setLeftAnchor(scrollPane, optionsService.isTvMode() ? 128.0 : 64.0);
+        AnchorPane.setLeftAnchor(scrollPane, optionsService.isTvMode() ? LEFT_SPACING_TV : LEFT_SPACING_DESKTOP);
         scrollPane.setLoaderFactory(() -> viewLoader.load("common/components/loading-card.component.fxml"));
         scrollPane.setItemFactory(new InfiniteScrollItemFactory<>() {
             @Override
@@ -126,10 +129,18 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     private void initializeFilter() {
         var filter = viewLoader.load("components/filter.component.fxml");
-        AnchorPane.setTopAnchor(filter, 5d);
-        AnchorPane.setLeftAnchor(filter, 64d);
-        AnchorPane.setRightAnchor(filter, 0d);
-        listSection.getChildren().add(1, filter);
+
+        if (optionsService.isTvMode()) {
+            AnchorPane.setTopAnchor(filter, 0d);
+            AnchorPane.setBottomAnchor(filter, 0d);
+            AnchorPane.setLeftAnchor(filter, LEFT_SPACING_TV);
+        } else {
+            AnchorPane.setTopAnchor(filter, 5d);
+            AnchorPane.setRightAnchor(filter, 0d);
+            AnchorPane.setLeftAnchor(filter, LEFT_SPACING_DESKTOP);
+        }
+
+        listSection.getChildren().add(optionsService.isTvMode() ? 2 : 1, filter);
     }
 
     @Override

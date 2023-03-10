@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.AnchorPane?>
-<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent">
+<?import com.github.yoep.popcorn.ui.view.controls.VerticalItemSelection?>
+<?import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent"
+      fx:id="filter" styleClass="filter" maxWidth="0">
 
-</AnchorPane>
+    <Label fx:id="searchValue" styleClass="search-value"/>
+
+    <VirtualKeyboard fx:id="virtualKeyboard" minWidth="0"/>
+
+    <VerticalItemSelection fx:id="genres" shortKeysEnabled="false"/>
+</VBox>

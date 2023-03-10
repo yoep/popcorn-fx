@@ -34,7 +34,6 @@ public class SidebarController implements Initializable {
     private final ApplicationConfig applicationConfig;
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
-    private final Object lock = new Object();
 
     final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500.0), new Pane());
     Category lastKnownSelectedCategory;
@@ -158,28 +157,28 @@ public class SidebarController implements Initializable {
     }
 
     private void switchActiveItem(Icon icon) {
-        synchronized (lock) {
-            var text = movieText;
-            for (var child : sidebar.getChildren()) {
-                child.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
-            }
+        var text = movieText;
 
-            if (icon == serieText.getLabelFor()) {
-                text = serieText;
-            }
-            if (icon == favoriteText.getLabelFor()) {
-                text = favoriteText;
-            }
-            if (icon == settingsText.getLabelFor()) {
-                text = settingsText;
-            }
-            if (icon == infoText.getLabelFor()) {
-                text = infoText;
-            }
-
-            icon.getStyleClass().add(ACTIVE_STYLE);
-            text.getStyleClass().add(ACTIVE_STYLE);
+        for (var i = 0; i < sidebar.getChildren().size(); i++) {
+            var child = sidebar.getChildren().get(i);
+            child.getStyleClass().removeIf(e -> e.equals(ACTIVE_STYLE));
         }
+
+        if (icon == serieText.getLabelFor()) {
+            text = serieText;
+        }
+        if (icon == favoriteText.getLabelFor()) {
+            text = favoriteText;
+        }
+        if (icon == settingsText.getLabelFor()) {
+            text = settingsText;
+        }
+        if (icon == infoText.getLabelFor()) {
+            text = infoText;
+        }
+
+        icon.getStyleClass().add(ACTIVE_STYLE);
+        text.getStyleClass().add(ACTIVE_STYLE);
     }
 
     private void onSettingsActivated() {

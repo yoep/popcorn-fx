@@ -7,10 +7,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
-import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
-import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
-import com.github.yoep.popcorn.ui.events.ShowAboutEvent;
-import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.events.*;
 import javafx.animation.Animation;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
@@ -206,6 +203,7 @@ class SidebarControllerTest {
         controller.initialize(url, resourceBundle);
 
         controller.onSettingsPressed(event);
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(event).consume();
         verify(eventPublisher).publish(new ShowSettingsEvent(controller));
@@ -218,6 +216,7 @@ class SidebarControllerTest {
         controller.initialize(url, resourceBundle);
 
         controller.onInfoClicked(event);
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(event).consume();
         verify(eventPublisher).publish(new ShowAboutEvent(controller));
@@ -231,6 +230,7 @@ class SidebarControllerTest {
         controller.initialize(url, resourceBundle);
 
         controller.onInfoPressed(event);
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(event).consume();
         verify(eventPublisher).publish(new ShowAboutEvent(controller));
@@ -267,7 +267,7 @@ class SidebarControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         verify(event).consume();
-//        verify(searchInput).requestFocus();
+        verify(eventPublisher).publish(new RequestSearchFocus(controller));
     }
 
     @Test
@@ -279,6 +279,6 @@ class SidebarControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         verify(event).consume();
-//        verify(searchInput).requestFocus();
+        verify(eventPublisher).publish(new RequestSearchFocus(controller));
     }
 }

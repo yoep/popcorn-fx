@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
-<?import com.github.yoep.popcorn.ui.view.controls.SearchField?>
 <?import com.github.yoep.popcorn.ui.view.controls.SizedImageView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
@@ -41,8 +40,7 @@
           GridPane.columnIndex="0" GridPane.rowIndex="1">
         <Icon fx:constant="SEARCH_UNICODE"/>
     </Icon>
-    <SearchField fx:id="searchInput" promptText="%header_search" styleClass="icon-text"
-           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <!-- PLACEHOLDER SEARCHFIELD -->
 
     <!-- CATEGORIES -->
     <Icon fx:id="movieIcon" focusTraversable="true" onMouseClicked="#onCategoryClicked" onKeyPressed="#onCategoryPressed"

@@ -2,12 +2,11 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.*;
-import com.github.yoep.popcorn.ui.view.controls.SearchField;
-import com.github.yoep.popcorn.ui.view.controls.SearchListener;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -34,6 +33,7 @@ public class SidebarController implements Initializable {
 
     private final ApplicationConfig applicationConfig;
     private final EventPublisher eventPublisher;
+    private final ViewLoader viewLoader;
 
     final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500.0), new Pane());
     Category lastKnownSelectedCategory;
@@ -42,8 +42,6 @@ public class SidebarController implements Initializable {
     GridPane sidebar;
     @FXML
     Icon searchIcon;
-    @FXML
-    SearchField searchInput;
     @FXML
     Icon movieIcon;
     @FXML
@@ -68,10 +66,10 @@ public class SidebarController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeSlideAnimation();
-        initializeFocusListeners();
         initializeEventListeners();
         initializeActiveIcon();
-        initializeSearchListener();
+        initializeSearch();
+        initializeFocusListeners();
 
         sidebar.getColumnConstraints().get(0).setPrefWidth(searchIcon.getPrefWidth());
     }
@@ -91,9 +89,8 @@ public class SidebarController implements Initializable {
 
     private void initializeFocusListeners() {
         for (Node child : sidebar.getChildren()) {
-            child.focusedProperty().addListener((observable, oldValue, newValue) -> focusChanged(newValue));
+            child.focusWithinProperty().addListener((observable, oldValue, newValue) -> focusChanged(newValue));
         }
-        searchInput.textFocusProperty().addListener((observableValue, aBoolean, newValue) -> focusChanged(newValue));
     }
 
     private void initializeEventListeners() {
@@ -107,18 +104,12 @@ public class SidebarController implements Initializable {
         });
     }
 
-    private void initializeSearchListener() {
-        searchInput.addListener(new SearchListener() {
-            @Override
-            public void onSearchValueChanged(String newValue) {
-                eventPublisher.publish(new SearchEvent(this, newValue));
-            }
+    private void initializeSearch() {
+        var search = viewLoader.load("components/sidebar-search.component.fxml");
 
-            @Override
-            public void onSearchValueCleared() {
-                eventPublisher.publish(new SearchEvent(this, null));
-            }
-        });
+        GridPane.setColumnIndex(search, 1);
+        GridPane.setRowIndex(search, 1);
+        sidebar.getChildren().add(2, search);
     }
 
     private void focusChanged(boolean newValue) {
@@ -156,7 +147,6 @@ public class SidebarController implements Initializable {
             category = Category.FAVORITES;
         }
 
-        searchInput.clear();
         switchActiveItem(icon);
 
         if (publishEvent) {
@@ -253,20 +243,18 @@ public class SidebarController implements Initializable {
     @FXML
     void onHoverStopped(MouseEvent event) {
         focusChanged(sidebar.getChildren().stream()
-                .anyMatch(Node::isFocused) || searchInput.isTextFocused());
+                .anyMatch(Node::isFocusWithin));
     }
 
     @FXML
     void onSearchClicked(MouseEvent event) {
         event.consume();
-        searchInput.requestFocus();
     }
 
     @FXML
     void onSearchPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            searchInput.requestFocus();
         }
     }
 }

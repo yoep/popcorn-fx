@@ -1,15 +1,14 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.StringProperty;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.control.Control;
+import javafx.scene.control.Skin;
 import javafx.scene.control.TextField;
+import javafx.scene.control.skin.TextFieldSkin;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
@@ -17,68 +16,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-public class SearchField extends StackPane {
+public class SearchTextField extends TextField {
     private static final int MILLIS_BETWEEN_INVOKES = 500;
     private static final int WATCHER_TTL = 5000;
     private static final String STYLE_CLASS = "search-field";
+    private static final String INNER_STYLE_CLASS = "value";
     private static final String STYLE_CLASS_CLOSE_ICON = "clear-icon";
-    private static final String STYLE_CLASS_TEXT_FIELD = "textfield";
 
     private final List<SearchListener> listeners = new ArrayList<>();
-
-    private Icon clearIcon;
-    private TextField textField;
 
     private boolean keepWatcherAlive;
     private long lastChangeInvoked;
     private long lastUserInput;
 
-    public SearchField() {
-        init();
-    }
-
-    /**
-     * Get the text prompt property of this search field.
-     *
-     * @return Returns the text prompt property.
-     */
-    public StringProperty promptTextProperty() {
-        return this.textField.promptTextProperty();
-    }
-
-    /**
-     * Get the current prompt text.
-     *
-     * @return Returns the current prompt text.
-     */
-    public String getPromptText() {
-        return this.textField.getPromptText();
-    }
-
-    /**
-     * Set the prompt text of this search field.
-     *
-     * @param value The prompt text to set.
-     */
-    public void setPromptText(String value) {
-        this.textField.setPromptText(value);
-    }
-
-    /**
-     * Get the text property of this search field.
-     *
-     * @return Returns the text property.
-     */
-    public StringProperty textProperty() {
-        return this.textField.textProperty();
-    }
-
-    public String getText() {
-        return this.textField.getText();
-    }
-
-    public void setText(String text) {
-        this.textField.setText(text);
+    public SearchTextField() {
+        super();
+        skinProperty().addListener((observable, oldValue, newValue) -> init());
     }
 
     /**
@@ -110,54 +63,34 @@ public class SearchField extends StackPane {
      * This will reset the search to nothing.
      */
     public void clear() {
-        Platform.runLater(() -> textField.setText(""));
+        setText("");
         onCleared();
     }
 
-    public ReadOnlyBooleanProperty textFocusProperty() {
-        return textField.focusedProperty();
-    }
-
-    public boolean isTextFocused() {
-        return textField.isFocused();
-    }
-
     @Override
-    public void requestFocus() {
-        textField.requestFocus();
+    protected Skin<?> createDefaultSkin() {
+        return new SearchTextFieldSkin(this);
     }
 
     private void init() {
         initializeTextField();
-        initializeCloseIcon();
         initializeStyles();
         initializeListener();
     }
 
     private void initializeTextField() {
-        textField = new TextField();
-        textField.setPadding(new Insets(2, 25, 2, 25));
-        getChildren().add(textField);
-    }
-
-    private void initializeCloseIcon() {
-        clearIcon = new Icon(Icon.TIMES_UNICODE);
-        clearIcon.setCursor(Cursor.HAND);
-        clearIcon.setOnMouseClicked(this::onClearClicked);
-        clearIcon.setVisible(false);
-        StackPane.setAlignment(clearIcon, Pos.CENTER_RIGHT);
-        getChildren().add(clearIcon);
+        var innerPane = (Pane) (getChildren().get(0));
+        innerPane.getStyleClass().add(INNER_STYLE_CLASS);
     }
 
     private void initializeStyles() {
         this.getStyleClass().add(STYLE_CLASS);
-        this.clearIcon.getStyleClass().add(STYLE_CLASS_CLOSE_ICON);
-        this.textField.getStyleClass().add(STYLE_CLASS_TEXT_FIELD);
     }
 
     private void initializeListener() {
+        getSearchSkin().clearIcon.setOnMouseClicked(this::onClearClicked);
         textProperty().addListener((observable, oldValue, newValue) -> {
-            clearIcon.setVisible(newValue.length() > 0);
+            getSearchSkin().clearIcon.setVisible(newValue.length() > 0);
             lastUserInput = System.currentTimeMillis();
 
             if (!keepWatcherAlive)
@@ -165,8 +98,12 @@ public class SearchField extends StackPane {
         });
     }
 
+    private SearchTextFieldSkin getSearchSkin() {
+        return (SearchTextFieldSkin) getSkin();
+    }
+
     private void onChanged() {
-        String value = textField.getText();
+        var value = getText();
         lastChangeInvoked = System.currentTimeMillis();
 
         synchronized (listeners) {
@@ -195,6 +132,7 @@ public class SearchField extends StackPane {
     }
 
     private void onClearClicked(MouseEvent event) {
+        event.consume();
         clear();
     }
 
@@ -247,5 +185,34 @@ public class SearchField extends StackPane {
 
     private void runTask(Runnable task) {
         new Thread(task, "SearchField").start();
+    }
+
+    private static class SearchTextFieldSkin extends TextFieldSkin {
+        public Icon clearIcon;
+
+        /**
+         * Creates a new TextFieldSkin instance, installing the necessary child
+         * nodes into the Control {@link Control#getChildren() children} list, as
+         * well as the necessary input mappings for handling key, mouse, etc events.
+         *
+         * @param control The control that this skin should be installed onto.
+         */
+        public SearchTextFieldSkin(TextField control) {
+            super(control);
+
+            clearIcon = new Icon(Icon.TIMES_UNICODE);
+            clearIcon.setCursor(Cursor.HAND);
+            clearIcon.setVisible(false);
+            clearIcon.setAlignment(Pos.CENTER_RIGHT);
+            clearIcon.getStyleClass().add(STYLE_CLASS_CLOSE_ICON);
+            ((Pane) getChildren().get(0)).getChildren().add(clearIcon);
+
+            control.widthProperty().addListener((observable, oldValue, newValue) -> updateIconPos(newValue.doubleValue()));
+            updateIconPos(control.getWidth());
+        }
+
+        private void updateIconPos(double width) {
+            clearIcon.setLayoutX(width - clearIcon.getWidth());
+        }
     }
 }

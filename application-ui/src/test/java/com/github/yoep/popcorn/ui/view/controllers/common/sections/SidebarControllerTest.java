@@ -6,8 +6,11 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
-import com.github.yoep.popcorn.ui.events.*;
-import com.github.yoep.popcorn.ui.view.controls.SearchField;
+import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
+import com.github.yoep.popcorn.ui.events.CloseSettingsEvent;
+import com.github.yoep.popcorn.ui.events.ShowAboutEvent;
+import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.view.controls.SearchTextField;
 import javafx.animation.Animation;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
@@ -16,7 +19,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -46,7 +48,7 @@ class SidebarControllerTest {
     private UISettings settings;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
-    private SearchField searchInput;
+    private SearchTextField searchInput;
     @Mock
     private URL url;
     @Mock
@@ -58,10 +60,9 @@ class SidebarControllerTest {
     void setUp() {
         lenient().when(applicationConfig.getSettings()).thenReturn(applicationSettings);
         lenient().when(applicationSettings.getUiSettings()).thenReturn(settings);
-        searchInput = spy(new SearchField());
+        searchInput = spy(new SearchTextField());
         controller.sidebar = new GridPane();
         controller.searchIcon = new Icon("searchIcon");
-        controller.searchInput = searchInput;
         controller.movieIcon = new Icon("movieIcon");
         controller.movieText = new Label("movieText");
         controller.serieIcon = new Icon("serieIcon");
@@ -274,19 +275,5 @@ class SidebarControllerTest {
 
         verify(event).consume();
         verify(searchInput).requestFocus();
-    }
-
-    // TODO: Fix the searchfield
-    @Test
-    @Disabled
-    void testOnSearchValueChanged() {
-        var value = "lorem";
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
-        controller.initialize(url, resourceBundle);
-
-        controller.searchInput.setText(value);
-        WaitForAsyncUtils.waitForFxEvents();
-
-        verify(eventPublisher, timeout(500)).publish(new SearchEvent(this, value));
     }
 }

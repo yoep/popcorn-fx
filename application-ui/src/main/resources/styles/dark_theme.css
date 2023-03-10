@@ -1389,7 +1389,6 @@
 }
 
 .root .content-section .sidebar .search-field,
-.root .content-section .sidebar .search-field .text-field,
 .root .content-section .sidebar .icon-text {
     -fx-pref-width: 125px;
     -fx-min-width: 0;
@@ -1422,7 +1421,6 @@
 }
 
 .root .content-section .sidebar .search-field,
-.root .content-section .sidebar .search-field .text-field,
 .root .content-section .sidebar .search-field .text {
     -fx-text-fill: #fff;
     -fx-background-color: transparent;
@@ -1431,7 +1429,12 @@
 }
 
 .root .content-section .sidebar .search-field .clear-icon {
+    -fx-pref-width: 2em;
     -fx-font-size: 1em;
+    -fx-alignment: center;
+}
+.root .content-section .sidebar .search-field .clear-icon,
+.root .content-section .sidebar .search-field .clear-icon .text {
     -fx-cursor: hand;
 }
 

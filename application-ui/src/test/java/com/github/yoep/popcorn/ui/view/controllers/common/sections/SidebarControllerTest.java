@@ -76,13 +76,11 @@ class SidebarControllerTest {
         controller.settingsText = new Label("settingsText");
         controller.infoIcon = new Icon("infoIcon");
         controller.infoText = new Label("infoText");
-        controller.sidebar.getChildren().add(controller.searchIcon);
-        controller.sidebar.getChildren().add(controller.movieIcon);
-        controller.sidebar.getChildren().add(controller.movieText);
-        controller.sidebar.getChildren().add(controller.serieIcon);
 
         controller.sidebar.getColumnConstraints().add(new ColumnConstraints());
         controller.sidebar.getColumnConstraints().add(new ColumnConstraints());
+        controller.sidebar.getChildren().addAll(controller.searchIcon, controller.movieIcon, controller.movieText, controller.serieIcon);
+
         controller.movieText.setLabelFor(controller.movieIcon);
         controller.serieText.setLabelFor(controller.serieIcon);
         controller.favoriteText.setLabelFor(controller.favoriteIcon);

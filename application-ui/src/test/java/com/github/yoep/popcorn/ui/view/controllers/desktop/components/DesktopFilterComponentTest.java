@@ -19,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -47,7 +48,7 @@ class DesktopFilterComponentTest {
     @InjectMocks
     private DesktopFilterComponent component;
 
-    private AtomicReference<Function<CategoryChangedEvent, CategoryChangedEvent>> listener = new AtomicReference<>();
+    private final AtomicReference<Function<CategoryChangedEvent, CategoryChangedEvent>> listener = new AtomicReference<>();
 
     @BeforeEach
     void setUp() throws MalformedURLException {
@@ -76,8 +77,9 @@ class DesktopFilterComponentTest {
         component.initialize(location, resources);
 
         listener.get().apply(event);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        verify(eventPublisher).publish(new GenreChangeEvent(component, new Genre("lorem", displayText)));
+        verify(eventPublisher, timeout(200)).publish(new GenreChangeEvent(component, new Genre("lorem", displayText)));
         verify(eventPublisher).publish(new SortByChangeEvent(component, new SortBy("ipsum", displayText)));
     }
 }

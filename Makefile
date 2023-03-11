@@ -77,7 +77,7 @@ build-cargo-release:  ## Build the rust part of the application in release profi
 ifeq ($(SYSTEM),Windows)
 lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying windows libraries to assets)
-	@$(foreach file,$(LIBRARIES),xcopy ".\target\$*\$(subst -,_,$(file)).$(EXTENSION)" ".\assets\$(ASSETS)\" /R /I /F /Y && ) echo.
+	@$(foreach file,$(LIBRARIES),xcopy "./target/$*/$(subst -,_,$(file)).$(EXTENSION)" "./assets/$(ASSETS)/" /R /I /F /Y && ) echo.
 else
 lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
 	$(info Copying unix libraries to assets)

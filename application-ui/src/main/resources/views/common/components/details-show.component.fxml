@@ -25,7 +25,7 @@
             <RowConstraints valignment="TOP"/>
             <RowConstraints minHeight="200" valignment="TOP"/>
             <RowConstraints minHeight="10"/>
-            <RowConstraints valignment="TOP"/>
+            <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
             <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
         </rowConstraints>
 

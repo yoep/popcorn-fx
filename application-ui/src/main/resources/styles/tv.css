@@ -458,6 +458,10 @@
 
 /* region Details */
 
+.root .show-details-section .show-details .seasons {
+    -fx-min-height: 2.5em;
+}
+
 .root .movie-details .title,
 .root .show-details-section .show-details .title {
     -fx-font-size: 3em;

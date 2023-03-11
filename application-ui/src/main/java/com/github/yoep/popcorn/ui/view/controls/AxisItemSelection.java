@@ -68,8 +68,12 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
     }
 
     public void setSelectedItem(T selectedItem) {
+        setSelectedItem(selectedItem, false);
+    }
+
+    public void setSelectedItem(T selectedItem, boolean focus) {
         this.selectedItem.set(selectedItem);
-        scrollTo(selectedItem);
+        scrollTo(selectedItem, focus);
     }
 
     public ItemFactory<T> getFactory() {
@@ -102,6 +106,10 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
     }
 
     public void scrollTo(T item) {
+        scrollTo(item, false);
+    }
+
+    public void scrollTo(T item, boolean focus) {
         Optional.ofNullable(items.get(item))
                 .ifPresent(e -> {
                     var contentLocalBounds = getContent().getBoundsInLocal();
@@ -110,6 +118,9 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
 
                     setVvalue(y / contentLocalBounds.getWidth());
                     setHvalue(x / contentLocalBounds.getHeight());
+
+                    if (focus)
+                        e.requestFocus();
                 });
     }
 
@@ -189,6 +200,16 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         this.content = getOrientation() == Orientation.VERTICAL ? new VBox(children) : new HBox(children);
         this.content.getStyleClass().add(CONTENT_STYLE_CLASS);
         this.setContent(content);
+
+        if (getOrientation() == Orientation.HORIZONTAL) {
+            setPrefHeight(content.getHeight());
+            prefHeightProperty().bind(content.heightProperty());
+            prefWidthProperty().unbind();
+        } else {
+            setPrefWidth(content.getWidth());
+            prefWidthProperty().bind(content.widthProperty());
+            prefHeightProperty().unbind();
+        }
     }
 
     public enum Orientation {

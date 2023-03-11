@@ -18,7 +18,7 @@
 
     <AnchorPane styleClass="episode-graphic"
                 GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="3">
-        <ImageCover fx:id="episodeArt" styleClass="episode-art"
+        <ImageCover fx:id="episodeArt"
                     AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
     </AnchorPane>
 

@@ -207,9 +207,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         };
 
         episodes.selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
-        episodes.setFactory(item -> {
-            return viewLoader.load("common/components/episode.component.fxml", new EpisodeComponent(item, localeText, imageService));
-        });
+        episodes.setFactory(item -> viewLoader.load("common/components/episode.component.fxml", new EpisodeComponent(item, localeText, imageService)));
     }
 
     private void initializeLanguageSelection() {
@@ -319,7 +317,9 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         // check if the current season should be marked as watched
         updateSeasonIfNeeded(this.seasons.getSelectedItem());
-        Platform.runLater(() -> this.episodes.setSelectedItem(episode));
+        Platform.runLater(() -> {
+            this.episodes.setSelectedItem(episode);
+        });
     }
 
     private String getWatchedTooltip(boolean watched) {

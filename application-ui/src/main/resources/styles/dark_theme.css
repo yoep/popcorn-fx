@@ -1393,6 +1393,7 @@
 /* region Show details */
 
 .root .show-details-section .show-details .seasons {
+    -fx-min-height: 3.5em;
     -fx-border-color: #808080;
     -fx-border-width: 0 0 1 0;
 }

@@ -2,11 +2,9 @@ package com.github.yoep.popcorn.ui.view.controls;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Pane;
 import javafx.scene.shape.Rectangle;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,8 +18,6 @@ public class ImageCover extends AnchorPane {
     public static final String COVER_TYPE_PROPERTY = "coverType";
     private static final String STYLE_CLASS = "image-cover";
 
-    private final ChangeListener<Number> parentWidthListener = (observable, oldValue, newValue) -> onParentWidthChanged(newValue);
-    private final ChangeListener<Number> parentHeightListener = (observable, oldValue, newValue) -> onParentHeightChanged(newValue);
     private final ObjectProperty<CoverType> coverType = new SimpleObjectProperty<>(this, COVER_TYPE_PROPERTY, CoverType.ALL);
 
     private final ImageView imageView = new ImageView();
@@ -99,27 +95,20 @@ public class ImageCover extends AnchorPane {
     //region Functions
 
     private void init() {
-        initializeAnchorPane();
         initializeImageView();
         initializeListeners();
         initializeCover();
+        initializeClip();
     }
 
-    private void initializeAnchorPane() {
-        parentProperty().addListener((observable, oldValue, newValue) -> {
-            if (oldValue != null) {
-                var parent = (Pane) oldValue;
-
-                parent.widthProperty().removeListener(parentWidthListener);
-                parent.heightProperty().removeListener(parentHeightListener);
-            }
-
-            if (newValue != null) {
-                var parent = (Pane) newValue;
-
-                parent.widthProperty().addListener(parentWidthListener);
-                parent.heightProperty().addListener(parentHeightListener);
-            }
+    private void initializeClip() {
+        widthProperty().addListener((observable, oldValue, newValue) -> {
+            clipView.setWidth(newValue.doubleValue());
+            requestLayout();
+        });
+        heightProperty().addListener((observable, oldValue, newValue) -> {
+            clipView.setHeight(newValue.doubleValue());
+            requestLayout();
         });
     }
 
@@ -140,46 +129,6 @@ public class ImageCover extends AnchorPane {
         getStyleClass().add(STYLE_CLASS);
 
         getChildren().add(imageView);
-    }
-
-    private void onParentWidthChanged(Number newValue) {
-        var width = newValue.doubleValue();
-        var parent = getParent();
-
-        if (parent instanceof Pane) {
-            var pane = (Pane) getParent();
-            var padding = pane.getPadding();
-
-            width -= padding.getLeft();
-            width -= padding.getRight();
-        }
-
-        this.setMaxWidth(width);
-        this.setMinWidth(width);
-        this.setPrefWidth(width);
-
-        clipView.setWidth(width);
-        requestLayout();
-    }
-
-    private void onParentHeightChanged(Number newValue) {
-        var height = newValue.doubleValue();
-        var parent = getParent();
-
-        if (parent instanceof Pane) {
-            var pane = (Pane) getParent();
-            var padding = pane.getPadding();
-
-            height -= padding.getTop();
-            height -= padding.getBottom();
-        }
-
-        this.setMaxHeight(height);
-        this.setMinHeight(height);
-        this.setPrefHeight(height);
-
-        clipView.setHeight(height);
-        requestLayout();
     }
 
     private void resizeImage() {

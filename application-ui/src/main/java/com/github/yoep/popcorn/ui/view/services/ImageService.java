@@ -29,9 +29,12 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class ImageService {
     static final String POSTER_HOLDER = "/images/posterholder.png";
+    static final String ART_HOLDER = "/images/artholder.png";
 
     private final RestTemplate restTemplate;
+
     private Image posterHolder;
+    private Image artHolder;
 
     //region Methods
 
@@ -42,6 +45,10 @@ public class ImageService {
      */
     public Image getPosterHolder() {
         return posterHolder;
+    }
+
+    public Image getArtHolder() {
+        return artHolder;
     }
 
     /**
@@ -142,15 +149,22 @@ public class ImageService {
     @PostConstruct
     void init() {
         loadPosterHolder();
+        loadArtHolder();
     }
 
     private void loadPosterHolder() {
         try {
-            var resource = getPosterHolderResource();
-
-            posterHolder = new Image(resource.getInputStream());
+            posterHolder = new Image(new ClassPathResource(POSTER_HOLDER).getInputStream());
         } catch (Exception ex) {
             log.error("Failed to load poster holder, " + ex.getMessage(), ex);
+        }
+    }
+
+    private void loadArtHolder() {
+        try {
+            artHolder = new Image(new ClassPathResource(ART_HOLDER).getInputStream());
+        } catch (Exception ex) {
+            log.error("Failed to load art holder, " + ex.getMessage(), ex);
         }
     }
 
@@ -174,15 +188,6 @@ public class ImageService {
         var inputStream = new ByteArrayInputStream(imageData);
 
         return new Image(inputStream, width, height, true, true);
-    }
-
-    /**
-     * Get the poster holder image resource.
-     *
-     * @return Returns the image resource.
-     */
-    static ClassPathResource getPosterHolderResource() {
-        return new ClassPathResource(POSTER_HOLDER);
     }
 
     /**

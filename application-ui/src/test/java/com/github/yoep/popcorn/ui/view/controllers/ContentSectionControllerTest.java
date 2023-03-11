@@ -25,6 +25,8 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -69,7 +71,7 @@ class ContentSectionControllerTest {
     }
 
     @Test
-    void testOnShowSettingsEvent() {
+    void testOnShowSettingsEvent() throws TimeoutException {
         when(viewLoader.load(ContentSectionController.SETTINGS_SECTION)).thenReturn(new Pane());
         controller.initialize(url, resourceBundle);
 
@@ -77,7 +79,7 @@ class ContentSectionControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(ContentSectionController.ContentType.SETTINGS, controller.activeType);
-        assertEquals(controller.settingsPane, controller.contentPane.getChildren().get(0));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().get(0) == controller.settingsPane);
     }
 
     @Test

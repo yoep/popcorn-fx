@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.ui.events.*;
-import com.github.yoep.popcorn.ui.view.controls.VerticalItemSelection;
+import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
@@ -43,7 +43,7 @@ public class TvFilterComponent implements Initializable {
     @FXML
     VirtualKeyboard virtualKeyboard;
     @FXML
-    VerticalItemSelection<Genre> genres;
+    AxisItemSelection<Genre> genres;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -56,7 +56,7 @@ public class TvFilterComponent implements Initializable {
             searchValue.setText(newValue);
             searchTimeout.playFromStart();
         });
-        genres.setOnItemSelected(this::onGenreChanged);
+        genres.selectedItemProperty().addListener((observable, oldValue, newValue) -> onGenreChanged(newValue));
 
         onFocusChanged(false);
     }
@@ -80,6 +80,7 @@ public class TvFilterComponent implements Initializable {
 
     private void onFocusChanged(boolean newValue) {
         if (newValue) {
+            genres.setVvalue(0.0);
             slideAnimation.setFromValue(slideAnimation.getNode().getOpacity());
             slideAnimation.setToValue(1);
             slideAnimation.playFromStart();
@@ -98,6 +99,9 @@ public class TvFilterComponent implements Initializable {
     }
 
     private void onGenreChanged(Genre genre) {
+        if (genre == null)
+            return;
+
         eventPublisher.publish(new GenreChangeEvent(this, genre));
     }
 

@@ -35,8 +35,11 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.EnableScheduling;
+
+import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_PROTOTYPE;
 
 @Configuration
 @EnableScheduling
@@ -110,6 +113,7 @@ public class ViewConfig {
     }
 
     @Bean
+    @Scope(SCOPE_PROTOTYPE)
     @ConditionalOnDesktopMode
     public DesktopPosterComponent desktopPosterComponent(EventPublisher eventPublisher,
                                                          ImageService imageService,
@@ -120,6 +124,7 @@ public class ViewConfig {
     }
 
     @Bean
+    @Scope(SCOPE_PROTOTYPE)
     @ConditionalOnTvMode
     public TvPosterComponent tvPosterComponent(EventPublisher eventPublisher,
                                                ImageService imageService) {

@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
-import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -36,7 +36,7 @@ public class AboutSectionController implements Initializable {
     private final FxLib fxLib;
 
     @FXML
-    BackgroundImageCover backgroundCover;
+    ImageCover backgroundCover;
     @FXML
     ImageView logoImage;
     @FXML
@@ -62,8 +62,8 @@ public class AboutSectionController implements Initializable {
     }
 
     private void initializeBackgroundCover() {
-        imageService.loadResource("placeholder-background.jpg")
-                .thenAccept(e -> backgroundCover.setBackgroundImage(e));
+        imageService.loadResource("bg-header.jpg")
+                .thenAccept(e -> backgroundCover.setImage(e));
     }
 
     private void initializeLabels() {

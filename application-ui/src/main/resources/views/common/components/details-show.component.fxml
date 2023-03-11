@@ -3,62 +3,41 @@
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection?>
 <?import com.github.yoep.popcorn.ui.view.controls.*?>
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.components.ShowDetailsComponent" styleClass="show-details-section">
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.components.ShowDetailsComponent"
+            styleClass="show-details-section">
 
     <!-- Background -->
-    <BackgroundImageCover fx:id="backgroundImage" maxHeight="215" minHeight="215"
-                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0"/>
+    <BackgroundImageCover fx:id="backgroundImage"
+                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
 
-    <GridPane maxHeight="215" minHeight="215" styleClass="show-header"
-              AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="64">
+    <GridPane fx:id="showDetails" styleClass="show-details"
+              AnchorPane.topAnchor="75" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
         <columnConstraints>
-            <ColumnConstraints minWidth="198"/>
-            <ColumnConstraints minWidth="5"/>
+            <ColumnConstraints/>
+            <ColumnConstraints minWidth="10"/>
             <ColumnConstraints hgrow="ALWAYS"/>
-            <ColumnConstraints minWidth="25"/>
         </columnConstraints>
         <rowConstraints>
             <RowConstraints valignment="TOP"/>
             <RowConstraints valignment="TOP"/>
+            <RowConstraints minHeight="200" valignment="TOP"/>
+            <RowConstraints minHeight="10"/>
+            <RowConstraints valignment="TOP"/>
             <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
-            <RowConstraints valignment="BOTTOM"/>
         </rowConstraints>
 
-        <!-- Image -->
-        <StackPane fx:id="posterHolder" styleClass="poster"
-                   GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4" GridPane.valignment="CENTER">
-            <ImageCover fx:id="poster" styleClass="poster-image" coverType="HEIGHT"/>
-
-            <CornerButton position="TOP_LEFT" onMouseClicked="#onWatchedClicked"
-                          StackPane.alignment="TOP_LEFT">
-                <Icon fx:id="watchedIcon" styleClass="view">
-                    <Icon fx:constant="EYE_SLASH_UNICODE"/>
-                    <tooltip>
-                        <Tooltip fx:id="watchedTooltip"/>
-                    </tooltip>
-                </Icon>
-            </CornerButton>
-
-            <CornerButton position="TOP_RIGHT" onMouseClicked="#onFavoriteClicked"
-                          StackPane.alignment="TOP_RIGHT">
-                <Icon fx:id="favoriteIcon" styleClass="like">
-                    <Icon fx:constant="HEART_UNICODE"/>
-                    <tooltip>
-                        <Tooltip fx:id="favoriteTooltip"/>
-                    </tooltip>
-                </Icon>
-            </CornerButton>
-        </StackPane>
+        <!-- PLACEHOLDER OF THE POSTER -->
 
         <!-- Title -->
-        <Label fx:id="title" styleClass="title" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+        <Label fx:id="title" styleClass="title"
+               GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
         <!-- Metadata -->
-        <HBox alignment="CENTER_LEFT" styleClass="metadata" GridPane.columnIndex="2" GridPane.rowIndex="1">
+        <HBox alignment="CENTER_LEFT" styleClass="metadata"
+              GridPane.columnIndex="2" GridPane.rowIndex="1">
             <Label fx:id="year"/>
             <Icon styleClass="separator">
                 <Icon fx:constant="CIRCLE_UNICODE"/>
@@ -79,11 +58,20 @@
         </HBox>
 
         <!-- Synopsis/overview text -->
-        <Label fx:id="overview" styleClass="overview" wrapText="true" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+        <Label fx:id="overview" styleClass="overview" wrapText="true"
+               GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+
+        <!-- Seasons -->
+        <AxisItemSelection fx:id="seasons" styleClass="seasons" shortKeysEnabled="false" orientation="HORIZONTAL"
+                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="4"/>
+
+        <!-- Episodes -->
+        <AxisItemSelection fx:id="episodes" shortKeysEnabled="false" orientation="VERTICAL"
+                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="5"/>
     </GridPane>
 
     <GridPane styleClass="show-details"
-              AnchorPane.topAnchor="215" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64">
+              AnchorPane.topAnchor="800" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64">
         <columnConstraints>
             <ColumnConstraints minWidth="200" maxWidth="200"/>
             <ColumnConstraints hgrow="ALWAYS"/>
@@ -92,35 +80,6 @@
         <rowConstraints>
             <RowConstraints vgrow="ALWAYS"/>
         </rowConstraints>
-
-        <VBox GridPane.columnIndex="0" GridPane.rowIndex="0">
-            <padding>
-                <Insets left="20" top="10"/>
-            </padding>
-
-            <Label styleClass="section-title" text="%details_seasons"/>
-            <Seasons fx:id="seasons" VBox.vgrow="ALWAYS">
-                <columnResizePolicy>
-                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-                </columnResizePolicy>
-            </Seasons>
-        </VBox>
-
-        <VBox GridPane.columnIndex="1" GridPane.rowIndex="0">
-            <padding>
-                <Insets left="20" right="20" top="10"/>
-            </padding>
-
-            <Label styleClass="section-title" text="%details_episodes"/>
-            <Episodes fx:id="episodes" VBox.vgrow="ALWAYS">
-                <placeholder>
-                    <Label text="%details_episodes_placeholder" styleClass="placeholder"/>
-                </placeholder>
-                <columnResizePolicy>
-                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-                </columnResizePolicy>
-            </Episodes>
-        </VBox>
 
         <GridPane fx:id="episodeDetails" styleClass="episode-overview"
                   GridPane.columnIndex="2" GridPane.rowIndex="0">

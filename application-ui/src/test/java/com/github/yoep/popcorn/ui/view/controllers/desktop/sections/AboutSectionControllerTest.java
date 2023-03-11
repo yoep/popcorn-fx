@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
-import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Label;
@@ -50,7 +50,7 @@ class AboutSectionControllerTest {
     void setUp() {
         controller.titleLabel = new Label("titleLabel");
         controller.versionLabel = new Label("versionLabel");
-        controller.backgroundCover = new BackgroundImageCover();
+        controller.backgroundCover = new ImageCover();
         controller.logoImage = new ImageView();
     }
 

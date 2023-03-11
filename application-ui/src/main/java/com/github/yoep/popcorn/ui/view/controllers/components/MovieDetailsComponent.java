@@ -185,7 +185,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     private void initializePoster() {
-        var poster = viewLoader.load("components/movie-poster.component.fxml");
+        var poster = viewLoader.load("components/poster.component.fxml");
         detailsContent.add(poster, 0, 0);
     }
 

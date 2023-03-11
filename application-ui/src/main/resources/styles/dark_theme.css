@@ -384,7 +384,7 @@
 }
 
 .root .list-section .poster-item .poster .overlay .like.liked,
-.root .show-details-section .show-header .bookmark .like.liked {
+.root .show-details-section .show-details .bookmark .like.liked {
     -fx-text-fill: #df2d37;
     -fx-opacity: 1.0;
 }
@@ -656,24 +656,20 @@
     -fx-text-fill: #fff;
 }
 
-.root .show-details-section .show-header .title {
+.root .show-details-section .show-details .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 28px;
-    -fx-padding: 8 0 5 0;
+    -fx-padding: 0;
 }
 
-.root .show-details-section .show-header .poster {
-    -fx-max-width: 198;
-    -fx-max-height: 215;
+.root .show-details-section .show-details .poster {
+    -fx-pref-width: 10em;
+    -fx-pref-height: 20em;
 }
 
-.root .show-details-section .show-header .poster .poster-image {
+.root .show-details-section .show-details .poster .poster-image {
     -fx-effect: dropshadow(three-pass-box, #17181b, 15, 0, 0, 0);
-}
-
-.root .show-details-section .show-details {
-    -fx-background-color: #17181b;
 }
 
 .root .show-details-section .show-details .section-title {
@@ -688,76 +684,15 @@
     -fx-font-size: 1.5em;
 }
 
-.root .show-details-section .show-details Episodes .table-cell,
-.root .show-details-section .show-details Seasons .table-cell {
-    -fx-font-family: sans-serif;
-    -fx-text-fill: #fff;
-    -fx-font-size: 15px;
-    -fx-padding: 8 10 8 10;
-    -fx-cursor: hand;
-    -fx-border-width: 1;
-    -fx-border-color: #17181b;
-}
-
-.root .show-details-section .show-details Seasons .table-row-cell {
-    -fx-font-weight: bold;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:even,
-.root .show-details-section .show-details Seasons .table-row-cell:even {
-    -fx-background-color: #1f2025;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:hover,
-.root .show-details-section .show-details Seasons .table-row-cell:hover {
-    -fx-background-color: #26272d;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:selected,
-.root .show-details-section .show-details Seasons .table-row-cell:selected {
-    -fx-background-color: #1b2d4c;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:empty,
-.root .show-details-section .show-details Seasons .table-row-cell:empty {
-    -fx-opacity: 0;
-    -fx-cursor: default;
-}
-
-.root .show-details-section .show-details Episodes LabeledText,
-.root .show-details-section .show-details Seasons LabeledText {
-    -fx-font-family: "Open Sans Semibold";
-}
-
-.root .show-details-section .show-details Episodes TableHeaderRow,
-.root .show-details-section .show-details Seasons TableHeaderRow,
-.root .torrent-collection TableView TableHeaderRow {
-    -fx-min-height: 0;
-    -fx-max-height: 0;
-    -fx-pref-height: 0;
-    visibility: false;
-}
-
-.root .show-details-section .show-details Episodes .icon,
-.root .show-details-section .show-details Seasons .icon {
-    -fx-font-size: 1em;
-    -fx-text-fill: rgba(255, 255, 255, 0.2);
-}
-
-.root .show-details-section .show-details Episodes .icon.watched,
-.root .show-details-section .show-details Seasons .icon.watched {
-    -fx-text-fill: #fff;
-}
-
 .root .show-details-section .show-details .episode-overview {
-    -fx-background-color: #1f2025;
     -fx-padding: 10 10 10 10;
+    -fx-cursor: hand;
 }
 
 .root .show-details-section .show-details .episode-overview .episode-title {
-    -fx-font-family: "Open Sans Semibold";
+    -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
-    -fx-font-size: 24px;
+    -fx-font-size: 2em;
 }
 
 .root .show-details-section .show-details .episode-overview .episode-meta {
@@ -769,6 +704,19 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-padding: 10 0 0 0;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-graphic {
+    -fx-pref-width: 320px;
+    -fx-pref-height: 190px;
+    -fx-background-color: rgba(23, 24, 27, 0.5);
+    -fx-border-color: transparent;
+    -fx-border-width: 3;
+}
+
+.root .show-details-section .show-details .episode-overview:hover .episode-graphic,
+.root .show-details-section .show-details .episode-overview:focused .episode-graphic {
+    -fx-border-color: #fff;
 }
 
 .root .show-details-section .show-details .episode-overview .language-selection,
@@ -1434,9 +1382,47 @@
     -fx-font-size: 1em;
     -fx-alignment: center;
 }
+
 .root .content-section .sidebar .search-field .clear-icon,
 .root .content-section .sidebar .search-field .clear-icon .text {
     -fx-cursor: hand;
+}
+
+/* endregion */
+
+/* region Show details */
+
+.root .show-details-section .show-details .seasons {
+    -fx-border-color: #808080;
+    -fx-border-width: 0 0 1 0;
+}
+
+.root .show-details-section .show-details .axis .button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 3 0;
+    -fx-padding: 0 10 0 0;
+}
+
+.root .show-details-section .show-details .axis .button.selected {
+    -fx-border-color: #2d72d9;
+}
+
+.root .show-details-section .show-details .axis .button:focused,
+.root .show-details-section .show-details .axis .button:hover,
+.root .show-details-section .show-details .axis .button.selected:focused,
+.root .show-details-section .show-details .axis .button.selected:hover {
+    -fx-border-color: #fff;
+}
+
+.root .show-details-section .show-details .axis .button .icon {
+    -fx-font-size: 1.2em;
+    -fx-text-fill: rgba(255, 255, 255, 0.2);
+    -fx-padding: 10 5 10 5;
+}
+
+.root .show-details-section .show-details .axis .button .icon.watched {
+    -fx-text-fill: #fff;
 }
 
 /* endregion */

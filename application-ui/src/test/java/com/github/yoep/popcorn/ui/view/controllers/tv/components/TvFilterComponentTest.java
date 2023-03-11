@@ -10,7 +10,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
-import com.github.yoep.popcorn.ui.view.controls.VerticalItemSelection;
+import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -54,7 +54,7 @@ class TvFilterComponentTest {
         component.filter = new VBox();
         component.searchValue = new Label();
         component.virtualKeyboard = new VirtualKeyboard();
-        component.genres = new VerticalItemSelection<>();
+        component.genres = new AxisItemSelection<>();
     }
 
     @Test
@@ -99,7 +99,7 @@ class TvFilterComponentTest {
         var genre = new Genre("lorem", "ipsum");
         component.initialize(url, resourceBundle);
 
-        component.genres.getOnItemSelected().accept(genre);
+        component.genres.setSelectedItem(genre);
 
         verify(eventPublisher).publish(new GenreChangeEvent(component, genre));
     }

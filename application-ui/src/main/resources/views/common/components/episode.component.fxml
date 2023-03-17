@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
@@ -16,16 +17,20 @@
         <RowConstraints valignment="TOP"/>
     </rowConstraints>
 
-    <AnchorPane styleClass="episode-graphic"
+    <AnchorPane fx:id="graphic" styleClass="episode-graphic"
                 GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="3">
         <ImageCover fx:id="episodeArt"
                     AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+        <Icon fx:id="watchedIcon" onMouseClicked="#onWatchedClicked"
+              AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0"/>
+        <Label fx:id="episodeNumber" styleClass="episode-number"
+               AnchorPane.bottomAnchor="30" AnchorPane.leftAnchor="0"/>
     </AnchorPane>
 
-    <Label fx:id="title" styleClass="episode-title"
+    <Label fx:id="title" styleClass="title"
            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-    <Label fx:id="airDate" styleClass="episode-meta"
+    <Label fx:id="airDate" styleClass="metadata"
            GridPane.columnIndex="2" GridPane.rowIndex="1"/>
-    <Label fx:id="synopsis" styleClass="episode-synopsis"
+    <Label fx:id="synopsis"
            GridPane.columnIndex="2" GridPane.rowIndex="2"/>
 </GridPane>

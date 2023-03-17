@@ -73,10 +73,11 @@ public class ShowHelperService {
      * @return Returns the unwatched season or last season if all seasons have been watched.
      */
     public Season getUnwatchedSeason(List<Season> seasons, ShowDetails media) {
-        Assert.notNull(seasons, "seasons cannot be null");
-        Assert.notNull(media, "media cannot be null");
+        Objects.requireNonNull(seasons, "seasons cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
 
         return seasons.stream()
+                .sorted()
                 .filter(e -> !isSeasonWatched(e, media))
                 .findFirst()
                 .orElseGet(() -> CollectionUtils.lastElement(seasons));
@@ -85,17 +86,20 @@ public class ShowHelperService {
     /**
      * Get the first unwatched episode from the episodes list.
      *
-     * @param episodes The episodes list to select from.
+     * @param episodes  The episodes list to select from.
+     * @param season
      * @return Returns the first unwatched episode, or the last episode if all episodes have been watched.
      */
-    public Episode getUnwatchedEpisode(List<Episode> episodes) {
+    public Episode getUnwatchedEpisode(List<Episode> episodes, Season season) {
         Assert.notNull(episodes, "episodes cannot be null");
 
         return episodes.stream()
+                .sorted()
                 .filter(Objects::nonNull)
+                .filter(e -> e.getSeason() == season.getSeason())
                 .filter(e -> !watchedService.isWatched(e))
                 .findFirst()
-                .orElseGet(() -> CollectionUtils.lastElement(episodes));
+                .orElseGet(() -> CollectionUtils.firstElement(episodes));
     }
 
     //endregion

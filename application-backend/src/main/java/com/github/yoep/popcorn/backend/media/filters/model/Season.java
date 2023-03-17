@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @Data
 @AllArgsConstructor
-public class Season implements Media {
+public class Season implements Media, Comparable {
     private final int season;
     private final String text;
 
@@ -71,5 +71,14 @@ public class Season implements Media {
     @Override
     public String toString() {
         return text;
+    }
+
+    @Override
+    public int compareTo(Object other) {
+        return Optional.ofNullable(other)
+                .filter(e -> e instanceof Season)
+                .map(e -> (Season) e)
+                .map(e -> Integer.compare(season, e.season))
+                .orElse(0);
     }
 }

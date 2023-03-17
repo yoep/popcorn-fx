@@ -90,6 +90,9 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
      * @param torrentInfo The media torrent info to display the health status of.
      */
     protected void switchHealth(MediaTorrentInfo torrentInfo) {
+        if (health == null)
+            return;
+
         this.health.setUpdating(true);
 
         // set the health based on the API information

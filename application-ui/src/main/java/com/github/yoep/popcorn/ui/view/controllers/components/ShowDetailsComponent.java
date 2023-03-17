@@ -5,11 +5,11 @@ import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -17,10 +17,12 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
-import com.github.yoep.popcorn.ui.controls.WatchedCellCallbacks;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
+import com.github.yoep.popcorn.ui.view.controls.Overlay;
+import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
@@ -42,7 +44,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.net.URL;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -51,9 +52,9 @@ import java.util.ResourceBundle;
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
     private final ShowHelperService showHelperService;
     private final ViewLoader viewLoader;
+    private final PlayerManagerService playerManagerService;
 
     private Episode episode;
-    private boolean batchUpdating;
 
     @FXML
     GridPane showDetails;
@@ -74,15 +75,17 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @FXML
     AxisItemSelection<Episode> episodes;
     @FXML
-    private Label episodeTitle;
+    Overlay overlay;
     @FXML
-    private Label episodeSeason;
+    Label episodeTitle;
     @FXML
-    private Label airDate;
+    Label episodeSeason;
     @FXML
-    private Label episodeOverview;
+    Label airDate;
     @FXML
-    private GridPane episodeDetails;
+    Label synopsis;
+    @FXML
+    PlayerDropDownButton watchNowButton;
 
     //region Constructors
 
@@ -96,7 +99,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
                                 FxLib fxLib,
-                                ViewLoader viewLoader) {
+                                ViewLoader viewLoader,
+                                PlayerManagerService playerManagerService) {
         super(eventPublisher,
                 localeText,
                 healthService,
@@ -109,7 +113,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         this.showHelperService = showHelperService;
         this.viewLoader = viewLoader;
-        service.addListener(createCallback());
+        this.playerManagerService = playerManagerService;
     }
 
     //endregion
@@ -122,6 +126,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         loadText();
         loadSeasons();
+        overlay.hide();
     }
 
     @Override
@@ -153,6 +158,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         initializeListeners();
         initializePoster();
         initializeMode();
+
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
     }
 
     private void initializeListeners() {
@@ -198,16 +205,18 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializeEpisodes() {
-        var cellCallbacks = new WatchedCellCallbacks() {
-            @Override
-            public void updateWatchedState(Media media, boolean newState, Icon icon) {
-                service.updateWatchedStated(media, newState);
-                onEpisodeWatchedChanged(newState, (Episode) media, icon);
-            }
-        };
+        episodes.setOnItemActivated(this::switchEpisode);
+        episodes.setFactory(item -> {
+            var controller = new EpisodeComponent(item, localeText, imageService);
+            var listener = episodeWatchStateListener(item, controller);
 
-        episodes.selectedItemProperty().addListener((observable, oldValue, newValue) -> switchEpisode(newValue));
-        episodes.setFactory(item -> viewLoader.load("common/components/episode.component.fxml", new EpisodeComponent(item, localeText, imageService)));
+            controller.updateWatchedState(service.isWatched(item));
+            controller.setOnWatchClicked(newState -> service.updateWatchedStated(item, newState));
+            controller.setOnDestroy(() -> service.removeListener(listener));
+            service.addListener(listener);
+
+            return viewLoader.load("common/components/episode.component.fxml", controller);
+        });
     }
 
     private void initializeLanguageSelection() {
@@ -256,27 +265,23 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         List<Episode> episodes = showHelperService.getSeasonEpisodes(newSeason, media);
 
         if (episodes.size() > 0) {
-            this.episodeDetails.getChildren().forEach(e -> e.setVisible(true));
             this.episodes.setItems(episodes.toArray(new Episode[0]));
-            selectUnwatchedEpisode();
-        } else {
-            this.episodeDetails.getChildren().forEach(e -> e.setVisible(false));
+            selectUnwatchedEpisode(newSeason);
         }
     }
 
     private void switchEpisode(Episode episode) {
+        this.overlay.show();
         this.episode = episode;
 
         if (episode == null)
             return;
 
         log.trace("Show episode has been switched to {}", episode);
-        LocalDateTime airDateTime = episode.getAirDate();
-
         episodeTitle.setText(episode.getTitle());
         episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
-        airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(airDateTime)));
-        episodeOverview.setText(episode.getSynopsis());
+        airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(episode.getAirDate())));
+        synopsis.setText(episode.getSynopsis());
 
         loadQualitySelection(episode.getTorrents());
         loadSubtitles(episode);
@@ -293,15 +298,11 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void markSeasonAsWatched(Season season) {
-        batchUpdating = true;
         showHelperService.getSeasonEpisodes(season, media).forEach(e -> service.updateWatchedStated(e, true));
-        batchUpdating = false;
     }
 
     private void unmarkSeasonAsWatched(Season season) {
-        batchUpdating = true;
         showHelperService.getSeasonEpisodes(season, media).forEach(e -> service.updateWatchedStated(e, false));
-        batchUpdating = false;
     }
 
     private void selectUnwatchedSeason() {
@@ -311,15 +312,12 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         Platform.runLater(() -> this.seasons.setSelectedItem(season));
     }
 
-    private void selectUnwatchedEpisode() {
+    private void selectUnwatchedEpisode(Season newSeason) {
         var episodes = this.episodes.getItems();
-        var episode = showHelperService.getUnwatchedEpisode(episodes);
+        var episode = showHelperService.getUnwatchedEpisode(episodes, newSeason);
 
         // check if the current season should be marked as watched
-        updateSeasonIfNeeded(this.seasons.getSelectedItem());
-        Platform.runLater(() -> {
-            this.episodes.setSelectedItem(episode);
-        });
+        Platform.runLater(() -> this.episodes.setSelectedItem(episode, true));
     }
 
     private String getWatchedTooltip(boolean watched) {
@@ -339,32 +337,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         selectUnwatchedSeason();
     }
 
-    private void onEpisodeWatchedChanged(Boolean newValue, Episode episode, Icon icon) {
-        Tooltip.install(icon, instantTooltip(getWatchedTooltip(newValue)));
-        service.updateWatchedStated(episode, newValue);
-
-        // check if a batch update is running
-        // if so, do not go to the next unwatched episode
-        if (!batchUpdating) {
-            // navigate to the next unwatched episode
-            selectUnwatchedEpisode();
-        }
-    }
-
-    private void updateSeasonIfNeeded(Season season) {
-        // todo: update
-        //        seasons.updateWatchedState(season, isSeasonWatched(season));
-    }
-
-    private DetailsComponentListener createCallback() {
+    private static DetailsComponentListener episodeWatchStateListener(Episode item, EpisodeComponent controller) {
         return new DetailsComponentListener() {
             @Override
-            public void onWatchChanged(String id, boolean newState) {
-                //todo: update episode state
-                //                episodes.getItems().stream()
-                //                        .filter(e -> e.getId().equals(id))
-                //                        .findFirst()
-                //                        .ifPresent(e -> episodes.updateWatchedState(e, newState));
+            public void onWatchChanged(String imdbId, boolean newState) {
+                if (imdbId.equals(item.getId())) {
+                    controller.updateWatchedState(newState);
+                }
             }
 
             @Override

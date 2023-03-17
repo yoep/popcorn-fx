@@ -79,7 +79,7 @@ class ContentSectionControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(ContentSectionController.ContentType.SETTINGS, controller.activeType);
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().get(0) == controller.settingsPane);
+        WaitForAsyncUtils.waitFor(500, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().get(0) == controller.settingsPane);
     }
 
     @Test

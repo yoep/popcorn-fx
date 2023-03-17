@@ -23,7 +23,6 @@
 .root .table-view,
 .root .loader,
 .root .player-external,
-.root .overlay,
 .root .content-section {
     -fx-border-width: 0;
     -fx-font-size: 12px;
@@ -35,7 +34,6 @@
 .root .table-view,
 .root .loader,
 .root .player-external,
-.root .overlay,
 .root .content-section {
     -fx-background-color: #17181b;
 }
@@ -607,13 +605,13 @@
 }
 
 .root .movie-details .subtitle-group .language-selection .arrow,
-.root .show-details-section .show-details .episode-overview .language-selection .arrow {
+.root .show-details-section .language-selection .arrow {
     -fx-text-fill: #fff;
     -fx-padding: 0 5 0 5;
 }
 
 .root .movie-details .subtitle-group .language-selection .language-popup,
-.root .show-details-section .show-details .episode-overview .language-selection .language-popup {
+.root .show-details-section .language-selection .language-popup {
     -fx-max-width: 140;
     -fx-min-width: 140;
     -fx-background-color: rgba(23, 24, 27, 0.8);
@@ -621,7 +619,7 @@
 }
 
 .root .movie-details .subtitle-group .language-selection .language-popup .language-flag,
-.root .show-details-section .show-details .episode-overview .language-selection .language-popup .language-flag {
+.root .show-details-section .language-selection .language-popup .language-flag {
     -fx-padding: 2 2 2 2;
     -fx-cursor: hand;
 }
@@ -689,21 +687,18 @@
     -fx-cursor: hand;
 }
 
-.root .show-details-section .show-details .episode-overview .episode-title {
-    -fx-font-family: "Open Sans Bold";
+.root .show-details-section .show-details .episode-overview .label {
+    -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
+}
+
+.root .show-details-section .show-details .episode-overview .title {
+    -fx-font-family: "Open Sans Bold";
     -fx-font-size: 2em;
 }
 
-.root .show-details-section .show-details .episode-overview .episode-meta {
-    -fx-font-family: "Open Sans Semibold";
+.root .show-details-section .show-details .episode-overview .metadata {
     -fx-text-fill: #8d9296;
-}
-
-.root .show-details-section .show-details .episode-overview .episode-synopsis {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
-    -fx-padding: 10 0 0 0;
 }
 
 .root .show-details-section .show-details .episode-overview .episode-graphic {
@@ -714,13 +709,40 @@
     -fx-border-width: 3;
 }
 
-.root .show-details-section .show-details .episode-overview:hover .episode-graphic,
-.root .show-details-section .show-details .episode-overview:focused .episode-graphic {
-    -fx-border-color: #fff;
+.root .show-details-section .show-details .episode-overview .episode-graphic.watched {
+    -fx-opacity: 0.5;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection,
-.root .show-details-section .show-details .episode-overview .quality-selection .quality {
+.root .show-details-section .show-details .episode-overview .episode-graphic .icon {
+    -fx-font-size: 2em;
+    -fx-text-fill: #fff;
+    -fx-padding: 10;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-graphic .episode-number {
+    -fx-text-fill: #fff;
+    -fx-font-family: "Open Sans Bold";
+    -fx-background-color: rgba(23, 24, 27, 0.75);
+    -fx-border-color: #2d72d9;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 3 15 3 15;
+}
+
+.root .show-details-section .show-details .episode-overview:hover .episode-graphic,
+.root .show-details-section .show-details .episode-overview:focused .episode-graphic,
+.root .show-details-section .show-details .episode-overview:hover .episode-graphic.watched,
+.root .show-details-section .show-details .episode-overview:focused .episode-graphic.watched {
+    -fx-border-color: #2d72d9;
+    -fx-opacity: 1;
+}
+
+.root .show-details-section .show-details .episode-overview:hover .episode-graphic .episode-number,
+.root .show-details-section .show-details .episode-overview:focused .episode-graphic .episode-number {
+    -fx-background-color: rgba(27, 67, 128, 0.75);
+}
+
+.root .show-details-section .language-selection,
+.root .show-details-section .quality-selection .quality {
     -fx-background-color: #1f375f;
     -fx-border-color: #1f264b;
     -fx-border-width: 1;
@@ -728,30 +750,30 @@
     -fx-padding: 3 3 3 3;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection:hover {
+.root .show-details-section .language-selection:hover {
     -fx-background-color: #225694;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection .graphic {
+.root .show-details-section .language-selection .graphic {
     -fx-padding: 0 5 0 5;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection .name {
+.root .show-details-section .language-selection .name {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection .arrow {
+.root .show-details-section .language-selection .arrow {
     -fx-text-alignment: center;
 }
 
-.root .show-details-section .show-details .episode-overview .quality-selection .quality {
+.root .show-details-section .quality-selection .quality {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-padding: 3 10 3 10;
 }
 
-.root .show-details-section .show-details .episode-overview .quality-selection .quality.active {
+.root .show-details-section .quality-selection .quality.active {
     -fx-background-color: rgba(43, 110, 210, 0.84);
 }
 
@@ -1424,6 +1446,33 @@
 
 .root .show-details-section .show-details .axis .button .icon.watched {
     -fx-text-fill: #fff;
+}
+
+/* endregion */
+
+/* region Overlay */
+
+.root .overlay .overlay-content {
+    -fx-background-color: rgba(24, 25, 28, 0.75);
+    -fx-padding: 20 20 20 20;
+}
+
+.root .overlay .overlay-content .label {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+}
+
+.root .overlay .overlay-content .title {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 2em;
+}
+
+.root .overlay .overlay-content .metadata {
+    -fx-text-fill: #8d9296;
+}
+
+.root .overlay .overlay-content .synopsis {
+    -fx-padding: 10 0 10 0;
 }
 
 /* endregion */

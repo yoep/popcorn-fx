@@ -16,6 +16,7 @@ import javafx.scene.layout.VBox;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The axis item selection allows the selection of a certain item on the X- or Y-axis.
@@ -32,11 +33,15 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
      */
     private final ObservableMap<T, Node> items = FXCollections.observableHashMap();
     /**
-     * The selected item.
+     * The selected item which only changes when selected.
      */
     private final ObjectProperty<T> selectedItem = new SimpleObjectProperty<>();
     private final ObjectProperty<Orientation> orientation = new SimpleObjectProperty<>(Orientation.VERTICAL);
     private final ObjectProperty<ItemFactory<T>> factory = new SimpleObjectProperty<>(item -> new Button(item.toString()));
+    /**
+     * Invoked each time an item is activated through user interaction.
+     */
+    private Consumer<T> onItemActivated;
 
     private Pane content;
 
@@ -84,6 +89,14 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         this.factory.set(factory);
     }
 
+    public Consumer<T> getOnItemActivated() {
+        return onItemActivated;
+    }
+
+    public void setOnItemActivated(Consumer<T> onItemActivated) {
+        this.onItemActivated = onItemActivated;
+    }
+
     //endregion
 
     public List<T> getItems() {
@@ -116,8 +129,15 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
                     var x = e.getBoundsInParent().getMaxX();
                     var y = e.getBoundsInParent().getMaxY();
 
-                    setVvalue(y / contentLocalBounds.getWidth());
-                    setHvalue(x / contentLocalBounds.getHeight());
+                    if (y - e.getBoundsInParent().getHeight() == 0) {
+                        y = 0;
+                    }
+                    if (x - e.getBoundsInParent().getWidth() == 0) {
+                        x = 0;
+                    }
+
+                    setVvalue(y / contentLocalBounds.getHeight());
+                    setHvalue(x / contentLocalBounds.getWidth());
 
                     if (focus)
                         e.requestFocus();
@@ -128,6 +148,7 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         for (Map.Entry<T, Node> entry : items.entrySet()) {
             if (entry.getValue() == node) {
                 selectedItem.set(entry.getKey());
+                onItemActivated.accept(entry.getKey());
                 return;
             }
         }

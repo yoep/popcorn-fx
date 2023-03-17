@@ -70,81 +70,43 @@
                            GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="5"/>
     </GridPane>
 
-    <GridPane styleClass="show-details"
-              AnchorPane.topAnchor="800" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64">
-        <columnConstraints>
-            <ColumnConstraints minWidth="200" maxWidth="200"/>
-            <ColumnConstraints hgrow="ALWAYS"/>
-            <ColumnConstraints hgrow="SOMETIMES" minWidth="300" percentWidth="30"/>
-        </columnConstraints>
-        <rowConstraints>
-            <RowConstraints vgrow="ALWAYS"/>
-        </rowConstraints>
-
-        <GridPane fx:id="episodeDetails" styleClass="episode-overview"
-                  GridPane.columnIndex="2" GridPane.rowIndex="0">
+    <Overlay fx:id="overlay">
+        <!-- Actions -->
+        <GridPane>
             <columnConstraints>
                 <ColumnConstraints/>
-                <ColumnConstraints halignment="RIGHT"/>
+                <ColumnConstraints/>
             </columnConstraints>
             <rowConstraints>
                 <RowConstraints/>
                 <RowConstraints/>
                 <RowConstraints/>
-                <RowConstraints vgrow="ALWAYS" valignment="TOP"/>
+                <RowConstraints/>
                 <RowConstraints/>
                 <RowConstraints/>
             </rowConstraints>
-            <vgap>2</vgap>
+            <hgap>3</hgap>
 
-            <!-- Episode title -->
-            <Label fx:id="episodeTitle" styleClass="episode-title"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+            <Label fx:id="episodeTitle" styleClass="title"
+                   GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2"/>
+            <Label fx:id="episodeSeason" styleClass="metadata"
+                   GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.columnSpan="2"/>
+            <Label fx:id="airDate" styleClass="metadata"
+                   GridPane.columnIndex="0" GridPane.rowIndex="2" GridPane.columnSpan="2"/>
+            <Label fx:id="synopsis" styleClass="synopsis" wrapText="true"
+                   GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.columnSpan="2"/>
 
-            <!-- Metadata -->
-            <Label fx:id="episodeSeason" styleClass="episode-meta"
-                   GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-            <Label fx:id="airDate" styleClass="episode-meta"
-                   GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+            <!-- Subtitle selection -->
+            <LanguageFlagSelection fx:id="languageSelection"
+                                   GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+            <!-- Quality selection -->
+            <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
+                  GridPane.columnIndex="0" GridPane.rowIndex="5"/>
 
-            <!-- Magnet & Health -->
-            <HBox alignment="TOP_RIGHT"
-                  GridPane.rowSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1">
-                <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
-                    <Icon fx:constant="MAGNET_UNICODE"/>
-                </Icon>
-                <HealthIcon fx:id="health" styleClass="health"/>
-            </HBox>
-
-            <!-- Overview -->
-            <Label fx:id="episodeOverview" styleClass="episode-synopsis" wrapText="true"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-
-            <!-- Actions -->
-            <GridPane GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="4">
-                <columnConstraints>
-                    <ColumnConstraints/>
-                    <ColumnConstraints hgrow="ALWAYS"/>
-                    <ColumnConstraints/>
-                </columnConstraints>
-                <rowConstraints>
-                    <RowConstraints/>
-                    <RowConstraints/>
-                </rowConstraints>
-                <vgap>2</vgap>
-
-                <!-- Subtitle selection -->
-                <LanguageFlagSelection fx:id="languageSelection"
-                                       GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-
-                <!-- Quality selection -->
-                <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
-                      GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-
-                <!-- Play actions -->
-                <PlayerDropDownButton fx:id="watchNowButton" text="%details_watch_now" styleClass="watch-now" onMouseClicked="#onWatchNowClicked"
-                                      GridPane.rowSpan="2" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-            </GridPane>
+            <!-- Play actions -->
+            <PlayerDropDownButton fx:id="watchNowButton" text="%details_watch_now" styleClass="watch-now" onMouseClicked="#onWatchNowClicked"
+                                  GridPane.columnIndex="1" GridPane.rowIndex="4" GridPane.rowSpan="2"
+                                  GridPane.halignment="RIGHT" GridPane.valignment="TOP"/>
         </GridPane>
-    </GridPane>
+    </Overlay>
 </AnchorPane>

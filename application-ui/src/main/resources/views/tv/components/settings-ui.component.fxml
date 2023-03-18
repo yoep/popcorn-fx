@@ -28,12 +28,12 @@
     <Button fx:id="defaultLanguage"
             GridPane.columnIndex="2" GridPane.rowIndex="0"/>
 
-    <Label text="%settings_ui_scale" labelFor="$uiScale"
+    <Label styleClass="subsection-label" text="%settings_ui_scale" labelFor="$uiScale"
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>
     <Button fx:id="uiScale"
             GridPane.columnIndex="2" GridPane.rowIndex="1"/>
 
-    <Label text="%settings_start_screen" labelFor="$startScreen"
+    <Label styleClass="subsection-label" text="%settings_start_screen" labelFor="$startScreen"
            GridPane.columnIndex="1" GridPane.rowIndex="2"/>
     <Button fx:id="startScreen"
               GridPane.columnIndex="2" GridPane.rowIndex="2"/>

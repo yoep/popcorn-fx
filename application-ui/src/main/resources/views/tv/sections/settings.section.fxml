@@ -13,6 +13,8 @@
         <ManageableScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" shortKeysEnabled="false">
             <VBox>
                 <fx:include source="../components/settings-ui.component.fxml" />
+
+                <fx:include source="../components/settings-subtitles.component.fxml" />
             </VBox>
         </ManageableScrollPane>
     </VBox>

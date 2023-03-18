@@ -68,4 +68,10 @@ public class TvConfig {
                                                        LocaleText localeText) {
         return new TvSettingsUiComponent(applicationConfig, localeText);
     }
+
+    @Bean
+    @ConditionalOnTvMode
+    public TvSettingsSubtitlesComponent tvSettingsSubtitlesComponent(ApplicationConfig applicationConfig) {
+        return new TvSettingsSubtitlesComponent(applicationConfig);
+    }
 }

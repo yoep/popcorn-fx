@@ -196,9 +196,6 @@
                     <version>${project.version}</version>
                     <linuxConfig>
                         <generateRpm>false</generateRpm>
-                        <categories>
-                            <category>Media</category>
-                        </categories>
                     </linuxConfig>
                     <macConfig>
                         <generateDmg>true</generateDmg>

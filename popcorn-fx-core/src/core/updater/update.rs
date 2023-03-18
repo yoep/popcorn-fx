@@ -375,8 +375,15 @@ impl InnerUpdater {
     fn is_update_available(&self, version_info: &VersionInfo, channel_version: &Version) -> bool {
         let current_version = Self::current_version();
 
-        channel_version.cmp(&current_version) == Ordering::Greater
-            && version_info.platforms.contains_key(self.platform_identifier().as_str())
+        if channel_version.cmp(&current_version) == Ordering::Greater {
+            let platform_identifier = self.platform_identifier();
+            if version_info.platforms.contains_key(platform_identifier.as_str()) {
+                return true
+            }
+            warn!("New version {} available, but no installer found for {}", channel_version, platform_identifier.as_str());
+        }
+
+        false
     }
 
     /// Retrieve the current platform identifier which can be used to get the correct binary from the update channel.

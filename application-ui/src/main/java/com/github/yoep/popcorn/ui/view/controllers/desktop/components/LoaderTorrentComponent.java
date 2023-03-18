@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
@@ -11,11 +10,14 @@ import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +35,6 @@ public class LoaderTorrentComponent implements Initializable {
     static final String PROGRESS_ERROR_STYLE_CLASS = "error";
 
     private final LoadTorrentService service;
-    private final PlatformProvider platformProvider;
     private final LocaleText localeText;
     private final ImageService imageService;
 
@@ -123,7 +124,7 @@ public class LoaderTorrentComponent implements Initializable {
     }
 
     private void onDownloadStatusChanged(DownloadStatus status) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             progressStatus.setVisible(true);
             progressBar.setProgress(status.getProgress());
             progressBar.setVisible(true);
@@ -139,34 +140,34 @@ public class LoaderTorrentComponent implements Initializable {
         // reset the progress bar to "infinite" animation
         reset();
 
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             progressStatus.setVisible(false);
             statusText.setText(localeText.get(TorrentMessage.STARTING));
         });
     }
 
     private void onLoadTorrentInitializing() {
-        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
     }
 
     private void onLoadTorrentRetrievingSubtitles() {
-        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES)));
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES)));
     }
 
     private void onLoadTorrentDownloadingSubtitle() {
-        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE)));
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE)));
     }
 
     private void onLoadTorrentConnecting() {
-        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
     }
 
     private void onLoadTorrentDownloading() {
-        platformProvider.runOnRenderer(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING)));
+        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING)));
     }
 
     private void onLoadTorrentReady() {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             statusText.setText(localeText.get(TorrentMessage.READY));
             progressBar.setProgress(1);
             progressBar.setVisible(true);
@@ -174,7 +175,7 @@ public class LoaderTorrentComponent implements Initializable {
     }
 
     private void onLoadTorrentError() {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             // update the actions with the retry button
             loaderActions.getChildren().add(0, loadRetryButton);
 
@@ -186,7 +187,7 @@ public class LoaderTorrentComponent implements Initializable {
     }
 
     private void reset() {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             statusText.setText(null);
             progressBar.getStyleClass().removeIf(e -> e.equals(PROGRESS_ERROR_STYLE_CLASS));
         });
@@ -196,7 +197,7 @@ public class LoaderTorrentComponent implements Initializable {
     }
 
     private void resetProgressToDefaultState() {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             progressBar.setProgress(0.0);
             progressBar.setVisible(false);
             progressBar.getStyleClass().removeIf(e -> e.equals(PROGRESS_ERROR_STYLE_CLASS));
@@ -204,17 +205,17 @@ public class LoaderTorrentComponent implements Initializable {
     }
 
     private void removeRetryButton() {
-        platformProvider.runOnRenderer(() -> loaderActions.getChildren().removeIf(e -> e == loadRetryButton));
+        Platform.runLater(() -> loaderActions.getChildren().removeIf(e -> e == loadRetryButton));
     }
 
     private void loadBackgroundImage(Media media) {
-        platformProvider.runOnRenderer(() -> backgroundImage.reset());
+        Platform.runLater(() -> backgroundImage.reset());
         Optional.ofNullable(media)
                 .map(imageService::loadFanart)
                 .ifPresent(e -> e.whenComplete((bytes, throwable) -> {
                     if (throwable == null) {
                         bytes.ifPresent(image ->
-                                platformProvider.runOnRenderer(() -> backgroundImage.setBackgroundImage(image)));
+                                Platform.runLater(() -> backgroundImage.setBackgroundImage(image)));
                     } else {
                         log.error(throwable.getMessage(), throwable);
                     }
@@ -228,7 +229,7 @@ public class LoaderTorrentComponent implements Initializable {
     }
 
     @FXML
-    private void onCancelClicked(MouseEvent event) {
+    void onCancelClicked(MouseEvent event) {
         event.consume();
         close();
     }
@@ -237,6 +238,22 @@ public class LoaderTorrentComponent implements Initializable {
     void onRetryClicked(MouseEvent event) {
         event.consume();
         service.retryLoadingTorrent();
+    }
+
+    @FXML
+    void onCancelPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            close();
+        }
+    }
+
+    @FXML
+    void onLoaderKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE) {
+            event.consume();
+            close();
+        }
     }
 
     //endregion

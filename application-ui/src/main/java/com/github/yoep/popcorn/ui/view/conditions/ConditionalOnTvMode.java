@@ -7,7 +7,7 @@ import java.lang.annotation.*;
 /**
  * {@link Conditional} that only matches when the TV mode is activated.
  */
-@Target({ ElementType.TYPE })
+@Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Conditional(OnTvModeCondition.class)

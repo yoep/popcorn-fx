@@ -5,10 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
-import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
-import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
@@ -18,8 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -38,8 +35,8 @@ class PlayerStopServiceTest {
     private PlayNextService playNextService;
     @Mock
     private SubtitleService subtitleService;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerStopService service;
 
@@ -60,7 +57,7 @@ class PlayerStopServiceTest {
         }).when(playerEventService).addListener(isA(PlayerListener.class));
         when(playNextService.getNextEpisode()).thenReturn(Optional.empty());
         service.init();
-        service.onPlayMedia(PlayMediaEvent.mediaBuilder()
+        eventPublisher.publishEvent(PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-movie-url")
                 .title("my-title-url")
@@ -92,7 +89,7 @@ class PlayerStopServiceTest {
         }).when(playerEventService).addListener(isA(PlayerListener.class));
         when(playNextService.getNextEpisode()).thenReturn(Optional.of(mock(PlayNextService.NextEpisode.class)));
         service.init();
-        service.onPlayMedia(PlayMediaEvent.mediaBuilder()
+        eventPublisher.publishEvent(PlayMediaEvent.mediaBuilder()
                 .source(this)
                 .url("my-movie-url")
                 .title("my-title-url")
@@ -152,7 +149,7 @@ class PlayerStopServiceTest {
         }).when(eventPublisher).publishEvent(isA(PlayerStoppedEvent.class));
 
         service.init();
-        service.onPlayTorrent(event);
+        eventPublisher.publishEvent(event);
         var playerListener = listenerHolder.get();
         playerListener.onDurationChanged(duration);
         playerListener.onTimeChanged(time);
@@ -185,7 +182,7 @@ class PlayerStopServiceTest {
         }).when(eventPublisher).publishEvent(isA(PlayerStoppedEvent.class));
 
         service.init();
-        service.onPlayMedia(event);
+        eventPublisher.publishEvent(event);
         var playerListener = listenerHolder.get();
         playerListener.onTimeChanged(1000L);
         playerListener.onDurationChanged(5000L);

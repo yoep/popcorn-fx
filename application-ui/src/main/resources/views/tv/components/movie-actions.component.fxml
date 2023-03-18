@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection?>
+<?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvMovieActionsComponent"
+      alignment="CENTER_LEFT" spacing="5">
+    <Button fx:id="watchNowButton" styleClass="watch-now" text="%details_watch_now">
+        <graphic>
+            <Icon>
+                <Icon fx:constant="PLAY_UNICODE"/>
+            </Icon>
+        </graphic>
+    </Button>
+
+    <Button fx:id="watchTrailerButton" text="%details_watch_trailer" onMouseClicked="#onTrailerClicked" onKeyPressed="#onTrailerPressed">
+        <graphic>
+            <Icon>
+                <Icon fx:constant="YOUTUBE_PLAY_UNICODE"/>
+            </Icon>
+        </graphic>
+    </Button>
+
+    <Overlay fx:id="qualityOverlay" for="$watchNowButton">
+        <VBox>
+            <Label styleClass="title" text="%video_resolution" />
+            <AxisItemSelection fx:id="qualities" spacing="5" />
+        </VBox>
+    </Overlay>
+
+    <Overlay fx:id="subtitleOverlay">
+        <VBox>
+            <Label styleClass="title" text="%details_subtitle" />
+            <AxisItemSelection fx:id="subtitles" spacing="5" />
+        </VBox>
+    </Overlay>
+</HBox>

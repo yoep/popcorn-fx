@@ -12,7 +12,7 @@ pub fn available_uris(settings: &ApplicationConfig, provider_name: &str) -> Vec<
         Some(e) => uris.push(e.clone())
     }
 
-    match settings.properties().provider(provider_name.to_string()) {
+    match settings.properties().provider(provider_name) {
         Ok(e) => {
             for uri in e.uris() {
                 uris.push(uri.clone());

@@ -1,19 +1,25 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.mockito.Mockito.*;
 
@@ -27,6 +33,8 @@ class HealthServiceTest {
     private ApplicationSettings settings;
     @Mock
     private TorrentSettings torrentSettings;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher();
     @InjectMocks
     private HealthService healthService;
     @TempDir
@@ -65,15 +73,23 @@ class HealthServiceTest {
     }
 
     @Test
-    void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
+    void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() throws ExecutionException, InterruptedException,
+            TimeoutException {
         var firstUrl = "lorem";
         var future = mock(CompletableFuture.class);
+        var wait = new CompletableFuture<Void>();
         when(torrentService.getTorrentHealth(firstUrl, torrentDirectory)).thenReturn(future);
         when(future.isDone()).thenReturn(false);
+        eventPublisher.register(CloseDetailsEvent.class, event -> {
+            wait.complete(null);
+            return null;
+        }, EventPublisher.LOWEST_ORDER);
+        healthService.init();
 
         healthService.getTorrentHealth(firstUrl);
-        healthService.onCancelHealthRetrieval();
+        eventPublisher.publish(new CloseDetailsEvent(this));
 
+        wait.get(200, TimeUnit.MILLISECONDS);
         verify(future).cancel(true);
     }
 }

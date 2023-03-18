@@ -7,7 +7,7 @@
           styleClass="sub-section">
     <columnConstraints>
         <ColumnConstraints/>
-        <ColumnConstraints prefWidth="200"/>
+        <ColumnConstraints/>
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
@@ -19,11 +19,11 @@
     </rowConstraints>
 
     <!-- User interface title -->
-    <Label styleClass="subsection-title" text="%settings_user_interface"
-           GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+    <Label styleClass="subsection-title" text="%settings_user_interface" wrapText="true"
+           GridPane.valignment="TOP" GridPane.rowSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
     <!-- Default language -->
-    <Label text="%settings_ui_language"
+    <Label styleClass="subsection-label" text="%settings_ui_language" wrapText="true"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
     <ComboBox fx:id="defaultLanguage"
               GridPane.columnIndex="2" GridPane.rowIndex="0"/>

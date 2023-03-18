@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
@@ -21,8 +22,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -44,7 +43,7 @@ public class PlayNextService {
      */
     public static final int UNDEFINED = -1;
 
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final PlayerEventService playerEventService;
     private final PlayerManagerService playerManagerService;
     private final ApplicationConfig settingsService;
@@ -114,24 +113,6 @@ public class PlayNextService {
         reset();
     }
 
-    @EventListener
-    public void onPlayVideo(PlayVideoEvent event) {
-        // check if the play next option is enabled
-        // if not, ignore this event
-        if (isPlayNextDisabled()) {
-            reset();
-            return;
-        }
-
-        if (PlayMediaEvent.class.isAssignableFrom(event.getClass())) {
-            var mediaEvent = (PlayMediaEvent) event;
-
-            onPlayMedia(mediaEvent);
-        } else {
-            reset();
-        }
-    }
-
     //endregion
 
     //region PostConstruct
@@ -139,6 +120,10 @@ public class PlayNextService {
     @PostConstruct
     void init() {
         initializeVideoPlayerListeners();
+        eventPublisher.register(PlayVideoEvent.class, event -> {
+            onPlayVideoEvent(event);
+            return event;
+        });
     }
 
     private void initializeVideoPlayerListeners() {
@@ -168,6 +153,23 @@ public class PlayNextService {
     //endregion
 
     //region Functions
+
+    private void onPlayVideoEvent(PlayVideoEvent event) {
+        // check if the play next option is enabled
+        // if not, ignore this event
+        if (isPlayNextDisabled()) {
+            reset();
+            return;
+        }
+
+        if (PlayMediaEvent.class.isAssignableFrom(event.getClass())) {
+            var mediaEvent = (PlayMediaEvent) event;
+
+            onPlayMedia(mediaEvent);
+        } else {
+            reset();
+        }
+    }
 
     private void onTimeChanged(long time) {
         // check if the next episode to be played is known and the play next option is enabled

@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Slf4j
 public class LanguageFlagCell extends Control {
@@ -32,11 +33,18 @@ public class LanguageFlagCell extends Control {
         if (item != null) {
             setText(item.getLanguage().getNativeName());
 
-            try {
-                setGraphic(new ImageView(new Image(item.getFlagResource().getInputStream())));
-            } catch (IOException e) {
-                log.error(e.getMessage(), e);
-            }
+            Optional.ofNullable(item.getFlagResource())
+                    .map(e -> {
+                        try {
+                            return e.getInputStream();
+                        } catch (IOException ex) {
+                            log.error(ex.getMessage(), ex);
+                            return null;
+                        }
+                    })
+                    .map(Image::new)
+                    .map(ImageView::new)
+                    .ifPresent(this::setGraphic);
         } else {
             setText(null);
             setGraphic(null);

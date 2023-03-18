@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
@@ -59,7 +59,7 @@ public class MediaSet extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        FxLib.INSTANCE.dispose_media_items(this);
+        FxLibInstance.INSTANCE.get().dispose_media_items(this);
     }
 
     private void toMovieArray(List<MovieOverview> items) {

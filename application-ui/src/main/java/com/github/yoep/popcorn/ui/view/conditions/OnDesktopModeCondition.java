@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.conditions;
 
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.FxLibInstance;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.ConfigurationCondition;
 import org.springframework.core.type.AnnotatedTypeMetadata;
@@ -11,21 +11,11 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 public class OnDesktopModeCondition implements ConfigurationCondition {
     @Override
     public ConfigurationPhase getConfigurationPhase() {
-        return ConfigurationPhase.PARSE_CONFIGURATION;
+        return ConfigurationPhase.REGISTER_BEAN;
     }
 
     @Override
     public boolean matches(ConditionContext conditionContext, AnnotatedTypeMetadata annotatedTypeMetadata) {
-        var beanFactory = conditionContext.getBeanFactory();
-
-        if (beanFactory != null) {
-            var arguments = beanFactory.getBean(ApplicationArguments.class);
-
-            return !arguments.containsOption(OptionsService.TV_MODE_OPTION);
-        } else {
-            log.warn("Unable to verify TV mode, beanFactory is undefined");
-        }
-
-        return false;
+        return FxLibInstance.INSTANCE.get().is_tv_mode(PopcornFxInstance.INSTANCE.get()) == 0;
     }
 }

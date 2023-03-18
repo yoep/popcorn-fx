@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
+import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.sun.jna.Structure;
 import lombok.*;
 
@@ -33,7 +34,7 @@ public class UISettings extends Structure implements Closeable {
 
     public String defaultLanguage;
     public UIScale uiScale;
-    public StartScreen startScreen;
+    public Category startScreen;
     public byte maximized;
     public byte nativeWindowEnabled;
 

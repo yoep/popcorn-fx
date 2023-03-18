@@ -1,8 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.StartScreen;
 import com.github.yoep.popcorn.backend.settings.models.UIScale;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
@@ -10,7 +11,6 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.net.URL;
 import java.util.Locale;
@@ -22,11 +22,11 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
     @FXML
     ComboBox<UIScale> uiScale;
     @FXML
-    ComboBox<StartScreen> startScreen;
+    ComboBox<Category> startScreen;
     @FXML
     CheckBox nativeWindow;
 
-    public SettingsUIComponent(ApplicationEventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
+    public SettingsUIComponent(EventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
         super(eventPublisher, localeText, settingsService);
     }
 
@@ -58,7 +58,7 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         startScreen.setCellFactory(param -> createStartScreenCell());
         startScreen.setButtonCell(createStartScreenCell());
 
-        startScreen.getItems().addAll(StartScreen.values());
+        startScreen.getItems().addAll(Category.values());
         startScreen.getSelectionModel().select(getUiSettings().getStartScreen());
         startScreen.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateStartScreen(newValue));
     }
@@ -69,27 +69,31 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
     }
 
     private void updateLanguage(Locale locale) {
-        getUiSettings().setDefaultLanguage(locale.toString());
-        applicationConfig.update(getUiSettings());
+        var settings = getUiSettings();
+        settings.setDefaultLanguage(locale.toString());
+        applicationConfig.update(settings);
         showNotification();
         //TODO: force the UI to reload to apply the text changes
     }
 
     private void updateUIScale(UIScale newValue) {
-        getUiSettings().setUiScale(newValue);
-        applicationConfig.update(getUiSettings());
+        var settings = getUiSettings();
+        settings.setUiScale(newValue);
+        applicationConfig.update(settings);
         showNotification();
     }
 
-    private void updateStartScreen(StartScreen startScreen) {
-        getUiSettings().setStartScreen(startScreen);
-        applicationConfig.update(getUiSettings());
+    private void updateStartScreen(Category startScreen) {
+        var settings = getUiSettings();
+        settings.setStartScreen(startScreen);
+        applicationConfig.update(settings);
         showNotification();
     }
 
     private void updateNativeWindow(Boolean newValue) {
-        getUiSettings().setNativeWindowEnabled(newValue);
-        applicationConfig.update(getUiSettings());
+        var settings = getUiSettings();
+        settings.setNativeWindowEnabled(newValue);
+        applicationConfig.update(settings);
         showNotification();
     }
 

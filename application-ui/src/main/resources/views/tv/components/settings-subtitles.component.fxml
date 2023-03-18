@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection?>
+<?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvSettingsSubtitlesComponent"
+          styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <Label styleClass="subsection-title" text="%settings_subtitles" GridPane.valignment="TOP"
+           GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <Label styleClass="subsection-label" text="%settings_subtitles_default"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <Button fx:id="defaultSubtitle"
+            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <Label text="%settings_subtitles_font_family"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <Button fx:id="fontFamily"
+              GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+
+    <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+    <Overlay for="$defaultSubtitle">
+        <AxisItemSelection fx:id="subtitles" orientation="VERTICAL" spacing="5"/>
+    </Overlay>
+    <Overlay for="$fontFamily">
+        <AxisItemSelection fx:id="fontFamilies" orientation="VERTICAL" spacing="5"/>
+    </Overlay>
+</GridPane>

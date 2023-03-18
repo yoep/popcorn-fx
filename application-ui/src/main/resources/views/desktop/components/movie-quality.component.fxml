@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection?>
+<AxisItemSelection xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+                   fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopMovieQualityComponent"
+                   fx:id="qualities" styleClass="quality-selection" orientation="HORIZONTAL" spacing="5">
+</AxisItemSelection>

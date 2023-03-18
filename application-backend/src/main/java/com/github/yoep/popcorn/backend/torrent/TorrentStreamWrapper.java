@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.torrent;
 
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentStreamListener;
@@ -133,7 +133,7 @@ public class TorrentStreamWrapper extends Structure implements Closeable, Torren
 
     @Override
     public TorrentStreamState streamState() {
-        return FxLib.INSTANCE.torrent_stream_state(this);
+        return FxLibInstance.INSTANCE.get().torrent_stream_state(this);
     }
 
     @Override
@@ -172,7 +172,7 @@ public class TorrentStreamWrapper extends Structure implements Closeable, Torren
 
         if (!callbackRegistered) {
             callbackRegistered = true;
-            FxLib.INSTANCE.register_torrent_stream_callback(this, streamCallback);
+            FxLibInstance.INSTANCE.get().register_torrent_stream_callback(this, streamCallback);
         }
     }
 

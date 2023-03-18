@@ -28,12 +28,13 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 public class ImageService {
-    static final int POSTER_WIDTH = 201;
-    static final int POSTER_HEIGHT = 294;
     static final String POSTER_HOLDER = "/images/posterholder.png";
+    static final String ART_HOLDER = "/images/artholder.png";
 
     private final RestTemplate restTemplate;
+
     private Image posterHolder;
+    private Image artHolder;
 
     //region Methods
 
@@ -44,6 +45,10 @@ public class ImageService {
      */
     public Image getPosterHolder() {
         return posterHolder;
+    }
+
+    public Image getArtHolder() {
+        return artHolder;
     }
 
     /**
@@ -128,19 +133,13 @@ public class ImageService {
     @Async
     public CompletableFuture<Image> loadResource(String url) {
         Objects.requireNonNull(url, "url cannot be empty");
-        var classpathUrl = "images/" + url;
-        var resource = new ClassPathResource(classpathUrl);
+        var classpathUrl = "/images/" + url;
 
-        if (resource.exists()) {
-            try {
-                var inputStream = resource.getInputStream();
-                return CompletableFuture.completedFuture(new Image(inputStream));
-            } catch (IOException ex) {
-                throw new ImageException(classpathUrl, ex.getMessage(), ex);
-            }
+        try (var resource = getClass().getResource(classpathUrl).openStream()) {
+            return CompletableFuture.completedFuture(new Image(resource));
+        } catch (IOException ex) {
+            throw new ImageException(classpathUrl, ex.getMessage(), ex);
         }
-
-        throw new ImageException(classpathUrl, "resource file doesn't exist");
     }
 
     //endregion
@@ -150,15 +149,22 @@ public class ImageService {
     @PostConstruct
     void init() {
         loadPosterHolder();
+        loadArtHolder();
     }
 
     private void loadPosterHolder() {
         try {
-            var resource = getPosterHolderResource();
-
-            posterHolder = new Image(resource.getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
+            posterHolder = new Image(new ClassPathResource(POSTER_HOLDER).getInputStream());
         } catch (Exception ex) {
             log.error("Failed to load poster holder, " + ex.getMessage(), ex);
+        }
+    }
+
+    private void loadArtHolder() {
+        try {
+            artHolder = new Image(new ClassPathResource(ART_HOLDER).getInputStream());
+        } catch (Exception ex) {
+            log.error("Failed to load art holder, " + ex.getMessage(), ex);
         }
     }
 
@@ -182,15 +188,6 @@ public class ImageService {
         var inputStream = new ByteArrayInputStream(imageData);
 
         return new Image(inputStream, width, height, true, true);
-    }
-
-    /**
-     * Get the poster holder image resource.
-     *
-     * @return Returns the image resource.
-     */
-    static ClassPathResource getPosterHolderResource() {
-        return new ClassPathResource(POSTER_HOLDER);
     }
 
     /**

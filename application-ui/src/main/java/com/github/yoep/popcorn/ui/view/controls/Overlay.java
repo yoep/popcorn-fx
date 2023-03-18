@@ -1,173 +1,235 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.event.EventHandler;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.StackPane;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
-import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 @Slf4j
-public class Overlay extends StackPane {
-    public static final String STYLE_CLASS = "overlay";
-    public static final String BACKSPACE_ENABLED_PROPERTY = "backspaceActionEnabled";
+public class Overlay extends GridPane {
+    static final String STYLE_CLASS = "overlay";
+    static final String CHILD_STYLE_CLASS = "overlay-content";
 
-    private final BooleanProperty backspaceActionEnabled = new SimpleBooleanProperty(this, BACKSPACE_ENABLED_PROPERTY, true);
-    private final EventHandler<KeyEvent> contentEventHandler = this::handleContentEvent;
-    private final List<OverlayListener> listeners = new ArrayList<>();
+    final ObjectProperty<Node> forNode = new SimpleObjectProperty<>(this, "for");
+    final ObjectProperty<AnchorPane> attachedParent = new SimpleObjectProperty<>(this, "attachedParent");
+    final BooleanProperty shown = new SimpleBooleanProperty(this, "shown");
 
-    private Node originNode;
-    private Node contents;
-
-    //region Constructors
+    Node lastKnownFocusNode;
 
     public Overlay() {
-        super();
         init();
     }
 
     public Overlay(Node... children) {
-        super(children);
         init();
+        getChildren().addAll(children);
     }
-
-    //endregion
 
     //region Properties
 
-    /**
-     * Verify if the backspace action key is enabled for the overlay.
-     *
-     * @return Returns true if the backspace action key is enabled, else false.
-     */
-    public boolean isBackspaceActionEnabled() {
-        return backspaceActionEnabled.get();
+    public Node getFor() {
+        return forNode.get();
     }
 
-    /**
-     * Get the backspace action enabled property from the overlay.
-     *
-     * @return Returns the backspace action property.
-     */
-    public BooleanProperty backspaceActionEnabledProperty() {
-        return backspaceActionEnabled;
+    public ObjectProperty<Node> forProperty() {
+        return forNode;
     }
 
-    /**
-     * Set if the backspace action key should be enabled.
-     *
-     * @param backspaceActionEnabled The value to indicate if the backspace action should be enabled.
-     */
-    public void setBackspaceActionEnabled(boolean backspaceActionEnabled) {
-        this.backspaceActionEnabled.set(backspaceActionEnabled);
+    public void setFor(Node forNode) {
+        this.forNode.set(forNode);
     }
 
-
-    //endregion
-
-    //region Methods
-
-    /**
-     * Register the given listener in the overlay.
-     *
-     * @param listener The listener to register.
-     */
-    public void addListener(@NotNull OverlayListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
-        synchronized (listeners) {
-            listeners.add(listener);
-        }
+    public boolean isShown() {
+        return shown.get();
     }
 
-    /**
-     * Unregister the given listener from the overlay.
-     *
-     * @param listener The listener to remove.
-     */
-    private void removeListener(OverlayListener listener) {
-        synchronized (listeners) {
-            listeners.remove(listener);
-        }
+    public BooleanProperty shownProperty() {
+        return shown;
     }
 
-    /**
-     * Show the overlay with the given contents.
-     *
-     * @param originNode The origin node which triggered this overlay.
-     * @param contents   The contents to display in the overlay.
-     */
-    public void show(Node originNode, Node contents) {
-        Assert.notNull(originNode, "originNode cannot be null");
-        Assert.notNull(contents, "contents cannot be null");
-        this.originNode = originNode;
-        this.contents = contents;
-
-        contents.addEventHandler(KeyEvent.ANY, contentEventHandler);
-        getChildren().clear();
-        getChildren().add(contents);
-
-        setVisible(true);
-        Platform.runLater(contents::requestFocus);
+    public void setShown(boolean shown) {
+        this.shown.set(shown);
     }
 
     //endregion
 
-    //region Functions
+    public void show() {
+        if (!isShown()) {
+            if (attachedParent.get() == null) {
+                attachToParent(getParent());
+            }
+
+            var children = attachedParent.get().getChildren();
+            children.add(children.size(), this);
+            setShown(true);
+        }
+
+        doInternalFocusRequest();
+    }
+
+    public void hide() {
+        var children = attachedParent.get().getChildren();
+        children.remove(this);
+        setShown(false);
+
+        if (lastKnownFocusNode != null) {
+            lastKnownFocusNode.requestFocus();
+        }
+    }
 
     private void init() {
-        log.trace("Overlay control is being initialized");
-        initializeStyle();
-        initializeEvents();
-
-        setVisible(false);
-    }
-
-    private void initializeStyle() {
         getStyleClass().add(STYLE_CLASS);
+        getColumnConstraints().add(0, resizingColumn());
+        getColumnConstraints().add(1, new ColumnConstraints());
+        getColumnConstraints().add(2, resizingColumn());
+        getRowConstraints().add(0, resizingRow());
+        getRowConstraints().add(1, new RowConstraints());
+        getRowConstraints().add(2, resizingRow());
+
+        AnchorPane.setTopAnchor(this, 0d);
+        AnchorPane.setRightAnchor(this, 0d);
+        AnchorPane.setBottomAnchor(this, 0d);
+        AnchorPane.setLeftAnchor(this, 0d);
+
+        setOnKeyPressed(this::onKeyPressed);
+        setOnMouseClicked(this::onMouseClicked);
+
+        initializeListeners();
     }
 
-    private void initializeEvents() {
-        this.setOnKeyPressed(this::onKeyEvent);
+    private void initializeListeners() {
+        getChildren().addListener((ListChangeListener<? super Node>) Overlay::onChildrenChanged);
+        attachedParent.addListener((observable, oldValue, newValue) -> ((Pane) getParent()).getChildren().remove(this));
+        sceneProperty().addListener((observable, oldValue, newValue) -> updateParentIfNeeded());
+        parentProperty().addListener((observable, oldValue, newValue) -> updateParentIfNeeded());
+        focusWithinProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue && isShown()) {
+                doInternalFocusRequest();
+            }
+        });
+        forNode.addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                newValue.setOnMouseClicked(event -> {
+                    event.consume();
+                    show();
+                });
+                newValue.setOnKeyPressed(event -> {
+                    if (event.getCode() == KeyCode.ENTER) {
+                        event.consume();
+                        show();
+                    }
+                });
+            }
+            if (oldValue != null) {
+                oldValue.setOnMouseClicked(null);
+                oldValue.setOnKeyPressed(null);
+            }
+        });
     }
 
-    private void handleContentEvent(KeyEvent event) {
-        if (event.getEventType() != KeyEvent.KEY_RELEASED)
-            onKeyEvent(event);
+    private void updateParentIfNeeded() {
+        if (attachedParent.get() == null) {
+            attachToParent(getParent());
+        }
     }
 
-    private void onKeyEvent(KeyEvent event) {
-        var code = event.getCode();
+    private void onMouseClicked(MouseEvent event) {
+        var x = event.getSceneX();
+        var y = event.getSceneY();
 
-        if (shouldCloseOverlay(code)) {
+        if (getChildren().stream().noneMatch(e -> e.getBoundsInParent().contains(x, y))) {
             event.consume();
-            onClose();
+            hide();
         }
     }
 
-    private boolean shouldCloseOverlay(KeyCode code) {
-        return code == KeyCode.ENTER || code == KeyCode.ESCAPE ||
-                (isBackspaceActionEnabled() && code == KeyCode.BACK_SPACE);
-    }
-
-    private void onClose() {
-        log.trace("Overlay control is being closed");
-        setVisible(false);
-
-        contents.removeEventHandler(KeyEvent.ANY, contentEventHandler);
-        originNode.requestFocus();
-
-        synchronized (listeners) {
-            listeners.forEach(OverlayListener::onClose);
+    private void onKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE) {
+            event.consume();
+            hide();
         }
     }
 
-    //endregion
+    private void doInternalFocusRequest() {
+        lastKnownFocusNode = Optional.ofNullable(getScene())
+                .map(Scene::getFocusOwner)
+                .orElse(null);
+        for (Node child : getChildren()) {
+            var node = findFocusableNode(child);
+            if (node != null) {
+                node.requestFocus();
+                break;
+            }
+        }
+    }
+
+    private void attachToParent(Parent parent) {
+        if (parent instanceof AnchorPane pane) {
+            attachedParent.set(pane);
+            log.trace("Overlay has been attached to {}", pane);
+        } else if (parent != null) {
+            attachToParent(parent.getParent());
+        }
+    }
+
+    private static void onChildrenChanged(ListChangeListener.Change<? extends Node> change) {
+        while (change.next()) {
+            if (change.wasAdded()) {
+                for (Node child : change.getAddedSubList()) {
+                    GridPane.setColumnIndex(child, 1);
+                    GridPane.setRowIndex(child, 1);
+                    child.getStyleClass().add(CHILD_STYLE_CLASS);
+                }
+            }
+            if (change.wasRemoved()) {
+                for (Node child : change.getRemoved()) {
+                    child.getStyleClass().removeIf(e -> e.contains(CHILD_STYLE_CLASS));
+                }
+            }
+        }
+    }
+
+    private static Node findFocusableNode(Node node) {
+        if (node instanceof Region region) {
+            for (Node child : region.getChildrenUnmodifiable()) {
+                var focusableNode = findFocusableNode(child);
+                if (focusableNode != null) {
+                    return focusableNode;
+                }
+            }
+        }
+
+        if (node.isFocusTraversable()) {
+            return node;
+        }
+
+        return null;
+    }
+
+    private static ColumnConstraints resizingColumn() {
+        var resizingColumn = new ColumnConstraints();
+        resizingColumn.setMinWidth(45d);
+        resizingColumn.setMaxWidth(Double.MAX_VALUE);
+        resizingColumn.setHgrow(Priority.ALWAYS);
+        return resizingColumn;
+    }
+
+    private static RowConstraints resizingRow() {
+        var resizingRow = new RowConstraints();
+        resizingRow.setMinHeight(25d);
+        resizingRow.setMaxHeight(Double.MAX_VALUE);
+        resizingRow.setVgrow(Priority.ALWAYS);
+        return resizingRow;
+    }
 }

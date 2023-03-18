@@ -21,14 +21,26 @@
 .root .scroll-pane,
 .root .list-view,
 .root .table-view,
-.root .header .bar,
-.root .header .title-bar,
 .root .loader,
 .root .player-external,
-.root .overlay,
+.root .content-section {
+    -fx-border-width: 0;
+    -fx-font-size: 12px;
+}
+
+.root,
+.root .scroll-bar,
+.root .table-row-cell,
+.root .table-view,
+.root .loader,
+.root .player-external,
 .root .content-section {
     -fx-background-color: #17181b;
-    -fx-border-width: 0;
+}
+
+.root .viewport,
+.root .scroll-pane {
+    -fx-background-color: transparent;
 }
 
 .root .text {
@@ -92,23 +104,29 @@
 .root .split-menu-button,
 .root .split-menu-button .label,
 .root .split-menu-button .arrow-button,
-.root Button {
+.root .button {
     -fx-font-family: "Open Sans Bold";
     -fx-background-color: #1f375f;
     -fx-text-fill: #fff;
     -fx-cursor: hand;
 }
 
+.root .button .icon {
+    -fx-text-fill: #fff;
+}
+
 .root .split-menu-button .label,
 .root .split-menu-button .arrow-button,
-.root Button {
+.root .button {
     -fx-padding: 10 15 10 15;
 }
 
 .root .split-menu-button:hover .label,
 .root .split-menu-button:hover .arrow-button,
-.root Button:hover,
-.root Button:focused {
+.root .split-menu-button:focused .label,
+.root .split-menu-button:focused .arrow-button,
+.root .button:hover,
+.root .button:focused {
     -fx-background-color: #225694;
 }
 
@@ -176,126 +194,99 @@
     -fx-text-fill: #fff;
 }
 
-.root .header .shadow {
-    -fx-pref-height: 10;
-    -fx-background-color: linear-gradient(rgba(0, 0, 0, 1) 10%, rgba(255, 255, 255, 0) 100%);
-}
-
-.root .header Label {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-font-size: 12.5;
-    -fx-text-fill: #c3c5c7;
-    -fx-cursor: hand;
-    -fx-text-alignment: center;
-    -fx-padding: 10 15 5 18;
-}
-
-.root .header Label:hover {
-    -fx-text-fill: #fff;
-}
-
-.root .header .title-bar {
-    -fx-pref-height: 28px;
-    -fx-max-height: 28px;
-}
-
-.root .header .title-bar Label {
-    -fx-font-family: "Open Sans Bold";
-    -fx-font-size: 16px;
-    -fx-text-fill: #fff;
-    -fx-cursor: default;
-    -fx-padding: 0 0 0 0;
-}
-
-.root .header .title-bar .os-buttons {
+.root .content-section .os-buttons {
     -fx-pref-width: 141px;
     -fx-max-width: 141px;
 }
 
-.root .header .title-bar .os-buttons .os-button {
+.root .content-section .os-buttons .os-button {
     -fx-pref-width: 47px;
     -fx-pref-height: 28px;
     -fx-cursor: hand;
 }
 
-.root .header .title-bar .os-buttons .os-button:hover {
+.root .content-section .os-buttons .os-button:hover {
     -fx-background-color: #333437;
 }
 
-.root .header .title-bar .os-buttons .os-button.close:hover {
+.root .content-section .os-buttons .os-button.close:hover {
     -fx-background-color: #e81123;
 }
 
-.root .header .bar .filter-nav-bar Label {
-    -fx-border-width: 0 0 4 0;
-    -fx-border-color: transparent;
-    -fx-padding: 10 18 5 18;
-}
-
-.root .header .bar .filter-nav-bar .active {
+.root .filter-bar .label {
+    -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
-    -fx-border-width: 0 0 4 0;
-    -fx-border-color: #2d72d9;
+    -fx-cursor: hand;
+    -fx-alignment: center-left;
+    -fx-label-padding: 0 8 0 0;
 }
 
-.root .header .bar .filter-bar ComboBox {
+.root .filter-bar ComboBox {
     -fx-min-width: 100;
     -fx-max-width: 100;
     -fx-padding: 6 0 0 0;
     -fx-cursor: hand;
 }
 
-.root .header .bar .filter-bar ComboBox > .list-cell {
+.root .filter-bar .label,
+.root .filter-bar ComboBox {
+    -fx-font-size: 1.2em;
+    -fx-pref-height: 2em;
+    -fx-padding: 0 0 0 0;
+}
+
+.root .filter-bar ComboBox > .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #2d72d9;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .arrow {
+.root .filter-bar ComboBox:focused > .list-cell,
+.root .filter-bar ComboBox:focused {
+    -fx-background-color: #0d2240;
+}
+
+.root .filter-bar .filterGroup ComboBox .arrow {
     -fx-padding: 5 8 0 0;
     -fx-background-color: #c3c5c7;
 }
 
-.root .header .bar .filter-bar .filterGroup:hover ComboBox .arrow {
+.root .filter-bar .filterGroup:hover ComboBox .arrow {
     -fx-background-color: #fff;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar {
+.root .filter-bar .filterGroup ComboBox .scroll-bar {
     -fx-padding: 0 0 0 0;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .scroll-bar,
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view,
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell,
+.root .filter-bar .filterGroup ComboBox .scroll-bar,
+.root .filter-bar .filterGroup ComboBox .list-view,
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell,
 .root .movie-details .subtitle-group ComboBox .scroll-bar,
 .root .movie-details .subtitle-group ComboBox .list-view,
 .root .movie-details .subtitle-group ComboBox .list-view .list-cell {
     -fx-background-color: rgba(23, 24, 27, 0.8);
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell {
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #c3c5c7;
     -fx-cursor: hand;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 4;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell:selected {
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell:selected {
     -fx-text-fill: #fff;
     -fx-background-color: #0b131f;
-    -fx-border-width: 0 0 0 4;
     -fx-border-color: #c3c5c7;
     -fx-border-style: solid;
 }
 
-.root .header .bar .filter-bar .filterGroup ComboBox .list-view .list-cell:hover {
+.root .filter-bar .filterGroup ComboBox .list-view .list-cell:hover {
     -fx-text-fill: #fff;
     -fx-background-color: #0b131f;
-    -fx-border-width: 0 0 0 4;
     -fx-border-color: #2d72d9;
     -fx-border-style: solid;
-}
-
-.root .header .bar .filter-icon-bar {
-
 }
 
 .root .header .bar .filter-icon-bar .icon {
@@ -311,27 +302,6 @@
 
 .root .header .bar .filter-icon-bar .icon:hover {
     -fx-text-fill: #2468cc;
-}
-
-.root .header .bar .filter-icon-bar .search-field .textfield {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-background-color: #000;
-    -fx-background-radius: 2em;
-    -fx-text-fill: #909498;
-}
-
-.root .header .bar .filter-icon-bar .search-field .search-icon,
-.root .header .bar .filter-icon-bar .search-field .clear-icon {
-    -fx-text-fill: #909498;
-    -fx-font-size: 1em;
-}
-
-.root .header .bar .filter-icon-bar .search-field .search-icon {
-    -fx-padding: 0 3 0 8;
-}
-
-.root .header .bar .filter-icon-bar .search-field .clear-icon {
-    -fx-padding: 0 8 0 3;
 }
 
 .root .background-image {
@@ -364,11 +334,7 @@
 
 .root .list-section .poster-item {
     -fx-padding: 10;
-    -fx-min-height: 252;
-    -fx-max-height: 252;
     -fx-pref-height: 252;
-    -fx-min-width: 154;
-    -fx-max-width: 154;
     -fx-pref-width: 154;
     -fx-cursor: hand;
 }
@@ -378,7 +344,8 @@
 }
 
 .root .list-section .poster-item.watched:hover,
-.root .list-section .poster-item:hover {
+.root .list-section .poster-item.watched:hover,
+.root .list-section .poster-item.watched:focused {
     -fx-opacity: 1;
 }
 
@@ -388,6 +355,7 @@
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.8), 10, 0, 0, 0);
 }
 
+.root .list-section .poster-item:focused .poster .poster-image,
 .root .list-section .poster-item:hover .poster .poster-image {
     -fx-effect: dropshadow(three-pass-box, #2d72d9, 15, 0, 0, 0);
 }
@@ -414,7 +382,7 @@
 }
 
 .root .list-section .poster-item .poster .overlay .like.liked,
-.root .show-details-section .show-header .bookmark .like.liked {
+.root .show-details-section .show-details .bookmark .like.liked {
     -fx-text-fill: #df2d37;
     -fx-opacity: 1.0;
 }
@@ -431,7 +399,7 @@
 }
 
 .root .list-section .poster-item .title {
-    -fx-font-family: "Open Sans Semibold";
+    -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1em;
     -fx-text-fill: #fff;
     -fx-padding: 4 0 2 0;
@@ -439,8 +407,9 @@
 
 .root .list-section .poster-item .year,
 .root .list-section .poster-item .seasons {
-    -fx-text-fill: #5b5b5b;
-    -fx-fill: #5b5b5b;
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #808080;
+    -fx-fill: #808080;
     -fx-font-size: 0.85em;
 }
 
@@ -517,55 +486,57 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 1em;
+    -fx-padding: 10 0 0 0;
 }
 
 .root .movie-details .magnet-link,
-.root .show-details-section .show-details .episode-overview .magnet-link {
+.root .show-details-section .magnet-link {
     -fx-text-fill: #ddd;
     -fx-cursor: hand;
     -fx-padding: 0 8 0 8;
 }
 
 .root .movie-details .magnet-link:hover,
-.root .show-details-section .show-details .episode-overview .magnet-link:hover {
+.root .show-details-section .magnet-link:hover {
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .health,
-.root .show-details-section .show-details .episode-overview .health {
+.root .show-details-section .health {
     -fx-text-fill: #737577;
     -fx-cursor: hand;
+    -fx-padding: 0 0 0 5;
 }
 
 .root .movie-details .health.bad,
-.root .show-details-section .show-details .episode-overview .health.bad {
+.root .show-details-section .health.bad {
     -fx-text-fill: #d53f3f;
 }
 
 .root .movie-details .health.medium,
-.root .show-details-section .show-details .episode-overview .health.medium {
+.root .show-details-section .health.medium {
     -fx-text-fill: #ece523;
 }
 
 .root .movie-details .health.good,
-.root .show-details-section .show-details .episode-overview .health.good {
+.root .show-details-section .health.good {
     -fx-text-fill: #a3e147;
 }
 
 .root .movie-details .health.excellent,
-.root .show-details-section .show-details .episode-overview .health.excellent {
+.root .show-details-section .health.excellent {
     -fx-text-fill: #2ad942;
 }
 
 .root .movie-details .watch-now .context-menu,
-.root .show-details .watch-now .context-menu,
+.root .overlay .overlay-content .watch-now .context-menu,
 .root .torrent-details .watch-now .context-menu {
     -fx-background-color: transparent;
     -fx-padding: 2 0 2 0;
 }
 
 .root .movie-details .watch-now .menu-item,
-.root .show-details .watch-now .menu-item,
+.root .overlay .overlay-content .watch-now .menu-item,
 .root .torrent-details .watch-now .menu-item {
     -fx-background-color: rgb(23, 24, 27);
     -fx-text-fill: #ccc;
@@ -574,27 +545,27 @@
 }
 
 .root .movie-details .watch-now .menu-item.active,
-.root .show-details .watch-now .menu-item.active,
+.root .overlay .overlay-content .watch-now .menu-item.active,
 .root .torrent-details .watch-now .menu-item.active {
     -fx-background-color: #225694;
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .watch-now .menu-item:focused,
-.root .show-details .watch-now .menu-item:focused,
+.root .overlay .overlay-content .watch-now .menu-item:focused,
 .root .torrent-details .watch-now .menu-item:focused {
     -fx-background-color: #226e94;
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .watch-now .menu-item .label,
-.root .show-details .watch-now .menu-item .label,
+.root .overlay .overlay-content .watch-now .menu-item .label,
 .root .torrent-details .watch-now .menu-item .label {
     -fx-background-color: transparent;
 }
 
 .root .movie-details .watch-now .menu-item .graphic-container,
-.root .show-details .watch-now .menu-item .graphic-container,
+.root .overlay .overlay-content .watch-now .menu-item .graphic-container,
 .root .torrent-details .watch-now .menu-item .graphic-container {
     -fx-padding: 0 8 0 8;
 }
@@ -604,11 +575,18 @@
     -fx-text-fill: #fff;
     -fx-cursor: hand;
     -fx-padding: 2 10 2 10;
+    -fx-background-radius: 5em;
 }
 
-.root .movie-details .quality-selection .quality.active {
+.root .movie-details .quality-selection .quality.selected {
     -fx-background-color: rgba(43, 110, 210, 0.84);
-    -fx-background-radius: 5em;
+}
+
+.root .movie-details .quality-selection .quality:hover,
+.root .movie-details .quality-selection .quality:focused,
+.root .movie-details .quality-selection .quality.selected:hover,
+.root .movie-details .quality-selection .quality.selected:focused {
+    -fx-background-color: rgba(46, 119, 230, 0.5);
 }
 
 .root .movie-details .subtitle-group Tooltip {
@@ -628,13 +606,13 @@
 }
 
 .root .movie-details .subtitle-group .language-selection .arrow,
-.root .show-details-section .show-details .episode-overview .language-selection .arrow {
+.root .show-details-section .language-selection .arrow {
     -fx-text-fill: #fff;
     -fx-padding: 0 5 0 5;
 }
 
 .root .movie-details .subtitle-group .language-selection .language-popup,
-.root .show-details-section .show-details .episode-overview .language-selection .language-popup {
+.root .show-details-section .language-selection .language-popup {
     -fx-max-width: 140;
     -fx-min-width: 140;
     -fx-background-color: rgba(23, 24, 27, 0.8);
@@ -642,7 +620,7 @@
 }
 
 .root .movie-details .subtitle-group .language-selection .language-popup .language-flag,
-.root .show-details-section .show-details .episode-overview .language-selection .language-popup .language-flag {
+.root .show-details-section .language-selection .language-popup .language-flag {
     -fx-padding: 2 2 2 2;
     -fx-cursor: hand;
 }
@@ -677,24 +655,20 @@
     -fx-text-fill: #fff;
 }
 
-.root .show-details-section .show-header .title {
+.root .show-details-section .show-details .title {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
     -fx-font-size: 28px;
-    -fx-padding: 8 0 5 0;
+    -fx-padding: 0;
 }
 
-.root .show-details-section .show-header .poster {
-    -fx-max-width: 198;
-    -fx-max-height: 215;
+.root .show-details-section .show-details .poster {
+    -fx-pref-width: 10em;
+    -fx-pref-height: 20em;
 }
 
-.root .show-details-section .show-header .poster .poster-image {
+.root .show-details-section .show-details .poster .poster-image {
     -fx-effect: dropshadow(three-pass-box, #17181b, 15, 0, 0, 0);
-}
-
-.root .show-details-section .show-details {
-    -fx-background-color: #17181b;
 }
 
 .root .show-details-section .show-details .section-title {
@@ -709,91 +683,71 @@
     -fx-font-size: 1.5em;
 }
 
-.root .show-details-section .show-details Episodes .table-cell,
-.root .show-details-section .show-details Seasons .table-cell {
-    -fx-font-family: sans-serif;
-    -fx-text-fill: #fff;
-    -fx-font-size: 15px;
-    -fx-padding: 8 10 8 10;
-    -fx-cursor: hand;
-    -fx-border-width: 1;
-    -fx-border-color: #17181b;
-}
-
-.root .show-details-section .show-details Seasons .table-row-cell {
-    -fx-font-weight: bold;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:even,
-.root .show-details-section .show-details Seasons .table-row-cell:even {
-    -fx-background-color: #1f2025;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:hover,
-.root .show-details-section .show-details Seasons .table-row-cell:hover {
-    -fx-background-color: #26272d;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:selected,
-.root .show-details-section .show-details Seasons .table-row-cell:selected {
-    -fx-background-color: #1b2d4c;
-}
-
-.root .show-details-section .show-details Episodes .table-row-cell:empty,
-.root .show-details-section .show-details Seasons .table-row-cell:empty {
-    -fx-opacity: 0;
-    -fx-cursor: default;
-}
-
-.root .show-details-section .show-details Episodes LabeledText,
-.root .show-details-section .show-details Seasons LabeledText {
-    -fx-font-family: "Open Sans Semibold";
-}
-
-.root .show-details-section .show-details Episodes TableHeaderRow,
-.root .show-details-section .show-details Seasons TableHeaderRow,
-.root .torrent-collection TableView TableHeaderRow {
-    -fx-min-height: 0;
-    -fx-max-height: 0;
-    -fx-pref-height: 0;
-    visibility: false;
-}
-
-.root .show-details-section .show-details Episodes .icon,
-.root .show-details-section .show-details Seasons .icon {
-    -fx-font-size: 1em;
-    -fx-text-fill: rgba(255, 255, 255, 0.2);
-}
-
-.root .show-details-section .show-details Episodes .icon.watched,
-.root .show-details-section .show-details Seasons .icon.watched {
-    -fx-text-fill: #fff;
-}
-
 .root .show-details-section .show-details .episode-overview {
-    -fx-background-color: #1f2025;
     -fx-padding: 10 10 10 10;
+    -fx-cursor: hand;
 }
 
-.root .show-details-section .show-details .episode-overview .episode-title {
+.root .show-details-section .show-details .episode-overview .label {
     -fx-font-family: "Open Sans Semibold";
     -fx-text-fill: #fff;
-    -fx-font-size: 24px;
 }
 
-.root .show-details-section .show-details .episode-overview .episode-meta {
-    -fx-font-family: "Open Sans Semibold";
+.root .show-details-section .show-details .episode-overview .title {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 2em;
+}
+
+.root .show-details-section .show-details .episode-overview .metadata {
     -fx-text-fill: #8d9296;
 }
 
-.root .show-details-section .show-details .episode-overview .episode-synopsis {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
-    -fx-padding: 10 0 0 0;
+.root .show-details-section .show-details .episode-overview .synopsis {
+    -fx-max-width: 550;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection,
-.root .show-details-section .show-details .episode-overview .quality-selection .quality {
+.root .show-details-section .show-details .episode-overview .episode-graphic {
+    -fx-pref-width: 320px;
+    -fx-pref-height: 190px;
+    -fx-background-color: rgba(23, 24, 27, 0.5);
+    -fx-border-color: transparent;
+    -fx-border-width: 3;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-graphic.watched {
+    -fx-opacity: 0.5;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-graphic .icon {
+    -fx-font-size: 2em;
+    -fx-text-fill: #fff;
+    -fx-padding: 10;
+}
+
+.root .show-details-section .show-details .episode-overview .episode-graphic .episode-number {
+    -fx-text-fill: #fff;
+    -fx-font-family: "Open Sans Bold";
+    -fx-background-color: rgba(23, 24, 27, 0.75);
+    -fx-border-color: #2d72d9;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 3 15 3 15;
+}
+
+.root .show-details-section .show-details .episode-overview:hover .episode-graphic,
+.root .show-details-section .show-details .episode-overview:focused .episode-graphic,
+.root .show-details-section .show-details .episode-overview:hover .episode-graphic.watched,
+.root .show-details-section .show-details .episode-overview:focused .episode-graphic.watched {
+    -fx-border-color: #2d72d9;
+    -fx-opacity: 1;
+}
+
+.root .show-details-section .show-details .episode-overview:hover .episode-graphic .episode-number,
+.root .show-details-section .show-details .episode-overview:focused .episode-graphic .episode-number {
+    -fx-background-color: rgba(27, 67, 128, 0.75);
+}
+
+.root .show-details-section .language-selection,
+.root .show-details-section .quality-selection .quality {
     -fx-background-color: #1f375f;
     -fx-border-color: #1f264b;
     -fx-border-width: 1;
@@ -801,30 +755,30 @@
     -fx-padding: 3 3 3 3;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection:hover {
+.root .show-details-section .language-selection:hover {
     -fx-background-color: #225694;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection .graphic {
+.root .show-details-section .language-selection .graphic {
     -fx-padding: 0 5 0 5;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection .name {
+.root .show-details-section .language-selection .name {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
 }
 
-.root .show-details-section .show-details .episode-overview .language-selection .arrow {
+.root .show-details-section .language-selection .arrow {
     -fx-text-alignment: center;
 }
 
-.root .show-details-section .show-details .episode-overview .quality-selection .quality {
+.root .show-details-section .quality-selection .quality {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
     -fx-padding: 3 10 3 10;
 }
 
-.root .show-details-section .show-details .episode-overview .quality-selection .quality.active {
+.root .show-details-section .quality-selection .quality.selected {
     -fx-background-color: rgba(43, 110, 210, 0.84);
 }
 
@@ -951,12 +905,14 @@
 .root .player .player-controls LanguageSelection .list-view {
     -fx-min-width: 150;
     -fx-max-width: 150;
+    -fx-background-color: #17181b;
 }
 
 .root .player .player-controls LanguageSelection .list-view .list-cell {
     -fx-font-family: Arial;
     -fx-padding: 3 8 3 8;
     -fx-border-width: 0 0 0 2;
+    -fx-background-color: #17181b;
     -fx-cursor: hand;
 }
 
@@ -1132,7 +1088,7 @@
     -fx-padding: 10 30 15 15;
 }
 
-.root .settings-section GridPane Separator .line {
+.root .settings-section .sub-section .separator .line {
     -fx-border-color: #3a3b3e;
     -fx-border-width: 0.5;
     -fx-border-style: solid;
@@ -1151,11 +1107,12 @@
 
 .root .settings-section .sub-section .label,
 .root .settings-section .sub-section .text-field,
+.root .settings-section .sub-section .button,
 .root .settings-section .sub-section .check-box,
 .root .settings-section .sub-section .combo-box > .list-cell,
 .root .settings-section .sub-section .combo-box .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
-    -fx-font-size: 14px;
+    -fx-font-size: 1.2em;
     -fx-text-fill: #c3c5c7;
 }
 
@@ -1165,25 +1122,29 @@
     -fx-padding: 0 0 0 8;
 }
 
-.root .settings-section .sub-section Label,
+.root .settings-section .sub-section .label,
 .root .settings-section .sub-section CheckBox,
 .root .settings-section .sub-section .button-holder {
     -fx-padding: 0 8 0 15;
 }
 
 .root .settings-section .sub-section .subsection-title {
-    -fx-min-width: 300;
-    -fx-max-width: 300;
+    -fx-min-width: 15em;
+    -fx-max-width: 15em;
     -fx-max-height: Infinity;
     -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
     -fx-text-fill: #2d75df;
-    -fx-font-size: 18px;
+    -fx-font-size: 2em;
     -fx-padding: 0 30 5 30;
     -fx-border-color: #3a3b3e;
     -fx-border-width: 0 1 0 0;
     -fx-border-style: solid;
     -fx-wrap-text: true;
     -fx-alignment: TOP_LEFT;
+}
+
+.root .settings-section .sub-section .subsection-label {
+    -fx-pref-width: 10em;
 }
 
 .root .settings-section .additional-info {
@@ -1379,3 +1340,150 @@
     -fx-font-family: "Arial";
     -fx-font-style: italic;
 }
+
+/* region SideBar */
+
+.root .content-section .sidebar,
+.root .content-section .filter {
+    -fx-background-color: rgba(24, 25, 28, 0.5);
+}
+
+.root .content-section .sidebar .logo {
+    -fx-min-width: 32px;
+    -fx-max-width: 32px;
+}
+
+.root .content-section .sidebar .search-field,
+.root .content-section .sidebar .label {
+    -fx-text-fill: #fff;
+    -fx-cursor: hand;
+}
+
+.root .content-section .sidebar .icon {
+    -fx-pref-width: 64px;
+    -fx-font-size: 2em;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 3;
+    -fx-border-style: solid;
+}
+
+.root .content-section .sidebar .search-field,
+.root .content-section .sidebar .icon-text {
+    -fx-pref-width: 125px;
+    -fx-min-width: 0;
+    -fx-font-size: 1.5em;
+    -fx-font-family: "Open Sans Bold";
+    -fx-alignment: center-left;
+}
+
+.root .content-section .sidebar .icon,
+.root .content-section .sidebar .icon-text {
+    -fx-pref-height: 60px;
+}
+
+.root .content-section .sidebar .icon:focused,
+.root .content-section .sidebar .icon:hover {
+    -fx-text-fill: #2d72d9;
+}
+
+.root .content-section .sidebar .icon.active {
+    -fx-border-color: #2d72d9;
+}
+
+.root .content-section .sidebar .icon.active,
+.root .content-section .sidebar .icon-text.active {
+    -fx-background-color: rgba(11, 27, 51, 0.5);
+}
+
+.root .content-section .sidebar .icon-text {
+    -fx-text-overrun: clip;
+}
+
+.root .content-section .sidebar .search-field,
+.root .content-section .sidebar .search-field .text {
+    -fx-text-fill: #fff;
+    -fx-background-color: transparent;
+    -fx-cursor: text;
+    -fx-padding: 0 0 0 0;
+}
+
+.root .content-section .sidebar .search-field .clear-icon {
+    -fx-pref-width: 2em;
+    -fx-font-size: 1em;
+    -fx-alignment: center;
+}
+
+.root .content-section .sidebar .search-field .clear-icon,
+.root .content-section .sidebar .search-field .clear-icon .text {
+    -fx-cursor: hand;
+}
+
+/* endregion */
+
+/* region Show details */
+
+.root .show-details-section .show-details .seasons {
+    -fx-min-height: 3.5em;
+    -fx-border-color: #808080;
+    -fx-border-width: 0 0 1 0;
+}
+
+.root .show-details-section .show-details .axis .button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 3 0;
+    -fx-padding: 0 10 0 0;
+}
+
+.root .show-details-section .show-details .axis .button.selected {
+    -fx-border-color: #2d72d9;
+}
+
+.root .show-details-section .show-details .axis .button:focused,
+.root .show-details-section .show-details .axis .button:hover,
+.root .show-details-section .show-details .axis .button.selected:focused,
+.root .show-details-section .show-details .axis .button.selected:hover {
+    -fx-border-color: #fff;
+}
+
+.root .show-details-section .show-details .axis .button .icon {
+    -fx-font-size: 1.2em;
+    -fx-text-fill: rgba(255, 255, 255, 0.2);
+    -fx-padding: 10 5 10 5;
+}
+
+.root .show-details-section .show-details .axis .button .icon.watched {
+    -fx-text-fill: #fff;
+}
+
+/* endregion */
+
+/* region Overlay */
+
+.root .overlay .overlay-content {
+    -fx-background-color: rgba(24, 25, 28, 0.75);
+    -fx-padding: 20 20 20 20;
+}
+
+.root .overlay .overlay-content .label {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+}
+
+.root .overlay .overlay-content .title {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 2em;
+}
+
+.root .overlay .overlay-content .metadata {
+    -fx-text-fill: #8d9296;
+}
+
+.root .overlay .overlay-content .synopsis {
+    -fx-max-width: 500;
+    -fx-padding: 10 0 10 0;
+}
+
+/* endregion */

@@ -22,6 +22,8 @@ jobs:
           java-version: 17
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
       - name: Prepare packaging
         run: make prerequisites
       - name: Package
@@ -47,6 +49,8 @@ jobs:
           java-version: 17
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
       - name: Prepare libraries
         run: cd ./assets/windows && ./prepare-libs.bat
       - name: Prepare packaging
@@ -74,6 +78,8 @@ jobs:
           java-version: 17
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
       - name: Prepare packaging
         run: make prerequisites
       - name: Package

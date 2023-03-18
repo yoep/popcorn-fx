@@ -1,25 +1,25 @@
 use derive_more::Display;
+use serde::{Deserialize, Serialize};
 
 /// The available categories of [crate::core::media::Media] items.
 /// These can be used as filter to retrieve data from the API.
 #[repr(i32)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
 #[display(fmt = "{}", (self.name()))]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Category {
-    MOVIES = 0,
-    SERIES = 1,
-    ANIME = 2,
-    FAVORITES = 3,
+    Movies = 0,
+    Series = 1,
+    Favorites = 2,
 }
 
 impl Category {
     /// Retrieve the name of the category.
     pub fn name(&self) -> String {
         match self {
-            Category::MOVIES => "movies".to_string(),
-            Category::SERIES => "series".to_string(),
-            Category::ANIME => "animes".to_string(),
-            Category::FAVORITES => "favorites".to_string(),
+            Category::Movies => "movies".to_string(),
+            Category::Series => "series".to_string(),
+            Category::Favorites => "favorites".to_string(),
         }
     }
 }
@@ -30,7 +30,7 @@ mod test {
 
     #[test]
     fn test_name_movies() {
-        let category = Category::MOVIES;
+        let category = Category::Movies;
         let expected_result = "movies".to_string();
 
         let result= category.name();
@@ -40,7 +40,7 @@ mod test {
 
     #[test]
     fn test_name_series() {
-        let category = Category::SERIES;
+        let category = Category::Series;
         let expected_result = "series".to_string();
 
         let result= category.name();

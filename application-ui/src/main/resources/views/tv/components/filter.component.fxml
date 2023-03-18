@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection?>
+<?import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent"
+      fx:id="filter" styleClass="filter" maxWidth="0">
+
+    <Label fx:id="searchValue" styleClass="search-value"/>
+
+    <VirtualKeyboard fx:id="virtualKeyboard" minWidth="0"/>
+
+    <AxisItemSelection fx:id="genres" shortKeysEnabled="false" orientation="VERTICAL"/>
+</VBox>

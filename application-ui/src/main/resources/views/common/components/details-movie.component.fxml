@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
+<?import com.github.yoep.popcorn.ui.view.controls.HealthIcon?>
+<?import com.github.yoep.popcorn.ui.view.controls.Stars?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.components.MovieDetailsComponent"
+            styleClass="movie-details">
+    <!-- Background image cover -->
+    <BackgroundImageCover fx:id="backgroundImage"
+                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+
+    <GridPane fx:id="detailsContent" AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75">
+        <columnConstraints>
+            <ColumnConstraints hgrow="ALWAYS" percentWidth="35" halignment="RIGHT"/>
+            <ColumnConstraints hgrow="NEVER" minWidth="10"/>
+            <ColumnConstraints hgrow="ALWAYS" halignment="LEFT"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints vgrow="ALWAYS"/>
+        </rowConstraints>
+
+        <!-- PLACEHOLDER OF THE POSTER -->
+
+        <GridPane fx:id="detailsDescription" GridPane.columnIndex="2" GridPane.rowIndex="0">
+            <columnConstraints>
+                <ColumnConstraints/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints minHeight="30" valignment="CENTER"/>
+                <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
+                <RowConstraints minHeight="30" valignment="TOP"/>
+                <RowConstraints minHeight="30"/>
+            </rowConstraints>
+
+            <Label fx:id="title" styleClass="title"
+                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+            <HBox styleClass="metadata" alignment="CENTER_LEFT"
+                  GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="1">
+
+                <Label fx:id="year"/>
+                <Icon styleClass="separator">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+                <Label fx:id="duration"/>
+                <Icon styleClass="separator">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+                <Label fx:id="genres"/>
+                <Icon styleClass="separator">
+                    <Icon fx:constant="CIRCLE_UNICODE"/>
+                </Icon>
+                <Stars fx:id="ratingStars" alignment="CENTER"/>
+            </HBox>
+
+            <HBox alignment="CENTER_RIGHT"
+                  GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.halignment="RIGHT">
+                <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
+                    <Icon fx:constant="MAGNET_UNICODE"/>
+                </Icon>
+                <HealthIcon fx:id="health" styleClass="health"/>
+            </HBox>
+
+            <!-- Overview text -->
+            <Label fx:id="overview" styleClass="overview" wrapText="true"
+                   GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+
+            <!-- PLACEHOLDER PLAY ACTIONS -->
+        </GridPane>
+    </GridPane>
+</AnchorPane>

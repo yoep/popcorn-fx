@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
@@ -18,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,8 +34,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PlayNextServiceTest {
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private PlayerEventService playerEventService;
     @Mock
@@ -64,8 +65,9 @@ class PlayNextServiceTest {
     void testOnPlayVideo_whenEventIsPlayTorrentEvent_shouldNotUpdateNextEpisode() {
         var activity = mock(PlayTorrentEvent.class);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
 
         assertTrue(playNextService.getNextEpisode().isEmpty());
     }
@@ -75,8 +77,9 @@ class PlayNextServiceTest {
         var activity = mock(PlayMediaEvent.class);
         when(activity.getMedia()).thenReturn(mock(MovieDetails.class));
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
 
         assertTrue(playNextService.getNextEpisode().isEmpty());
     }
@@ -87,8 +90,9 @@ class PlayNextServiceTest {
         var episode = mock(Episode.class);
         lenient().when(activity.getMedia()).thenReturn(episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(false);
+        playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
 
         assertTrue(playNextService.getNextEpisode().isEmpty());
     }
@@ -115,8 +119,9 @@ class PlayNextServiceTest {
                 .build();
         var expectedResult = new PlayNextService.NextEpisode(show, episode);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
         var result = playNextService.getNextEpisode();
 
         assertTrue(result.isPresent());
@@ -140,8 +145,9 @@ class PlayNextServiceTest {
                 .subMediaItem(episode2)
                 .build();
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
         var result = playNextService.getNextEpisode();
 
         assertTrue(result.isEmpty());
@@ -166,8 +172,9 @@ class PlayNextServiceTest {
                 .subMediaItem(episode2)
                 .build();
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
         var result = playNextService.getNextEpisode();
 
         assertTrue(result.isPresent(), "next episode should be available");
@@ -197,7 +204,7 @@ class PlayNextServiceTest {
 
         // update the next episode
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
 
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(false);
         listenerHolder.get().onDurationChanged(90);
@@ -227,7 +234,7 @@ class PlayNextServiceTest {
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
         listenerHolder.get().onDurationChanged(90000);
         listenerHolder.get().onTimeChanged(70000);
         var result = playNextService.getPlayingIn();
@@ -254,7 +261,7 @@ class PlayNextServiceTest {
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
         listenerHolder.get().onDurationChanged(300000);
 
         listenerHolder.get().onTimeChanged(240000);
@@ -285,7 +292,7 @@ class PlayNextServiceTest {
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
         listenerHolder.get().onDurationChanged(videoLength);
         listenerHolder.get().onTimeChanged(videoLength);
 
@@ -313,7 +320,7 @@ class PlayNextServiceTest {
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
         playNextService.init();
 
-        playNextService.onPlayVideo(activity);
+        eventPublisher.publish(activity);
         listenerHolder.get().onDurationChanged(videoLength);
         listenerHolder.get().onTimeChanged(videoLength);
 

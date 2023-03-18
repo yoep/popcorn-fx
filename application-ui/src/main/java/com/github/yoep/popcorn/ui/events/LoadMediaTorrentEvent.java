@@ -7,8 +7,8 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
 
+import java.util.Objects;
 import java.util.Optional;
 
 @Getter
@@ -43,9 +43,9 @@ public class LoadMediaTorrentEvent extends LoadTorrentEvent {
     @Builder
     public LoadMediaTorrentEvent(Object source, MediaTorrentInfo torrent, Media media, @Nullable Media subItem, String quality, @Nullable SubtitleInfo subtitle) {
         super(source);
-        Assert.notNull(torrent, "torrent cannot be null");
-        Assert.notNull(media, "media cannot be null");
-        Assert.notNull(quality, "quality cannot be null");
+        Objects.requireNonNull(torrent, "torrent cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
+        Objects.requireNonNull(quality, "quality cannot be null");
         this.torrent = torrent;
         this.media = media;
         this.subItem = subItem;

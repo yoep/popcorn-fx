@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.MediaSet;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
@@ -50,11 +50,11 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
 
     @Override
     public void resetApiAvailability() {
-        FxLib.INSTANCE.reset_movie_apis(PopcornFxInstance.INSTANCE.get());
+        FxLibInstance.INSTANCE.get().reset_movie_apis(PopcornFxInstance.INSTANCE.get());
     }
 
     public Page<MovieOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        var movies = Optional.ofNullable(FxLib.INSTANCE.retrieve_available_movies(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
+        var movies = Optional.ofNullable(FxLibInstance.INSTANCE.get().retrieve_available_movies(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
                 .map(MediaSet::getMovies)
                 .orElse(Collections.emptyList());
         log.debug("Retrieved movies {}", movies);
@@ -63,7 +63,7 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
     }
 
     private static MovieDetails getInternalDetails(String imdbId) {
-        var movie = FxLib.INSTANCE.retrieve_movie_details(PopcornFxInstance.INSTANCE.get(), imdbId);
+        var movie = FxLibInstance.INSTANCE.get().retrieve_movie_details(PopcornFxInstance.INSTANCE.get(), imdbId);
         log.debug("Retrieved movie details {}", movie);
 
         return movie;

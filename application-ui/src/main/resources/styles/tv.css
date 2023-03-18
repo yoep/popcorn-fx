@@ -1,23 +1,3 @@
-.root .menu {
-    -fx-padding: 0 0 0 0;
-}
-
-.root .menu .header-logo {
-    -fx-padding: 30 0 0 0;
-}
-
-.root .menu .bar {
-    -fx-background-color: #1f2023;
-}
-
-.root .menu .bar .menu-item {
-    -fx-border-width: 0 5 0 0;
-    -fx-border-color: transparent;
-    -fx-font-size: 1.5em;
-    -fx-cursor: hand;
-    -fx-alignment: CENTER_LEFT;
-}
-
 .root .menu .bar .menu-item Icon,
 .root .menu .bar .menu-item Label {
     -fx-text-fill: #c3c5c7;
@@ -85,55 +65,6 @@
     -fx-padding: 5 15 5 15;
 }
 
-.root .list-section .poster-item {
-    -fx-min-height: 368;
-    -fx-max-height: 368;
-    -fx-pref-height: 368;
-    -fx-min-width: 250;
-    -fx-max-width: 250;
-    -fx-pref-width: 250;
-    -fx-padding: 1;
-}
-
-.root .list-section .poster-item:focused,
-.root .list-section .poster-item.watched:focused {
-    -fx-opacity: 1;
-}
-
-.root .list-section .poster-item:focused .poster-image {
-    -fx-border-color: transparent;
-    -fx-border-width: 5px;
-    -fx-border-style: solid;
-}
-
-.root .list-section .poster-item:focused .poster-image {
-    -fx-border-color: #2d72d9;
-}
-
-.root .list-section .poster-item .poster-details {
-    -fx-background-color: linear-gradient(rgba(23, 24, 27, 0.3) 0%, rgba(23, 24, 27, 0.8) 70%);
-}
-
-.root .list-section .poster-item:focused .poster-details {
-    -fx-background-color: linear-gradient(rgba(45, 114, 217, 0.3) 0%, rgba(45, 114, 217, 0.8) 70%);
-}
-
-.root .list-section .poster-item .poster-details .title {
-    -fx-font-size: 1.5em;
-}
-
-.root .list-section .poster-item .year,
-.root .list-section .poster-item .seasons {
-    -fx-font-size: 1em;
-    -fx-text-fill: #737373;
-    -fx-fill: #737373;
-}
-
-.root .list-section .poster-item:focused .year,
-.root .list-section .poster-item:focused .seasons {
-    -fx-text-fill: #fff;
-}
-
 .root .movie-details .overview,
 .root .show-details-section .overview {
     -fx-font-size: 1.25em;
@@ -149,13 +80,19 @@
     -fx-font-size: 8px;
 }
 
-.root .movie-details .metadata .stars .star {
+.root .movie-details .metadata .stars .star,
+.root .show-details-section .stars .star {
     -fx-font-size: 1.25em;
+}
+
+.root .movie-details .magnet-link,
+.root .show-details-section .magnet-link {
+    visibility: hidden;
 }
 
 .root .movie-details .health,
 .root .movie-details .subtitle,
-.root .show-details-section .show-details .episode-overview .health {
+.root .show-details-section .health {
     -fx-font-size: 1.25em;
 }
 
@@ -319,79 +256,13 @@
     -fx-cursor: hand;
 }
 
-.root .show-details-section .show-header .poster {
-    -fx-max-width: 298;
-    -fx-max-height: 315;
-}
-
 .root .movie-details .metadata .rating,
-.root .show-details-section .show-header .rating {
+.root .show-details-section .show-details .rating {
     -fx-padding: 0 0 0 5;
-}
-
-.root .show-details-section .show-header .title {
-    -fx-font-size: 3em;
-}
-
-.root .show-details-section .show-header .metadata {
-    -fx-font-size: 1.25em;
-}
-
-.root .show-details-section .show-header .overview {
-    -fx-font-size: 1.5em;
-}
-
-.root .show-details-section .seasons {
-    -fx-background-color: #1f375f;
-    -fx-padding: 0 20 0 20;
-}
-
-.root .show-details-section .seasons .item {
-    -fx-cursor: hand;
-    -fx-font-family: "Open Sans Semibold";
-    -fx-font-size: 1.5em;
-    -fx-text-fill: #ccc;
-    -fx-border-color: transparent;
-    -fx-border-width: 0 0 3 0;
-    -fx-border-style: solid;
-    -fx-padding: 10 15 10 15;
-}
-
-.root .show-details-section .seasons .item.active {
-    -fx-font-family: "Open Sans Bold";
-    -fx-text-fill: #fff;
-    -fx-border-color: #fff;
-}
-
-.root .show-details-section .seasons .item:focused {
-    -fx-text-fill: #fff;
-    -fx-border-color: #2d72d9;
-}
-
-.root .show-details-section .episodes .table-row-cell:selected {
-    -fx-background-color: #1f375f;
-}
-
-.root .show-details-section .episodes:focused .table-row-cell:selected {
-    -fx-background-color: #2d72d9;
 }
 
 .root .show-details-section .show-details {
     -fx-padding: 0 15 0 15;
-}
-
-.root .show-details-section .show-details .episode-overview .episode-title {
-    -fx-font-family: "Open Sans Bold";
-    -fx-font-size: 2.5em;
-}
-
-.root .show-details-section .show-details .episode-overview .episode-meta {
-    -fx-font-size: 1.25em;
-}
-
-.root .show-details-section .show-details .episode-overview .episode-synopsis {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-font-size: 1.5em;
 }
 
 .root .player .player-controls {
@@ -436,62 +307,250 @@
     -fx-max-width: 250px;
 }
 
-.root .content-section .settings-section .sub-section .text {
+/* ==================================================== */
+/* NEW SECTION AFTER REWORK                             */
+/* EVERYTHING ABOVE SHOULD BE REMOVED AS IT'S NOT USED  */
+/* ==================================================== */
+
+.root,
+.root .viewport,
+.root .scroll-bar,
+.root .list-cell,
+.root .table-row-cell,
+.root .scroll-pane,
+.root .list-view,
+.root .table-view,
+.root .header .bar,
+.root .loader,
+.root .player-external,
+.root .overlay,
+.root .content-section {
+    -fx-font-size: 24px;
+}
+
+/* region Sidebar */
+
+.root .content-section .sidebar .logo {
+    -fx-min-width: 64px;
+    -fx-max-width: 64px;
+}
+
+.root .content-section .sidebar .icon {
+    -fx-pref-width: 128px;
+    -fx-font-size: 3em;
+    -fx-border-width: 0 0 0 6;
+}
+
+.root .content-section .sidebar .icon-text {
+    -fx-pref-width: 250px;
+    -fx-font-size: 2em;
+}
+
+.root .content-section .sidebar .icon,
+.root .content-section .sidebar .icon-text {
+    -fx-pref-height: 110px;
+}
+
+/* endregion */
+
+.root .content-section .system-time {
+    -fx-font-size: 2em;
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-padding: 5 25 0 0;
+}
+
+/* region Media Card */
+
+.root .list-section .poster-item {
+    -fx-pref-height: 450;
+    -fx-pref-width: 300;
+    -fx-padding: 1;
+}
+
+.root .list-section .poster-item:focused {
+    -fx-opacity: 1;
+}
+
+.root .list-section .poster-item:focused .poster-image {
+    -fx-border-color: transparent;
+    -fx-border-width: 5px;
+    -fx-border-style: solid;
+}
+
+.root .list-section .poster-item:focused .poster-image {
+    -fx-border-color: #2d72d9;
+}
+
+.root .list-section .poster-item .poster-details {
+    -fx-background-color: linear-gradient(rgba(23, 24, 27, 0.3) 0%, rgba(23, 24, 27, 0.8) 70%);
+}
+
+.root .list-section .poster-item:focused .poster-details {
+    -fx-background-color: linear-gradient(rgba(45, 114, 217, 0.3) 0%, rgba(45, 114, 217, 0.8) 70%);
+}
+
+/* endregion */
+
+/* region Loader */
+
+.root .loader .progress-status,
+.root .player-external .progress-status {
+    -fx-max-width: 800;
+}
+
+/* endregion */
+
+/* region Details */
+
+.root .show-details-section .show-details .seasons {
+    -fx-min-height: 2.5em;
+}
+
+.root .movie-details .title,
+.root .show-details-section .show-details .title {
+    -fx-font-size: 3em;
+}
+
+.root .show-details-section .show-details .metadata {
     -fx-font-size: 1.25em;
 }
 
-.root .content-section .settings-section .sub-section .subsection-title {
-    -fx-min-width: 400;
-    -fx-max-width: 400;
-}
-
-.root .content-section .settings-section .sub-section .subsection-title .text {
+.root .show-details-section .show-details .overview {
     -fx-font-size: 1.5em;
 }
 
-.root .content-section .settings-section .sub-section .combo-box {
-    -fx-cursor: hand;
+.root .show-details-section .show-details .axis .button.selected {
+    -fx-background-color: rgba(11, 27, 51, 0.25);
+    -fx-border-color: #2d72d9;
 }
 
-.root .content-section .settings-section .sub-section .combo-box:focused {
+.root .show-details-section .show-details .axis .button:focused,
+.root .show-details-section .show-details .axis .button:hover,
+.root .show-details-section .show-details .axis .button.selected:focused,
+.root .show-details-section .show-details .axis .button.selected:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.25);
+}
+
+.root .show-details-section .show-details .episode-overview .episode-graphic {
+    -fx-pref-width: 640px;
+    -fx-pref-height: 360px;
+}
+
+.root .movie-details .button {
+    -fx-padding: 15 25 15 25;
+}
+
+.root .movie-details .button .icon {
+    -fx-padding: 0 8 0 0;
+}
+
+.root .movie-details .button .text,
+.root .movie-details .button .icon {
+    -fx-font-size: 1.5em;
+}
+
+/* endregion */
+
+/* region Filter */
+
+.root .content-section .filter {
+    -fx-pref-width: 18em;
+}
+
+.root .content-section .filter .search-value {
+    -fx-min-width: 0;
+    -fx-font-size: 1.5em;
+    -fx-font-family: "Open Sans Semibold";
+    -fx-text-fill: #fff;
+    -fx-text-overrun: clip;
+}
+
+.root .content-section .filter .virtual-keyboard {
+    -fx-padding: 15 8 15 8;
+}
+
+.root .content-section .filter .virtual-keyboard .button {
+    -fx-min-width: 0;
+    -fx-pref-width: 3em;
+    -fx-pref-height: 3em;
+    -fx-background-color: rgba(17, 29, 51, 0.75);
+    -fx-border-color: #152440;
+    -fx-border-width: 2 2 2 2;
+    -fx-border-style: solid;
+}
+
+.root .content-section .filter .virtual-keyboard .button .icon {
+    -fx-min-width: 0;
+    -fx-font-size: 1.5em;
+}
+
+.root .content-section .filter .virtual-keyboard .button.large {
+    -fx-pref-width: 9em;
+}
+
+.root .content-section .filter .virtual-keyboard .button:focused,
+.root .content-section .filter .virtual-keyboard .button:hover {
+    -fx-background-color: rgba(24, 43, 77, 0.85);
+    -fx-border-color: #4c82e6;
+}
+
+.root .content-section .filter .axis .button {
+    -fx-pref-width: 18em;
+    -fx-text-alignment: left;
+    -fx-alignment: left;
+    -fx-background-color: transparent;
+}
+
+.root .content-section .filter .axis,
+.root .content-section .filter .axis .scroll-bar,
+.root .content-section .filter .axis .button,
+.root .content-section .filter .axis .button .text {
+    -fx-min-width: 0;
+}
+
+.root .content-section .filter .axis .selected {
+    -fx-background-color: rgba(24, 43, 77, 0.85);
+}
+
+.root .content-section .filter .axis .button:hover,
+.root .content-section .filter .axis .button:focused {
     -fx-background-color: #2d72d9;
 }
 
-.root .content-section .settings-section .sub-section .combo-box {
-    -fx-max-width: 250px;
+/* endregion */
+
+/* region Overlay */
+
+.root .overlay .overlay-content .axis .button {
+    -fx-pref-width: 12em;
 }
 
-.root .content-section .settings-section .sub-section .combo-box .label {
-    -fx-pref-width: 250px;
-    -fx-max-width: 250px;
-    -fx-background-color: transparent;
-    -fx-padding: 3 5 3 5;
+/* endregion */
+
+/* region Settings */
+
+.root .settings-section .sub-section .subsection-title {
+    -fx-border-width: 0 3 0 0;
 }
 
-.root .content-section .settings-section .sub-section .combo-box:focused .label {
-    -fx-text-fill: #fff;
+.root .settings-section .sub-section .button {
+    -fx-pref-width: 10em;
+    -fx-background-color: rgba(23, 24, 27, 0.8);
 }
 
-.root .content-section .settings-section .sub-section .combo-box .arrow-button {
-    -fx-padding: 0 8 0 8;
-}
-
-.root .content-section .settings-section .sub-section .combo-box .arrow-button .arrow {
-    -fx-pref-width: 8px;
-    -fx-max-width: 8px;
-    -fx-pref-height: 4px;
-    -fx-max-height: 4px;
-}
-
-.root .content-section .settings-section .sub-section .check-box .box {
-    -fx-border-width: 2;
-    -fx-border-color: transparent;
-}
-
-.root .content-section .settings-section .sub-section .check-box:focused {
+.root .settings-section .sub-section .button:focused,
+.root .settings-section .sub-section .button:hover {
     -fx-text-fill: #2d72d9;
+    -fx-background-color: #0d2240;
 }
 
-.root .content-section .settings-section .sub-section .check-box:focused .box {
-    -fx-border-color: #2d72d9;
+.root .settings-section .sub-section .separator .line {
+    -fx-border-width: 1;
 }
+
+.root .settings-section .overlay .overlay-content .button {
+    -fx-pref-width: 12em;
+}
+
+/* endregion */

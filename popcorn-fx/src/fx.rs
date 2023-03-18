@@ -63,6 +63,12 @@ pub struct PopcornFxArgs {
     /// Disable the VLC video player.
     #[arg(long, default_value_t = false)]
     pub disable_vlc_video_player: bool,
+    /// Indicates if the TV mode is enabled of the application.
+    #[arg(long, default_value_t = false)]
+    pub tv: bool,
+    /// Indicates if the application should be maximized on startup.
+    #[arg(long, default_value_t = false)]
+    pub maximized: bool
 }
 
 impl Default for PopcornFxArgs {
@@ -73,6 +79,8 @@ impl Default for PopcornFxArgs {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
         }
     }
 }
@@ -86,7 +94,6 @@ impl Default for PopcornFxArgs {
 /// This instance will have the [log4rs] loggers initialized.
 /// ```no_run
 /// use popcorn_fx::PopcornFX;
-///
 /// let instance = PopcornFX::default();
 /// ```
 #[repr(C)]
@@ -323,6 +330,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -347,6 +356,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -366,6 +377,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -384,6 +397,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -403,6 +418,8 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "settings.json", None);

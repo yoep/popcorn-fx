@@ -14,6 +14,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
@@ -32,12 +33,10 @@ import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
 import javafx.beans.value.ChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.lang.Nullable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
@@ -57,7 +56,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
 
     private final TorrentService torrentService;
     private final TorrentStreamService torrentStreamService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final ApplicationConfig settingsService;
     private final SubtitleService subtitleService;
 
@@ -71,24 +70,6 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     private CompletableFuture<?> currentFuture;
 
     //region Methods
-
-    @Async
-    @EventListener
-    public void onLoadMediaTorrent(LoadMediaTorrentEvent event) {
-        loadMediaTorrent(event);
-    }
-
-    @Async
-    @EventListener
-    public void onLoadUrlTorrent(LoadUrlTorrentEvent event) {
-        loadUrlTorrent(event);
-    }
-
-    @Async
-    @EventListener
-    public void onLoadUrl(LoadUrlEvent event) {
-        loadUrl(event);
-    }
 
     /**
      * Cancel the current loading process.
@@ -114,6 +95,22 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     //endregion
 
     //region Functions
+
+    @PostConstruct
+    void init() {
+        eventPublisher.register(LoadMediaTorrentEvent.class, event -> {
+            loadMediaTorrent(event);
+            return event;
+        });
+        eventPublisher.register(LoadUrlTorrentEvent.class, event -> {
+            loadUrlTorrent(event);
+            return event;
+        });
+        eventPublisher.register(LoadUrlEvent.class, event -> {
+            loadUrl(event);
+            return event;
+        });
+    }
 
     private void resetToIdleState() {
         this.event = null;

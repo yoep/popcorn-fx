@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
@@ -26,8 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.File;
 import java.util.Optional;
@@ -48,12 +49,14 @@ class SubtitleManagerServiceTest {
     private SubtitlePickerService subtitlePickerService;
     @Mock
     private LocaleText localeText;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ApplicationSettings settings;
     @Mock
     private SubtitleSettings.ByValue subtitleSettings;
+    @Mock
+    private SubtitleInfo subtitleNone;
     @InjectMocks
     private SubtitleManagerService service;
 
@@ -64,6 +67,7 @@ class SubtitleManagerServiceTest {
         lenient().when(settingsService.getSettings()).thenReturn(settings);
         lenient().when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         lenient().when(subtitleService.activeSubtitleProperty()).thenReturn(activeSubtitleProperty);
+        lenient().when(subtitleNone.isNone()).thenReturn(true);
     }
 
     @Test
@@ -90,7 +94,7 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleIsNone_shouldDisableSubtitleTrack() {
-        service.updateSubtitle(SubtitleInfo.none());
+        service.updateSubtitle(subtitleNone);
 
         verify(subtitleService).disableSubtitle();
     }
@@ -150,6 +154,7 @@ class SubtitleManagerServiceTest {
         var quality = "720p";
         var title = "my-video-title";
         var subtitle = mock(Subtitle.class);
+        var custom = mock(SubtitleInfo.class);
         var videoEvent = PlayVideoEvent.builder()
                 .source(this)
                 .url(url)
@@ -167,11 +172,12 @@ class SubtitleManagerServiceTest {
                 .torrentStream(mock(TorrentStream.class))
                 .build();
         var expected_filepath = "/lorem/ipsum.srt";
-        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(SubtitleInfo.custom()));
+        when(custom.isCustom()).thenReturn(true);
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(custom));
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(expected_filepath));
         service.init();
-        service.onPlayVideo(videoEvent);
-        service.onPlayMedia(mediaUrl);
+        eventPublisher.publish(videoEvent);
+        eventPublisher.publish(mediaUrl);
 
         activeSubtitleProperty.set(subtitle);
 
@@ -181,7 +187,9 @@ class SubtitleManagerServiceTest {
     @Test
     void testSubtitleListener_whenSubtitleIsChangedToCustomAndUserCancels_shouldDisableTheSubtitleTrack() {
         var subtitle = mock(Subtitle.class);
-        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(SubtitleInfo.custom()));
+        var custom = mock(SubtitleInfo.class);
+        when(custom.isCustom()).thenReturn(true);
+        when(subtitle.getSubtitleInfo()).thenReturn(Optional.of(custom));
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.empty());
         service.init();
 

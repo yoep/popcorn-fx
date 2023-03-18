@@ -7,9 +7,9 @@ import java.lang.annotation.*;
 /**
  * {@link Conditional} that only matches when the desktop mode is activated.
  */
-@Target({ ElementType.TYPE })
+@Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Conditional(OnDesktopModeCondition.class)
+@Conditional({OnDesktopModeCondition.class})
 public @interface ConditionalOnDesktopMode {
 }

@@ -5,16 +5,12 @@ use std::os::raw::c_char;
 use log::error;
 
 pub use crate::media_c::*;
-pub use crate::properties_c::*;
-pub use crate::settings_c::*;
 pub use crate::subtitle_c::*;
 pub use crate::torrent_collection_c::*;
 
 pub mod core;
 
 mod media_c;
-mod properties_c;
-mod settings_c;
 mod subtitle_c;
 mod torrent_collection_c;
 
@@ -22,6 +18,9 @@ mod torrent_collection_c;
 pub const VERSION: &str = "0.5.1";
 
 /// Convert the given [String] into a C compatible string.
+///
+/// This function will consume the provided data and use the underlying bytes to construct a new string, ensuring that there is a trailing 0 byte.
+/// This trailing 0 byte will be appended by this function; the provided data should not contain any 0 bytes in it.
 pub fn into_c_string(value: String) -> *const c_char {
     // DO NOT use [CString::into_raw] as Rust still cleans the original string which the pointer uses
     let c_string = CString::new(value.as_bytes()).unwrap();

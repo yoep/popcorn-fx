@@ -24,6 +24,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 import java.awt.*;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @SpringBootApplication
@@ -36,6 +37,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
     public static void main(String[] args) {
         System.setProperty("log.dir", getLogDirectory());
+        System.setProperty("jna.encoding", StandardCharsets.UTF_8.name());
         var libArgs = createLibraryArguments(args);
         PopcornFxInstance.INSTANCE.set(FxLibInstance.INSTANCE.get().new_popcorn_fx(libArgs, libArgs.length));
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
@@ -87,7 +89,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         // check if the big-picture or kiosk mode or maximized is enabled
         // if so, force the application to be maximized
-        if (options.isBigPictureMode() || options.isKioskMode() || options.isMaximized()) {
+        if (optionsService.isTvMode() || options.isKioskMode() || optionsService.isMaximized()) {
             maximizeService.setMaximized(true);
         } else {
             var settingsService = applicationContext.getBean(ApplicationConfig.class);

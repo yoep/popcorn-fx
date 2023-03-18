@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
@@ -19,8 +20,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -28,7 +27,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class TorrentCollectionSectionController implements Initializable {
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final TorrentCollectionService torrentCollectionService;
     private final LocaleText localeText;
 
@@ -37,25 +36,20 @@ public class TorrentCollectionSectionController implements Initializable {
     @FXML
     private TorrentCollection collection;
 
-    //region Methods
-
-    @EventListener(ShowTorrentCollectionEvent.class)
-    public void onShowTorrentCollection() {
-        log.trace("Loading torrent collection list");
-        Platform.runLater(() -> {
-            collection.getItems().clear();
-            collection.getItems().addAll(torrentCollectionService.getStoredTorrents());
-        });
-    }
-
-    //endregion
-
     //region Initializable
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         initializeFileShadow();
         initializeCollection();
+        eventPublisher.register(ShowTorrentCollectionEvent.class, event -> {
+            log.trace("Loading torrent collection list");
+            Platform.runLater(() -> {
+                collection.getItems().clear();
+                collection.getItems().addAll(torrentCollectionService.getStoredTorrents());
+            });
+            return event;
+        });
     }
 
     //endregion

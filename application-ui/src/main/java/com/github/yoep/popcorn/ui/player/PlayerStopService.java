@@ -3,17 +3,12 @@ package com.github.yoep.popcorn.ui.player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
-import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
-import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
-import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -31,7 +26,7 @@ public class PlayerStopService {
     private final TorrentStreamService torrentStreamService;
     private final PlayNextService playNextService;
     private final SubtitleService subtitleService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
 
     private Media media;
     private String quality;
@@ -40,26 +35,11 @@ public class PlayerStopService {
     private Long duration;
     private PlayerState lastKnownState;
 
-    //region Methods
-
-    @EventListener
-    public void onPlayMedia(PlayMediaEvent event) {
-        this.media = event.getSubMediaItem().orElse(event.getMedia());
-        this.quality = event.getQuality();
-        this.url = event.getUrl();
-    }
-
-    @EventListener
-    public void onPlayTorrent(PlayTorrentEvent event) {
-        this.url = event.getUrl();
-    }
-
-    //endregion
-
     //region PostConstruct
 
     @PostConstruct
     void init() {
+        initializeEventListener();
         playerEventService.addListener(new PlayerListener() {
             @Override
             public void onDurationChanged(long newDuration) {
@@ -90,6 +70,19 @@ public class PlayerStopService {
     //endregion
 
     //region Functions
+
+    private void initializeEventListener() {
+        eventPublisher.register(PlayMediaEvent.class, event -> {
+            this.media = event.getSubMediaItem().orElse(event.getMedia());
+            this.quality = event.getQuality();
+            this.url = event.getUrl();
+            return event;
+        });
+        eventPublisher.register(PlayTorrentEvent.class, event -> {
+            this.url = event.getUrl();
+            return event;
+        });
+    }
 
     private void reset() {
         this.media = null;

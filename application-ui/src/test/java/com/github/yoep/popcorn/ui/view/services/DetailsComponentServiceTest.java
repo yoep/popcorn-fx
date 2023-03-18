@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
@@ -7,13 +8,16 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -22,6 +26,10 @@ class DetailsComponentServiceTest {
     private FavoriteService favoriteService;
     @Mock
     private WatchedService watchedService;
+    @Mock
+    private OptionsService optionsService;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private DetailsComponentService service;
 
@@ -68,14 +76,15 @@ class DetailsComponentServiceTest {
     }
 
     @Test
-    void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist() {
+    void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist()  {
         var movie = MovieDetails.builder()
                 .build();
         var event = ShowMovieDetailsEvent.builder()
                 .source(this)
                 .media(movie)
                 .build();
-        service.onShowDetails(event);
+        service.init();
+        eventPublisher.publish(event);
 
         service.toggleWatchedState();
 
@@ -90,7 +99,8 @@ class DetailsComponentServiceTest {
                 .media(show)
                 .build();
         when(favoriteService.isLiked(show)).thenReturn(false);
-        service.onShowDetails(event);
+        service.init();
+        eventPublisher.publish(event);
 
         service.toggleLikedState();
 
@@ -105,10 +115,20 @@ class DetailsComponentServiceTest {
                 .media(show)
                 .build();
         when(favoriteService.isLiked(show)).thenReturn(true);
-        service.onShowDetails(event);
+        service.init();
+        eventPublisher.publish(event);
 
         service.toggleLikedState();
 
         verify(favoriteService).removeFromFavorites(show);
+    }
+
+    @Test
+    void testIsTvMode() {
+        when(optionsService.isTvMode()).thenReturn(true);
+
+        var result = service.isTvMode();
+
+        assertTrue(result);
     }
 }

@@ -28,6 +28,7 @@ import org.springframework.util.Assert;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Control for selecting the subtitle language through flags.
@@ -257,12 +258,16 @@ public class LanguageFlagSelection extends StackPane {
     private void initializeEvents() {
         this.setOnMouseClicked(event -> onClicked());
         items.addListener((ListChangeListener<SubtitleInfo>) change -> {
-            while (change.next()) {
-                if (change.wasAdded()) {
-                    change.getAddedSubList().forEach(this::addNewFlag);
-                } else if (change.wasRemoved()) {
-                    change.getRemoved().forEach(this::removeFlag);
+            try {
+                while (change.next()) {
+                    if (change.wasAdded()) {
+                        change.getAddedSubList().forEach(this::addNewFlag);
+                    } else if (change.wasRemoved()) {
+                        change.getRemoved().forEach(this::removeFlag);
+                    }
                 }
+            } catch (Exception ex) {
+                log.warn(ex.getMessage(), ex);
             }
         });
         loading.addListener((observable, oldValue, newValue) -> onLoadingChanged(newValue));
@@ -325,11 +330,17 @@ public class LanguageFlagSelection extends StackPane {
     }
 
     private void loadImage(ImageView imageView, Resource imageResource) {
-        try {
-            imageView.setImage(new Image(imageResource.getInputStream()));
-        } catch (IOException ex) {
-            log.error(ex.getMessage(), ex);
-        }
+        Optional.ofNullable(imageResource)
+                .map(e -> {
+                    try {
+                        return e.getInputStream();
+                    } catch (IOException ex) {
+                        log.error(ex.getMessage(), ex);
+                        return null;
+                    }
+                })
+                .map(Image::new)
+                .ifPresent(imageView::setImage);
     }
 
     private void updateFactory(LanguageFlagCell newValue) {

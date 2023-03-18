@@ -18,6 +18,7 @@ import java.util.Optional;
 public class SubtitlePickerService {
     private final LocaleText localeText;
     private final ViewManager viewManager;
+    private final SubtitleService subtitleService;
 
     private final FileChooser fileChooser = new FileChooser();
 
@@ -41,6 +42,7 @@ public class SubtitlePickerService {
         if (file != null) {
             // update the initial directory for next time
             fileChooser.setInitialDirectory(file.getParentFile());
+            subtitleService.updateCustomSubtitle(file.getAbsolutePath());
 
             return Optional.of(file.getAbsolutePath());
         }

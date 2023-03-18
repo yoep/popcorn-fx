@@ -6,10 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.backend.events.PlayVideoTorrentEvent;
+import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.resume.AutoResumeService;
@@ -25,8 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 
@@ -47,8 +44,8 @@ class PlayerPlayServiceTest {
     private ApplicationSettings settings;
     @Mock
     private PlaybackSettings playbackSettings;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private LocaleText localeText;
     @InjectMocks
@@ -64,8 +61,9 @@ class PlayerPlayServiceTest {
         var event = mock(PlayVideoEvent.class);
         when(event.getUrl()).thenReturn("my play video event url");
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.empty());
+        service.init();
 
-        service.onPlayVideo(event);
+        eventPublisher.publish(event);
 
         assertTrue(true);
     }
@@ -82,8 +80,9 @@ class PlayerPlayServiceTest {
                 .build();
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
+        service.init();
 
-        service.onPlayVideo(event);
+        eventPublisher.publish(event);
 
         verify(player).play(expectedResult);
     }
@@ -95,8 +94,9 @@ class PlayerPlayServiceTest {
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(true);
+        service.init();
 
-        service.onPlayVideo(event);
+        eventPublisher.publish(event);
 
         verify(screenService).fullscreen(true);
     }
@@ -109,6 +109,7 @@ class PlayerPlayServiceTest {
         var timestamp = 18000L;
         var player = mock(Player.class);
         var media = MovieDetails.builder()
+                .imdbId(id)
                 .images(Images.builder().build())
                 .build();
         var torrent = mock(Torrent.class);
@@ -132,10 +133,11 @@ class PlayerPlayServiceTest {
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(false);
         when(autoResumeService.getResumeTimestamp(id, url)).thenReturn(Optional.of(timestamp));
+        service.init();
 
-        service.onPlayVideo(event);
+        eventPublisher.publish(event);
 
-//        verify(player).play(request);
+        verify(player).play(request);
     }
 
     @Test
@@ -163,8 +165,9 @@ class PlayerPlayServiceTest {
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(false);
         when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.of(timestamp));
+        service.init();
 
-        service.onPlayVideo(event);
+        eventPublisher.publish(event);
 
         verify(player).play(request);
     }
@@ -189,8 +192,9 @@ class PlayerPlayServiceTest {
         when(settings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isFullscreen()).thenReturn(false);
         when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.of(timestamp));
+        service.init();
 
-        service.onPlayVideo(event);
+        eventPublisher.publish(event);
 
         verify(player).play(request);
     }
@@ -215,8 +219,9 @@ class PlayerPlayServiceTest {
         when(autoResumeService.getResumeTimestamp(url)).thenReturn(Optional.empty());
         when(localeText.get(MediaMessage.VIDEO_PLAYBACK_FAILED)).thenReturn(errorMessage);
         doThrow(new RuntimeException("my player error")).when(player).play(request);
+        service.init();
 
-        service.onPlayVideo(event);
+        eventPublisher.publish(event);
 
         verify(eventPublisher).publishEvent(expectedErrorNotification);
     }

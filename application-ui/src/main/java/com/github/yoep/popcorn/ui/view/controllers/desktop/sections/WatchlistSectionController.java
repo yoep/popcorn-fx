@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
@@ -20,13 +21,12 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.components.SimpleMedi
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollItemFactory;
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollPane;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.*;
@@ -36,7 +36,7 @@ import java.util.concurrent.ExecutionException;
 @Slf4j
 @RequiredArgsConstructor
 public class WatchlistSectionController implements Initializable {
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
     private final LocaleText localeText;
     private final TraktService traktService;
@@ -47,21 +47,18 @@ public class WatchlistSectionController implements Initializable {
     @FXML
     private InfiniteScrollPane<Media> scrollPane;
 
-    //rgion Methods
-
-    @EventListener(ShowWatchlistEvent.class)
-    public void onShowWatchlist() {
-        scrollPane.reset();
-        scrollPane.loadNewPage();
-    }
-
-    //endregion
-
     //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeScrollPane();
+        eventPublisher.register(ShowWatchlistEvent.class, event -> {
+            Platform.runLater(() -> {
+                scrollPane.reset();
+                scrollPane.loadNewPage();
+            });
+            return event;
+        });
     }
 
     //endregion

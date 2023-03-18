@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
@@ -20,8 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,8 +36,8 @@ class PlayerExternalComponentServiceTest {
     private PlayerManagerService playerManagerService;
     @Mock
     private PlayerEventService playerEventService;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerExternalComponentService service;
 
@@ -166,7 +167,7 @@ class PlayerExternalComponentServiceTest {
         service.init();
         service.addListener(playerListener);
 
-        service.onPlayTorrent(event);
+        eventPublisher.publish(event);
 
         verify(playerListener).onTitleChanged(title);
     }
@@ -191,7 +192,7 @@ class PlayerExternalComponentServiceTest {
         service.init();
         service.addListener(playerListener);
 
-        service.onPlayTorrent(event);
+        eventPublisher.publish(event);
         var torrentListener = torrentListenerHolder.get();
         torrentListener.onDownloadStatus(downloadStatus);
 
@@ -216,7 +217,7 @@ class PlayerExternalComponentServiceTest {
         service.init();
         service.addListener(playerListener);
 
-        service.onPlayTorrent(event);
+        eventPublisher.publish(event);
 
         verify(playerListener).onTitleChanged(title);
         verify(playerListener).onMediaChanged(media);

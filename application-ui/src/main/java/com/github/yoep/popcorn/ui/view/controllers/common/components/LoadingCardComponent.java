@@ -1,9 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.yoep.popcorn.ui.view.controllers.components.AbstractCardComponent;
+import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 
@@ -16,8 +17,11 @@ import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_PROT
 @Slf4j
 @Scope(SCOPE_PROTOTYPE)
 @ViewController
-@RequiredArgsConstructor
 public class LoadingCardComponent extends AbstractCardComponent implements Initializable {
+    public LoadingCardComponent(ImageService imageService) {
+        super(imageService);
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePoster();

@@ -16,7 +16,10 @@ public class PopcornViewLoader extends ViewLoaderImpl {
     private final OptionsService optionsService;
 
     @Builder
-    public PopcornViewLoader(ApplicationContext applicationContext, ViewManager viewManager, LocaleText localeText, OptionsService optionsService) {
+    public PopcornViewLoader(ApplicationContext applicationContext,
+                             ViewManager viewManager,
+                             LocaleText localeText,
+                             OptionsService optionsService) {
         super(applicationContext, viewManager, localeText);
         this.optionsService = optionsService;
     }
@@ -42,7 +45,7 @@ public class PopcornViewLoader extends ViewLoaderImpl {
     }
 
     private boolean isTvMode() {
-        return optionsService.options().isTvMode();
+        return optionsService.isTvMode();
     }
 
     //endregion

@@ -3,6 +3,7 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
@@ -11,7 +12,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -31,6 +30,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private final VideoService videoService;
     private final SubtitleService subtitleService;
     private final SubtitleManagerService subtitleManagerService;
+    private final FxLib fxLib;
 
     private final PlaybackListener listener = createListener();
 
@@ -50,9 +50,6 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
 
     @PostConstruct
     void init() {
-        subtitleService.activeSubtitleProperty().addListener((observableValue, subtitle, newSubtitle) ->
-                invokeListeners(e -> e.onActiveSubtitleChanged(
-                        Optional.ofNullable(newSubtitle).flatMap(Subtitle::getSubtitleInfo).orElse(SubtitleInfo.none()))));
         videoService.addListener(listener);
     }
 
@@ -63,8 +60,9 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private void onPlayRequest(PlayRequest request) {
         if (request.isSubtitlesEnabled()) {
             // set the default subtitle to "none" when loading
-            var defaultSubtitle = SubtitleInfo.none();
-            invokeListeners(e -> e.onAvailableSubtitlesChanged(Collections.singletonList(defaultSubtitle), defaultSubtitle));
+            try (var defaultSubtitle = fxLib.subtitle_none()) {
+                invokeListeners(e -> e.onAvailableSubtitlesChanged(Collections.singletonList(defaultSubtitle), defaultSubtitle));
+            }
 
             String filename = FilenameUtils.getName(request.getUrl());
 
@@ -102,7 +100,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
             }
 
             invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles,
-                    subtitleService.preferredSubtitle().orElse(SubtitleInfo.none())));
+                    subtitleService.preferredSubtitle().orElseGet(fxLib::subtitle_none)));
         } else {
             log.error("Failed to retrieve subtitles, " + throwable.getMessage(), throwable);
         }

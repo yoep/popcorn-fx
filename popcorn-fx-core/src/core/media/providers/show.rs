@@ -42,7 +42,7 @@ impl Display for ShowProvider {
 #[async_trait]
 impl MediaProvider for ShowProvider {
     fn supports(&self, category: &Category) -> bool {
-        category == &Category::SERIES
+        category == &Category::Series
     }
 
     fn reset_api(&self) {

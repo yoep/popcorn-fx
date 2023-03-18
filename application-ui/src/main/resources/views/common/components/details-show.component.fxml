@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.ui.view.controls.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.components.ShowDetailsComponent"
+            styleClass="show-details-section">
+
+    <!-- Background -->
+    <BackgroundImageCover fx:id="backgroundImage"
+                          AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
+
+    <GridPane fx:id="showDetails" styleClass="show-details"
+              AnchorPane.topAnchor="75" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
+        <columnConstraints>
+            <ColumnConstraints/>
+            <ColumnConstraints minWidth="10"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints valignment="TOP"/>
+            <RowConstraints valignment="TOP"/>
+            <RowConstraints minHeight="200" valignment="TOP"/>
+            <RowConstraints minHeight="10"/>
+            <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
+            <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
+        </rowConstraints>
+
+        <!-- PLACEHOLDER OF THE POSTER -->
+
+        <!-- Title -->
+        <Label fx:id="title" styleClass="title"
+               GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+        <!-- Metadata -->
+        <HBox alignment="CENTER_LEFT" styleClass="metadata"
+              GridPane.columnIndex="2" GridPane.rowIndex="1">
+            <Label fx:id="year"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="duration"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="status"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Label fx:id="genres"/>
+            <Icon styleClass="separator">
+                <Icon fx:constant="CIRCLE_UNICODE"/>
+            </Icon>
+            <Stars fx:id="ratingStars" alignment="CENTER"/>
+        </HBox>
+
+        <!-- Synopsis/overview text -->
+        <Label fx:id="overview" styleClass="overview" wrapText="true"
+               GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+
+        <!-- Seasons -->
+        <AxisItemSelection fx:id="seasons" styleClass="seasons" shortKeysEnabled="false" orientation="HORIZONTAL"
+                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="4"/>
+
+        <!-- Episodes -->
+        <AxisItemSelection fx:id="episodes" shortKeysEnabled="false" orientation="VERTICAL"
+                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="5"/>
+    </GridPane>
+
+    <Overlay fx:id="overlay">
+        <!-- Actions -->
+        <GridPane fx:id="episodeDetails">
+            <columnConstraints>
+                <ColumnConstraints/>
+                <ColumnConstraints/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+            <hgap>3</hgap>
+
+            <Label fx:id="episodeTitle" styleClass="title"
+                   GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2"/>
+            <Label fx:id="episodeSeason" styleClass="metadata"
+                   GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.columnSpan="2"/>
+            <Label fx:id="airDate" styleClass="metadata"
+                   GridPane.columnIndex="0" GridPane.rowIndex="2" GridPane.columnSpan="2"/>
+            <Label fx:id="synopsis" styleClass="synopsis" wrapText="true"
+                   GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.columnSpan="2"/>
+
+            <HBox alignment="CENTER_RIGHT"
+                  GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.halignment="RIGHT" GridPane.valignment="TOP">
+                <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
+                    <Icon fx:constant="MAGNET_UNICODE"/>
+                </Icon>
+                <HealthIcon fx:id="health" styleClass="health"/>
+            </HBox>
+
+            <!-- PLAYER ACTIONS PLACEHOLDER -->
+        </GridPane>
+    </Overlay>
+</AnchorPane>

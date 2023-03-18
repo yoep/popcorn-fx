@@ -6,6 +6,14 @@
 #include <new>
 
 
+/// The available categories of [crate::core::media::Media] items.
+/// These can be used as filter to retrieve data from the API.
+enum class Category : int32_t {
+  Movies = 0,
+  Series = 1,
+  Favorites = 2,
+};
+
 /// The decoration to apply to the subtitle during rendering.
 enum class DecorationType : int32_t {
   None = 0,
@@ -20,13 +28,6 @@ enum class Quality {
   P720,
   P1080,
   P2160,
-};
-
-/// The start screen options
-enum class StartScreen : int32_t {
-  Movies = 0,
-  Shows = 1,
-  Favorites = 2,
 };
 
 /// The supported subtitle fonts to use for rendering subtitles.
@@ -137,7 +138,6 @@ struct Box;
 /// This instance will have the [log4rs] loggers initialized.
 /// ```no_run
 /// use popcorn_fx::PopcornFX;
-///
 /// let instance = PopcornFX::default();
 /// ```
 struct PopcornFX;
@@ -256,30 +256,6 @@ struct MediaItemC {
   EpisodeC *episode;
 };
 
-/// The C compatible media provider properties.
-struct ProviderPropertiesC {
-  /// The name of the provider.
-  const char *name;
-  /// The array of available genres for the provider.
-  const char **genres;
-  /// The length of the genres array.
-  int32_t genres_len;
-  /// The array of available sorting options for the provider.
-  const char **sort_by;
-  /// The length of the sorting options array.
-  int32_t sort_by_len;
-};
-
-/// The C compatible properties of the application.
-struct PopcornPropertiesC {
-  /// The update channel to retrieve updates from
-  const char *update_channel;
-  /// The array of available provider properties
-  ProviderPropertiesC *provider_properties;
-  /// The length of the provider properties array
-  int32_t provider_properties_len;
-};
-
 /// The C compatible subtitle settings.
 struct SubtitleSettingsC {
   /// The directory path for storing subtitles
@@ -325,7 +301,7 @@ struct UiSettingsC {
   /// The ui scale of the application
   UiScale ui_scale;
   /// The default start screen of the application
-  StartScreen start_screen;
+  Category start_screen;
   /// The indication if the UI was maximized the last time the application was closed
   bool maximized;
   /// The indication if the UI should use a native window rather than the borderless stage
@@ -631,9 +607,12 @@ struct VecFavoritesC {
   int32_t shows_len;
 };
 
-/// Structure holding the values of a string array.
+/// The C compatible string array.
+/// It's mainly used for returning string arrays as result of C function calls.
 struct StringArray {
+  /// The string array
   const char **values;
+  /// The length of the string array
   int32_t len;
 };
 
@@ -697,10 +676,6 @@ void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 
 /// Add the given media item to the watched list.
 void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
-
-/// Retrieve the immutable configuration properties of the application.
-/// These properties stay the same throughout the lifecycle the popcorn FX instance.
-PopcornPropertiesC *application_properties(PopcornFX *popcorn_fx);
 
 /// Retrieve the application settings.
 /// These are the setting preferences of the users for the popcorn FX instance.
@@ -768,6 +743,9 @@ void install_update(PopcornFX *popcorn_fx);
 /// Verify if the FX embedded video player has been disabled.
 bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
 
+/// Verify if the application should be maximized on startup.
+bool is_maximized(PopcornFX *popcorn_fx);
+
 /// Verify if the given media item is liked/favorite of the user.
 /// It will use the first non [ptr::null_mut] field from the [MediaItemC] struct.
 ///
@@ -783,6 +761,9 @@ bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 ///
 /// It returns true when the subtitle track should be disabled, else false.
 bool is_subtitle_disabled(PopcornFX *popcorn_fx);
+
+/// Verify if the TV mode is activated for the application.
+bool is_tv_mode(PopcornFX *popcorn_fx);
 
 /// Verify if the vlc video player has been disabled.
 bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
@@ -889,6 +870,16 @@ SubtitleInfoC *retrieve_preferred_subtitle(PopcornFX *popcorn_fx);
 /// It returns the preferred subtitle language.
 SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFX *popcorn_fx);
 
+/// Retrieve the array of available genres for the given provider.
+///
+/// It returns an empty list when the provider name doesn't exist.
+StringArray *retrieve_provider_genres(PopcornFX *popcorn_fx, const char *name);
+
+/// Retrieve the array of available sorts for the given provider.
+///
+/// It returns an empty list when the provider name doesn't exist.
+StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, const char *name);
+
 /// Retrieve the details of a show based on the given IMDB ID.
 /// The details contain all information about the show such as episodes and descriptions.
 ///
@@ -918,6 +909,12 @@ TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torre
 
 /// Stop the given torrent stream.
 void stop_stream(PopcornFX *popcorn_fx, TorrentStreamC *stream);
+
+/// Retrieve a special [SubtitleInfo::custom] type instance of the application.
+SubtitleInfoC *subtitle_custom();
+
+/// Retrieve a special [SubtitleInfo::none] type instance of the application.
+SubtitleInfoC *subtitle_none();
 
 /// Add the given magnet info to the torrent collection.
 void torrent_collection_add(PopcornFX *popcorn_fx, const char *name, const char *magnet_uri);

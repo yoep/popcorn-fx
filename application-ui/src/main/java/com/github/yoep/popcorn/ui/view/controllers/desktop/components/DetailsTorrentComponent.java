@@ -2,10 +2,11 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -30,8 +31,6 @@ import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -47,13 +46,13 @@ import static java.util.Arrays.asList;
 public class DetailsTorrentComponent implements Initializable {
     private static final List<String> SUPPORTED_FILES = asList("mp4", "m4v", "avi", "mov", "mkv", "wmv");
 
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final TorrentCollectionService torrentCollectionService;
     private final LocaleText localeText;
     private final PlayerManagerService playerManagerService;
-    private final PlatformProvider platformProvider;
     private final SubtitlePickerService subtitlePickerService;
     private final SubtitleService subtitleService;
+    private final FxLib fxLib;
 
     private String magnetUri;
     private TorrentInfo torrentInfo;
@@ -70,10 +69,45 @@ public class DetailsTorrentComponent implements Initializable {
     @FXML
     SubtitleDropDownButton subtitleButton;
 
-    //region Methods
+    //region Initializable
 
-    @EventListener
-    public void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        initializeFileShadow();
+        initializeFileList();
+        initializeSubtitleDropDown();
+        eventPublisher.register(ShowTorrentDetailsEvent.class, event -> {
+            onShowTorrentDetails(event);
+            return event;
+        });
+
+        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, playerButton);
+    }
+
+    private void initializeFileShadow() {
+        // inner shadows cannot be defined in CSS, so this needs to be done in code
+        fileShadow.setEffect(new InnerShadow(BlurType.THREE_PASS_BOX, Color.color(0, 0, 0, 0.8), 10.0, 0.0, 0.0, 0.0));
+    }
+
+    private void initializeFileList() {
+        fileList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                handleFileChanged(newValue);
+            }
+        });
+    }
+
+    private void initializeSubtitleDropDown() {
+        subtitleButton.addDropDownItems(fxLib.subtitle_none(), fxLib.subtitle_custom());
+        subtitleButton.select(fxLib.subtitle_none());
+        subtitleButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
+    }
+
+    //endregion
+
+    //region Functions
+
+    private void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
         log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
         this.magnetUri = event.getMagnetUri();
         this.torrentInfo = event.getTorrentInfo();
@@ -98,42 +132,6 @@ public class DetailsTorrentComponent implements Initializable {
         updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
     }
 
-    //endregion
-
-    //region Initializable
-
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-        initializeFileShadow();
-        initializeFileList();
-        initializeSubtitleDropDown();
-
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(platformProvider, playerManagerService, playerButton);
-    }
-
-    private void initializeFileShadow() {
-        // inner shadows cannot be defined in CSS, so this needs to be done in code
-        fileShadow.setEffect(new InnerShadow(BlurType.THREE_PASS_BOX, Color.color(0, 0, 0, 0.8), 10.0, 0.0, 0.0, 0.0));
-    }
-
-    private void initializeFileList() {
-        fileList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                handleFileChanged(newValue);
-            }
-        });
-    }
-
-    private void initializeSubtitleDropDown() {
-        subtitleButton.addDropDownItems(SubtitleInfo.none(), SubtitleInfo.custom());
-        subtitleButton.select(SubtitleInfo.none());
-        subtitleButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
-    }
-
-    //endregion
-
-    //region Functions
-
     private void handleFileChanged(String filename) {
         var files = torrentInfo.getFiles();
 
@@ -153,7 +151,7 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
-        if (SubtitleInfo.custom().equals(subtitleInfo)) {
+        if (subtitleInfo.isCustom()) {
             subtitlePickerService.pickCustomSubtitle().ifPresent(subtitleService::updateCustomSubtitle);
         } else {
             activeSubtitleInfo = subtitleInfo;

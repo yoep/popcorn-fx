@@ -4,7 +4,7 @@ use std::time::Instant;
 use clap::{CommandFactory, FromArgMatches};
 use log::info;
 
-use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned};
+use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, VERSION};
 
 use crate::{PopcornFX, PopcornFxArgs};
 
@@ -34,6 +34,12 @@ pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut Pop
 #[no_mangle]
 pub extern "C" fn dispose_popcorn_fx(_: Box<PopcornFX>) {
     info!("Disposing Popcorn FX instance");
+}
+
+/// Retrieve the version of Popcorn FX.
+#[no_mangle]
+pub extern "C" fn version() -> *const c_char {
+    into_c_string(VERSION.to_string())
 }
 
 #[cfg(test)]
@@ -70,9 +76,18 @@ mod test {
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
             app_directory: temp_path.to_string(),
         });
 
         dispose_popcorn_fx(Box::new(instance))
+    }
+
+    #[test]
+    fn test_version() {
+        let result = version();
+
+        assert_eq!(VERSION.to_string(), from_c_string(result))
     }
 }

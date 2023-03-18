@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          styleClass="episode-overview">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints minWidth="10"/>
+        <ColumnConstraints/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints valignment="TOP"/>
+        <RowConstraints valignment="TOP"/>
+        <RowConstraints valignment="TOP"/>
+    </rowConstraints>
+
+    <AnchorPane fx:id="graphic" styleClass="episode-graphic"
+                GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="3">
+        <ImageCover fx:id="episodeArt"
+                    AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
+        <Icon fx:id="watchedIcon" onMouseClicked="#onWatchedClicked"
+              AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0"/>
+        <Label fx:id="episodeNumber" styleClass="episode-number"
+               AnchorPane.bottomAnchor="30" AnchorPane.leftAnchor="0"/>
+    </AnchorPane>
+
+    <Label fx:id="title" styleClass="title"
+           GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+    <Label fx:id="airDate" styleClass="metadata"
+           GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+    <Label fx:id="synopsis" styleClass="synopsis" wrapText="true"
+           GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+</GridPane>

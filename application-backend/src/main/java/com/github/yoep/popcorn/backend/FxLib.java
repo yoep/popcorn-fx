@@ -15,7 +15,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
-import com.github.yoep.popcorn.backend.settings.ApplicationProperties;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
@@ -31,24 +30,25 @@ import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.sun.jna.Library;
-import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 
 /**
  * The Popcorn FX native library interface.
- * Use the {@link FxLib#INSTANCE} to communicate with the loaded library.
+ * Use the {@link FxLibInstance#INSTANCE} to communicate with the loaded library.
  * <p>
  * <i>Example:</i>
  * <pre><code>
- * var subtitles = FxLib.INSTANCE.movie_subtitles(PopcornFxInstance.INSTANCE.get(), movie);
+ * var subtitles = FxLibInstance.INSTANCE.get().movie_subtitles(PopcornFxInstance.INSTANCE.get(), movie);
  * </code></pre>
  */
 public interface FxLib extends Library {
-    FxLib INSTANCE = Native.load("popcorn_fx", FxLib.class);
-
     PopcornFx new_popcorn_fx(String[] args, int len);
 
     SubtitleInfoSet default_subtitle_options(PopcornFx instance);
+
+    SubtitleInfo subtitle_none();
+
+    SubtitleInfo subtitle_custom();
 
     SubtitleInfoSet movie_subtitles(PopcornFx instance, MovieDetails movie);
 
@@ -146,8 +146,6 @@ public interface FxLib extends Library {
 
     void torrent_collection_remove(PopcornFx instance, String magnetUrl);
 
-    ApplicationProperties application_properties(PopcornFx instance);
-
     ApplicationSettings application_settings(PopcornFx instance);
 
     void reload_settings(PopcornFx instance);
@@ -170,6 +168,10 @@ public interface FxLib extends Library {
 
     byte is_vlc_video_player_disabled(PopcornFx instance);
 
+    byte is_tv_mode(PopcornFx instance);
+
+    byte is_maximized(PopcornFx instance);
+
     VersionInfo version_info(PopcornFx instance);
 
     UpdateState update_state(PopcornFx instance);
@@ -179,6 +181,10 @@ public interface FxLib extends Library {
     void install_update(PopcornFx instance);
 
     void register_update_callback(PopcornFx instance, UpdateCallback callback);
+
+    StringArray retrieve_provider_genres(PopcornFx instance, String name);
+
+    StringArray retrieve_provider_sort_by(PopcornFx instance, String name);
 
     void dispose_media_item(MediaItem media);
 

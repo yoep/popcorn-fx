@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.adapters.platform;
 
 import javax.validation.constraints.NotNull;
-import java.nio.file.Path;
 
 /**
  * Provider which supplies/checks certain aspects of the current platform/environment.
@@ -20,16 +19,10 @@ public interface PlatformProvider {
      * Run the given action on the rendering thread of the platform.
      *
      * @param runnable The action to execute on the rendering thread.
+     * @deprecated Use {@link javafx.application.Platform#runLater(Runnable)} instead
      */
+    @Deprecated
     void runOnRenderer(Runnable runnable);
-
-    /**
-     * Launch the given process path on the current platform.
-     *
-     * @param path The process path that needs to be started.
-     * @return Returns true if the process path was launched with success, else false.
-     */
-    boolean launch(@NotNull Path path);
 
     /**
      * Launch the given command on the current platform.

@@ -1,12 +1,14 @@
 package com.github.yoep.popcorn.backend.media.filters.model;
 
 import com.sun.jna.Structure;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.io.Closeable;
 import java.io.Serializable;
 
 @Getter
+@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"key", "text"})
 public class Genre extends Structure implements Comparable<Genre>, Serializable, Closeable {
     public static final String ALL_KEYWORD = "all";

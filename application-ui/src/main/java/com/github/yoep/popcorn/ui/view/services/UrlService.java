@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
@@ -13,11 +14,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,16 +29,11 @@ import java.util.regex.Pattern;
 public class UrlService {
     private static final Pattern URL_TYPE_PATTERN = Pattern.compile("([a-zA-Z]*):?(.*)");
 
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
     private final Application application;
     private final LocaleText localeText;
 
     //region Methods
-
-    @EventListener
-    public void open(OpenMagnetLinkEvent event) {
-        open(event.getUrl());
-    }
 
     /**
      * Open the given url link.
@@ -141,6 +136,14 @@ public class UrlService {
     //endregion
 
     //region Functions
+
+    @PostConstruct
+    void init() {
+        eventPublisher.register(OpenMagnetLinkEvent.class, event -> {
+            open(event.getUrl());
+            return event;
+        });
+    }
 
     private boolean isWebUrl(String type) {
         Assert.notNull(type, "type cannot be null");

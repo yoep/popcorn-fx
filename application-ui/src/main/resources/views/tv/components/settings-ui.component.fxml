@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvSettingsUiComponent"
+          styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <!-- User interface title -->
+    <Label styleClass="subsection-title" text="%settings_user_interface"
+           GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <!-- Default language -->
+    <Label styleClass="subsection-label" text="%settings_ui_language" wrapText="true"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <Button fx:id="defaultLanguage"
+            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <Label styleClass="subsection-label" text="%settings_ui_scale" labelFor="$uiScale"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <Button fx:id="uiScale"
+            GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+
+    <Label styleClass="subsection-label" text="%settings_start_screen" labelFor="$startScreen"
+           GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    <Button fx:id="startScreen"
+              GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+
+    <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+    <Overlay for="$defaultLanguage">
+        <AxisItemSelection fx:id="languages" orientation="VERTICAL" spacing="5" />
+    </Overlay>
+    <Overlay for="$uiScale">
+        <AxisItemSelection fx:id="uiScales" orientation="VERTICAL" spacing="5" />
+    </Overlay>
+    <Overlay for="$startScreen">
+        <AxisItemSelection fx:id="startScreens" orientation="VERTICAL" spacing="5" />
+    </Overlay>
+</GridPane>

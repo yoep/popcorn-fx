@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection?>
+<?import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopSerieActionsComponent">
+    <columnConstraints>
+        <ColumnConstraints minWidth="250"/>
+        <ColumnConstraints/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+    <hgap>5</hgap>
+
+    <!-- Subtitle selection -->
+    <LanguageFlagSelection fx:id="languageSelection"
+                           GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+    <!-- Quality selection -->
+    <fx:include source="serie-quality.component.fxml"
+                GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+
+    <!-- Play actions -->
+    <PlayerDropDownButton fx:id="watchNowButton" text="%details_watch_now" styleClass="watch-now" onMouseClicked="#onWatchNowClicked"
+                          GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.rowSpan="2"
+                          GridPane.halignment="RIGHT" GridPane.valignment="TOP"/>
+</GridPane>

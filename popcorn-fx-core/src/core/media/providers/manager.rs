@@ -90,12 +90,12 @@ mod test {
         let sort_by = SortBy::new(String::new(), String::new());
         let manager = ProviderManager::with_providers(vec![]);
 
-        let result = manager.retrieve(&Category::MOVIES, &Genre::all(), &sort_by, &String::new(), 1)
+        let result = manager.retrieve(&Category::Movies, &Genre::all(), &sort_by, &String::new(), 1)
             .await;
 
         assert!(result.is_err(), "Expected the provider to return an error");
         match result.err().unwrap() {
-            MediaError::ProviderNotFound(category) => assert_eq!(Category::MOVIES.to_string(), category.to_string()),
+            MediaError::ProviderNotFound(category) => assert_eq!(Category::Movies.to_string(), category.to_string()),
             _ => assert!(false, "Expected error MediaError::ProviderNotFound")
         }
     }
@@ -108,7 +108,7 @@ mod test {
         let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
         let manager = ProviderManager::with_providers(vec![Arc::new(provider)]);
 
-        let result = manager.provider(&Category::SERIES);
+        let result = manager.provider(&Category::Series);
 
         assert!(result.is_some(), "Expected a supported provider to have been found")
     }
@@ -117,7 +117,7 @@ mod test {
     fn test_get_not_supported_category() {
         let manager = ProviderManager::default();
         
-        let result = manager.provider(&Category::MOVIES);
+        let result = manager.provider(&Category::Movies);
 
         assert!(result.is_none(), "Expected no supported provider to have been found")
     }

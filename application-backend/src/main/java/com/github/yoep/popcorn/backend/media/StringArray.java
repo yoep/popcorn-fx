@@ -18,8 +18,16 @@ public class StringArray extends Structure implements Closeable {
     public Pointer values;
     public int len;
 
+    private List<String> cache;
+
     public List<String> values() {
-        return Optional.ofNullable(values)
+        return cache;
+    }
+
+    @Override
+    public void read() {
+        super.read();
+        cache = Optional.ofNullable(values)
                 .map(e -> e.getStringArray(0, len))
                 .map(Arrays::asList)
                 .orElse(Collections.emptyList());

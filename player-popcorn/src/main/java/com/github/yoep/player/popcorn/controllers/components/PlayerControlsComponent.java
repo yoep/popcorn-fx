@@ -9,8 +9,10 @@ import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -18,7 +20,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -29,6 +30,7 @@ import java.util.ResourceBundle;
 public class PlayerControlsComponent implements Initializable {
     private final PlayerControlsService playerControlsService;
     private final PlatformProvider platformProvider;
+    private final EventPublisher eventPublisher;
 
     @FXML
     Icon playPauseIcon;
@@ -49,18 +51,10 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onFullscreenStateChanged(Boolean isFullscreen) {
         if (isFullscreen) {
-            platformProvider.runOnRenderer(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
+            Platform.runLater(() -> fullscreenIcon.setText(Icon.COMPRESS_UNICODE));
         } else {
-            platformProvider.runOnRenderer(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
+            Platform.runLater(() -> fullscreenIcon.setText(Icon.EXPAND_UNICODE));
         }
-    }
-
-    @EventListener(PlayerStoppedEvent.class)
-    public void reset() {
-        platformProvider.runOnRenderer(() -> {
-            playProgress.setTime(0);
-            subtitleSection.setVisible(false);
-        });
     }
 
     //endregion
@@ -71,6 +65,14 @@ public class PlayerControlsComponent implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeSlider();
         initializeListeners();
+
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            Platform.runLater(() -> {
+                playProgress.setTime(0);
+                subtitleSection.setVisible(false);
+            });
+            return event;
+        });
     }
 
     private void initializeSlider() {

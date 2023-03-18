@@ -2,17 +2,21 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
+import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
-import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -27,11 +31,12 @@ import java.util.ResourceBundle;
 public class AboutSectionController implements Initializable {
     private final ApplicationContext applicationContext;
     private final AboutSectionService aboutService;
-    private final PlatformProvider platformProvider;
     private final ImageService imageService;
+    private final EventPublisher eventPublisher;
+    private final FxLib fxLib;
 
     @FXML
-    BackgroundImageCover backgroundCover;
+    ImageCover backgroundCover;
     @FXML
     ImageView logoImage;
     @FXML
@@ -57,13 +62,13 @@ public class AboutSectionController implements Initializable {
     }
 
     private void initializeBackgroundCover() {
-        imageService.loadResource("placeholder-background.jpg")
-                .thenAccept(e -> backgroundCover.setBackgroundImage(e));
+        imageService.loadResource("bg-header.jpg")
+                .thenAccept(e -> backgroundCover.setImage(e));
     }
 
     private void initializeLabels() {
         titleLabel.setText(applicationContext.getId());
-        versionLabel.setText(FxLib.INSTANCE.version());
+        versionLabel.setText(fxLib.version());
     }
 
     private void initializeListeners() {
@@ -82,10 +87,18 @@ public class AboutSectionController implements Initializable {
     }
 
     private void onPlayersChanged(List<ComponentInfo> players) {
-        platformProvider.runOnRenderer(() -> playersPane.setItems(players));
+        Platform.runLater(() -> playersPane.setItems(players));
     }
 
     private void onVideoPlayersChanged(List<ComponentInfo> videoPlayers) {
-        platformProvider.runOnRenderer(() -> videoPane.setItems(videoPlayers));
+        Platform.runLater(() -> videoPane.setItems(videoPlayers));
+    }
+
+    @FXML
+    void onAboutPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE) {
+            event.consume();
+            eventPublisher.publish(new CloseAboutEvent(this));
+        }
     }
 }

@@ -11,10 +11,10 @@ import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListene
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -26,7 +26,7 @@ import java.util.Optional;
 public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderListener> {
     private final PopcornPlayer player;
     private final VideoService videoService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
 
     private final PlaybackListener listener = createListener();
     private final TorrentListener torrentListener = createTorrentListener();

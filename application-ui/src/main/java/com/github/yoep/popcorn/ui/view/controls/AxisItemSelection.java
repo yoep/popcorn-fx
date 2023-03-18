@@ -241,11 +241,11 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         this.setContent(content);
 
         if (getOrientation() == Orientation.HORIZONTAL) {
-            prefHeightProperty().bind(content.heightProperty());
-            prefWidthProperty().unbind();
+            prefViewportHeightProperty().bind(content.heightProperty());
+            prefViewportWidthProperty().unbind();
         } else {
-            prefWidthProperty().bind(content.widthProperty());
-            prefHeightProperty().unbind();
+            prefViewportWidthProperty().bind(content.widthProperty());
+            prefViewportHeightProperty().unbind();
         }
     }
 

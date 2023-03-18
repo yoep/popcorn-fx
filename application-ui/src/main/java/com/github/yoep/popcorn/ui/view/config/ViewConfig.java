@@ -15,14 +15,11 @@ import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.PopcornViewLoader;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
-import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.ui.view.controllers.ContentSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.DetailsSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.components.DesktopPosterComponent;
-import com.github.yoep.popcorn.ui.view.controllers.components.TvPosterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
-import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.ui.view.services.*;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
@@ -84,26 +81,12 @@ public class ViewConfig {
     }
 
     @Bean
-    @ConditionalOnTvMode
-    public TvFilterComponent tvFilterComponent(EventPublisher eventPublisher,
-                                               LocaleText localeText,
-                                               FxLib fxLib,
-                                               PopcornFx instance) {
-        return new TvFilterComponent(eventPublisher, localeText, fxLib, instance);
-    }
-
-    @Bean
     @ConditionalOnDesktopMode
     public WindowComponent windowComponent(MaximizeService maximizeService,
                                            PlatformProvider platformProvider) {
         return new WindowComponent(maximizeService, platformProvider);
     }
 
-    @Bean
-    @ConditionalOnTvMode
-    public SystemTimeComponent systemTimeComponent() {
-        return new SystemTimeComponent();
-    }
 
     @Bean
     @Scope(SCOPE_PROTOTYPE)
@@ -116,13 +99,6 @@ public class ViewConfig {
         return new DesktopPosterComponent(eventPublisher, imageService, favoriteService, watchedService, localeText);
     }
 
-    @Bean
-    @Scope(SCOPE_PROTOTYPE)
-    @ConditionalOnTvMode
-    public TvPosterComponent tvPosterComponent(EventPublisher eventPublisher,
-                                               ImageService imageService) {
-        return new TvPosterComponent(eventPublisher, imageService);
-    }
 
     @Bean
     @ConditionalOnDesktopMode
@@ -141,20 +117,6 @@ public class ViewConfig {
     public DesktopMovieQualityComponent desktopMovieQualityComponent(EventPublisher eventPublisher,
                                                                      VideoQualityService videoQualityService) {
         return new DesktopMovieQualityComponent(eventPublisher, videoQualityService);
-    }
-
-    @Bean
-    @ConditionalOnTvMode
-    public TvMovieActionsComponent tvMovieActionsComponent(EventPublisher eventPublisher,
-                                                           SubtitleService subtitleService) {
-        return new TvMovieActionsComponent(eventPublisher, subtitleService);
-    }
-
-    @Bean
-    @ConditionalOnTvMode
-    public TvSerieActionsComponent tvSerieActionsComponent(EventPublisher eventPublisher,
-                                                           SubtitleService subtitleService) {
-        return new TvSerieActionsComponent(eventPublisher, subtitleService);
     }
 
     @Bean
@@ -177,11 +139,5 @@ public class ViewConfig {
     public DesktopSerieQualityComponent desktopSerieQualityComponent(EventPublisher eventPublisher,
                                                                      VideoQualityService videoQualityService) {
         return new DesktopSerieQualityComponent(eventPublisher, videoQualityService);
-    }
-
-    @Bean
-    @ConditionalOnTvMode
-    public TvSidebarSearchComponent tvSidebarSearchComponent(EventPublisher eventPublisher) {
-        return new TvSidebarSearchComponent(eventPublisher);
     }
 }

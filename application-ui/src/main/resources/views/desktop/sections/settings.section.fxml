@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.yoep.popcorn.ui.view.controls.ManageableScrollPane?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.SettingsSectionController"
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.SettingsSectionController"
             fx:id="settings" styleClass="settings-section" onKeyPressed="#onSettingsPressed" onMousePressed="#onSettingsPressed">
     <VBox AnchorPane.topAnchor="30" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="64">
         <!-- Title -->
         <Label styleClass="settings-title" text="%settings"/>
 
-        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER">
+        <ManageableScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" shortKeysEnabled="false">
             <VBox>
                 <!-- User interface -->
                 <fx:include source="../components/settings-ui.component.fxml"/>
@@ -30,6 +30,6 @@
                 <!-- Server -->
                 <fx:include source="../components/settings-server.component.fxml"/>
             </VBox>
-        </ScrollPane>
+        </ManageableScrollPane>
     </VBox>
 </AnchorPane>

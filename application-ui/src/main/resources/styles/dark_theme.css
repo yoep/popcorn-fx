@@ -1088,7 +1088,7 @@
     -fx-padding: 10 30 15 15;
 }
 
-.root .settings-section GridPane Separator .line {
+.root .settings-section .sub-section .separator .line {
     -fx-border-color: #3a3b3e;
     -fx-border-width: 0.5;
     -fx-border-style: solid;
@@ -1107,11 +1107,12 @@
 
 .root .settings-section .sub-section .label,
 .root .settings-section .sub-section .text-field,
+.root .settings-section .sub-section .button,
 .root .settings-section .sub-section .check-box,
 .root .settings-section .sub-section .combo-box > .list-cell,
 .root .settings-section .sub-section .combo-box .list-view .list-cell {
     -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
-    -fx-font-size: 14px;
+    -fx-font-size: 1.2em;
     -fx-text-fill: #c3c5c7;
 }
 
@@ -1121,25 +1122,29 @@
     -fx-padding: 0 0 0 8;
 }
 
-.root .settings-section .sub-section Label,
+.root .settings-section .sub-section .label,
 .root .settings-section .sub-section CheckBox,
 .root .settings-section .sub-section .button-holder {
     -fx-padding: 0 8 0 15;
 }
 
 .root .settings-section .sub-section .subsection-title {
-    -fx-min-width: 300;
-    -fx-max-width: 300;
+    -fx-min-width: 15em;
+    -fx-max-width: 15em;
     -fx-max-height: Infinity;
     -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
     -fx-text-fill: #2d75df;
-    -fx-font-size: 18px;
+    -fx-font-size: 2em;
     -fx-padding: 0 30 5 30;
     -fx-border-color: #3a3b3e;
     -fx-border-width: 0 1 0 0;
     -fx-border-style: solid;
     -fx-wrap-text: true;
     -fx-alignment: TOP_LEFT;
+}
+
+.root .settings-section .sub-section .subsection-label {
+    -fx-pref-width: 10em;
 }
 
 .root .settings-section .additional-info {

@@ -72,14 +72,17 @@ class ContentSectionControllerTest {
 
     @Test
     void testOnShowSettingsEvent() throws TimeoutException {
-        when(viewLoader.load(ContentSectionController.SETTINGS_SECTION)).thenReturn(new Pane());
+        var settingsPane = new Pane();
+        when(viewLoader.load(ContentSectionController.SETTINGS_SECTION)).thenReturn(settingsPane);
+
         controller.initialize(url, resourceBundle);
+        verify(viewLoader, timeout(250)).load(ContentSectionController.SETTINGS_SECTION);
 
         eventPublisher.publish(new ShowSettingsEvent(controller));
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(ContentSectionController.ContentType.SETTINGS, controller.activeType);
-        WaitForAsyncUtils.waitFor(750, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().get(0) == controller.settingsPane);
+        WaitForAsyncUtils.waitFor(500, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().contains(settingsPane));
     }
 
     @Test

@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -66,6 +67,7 @@ public class ContentSectionController implements Initializable {
     private void initializePanes() {
         // load the details pane on a different thread
         new Thread(() -> {
+            log.debug("Loading content panes");
             detailsPane = viewLoader.load("common/sections/details.section.fxml");
             torrentCollectionPane = viewLoader.load("common/sections/torrent-collection.section.fxml");
             watchlistPane = viewLoader.load("common/sections/watchlist.section.fxml");
@@ -145,7 +147,7 @@ public class ContentSectionController implements Initializable {
         if (activeType == contentType)
             return;
 
-        AtomicReference<Pane> pane = new AtomicReference<>();
+        var pane = new AtomicReference<Pane>();
         this.activeType = contentType;
 
         switch (contentType) {
@@ -163,7 +165,13 @@ public class ContentSectionController implements Initializable {
                 contentPane.getChildren().remove(0);
 
             try {
-                contentPane.getChildren().add(0, pane.get());
+                Optional.ofNullable(pane.get()).ifPresentOrElse(
+                        e -> {
+                            log.trace("Updating content pane to {}", e);
+                            contentPane.getChildren().add(0, e);
+                        },
+                        () -> log.error("Failed to update content pane, pane is NULL")
+                );
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
                 eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(ContentMessage.CONTENT_PANE_FAILED)));

@@ -67,7 +67,7 @@ public class SidebarController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         initializeSlideAnimation();
         initializeEventListeners();
-        initializeActiveIcon();
+        activateStartCategory();
         initializeSearch();
         initializeFocusListeners();
 
@@ -82,12 +82,8 @@ public class SidebarController implements Initializable {
                 sidebar.getColumnConstraints().get(1).setMaxWidth(movieText.getPrefWidth() * newValue.doubleValue()));
     }
 
-    private void initializeActiveIcon() {
-        var settings = applicationConfig.getSettings().getUiSettings();
-        switchCategory(settings.getStartScreen(), true);
-    }
-
     private void initializeFocusListeners() {
+        sidebar.focusWithinProperty().addListener((observable, oldValue, newValue) -> focusChanged(newValue));
         for (Node child : sidebar.getChildren()) {
             child.focusWithinProperty().addListener((observable, oldValue, newValue) -> focusChanged(newValue));
         }
@@ -102,6 +98,20 @@ public class SidebarController implements Initializable {
             switchCategory(lastKnownSelectedCategory, false);
             return event;
         });
+        eventPublisher.register(HomeEvent.class, event -> {
+            activateStartCategory();
+            return event;
+        });
+        eventPublisher.register(ContextMenuEvent.class, event -> {
+            Platform.runLater(() -> {
+                switch (lastKnownSelectedCategory) {
+                    case MOVIES -> movieIcon.requestFocus();
+                    case SERIES -> serieIcon.requestFocus();
+                    case FAVORITES -> favoriteIcon.requestFocus();
+                }
+            });
+            return event;
+        });
     }
 
     private void initializeSearch() {
@@ -110,6 +120,15 @@ public class SidebarController implements Initializable {
         GridPane.setColumnIndex(search, 1);
         GridPane.setRowIndex(search, 1);
         sidebar.getChildren().add(2, search);
+    }
+
+    /**
+     * Activate the initial main category which is configured by the user.
+     * This will select the category during startup of the application.
+     */
+    private void activateStartCategory() {
+        var settings = applicationConfig.getSettings().getUiSettings();
+        switchCategory(settings.getStartScreen(), true);
     }
 
     private void focusChanged(boolean newValue) {

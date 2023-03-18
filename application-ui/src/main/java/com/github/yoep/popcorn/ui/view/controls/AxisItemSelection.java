@@ -1,8 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -36,8 +34,9 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
      * The selected item which only changes when selected.
      */
     private final ObjectProperty<T> selectedItem = new SimpleObjectProperty<>();
-    private final ObjectProperty<Orientation> orientation = new SimpleObjectProperty<>(Orientation.VERTICAL);
-    private final ObjectProperty<ItemFactory<T>> factory = new SimpleObjectProperty<>(item -> new Button(item.toString()));
+    private final ObjectProperty<Orientation> orientation = new SimpleObjectProperty<>(this, "orientation", Orientation.VERTICAL);
+    private final ObjectProperty<ItemFactory<T>> itemFactory = new SimpleObjectProperty<>(item -> new Button(item.toString()));
+    private final DoubleProperty spacing = new SimpleDoubleProperty(this, "spacing");
     /**
      * Invoked each time an item is activated through user interaction.
      */
@@ -81,12 +80,12 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         scrollTo(selectedItem, focus);
     }
 
-    public ItemFactory<T> getFactory() {
-        return factory.get();
+    public ItemFactory<T> getItemFactory() {
+        return itemFactory.get();
     }
 
-    public void setFactory(ItemFactory<T> factory) {
-        this.factory.set(factory);
+    public void setItemFactory(ItemFactory<T> itemFactory) {
+        this.itemFactory.set(itemFactory);
     }
 
     public Consumer<T> getOnItemActivated() {
@@ -95,6 +94,18 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
 
     public void setOnItemActivated(Consumer<T> onItemActivated) {
         this.onItemActivated = onItemActivated;
+    }
+
+    public double getSpacing() {
+        return spacing.get();
+    }
+
+    public DoubleProperty spacingProperty() {
+        return spacing;
+    }
+
+    public void setSpacing(double spacing) {
+        this.spacing.set(spacing);
     }
 
     //endregion
@@ -144,11 +155,17 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
                 });
     }
 
+    @Override
+    public void requestFocus() {
+        scrollTo(getSelectedItem(), true);
+    }
+
     private void handleItemSelected(Node node) {
         for (Map.Entry<T, Node> entry : items.entrySet()) {
             if (entry.getValue() == node) {
                 selectedItem.set(entry.getKey());
-                onItemActivated.accept(entry.getKey());
+                Optional.ofNullable(onItemActivated)
+                        .ifPresent(e -> e.accept(entry.getKey()));
                 return;
             }
         }
@@ -160,7 +177,7 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
     }
 
     private Node createNewItem(T item) {
-        var node = getFactory().createNode(item);
+        var node = getItemFactory().createNode(item);
 
         node.setFocusTraversable(true);
         node.setOnMouseClicked(event -> {
@@ -198,7 +215,7 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
                     .map(Node::getStyleClass)
                     .ifPresent(e -> e.removeIf(x -> x.equals(SELECTED_STYLE_CLASS)));
         });
-        factory.addListener((observable, oldValue, newValue) -> {
+        itemFactory.addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 content.getChildren().clear();
                 for (Map.Entry<T, Node> entry : items.entrySet()) {
@@ -207,6 +224,7 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
                 }
             }
         });
+        spacing.addListener((observable, oldValue, newValue) -> updateOrientation());
 
         orientationProperty().addListener((observable, oldValue, newValue) -> updateOrientation());
         updateOrientation();
@@ -218,16 +236,14 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
                 .map(e -> e.toArray(new Node[0]))
                 .orElse(new Node[0]);
 
-        this.content = getOrientation() == Orientation.VERTICAL ? new VBox(children) : new HBox(children);
+        this.content = getOrientation() == Orientation.VERTICAL ? new VBox(getSpacing(), children) : new HBox(getSpacing(), children);
         this.content.getStyleClass().add(CONTENT_STYLE_CLASS);
         this.setContent(content);
 
         if (getOrientation() == Orientation.HORIZONTAL) {
-            setPrefHeight(content.getHeight());
             prefHeightProperty().bind(content.heightProperty());
             prefWidthProperty().unbind();
         } else {
-            setPrefWidth(content.getWidth());
             prefWidthProperty().bind(content.widthProperty());
             prefHeightProperty().unbind();
         }

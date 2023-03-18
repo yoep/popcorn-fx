@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controls;
 
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.Test;
@@ -16,12 +17,11 @@ import static org.mockito.Mockito.verify;
 class OverlayTest {
     @Test
     void testFocus() {
-        var parent = new Pane();
         var button = spy(new Button());
         var overlay = new Overlay(button);
+        var parent = new AnchorPane(overlay);
         var scene = new Scene(parent);
 
-        parent.getChildren().add(overlay);
         overlay.show();
 
         verify(button).requestFocus();
@@ -33,12 +33,23 @@ class OverlayTest {
     void testHide() {
         var button = spy(new Button());
         var overlay = new Overlay(button);
-        var parent = new Pane();
+        var parent = new AnchorPane();
 
         parent.getChildren().add(overlay);
         overlay.hide();
 
         assertFalse(parent.getChildren().contains(overlay));
+    }
+
+    @Test
+    void testAttachToParent_shouldScanUpwardsForParent() {
+        var overlay = new Overlay();
+        var inBetween = new Pane();
+        var parent = new AnchorPane(inBetween);
+
+        inBetween.getChildren().add(overlay);
+
+        assertEquals(parent, overlay.attachedParent.get());
     }
 
     @Test

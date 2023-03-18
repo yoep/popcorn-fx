@@ -490,52 +490,53 @@
 }
 
 .root .movie-details .magnet-link,
-.root .show-details-section .show-details .episode-overview .magnet-link {
+.root .show-details-section .magnet-link {
     -fx-text-fill: #ddd;
     -fx-cursor: hand;
     -fx-padding: 0 8 0 8;
 }
 
 .root .movie-details .magnet-link:hover,
-.root .show-details-section .show-details .episode-overview .magnet-link:hover {
+.root .show-details-section .magnet-link:hover {
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .health,
-.root .show-details-section .show-details .episode-overview .health {
+.root .show-details-section .health {
     -fx-text-fill: #737577;
     -fx-cursor: hand;
+    -fx-padding: 0 0 0 5;
 }
 
 .root .movie-details .health.bad,
-.root .show-details-section .show-details .episode-overview .health.bad {
+.root .show-details-section .health.bad {
     -fx-text-fill: #d53f3f;
 }
 
 .root .movie-details .health.medium,
-.root .show-details-section .show-details .episode-overview .health.medium {
+.root .show-details-section .health.medium {
     -fx-text-fill: #ece523;
 }
 
 .root .movie-details .health.good,
-.root .show-details-section .show-details .episode-overview .health.good {
+.root .show-details-section .health.good {
     -fx-text-fill: #a3e147;
 }
 
 .root .movie-details .health.excellent,
-.root .show-details-section .show-details .episode-overview .health.excellent {
+.root .show-details-section .health.excellent {
     -fx-text-fill: #2ad942;
 }
 
 .root .movie-details .watch-now .context-menu,
-.root .show-details .watch-now .context-menu,
+.root .overlay .overlay-content .watch-now .context-menu,
 .root .torrent-details .watch-now .context-menu {
     -fx-background-color: transparent;
     -fx-padding: 2 0 2 0;
 }
 
 .root .movie-details .watch-now .menu-item,
-.root .show-details .watch-now .menu-item,
+.root .overlay .overlay-content .watch-now .menu-item,
 .root .torrent-details .watch-now .menu-item {
     -fx-background-color: rgb(23, 24, 27);
     -fx-text-fill: #ccc;
@@ -544,27 +545,27 @@
 }
 
 .root .movie-details .watch-now .menu-item.active,
-.root .show-details .watch-now .menu-item.active,
+.root .overlay .overlay-content .watch-now .menu-item.active,
 .root .torrent-details .watch-now .menu-item.active {
     -fx-background-color: #225694;
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .watch-now .menu-item:focused,
-.root .show-details .watch-now .menu-item:focused,
+.root .overlay .overlay-content .watch-now .menu-item:focused,
 .root .torrent-details .watch-now .menu-item:focused {
     -fx-background-color: #226e94;
     -fx-text-fill: #fff;
 }
 
 .root .movie-details .watch-now .menu-item .label,
-.root .show-details .watch-now .menu-item .label,
+.root .overlay .overlay-content .watch-now .menu-item .label,
 .root .torrent-details .watch-now .menu-item .label {
     -fx-background-color: transparent;
 }
 
 .root .movie-details .watch-now .menu-item .graphic-container,
-.root .show-details .watch-now .menu-item .graphic-container,
+.root .overlay .overlay-content .watch-now .menu-item .graphic-container,
 .root .torrent-details .watch-now .menu-item .graphic-container {
     -fx-padding: 0 8 0 8;
 }
@@ -577,14 +578,14 @@
     -fx-background-radius: 5em;
 }
 
-.root .movie-details .quality-selection .quality.active {
+.root .movie-details .quality-selection .quality.selected {
     -fx-background-color: rgba(43, 110, 210, 0.84);
 }
 
 .root .movie-details .quality-selection .quality:hover,
 .root .movie-details .quality-selection .quality:focused,
-.root .movie-details .quality-selection .quality.active:hover,
-.root .movie-details .quality-selection .quality.active:focused {
+.root .movie-details .quality-selection .quality.selected:hover,
+.root .movie-details .quality-selection .quality.selected:focused {
     -fx-background-color: rgba(46, 119, 230, 0.5);
 }
 
@@ -701,6 +702,10 @@
     -fx-text-fill: #8d9296;
 }
 
+.root .show-details-section .show-details .episode-overview .synopsis {
+    -fx-max-width: 550;
+}
+
 .root .show-details-section .show-details .episode-overview .episode-graphic {
     -fx-pref-width: 320px;
     -fx-pref-height: 190px;
@@ -773,7 +778,7 @@
     -fx-padding: 3 10 3 10;
 }
 
-.root .show-details-section .quality-selection .quality.active {
+.root .show-details-section .quality-selection .quality.selected {
     -fx-background-color: rgba(43, 110, 210, 0.84);
 }
 
@@ -1472,6 +1477,7 @@
 }
 
 .root .overlay .overlay-content .synopsis {
+    -fx-max-width: 500;
     -fx-padding: 10 0 10 0;
 }
 

@@ -258,12 +258,16 @@ public class LanguageFlagSelection extends StackPane {
     private void initializeEvents() {
         this.setOnMouseClicked(event -> onClicked());
         items.addListener((ListChangeListener<SubtitleInfo>) change -> {
-            while (change.next()) {
-                if (change.wasAdded()) {
-                    change.getAddedSubList().forEach(this::addNewFlag);
-                } else if (change.wasRemoved()) {
-                    change.getRemoved().forEach(this::removeFlag);
+            try {
+                while (change.next()) {
+                    if (change.wasAdded()) {
+                        change.getAddedSubList().forEach(this::addNewFlag);
+                    } else if (change.wasRemoved()) {
+                        change.getRemoved().forEach(this::removeFlag);
+                    }
                 }
+            } catch (Exception ex) {
+                log.warn(ex.getMessage(), ex);
             }
         });
         loading.addListener((observable, oldValue, newValue) -> onLoadingChanged(newValue));

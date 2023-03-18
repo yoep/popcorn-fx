@@ -4,25 +4,19 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
-import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
+import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
-import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
+import com.github.yoep.popcorn.ui.view.ViewHelper;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
-import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
@@ -33,16 +27,12 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -52,7 +42,7 @@ import java.util.ResourceBundle;
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
     private final ShowHelperService showHelperService;
     private final ViewLoader viewLoader;
-    private final PlayerManagerService playerManagerService;
+    private final SerieActionsComponent serieActionsComponent;
 
     private Episode episode;
 
@@ -77,6 +67,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @FXML
     Overlay overlay;
     @FXML
+    GridPane episodeDetails;
+    @FXML
     Label episodeTitle;
     @FXML
     Label episodeSeason;
@@ -84,8 +76,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     Label airDate;
     @FXML
     Label synopsis;
-    @FXML
-    PlayerDropDownButton watchNowButton;
 
     //region Constructors
 
@@ -98,9 +88,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                                 ApplicationConfig settingsService,
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
-                                FxLib fxLib,
                                 ViewLoader viewLoader,
-                                PlayerManagerService playerManagerService) {
+                                SerieActionsComponent serieActionsComponent) {
         super(eventPublisher,
                 localeText,
                 healthService,
@@ -108,12 +97,11 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                 subtitlePickerService,
                 imageService,
                 settingsService,
-                service,
-                fxLib);
+                service);
 
         this.showHelperService = showHelperService;
         this.viewLoader = viewLoader;
-        this.playerManagerService = playerManagerService;
+        this.serieActionsComponent = serieActionsComponent;
     }
 
     //endregion
@@ -132,8 +120,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @Override
     protected void reset() {
         super.reset();
-        resetLanguageSelection();
-
         title.setText(StringUtils.EMPTY);
         overview.setText(StringUtils.EMPTY);
         year.setText(StringUtils.EMPTY);
@@ -153,18 +139,23 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         super.initialize(url, resourceBundle);
         initializeSeasons();
         initializeEpisodes();
-        initializeLanguageSelection();
         initializeTooltips();
         initializeListeners();
         initializePoster();
         initializeMode();
-
-        WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
     }
 
     private void initializeListeners() {
         eventPublisher.register(ShowSerieDetailsEvent.class, event -> {
             Platform.runLater(() -> load(event.getMedia()));
+            return event;
+        });
+        eventPublisher.register(MediaQualityChangedEvent.class, event -> {
+            Platform.runLater(() -> {
+                if (episode != null && event.getMedia() instanceof ShowDetails) {
+                    switchHealth(episode.getTorrents().get(event.getQuality()));
+                }
+            });
             return event;
         });
     }
@@ -183,15 +174,9 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     //region Functions
 
-    @Override
-    protected void switchActiveQuality(String quality) {
-        super.switchActiveQuality(quality);
-        switchHealth(episode.getTorrents().get(quality));
-    }
-
     private void initializeSeasons() {
         seasons.selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
-        seasons.setFactory(item -> {
+        seasons.setItemFactory(item -> {
             var styleClass = isSeasonWatched(item) ? "watched" : null;
             var icon = new Icon(Icon.EYE_UNICODE);
 
@@ -206,7 +191,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void initializeEpisodes() {
         episodes.setOnItemActivated(this::switchEpisode);
-        episodes.setFactory(item -> {
+        episodes.setItemFactory(item -> {
             var controller = new EpisodeComponent(item, localeText, imageService);
             var listener = episodeWatchStateListener(item, controller);
 
@@ -217,32 +202,36 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
             return viewLoader.load("common/components/episode.component.fxml", controller);
         });
+
+        var episodeActions = viewLoader.load("components/serie-actions.component.fxml");
+        episodeDetails.add(episodeActions, 0, 4, 2, 1);
+        serieActionsComponent.setOnWatchNowClicked(() -> overlay.hide());
     }
 
-    private void initializeLanguageSelection() {
-        languageSelection.setFactory(new LanguageFlagCell() {
-            @Override
-            public void updateItem(SubtitleInfo item) {
-                if (item == null)
-                    return;
-
-                setText(item.getLanguage().getNativeName());
-                try {
-                    var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
-
-                    image.setFitHeight(15);
-                    image.setPreserveRatio(true);
-
-                    setGraphic(image);
-                } catch (IOException ex) {
-                    log.error(ex.getMessage(), ex);
-                }
-            }
-        });
-
-        languageSelection.addListener(createLanguageListener());
-        resetLanguageSelection();
-    }
+    //    private void initializeLanguageSelection() {
+    //                languageSelection.setFactory(new LanguageFlagCell() {
+    //                    @Override
+    //                    public void updateItem(SubtitleInfo item) {
+    //                        if (item == null)
+    //                            return;
+    //
+    //                        setText(item.getLanguage().getNativeName());
+    //                        try {
+    //                            var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
+    //
+    //                            image.setFitHeight(15);
+    //                            image.setPreserveRatio(true);
+    //
+    //                            setGraphic(image);
+    //                        } catch (IOException ex) {
+    //                            log.error(ex.getMessage(), ex);
+    //                        }
+    //                    }
+    //                });
+    //
+    //                languageSelection.addListener(createLanguageListener());
+    //                resetLanguageSelection();
+    //    }
 
     private void loadText() {
         title.setText(media.getTitle());
@@ -283,13 +272,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(episode.getAirDate())));
         synopsis.setText(episode.getSynopsis());
 
-        loadQualitySelection(episode.getTorrents());
-        loadSubtitles(episode);
-    }
-
-    private void loadSubtitles(Episode episode) {
-        resetLanguageSelection();
-        subtitleService.retrieveSubtitles(media, episode).whenComplete(this::handleSubtitlesResponse);
+        serieActionsComponent.episodeChanged(media, episode);
     }
 
     private boolean isSeasonWatched(Season season) {
@@ -325,7 +308,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void onSeasonWatchedChanged(Boolean newValue, Season season, Icon icon) {
-        Tooltip.install(icon, instantTooltip(getWatchedTooltip(newValue)));
+        Tooltip.install(icon, ViewHelper.instantTooltip(getWatchedTooltip(newValue)));
 
         if (newValue) {
             markSeasonAsWatched(season);
@@ -355,13 +338,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     @FXML
     void onMagnetClicked(MouseEvent event) {
-        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
-
-        if (event.getButton() == MouseButton.SECONDARY) {
-            copyMagnetLink(torrentInfo);
-        } else {
-            openMagnetLink(torrentInfo);
-        }
+//        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
+//
+//        if (event.getButton() == MouseButton.SECONDARY) {
+//            copyMagnetLink(torrentInfo);
+//        } else {
+//            openMagnetLink(torrentInfo);
+//        }
     }
 
     @FXML
@@ -374,13 +357,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     void onFavoriteClicked(MouseEvent event) {
         event.consume();
         service.toggleLikedState();
-    }
-
-    @FXML
-    void onWatchNowClicked() {
-        var mediaTorrentInfo = episode.getTorrents().get(quality);
-
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, quality, subtitle));
     }
 
     //endregion

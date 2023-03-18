@@ -53,6 +53,16 @@ public interface SubtitleService {
     boolean isDisabled();
 
     /**
+     * Retrieve the none/disabled subtitle info instance.
+     */
+    SubtitleInfo none();
+
+    /**
+     * Retrieve the custom subtitle info type.
+     */
+    SubtitleInfo custom();
+
+    /**
      * Retrieve the available subtitles for the given media.
      *
      * @param media The media to retrieve the subtitles of.

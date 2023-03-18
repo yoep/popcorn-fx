@@ -281,4 +281,15 @@ class SidebarControllerTest {
         verify(event).consume();
         verify(eventPublisher).publish(new RequestSearchFocus(controller));
     }
+
+    @Test
+    void testHomeEvent() {
+        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        controller.initialize(url, resourceBundle);
+
+        eventPublisher.publishEvent(new HomeEvent(this));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(eventPublisher, timeout(500).atLeast(2)).publish(new CategoryChangedEvent(controller, Category.SERIES));
+    }
 }

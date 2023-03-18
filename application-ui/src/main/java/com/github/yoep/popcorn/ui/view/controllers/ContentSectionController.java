@@ -12,7 +12,10 @@ import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
@@ -53,21 +56,11 @@ public class ContentSectionController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeContentPaneListener();
         initializePanes();
         initializeEventListeners();
         initializeMode();
 
         switchContent(ContentType.LIST);
-    }
-
-    private void initializeContentPaneListener() {
-        contentPane.setOnMouseClicked(event -> {
-            if (event.getSceneY() <= 40 && event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                event.consume();
-                maximizeService.setMaximized(!maximizeService.isMaximized());
-            }
-        });
     }
 
     private void initializePanes() {
@@ -183,6 +176,25 @@ public class ContentSectionController implements Initializable {
         AnchorPane.setRightAnchor(pane, 0.0);
         AnchorPane.setBottomAnchor(pane, 0.0);
         AnchorPane.setLeftAnchor(pane, 0.0);
+    }
+
+    @FXML
+    void onMouseClicked(MouseEvent event) {
+        if (event.getSceneY() <= 40 && event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+            event.consume();
+            maximizeService.setMaximized(!maximizeService.isMaximized());
+        }
+    }
+
+    @FXML
+    void onKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.HOME) {
+            event.consume();
+            eventPublisher.publish(new HomeEvent(this));
+        } else if (event.getCode() == KeyCode.CONTEXT_MENU) {
+            event.consume();
+            eventPublisher.publish(new ContextMenuEvent(this));
+        }
     }
 
     //endregion

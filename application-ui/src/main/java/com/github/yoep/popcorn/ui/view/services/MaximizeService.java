@@ -22,7 +22,7 @@ public class MaximizeService {
     public static final String MAXIMIZED_PROPERTY = "maximized";
 
     private final ViewManager viewManager;
-    private final ApplicationConfig settingsService;
+    private final ApplicationConfig applicationConfig;
 
     private final BooleanProperty maximized = new SimpleBooleanProperty(this, MAXIMIZED_PROPERTY);
 
@@ -109,6 +109,7 @@ public class MaximizeService {
         // store the state in the settings
         log.trace("Stage maximized state is being changed from \"{}\" to \"{}\"", oldValue, newValue);
         uiSettings.setMaximized(newValue);
+        applicationConfig.update(uiSettings);
 
         // update the stage
         if (newValue) {
@@ -146,7 +147,7 @@ public class MaximizeService {
     }
 
     private UISettings getUiSettings() {
-        return settingsService.getSettings().getUiSettings();
+        return applicationConfig.getSettings().getUiSettings();
     }
 
     private static Screen detectCurrentScreen(Stage stage) {

@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.PopcornViewLoader;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
@@ -20,17 +21,9 @@ import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.DetailsSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.components.DesktopPosterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.components.TvPosterComponent;
-import com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopFilterComponent;
-import com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopMovieActionsComponent;
-import com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopSidebarSearchComponent;
-import com.github.yoep.popcorn.ui.view.controllers.desktop.components.WindowComponent;
-import com.github.yoep.popcorn.ui.view.controllers.tv.components.SystemTimeComponent;
-import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent;
-import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvMovieActionsComponent;
-import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvSidebarSearchComponent;
-import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.MaximizeService;
-import com.github.yoep.popcorn.ui.view.services.UrlService;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
+import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
+import com.github.yoep.popcorn.ui.view.services.*;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -134,20 +127,56 @@ public class ViewConfig {
     @Bean
     @ConditionalOnDesktopMode
     public DesktopMovieActionsComponent desktopMovieActionsComponent(PlayerManagerService playerService,
-                                                                     EventPublisher eventPublisher) {
-        return new DesktopMovieActionsComponent(playerService, eventPublisher);
+                                                                     EventPublisher eventPublisher,
+                                                                     LocaleText localeText,
+                                                                     SubtitleService subtitleService,
+                                                                     DetailsComponentService detailsComponentService,
+                                                                     DesktopMovieQualityComponent desktopMovieQualityComponent) {
+        return new DesktopMovieActionsComponent(playerService, eventPublisher, localeText, subtitleService, detailsComponentService,
+                desktopMovieQualityComponent);
+    }
+
+    @Bean
+    @ConditionalOnDesktopMode
+    public DesktopMovieQualityComponent desktopMovieQualityComponent(EventPublisher eventPublisher,
+                                                                     VideoQualityService videoQualityService) {
+        return new DesktopMovieQualityComponent(eventPublisher, videoQualityService);
     }
 
     @Bean
     @ConditionalOnTvMode
-    public TvMovieActionsComponent tvMovieActionsComponent(EventPublisher eventPublisher) {
-        return new TvMovieActionsComponent(eventPublisher);
+    public TvMovieActionsComponent tvMovieActionsComponent(EventPublisher eventPublisher,
+                                                           SubtitleService subtitleService) {
+        return new TvMovieActionsComponent(eventPublisher, subtitleService);
+    }
+
+    @Bean
+    @ConditionalOnTvMode
+    public TvSerieActionsComponent tvSerieActionsComponent(EventPublisher eventPublisher,
+                                                           SubtitleService subtitleService) {
+        return new TvSerieActionsComponent(eventPublisher, subtitleService);
     }
 
     @Bean
     @ConditionalOnDesktopMode
     public DesktopSidebarSearchComponent desktopSidebarSearchComponent(EventPublisher eventPublisher) {
         return new DesktopSidebarSearchComponent(eventPublisher);
+    }
+
+    @Bean
+    @ConditionalOnDesktopMode
+    public DesktopSerieActionsComponent desktopSerieActionsComponent(EventPublisher eventPublisher,
+                                                                     PlayerManagerService playerManagerService,
+                                                                     SubtitleService subtitleService,
+                                                                     DesktopSerieQualityComponent desktopSerieQualityComponent) {
+        return new DesktopSerieActionsComponent(eventPublisher, playerManagerService, subtitleService, desktopSerieQualityComponent);
+    }
+
+    @Bean
+    @ConditionalOnDesktopMode
+    public DesktopSerieQualityComponent desktopSerieQualityComponent(EventPublisher eventPublisher,
+                                                                     VideoQualityService videoQualityService) {
+        return new DesktopSerieQualityComponent(eventPublisher, videoQualityService);
     }
 
     @Bean

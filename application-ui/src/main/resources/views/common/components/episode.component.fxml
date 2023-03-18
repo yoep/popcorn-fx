@@ -31,6 +31,6 @@
            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
     <Label fx:id="airDate" styleClass="metadata"
            GridPane.columnIndex="2" GridPane.rowIndex="1"/>
-    <Label fx:id="synopsis"
+    <Label fx:id="synopsis" styleClass="synopsis" wrapText="true"
            GridPane.columnIndex="2" GridPane.rowIndex="2"/>
 </GridPane>

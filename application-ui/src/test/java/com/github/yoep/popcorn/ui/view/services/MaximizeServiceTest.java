@@ -9,6 +9,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.stage.Stage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,7 +26,7 @@ class MaximizeServiceTest {
     @Mock
     private ViewManager viewManager;
     @Mock
-    private ApplicationConfig settingsService;
+    private ApplicationConfig applicationConfig;
     @Mock
     private ApplicationSettings settings;
     @Mock
@@ -35,6 +36,13 @@ class MaximizeServiceTest {
 
     private final ObjectProperty<Stage> primaryStageProperty = new SimpleObjectProperty<>();
     private final BooleanProperty maximizedProperty = new SimpleBooleanProperty();
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
+        lenient().when(applicationConfig.getSettings()).thenReturn(settings);
+        lenient().when(settings.getUiSettings()).thenReturn(uiSettings);
+    }
 
     @Test
     void testMinimize_whenInvoked_shouldIconizeThePrimaryStage() {
@@ -51,7 +59,7 @@ class MaximizeServiceTest {
         var stage = mock(Stage.class);
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(stage.maximizedProperty()).thenReturn(maximizedProperty);
-        when(settingsService.getSettings()).thenReturn(settings);
+        when(applicationConfig.getSettings()).thenReturn(settings);
         when(settings.getUiSettings()).thenReturn(uiSettings);
         service.init();
 
@@ -59,5 +67,18 @@ class MaximizeServiceTest {
         maximizedProperty.set(true);
 
         assertTrue(service.isMaximized());
+    }
+
+    @Test
+    void testMaximizeChanged() {
+        service.init();
+
+        service.setMaximized(true);
+        verify(uiSettings).setMaximized(true);
+        verify(applicationConfig).update(uiSettings);
+
+        service.setMaximized(false);
+        verify(uiSettings).setMaximized(false);
+        verify(applicationConfig, times(2)).update(uiSettings);
     }
 }

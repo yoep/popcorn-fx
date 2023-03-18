@@ -13,21 +13,18 @@ $(info Detected arch: $(ARCH))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
-EXTENSION := dll
+LIBRARY := "popcorn_fx.dll"
 PROFILE := windows
 ASSETS := windows
 else ifeq ($(SYSTEM),Darwin)
-EXTENSION := dylib
+LIBRARY := "libpopcorn_fx.dylib"
 PROFILE := macosx
 ASSETS := mac
 else
-EXTENSION := so
+LIBRARY := "libpopcorn_fx.so"
 PROFILE := linux
 ASSETS := linux
 endif
-
-## Define all rust libraries and resource directories
-LIBRARIES := popcorn-fx
 
 prerequisites: ## Install the requirements for the application
 	$(info Installing Cargo plugins)
@@ -74,15 +71,8 @@ build-cargo-release:  ## Build the rust part of the application in release profi
 	@cargo build --release --features ffi
 
 ## Copy the cargo libraries to the java resources
-ifeq ($(SYSTEM),Windows)
 lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
-	$(info Copying windows libraries to assets)
-	$(foreach file,$(LIBRARIES),xcopy "./target/$*/$(subst -,_,$(file)).$(EXTENSION)" "./assets/$(ASSETS)/" /R /I /F /Y && ) echo.
-else
-lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
-	$(info Copying unix libraries to assets)
-	$(foreach file,$(LIBRARIES),cp "target/$*/lib$(subst -,_,$(file)).$(EXTENSION)" "assets/$(ASSETS)/";)
-endif
+	cp -v "./target/$*/$(LIBRARY)" "./assets/$(ASSETS)/"
 
 lib-copy: lib-copy-debug ## The default lib-copy target
 

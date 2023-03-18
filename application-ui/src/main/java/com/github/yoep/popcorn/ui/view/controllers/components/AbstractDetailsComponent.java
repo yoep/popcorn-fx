@@ -7,8 +7,8 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.github.yoep.popcorn.ui.view.ViewHelper;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.HealthIcon;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
@@ -18,16 +18,15 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Tooltip;
-import javafx.util.Duration;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.*;
+import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
@@ -113,82 +112,6 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     }
 
     /**
-     * Get the video qualities/resolutions for the given torrent set.
-     * This method will order the qualities/resolutions from lowest to highest resolution.
-     *
-     * @param torrents The torrent set for the video playback.
-     * @return Returns the list of qualities/resolutions ordered from lowest to highest.
-     */
-    protected List<String> getVideoResolutions(Map<String, MediaTorrentInfo> torrents) {
-        return torrents.keySet().stream()
-                // filter out the 0 quality
-                .filter(e -> !e.equals("0"))
-                // filter out any specials, e.g. "3D"
-                .filter(e -> QUALITY_PATTERN.matcher(e).matches())
-                .sorted(Comparator.comparing(this::toResolution))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get the default video quality/resolution that should be selected in the media details.
-     * This method expects the available resolutions list to be ordered from lowest to highest (see {@link #getVideoResolutions(Map)}.
-     *
-     * @param availableResolutions The available video qualities/resolutions of the media item.
-     * @return Returns the quality/resolution that should be selected by default.
-     */
-    protected String getDefaultVideoResolution(List<String> availableResolutions) {
-        var settings = getPlaybackSettings();
-        var defaultQualityOptional = settings.getQuality();
-
-        if (defaultQualityOptional.isPresent()) {
-            var defaultQuality = defaultQualityOptional.get();
-            // check if we can find the request playback quality within the available resolutions
-            var defaultResolution = getResolutionForPlaybackQuality(availableResolutions, defaultQuality)
-                    .orElseGet(() -> defaultQuality.lower() // if not found, try the quality below the current one if possible
-                            .flatMap(x -> getResolutionForPlaybackQuality(availableResolutions, x))
-                            .orElse(null));
-
-            // check if the default resolution could be found
-            // if so, return the found resolution
-            // otherwise, return the highest available resolution
-            if (defaultResolution != null)
-                return defaultResolution;
-        }
-
-        // return the highest resolution by default
-        return availableResolutions.get(availableResolutions.size() - 1);
-    }
-
-    /**
-     * Create a new instant {@link Tooltip} for the given text.
-     * This will create a {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
-     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
-     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
-     *
-     * @param text The text of the tooltip.
-     * @return Returns the instant Tooltip.
-     */
-    protected Tooltip instantTooltip(String text) {
-        return instantTooltip(new Tooltip(text));
-    }
-
-    /**
-     * Update the given tooltip so it's shown instantly.
-     * This will update the {@link Tooltip} with {@link Tooltip#setShowDelay(Duration)} of {@link Duration#ZERO},
-     * {@link Tooltip#setShowDuration(Duration)} of {@link Duration#INDEFINITE},
-     * {@link Tooltip#setHideDelay(Duration)} of {@link Duration#ZERO}.
-     *
-     * @param tooltip The tooltip to update.
-     * @return Returns same tooltip instance..
-     */
-    protected Tooltip instantTooltip(Tooltip tooltip) {
-        tooltip.setShowDelay(Duration.ZERO);
-        tooltip.setShowDuration(Duration.INDEFINITE);
-        tooltip.setHideDelay(Duration.ZERO);
-        return tooltip;
-    }
-
-    /**
      * Get the rating text to display.
      *
      * @return Returns the rating display text.
@@ -227,7 +150,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         var healthTooltip = new Tooltip(getHealthTooltip(health));
 
         healthTooltip.setWrapText(true);
-        instantTooltip(healthTooltip);
+        ViewHelper.instantTooltip(healthTooltip);
         Tooltip.install(this.health, healthTooltip);
 
         if (removeHealthState()) {
@@ -244,20 +167,6 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     private String getHealthTooltip(TorrentHealth health) {
         return localeText.get(health.getState().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
                 "Seeds: " + health.getSeeds() + " - Peers: " + health.getPeers();
-    }
-
-    private Integer toResolution(String quality) {
-        return Integer.parseInt(quality.replaceAll("[a-z]", ""));
-    }
-
-    private Optional<String> getResolutionForPlaybackQuality(List<String> availableResolutions, PlaybackSettings.Quality quality) {
-        return availableResolutions.stream()
-                .filter(e -> toResolution(e) == quality.getRes())
-                .findFirst();
-    }
-
-    private PlaybackSettings getPlaybackSettings() {
-        return settingsService.getSettings().getPlaybackSettings();
     }
 
     //endregion

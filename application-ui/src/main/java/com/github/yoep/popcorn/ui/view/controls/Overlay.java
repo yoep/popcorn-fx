@@ -1,8 +1,12 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -17,8 +21,11 @@ public class Overlay extends GridPane {
     static final String STYLE_CLASS = "overlay";
     static final String CHILD_STYLE_CLASS = "overlay-content";
 
-    private Pane parent;
-    private Node lastKnownFocusNode;
+    final ObjectProperty<Node> forNode = new SimpleObjectProperty<>(this, "for");
+    final ObjectProperty<AnchorPane> attachedParent = new SimpleObjectProperty<>(this, "attachedParent");
+    final BooleanProperty shown = new SimpleBooleanProperty(this, "shown");
+
+    Node lastKnownFocusNode;
 
     public Overlay() {
         init();
@@ -29,30 +36,52 @@ public class Overlay extends GridPane {
         getChildren().addAll(children);
     }
 
-    /**
-     * Verify if the overlay is currently being shown.
-     *
-     * @return Returns true when shown, else false.
-     */
-    public boolean isShowing() {
-        return Optional.ofNullable(parent)
-                .map(Pane::getChildren)
-                .map(e -> e.contains(this))
-                .orElse(false);
+    //region Properties
+
+    public Node getFor() {
+        return forNode.get();
     }
 
+    public ObjectProperty<Node> forProperty() {
+        return forNode;
+    }
+
+    public void setFor(Node forNode) {
+        this.forNode.set(forNode);
+    }
+
+    public boolean isShown() {
+        return shown.get();
+    }
+
+    public BooleanProperty shownProperty() {
+        return shown;
+    }
+
+    public void setShown(boolean shown) {
+        this.shown.set(shown);
+    }
+
+    //endregion
+
     public void show() {
-        if (!isShowing()) {
-            var children = parent.getChildren();
+        if (!isShown()) {
+            if (attachedParent.get() == null) {
+                attachToParent(getParent());
+            }
+
+            var children = attachedParent.get().getChildren();
             children.add(children.size(), this);
+            setShown(true);
         }
 
         doInternalFocusRequest();
     }
 
     public void hide() {
-        var children = parent.getChildren();
+        var children = attachedParent.get().getChildren();
         children.remove(this);
+        setShown(false);
 
         if (lastKnownFocusNode != null) {
             lastKnownFocusNode.requestFocus();
@@ -80,33 +109,39 @@ public class Overlay extends GridPane {
     }
 
     private void initializeListeners() {
-        getChildren().addListener((ListChangeListener<? super Node>) change -> {
-            while (change.next()) {
-                if (change.wasAdded()) {
-                    for (Node child : change.getAddedSubList()) {
-                        GridPane.setColumnIndex(child, 1);
-                        GridPane.setRowIndex(child, 1);
-                        child.getStyleClass().add(CHILD_STYLE_CLASS);
-                    }
-                }
-                if (change.wasRemoved()) {
-                    for (Node child : change.getRemoved()) {
-                        child.getStyleClass().removeIf(e -> e.contains(CHILD_STYLE_CLASS));
-                    }
-                }
-            }
-        });
-        parentProperty().addListener((observable, oldValue, newValue) -> {
-            if (this.parent == null && newValue instanceof Pane pane) {
-                this.parent = pane;
-                Platform.runLater(this::hide);
-            }
-        });
+        getChildren().addListener((ListChangeListener<? super Node>) Overlay::onChildrenChanged);
+        attachedParent.addListener((observable, oldValue, newValue) -> ((Pane) getParent()).getChildren().remove(this));
+        sceneProperty().addListener((observable, oldValue, newValue) -> updateParentIfNeeded());
+        parentProperty().addListener((observable, oldValue, newValue) -> updateParentIfNeeded());
         focusWithinProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue && isShowing()) {
+            if (!newValue && isShown()) {
                 doInternalFocusRequest();
             }
         });
+        forNode.addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                newValue.setOnMouseClicked(event -> {
+                    event.consume();
+                    show();
+                });
+                newValue.setOnKeyPressed(event -> {
+                    if (event.getCode() == KeyCode.ENTER) {
+                        event.consume();
+                        show();
+                    }
+                });
+            }
+            if (oldValue != null) {
+                oldValue.setOnMouseClicked(null);
+                oldValue.setOnKeyPressed(null);
+            }
+        });
+    }
+
+    private void updateParentIfNeeded() {
+        if (attachedParent.get() == null) {
+            attachToParent(getParent());
+        }
     }
 
     private void onMouseClicked(MouseEvent event) {
@@ -139,6 +174,32 @@ public class Overlay extends GridPane {
         }
     }
 
+    private void attachToParent(Parent parent) {
+        if (parent instanceof AnchorPane pane) {
+            attachedParent.set(pane);
+            log.trace("Overlay has been attached to {}", pane);
+        } else if (parent != null) {
+            attachToParent(parent.getParent());
+        }
+    }
+
+    private static void onChildrenChanged(ListChangeListener.Change<? extends Node> change) {
+        while (change.next()) {
+            if (change.wasAdded()) {
+                for (Node child : change.getAddedSubList()) {
+                    GridPane.setColumnIndex(child, 1);
+                    GridPane.setRowIndex(child, 1);
+                    child.getStyleClass().add(CHILD_STYLE_CLASS);
+                }
+            }
+            if (change.wasRemoved()) {
+                for (Node child : change.getRemoved()) {
+                    child.getStyleClass().removeIf(e -> e.contains(CHILD_STYLE_CLASS));
+                }
+            }
+        }
+    }
+
     private static Node findFocusableNode(Node node) {
         if (node instanceof Region region) {
             for (Node child : region.getChildrenUnmodifiable()) {
@@ -158,6 +219,7 @@ public class Overlay extends GridPane {
 
     private static ColumnConstraints resizingColumn() {
         var resizingColumn = new ColumnConstraints();
+        resizingColumn.setMinWidth(45d);
         resizingColumn.setMaxWidth(Double.MAX_VALUE);
         resizingColumn.setHgrow(Priority.ALWAYS);
         return resizingColumn;
@@ -165,6 +227,7 @@ public class Overlay extends GridPane {
 
     private static RowConstraints resizingRow() {
         var resizingRow = new RowConstraints();
+        resizingRow.setMinHeight(25d);
         resizingRow.setMaxHeight(Double.MAX_VALUE);
         resizingRow.setVgrow(Priority.ALWAYS);
         return resizingRow;

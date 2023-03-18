@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
-<?import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection?>
 <?import com.github.yoep.popcorn.ui.view.controls.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
@@ -72,13 +71,12 @@
 
     <Overlay fx:id="overlay">
         <!-- Actions -->
-        <GridPane>
+        <GridPane fx:id="episodeDetails">
             <columnConstraints>
                 <ColumnConstraints/>
                 <ColumnConstraints/>
             </columnConstraints>
             <rowConstraints>
-                <RowConstraints/>
                 <RowConstraints/>
                 <RowConstraints/>
                 <RowConstraints/>
@@ -96,17 +94,15 @@
             <Label fx:id="synopsis" styleClass="synopsis" wrapText="true"
                    GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.columnSpan="2"/>
 
-            <!-- Subtitle selection -->
-            <LanguageFlagSelection fx:id="languageSelection"
-                                   GridPane.columnIndex="0" GridPane.rowIndex="4"/>
-            <!-- Quality selection -->
-            <HBox fx:id="qualitySelectionPane" styleClass="quality-selection" alignment="CENTER_LEFT" spacing="5"
-                  GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+            <HBox alignment="CENTER_RIGHT"
+                  GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.halignment="RIGHT" GridPane.valignment="TOP">
+                <Icon fx:id="magnetLink" styleClass="magnet-link" onMouseClicked="#onMagnetClicked">
+                    <Icon fx:constant="MAGNET_UNICODE"/>
+                </Icon>
+                <HealthIcon fx:id="health" styleClass="health"/>
+            </HBox>
 
-            <!-- Play actions -->
-            <PlayerDropDownButton fx:id="watchNowButton" text="%details_watch_now" styleClass="watch-now" onMouseClicked="#onWatchNowClicked"
-                                  GridPane.columnIndex="1" GridPane.rowIndex="4" GridPane.rowSpan="2"
-                                  GridPane.halignment="RIGHT" GridPane.valignment="TOP"/>
+            <!-- PLAYER ACTIONS PLACEHOLDER -->
         </GridPane>
     </Overlay>
 </AnchorPane>

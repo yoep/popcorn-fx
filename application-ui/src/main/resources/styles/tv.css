@@ -85,9 +85,14 @@
     -fx-font-size: 1.25em;
 }
 
+.root .movie-details .magnet-link,
+.root .show-details-section .magnet-link {
+    visibility: hidden;
+}
+
 .root .movie-details .health,
 .root .movie-details .subtitle,
-.root .show-details-section .show-details .episode-overview .health {
+.root .show-details-section .health {
     -fx-font-size: 1.25em;
 }
 
@@ -571,6 +576,14 @@
 .root .content-section .filter .axis .button:hover,
 .root .content-section .filter .axis .button:focused {
     -fx-background-color: #2d72d9;
+}
+
+/* endregion */
+
+/* region Overlay */
+
+.root .overlay .overlay-content .axis .button {
+    -fx-pref-width: 12em;
 }
 
 /* endregion */

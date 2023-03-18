@@ -3,7 +3,7 @@
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.ContentSectionController"
-            fx:id="contentPane" styleClass="content-section">
+            fx:id="contentPane" styleClass="content-section" onMouseClicked="#onMouseClicked" onKeyPressed="#onKeyPressed">
     <fx:include fx:id="listPane" source="../sections/list.section.fxml"
                 AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"/>
 

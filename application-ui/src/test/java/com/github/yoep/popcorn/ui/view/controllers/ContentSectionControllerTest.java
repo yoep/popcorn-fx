@@ -5,11 +5,10 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
-import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
-import com.github.yoep.popcorn.ui.events.ShowAboutEvent;
-import com.github.yoep.popcorn.ui.events.ShowSettingsEvent;
+import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -58,6 +57,7 @@ class ContentSectionControllerTest {
 
         controller.contentPane.getChildren().add(controller.listPane);
         controller.contentPane.getChildren().add(new Pane());
+        controller.contentPane.setOnMouseClicked(controller::onMouseClicked);
     }
 
     @Test
@@ -79,7 +79,7 @@ class ContentSectionControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(ContentSectionController.ContentType.SETTINGS, controller.activeType);
-        WaitForAsyncUtils.waitFor(500, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().get(0) == controller.settingsPane);
+        WaitForAsyncUtils.waitFor(750, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().get(0) == controller.settingsPane);
     }
 
     @Test
@@ -90,8 +90,7 @@ class ContentSectionControllerTest {
         when(event.getClickCount()).thenReturn(2);
         controller.initialize(url, resourceBundle);
 
-        var action = controller.contentPane.getOnMouseClicked();
-        action.handle(event);
+        controller.onMouseClicked(event);
 
         verify(maximizeService).setMaximized(true);
     }
@@ -125,5 +124,29 @@ class ContentSectionControllerTest {
         eventPublisher.publish(new CloseAboutEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
         assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);
+    }
+
+    @Test
+    void testOnKeyPressed_whenHomeIsPressed() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(KeyCode.HOME);
+        controller.initialize(url, resourceBundle);
+
+        controller.onKeyPressed(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new HomeEvent(controller));
+    }
+
+    @Test
+    void testOnKeyPressed_whenContextMenuIsPressed() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(KeyCode.CONTEXT_MENU);
+        controller.initialize(url, resourceBundle);
+
+        controller.onKeyPressed(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new ContextMenuEvent(controller));
     }
 }

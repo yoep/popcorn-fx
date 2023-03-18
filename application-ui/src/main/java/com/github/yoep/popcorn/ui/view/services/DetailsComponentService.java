@@ -11,7 +11,9 @@ import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
+import javafx.application.Platform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     private final WatchedService watchedService;
     private final OptionsService optionsService;
     private final EventPublisher eventPublisher;
+    private final SubtitlePickerService subtitlePickerService;
 
     private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback();
     private final WatchedEventCallback watchedEventCallback = createWatchedCallback();
@@ -74,6 +77,19 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         } else {
             favoriteService.addToFavorites(lastShownMediaItem);
         }
+    }
+
+    public void onCustomSubtitleSelected(Runnable onCancelled) {
+        Platform.runLater(() -> {
+            var subtitleInfo = subtitlePickerService.pickCustomSubtitle();
+
+            // if a custom subtitle was picked by the user, update the subtitle with the custom subtitle
+            // otherwise, the subtitle pick was cancelled and we need to reset the selected language to disabled
+            subtitleInfo.ifPresentOrElse(
+                    e -> {
+                    },
+                    onCancelled::run);
+        });
     }
 
     @PostConstruct

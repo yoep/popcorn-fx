@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.ShowHelperService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
@@ -71,15 +72,17 @@ public class EpisodeComponent implements Initializable {
         this.watched = newValue;
 
         if (graphic != null) {
-            var styleClass = graphic.getStyleClass();
+            Platform.runLater(() -> {
+                var styleClass = graphic.getStyleClass();
 
-            if (newValue) {
-                styleClass.add(WATCHED_STYLE);
-            } else {
-                styleClass.removeIf(e -> e.equals(WATCHED_STYLE));
-            }
+                if (newValue) {
+                    styleClass.add(WATCHED_STYLE);
+                } else {
+                    styleClass.removeIf(e -> e.equals(WATCHED_STYLE));
+                }
 
-            watchedIcon.setText(newValue ? Icon.EYE_UNICODE : Icon.EYE_SLASH_UNICODE);
+                watchedIcon.setText(newValue ? Icon.EYE_UNICODE : Icon.EYE_SLASH_UNICODE);
+            });
         }
     }
 

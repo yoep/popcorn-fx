@@ -64,6 +64,16 @@ public class SubtitleServiceImpl implements SubtitleService {
         return FxLibInstance.INSTANCE.get().is_subtitle_disabled(PopcornFxInstance.INSTANCE.get()) == 1;
     }
 
+    @Override
+    public SubtitleInfo none() {
+        return FxLibInstance.INSTANCE.get().subtitle_none();
+    }
+
+    @Override
+    public SubtitleInfo custom() {
+        return FxLibInstance.INSTANCE.get().subtitle_custom();
+    }
+
     //endregion
 
     //region Methods

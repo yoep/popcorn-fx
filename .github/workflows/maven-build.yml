@@ -33,8 +33,7 @@ jobs:
       run: make prerequisites
     - name: Build
       run: |
-        xvfb-run -a xdpyinfo
-        xvfb-run -a -extension DPMS,MIT-SCREEN-SAVER make test && make build
+        xvfb-run -a -extension DPMS make test && make build
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

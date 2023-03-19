@@ -33,7 +33,8 @@ jobs:
       run: make prerequisites
     - name: Build
       run: |
-        xvfb-run make test && make build
+        export DISPLAY=:99
+        xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1 & make test && make build
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

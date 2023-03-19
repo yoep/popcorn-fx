@@ -94,6 +94,8 @@ impl Default for PlatformLinux {
 mod test {
     use popcorn_fx_core::testing::init_logger;
 
+    use super::PlatformLinux;
+
     /* NOTE: Github actions is unable to activate the DPMS and XScreenSaver within xvfb */
     /* thereby actually verifying the results of the actions is useless as they will always fail within the CI */
 

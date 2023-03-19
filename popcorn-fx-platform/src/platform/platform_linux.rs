@@ -1,72 +1,117 @@
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-
-use log::warn;
-use tokio::sync::Mutex;
-use x11rb::connection::Connection;
-use x11rb::protocol::randr;
+use log::{debug, error, info, trace};
+use x11rb::connection::RequestConnection;
+use x11rb::protocol::dpms::{ConnectionExt as DpmsConnectionExt, DPMSMode};
+use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionExt, Exposures};
 use x11rb::rust_connection::RustConnection;
 
-use popcorn_fx_core::core::platform::Platform;
+use popcorn_fx_core::core::platform;
+use popcorn_fx_core::core::platform::{Platform, PlatformError};
 
 /// The linux platform specific implementation
 #[derive(Debug)]
 pub struct PlatformLinux {
-    /// The connection to the X11 server
-    connection: RustConnection,
-    /// Indicates if the screen is being kept alive or not
-    keep_alive: Arc<Mutex<bool>>,
-    runtime: tokio::runtime::Runtime,
+    /// The X11 server connection
+    conn: RustConnection,
+}
+
+impl PlatformLinux {
+    fn update_dpms_state(&self, mode: DPMSMode) -> platform::Result<()> {
+        if let None = self.conn.extension_information(x11rb::protocol::dpms::X11_EXTENSION_NAME).unwrap() {
+            return Err(PlatformError::Screensaver("DPMS extension not found, unable to prevent sleeping mode".to_string()));
+        }
+
+        trace!("Sending DPMS force level to X11 server");
+        self.conn.dpms_force_level(mode)
+            .map_err(|e| PlatformError::Screensaver(e.to_string()))
+            .map(|cookie| {
+                cookie.check()
+                    .map(|_| {
+                        debug!("X11 DPMS mode activated");
+                        Ok(())
+                    })
+                    .map_err(|e| PlatformError::Screensaver(e.to_string()))?
+            })?
+    }
+
+    fn disable_x11_screensaver(&self) -> platform::Result<()> {
+        trace!("Sending screensaver attributes to X11");
+        self.conn.set_screen_saver(i16::MAX, 0, Blanking::NOT_PREFERRED, Exposures::NOT_ALLOWED)
+            .map_err(|e| PlatformError::Screensaver(format!("X11 connection error, {}", e)))
+            .map(|cookie| {
+                cookie.check()
+                    .map(|_| {
+                        debug!("Screensaver has been disabled");
+                        Ok(())
+                    })
+                    .map_err(|e| PlatformError::Screensaver(e.to_string()))?
+            })?
+    }
 }
 
 impl Platform for PlatformLinux {
     fn disable_screensaver(&self) -> bool {
-        let mut keep_alive = self.keep_alive.blocking_lock();
-        *keep_alive = true;
-        drop(keep_alive);
+        match self.update_dpms_state(DPMSMode::ON) {
+            Ok(_) => {
+                match self.disable_x11_screensaver() {
+                    Ok(_) => {
+                        info!("X11 sleep mode prevented");
+                        return true;
+                    }
+                    Err(e) => error!("Screensaver failed, {}", e)
+                }
+            }
+            Err(e) => error!("Power management failed, {}", e)
+        }
 
-        warn!("disable_screensaver has not been implemented for Linux");
-        true
+        false
     }
 
     fn enable_screensaver(&self) -> bool {
-        let mut keep_alive = self.keep_alive.blocking_lock();
-        *keep_alive = false;
-        true
+        match self.update_dpms_state(DPMSMode::OFF) {
+            Ok(_) => {
+                debug!("Power management has been enabled");
+                true
+            }
+            Err(e) => {
+                error!("Failed to enabled power management, {}", e);
+                false
+            }
+        }
     }
 }
 
 impl Default for PlatformLinux {
     fn default() -> Self {
-        let (conn, _screen_num) = x11rb::connect(None).unwrap();
+        let (conn, _) = x11rb::connect(None).unwrap();
 
         Self {
-            connection: conn,
-            keep_alive: Default::default(),
-            runtime: tokio::runtime::Runtime::new().unwrap(),
+            conn
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use popcorn_fx_core::core::platform::Platform;
+    use popcorn_fx_core::testing::init_logger;
+
+    use crate::platform::platform_linux::PlatformLinux;
+
+    /* NOTE: Github actions is unable to activate the DPMS and XScreenSaver within xvfb */
+    /* thereby actually verifying the results of the actions is useless as they will always fail within the CI */
 
     #[test]
     fn test_disable_screensaver() {
+        init_logger();
         let platform = PlatformLinux::default();
 
-        let result = platform.disable_screensaver();
-
-        assert_eq!(true, result)
+        let _ = platform.disable_screensaver();
     }
 
     #[test]
     fn test_enable_screensaver() {
         let platform = PlatformLinux::default();
 
-        let result = platform.enable_screensaver();
-
-        assert_eq!(true, result)
+        let _ = platform.enable_screensaver();
     }
 }

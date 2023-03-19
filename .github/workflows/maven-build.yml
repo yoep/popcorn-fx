@@ -33,7 +33,8 @@ jobs:
       run: make prerequisites
     - name: Build
       run: |
-        xvfb-run -a -s "-screen 0 640x480x8 +extension DPMS,MIT-SCREEN-SAVER" make test && make build
+        export DISPLAY=:99
+        xvfb :99 -screen 0 640x480x8 +extension DPMS,MIT-SCREEN-SAVER & make test && make build
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

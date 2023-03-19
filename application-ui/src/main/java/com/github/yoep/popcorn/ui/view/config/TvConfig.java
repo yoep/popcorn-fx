@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
-import com.github.yoep.popcorn.ui.view.controllers.components.TvPosterComponent;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.TvPosterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import org.springframework.context.annotation.Bean;

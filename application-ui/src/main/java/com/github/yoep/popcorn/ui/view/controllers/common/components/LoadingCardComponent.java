@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.yoep.popcorn.ui.view.controllers.components.AbstractCardComponent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;

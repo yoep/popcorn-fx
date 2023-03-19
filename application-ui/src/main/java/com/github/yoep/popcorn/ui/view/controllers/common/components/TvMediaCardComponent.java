@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.controllers.components;
+package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;

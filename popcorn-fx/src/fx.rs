@@ -17,6 +17,7 @@ use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, EpisodeEnhancer};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
@@ -292,12 +293,17 @@ impl PopcornFX {
             &movie_provider,
             &show_provider,
         ])));
+        let episode_enhancer : Arc<Box<dyn Enhancer>> = Arc::new(Box::new(EpisodeEnhancer::default()));
 
-        ProviderManager::with_providers(vec![
-            movie_provider,
-            show_provider,
-            favorites,
-        ])
+        ProviderManager::default()
+            .with_providers(vec![
+                movie_provider,
+                show_provider,
+                favorites,
+            ])
+            .with_enhancers(vec![
+                episode_enhancer
+            ])
     }
 }
 

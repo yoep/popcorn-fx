@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.view.controllers.components.SerieActionsComponent;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieActionsComponent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import lombok.extern.slf4j.Slf4j;

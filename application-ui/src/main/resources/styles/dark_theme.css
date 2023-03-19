@@ -703,7 +703,7 @@
 }
 
 .root .show-details-section .show-details .episode-overview .synopsis {
-    -fx-max-width: 550;
+    -fx-max-width: 650;
 }
 
 .root .show-details-section .show-details .episode-overview .episode-graphic {

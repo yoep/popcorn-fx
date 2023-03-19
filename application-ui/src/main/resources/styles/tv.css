@@ -498,7 +498,6 @@
 .root .content-section .filter .axis .button {
     -fx-pref-width: 18em;
     -fx-text-alignment: left;
-    -fx-alignment: left;
     -fx-background-color: transparent;
 }
 

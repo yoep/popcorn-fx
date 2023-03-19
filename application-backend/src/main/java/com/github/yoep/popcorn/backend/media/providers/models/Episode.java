@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.Builder;
 import lombok.Data;
@@ -20,7 +21,7 @@ import java.util.*;
 @ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = false)
 @JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
-@Structure.FieldOrder({"season", "episode", "firstAired", "title", "synopsis", "tvdbId", "torrentRef", "len", "cap"})
+@Structure.FieldOrder({"season", "episode", "firstAired", "title", "synopsis", "tvdbId", "thumb", "torrentRef", "len"})
 public class Episode extends Structure implements Comparable<Episode>, Closeable, Media {
     public static class ByReference extends Episode implements Structure.ByReference {
     }
@@ -31,9 +32,9 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     public String title;
     public String synopsis;
     public String tvdbId;
+    public Pointer thumb;
     public TorrentQuality.ByReference torrentRef;
     public int len;
-    public int cap;
 
     private Map<String, MediaTorrentInfo> torrents;
 
@@ -119,9 +120,12 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(firstAired), ZoneOffset.UTC);
     }
 
-    //endregion
+    public Optional<String> getThumb() {
+        return Optional.ofNullable(thumb)
+                .map(e -> e.getString(0));
+    }
 
-    //region Comparable
+    //endregion
 
     @Override
     public int compareTo(Episode compareTo) {
@@ -162,6 +166,4 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     public Optional<Rating> getRating() {
         return Optional.empty();
     }
-
-    //endregion
 }

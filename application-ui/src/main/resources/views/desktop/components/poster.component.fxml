@@ -6,7 +6,7 @@
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.StackPane?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.ui.view.controllers.components.DesktopPosterComponent"
+           fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.DesktopPosterComponent"
            fx:id="posterHolder" styleClass="poster">
     <ImageCover fx:id="poster" styleClass="poster-image"/>
 

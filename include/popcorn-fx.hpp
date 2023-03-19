@@ -220,6 +220,7 @@ struct ShowOverviewC {
   RatingC *rating;
 };
 
+/// The C compatible [Episode] media information.
 struct EpisodeC {
   int32_t season;
   int32_t episode;
@@ -227,6 +228,7 @@ struct EpisodeC {
   const char *title;
   const char *synopsis;
   const char *tvdb_id;
+  const char *thumb;
   TorrentQualityC *torrents;
   int32_t len;
 };

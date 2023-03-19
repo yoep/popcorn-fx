@@ -68,7 +68,7 @@ mock! {
 
         fn enable_screensaver(&self) -> bool;
     }
-    }
+}
 
 #[cfg(test)]
 mod test {

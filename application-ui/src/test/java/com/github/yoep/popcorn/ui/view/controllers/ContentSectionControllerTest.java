@@ -61,13 +61,14 @@ class ContentSectionControllerTest {
     }
 
     @Test
-    void testOnCategoryChangedEvent() {
+    void testOnCategoryChangedEvent() throws TimeoutException {
         controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(new CategoryChangedEvent(controller, Category.SERIES));
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);
-        assertEquals(controller.listPane, controller.contentPane.getChildren().get(0));
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().contains(controller.listPane));
     }
 
     @Test
@@ -82,7 +83,7 @@ class ContentSectionControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(ContentSectionController.ContentType.SETTINGS, controller.activeType);
-        WaitForAsyncUtils.waitFor(500, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().contains(settingsPane));
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> controller.contentPane.getChildren().contains(settingsPane));
     }
 
     @Test

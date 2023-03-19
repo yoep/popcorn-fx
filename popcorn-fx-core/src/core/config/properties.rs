@@ -10,7 +10,8 @@ use serde::Deserialize;
 
 use crate::core::config::{ConfigError, ProviderProperties};
 
-const DEFAULT_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
+const DEFAULT_SUBTITLE_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
+const DEFAULT_TVDB_URL: fn() -> String = || "https://thetvdb.com/series/lorem/episodes".to_string();
 const DEFAULT_USER_AGENT: fn() -> String = || "Popcorn Time v1".to_string();
 const DEFAULT_API_TOKEN: fn() -> String = || "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string();
 const DEFAULT_UPDATE_CHANNEL: fn() -> String = || "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string();
@@ -240,7 +241,7 @@ impl Default for PopcornProperties {
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SubtitleProperties {
-    #[serde(default = "DEFAULT_URL")]
+    #[serde(default = "DEFAULT_SUBTITLE_URL")]
     pub url: String,
     #[serde(alias = "user-agent")]
     #[serde(alias = "userAgent")]
@@ -272,7 +273,7 @@ impl SubtitleProperties {
 impl Default for SubtitleProperties {
     fn default() -> Self {
         Self {
-            url: DEFAULT_URL(),
+            url: DEFAULT_SUBTITLE_URL(),
             user_agent: DEFAULT_USER_AGENT(),
             api_token: DEFAULT_API_TOKEN(),
         }

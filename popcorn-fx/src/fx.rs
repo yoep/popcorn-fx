@@ -69,7 +69,7 @@ pub struct PopcornFxArgs {
     pub tv: bool,
     /// Indicates if the application should be maximized on startup.
     #[arg(long, default_value_t = false)]
-    pub maximized: bool
+    pub maximized: bool,
 }
 
 impl Default for PopcornFxArgs {
@@ -293,7 +293,11 @@ impl PopcornFX {
             &movie_provider,
             &show_provider,
         ])));
-        let episode_enhancer : Arc<Box<dyn Enhancer>> = Arc::new(Box::new(EpisodeEnhancer::default()));
+        let episode_enhancer: Arc<Box<dyn Enhancer>> = Arc::new(Box::new(EpisodeEnhancer::new(settings.blocking_lock()
+            .properties()
+            .enhancers
+            .get("tvdb")
+            .expect("expected the tvdb properties to be present").clone())));
 
         ProviderManager::default()
             .with_providers(vec![

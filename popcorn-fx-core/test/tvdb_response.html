@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+</head>
+<body id="app">
+<div class="navbar navbar-default main_navigation" role="navigation">
+    <div class="container">
+        <div style="display:flex">
+            <div>
+                <a href="/" class="navbar-brand"><img alt="TheTVDB.com" src="/images/logo.svg"></a>
+            </div>
+            <div style="flex-grow: 3">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+
+                    <div class="collapse navbar-collapse">
+                        <ul class="nav navbar-nav">
+                            <li class="dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Discover</a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="/on-today">On Today</a></li>
+                                    <li><a href="/awards">Awards</a></li>
+                                    <li><a href="/companies">Companies</a></li>
+                                    <li><a href="/lists">Lists</a></li>
+                                    <li><a href="/people">People</a></li>
+                                    <li><a href="/taxonomy">Tagging & Taxonomy</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="/points" onclick="ga('send', 'event', 'gamification_link', 'header');">Earn Points</a></li>
+                            <li><a href="http://support.thetvdb.com" target="_blank">Support</a></li>
+
+                            <li class="dropdown hidden-sm hidden-md hidden-lg showauth-user">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                    <i class="fa fa-plus-circle" aria-hidden="true" style="margin-right:10px"></i> Add A Record
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="/series/create">Add Series</a></li>
+                                    <li><a href="/movies/create">Add Movie</a></li>
+                                    <li><a href="/people/create">Add Person</a></li>
+                                </ul>
+                            </li>
+                            <li class="dropdown hidden-sm hidden-md hidden-lg showauth-user">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                    <i class="fa fa-user-circle" aria-hidden="true" style="margin-right:10px"></i> Account
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="/dashboard">Dashboard</a></li>
+                                    <li><a href="/dashboard/notifications">Notifications</a></li>
+                                    <li><a href="/subscribe">Subscribe</a></li>
+                                    <li><a href="/dashboard/favorites/series">Favorite Series</a></li>
+                                    <li><a href="/dashboard/favorites/movies">Favorite Movies</a></li>
+                                    <li><a href="/logout">Logout</a></li>
+                                </ul>
+                            </li>
+
+                            <li class="hidden-lg hidden-md hidden-sm showauth-guest"><a href="/auth/login?redirect=series/lorem/episodes/9435216"><i class="fa fa-user-circle" aria-hidden="true" style="margin-right:10px"></i> Login</a></li>
+                        </ul>
+                    </div>
+
+                    <a href="/search" class="mobile-search hidden-sm hidden-md hidden-lg"><i class="fa fa-search" aria-hidden="true"></i></a>
+                </div>
+            </div>
+            <div class="hidden-xs">
+                <ul class="nav navbar-nav navbar-right">
+                    <li class="hidden-md hidden-lg"><a href="/search"><i class="fa fa-search" aria-hidden="true"></i></a></li>
+                    <li class="dropdown showauth-user">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Add A Record">
+                            <i class="fa fa-plus-circle" aria-hidden="true"></i>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="/series/create">Add Series</a></li>
+                            <li><a href="/movies/create">Add Movie</a></li>
+                            <li><a href="/people/create">Add Person</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="dropdown showauth-user">
+                        <a href="#" class="dropdown-toggle user-menu" data-toggle="dropdown">
+                            <i class="fa fa-user-circle" aria-hidden="true"></i>
+                            <span id="notification-icon"></span>
+                        </a>
+
+                        <ul class="dropdown-menu">
+                            <li><a href="/dashboard">Dashboard</a></li>
+                            <li><a href="/dashboard/notifications">Notifications <span id="notification-indicator"></span></a></li>
+                            <li><a href="/subscribe">Subscribe</a></li>
+                            <li><a href="/dashboard/favorites/series">Favorite Series</a></li>
+                            <li><a href="/dashboard/favorites/movies">Favorite Movies</a></li>
+                            <li><a href="/logout">Logout</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="showauth-guest">
+                        <a href="/auth/login?redirect=series/lorem/episodes/9435216">Login</a>
+                    </li>
+                </ul>
+
+                <form action="/search" method="get" class="navbar-form navbar-left hidden-xs hidden-sm" autocomplete="off">
+                    <input type="text" name="query" class="form-control" placeholder="Search TheTVDB">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="global_callout survey-trigger" style="display:none; background-color: #2f4d4f"
+     data-chance="15"
+>
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12 col-sm-10">
+                <p>
+                    We're continuously trying to improve TheTVDB, and the best way we can do that is to get feedback from you.  Please consider taking this quick survey to let us know how we're doing and what we can do better.
+                </p>
+            </div>
+            <div class="col-xs-12 col-sm-2 text-center">
+                <a href="https://survey.alchemer.com/s3/6517958/31f54dd12ca7" class="btn btn-info" target="_blank">Take The Survey</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="page-toolbar">
+        <div class="crumbs">
+            <a href="/">Home</a> /
+            <a href="/series">Series</a> /
+            <a href="/series/the-last-of-us">The Last of Us</a> /
+            Aired Order /
+            <a href="/series/the-last-of-us/seasons/official/1">Season 1</a> /
+            Episode 7
+
+            <a class="ml-1" href="/series/the-last-of-us/episodes/9435215"><i class="fa fa-long-arrow-left" aria-hidden="true"></i></a>
+            <a href="/series/the-last-of-us/episodes/9435217"><i class="fa fa-long-arrow-right" aria-hidden="true"></i></a>
+        </div>
+        <div class="clearfix"></div>
+    </div>
+    <div class="flash-message">
+
+    </div>
+    <div class="row mt-2">
+        <div class="col-xs-12 col-sm-4 col-md-4 col-lg-3 col-xl-2">
+            <a href="https://artworks.thetvdb.com/banners/v4/episode/9435216/screencap/63fd00ab6f23b.jpg" class="lightbox" rel="artwork_image" data-description="Added 2 weeks ago by unknown user" data-favorited=0 data-id="63390192" data-allowdelete="1">
+                <img src="https://artworks.thetvdb.com/banners/v4/episode/9435216/screencap/63fd00ab6f23b.jpg" class="img-responsive img-rounded img-mobile-centered">
+            </a>
+
+        </div>
+        <div class="col-xs-12 col-sm-8 col-md-8 col-lg-9 col-xl-10">
+            <div class="page-toolbox">
+                <a class="btn btn-success favorite_button" data-type="episode" data-id="9435216" data-theme="full" style="display:none"></a>
+                <div class="btn-group showauth-user" data-permission="episode-9435216-toolbox">
+                    <button type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-cog" aria-hidden="true"></i> <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a href="/series/the-last-of-us/episodes/9435216/0/edit" data-permission="episode-9435216-edit" title="Edit Episode">Edit Episode</a></li>
+                        <li><a href="/artwork/upload?type=11&episode=9435216&replace=63390192" data-permission="artwork-63390192-replace" role="button">Replace Artwork</a></li>
+                        <li><a href="/series/the-last-of-us/episodes/9435216/translate/ep/0" data-permission="episode-9435216-translation" role="button">Edit Translations</a></li>
+                        <li data-permission="episode-9435216-delete">
+                            <a href="#" data-toggle="modal" data-target="#unified-delete-modal">Delete</a>
+                            <button type="button" class="btn btn-default btn-lg" data-toggle="modal" data-target="#unified-delete-modal">Delete</button>
+
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <h1 class="translated_title mt-0">
+                Left Behind
+            </h1>
+
+
+            <div class="block" id="translations">
+                <div class="change_translation_text" data-language="eng" data-title="Left Behind"
+                >
+                    <p>As Joel fights to survive, Ellie looks back on the night that changed everything.</p>
+                </div>
+                <div class="change_translation_text" data-language="ara" data-title="متروك"
+                     style="display:none"
+                >
+                    <p>بينما يكافح جويل من أجل البقاء ، يثير كفاح إيلي لإنقاذه ذكريات حياتها في دار أيتام تابعة لـ فيدرا. تتذكر إيلي أنها انضمت إلى صديقتها المقربة رايلي لليلة لتتذكرها ... ليلة ستغير مجرى حياتهما - ومصير العالم - إلى الأبد.</p>
+                </div>
+                <div class="change_translation_text" data-language="spa" data-title="Lo que dejamos atr&aacute;s"
+                     style="display:none"
+                >
+                    <p>Mientras Joel lucha por sobrevivir, Ellie recuerda la noche que lo cambi&oacute; todo.</p>
+                </div>
+                <div class="change_translation_text" data-language="fra" data-title="Abandonner"
+                     style="display:none"
+                >
+                    <p>Alors que Joel se bat pour survivre, Ellie revient sur la nuit qui a tout chang&eacute;.</p>
+                </div>
+                <div class="change_translation_text" data-language="sqi" data-title="T&euml; L&euml;n&euml; Pas"
+                     style="display:none"
+                >
+                    <p>Nd&euml;rsa Joel lufton p&euml;r t&euml; mbijetuar, Ellie kujton nat&euml;n q&euml; ndryshoi gjith&ccedil;ka.</p>
+                </div>
+                <div class="change_translation_text" data-language="ces" data-title="Napospas"
+                     style="display:none"
+                >
+                    <p>Zat&iacute;mco Joel bojuje o přežit&iacute;, Ellie vzpom&iacute;n&aacute; na noc, kter&aacute; v&scaron;echno změnila.</p>
+                </div>
+                <div class="change_translation_text" data-language="fin" data-title="Left Behind"
+                     style="display:none"
+                >
+                    <p>Joelin k&auml;ydess&auml; selviytymistaistelua Ellie muistelee y&ouml;t&auml;, joka muutti kaiken.</p>
+                </div>
+                <div class="change_translation_text" data-language="deu" data-title="Zur&uuml;ckgelassen"
+                     style="display:none"
+                >
+                    <p>Joel k&auml;mpft um sein Leben. Ellie erinnert sich an ihre beste Freundin Riley und eine Nacht, die nicht nur ihr Leben f&uuml;r immer ver&auml;ndert hat - sondern auch das Schicksal der ganzen Welt.</p>
+                </div>
+                <div class="change_translation_text" data-language="pol" data-title="Pozostawieni"
+                     style="display:none"
+                >
+                    <p>Joel walczy o przetrwanie, a Ellie wspomina noc, kt&oacute;ra zmieniła wszystko.</p>
+                </div>
+                <div class="change_translation_text" data-language="nld" data-title="Left Behind"
+                     style="display:none"
+                >
+                    <p>Terwijl Joel voor zijn leven vecht, blikt Ellie terug op een avond die haar hele leven veranderde.</p>
+                </div>
+                <div class="change_translation_text" data-language="rus" data-title="Оставшиеся позади"
+                     style="display:none"
+                >
+                    <p>Укрывшись в заброшенном здании, Джоэл страдает от полученных ранений, а Элли вспоминает о Райли Абель: после того, как ее подруга отсутствовала три недели, она вернулась в общежитие с неожиданными новостями. И хотя Джоэл убеждает Элли продолжать путь без его, она не оставляет надежды спасти его.</p>
+                </div>
+                <div class="change_translation_text" data-language="swe" data-title="Left Behind"
+                     style="display:none"
+                >
+                    <p>Joel k&auml;mpar f&ouml;r sin &ouml;verlevnad och Ellie blickar tillbaka p&aring; natten som f&ouml;r&auml;ndrade allt.</p>
+                </div>
+                <div class="change_translation_text" data-language="por" data-title="Left Behind"
+                     style="display:none"
+                >
+                    <p>&Agrave; medida que Joel luta para sobreviver, Ellie recorda a noite que mudou tudo.</p>
+                </div>
+                <div class="change_translation_text" data-language="pt" data-title="O que deixamos para tr&aacute;s"
+                     style="display:none"
+                >
+                    <p>Enquanto Joel luta para sobreviver, Ellie se recorda da noite em que tudo mudou.</p>
+                </div>
+                <div class="change_translation_text" data-language="hun" data-title="H&aacute;trahagyva"
+                     style="display:none"
+                >
+                    <p>Joel az &eacute;let&eacute;&eacute;rt k&uuml;zd, Ellie pedig visszatekint arra az &eacute;jszak&aacute;ra, amely mindent megv&aacute;ltoztatott.</p>
+                </div>
+                <div class="change_translation_text" data-language="ell" data-title="&Pi;&alpha;&rho;&alpha;&tau;&eta;&mu;έ&nu;&omicron;&sigmaf;"
+                     style="display:none"
+                >
+                    <p>&Epsilon;&nu;ώ &omicron; &Tau;&zeta;ό&epsilon;&lambda; &pi;&alpha;&lambda;&epsilon;ύ&epsilon;&iota; &nu;&alpha; &epsilon;&pi;&iota;&beta;&iota;ώ&sigma;&epsilon;&iota;, &eta; Έ&lambda;&iota; &alpha;&nu;&alpha;&pi;&omicron;&lambda;&epsilon;ί &tau;&eta; &nu;ύ&chi;&tau;&alpha; &pi;&omicron;&upsilon; ά&lambda;&lambda;&alpha;&xi;&epsilon; &tau;&alpha; &pi;ά&nu;&tau;&alpha;.</p>
+                </div>
+                <div>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="English" data-language="eng">English</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Arabic" data-language="ara">العربية</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Spanish" data-language="spa">espa&ntilde;ol</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="French" data-language="fra">fran&ccedil;ais</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Albanian" data-language="sqi">gjuha shqipe</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Czech" data-language="ces">če&scaron;tina</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Finnish" data-language="fin">suomi</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="German" data-language="deu">Deutsch</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Polish" data-language="pol">język polski</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Dutch" data-language="nld">Nederlands</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Russian" data-language="rus">русский язык</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Swedish" data-language="swe">svenska</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Portuguese - Portugal" data-language="por">Portugu&ecirc;s - Portugal</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Portuguese - Brazil" data-language="pt">Portugu&ecirc;s - Brasil</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Hungarian" data-language="hun">Magyar</span>
+                    <span class="label label-default change_translation" data-toggle="tooltip" title="Greek" data-language="ell">&epsilon;&lambda;&lambda;&eta;&nu;&iota;&kappa;ή &gamma;&lambda;ώ&sigma;&sigma;&alpha;</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="tvdb-tabs mt-2" role="tablist">
+            <div role="presentation" class="active"><a href="#general" aria-controls="general" role="tab" data-toggle="tab">General</a></div>
+            <div role="presentation"><a href="#castcrew" aria-controls="castcrew" role="tab" data-toggle="tab">Cast & Crew</a></div>
+        </div>
+
+        <div class="tab-content">
+            <div role="tabpanel" class="tab-pane active" id="general">
+                <ul class="list-group">
+                    <li class="list-group-item clearfix">
+                        <strong>Originally Aired</strong>
+                        <span><a href="/on-today/2023-02-26">February 26, 2023</a></span>
+                    </li>
+
+                    <li class="list-group-item clearfix">
+                        <strong>Runtime</strong>
+                        <span>
+                        55 minutes
+                    </span>
+                    </li>
+
+
+                    <li class="list-group-item clearfix">
+                        <strong>Content Rating</strong>
+                        <span>
+                        <small class="text-muted">Spain</small>
+                        18
+                    </span>
+                        <span>
+                        <small class="text-muted">United States of America</small>
+                        TV-MA
+                    </span>
+                        <span>
+                        <small class="text-muted">Great Britain</small>
+                        15
+                    </span>
+                        <span>
+                        <small class="text-muted">France</small>
+                        12
+                    </span>
+                    </li>
+
+
+                    <li class="list-group-item clearfix">
+                        <strong>Network</strong>
+                        <span>
+                                <a href="/companies/hbo">HBO</a>
+            </span>
+
+                    </li>
+                    <li class="list-group-item clearfix">
+                        <strong>Production Company</strong>
+                        <span>
+                                <a href="/companies/sony-pictures-television">Sony Pictures Television</a>
+            </span>
+                        <span>
+                                <a href="/companies/playstation-productions">PlayStation Productions</a>
+            </span>
+                        <span>
+                                <a href="/companies/the-mighty-mint">The Mighty Mint</a>
+            </span>
+                        <span>
+                                <a href="/companies/naughty-dog">Naughty Dog</a>
+            </span>
+                        <span>
+                                <a href="/companies/word-games">Word Games</a>
+            </span>
+
+                    </li>
+
+                    <li class="list-group-item clearfix">
+                        <strong>On Other Sites</strong>
+                        <span><a href="https://ui.eidr.org/view/content?id=10.5240/D2E8-18CC-8496-CDAF-879B-7">EIDR</a></span>
+                        <span><a href="https://www.imdb.com/title/tt15747172/">IMDB</a></span>
+                        <span><a href="https://www.tvmaze.com/episodes/2446259/show-episode-name">TV Maze</a></span>
+                        <span><a href="https://www.wikidata.org/wiki/Q116178391">Wikidata</a></span>
+                    </li>
+
+                    <li class="list-group-item clearfix">
+                        <strong>Sensitive Content &amp; Trigger Warnings</strong>
+                        <span><a href="/taxonomy/episode/23/451">Alcohol</a></span>
+                        <span><a href="/taxonomy/episode/23/453">Blood</a></span>
+                        <span><a href="/taxonomy/episode/23/458">Death or Dying</a></span>
+                        <span><a href="/taxonomy/episode/23/4443">Gun Violence</a></span>
+                        <span><a href="/taxonomy/episode/23/477">Prescription Drugs</a></span>
+                        <span><a href="/taxonomy/episode/23/476">Profanity</a></span>
+                    </li>
+
+
+                    <li class="list-group-item clearfix">
+                        <strong>Created</strong>
+                        <span>
+        November 2, 2022
+                    by
+            <div class="user-inline" style="display: inline-block">
+                    Imzadi
+                
+         
+                    <span class="label label-columbia">mod</span>
+            </div>
+            </span>
+                    </li>
+
+                    <li class="list-group-item clearfix">
+                        <strong>Modified</strong>
+                        <span>
+        March 17, 2023
+                    by
+            <div class="user-inline" style="display: inline-block">
+                    loyis7
+                
+         
+            </div>
+            </span>
+                    </li>            </ul>
+
+                <!-- Horizontal Banner -->
+                <ins class="adsbygoogle mt-2 mb-2"
+                     style="display:block"
+                     data-ad-client="ca-pub-9638751259933291"
+                     data-ad-slot="7978817745"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+            </div>
+
+            <div role="tabpanel" class="tab-pane" id="castcrew">
+                <ul class="nav nav-pills seasontype">
+                    <li class="pull-right">
+                        <a class="btn btn-success pull-left" href="/series/the-last-of-us/episodes/9435216/0/addperson" data-permission="episode-9435216-edit" title="Add Person"><i class="fa fa-plus" aria-hidden="true"></i></a>
+                    </li>
+                </ul>
+
+                <table class="table table-bordered table-hover table-responsive">
+                    <thead>
+                    <tr>
+                        <th width="30%">Name</th>
+                        <th width="30%">Type</th>
+                        <th width="30%">Role</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><a href="/people/8347196-neil-druckmann">Neil Druckmann</a></td>
+                        <td>Writer</td>
+                        <td></td>
+                        <td>
+                            <a href="/series/the-last-of-us/episodes/9435216/delete_person/68893187" class="confirm" data-permission="episode-9435216-edit"><i class="fa fa-trash-o"></i></a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/people/9109012-ruby-lybbert">Ruby Lybbert</a></td>
+                        <td>Guest Star</td>
+                        <td>Bethany</td>
+                        <td>
+                            <a href="/series/the-last-of-us/episodes/9435216/delete_person/68894855" class="confirm" data-permission="episode-9435216-edit"><i class="fa fa-trash-o"></i></a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/people/480296-storm-reid">Storm Reid</a></td>
+                        <td>Guest Star</td>
+                        <td>Riley Abel</td>
+                        <td>
+                            <a href="/series/the-last-of-us/episodes/9435216/delete_person/68893521" class="confirm" data-permission="episode-9435216-edit"><i class="fa fa-trash-o"></i></a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/people/335627-terry-chen">Terry Chen</a></td>
+                        <td>Guest Star</td>
+                        <td>Cpt. Kwong</td>
+                        <td>
+                            <a href="/series/the-last-of-us/episodes/9435216/delete_person/68893522" class="confirm" data-permission="episode-9435216-edit"><i class="fa fa-trash-o"></i></a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/people/508085-ian-rozylo">Ian Rozylo</a></td>
+                        <td>Guest Star</td>
+                        <td>Infected Man</td>
+                        <td>
+                            <a href="/series/the-last-of-us/episodes/9435216/delete_person/68894854" class="confirm" data-permission="episode-9435216-edit"><i class="fa fa-trash-o"></i></a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/people/501996-liza-johnson">Liza Johnson</a></td>
+                        <td>Director</td>
+                        <td></td>
+                        <td>
+                            <a href="/series/the-last-of-us/episodes/9435216/delete_person/68876687" class="confirm" data-permission="episode-9435216-edit"><i class="fa fa-trash-o"></i></a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                <!-- Horizontal Banner -->
+                <ins class="adsbygoogle mt-2 mb-2"
+                     style="display:block"
+                     data-ad-client="ca-pub-9638751259933291"
+                     data-ad-slot="7978817745"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<footer class="footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12 col-sm-3">
+                <h5>About</h5>
+                <ul class="list-unstyled">
+                    <li><a href="/about">About TheTVDB</a></li>
+                    <li><a href="/points" onclick="ga('send', 'event', 'gamification_link', 'footer');">Earn Points</a></li>
+                    <li><a href="/subscribe">Subscribe</a></li>
+                    <li><a href="/api-information">API</a></li>
+                    <li><a href="https://feedback.userreport.com/cdaca6ba-2142-4b27-b04d-26ceaa067824/" target="_blank">Feature Suggestions</a></li>
+                    <li><a href="https://support.thetvdb.com/kb/" target="_blank">Knowledgebase</a></li>
+                    <li><a href="http://support.thetvdb.com" target="_blank">Support</a></li>
+                </ul>
+            </div>
+            <div class="col-xs-12 col-sm-3">
+                <h5>Discover</h5>
+                <ul class="list-unstyled">
+                    <li><a href="/on-today">On Today</a></li>
+                    <li><a href="/awards">Awards</a></li>
+                    <li><a href="/companies">Companies</a></li>
+                    <li><a href="/lists">Lists</a></li>
+                    <li><a href="/people">People</a></li>
+                    <li><a href="/taxonomy">Taxonomy</a></li>
+                </ul>
+            </div>
+            <div class="col-xs-12 col-sm-3">
+                <h5>Legal</h5>
+                <ul class="list-unstyled">
+                    <li><a href="/tos">Terms of Service</a></li>
+                    <li><a href="/privacy-policy">Privacy Policy</a></li>
+                    <li><a href="/dmca">DMCA</a></li>
+                </ul>
+            </div>
+            <div class="col-xs-12 col-sm-3">
+                <h5>Follow Us</h5>
+                <a target="_blank" href="https://www.facebook.com/TheTVDB" class="footer-social">
+                        <span class="fa-stack fa-lg">
+                            <i class="fa fa-circle fa-stack-2x"></i>
+                            <i class="fa fa-facebook fa-stack-1x fa-inverse"></i>
+                        </span>
+                </a>
+                <a target="_blank" href="https://twitter.com/thetvdb" class="footer-social">
+                        <span class="fa-stack fa-lg">
+                            <i class="fa fa-circle fa-stack-2x"></i>
+                            <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                        </span>
+                </a>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-xs-12">
+                <a href="/"><img alt="TheTVDB.com" src="/images/logo_footer.svg" class="footer-logo" height="40"></a>
+                &copy; 2023 TheTVDB.com, A Whip Media Company. ALL RIGHTS RESERVED.
+            </div>
+        </div>
+    </div>
+</footer>
+
+<div class="modal fade" id="unified-delete-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <form action="/entity/delete" method="post" disabled>
+            <input type="hidden" name="_token" value="flmF7JgEFqw5CAaPOujR8KP27ElweBzz39IO49EE">
+            <input type="hidden" name="type" value="3">
+            <input type="hidden" name="id" value="9435216">
+
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="myModalLabel">Delete Record</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="delete-reason">Why are you deleting this record? <span class="text-danger">*<span></label>
+                        <select name="delete-reason" id="delete-reason" class="form-control visible_trigger">
+                            <option action-slideup=".delete-duplicate-section">Choose an option</option>
+                        </select>
+                    </div>
+
+
+                    <div class="delete-duplicate-section" style="display:none">
+                        <div class="form-group">
+                            <label for="delete-duplicate-type">Type of Duplicate <span class="text-danger">*<span></label>
+                            <select name="mergeto_entitytype" id="delete-duplicate-type"
+                                    class="form-control delete-trigger-preview">
+                                <option></option>
+                                <option value="1" >Series</option>
+                                <option value="2" >Season</option>
+                                <option value="3"  selected >Episode</option>
+                                <option value="4" >Movie</option>
+                                <option value="5" >Person</option>
+                                <option value="6" >Artwork</option>
+                                <option value="8" >Company</option>
+                                <option value="9" >List</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="delete-duplicate-id">ID of Duplicate <span class="text-danger">*<span></label>
+                            <input type="text" name="mergeto_id" id="delete-duplicate-id"
+                                   class="form-control delete-trigger-preview">
+                            <div class="help-block small">
+                                Enter the type and id of the record that this record is a duplicate of and confirm using
+                                the preview below. This is critical information for downstream systems.
+                            </div>
+                        </div>
+                        <div class="row delete-preview-section">
+                            <div class="col-xs-4">
+                                <h5>Preview</h5>
+                                <div class="delete-preview-loading text-muted" style="display:none"><i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i></div>
+                                <div class="delete-preview" style="display:none"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-danger" disabled>Delete</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

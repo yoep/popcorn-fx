@@ -58,7 +58,7 @@ impl Drop for DefaultTorrentManager {
 mod test {
     use std::path::PathBuf;
 
-    use popcorn_fx_core::core::config::{PopcornProperties, PopcornSettings, TorrentSettings};
+    use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
     use popcorn_fx_core::core::storage::Storage;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 

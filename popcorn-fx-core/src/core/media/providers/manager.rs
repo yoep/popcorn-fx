@@ -98,7 +98,6 @@ impl ProviderManager {
 
 #[cfg(test)]
 mod test {
-    use std::fmt::{Debug, Display};
     use std::sync::Arc;
 
     use tokio::runtime::Runtime;

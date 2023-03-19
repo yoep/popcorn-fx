@@ -4,18 +4,32 @@ use regex::Regex;
 use reqwest::Client;
 use url::Url;
 
+use crate::core::config::EnhancerProperties;
 use crate::core::media::{Category, Episode, MediaDetails, ShowDetails};
 use crate::core::media::providers::enhancers::Enhancer;
 
 /// The [Episode] enhancer which allows the retrieval of additional thumbs.
 #[derive(Debug)]
 pub struct EpisodeEnhancer {
+    /// The properties for this enhancer
+    properties: EnhancerProperties,
     /// the regex used to retrieve the thumb
     regex: Regex,
     client: Client,
 }
 
 impl EpisodeEnhancer {
+    /// Create a new episode enhancer which will use TVDB information based on the given enhancer properties.
+    pub fn new(properties: EnhancerProperties) -> Self {
+        Self {
+            properties,
+            regex: Regex::new("https://artworks.thetvdb.com/banners/([a-zA-Z0-9/\\.]+)").unwrap(),
+            client: Client::builder()
+                .build()
+                .expect("Client should have been created"),
+        }
+    }
+
     async fn enhance(&self, mut episode: Episode) -> Episode {
         if episode.tvdb_id <= 0 {
             warn!("Unable to enhance episode, tvdb_id is unknown for {}", episode);
@@ -23,7 +37,7 @@ impl EpisodeEnhancer {
         }
 
         trace!("Enhancing episode {}", episode);
-        let url = Self::build_url(&episode.tvdb_id);
+        let url = self.build_url(&episode.tvdb_id);
 
         trace!("Retrieving additional TVDB info from {}", url);
         match self.client.get(url)
@@ -56,8 +70,8 @@ impl EpisodeEnhancer {
         }
     }
 
-    fn build_url(episode_id: &i32) -> Url {
-        let mut url = Url::parse("https://thetvdb.com/series/lorem/episodes").unwrap();
+    fn build_url(&self, episode_id: &i32) -> Url {
+        let mut url = Url::parse(self.properties.uri.as_str()).unwrap();
 
         url.path_segments_mut()
             .unwrap()
@@ -85,29 +99,22 @@ impl Enhancer for EpisodeEnhancer {
     }
 }
 
-impl Default for EpisodeEnhancer {
-    fn default() -> Self {
-        Self {
-            regex: Regex::new("https://artworks.thetvdb.com/banners/([a-zA-Z0-9/\\.]+)").unwrap(),
-            client: Client::builder()
-                .build()
-                .expect("Client should have been created"),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
+    use httpmock::Method::GET;
+    use httpmock::MockServer;
     use tokio::runtime::Runtime;
 
     use crate::core::media::{Episode, Images, ShowDetails};
-    use crate::testing::init_logger;
+    use crate::testing::{init_logger, read_test_file};
 
     use super::*;
 
     #[test]
     fn test_category() {
-        let enhancer = EpisodeEnhancer::default();
+        let enhancer = EpisodeEnhancer::new(EnhancerProperties {
+            uri: "".to_string(),
+        });
 
         assert_eq!(Category::Series, enhancer.category())
     }
@@ -116,6 +123,7 @@ mod test {
     fn test_enhance_details() {
         init_logger();
         let tvdb_id = "9435216";
+        let server = MockServer::start();
         let show = Box::new(ShowDetails {
             imdb_id: "tt12124578".to_string(),
             tvdb_id: "392256".to_string(),
@@ -144,7 +152,16 @@ mod test {
             ],
             liked: None,
         });
-        let enhancer = EpisodeEnhancer::default();
+        server.mock(|when, then| {
+            when.method(GET)
+                .path(format!("/{}", tvdb_id));
+            then.status(200)
+                .header("content-type", "text/html; charset=UTF-8")
+                .body(read_test_file("tvdb_response.html"));
+        });
+        let enhancer = EpisodeEnhancer::new(EnhancerProperties {
+            uri: server.url(""),
+        });
         let runtime = Runtime::new().unwrap();
 
         let result = runtime.block_on(enhancer.enhance_details(show))

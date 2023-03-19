@@ -555,6 +555,7 @@ mod test {
             properties: PopcornProperties {
                 update_channel: String::new(),
                 providers: Default::default(),
+                enhancers: Default::default(),
                 subtitle: SubtitleProperties {
                     url: server.url(""),
                     user_agent: String::new(),

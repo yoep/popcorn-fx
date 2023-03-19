@@ -130,7 +130,6 @@ mod test {
     use super::*;
 
     #[test]
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
     fn test_new_platform_should_return_platform() {
         let platform = new_platform();
 

@@ -9,8 +9,10 @@ use crate::core::media::{Category, MediaDetails};
 #[automock]
 #[async_trait]
 pub trait Enhancer : Debug {
-    /// Retrieve the category this enhancer supports.
-    fn category(&self) -> Category;
+    /// Verify if this enhancer supports the given [Category].
+    /// 
+    /// Returns true when this enhance supports the given category.
+    fn supports(&self, category: &Category) -> bool;
 
     /// Enhance the given [MediaDetails].
     ///

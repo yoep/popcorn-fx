@@ -39,7 +39,7 @@ impl Ord for MediaType {
 
 /// Basic identification information about a media item.
 #[cfg_attr(test, automock)]
-pub trait MediaIdentifier: Debug + DowncastSync + Display {
+pub trait MediaIdentifier: Debug + DowncastSync + Display + Send {
     /// Retrieve an owned instance of the IMDB id.
     fn imdb_id(&self) -> &str;
 

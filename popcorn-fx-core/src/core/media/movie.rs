@@ -76,16 +76,16 @@ impl MediaOverview for MovieOverview {
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
 #[display(fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}}}", imdb_id, title, year, runtime)]
 pub struct MovieDetails {
-    title: String,
-    imdb_id: String,
-    year: String,
-    runtime: String,
-    genres: Vec<String>,
-    synopsis: String,
-    rating: Option<Rating>,
-    images: Images,
-    trailer: String,
-    torrents: HashMap<String, HashMap<String, TorrentInfo>>,
+    pub title: String,
+    pub imdb_id: String,
+    pub year: String,
+    pub runtime: String,
+    pub genres: Vec<String>,
+    pub synopsis: String,
+    pub rating: Option<Rating>,
+    pub images: Images,
+    pub trailer: String,
+    pub torrents: HashMap<String, HashMap<String, TorrentInfo>>,
 }
 
 impl MovieDetails {

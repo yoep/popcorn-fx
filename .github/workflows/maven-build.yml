@@ -33,9 +33,7 @@ jobs:
       run: make prerequisites
     - name: Build
       run: |
-        sudo apt-get install -y libx11-dev
-        xvfb :99 -screen 0 640x480x8 +extension DPMS,MIT-SCREEN-SAVER & export DISPLAY=:99
-        make test && make build
+        xvfb-run -a make test && make build
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

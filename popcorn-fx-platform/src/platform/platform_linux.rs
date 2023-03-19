@@ -1,11 +1,11 @@
 use log::{debug, error, info, trace};
-
-use popcorn_fx_core::core::platform;
-use popcorn_fx_core::core::platform::{Platform, PlatformError};
 use x11rb::connection::RequestConnection;
 use x11rb::protocol::dpms::{ConnectionExt as DpmsConnectionExt, DPMSMode};
 use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionExt, Exposures};
 use x11rb::rust_connection::RustConnection;
+
+use popcorn_fx_core::core::platform;
+use popcorn_fx_core::core::platform::{Platform, PlatformError};
 
 /// The linux platform specific implementation
 #[derive(Debug)]
@@ -92,9 +92,10 @@ impl Default for PlatformLinux {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::core::platform::Platform;
     use popcorn_fx_core::testing::init_logger;
 
-    use super::PlatformLinux;
+    use crate::platform::platform_linux::PlatformLinux;
 
     /* NOTE: Github actions is unable to activate the DPMS and XScreenSaver within xvfb */
     /* thereby actually verifying the results of the actions is useless as they will always fail within the CI */

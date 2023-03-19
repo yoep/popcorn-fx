@@ -3,7 +3,7 @@
 <?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
 <?import javafx.scene.layout.StackPane?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.ui.view.controllers.components.TvPosterComponent"
+           fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.TvPosterComponent"
            fx:id="posterHolder" styleClass="poster">
     <ImageCover fx:id="poster" styleClass="poster-image"/>
 </StackPane>

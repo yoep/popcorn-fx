@@ -1,25 +1,38 @@
 use std::sync::Arc;
 
-use log::warn;
+use log::{debug, warn};
 
 use crate::core::media;
 use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaOverview, SortBy};
+use crate::core::media::providers::enhancers::Enhancer;
 use crate::core::media::providers::MediaProvider;
 
 /// Manages available [MediaProvider]'s that can be used to retrieve [Media] items.
 /// Multiple providers for the same [Category] can be registered to overrule an existing one.
 #[derive(Debug, Default)]
 pub struct ProviderManager {
+    /// The media providers
     providers: Vec<Arc<Box<dyn MediaProvider>>>,
+    /// The enhancers
+    enhancers: Vec<Arc<Box<dyn Enhancer>>>,
 }
 
 impl ProviderManager {
-    /// Create a new manager which the given [MediaProvider]'s.
-    /// The [Arc] reference counter is owned by this manager.
-    pub fn with_providers(providers: Vec<Arc<Box<dyn MediaProvider>>>) -> Self {
-        Self {
-            providers
-        }
+    /// Add the media providers used by this manager.
+    /// The [Arc] instances should be owned by this manager.
+    pub fn with_providers(mut self, providers: Vec<Arc<Box<dyn MediaProvider>>>) -> Self {
+        self.providers = providers;
+        self
+    }
+
+    /// Add the media item enhancers to this manager.
+    /// The [Arc] instances should be owned by this manager.
+    ///
+    /// Each enhancer is invoked in the same order as given within this array.
+    /// This means that multiple enhancers for the same [Category] can be added and will be applied by this manager when needed.
+    pub fn with_enhancers(mut self, enhancers: Vec<Arc<Box<dyn Enhancer>>>) -> Self {
+        self.enhancers = enhancers;
+        self
     }
 
     /// Retrieve a page of [MediaOverview] items based on the given criteria.
@@ -39,11 +52,16 @@ impl ProviderManager {
     /// The media item will contain all information for a media description and playback.
     ///
     /// It returns the details on success, else the [providers::ProviderError].
-    pub async fn retrieve_details(&self, category: &Category, imdb_id: &String) -> media::Result<Box<dyn MediaDetails>> {
+    pub async fn retrieve_details(&self, category: &Category, imdb_id: &str) -> media::Result<Box<dyn MediaDetails>> {
         match self.provider(category) {
             None => Err(MediaError::ProviderNotFound(category.to_string())),
             Some(provider) => {
-                provider.retrieve_details(imdb_id).await
+                match provider.retrieve_details(imdb_id).await {
+                    Ok(media) => {
+                        Ok(self.enhance_media_item(category, media).await)
+                    }
+                    Err(e) => Err(e)
+                }
             }
         }
     }
@@ -60,17 +78,21 @@ impl ProviderManager {
         }
     }
 
+    async fn enhance_media_item(&self, category: &Category, mut media: Box<dyn MediaDetails>) -> Box<dyn MediaDetails> {
+        for enhancer in self.enhancers.iter().filter(|e| &e.category() == category) {
+            debug!("Enhancing media item {} with {:?}", media.imdb_id(), enhancer);
+            media = enhancer.enhance_details(media).await;
+        }
+
+        media
+    }
+
     /// Retrieve the [MediaProvider] for the given [Category].
     ///
     /// It returns the [MediaProvider] if one is registered, else [None].
-    fn provider(&self, category: &Category) -> Option<&Box<dyn MediaProvider>> {
-        for provider in &self.providers {
-            if provider.supports(category) {
-                return Some(provider);
-            }
-        }
-
-        None
+    fn provider<'a>(&'a self, category: &Category) -> Option<&'a Arc<Box<dyn MediaProvider>>> {
+        self.providers.iter()
+            .find(|&provider| provider.supports(category))
     }
 }
 
@@ -78,9 +100,13 @@ impl ProviderManager {
 mod test {
     use std::sync::Arc;
 
+    use tokio::runtime::Runtime;
     use tokio::sync::Mutex;
 
     use crate::core::config::ApplicationConfig;
+    use crate::core::media::{Episode, ShowDetails};
+    use crate::core::media::providers::enhancers::MockEnhancer;
+    use crate::core::media::providers::MockMediaProvider;
     use crate::core::media::providers::ShowProvider;
 
     use super::*;
@@ -88,7 +114,8 @@ mod test {
     #[tokio::test]
     async fn test_retrieve_when_provider_not_found() {
         let sort_by = SortBy::new(String::new(), String::new());
-        let manager = ProviderManager::with_providers(vec![]);
+        let manager = ProviderManager::default()
+            .with_providers(vec![]);
 
         let result = manager.retrieve(&Category::Movies, &Genre::all(), &sort_by, &String::new(), 1)
             .await;
@@ -106,7 +133,8 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
-        let manager = ProviderManager::with_providers(vec![Arc::new(provider)]);
+        let manager = ProviderManager::default()
+            .with_providers(vec![Arc::new(provider)]);
 
         let result = manager.provider(&Category::Series);
 
@@ -116,9 +144,75 @@ mod test {
     #[test]
     fn test_get_not_supported_category() {
         let manager = ProviderManager::default();
-        
+
         let result = manager.provider(&Category::Movies);
 
         assert!(result.is_none(), "Expected no supported provider to have been found")
+    }
+
+    #[test]
+    fn test_enhance_details() {
+        let thumb = "http://localhost/thumb.png";
+        let mut provider = MockMediaProvider::new();
+        provider.expect_supports()
+            .returning(|e: &Category| e == &Category::Series);
+        provider.expect_retrieve_details()
+            .returning(|imdb_id: &str|
+                Ok(Box::new(ShowDetails {
+                    imdb_id: imdb_id.to_string(),
+                    tvdb_id: "".to_string(),
+                    title: "".to_string(),
+                    year: "".to_string(),
+                    num_seasons: 0,
+                    images: Default::default(),
+                    rating: None,
+                    context_locale: "".to_string(),
+                    synopsis: "".to_string(),
+                    runtime: "".to_string(),
+                    status: "".to_string(),
+                    genres: vec![],
+                    episodes: vec![
+                        Episode {
+                            season: 2,
+                            episode: 1,
+                            first_aired: 0,
+                            title: "".to_string(),
+                            overview: "".to_string(),
+                            tvdb_id: 392256,
+                            tvdb_id_value: "392256".to_string(),
+                            thumb: None,
+                            torrents: Default::default(),
+                        }
+                    ],
+                    liked: None,
+                })));
+        let mut enhancer = MockEnhancer::new();
+        enhancer.expect_category()
+            .returning(|| Category::Series);
+        enhancer.expect_enhance_details()
+            .returning(|e: Box<dyn MediaDetails>| {
+                let mut show = e.into_any()
+                    .downcast::<ShowDetails>()
+                    .unwrap();
+                show.episodes.get_mut(0).unwrap().thumb = Some(thumb.to_string());
+                show
+            });
+        let manager = ProviderManager::default()
+            .with_providers(vec![
+                Arc::new(Box::new(provider))
+            ])
+            .with_enhancers(vec![
+                Arc::new(Box::new(enhancer))
+            ]);
+        let runtime = Runtime::new().unwrap();
+
+        let media = runtime.block_on(manager.retrieve_details(&Category::Series, "tt3581920"))
+            .expect("expected a media item to be returned")
+            .into_any()
+            .downcast::<ShowDetails>()
+            .unwrap();
+
+        let episode = media.episodes.get(0).expect("expected at least one episode");
+        assert_eq!(Some(thumb.to_string()), episode.thumb)
     }
 }

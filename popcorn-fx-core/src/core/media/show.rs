@@ -75,25 +75,26 @@ impl MediaOverview for ShowOverview {
     }
 }
 
+/// The details of a show/serie which contains one or more [Episode] items.
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
 #[display(fmt = "{{ShowDetails: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
 pub struct ShowDetails {
-    imdb_id: String,
-    tvdb_id: String,
-    title: String,
-    year: String,
-    num_seasons: i32,
-    images: Images,
-    rating: Option<Rating>,
+    pub imdb_id: String,
+    pub tvdb_id: String,
+    pub title: String,
+    pub year: String,
+    pub num_seasons: i32,
+    pub images: Images,
+    pub rating: Option<Rating>,
     #[serde(rename(deserialize = "contextLocale"))]
-    context_locale: String,
-    synopsis: String,
-    runtime: String,
-    status: String,
-    genres: Vec<String>,
-    episodes: Vec<Episode>,
+    pub context_locale: String,
+    pub synopsis: String,
+    pub runtime: String,
+    pub status: String,
+    pub genres: Vec<String>,
+    pub episodes: Vec<Episode>,
     #[serde(skip)]
-    liked: Option<bool>,
+    pub liked: Option<bool>,
 }
 
 impl ShowDetails {

@@ -1,7 +1,9 @@
 use log::trace;
 
-use popcorn_fx_core::{into_c_owned, MovieOverviewC, ShowOverviewC, VecFavoritesC};
 use popcorn_fx_core::core::media::{MediaOverview, MediaType, MovieOverview, ShowOverview};
+use popcorn_fx_core::into_c_owned;
+
+use crate::ffi::{MovieOverviewC, ShowOverviewC, VecFavoritesC};
 
 pub fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavoritesC {
     trace!("Mapping favorites to VecFavoritesC for {:?}", favorites);

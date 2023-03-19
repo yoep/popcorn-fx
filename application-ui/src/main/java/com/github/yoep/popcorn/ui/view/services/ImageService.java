@@ -117,7 +117,7 @@ public class ImageService {
      */
     @Async
     public CompletableFuture<Image> load(String url) {
-        Assert.notNull(url, "url cannot be null");
+        Objects.requireNonNull(url, "url cannot be null");
         byte[] image = internalLoad(url);
 
         return CompletableFuture.completedFuture(convertToImage(image));

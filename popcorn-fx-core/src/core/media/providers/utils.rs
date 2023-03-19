@@ -54,6 +54,7 @@ mod test {
                          sort_by: vec![],
                      })
                 ]),
+                enhancers: Default::default(),
                 subtitle: Default::default(),
             },
             settings: PopcornSettings {
@@ -88,6 +89,7 @@ mod test {
             properties: PopcornProperties {
                 update_channel: String::new(),
                 providers: HashMap::new(),
+                enhancers: Default::default(),
                 subtitle: Default::default(),
             },
             settings: PopcornSettings {

@@ -7,7 +7,7 @@ use std::path::Path;
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{EpisodeC, FavoriteEventC, from_c_into_boxed, from_c_owned, from_c_string, GenreC, into_c_owned, into_c_string, MediaItemC, MediaSetC, MovieDetailsC, ShowDetailsC, SortByC, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet, VecFavoritesC, WatchedEventC};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
@@ -24,7 +24,6 @@ use crate::ffi::*;
 mod fx;
 #[cfg(feature = "ffi")]
 pub mod ffi;
-
 
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
@@ -55,7 +54,7 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetai
 #[no_mangle]
 pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetailsC, episode: &EpisodeC) -> *mut SubtitleInfoSet {
     let show_instance = show.to_struct();
-    let episode_instance = episode.to_struct();
+    let episode_instance = Episode::from(episode);
 
     match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().episode_subtitles(show_instance, episode_instance)) {
         Ok(e) => {
@@ -387,7 +386,7 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
 pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MediaItemC {
     let imdb_id = from_c_string(imdb_id);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Favorites, &imdb_id)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Favorites, imdb_id.as_str())) {
         Ok(e) => {
             trace!("Returning favorite details {:?}", &e);
             match e.media_type() {
@@ -940,11 +939,11 @@ mod test {
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
+    use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::fx::PopcornFxArgs;

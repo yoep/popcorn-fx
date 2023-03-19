@@ -1,9 +1,7 @@
 use std::fmt::{Debug, Display};
-#[cfg(test)]
 use std::fmt::Formatter;
 
 use async_trait::async_trait;
-#[cfg(test)]
 use mockall::automock;
 
 use crate::core::media;
@@ -11,7 +9,7 @@ use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, SortBy};
 
 /// A common definition of a [Media] item provider.
 /// It will provide details about certain [Media] items based on the [Category] it supports.
-#[cfg_attr(test, automock)]
+#[automock]
 #[async_trait]
 pub trait MediaProvider: Debug + Display + Send + Sync {
     /// Verify if the provider supports the given [Category].
@@ -33,7 +31,6 @@ pub trait MediaProvider: Debug + Display + Send + Sync {
     async fn retrieve_details(&self, imdb_id: &str) -> media::Result<Box<dyn MediaDetails>>;
 }
 
-#[cfg(test)]
 impl Display for MockMediaProvider {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "MockMediaProvider")

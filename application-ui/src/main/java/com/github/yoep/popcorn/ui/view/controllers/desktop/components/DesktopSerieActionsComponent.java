@@ -9,7 +9,7 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
-import com.github.yoep.popcorn.ui.view.controllers.components.SerieActionsComponent;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieActionsComponent;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import javafx.application.Platform;
 import javafx.fxml.FXML;

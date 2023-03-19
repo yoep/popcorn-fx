@@ -1,7 +1,9 @@
 use std::os::raw::c_char;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, MediaItemC};
+use popcorn_fx_core::{from_c_owned, from_c_string};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
+
+use crate::ffi::MediaItemC;
 
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.

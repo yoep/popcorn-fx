@@ -116,6 +116,7 @@ mod test {
             properties: PopcornProperties {
                 update_channel: String::new(),
                 providers: create_providers(&server),
+                enhancers: Default::default(),
                 subtitle: Default::default(),
             },
             settings: Default::default(),

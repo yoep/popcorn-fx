@@ -12,3 +12,5 @@ mod movie;
 mod provider;
 mod show;
 mod utils;
+
+pub mod enhancers;

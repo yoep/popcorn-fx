@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.controllers.components;
+package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
@@ -65,6 +65,7 @@ public class EpisodeComponent implements Initializable {
             }
         });
 
+        loadAndUpdateImageArt();
         updateWatchedState(watched);
     }
 
@@ -99,6 +100,16 @@ public class EpisodeComponent implements Initializable {
      */
     public void setOnDestroy(Runnable onDestroy) {
         this.onDestroy = onDestroy;
+    }
+
+    private void loadAndUpdateImageArt() {
+        media.getThumb().ifPresent(thumb -> imageService.load(thumb).whenComplete((image, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> episodeArt.setImage(image));
+            } else {
+                log.warn("Failed to load episode thumbnail, {}", throwable.getMessage());
+            }
+        }));
     }
 
     @FXML

@@ -6,19 +6,21 @@ use serde::Deserialize;
 
 use crate::core::media::{MediaIdentifier, MediaType, TorrentInfo};
 
-/// The episode of a show media item.
+/// The episode media information of a show media item.
 #[derive(Debug, Clone, PartialEq, Deserialize, Display)]
 #[display(fmt = "tvdb_id: {}, title: {}, season: {}, episode: {}", tvdb_id, title, season, episode)]
 pub struct Episode {
-    season: u32,
-    episode: u32,
-    first_aired: u64,
-    title: String,
-    overview: String,
-    tvdb_id: i32,
+    pub season: u32,
+    pub episode: u32,
+    pub first_aired: u64,
+    pub title: String,
+    pub overview: String,
+    pub tvdb_id: i32,
     #[serde(skip, default)]
-    tvdb_id_value: String,
-    torrents: HashMap<String, TorrentInfo>,
+    pub tvdb_id_value: String,
+    /// The thumbnail of the episode if available
+    pub thumb: Option<String>,
+    pub torrents: HashMap<String, TorrentInfo>,
 }
 
 impl Episode {
@@ -31,6 +33,7 @@ impl Episode {
             overview,
             tvdb_id,
             tvdb_id_value: tvdb_id.to_string(),
+            thumb: None,
             torrents: HashMap::new(),
         }
     }
@@ -44,6 +47,7 @@ impl Episode {
             overview,
             tvdb_id,
             tvdb_id_value: tvdb_id.to_string(),
+            thumb: None,
             torrents,
         }
     }
@@ -68,6 +72,11 @@ impl Episode {
     /// The description is html decoded before it's returned.
     pub fn synopsis(&self) -> String {
         html_escape::decode_html_entities(&self.overview).into_owned()
+    }
+
+    /// Retrieve the thumbnail url reference if available.
+    pub fn thumb(&self) -> Option<&String> {
+        self.thumb.as_ref()
     }
 
     pub fn torrents(&self) -> &HashMap<String, TorrentInfo> {
@@ -102,7 +111,7 @@ mod test {
             1673136000,
             "lorem".to_string(),
             "ipsum dolor".to_string(),
-            tvdb.clone()
+            tvdb.clone(),
         );
         let expected_result = tvdb.to_string();
 
@@ -120,7 +129,7 @@ mod test {
             1673136000,
             "lorem".to_string(),
             "ipsum dolor".to_string(),
-            tvdb.clone()
+            tvdb.clone(),
         );
         let expected_result = tvdb.to_string();
 

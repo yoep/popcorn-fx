@@ -8,9 +8,9 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::Deserialize;
 
-use crate::core::config::{ConfigError, ProviderProperties};
+use crate::core::config::{ConfigError, EnhancerProperties, ProviderProperties};
 
-const DEFAULT_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
+const DEFAULT_SUBTITLE_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
 const DEFAULT_USER_AGENT: fn() -> String = || "Popcorn Time v1".to_string();
 const DEFAULT_API_TOKEN: fn() -> String = || "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string();
 const DEFAULT_UPDATE_CHANNEL: fn() -> String = || "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string();
@@ -113,6 +113,13 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
     });
     map
 };
+const DEFAULT_ENHANCERS: fn() -> HashMap<String, EnhancerProperties> = || {
+    let mut map = HashMap::new();
+    map.insert("tvdb".to_string(), EnhancerProperties {
+        uri: "https://thetvdb.com/series/lorem/episodes".to_string(),
+    });
+    map
+};
 
 const DEFAULT_CONFIG_FILENAME: &str = "application";
 const CONFIG_EXTENSIONS: [&str; 2] = [
@@ -136,6 +143,9 @@ pub struct PopcornProperties {
     pub update_channel: String,
     #[serde(default = "DEFAULT_PROVIDERS")]
     pub providers: HashMap<String, ProviderProperties>,
+    /// The enhancer properties to enhance media items
+    #[serde(default = "DEFAULT_ENHANCERS")]
+    pub enhancers: HashMap<String, EnhancerProperties>,
     #[serde(default)]
     pub subtitle: SubtitleProperties,
 }
@@ -181,6 +191,11 @@ impl PopcornProperties {
     /// Retrieve the default provider properties.
     pub fn default_providers() -> HashMap<String, ProviderProperties> {
         DEFAULT_PROVIDERS()
+    }
+
+    /// Retrieve the default enhancer properties.
+    pub fn default_enhancers() -> HashMap<String, EnhancerProperties> {
+        DEFAULT_ENHANCERS()
     }
 
     fn find_existing_file(filename: &str) -> Option<File> {
@@ -233,6 +248,7 @@ impl Default for PopcornProperties {
         Self {
             update_channel: DEFAULT_UPDATE_CHANNEL(),
             providers: DEFAULT_PROVIDERS(),
+            enhancers: DEFAULT_ENHANCERS(),
             subtitle: SubtitleProperties::default(),
         }
     }
@@ -240,7 +256,7 @@ impl Default for PopcornProperties {
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SubtitleProperties {
-    #[serde(default = "DEFAULT_URL")]
+    #[serde(default = "DEFAULT_SUBTITLE_URL")]
     pub url: String,
     #[serde(alias = "user-agent")]
     #[serde(alias = "userAgent")]
@@ -272,7 +288,7 @@ impl SubtitleProperties {
 impl Default for SubtitleProperties {
     fn default() -> Self {
         Self {
-            url: DEFAULT_URL(),
+            url: DEFAULT_SUBTITLE_URL(),
             user_agent: DEFAULT_USER_AGENT(),
             api_token: DEFAULT_API_TOKEN(),
         }
@@ -305,6 +321,7 @@ mod test {
         let expected_result = PopcornProperties {
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
+            enhancers: PopcornProperties::default_enhancers(),
             subtitle: SubtitleProperties {
                 url: String::from("https://api.opensubtitles.com/api/v1"),
                 user_agent: String::from("Popcorn Time v1"),
@@ -329,6 +346,7 @@ popcorn:
         let expected_result = PopcornProperties {
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
+            enhancers: PopcornProperties::default_enhancers(),
             subtitle: SubtitleProperties {
                 url: String::from("http://my-url"),
                 user_agent: "lorem".to_string(),
@@ -351,6 +369,7 @@ popcorn:
         let expected_result = PopcornProperties {
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
+            enhancers: PopcornProperties::default_enhancers(),
             subtitle: SubtitleProperties {
                 url: String::from("https://api.opensubtitles.com/api/v1"),
                 user_agent: String::from("lorem"),

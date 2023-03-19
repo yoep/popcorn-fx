@@ -4,10 +4,10 @@ use std::os::raw::c_char;
 
 use log::{error, trace};
 
-use crate::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
-use crate::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
-use crate::core::media::favorites::FavoriteEvent;
-use crate::core::media::watched::WatchedEvent;
+use popcorn_fx_core::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
+use popcorn_fx_core::core::media::favorites::FavoriteEvent;
+use popcorn_fx_core::core::media::watched::WatchedEvent;
 
 /// Structure defining a set of media items.
 /// Each media items is separated in a specific implementation array.
@@ -340,57 +340,73 @@ impl ShowDetailsC {
     }
 }
 
+/// The C compatible [Episode] media information.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct EpisodeC {
-    season: i32,
-    episode: i32,
-    first_aired: i64,
-    title: *const c_char,
-    synopsis: *const c_char,
-    tvdb_id: *const c_char,
-    torrents: *mut TorrentQualityC,
-    len: i32,
+    pub season: i32,
+    pub episode: i32,
+    pub first_aired: i64,
+    pub title: *const c_char,
+    pub synopsis: *const c_char,
+    pub tvdb_id: *const c_char,
+    pub thumb: *const c_char,
+    pub torrents: *mut TorrentQualityC,
+    pub len: i32,
 }
 
-impl EpisodeC {
-    pub fn from(episode: Episode) -> Self {
-        trace!("Converting Episode to C {}", episode);
-        let torrents = episode.torrents().iter()
+impl From<Episode> for EpisodeC {
+    fn from(value: Episode) -> Self {
+        trace!("Converting Episode to C {}", value);
+        let torrents = value.torrents().iter()
             .map(|(k, v)| TorrentQualityC::from(k, v))
             .collect();
         let (torrents, len) = to_c_vec(torrents);
 
         Self {
-            season: episode.season().clone() as i32,
-            episode: episode.episode().clone() as i32,
-            first_aired: episode.first_aired().clone() as i64,
-            title: into_c_string(episode.title().clone()),
-            synopsis: into_c_string(episode.synopsis()),
-            tvdb_id: into_c_string(episode.tvdb_id().clone()),
+            season: value.season().clone() as i32,
+            episode: value.episode().clone() as i32,
+            first_aired: value.first_aired().clone() as i64,
+            title: into_c_string(value.title().clone()),
+            synopsis: into_c_string(value.synopsis()),
+            tvdb_id: into_c_string(value.tvdb_id().clone()),
+            thumb: value.thumb()
+                .map(|e| into_c_string(e.clone()))
+                .or_else(|| Some(ptr::null()))
+                .unwrap(),
             torrents,
             len,
         }
     }
+}
 
-    pub fn to_struct(&self) -> Episode {
-        trace!("Converting Episode from C {:?}", self);
-        let tvdb_id = match from_c_string(self.tvdb_id).parse::<i32>() {
+impl From<&EpisodeC> for Episode {
+    fn from(value: &EpisodeC) -> Self {
+        trace!("Converting Episode from C {:?}", value);
+        let tvdb_id = match from_c_string(value.tvdb_id).parse::<i32>() {
             Ok(e) => e,
             Err(e) => {
                 error!("Episode TVDB ID is invalid, {}", e);
                 -1
             }
         };
+        let thumb = if !value.thumb.is_null() {
+            Some(from_c_string(value.thumb))
+        } else {
+            None
+        };
 
-        Episode::new(
-            self.season.clone() as u32,
-            self.episode.clone() as u32,
-            self.first_aired.clone() as u64,
-            from_c_string(self.title),
-            from_c_string(self.synopsis),
+        Self {
+            season: value.season as u32,
+            episode: value.episode as u32,
+            first_aired: value.first_aired as u64,
+            title: from_c_string(value.title),
+            overview: from_c_string(value.synopsis),
             tvdb_id,
-        )
+            tvdb_id_value: tvdb_id.to_string(),
+            thumb,
+            torrents: Default::default(),
+        }
     }
 }
 
@@ -440,7 +456,7 @@ impl MediaItemC {
             mem::forget(boxed);
         } else if !self.episode.is_null() {
             let boxed = from_c_into_boxed(self.episode);
-            media = Box::new(boxed.to_struct());
+            media = Box::new(Episode::from(&*boxed));
             trace!("Created media struct {:?}", media);
             mem::forget(boxed);
         } else {
@@ -699,5 +715,54 @@ impl WatchedEventC {
         match event {
             WatchedEvent::WatchedStateChanged(id, state) => Self::WatchedStateChanged(into_c_string(id), state)
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_from_episode() {
+        let thumb = "http://localhost/thumb.jpg";
+        let episode = Episode {
+            season: 1,
+            episode: 2,
+            first_aired: 160000,
+            title: "".to_string(),
+            overview: "".to_string(),
+            tvdb_id: 0,
+            tvdb_id_value: "".to_string(),
+            thumb: Some(thumb.to_string()),
+            torrents: Default::default(),
+        };
+
+        let result = EpisodeC::from(episode);
+
+        assert_eq!(1, result.season);
+        assert_eq!(2, result.episode);
+        assert_eq!(thumb.to_string(), from_c_string(result.thumb))
+    }
+
+    #[test]
+    fn tets_from_episode_c() {
+        let thumb = "http://localhost/episode_01.png";
+        let episode = EpisodeC {
+            season: 1,
+            episode: 2,
+            first_aired: 16000,
+            title: into_c_string("lorem".to_string()),
+            synopsis:  into_c_string("ipsum".to_string()),
+            tvdb_id:  into_c_string("tt112244".to_string()),
+            thumb:  into_c_string(thumb.to_string()),
+            torrents: ptr::null_mut(),
+            len: 0,
+        };
+
+        let result = Episode::from(&episode);
+
+        assert_eq!(1, result.season);
+        assert_eq!(2, result.episode);
+        assert_eq!(Some(thumb.to_string()), result.thumb);
     }
 }

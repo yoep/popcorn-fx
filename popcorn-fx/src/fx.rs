@@ -17,6 +17,7 @@ use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, EpisodeEnhancer};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
@@ -68,7 +69,7 @@ pub struct PopcornFxArgs {
     pub tv: bool,
     /// Indicates if the application should be maximized on startup.
     #[arg(long, default_value_t = false)]
-    pub maximized: bool
+    pub maximized: bool,
 }
 
 impl Default for PopcornFxArgs {
@@ -292,12 +293,21 @@ impl PopcornFX {
             &movie_provider,
             &show_provider,
         ])));
+        let episode_enhancer: Arc<Box<dyn Enhancer>> = Arc::new(Box::new(EpisodeEnhancer::new(settings.blocking_lock()
+            .properties()
+            .enhancers
+            .get("tvdb")
+            .expect("expected the tvdb properties to be present").clone())));
 
-        ProviderManager::with_providers(vec![
-            movie_provider,
-            show_provider,
-            favorites,
-        ])
+        ProviderManager::default()
+            .with_providers(vec![
+                movie_provider,
+                show_provider,
+                favorites,
+            ])
+            .with_enhancers(vec![
+                episode_enhancer
+            ])
     }
 }
 

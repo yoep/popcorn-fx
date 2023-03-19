@@ -79,7 +79,7 @@ impl ProviderManager {
     }
 
     async fn enhance_media_item(&self, category: &Category, mut media: Box<dyn MediaDetails>) -> Box<dyn MediaDetails> {
-        for enhancer in self.enhancers.iter().filter(|e| &e.category() == category) {
+        for enhancer in self.enhancers.iter().filter(|e| e.supports(category)) {
             debug!("Enhancing media item {} with {:?}", media.imdb_id(), enhancer);
             media = enhancer.enhance_details(media).await;
         }
@@ -187,8 +187,8 @@ mod test {
                     liked: None,
                 })));
         let mut enhancer = MockEnhancer::new();
-        enhancer.expect_category()
-            .returning(|| Category::Series);
+        enhancer.expect_supports()
+            .returning(|category: &Category| category == &Category::Series);
         enhancer.expect_enhance_details()
             .returning(|e: Box<dyn MediaDetails>| {
                 let mut show = e.into_any()

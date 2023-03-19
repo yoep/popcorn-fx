@@ -1,3 +1,5 @@
+use std::any::TypeId;
+
 use async_trait::async_trait;
 use log::{debug, error, trace, warn};
 use regex::Regex;
@@ -8,9 +10,9 @@ use crate::core::config::EnhancerProperties;
 use crate::core::media::{Category, Episode, MediaDetails, ShowDetails};
 use crate::core::media::providers::enhancers::Enhancer;
 
-/// The [Episode] enhancer which allows the retrieval of additional thumbs.
+/// The [Episode] thumb enhancer which allows the retrieval of thumbs for episode media items.
 #[derive(Debug)]
-pub struct EpisodeEnhancer {
+pub struct ThumbEnhancer {
     /// The properties for this enhancer
     properties: EnhancerProperties,
     /// the regex used to retrieve the thumb
@@ -18,7 +20,7 @@ pub struct EpisodeEnhancer {
     client: Client,
 }
 
-impl EpisodeEnhancer {
+impl ThumbEnhancer {
     /// Create a new episode enhancer which will use TVDB information based on the given enhancer properties.
     pub fn new(properties: EnhancerProperties) -> Self {
         Self {
@@ -82,20 +84,24 @@ impl EpisodeEnhancer {
 }
 
 #[async_trait]
-impl Enhancer for EpisodeEnhancer {
-    fn category(&self) -> Category {
-        Category::Series
+impl Enhancer for ThumbEnhancer {
+    fn supports(&self, category: &Category) -> bool {
+        category == &Category::Series || category == &Category::Favorites
     }
 
     async fn enhance_details(&self, media: Box<dyn MediaDetails>) -> Box<dyn MediaDetails> {
-        let mut show = media.into_any().downcast::<ShowDetails>()
-            .expect("expected ShowDetails to be passed to the enhancer");
+        if (*media).type_id() == TypeId::of::<ShowDetails>() {
+            let mut show = media.into_any().downcast::<ShowDetails>()
+                .expect("expected the media item to be ShowDetails");
 
-        show.episodes = futures::future::join_all(show.episodes.into_iter()
-            .map(|e| self.enhance(e)))
-            .await;
+            show.episodes = futures::future::join_all(show.episodes.into_iter()
+                .map(|e| self.enhance(e)))
+                .await;
 
-        show
+            return show;
+        }
+
+        media
     }
 }
 
@@ -105,22 +111,23 @@ mod test {
     use httpmock::MockServer;
     use tokio::runtime::Runtime;
 
-    use crate::core::media::{Episode, Images, ShowDetails};
+    use crate::core::media::{Episode, Images, MovieDetails, ShowDetails};
     use crate::testing::{init_logger, read_test_file};
 
     use super::*;
 
     #[test]
-    fn test_category() {
-        let enhancer = EpisodeEnhancer::new(EnhancerProperties {
+    fn test_supports() {
+        let enhancer = ThumbEnhancer::new(EnhancerProperties {
             uri: "".to_string(),
         });
 
-        assert_eq!(Category::Series, enhancer.category())
+        assert!(enhancer.supports(&Category::Series), "expected the series to have been supported");
+        assert!(enhancer.supports(&Category::Favorites), "expected the favorites to have been supported");
     }
 
     #[test]
-    fn test_enhance_details() {
+    fn test_enhance_details_show_details() {
         init_logger();
         let tvdb_id = "9435216";
         let server = MockServer::start();
@@ -159,7 +166,7 @@ mod test {
                 .header("content-type", "text/html; charset=UTF-8")
                 .body(read_test_file("tvdb_response.html"));
         });
-        let enhancer = EpisodeEnhancer::new(EnhancerProperties {
+        let enhancer = ThumbEnhancer::new(EnhancerProperties {
             uri: server.url(""),
         });
         let runtime = Runtime::new().unwrap();
@@ -170,5 +177,31 @@ mod test {
             .unwrap();
 
         assert_eq!(Some("https://artworks.thetvdb.com/banners/v4/episode/9435216/screencap/63fd00ab6f23b.jpg".to_string()), result.episodes.get(0).unwrap().thumb)
+    }
+
+    #[test]
+    fn test_enhance_details_movie_details() {
+        init_logger();
+        let movie = Box::new(MovieDetails {
+            title: "".to_string(),
+            imdb_id: "".to_string(),
+            year: "".to_string(),
+            runtime: "".to_string(),
+            genres: vec![],
+            synopsis: "".to_string(),
+            rating: None,
+            images: Default::default(),
+            trailer: "".to_string(),
+            torrents: Default::default(),
+        });
+        let enhancer = ThumbEnhancer::new(EnhancerProperties {
+            uri: "".to_string(),
+        });
+        let runtime = Runtime::new().unwrap();
+
+        let _ = runtime.block_on(enhancer.enhance_details(movie))
+            .into_any()
+            .downcast::<MovieDetails>()
+            .expect("should have returned to correct same given movie media");
     }
 }

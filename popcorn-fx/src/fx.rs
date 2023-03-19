@@ -17,7 +17,7 @@ use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
-use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, EpisodeEnhancer};
+use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, ThumbEnhancer};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
@@ -293,7 +293,7 @@ impl PopcornFX {
             &movie_provider,
             &show_provider,
         ])));
-        let episode_enhancer: Arc<Box<dyn Enhancer>> = Arc::new(Box::new(EpisodeEnhancer::new(settings.blocking_lock()
+        let thumb_enhancer: Arc<Box<dyn Enhancer>> = Arc::new(Box::new(ThumbEnhancer::new(settings.blocking_lock()
             .properties()
             .enhancers
             .get("tvdb")
@@ -306,7 +306,7 @@ impl PopcornFX {
                 favorites,
             ])
             .with_enhancers(vec![
-                episode_enhancer
+                thumb_enhancer
             ])
     }
 }

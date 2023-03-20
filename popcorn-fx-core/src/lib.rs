@@ -110,10 +110,10 @@ pub mod testing {
     use std::path::PathBuf;
     use std::sync::Once;
 
+    use log::{LevelFilter, trace};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::Config;
     use log4rs::config::{Appender, Root};
-    use log::LevelFilter;
     use tempfile::TempDir;
 
     static INIT: Once = Once::new();
@@ -179,10 +179,11 @@ pub mod testing {
     pub fn read_temp_dir_file(temp_dir: &TempDir, filename: &str) -> String {
         let path = temp_dir.path().join(filename);
 
+        trace!("Reading temp filepath {:?}", path);
         if path.exists() {
             fs::read_to_string(path).unwrap()
         } else {
-            panic!("Path {:?} does not exist", path)
+            panic!("Temp filepath {:?} does not exist", path)
         }
     }
 }

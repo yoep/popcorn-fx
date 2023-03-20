@@ -14,6 +14,7 @@ use url::Url;
 use crate::core::{CoreCallback, CoreCallbacks, updater};
 use crate::core::config::ApplicationConfig;
 use crate::core::platform::PlatformData;
+use crate::core::storage::Storage;
 use crate::core::updater::{UpdateError, VersionInfo};
 use crate::core::updater::UpdateState::CheckingForNewVersion;
 use crate::VERSION;
@@ -131,6 +132,8 @@ struct InnerUpdater {
     /// The event callbacks for the updater
     callbacks: CoreCallbacks<UpdateEvent>,
     storage_path: PathBuf,
+    /// Indicates if an update is being started
+    updating: Mutex<bool>,
 }
 
 impl InnerUpdater {
@@ -153,6 +156,7 @@ impl InnerUpdater {
             runtime: Arc::new(tokio::runtime::Runtime::new().unwrap()),
             callbacks: core_callbacks,
             storage_path: PathBuf::from(storage_path),
+            updating: Default::default(),
         }
     }
 
@@ -268,7 +272,7 @@ impl InnerUpdater {
     }
 
     async fn download_and_store(&self, url: Url) -> updater::Result<()> {
-        let directory = self.storage_path.join(UPDATE_DIRECTORY);
+        let directory = self.update_directory_path();
         let url_path = PathBuf::from(url.path());
         let filename = url_path.file_name().expect("expected a valid filename").to_str().unwrap();
         let mut file = self.create_update_file(&directory, filename).await?;
@@ -349,6 +353,12 @@ impl InnerUpdater {
                 let runtime = inner.runtime.clone();
                 let clone = inner.clone();
 
+                // make sure the closing state knows the application update has started
+                // to prevent accidental deletion of the update file
+                let mut updating_mutex = self.updating.blocking_lock();
+                *updating_mutex = true;
+                drop(updating_mutex);
+
                 runtime.spawn(async move {
                     Command::new(filepath)
                         .spawn()
@@ -378,7 +388,7 @@ impl InnerUpdater {
         if channel_version.cmp(&current_version) == Ordering::Greater {
             let platform_identifier = self.platform_identifier();
             if version_info.platforms.contains_key(platform_identifier.as_str()) {
-                return true
+                return true;
             }
             warn!("New version {} available, but no installer found for {}", channel_version, platform_identifier.as_str());
         }
@@ -407,14 +417,35 @@ impl InnerUpdater {
         }
     }
 
+    /// Retrieve the [PathBuf] to the updates directory used by this [InnerUpdater].
+    fn update_directory_path(&self) -> PathBuf {
+        self.storage_path.join(UPDATE_DIRECTORY)
+    }
+
     fn current_version() -> Version {
         Version::parse(VERSION).expect("expected the current version to be valid")
+    }
+}
+
+impl Drop for InnerUpdater {
+    fn drop(&mut self) {
+        let updating = self.updating.blocking_lock();
+
+        // check if an update has been started
+        // if not, we try to clean the updates directory
+        if !*updating {
+            match Storage::clean_directory(self.update_directory_path()) {
+                Ok(_) => info!("Cleaned updates directory located at {:?}", self.update_directory_path()),
+                Err(e) => warn!("Failed to clean the updates directory, {}", e)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
+    use std::fs;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
@@ -426,7 +457,7 @@ mod test {
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
     use crate::core::updater::ChangeLog;
-    use crate::testing::{init_logger, read_temp_dir_file, read_test_file, test_resource_filepath};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file, test_resource_filepath};
 
     use super::*;
 
@@ -675,6 +706,42 @@ mod test {
         } else {
             assert!(false, "expected an error to have been returned")
         }
+    }
+
+    #[test]
+    fn test_clean_updates_directory() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let updates_directory = temp_dir.path().join(UPDATE_DIRECTORY);
+        let filename = "popcorn-time_99.0.0.deb";
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let platform_mock = MockDummyPlatformData::new();
+        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let settings = Arc::new(Mutex::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties {
+                update_channel: String::new(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+            },
+            settings: Default::default(),
+            callbacks: Default::default(),
+        }));
+        let updater = Updater::new(&settings, &platform, temp_path);
+        copy_test_file(updates_directory.to_str().unwrap(), filename, None);
+
+        // drop the updater to start the cleanup
+        drop(updater);
+
+        let dir = fs::read_dir(&updates_directory).unwrap();
+        let mut num_files = 0;
+        for x in dir {
+            num_files += 1;
+        }
+
+        assert_eq!(0, num_files);
     }
 
     fn create_server_and_settings(temp_path: &str) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {

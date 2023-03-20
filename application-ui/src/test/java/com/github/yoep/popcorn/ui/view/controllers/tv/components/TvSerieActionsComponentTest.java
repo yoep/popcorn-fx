@@ -66,7 +66,8 @@ class TvSerieActionsComponentTest {
         var media = mock(ShowDetails.class);
         when(media.getImdbId()).thenReturn(imdbId);
         when(localeText.get(DetailsMessage.REMOVE)).thenReturn(expectedText);
-        when(detailsComponentService.isLiked(media)).thenReturn(true);
+        when(localeText.get(DetailsMessage.ADD)).thenReturn("add");
+        when(detailsComponentService.isLiked(media)).thenReturn(false, true);
         component.initialize(url, resourceBundle);
 
         // update media item
@@ -88,7 +89,8 @@ class TvSerieActionsComponentTest {
         var media = mock(ShowDetails.class);
         when(media.getImdbId()).thenReturn(imdbId);
         when(localeText.get(DetailsMessage.ADD)).thenReturn(expectedText);
-        when(detailsComponentService.isLiked(media)).thenReturn(false);
+        when(localeText.get(DetailsMessage.REMOVE)).thenReturn("remove");
+        when(detailsComponentService.isLiked(media)).thenReturn(true, false);
         component.initialize(url, resourceBundle);
 
         // update media item

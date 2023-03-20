@@ -1,9 +1,5 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -28,13 +24,10 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
     private final OptionsService optionsService;
-    private final EventPublisher eventPublisher;
     private final SubtitlePickerService subtitlePickerService;
 
     private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback();
     private final WatchedEventCallback watchedEventCallback = createWatchedCallback();
-
-    private Media lastShownMediaItem;
 
     public boolean isWatched(Media media) {
         return watchedService.isWatched(media);
@@ -57,25 +50,17 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         }
     }
 
-    public void toggleWatchedState() {
-        if (lastShownMediaItem == null) {
-            log.warn("Unable to update watch state, media item is unknown");
-            return;
-        }
-
-        updateWatchedStated(lastShownMediaItem, !watchedService.isWatched(lastShownMediaItem));
+    public void toggleWatchedState(Media media) {
+        Objects.requireNonNull(media, "media cannot be null");
+        updateWatchedStated(media, !watchedService.isWatched(media));
     }
 
-    public void toggleLikedState() {
-        if (lastShownMediaItem == null) {
-            log.warn("Unable to update liked state, media item is unknown");
-            return;
-        }
-
-        if (favoriteService.isLiked(lastShownMediaItem)) {
-            favoriteService.removeFromFavorites(lastShownMediaItem);
+    public void toggleLikedState(Media media) {
+        Objects.requireNonNull(media, "media cannot be null");
+        if (favoriteService.isLiked(media)) {
+            favoriteService.removeFromFavorites(media);
         } else {
-            favoriteService.addToFavorites(lastShownMediaItem);
+            favoriteService.addToFavorites(media);
         }
     }
 
@@ -96,16 +81,6 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     void init() {
         favoriteService.registerListener(favoriteEventCallback);
         watchedService.registerListener(watchedEventCallback);
-        eventPublisher.register(ShowDetailsEvent.class, event -> {
-            if (event instanceof ShowMovieDetailsEvent movieEvent) {
-                lastShownMediaItem = movieEvent.getMedia();
-            } else if (event instanceof ShowSerieDetailsEvent serieEvent) {
-                lastShownMediaItem = serieEvent.getMedia();
-            } else {
-                log.warn("Unknown details events received, event: {}", event.getClass().getSimpleName());
-            }
-            return event;
-        });
     }
 
     private FavoriteEventCallback createFavoriteCallback() {

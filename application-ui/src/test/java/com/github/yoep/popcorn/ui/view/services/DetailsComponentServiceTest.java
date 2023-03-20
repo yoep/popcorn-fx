@@ -1,8 +1,5 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
@@ -13,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,8 +24,6 @@ class DetailsComponentServiceTest {
     private WatchedService watchedService;
     @Mock
     private OptionsService optionsService;
-    @Spy
-    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private DetailsComponentService service;
 
@@ -76,17 +70,12 @@ class DetailsComponentServiceTest {
     }
 
     @Test
-    void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist()  {
+    void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist() {
         var movie = MovieDetails.builder()
                 .build();
-        var event = ShowMovieDetailsEvent.builder()
-                .source(this)
-                .media(movie)
-                .build();
         service.init();
-        eventPublisher.publish(event);
 
-        service.toggleWatchedState();
+        service.toggleWatchedState(movie);
 
         verify(watchedService).addToWatchList(movie);
     }
@@ -94,15 +83,10 @@ class DetailsComponentServiceTest {
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsUnliked_shouldAddToFavorites() {
         var show = mock(ShowDetails.class);
-        var event = ShowSerieDetailsEvent.builder()
-                .source(this)
-                .media(show)
-                .build();
         when(favoriteService.isLiked(show)).thenReturn(false);
         service.init();
-        eventPublisher.publish(event);
 
-        service.toggleLikedState();
+        service.toggleLikedState(show);
 
         verify(favoriteService).addToFavorites(show);
     }
@@ -110,15 +94,10 @@ class DetailsComponentServiceTest {
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsLiked_shouldRemoveFromFavorites() {
         var show = mock(ShowDetails.class);
-        var event = ShowSerieDetailsEvent.builder()
-                .source(this)
-                .media(show)
-                .build();
         when(favoriteService.isLiked(show)).thenReturn(true);
         service.init();
-        eventPublisher.publish(event);
 
-        service.toggleLikedState();
+        service.toggleLikedState(show);
 
         verify(favoriteService).removeFromFavorites(show);
     }

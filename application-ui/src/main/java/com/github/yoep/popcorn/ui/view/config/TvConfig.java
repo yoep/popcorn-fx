@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.TvPosterComponent;
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
+import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,8 +46,10 @@ public class TvConfig {
     @Bean
     @ConditionalOnTvMode
     public TvMovieActionsComponent tvMovieActionsComponent(EventPublisher eventPublisher,
-                                                           SubtitleService subtitleService) {
-        return new TvMovieActionsComponent(eventPublisher, subtitleService);
+                                                           SubtitleService subtitleService,
+                                                           LocaleText localeText,
+                                                           DetailsComponentService detailsComponentService) {
+        return new TvMovieActionsComponent(eventPublisher, subtitleService, localeText, detailsComponentService);
     }
 
     @Bean

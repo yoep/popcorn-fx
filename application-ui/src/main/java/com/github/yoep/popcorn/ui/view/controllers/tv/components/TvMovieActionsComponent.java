@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
@@ -8,6 +10,9 @@ import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.ui.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
+import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -27,15 +32,25 @@ import java.util.concurrent.CompletableFuture;
 public class TvMovieActionsComponent extends AbstractActionsComponent {
     static final String DEFAULT_TORRENT_AUDIO = "en";
 
+    private final LocaleText localeText;
+    private final DetailsComponentService detailsComponentService;
+
     private MovieDetails media;
 
     @FXML
     Button watchNowButton;
     @FXML
     Button watchTrailerButton;
+    @FXML
+    Button favoriteButton;
+    @FXML
+    Icon favoriteIcon;
 
-    public TvMovieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService) {
+    public TvMovieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, LocaleText localeText,
+                                   DetailsComponentService detailsComponentService) {
         super(eventPublisher, subtitleService);
+        this.localeText = localeText;
+        this.detailsComponentService = detailsComponentService;
     }
 
     @Override
@@ -44,6 +59,17 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
         eventPublisher.register(ShowMovieDetailsEvent.class, event -> {
             onShowMovieDetailsEvent(event);
             return event;
+        });
+        detailsComponentService.addListener(new DetailsComponentListener() {
+            @Override
+            public void onWatchChanged(String imdbId, boolean newState) {
+
+            }
+
+            @Override
+            public void onLikedChanged(boolean newState) {
+                Platform.runLater(() -> updateFavoriteState());
+            }
         });
     }
 
@@ -71,13 +97,29 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
         this.media = event.getMedia();
         Platform.runLater(() -> {
             updateQualities();
+            updateFavoriteState();
+
+            qualityOverlay.hide();
+            subtitleOverlay.hide();
+
             watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
             watchNowButton.requestFocus();
         });
     }
 
+    private void updateFavoriteState() {
+        var state = detailsComponentService.isLiked(this.media);
+
+        favoriteButton.setText(localeText.get(state ? DetailsMessage.REMOVE : DetailsMessage.ADD));
+        favoriteIcon.setText(state ? Icon.HEART_UNICODE : Icon.HEART_O_UNICODE);
+    }
+
     private void playTrailer() {
         eventPublisher.publish(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
+    }
+
+    private void toggleFavoriteState() {
+        detailsComponentService.toggleLikedState(media);
     }
 
     @FXML
@@ -91,6 +133,20 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             playTrailer();
+        }
+    }
+
+    @FXML
+    void onFavoriteClicked(MouseEvent event) {
+        event.consume();
+        toggleFavoriteState();
+    }
+
+    @FXML
+    void onFavoritePressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            toggleFavoriteState();
         }
     }
 }

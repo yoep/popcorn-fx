@@ -350,13 +350,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @FXML
     void onWatchedClicked(MouseEvent event) {
         event.consume();
-        service.toggleWatchedState();
+        service.toggleWatchedState(media);
     }
 
     @FXML
     void onFavoriteClicked(MouseEvent event) {
         event.consume();
-        service.toggleLikedState();
+        service.toggleLikedState(media);
     }
 
     //endregion

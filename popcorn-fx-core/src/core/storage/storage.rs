@@ -153,6 +153,7 @@ impl From<&PathBuf> for Storage {
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
+    use tokio::runtime::Runtime;
 
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file};
@@ -205,10 +206,10 @@ mod test {
         assert_eq!(expected_result, contents)
     }
 
-    #[tokio::test]
-    async fn test_write_async() {
+    #[test]
+    fn test_write_async() {
         init_logger();
-        let filename = "test";
+        let filename = "test.json";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let storage = Storage {
@@ -216,9 +217,10 @@ mod test {
         };
         let settings = UiSettings::default();
         let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
+        let runtime = Runtime::new().unwrap();
 
-        let result = storage.write_async(filename.clone(), &settings).await;
-        assert!(result.is_ok(), "expected no error to have occurred");
+        let _ = runtime.block_on(storage.write_async(filename.clone(), &settings))
+            .expect("expected no error to have been returned");
         let contents = read_temp_dir_file(&temp_dir, filename);
 
         assert_eq!(expected_result, contents)
@@ -264,7 +266,7 @@ mod test {
             .err().expect("expected an error to be returned");
 
         match result {
-            StorageError::NotFound(_) => {},
+            StorageError::NotFound(_) => {}
             _ => assert!(false, "expected StorageError::NotFound")
         }
     }

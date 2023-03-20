@@ -178,7 +178,12 @@ pub mod testing {
     /// Read a file from the temp directory.
     pub fn read_temp_dir_file(temp_dir: &TempDir, filename: &str) -> String {
         let path = temp_dir.path().join(filename);
-        fs::read_to_string(path).unwrap()
+
+        if path.exists() {
+            fs::read_to_string(path).unwrap()
+        } else {
+            panic!("Path {:?} does not exist", path)
+        }
     }
 }
 

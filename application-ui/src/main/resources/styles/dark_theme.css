@@ -489,6 +489,10 @@
     -fx-padding: 10 0 0 0;
 }
 
+.root .show-details-section .overview {
+    -fx-min-height: 200;
+}
+
 .root .movie-details .magnet-link,
 .root .show-details-section .magnet-link {
     -fx-text-fill: #ddd;
@@ -770,6 +774,10 @@
 
 .root .show-details-section .language-selection .arrow {
     -fx-text-alignment: center;
+}
+
+.root .show-details-section .quality-selection {
+    -fx-padding: 0 0 0 0;
 }
 
 .root .show-details-section .quality-selection .quality {

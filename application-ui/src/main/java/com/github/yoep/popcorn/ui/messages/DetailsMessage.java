@@ -21,7 +21,9 @@ public enum DetailsMessage implements Message {
     MARK_AS_WATCHED("details_mark_as_watched"),
     UNMARK_AS_WATCHED("details_unmark_as_watched"),
     DETAILS_FAILED_TO_LOAD("details_failed_to_load"),
-    DETAILS_INVALID_RESPONSE_RECEIVED("details_invalid_media_response");
+    DETAILS_INVALID_RESPONSE_RECEIVED("details_invalid_media_response"),
+    ADD("add"),
+    REMOVE("remove");
 
     private final String key;
 

@@ -22,7 +22,8 @@
         <rowConstraints>
             <RowConstraints valignment="TOP"/>
             <RowConstraints valignment="TOP"/>
-            <RowConstraints minHeight="200" valignment="TOP"/>
+            <RowConstraints valignment="TOP"/>
+            <RowConstraints />
             <RowConstraints minHeight="10"/>
             <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
             <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
@@ -60,13 +61,15 @@
         <Label fx:id="overview" styleClass="overview" wrapText="true"
                GridPane.columnIndex="2" GridPane.rowIndex="2"/>
 
+        <!-- PLACEHOLDER SERIE ACTIONS -->
+
         <!-- Seasons -->
         <AxisItemSelection fx:id="seasons" styleClass="seasons" shortKeysEnabled="false" orientation="HORIZONTAL"
-                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="4"/>
+                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="5"/>
 
         <!-- Episodes -->
         <AxisItemSelection fx:id="episodes" shortKeysEnabled="false" orientation="VERTICAL"
-                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="5"/>
+                           GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="6"/>
     </GridPane>
 
     <Overlay fx:id="overlay">

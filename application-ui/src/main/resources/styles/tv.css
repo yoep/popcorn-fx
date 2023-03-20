@@ -72,7 +72,7 @@
 
 .root .movie-details .metadata Label,
 .root .show-details-section .metadata Label {
-    -fx-font-size: 1.25em;
+    -fx-font-size: 1.1em;
 }
 
 .root .movie-details .metadata .separator,
@@ -441,13 +441,16 @@
     -fx-padding: 15 25 15 25;
 }
 
-.root .movie-details .button .icon {
+.root .movie-details .button .icon,
+.root .show-details-section .show-details .show-details-actions .button .icon {
     -fx-padding: 0 8 0 0;
 }
 
 .root .movie-details .button .text,
-.root .movie-details .button .icon {
-    -fx-font-size: 1.5em;
+.root .movie-details .button .icon,
+.root .show-details-section .show-details .show-details-actions .button .text,
+.root .show-details-section .show-details .show-details-actions .button .icon {
+    -fx-font-size: 1.25em;
 }
 
 /* endregion */

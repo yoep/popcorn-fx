@@ -6,12 +6,14 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 import org.springframework.lang.Nullable;
 
 import java.util.Objects;
 import java.util.Optional;
 
 @Getter
+@ToString
 @EqualsAndHashCode(callSuper = false)
 public class LoadMediaTorrentEvent extends LoadTorrentEvent {
     /**

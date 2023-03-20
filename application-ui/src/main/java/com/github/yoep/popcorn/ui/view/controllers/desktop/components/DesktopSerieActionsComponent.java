@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.ui.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
@@ -14,9 +15,15 @@ import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -42,18 +49,7 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
-
         initializeLanguage();
-    }
-
-    private void initializeLanguage() {
-        languageSelection.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null && newValue.isNone()) {
-                subtitleService.disableSubtitle();
-            } else {
-                subtitleService.updateSubtitle(newValue);
-            }
-        });
     }
 
     @Override
@@ -65,21 +61,57 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
         updateSubtitles();
     }
 
+    @Override
+    public void setOnWatchNowClicked(Runnable eventHandler) {
+        // no-op
+    }
+
+    private void initializeLanguage() {
+        languageSelection.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && newValue.isNone()) {
+                subtitleService.disableSubtitle();
+            } else {
+                subtitleService.updateSubtitle(newValue);
+            }
+        });
+        languageSelection.setFactory(new LanguageFlagCell() {
+            @Override
+            public void updateItem(SubtitleInfo item) {
+                if (item == null)
+                    return;
+
+                setText(item.getLanguage().getNativeName());
+                try {
+                    var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
+
+                    image.setFitHeight(15);
+                    image.setPreserveRatio(true);
+
+                    setGraphic(image);
+                } catch (IOException ex) {
+                    log.error(ex.getMessage(), ex);
+                }
+            }
+        });
+    }
+
     private void updateSubtitles() {
         if (subtitlesFuture != null) {
             subtitlesFuture.cancel(true);
         }
 
         var languages = languageSelection.getItems();
+        var defaultSubtitle = subtitleService.none();
         languages.clear();
-        languages.setAll(subtitleService.none(), subtitleService.custom());
+        languages.setAll(defaultSubtitle, subtitleService.custom());
+        languageSelection.select(defaultSubtitle);
         subtitlesFuture = subtitleService.retrieveSubtitles(media, episode)
                 .whenComplete((subtitleInfos, throwable) -> {
                     if (throwable == null) {
                         Platform.runLater(() -> {
-                            languages.clear();
-                            languages.setAll(subtitleInfos.toArray(SubtitleInfo[]::new));
-                            languageSelection.setSelectedItem(subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos));
+                            languageSelection.getItems().clear();
+                            languageSelection.getItems().setAll(subtitleInfos.toArray(SubtitleInfo[]::new));
+                            languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos));
                         });
                     } else {
                         log.error(throwable.getMessage(), throwable);
@@ -87,15 +119,23 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
                 });
     }
 
-    @Override
-    public void setOnWatchNowClicked(Runnable eventHandler) {
-
-    }
-
-    @FXML
-    void onWatchNowClicked() {
+    private void startMoviePlayback() {
         var mediaTorrentInfo = episode.getTorrents().get(desktopSerieQualityComponent.getSelectedQuality());
         eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, desktopSerieQualityComponent.getSelectedQuality(),
                 languageSelection.getSelectedItem()));
+    }
+
+    @FXML
+    void onWatchNowClicked(MouseEvent event) {
+        event.consume();
+        startMoviePlayback();
+    }
+
+    @FXML
+    void onWatchNowPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            startMoviePlayback();
+        }
     }
 }

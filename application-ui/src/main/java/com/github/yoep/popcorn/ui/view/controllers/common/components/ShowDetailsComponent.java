@@ -143,6 +143,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         initializeListeners();
         initializePoster();
         initializeMode();
+        initializeSerieActions();
     }
 
     private void initializeListeners() {
@@ -162,12 +163,17 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void initializePoster() {
         var poster = viewLoader.load("components/poster.component.fxml");
-        showDetails.add(poster, 0, 0, 1, 3);
+        showDetails.add(poster, 0, 0, 1, 4);
     }
 
     private void initializeMode() {
         showDetails.getColumnConstraints().get(0).setMinWidth(service.isTvMode() ? 285.0 : 190.0);
         AnchorPane.setLeftAnchor(showDetails, service.isTvMode() ? 150.0 : 75.0);
+    }
+
+    private void initializeSerieActions() {
+        var actions = viewLoader.load("components/serie-actions.component.fxml");
+        showDetails.add(actions, 2, 3);
     }
 
     //endregion
@@ -203,35 +209,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             return viewLoader.load("common/components/episode.component.fxml", controller);
         });
 
-        var episodeActions = viewLoader.load("components/serie-actions.component.fxml");
+        var episodeActions = viewLoader.load("components/serie-episode-actions.component.fxml");
         episodeDetails.add(episodeActions, 0, 4, 2, 1);
         serieActionsComponent.setOnWatchNowClicked(() -> overlay.hide());
     }
-
-    //    private void initializeLanguageSelection() {
-    //                languageSelection.setFactory(new LanguageFlagCell() {
-    //                    @Override
-    //                    public void updateItem(SubtitleInfo item) {
-    //                        if (item == null)
-    //                            return;
-    //
-    //                        setText(item.getLanguage().getNativeName());
-    //                        try {
-    //                            var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
-    //
-    //                            image.setFitHeight(15);
-    //                            image.setPreserveRatio(true);
-    //
-    //                            setGraphic(image);
-    //                        } catch (IOException ex) {
-    //                            log.error(ex.getMessage(), ex);
-    //                        }
-    //                    }
-    //                });
-    //
-    //                languageSelection.addListener(createLanguageListener());
-    //                resetLanguageSelection();
-    //    }
 
     private void loadText() {
         title.setText(media.getTitle());
@@ -330,7 +311,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             }
 
             @Override
-            public void onLikedChanged(boolean newState) {
+            public void onLikedChanged(String imdbId, boolean newState) {
                 // no-op
             }
         };
@@ -338,25 +319,25 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     @FXML
     void onMagnetClicked(MouseEvent event) {
-//        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
-//
-//        if (event.getButton() == MouseButton.SECONDARY) {
-//            copyMagnetLink(torrentInfo);
-//        } else {
-//            openMagnetLink(torrentInfo);
-//        }
+        //        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
+        //
+        //        if (event.getButton() == MouseButton.SECONDARY) {
+        //            copyMagnetLink(torrentInfo);
+        //        } else {
+        //            openMagnetLink(torrentInfo);
+        //        }
     }
 
     @FXML
     void onWatchedClicked(MouseEvent event) {
         event.consume();
-        service.toggleWatchedState();
+        service.toggleWatchedState(media);
     }
 
     @FXML
     void onFavoriteClicked(MouseEvent event) {
         event.consume();
-        service.toggleLikedState();
+        service.toggleLikedState(media);
     }
 
     //endregion

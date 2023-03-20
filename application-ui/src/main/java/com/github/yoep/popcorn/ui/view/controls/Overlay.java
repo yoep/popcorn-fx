@@ -79,7 +79,11 @@ public class Overlay extends GridPane {
     }
 
     public void hide() {
-        var children = attachedParent.get().getChildren();
+        var attachedParent = this.attachedParent.get();
+        if (attachedParent == null)
+            return;
+
+        var children = attachedParent.getChildren();
         children.remove(this);
         setShown(false);
 

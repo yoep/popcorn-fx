@@ -12,7 +12,8 @@ public interface DetailsComponentListener {
     /**
      * Invoked when the liked state is changed of the media item.
      *
+     * @param imdbId
      * @param newState The new liked state.
      */
-    void onLikedChanged(boolean newState);
+    void onLikedChanged(String imdbId, boolean newState);
 }

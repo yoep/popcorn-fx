@@ -68,10 +68,14 @@ class TvSerieActionsComponentTest {
         when(localeText.get(DetailsMessage.REMOVE)).thenReturn(expectedText);
         when(detailsComponentService.isLiked(media)).thenReturn(true);
         component.initialize(url, resourceBundle);
-        eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
-        var listener = this.listener.get();
 
+        // update media item
+        eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
+        verify(detailsComponentService, timeout(200)).isLiked(media);
+
+        var listener = this.listener.get();
         listener.onLikedChanged(imdbId, true);
+
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.favoriteIcon.getText().equals(Icon.HEART_UNICODE));
         verify(detailsComponentService, times(2)).isLiked(media);
         assertEquals(expectedText, component.favoriteButton.getText());
@@ -86,10 +90,14 @@ class TvSerieActionsComponentTest {
         when(localeText.get(DetailsMessage.ADD)).thenReturn(expectedText);
         when(detailsComponentService.isLiked(media)).thenReturn(false);
         component.initialize(url, resourceBundle);
-        eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
-        var listener = this.listener.get();
 
+        // update media item
+        eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
+        verify(detailsComponentService, timeout(200)).isLiked(media);
+
+        var listener = this.listener.get();
         listener.onLikedChanged(imdbId, true);
+
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.favoriteIcon.getText().equals(Icon.HEART_O_UNICODE));
         verify(detailsComponentService, times(2)).isLiked(media);
         assertEquals(expectedText, component.favoriteButton.getText());

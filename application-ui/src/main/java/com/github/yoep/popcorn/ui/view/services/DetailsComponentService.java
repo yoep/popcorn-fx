@@ -88,7 +88,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
             switch (event.tag) {
                 case LikedStateChanged -> {
                     var stateChanged = event.getUnion().getLiked_state_changed();
-                    invokeListeners(e -> e.onLikedChanged(stateChanged.getNewState()));
+                    invokeListeners(e -> e.onLikedChanged(stateChanged.getImdbId(), stateChanged.getNewState()));
                 }
             }
         };

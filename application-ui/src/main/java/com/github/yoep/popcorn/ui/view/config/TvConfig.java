@@ -54,9 +54,9 @@ public class TvConfig {
 
     @Bean
     @ConditionalOnTvMode
-    public TvSerieActionsComponent tvSerieActionsComponent(EventPublisher eventPublisher,
-                                                           SubtitleService subtitleService) {
-        return new TvSerieActionsComponent(eventPublisher, subtitleService);
+    public TvSerieEpisodeActionsComponent tvSerieEpisodeActionsComponent(EventPublisher eventPublisher,
+                                                                  SubtitleService subtitleService) {
+        return new TvSerieEpisodeActionsComponent(eventPublisher, subtitleService);
     }
 
     @Bean
@@ -76,5 +76,13 @@ public class TvConfig {
     @ConditionalOnTvMode
     public TvSettingsSubtitlesComponent tvSettingsSubtitlesComponent(ApplicationConfig applicationConfig) {
         return new TvSettingsSubtitlesComponent(applicationConfig);
+    }
+
+    @Bean
+    @ConditionalOnTvMode
+    public TvSerieActionsComponent tvSerieActionsComponent(EventPublisher eventPublisher,
+                                                           LocaleText localeText,
+                                                           DetailsComponentService detailsComponentService) {
+        return new TvSerieActionsComponent(eventPublisher, localeText, detailsComponentService);
     }
 }

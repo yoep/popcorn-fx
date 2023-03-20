@@ -163,7 +163,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void initializePoster() {
         var poster = viewLoader.load("components/poster.component.fxml");
-        showDetails.add(poster, 0, 0, 1, 3);
+        showDetails.add(poster, 0, 0, 1, 4);
     }
 
     private void initializeMode() {
@@ -172,7 +172,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializeSerieActions() {
-
+        var actions = viewLoader.load("components/serie-actions.component.fxml");
+        showDetails.add(actions, 2, 3);
     }
 
     //endregion
@@ -208,7 +209,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             return viewLoader.load("common/components/episode.component.fxml", controller);
         });
 
-        var episodeActions = viewLoader.load("components/serie-actions.component.fxml");
+        var episodeActions = viewLoader.load("components/serie-episode-actions.component.fxml");
         episodeDetails.add(episodeActions, 0, 4, 2, 1);
         serieActionsComponent.setOnWatchNowClicked(() -> overlay.hide());
     }
@@ -310,7 +311,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             }
 
             @Override
-            public void onLikedChanged(boolean newState) {
+            public void onLikedChanged(String imdbId, boolean newState) {
                 // no-op
             }
         };
@@ -318,13 +319,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     @FXML
     void onMagnetClicked(MouseEvent event) {
-//        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
-//
-//        if (event.getButton() == MouseButton.SECONDARY) {
-//            copyMagnetLink(torrentInfo);
-//        } else {
-//            openMagnetLink(torrentInfo);
-//        }
+        //        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
+        //
+        //        if (event.getButton() == MouseButton.SECONDARY) {
+        //            copyMagnetLink(torrentInfo);
+        //        } else {
+        //            openMagnetLink(torrentInfo);
+        //        }
     }
 
     @FXML

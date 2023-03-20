@@ -67,8 +67,10 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
             }
 
             @Override
-            public void onLikedChanged(boolean newState) {
-                Platform.runLater(() -> updateFavoriteState());
+            public void onLikedChanged(String imdbId, boolean newState) {
+                if (media != null && media.getImdbId().equals(imdbId)) {
+                    Platform.runLater(() -> updateFavoriteState());
+                }
             }
         });
     }

@@ -1,78 +1,84 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieActionsComponent;
+import com.github.yoep.popcorn.ui.messages.DetailsMessage;
+import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
+import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.List;
-import java.util.Map;
 import java.util.ResourceBundle;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public class TvSerieActionsComponent extends AbstractActionsComponent implements SerieActionsComponent {
-    private ShowDetails media;
-    private Episode episode;
+@RequiredArgsConstructor
+public class TvSerieActionsComponent implements Initializable {
+    private final EventPublisher eventPublisher;
+    private final LocaleText localeText;
+    private final DetailsComponentService detailsComponentService;
 
-    private Runnable eventHandler;
+    private ShowDetails media;
 
     @FXML
-    Button watchNowButton;
-
-    public TvSerieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService) {
-        super(eventPublisher, subtitleService);
-    }
+    Button favoriteButton;
+    @FXML
+    Icon favoriteIcon;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        super.initialize(url, resourceBundle);
-        qualityOverlay.shownProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue && eventHandler != null) {
-                eventHandler.run();
+        eventPublisher.register(ShowSerieDetailsEvent.class, event -> {
+            this.media = event.getMedia();
+            Platform.runLater(this::updateFavoriteState);
+            return event;
+        });
+        detailsComponentService.addListener(new DetailsComponentListener() {
+            @Override
+            public void onWatchChanged(String imdbId, boolean newState) {
+                // no-op
+            }
+
+            @Override
+            public void onLikedChanged(String imdbId, boolean newState) {
+                if (media != null && media.getImdbId().equals(imdbId)) {
+                    Platform.runLater(() -> updateFavoriteState());
+                }
             }
         });
     }
 
-    @Override
-    public void episodeChanged(ShowDetails media, Episode episode) {
-        this.media = media;
-        this.episode = episode;
+    private void updateFavoriteState() {
+        var state = detailsComponentService.isLiked(media);
 
-        updateQualities();
-        watchNowButton.requestFocus();
+        favoriteButton.setText(localeText.get(state ? DetailsMessage.REMOVE : DetailsMessage.ADD));
+        favoriteIcon.setText(state ? Icon.HEART_UNICODE : Icon.HEART_O_UNICODE);
     }
 
-    @Override
-    public void setOnWatchNowClicked(Runnable eventHandler) {
-        this.eventHandler = eventHandler;
+    private void toggleFavoriteState() {
+        detailsComponentService.toggleLikedState(media);
     }
 
-    @Override
-    protected Media getMedia() {
-        return media;
+    @FXML
+    void onFavoriteClicked(MouseEvent event) {
+        event.consume();
+        toggleFavoriteState();
     }
 
-    @Override
-    protected Media getSubItem() {
-        return episode;
-    }
-
-    @Override
-    protected Map<String, MediaTorrentInfo> getTorrents() {
-        return episode.getTorrents();
-    }
-
-    @Override
-    protected CompletableFuture<List<SubtitleInfo>> retrieveSubtitles() {
-        return subtitleService.retrieveSubtitles(media, episode);
+    @FXML
+    void onFavoritePressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            toggleFavoriteState();
+        }
     }
 }

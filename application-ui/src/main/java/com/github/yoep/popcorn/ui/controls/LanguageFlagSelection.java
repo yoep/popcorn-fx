@@ -114,12 +114,7 @@ public class LanguageFlagSelection extends StackPane {
         return selectedItem;
     }
 
-    /**
-     * Set the selected item of this control.
-     *
-     * @param selectedItem The item that should be selected in this control.
-     */
-    public void setSelectedItem(SubtitleInfo selectedItem) {
+    void setSelectedItem(SubtitleInfo selectedItem) {
         this.selectedItem.set(selectedItem);
     }
 

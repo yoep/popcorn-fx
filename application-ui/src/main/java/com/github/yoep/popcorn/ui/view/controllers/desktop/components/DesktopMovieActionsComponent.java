@@ -142,15 +142,20 @@ public class DesktopMovieActionsComponent implements Initializable {
         }
 
         var items = languageSelection.getItems();
+        var defaultSubtitle = subtitleService.none();
 
         items.clear();
-        items.addAll(subtitleService.none(), subtitleService.custom());
+        items.addAll(defaultSubtitle, subtitleService.custom());
+        languageSelection.select(defaultSubtitle);
         subtitleFuture = subtitleService
                 .retrieveSubtitles(media)
                 .whenComplete((subtitleInfos, throwable) -> {
                     if (throwable == null) {
-                        items.addAll(subtitleInfos.toArray(SubtitleInfo[]::new));
-                        languageSelection.setSelectedItem(subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos));
+                        Platform.runLater(() -> {
+                            languageSelection.getItems().clear();
+                            languageSelection.getItems().addAll(subtitleInfos.toArray(SubtitleInfo[]::new));
+                            languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos));
+                        });
                     } else {
                         log.error(throwable.getMessage(), throwable);
                     }

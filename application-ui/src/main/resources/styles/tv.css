@@ -72,7 +72,7 @@
 
 .root .movie-details .metadata Label,
 .root .show-details-section .metadata Label {
-    -fx-font-size: 1.25em;
+    -fx-font-size: 1.1em;
 }
 
 .root .movie-details .metadata .separator,

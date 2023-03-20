@@ -6,14 +6,14 @@
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DesktopSerieActionsComponent">
     <columnConstraints>
-        <ColumnConstraints minWidth="250"/>
-        <ColumnConstraints/>
+        <ColumnConstraints halignment="LEFT"/>
+        <ColumnConstraints hgrow="ALWAYS" maxWidth="Infinity"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints/>
         <RowConstraints/>
     </rowConstraints>
-    <hgap>5</hgap>
+    <hgap>10</hgap>
 
     <!-- Subtitle selection -->
     <LanguageFlagSelection fx:id="languageSelection"
@@ -23,7 +23,8 @@
                 GridPane.columnIndex="0" GridPane.rowIndex="1"/>
 
     <!-- Play actions -->
-    <PlayerDropDownButton fx:id="watchNowButton" text="%details_watch_now" styleClass="watch-now" onMouseClicked="#onWatchNowClicked"
+    <PlayerDropDownButton fx:id="watchNowButton" text="%details_watch_now" styleClass="watch-now"
+                          onMouseClicked="#onWatchNowClicked" onKeyPressed="#onWatchNowPressed"
                           GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.rowSpan="2"
                           GridPane.halignment="RIGHT" GridPane.valignment="TOP"/>
 </GridPane>

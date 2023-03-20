@@ -143,6 +143,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         initializeListeners();
         initializePoster();
         initializeMode();
+        initializeSerieActions();
     }
 
     private void initializeListeners() {
@@ -168,6 +169,10 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private void initializeMode() {
         showDetails.getColumnConstraints().get(0).setMinWidth(service.isTvMode() ? 285.0 : 190.0);
         AnchorPane.setLeftAnchor(showDetails, service.isTvMode() ? 150.0 : 75.0);
+    }
+
+    private void initializeSerieActions() {
+
     }
 
     //endregion
@@ -207,31 +212,6 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         episodeDetails.add(episodeActions, 0, 4, 2, 1);
         serieActionsComponent.setOnWatchNowClicked(() -> overlay.hide());
     }
-
-    //    private void initializeLanguageSelection() {
-    //                languageSelection.setFactory(new LanguageFlagCell() {
-    //                    @Override
-    //                    public void updateItem(SubtitleInfo item) {
-    //                        if (item == null)
-    //                            return;
-    //
-    //                        setText(item.getLanguage().getNativeName());
-    //                        try {
-    //                            var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
-    //
-    //                            image.setFitHeight(15);
-    //                            image.setPreserveRatio(true);
-    //
-    //                            setGraphic(image);
-    //                        } catch (IOException ex) {
-    //                            log.error(ex.getMessage(), ex);
-    //                        }
-    //                    }
-    //                });
-    //
-    //                languageSelection.addListener(createLanguageListener());
-    //                resetLanguageSelection();
-    //    }
 
     private void loadText() {
         title.setText(media.getTitle());

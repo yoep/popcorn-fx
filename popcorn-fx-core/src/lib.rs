@@ -141,6 +141,10 @@ pub mod testing {
         let mut destination = PathBuf::from(temp_dir);
         destination.push(output_filename.or_else(|| Some(filename)).unwrap());
 
+        // make sure the parent dir exists
+        fs::create_dir_all(destination.parent().unwrap());
+
+        trace!("Copying test file {} to {:?}", filename, destination);
         fs::copy(&source, &destination).unwrap();
 
         destination.as_path().to_str().unwrap().to_string()

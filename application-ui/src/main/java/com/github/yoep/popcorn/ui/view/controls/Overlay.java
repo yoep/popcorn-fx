@@ -106,6 +106,7 @@ public class Overlay extends GridPane {
         AnchorPane.setBottomAnchor(this, 0d);
         AnchorPane.setLeftAnchor(this, 0d);
 
+        setOnKeyTyped(this::onKeyPressed);
         setOnKeyPressed(this::onKeyPressed);
         setOnMouseClicked(this::onMouseClicked);
 
@@ -159,7 +160,7 @@ public class Overlay extends GridPane {
     }
 
     private void onKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE || event.getCode() == KeyCode.UNDEFINED) {
             event.consume();
             hide();
         }

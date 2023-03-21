@@ -45,7 +45,7 @@ public class WatchedService {
     public boolean isWatched(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
         synchronized (lock) {
-            return FxLibInstance.INSTANCE.get().is_media_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
+            return FxLibInstance.INSTANCE.get().is_media_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable)) == 1;
         }
     }
 

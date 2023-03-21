@@ -67,6 +67,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -90,6 +91,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -110,6 +112,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 

@@ -25,7 +25,7 @@ const ORDER_QUERY_VALUE: &str = "-1";
 /// impl MyProvider {
 ///     pub fn new(xxx: xxx) -> Self {
 ///         Self {
-///             base: BaseProvider::new(xxx)
+///             base: BaseProvider::new(xxx, false)
 ///         }
 ///     }
 /// }
@@ -39,10 +39,11 @@ pub struct BaseProvider {
 impl BaseProvider {
     /// Create a new base provider.
     /// * uris  - The available host uri's to use for this provider.
-    pub fn new(uris: Vec<String>) -> Self {
+    pub fn new(uris: Vec<String>, insecure: bool) -> Self {
         Self {
             client: Client::builder()
                 .redirect(Policy::limited(3))
+                .danger_accept_invalid_certs(insecure)
                 .build()
                 .expect("Client should have been created"),
             uri_providers: uris.into_iter()
@@ -83,12 +84,9 @@ impl BaseProvider {
                 }
                 Some(url) => {
                     debug!("Searching media at {}", &url);
-                    match client.get(url).send().await {
-                        Ok(response) => return Self::handle_response::<Vec<T>>(response).await,
-                        Err(err) => {
-                            warn!("Failed to retrieve media data, {}", err);
-                            provider.disable();
-                        }
+                    match Self::send_request_with_provider(&client, &url, provider).await {
+                        None => {}
+                        Some(e) => return e,
                     }
                 }
             }
@@ -116,18 +114,51 @@ impl BaseProvider {
                 }
                 Some(url) => {
                     debug!("Fetching details from {}", &url);
-                    match client.get(url).send().await {
-                        Ok(response) => return Self::handle_response::<T>(response).await,
-                        Err(err) => {
-                            warn!("Failed to retrieve media details, {}", err);
-                            provider.disable();
-                        }
+                    match Self::send_request_with_provider(&client, &url, provider).await {
+                        None => {}
+                        Some(e) => return e,
                     }
                 }
             }
         }
 
         Err(MediaError::NoAvailableProviders)
+    }
+
+    async fn send_request_with_provider<T>(client: &Client, url: &Url, provider: &mut UriProvider) -> Option<crate::core::media::Result<T>>
+        where T: DeserializeOwned {
+        while !provider.disabled {
+            match Self::send_request::<T>(&client, &url).await {
+                // if we got an OK, return instantly the result
+                Ok(e) => return Some(Ok(e)),
+                // if we got an error, we check what kind of error it is
+                Err(e) => {
+                    trace!("Provider {} returned an error", provider);
+                    match e {
+                        // if it's a connection error, instantly disable the provider
+                        MediaError::ProviderConnectionFailed => provider.disable(),
+                        // any other error might be temporary such as 502
+                        // so we increase the failed attempts and try again
+                        _ => provider.increase_failure()
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    async fn send_request<T>(client: &Client, url: &Url) -> crate::core::media::Result<T>
+        where T: DeserializeOwned {
+        match client.get(url.clone()).send().await {
+            Ok(response) => {
+                Self::handle_response::<T>(response).await
+            }
+            Err(err) => {
+                warn!("Failed to retrieve media details, {}", err);
+                Err(MediaError::ProviderConnectionFailed)
+            }
+        }
     }
 
     async fn handle_response<T>(response: Response) -> crate::core::media::Result<T>
@@ -212,12 +243,20 @@ impl UriProvider {
         }
     }
 
+    fn increase_failure(&mut self) {
+        self.failed_attempts += 1;
+        if self.failed_attempts == 2 {
+            self.disable()
+        }
+    }
+
     fn reset(&mut self) {
         self.disabled = false;
         self.failed_attempts = 0;
     }
 
     fn disable(&mut self) {
+        debug!("Disabling uri provider {}", self);
         self.disabled = true;
         self.failed_attempts += 1;
     }

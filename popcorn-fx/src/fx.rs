@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use clap::Parser;
 use derive_more::Display;
-use log::{info, LevelFilter};
+use log::{info, LevelFilter, warn};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::Config;
 use log4rs::config::{Appender, Root};
@@ -70,6 +70,9 @@ pub struct PopcornFxArgs {
     /// Indicates if the application should be maximized on startup.
     #[arg(long, default_value_t = false)]
     pub maximized: bool,
+    /// Indicates if insecure TLS connections are allowed
+    #[arg(long, default_value_t = false)]
+    pub insecure: bool,
 }
 
 impl Default for PopcornFxArgs {
@@ -82,6 +85,7 @@ impl Default for PopcornFxArgs {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
         }
     }
 }
@@ -125,6 +129,9 @@ impl PopcornFX {
         if !args.disable_logger {
             Self::initialize_logger();
         }
+        if args.insecure {
+            warn!("INSECURE CONNECTIONS ARE ENABLED");
+        }
 
         info!("Creating new popcorn fx instance with {:?}", args);
         let app_directory_path = args.app_directory.as_str();
@@ -135,12 +142,12 @@ impl PopcornFX {
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
-        let providers = Self::default_providers(&settings, &favorites_service, &watched_service);
+        let providers = Self::default_providers(&settings, &args, &favorites_service, &watched_service);
         let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
-        let updater = Arc::new(Updater::new(&settings, &platform, app_directory_path));
+        let updater = Arc::new(Updater::new(&settings, args.insecure, &platform, app_directory_path));
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -286,9 +293,9 @@ impl PopcornFX {
         });
     }
 
-    fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
-        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(settings)));
-        let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(settings)));
+    fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, args: &PopcornFxArgs, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
+        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(settings, args.insecure)));
+        let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(settings, args.insecure)));
         let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![
             &movie_provider,
             &show_provider,
@@ -342,6 +349,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -368,6 +376,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -389,6 +398,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -409,6 +419,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -430,6 +441,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "settings.json", None);

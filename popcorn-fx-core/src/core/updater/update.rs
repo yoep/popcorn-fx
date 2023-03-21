@@ -58,13 +58,13 @@ pub struct Updater {
 }
 
 impl Updater {
-    pub fn new(settings: &Arc<tokio::sync::Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str) -> Self {
-        Self::new_with_callbacks(settings, platform, storage_path, vec![])
+    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str) -> Self {
+        Self::new_with_callbacks(settings, insecure, platform, storage_path, vec![])
     }
 
-    pub fn new_with_callbacks(settings: &Arc<tokio::sync::Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
+    pub fn new_with_callbacks(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
         let instance = Self {
-            inner: Arc::new(InnerUpdater::new(settings, platform, storage_path, callbacks))
+            inner: Arc::new(InnerUpdater::new(settings, insecure, platform, storage_path, callbacks))
         };
 
         instance.start_polling();
@@ -125,9 +125,9 @@ struct InnerUpdater {
     /// The client used for polling the information
     client: Client,
     /// The cached version information if available
-    cache: tokio::sync::Mutex<Option<VersionInfo>>,
+    cache: Mutex<Option<VersionInfo>>,
     /// The last know state of the updater
-    state: tokio::sync::Mutex<UpdateState>,
+    state: Mutex<UpdateState>,
     runtime: Arc<tokio::runtime::Runtime>,
     /// The event callbacks for the updater
     callbacks: CoreCallbacks<UpdateEvent>,
@@ -137,7 +137,7 @@ struct InnerUpdater {
 }
 
 impl InnerUpdater {
-    fn new(settings: &Arc<tokio::sync::Mutex<ApplicationConfig>>, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
+    fn new(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
         let core_callbacks: CoreCallbacks<UpdateEvent> = Default::default();
 
         // add the given callbacks to the initial list
@@ -149,6 +149,7 @@ impl InnerUpdater {
             settings: settings.clone(),
             platform: platform.clone(),
             client: ClientBuilder::new()
+                .danger_accept_invalid_certs(insecure.clone())
                 .build()
                 .unwrap(),
             cache: tokio::sync::Mutex::new(None),
@@ -495,7 +496,7 @@ mod test {
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let updater = Updater::new(&settings, &platform, temp_path);
+        let updater = Updater::new(&settings, false, &platform, temp_path);
         let expected_result = VersionInfo {
             version: "1.0.0".to_string(),
             changelog: ChangeLog {
@@ -534,7 +535,7 @@ mod test {
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
-        let _ = Updater::new_with_callbacks(&settings, &platform, temp_path, vec![Box::new(move |event| {
+        let _ = Updater::new_with_callbacks(&settings, false, &platform, temp_path, vec![Box::new(move |event| {
             tx.send(event).unwrap()
         })]);
 
@@ -573,7 +574,7 @@ mod test {
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
-        let _ = Updater::new_with_callbacks(&settings, &platform, temp_path, vec![Box::new(move |event| {
+        let _ = Updater::new_with_callbacks(&settings, false, &platform, temp_path, vec![Box::new(move |event| {
             tx.send(event).unwrap()
         })]);
 
@@ -621,7 +622,7 @@ mod test {
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let updater = Updater::new(&settings, &platform, temp_path);
+        let updater = Updater::new(&settings, false, &platform, temp_path);
         let expected_result = read_test_file(filename);
 
         let _ = runtime.block_on(async {
@@ -658,7 +659,7 @@ mod test {
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let updater = Updater::new(&settings, &platform, temp_path);
+        let updater = Updater::new(&settings, false, &platform, temp_path);
 
         let result = runtime.block_on(async {
             updater.download().await
@@ -689,7 +690,7 @@ mod test {
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
-        let updater = Updater::new_with_callbacks(&settings, &platform, temp_path, vec![
+        let updater = Updater::new_with_callbacks(&settings, false, &platform, temp_path, vec![
             Box::new(move |event| {
                 tx.send(event).unwrap()
             })
@@ -715,7 +716,6 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let updates_directory = temp_dir.path().join(UPDATE_DIRECTORY);
         let filename = "popcorn-time_99.0.0.deb";
-        let runtime = tokio::runtime::Runtime::new().unwrap();
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let settings = Arc::new(Mutex::new(ApplicationConfig {
@@ -729,7 +729,7 @@ mod test {
             settings: Default::default(),
             callbacks: Default::default(),
         }));
-        let updater = Updater::new(&settings, &platform, temp_path);
+        let updater = Updater::new(&settings, false, &platform, temp_path);
         copy_test_file(updates_directory.to_str().unwrap(), filename, None);
 
         // drop the updater to start the cleanup
@@ -737,7 +737,7 @@ mod test {
 
         let dir = fs::read_dir(&updates_directory).unwrap();
         let mut num_files = 0;
-        for x in dir {
+        for _ in dir {
             num_files += 1;
         }
 

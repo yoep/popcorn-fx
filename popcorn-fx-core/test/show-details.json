@@ -1,0 +1,61 @@
+{
+  "_id": "tt2861424",
+  "imdb_id": "tt2861424",
+  "tmdb_id": 60625,
+  "tvdb_id": "275274",
+  "title": "Lorem",
+  "year": "2013",
+  "slug": "lorem",
+  "original_language": "en",
+  "exist_translations": [
+    "en",
+    "es",
+    "pt",
+    "ru"
+  ],
+  "num_seasons": 6,
+  "images": {
+    "poster": "http://image.tmdb.org/t/p/w500/cvhNj9eoRBe5SxjCbQTkh05UP5K.jpg",
+    "fanart": "http://image.tmdb.org/t/p/w500/uGy4DCmM33I7l86W7iCskNkvmLD.jpg",
+    "banner": "http://image.tmdb.org/t/p/w500/cvhNj9eoRBe5SxjCbQTkh05UP5K.jpg"
+  },
+  "rating": {
+    "percentage": 87,
+    "watching": 7,
+    "votes": 24193,
+    "loved": 0,
+    "hated": 0
+  },
+  "contextLocale": "en",
+  "__v": 0,
+  "synopsis": "lorem ipsum",
+  "runtime": "22",
+  "country": "US",
+  "network": "Adult Swim",
+  "last_updated": 1673930340,
+  "air_day": "",
+  "air_time": "",
+  "status": "Returning Series",
+  "genres": [
+    "action & adventure",
+    "animation",
+    "comedy",
+    "sci-fi & fantasy"
+  ],
+  "episodes": [
+    {
+      "date_based": false,
+      "season": 2,
+      "episode": 9,
+      "first_aired": 1443312000,
+      "title": "Look Who's Purging Now",
+      "overview": "lorem ipsum dolor",
+      "watched": {
+        "watched": false
+      },
+      "tvdb_id": 5335865,
+      "torrents": {
+      }
+    }
+  ]
+}

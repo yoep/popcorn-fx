@@ -132,7 +132,7 @@ mod test {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
-        let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings));
+        let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings, false));
         let manager = ProviderManager::default()
             .with_providers(vec![Arc::new(provider)]);
 

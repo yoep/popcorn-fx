@@ -23,6 +23,8 @@ pub enum MediaError {
     /// There are no media providers available to query
     #[error("there are no available providers to query")]
     NoAvailableProviders,
+    #[error("The provider request connection failed")]
+    ProviderConnectionFailed,
     #[error("request failed with status {0}")]
     ProviderRequestFailed(u16),
     #[error("failed to parse response, {0}")]

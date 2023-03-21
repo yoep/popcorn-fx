@@ -62,7 +62,7 @@ impl Platform for PlatformLinux {
             Ok(_) => {
                 match self.disable_x11_screensaver() {
                     Ok(_) => {
-                        info!("X11 sleep mode prevented");
+                        info!("X11 screensaver mode deactivated");
                         return true;
                     }
                     Err(e) => error!("Screensaver failed, {}", e)

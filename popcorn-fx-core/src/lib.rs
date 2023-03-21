@@ -113,7 +113,7 @@ pub mod testing {
     use log::{LevelFilter, trace};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::Config;
-    use log4rs::config::{Appender, Root};
+    use log4rs::config::{Appender, Logger, Root};
     use tempfile::TempDir;
 
     static INIT: Once = Once::new();
@@ -122,6 +122,9 @@ pub mod testing {
         INIT.call_once(|| {
             log4rs::init_config(Config::builder()
                 .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder().build())))
+                .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
+                .logger(Logger::builder().build("hyper", LevelFilter::Info))
+                .logger(Logger::builder().build("tracing", LevelFilter::Info))
                 .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
                 .unwrap())
                 .unwrap();
@@ -142,7 +145,7 @@ pub mod testing {
         destination.push(output_filename.or_else(|| Some(filename)).unwrap());
 
         // make sure the parent dir exists
-        fs::create_dir_all(destination.parent().unwrap());
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
 
         trace!("Copying test file {} to {:?}", filename, destination);
         fs::copy(&source, &destination).unwrap();
@@ -194,7 +197,54 @@ pub mod testing {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use httpmock::MockServer;
+    use tempfile::TempDir;
+    use tokio::sync::Mutex;
+
+    use crate::core::config::{ApplicationConfig, PopcornProperties, ProviderProperties};
+    use crate::core::storage::Storage;
+
     use super::*;
+
+    pub fn start_mock_server(temp_dir: &TempDir) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
+        let server = MockServer::start();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(Mutex::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties {
+                update_channel: String::new(),
+                providers: create_providers(&server),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+            },
+            settings: Default::default(),
+            callbacks: Default::default(),
+        }));
+
+        (server, settings)
+    }
+
+    fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {
+        let mut map: HashMap<String, ProviderProperties> = HashMap::new();
+        map.insert("movies".to_string(), ProviderProperties {
+            uris: vec![
+                server.url("")
+            ],
+            genres: vec![],
+            sort_by: vec![],
+        });
+        map.insert("series".to_string(), ProviderProperties {
+            uris: vec![
+                server.url("")
+            ],
+            genres: vec![],
+            sort_by: vec![],
+        });
+        map
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     struct Example {

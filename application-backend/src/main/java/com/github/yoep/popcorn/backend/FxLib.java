@@ -94,7 +94,7 @@ public interface FxLib extends Library {
 
     MediaItem retrieve_favorite_details(PopcornFx instance, String imdbId);
 
-    boolean is_media_liked(PopcornFx instance, MediaItem media);
+    byte is_media_liked(PopcornFx instance, MediaItem media);
 
     FavoritesSet retrieve_all_favorites(PopcornFx instance);
 
@@ -106,7 +106,7 @@ public interface FxLib extends Library {
 
     String serve_subtitle(PopcornFx instance, Subtitle subtitle, int type);
 
-    boolean is_media_watched(PopcornFx instance, MediaItem media);
+    byte is_media_watched(PopcornFx instance, MediaItem media);
 
     StringArray retrieve_watched_movies(PopcornFx instance);
 

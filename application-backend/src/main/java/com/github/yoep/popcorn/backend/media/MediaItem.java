@@ -1,23 +1,31 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.FxLibInstance;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
+import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
+import java.util.Objects;
+import java.util.Optional;
 
+@Slf4j
 @ToString
+@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"movieOverview", "movieDetails", "showOverview", "showDetails", "episode"})
 public class MediaItem extends Structure implements Closeable {
     public static class ByReference extends MediaItem implements Structure.ByReference {
     }
-    
+
     public MovieOverview.ByReference movieOverview;
     public MovieDetails.ByReference movieDetails;
     public ShowOverview.ByReference showOverview;
     public ShowDetails.ByReference showDetails;
     public Episode.ByReference episode;
+
+    private FxLib fxLib;
 
     public Media getMedia() {
         if (movieOverview != null) {
@@ -36,10 +44,20 @@ public class MediaItem extends Structure implements Closeable {
         return episode;
     }
 
+    public MediaItem withLib(FxLib fxLib) {
+        Objects.requireNonNull(fxLib, "fxLib cannot be null");
+        this.fxLib = fxLib;
+        return this;
+    }
+
     @Override
     public void close() {
         setAutoSynch(false);
-        FxLibInstance.INSTANCE.get().dispose_media_item(this);
+        Optional.ofNullable(this.fxLib)
+                .ifPresent(e -> {
+                    log.trace("Disposing MediaItem {}", this);
+                    e.dispose_media_item(this);
+                });
     }
 
     public static MediaItem from(Media media) {

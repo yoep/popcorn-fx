@@ -1,0 +1,34 @@
+[
+  {
+    "_id": "tt3581920",
+    "imdb_id": "tt3581920",
+    "tmdb_id": 100088,
+    "tvdb_id": "392256",
+    "title": "Lorem ipsum",
+    "year": "2023",
+    "slug": "the-lipsum",
+    "original_language": "en",
+    "exist_translations": [
+      "en",
+      "es",
+      "hi",
+      "it",
+      "pt",
+      "ru"
+    ],
+    "num_seasons": 1,
+    "images": {
+      "poster": "http://image.tmdb.org/t/p/w500/uKvVjHNqB5VmOrdxqAt2F7J78ED.jpg",
+      "fanart": "http://image.tmdb.org/t/p/w500/ahS4r0ZYbNC85iTdMtcGojHJVgy.jpg",
+      "banner": "http://image.tmdb.org/t/p/w500/uKvVjHNqB5VmOrdxqAt2F7J78ED.jpg"
+    },
+    "rating": {
+      "percentage": 91,
+      "watching": 74,
+      "votes": 308,
+      "loved": 0,
+      "hated": 0
+    },
+    "contextLocale": "en"
+  }
+]

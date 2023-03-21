@@ -6,6 +6,7 @@ import com.github.yoep.player.popcorn.controls.StreamInfoCell;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.player.popcorn.services.PlayerHeaderService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import javafx.application.Platform;
@@ -91,17 +92,21 @@ public class DesktopHeaderActionsComponent implements Initializable {
         Platform.runLater(() -> this.streamInfo.update(progress));
     }
 
+    private void closePlayer() {
+        eventPublisher.publish(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
+    }
+
     @FXML
     void onCloseClicked(MouseEvent event) {
         event.consume();
-        headerService.closePlayer();
+        closePlayer();
     }
 
     @FXML
     void onClosePressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            headerService.closePlayer();
+            closePlayer();
         }
     }
 }

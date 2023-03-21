@@ -3,6 +3,7 @@ package com.github.yoep.player.popcorn.controllers.components;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.controls.StreamInfo;
 import com.github.yoep.player.popcorn.services.PlayerHeaderService;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
@@ -51,7 +52,7 @@ class DesktopHeaderActionsComponentTest {
         component.onCloseClicked(event);
 
         verify(event).consume();
-        verify(headerService).closePlayer();
+        verify(eventPublisher).publish(new ClosePlayerEvent(component, ClosePlayerEvent.Reason.USER));
     }
 
     @Test
@@ -63,6 +64,6 @@ class DesktopHeaderActionsComponentTest {
         component.onClosePressed(event);
 
         verify(event).consume();
-        verify(headerService).closePlayer();
+        verify(eventPublisher).publish(new ClosePlayerEvent(component, ClosePlayerEvent.Reason.USER));
     }
 }

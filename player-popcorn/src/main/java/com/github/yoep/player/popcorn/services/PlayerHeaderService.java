@@ -9,8 +9,6 @@ import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorren
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,16 +22,11 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderListener> {
     private final VideoService videoService;
-    private final EventPublisher eventPublisher;
 
     private final PlaybackListener listener = createListener();
     private final TorrentListener torrentListener = createTorrentListener();
 
     private TorrentStream lastKnownTorrent;
-
-    public void closePlayer() {
-        eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
-    }
 
     @PostConstruct
     void init() {

@@ -1,12 +1,10 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.controls.Volume;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
@@ -25,11 +23,9 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
 @RequiredArgsConstructor
-public class PlayerControlsComponent implements Initializable {
+public class DesktopPlayerControlsComponent implements Initializable {
     private final PlayerControlsService playerControlsService;
-    private final PlatformProvider platformProvider;
     private final EventPublisher eventPublisher;
 
     @FXML
@@ -89,7 +85,7 @@ public class PlayerControlsComponent implements Initializable {
         playerControlsService.addListener(new PlayerControlsListener() {
             @Override
             public void onFullscreenStateChanged(boolean isFullscreenEnabled) {
-                PlayerControlsComponent.this.onFullscreenStateChanged(isFullscreenEnabled);
+                DesktopPlayerControlsComponent.this.onFullscreenStateChanged(isFullscreenEnabled);
             }
 
             @Override
@@ -99,7 +95,7 @@ public class PlayerControlsComponent implements Initializable {
 
             @Override
             public void onPlayerStateChanged(PlayerState state) {
-                PlayerControlsComponent.this.onPlayerStateChanged(state == PlayerState.PLAYING);
+                DesktopPlayerControlsComponent.this.onPlayerStateChanged(state == PlayerState.PLAYING);
             }
 
             @Override
@@ -114,12 +110,12 @@ public class PlayerControlsComponent implements Initializable {
 
             @Override
             public void onDownloadStatusChanged(DownloadStatus progress) {
-                PlayerControlsComponent.this.onDownloadStatusChanged(progress);
+                DesktopPlayerControlsComponent.this.onDownloadStatusChanged(progress);
             }
 
             @Override
             public void onVolumeChanged(int volume) {
-                PlayerControlsComponent.this.onVolumeChanged(volume);
+                DesktopPlayerControlsComponent.this.onVolumeChanged(volume);
             }
         });
 
@@ -132,21 +128,21 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onPlayerStateChanged(boolean isPlaying) {
         if (isPlaying) {
-            platformProvider.runOnRenderer(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
+            Platform.runLater(() -> playPauseIcon.setText(Icon.PAUSE_UNICODE));
         } else {
-            platformProvider.runOnRenderer(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
+            Platform.runLater(() -> playPauseIcon.setText(Icon.PLAY_UNICODE));
         }
     }
 
     private void onDurationChanged(Long duration) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             durationLabel.setText(TimeUtils.format(duration));
             playProgress.setDuration(duration);
         });
     }
 
     private void onTimeChanged(Long time) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             timeLabel.setText(TimeUtils.format(time));
 
             if (!playProgress.isValueChanging())
@@ -156,7 +152,7 @@ public class PlayerControlsComponent implements Initializable {
 
     private void onSubtitleVisibilityChanged(boolean isVisible) {
         // update the visibility of the subtitles section
-        platformProvider.runOnRenderer(() -> subtitleSection.setVisible(isVisible));
+        Platform.runLater(() -> subtitleSection.setVisible(isVisible));
     }
 
     private void onSeeking(Number newValue) {

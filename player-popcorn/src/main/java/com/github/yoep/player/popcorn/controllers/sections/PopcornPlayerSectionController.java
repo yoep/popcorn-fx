@@ -2,16 +2,17 @@ package com.github.yoep.player.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.animation.FadeTransition;
@@ -27,6 +28,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.FontWeight;
@@ -45,12 +47,15 @@ public class PopcornPlayerSectionController implements Initializable {
     static final int INFO_FADE_DURATION = 2000;
     static final int VOLUME_INCREASE_AMOUNT = 5;
     static final String BUFFER_STYLE_CLASS = "buffer";
+    static final String VIEW_CONTROLS = "components/player-controls.component.fxml";
 
     private final PopcornPlayerSectionService sectionService;
     private final SubtitleManagerService subtitleManagerService;
     private final LocaleText localeText;
-    private final PlatformProvider platformProvider;
     private final EventPublisher eventPublisher;
+    private final ViewLoader viewLoader;
+    private final OptionsService optionsService;
+
     private final PauseTransition idleTimer = getIdleTimer();
     private final PauseTransition offsetTimer = getOffsetTimer();
 
@@ -62,7 +67,7 @@ public class PopcornPlayerSectionController implements Initializable {
     private boolean uiBlocked;
 
     @FXML
-    Pane playerPane;
+    AnchorPane playerPane;
     @FXML
     Pane videoView;
     @FXML
@@ -75,7 +80,6 @@ public class PopcornPlayerSectionController implements Initializable {
     Pane playerVideoOverlay;
     @FXML
     Pane playerHeaderPane;
-    @FXML
     Pane playerControlsPane;
     @FXML
     SubtitleTrack subtitleTrack;
@@ -86,6 +90,7 @@ public class PopcornPlayerSectionController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeFaders();
         initializeSceneEvents();
+        initializeMode();
         initializeListeners();
         initializePaneListeners();
         initializeSubtitleTrack();
@@ -103,6 +108,14 @@ public class PopcornPlayerSectionController implements Initializable {
         playerPane.setOnKeyReleased(this::onPlayerKeyReleased);
         playerPane.setOnScroll(this::onPlayerScrolled);
         playerPane.addEventHandler(Event.ANY, this::onShowOverlay);
+    }
+
+    private void initializeMode() {
+        playerControlsPane = viewLoader.load(VIEW_CONTROLS);
+        AnchorPane.setLeftAnchor(playerControlsPane, 0d);
+        AnchorPane.setRightAnchor(playerControlsPane, 0d);
+        AnchorPane.setBottomAnchor(playerControlsPane, optionsService.isTvMode() ? 50d : 0d);
+        playerPane.getChildren().add(playerControlsPane);
     }
 
     private void initializeListeners() {
@@ -173,7 +186,7 @@ public class PopcornPlayerSectionController implements Initializable {
             fadeTransition.playFromStart();
         });
 
-        subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> platformProvider.runOnRenderer(() -> {
+        subtitleTrack.offsetProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
             subtitleManagerService.updateSubtitleOffset(newValue.intValue() * 1000);
             showInfo(localeText.get(VideoMessage.SUBTITLES_OFFSET, newValue.doubleValue()));
         }));
@@ -199,7 +212,7 @@ public class PopcornPlayerSectionController implements Initializable {
 
     private void onError() {
         log.warn("Video player entered ERROR state");
-        platformProvider.runOnRenderer(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
+        Platform.runLater(() -> errorText.setText(localeText.get(VideoMessage.VIDEO_ERROR)));
         updateBufferIndicator(false);
     }
 
@@ -257,7 +270,7 @@ public class PopcornPlayerSectionController implements Initializable {
         // check if the buffer is already present and it should not be shown
         if (!showBuffer && bufferIndicator != null) {
             log.trace("Removing the buffer indicator from the player view");
-            platformProvider.runOnRenderer(() -> {
+            Platform.runLater(() -> {
                 bufferPane.getChildren().clear();
                 bufferIndicator = null;
             });
@@ -267,7 +280,7 @@ public class PopcornPlayerSectionController implements Initializable {
             bufferIndicator.getStyleClass().add(BUFFER_STYLE_CLASS);
             bufferIndicator.getChildren().add(new ProgressIndicator());
 
-            platformProvider.runOnRenderer(() -> bufferPane.getChildren().add(bufferIndicator));
+            Platform.runLater(() -> bufferPane.getChildren().add(bufferIndicator));
         }
     }
 
@@ -332,12 +345,16 @@ public class PopcornPlayerSectionController implements Initializable {
                     updateSubtitleOffset(event, true);
                 }
                 case REVERSE -> {
-                    event.consume();
-                    sectionService.videoTimeOffset(-5000);
+                    if (!optionsService.isTvMode()) {
+                        event.consume();
+                        sectionService.videoTimeOffset(-5000);
+                    }
                 }
                 case FORWARD -> {
-                    event.consume();
-                    sectionService.videoTimeOffset(5000);
+                    if (!optionsService.isTvMode()) {
+                        event.consume();
+                        sectionService.videoTimeOffset(5000);
+                    }
                 }
             }
         });
@@ -393,7 +410,7 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void showInfo(String message) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             infoLabel.setText(message);
             fadeTransition.stop();
             infoLabel.setOpacity(1);

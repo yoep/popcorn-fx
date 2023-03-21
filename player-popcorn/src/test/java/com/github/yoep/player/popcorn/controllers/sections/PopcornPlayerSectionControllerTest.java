@@ -1,15 +1,17 @@
 package com.github.yoep.player.popcorn.controllers.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import javafx.scene.control.Label;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,12 +21,14 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -41,7 +45,9 @@ class PopcornPlayerSectionControllerTest {
     @Mock
     private LocaleText localeText;
     @Mock
-    private PlatformProvider platformProvider;
+    private ViewLoader viewLoader;
+    @Mock
+    private OptionsService optionsService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
@@ -55,12 +61,8 @@ class PopcornPlayerSectionControllerTest {
             sectionListenerHolder.set(invocation.getArgument(0, PopcornPlayerSectionListener.class));
             return null;
         }).when(sectionService).addListener(isA(PopcornPlayerSectionListener.class));
-        lenient().doAnswer(invocation -> {
-            invocation.getArgument(0, Runnable.class).run();
-            return null;
-        }).when(platformProvider).runOnRenderer(isA(Runnable.class));
 
-        controller.playerPane = new Pane();
+        controller.playerPane = new AnchorPane();
         controller.playerHeaderPane = new Pane();
         controller.playerControlsPane = new Pane();
         controller.infoLabel = new Label();
@@ -68,15 +70,16 @@ class PopcornPlayerSectionControllerTest {
     }
 
     @Test
-    void testOnVolumeChanged_whenVolumeIsGiven_shouldShowVolumePercentage() {
+    void testOnVolumeChanged_whenVolumeIsGiven_shouldShowVolumePercentage() throws TimeoutException {
         var volume = 80;
         var expectedResult = "Volume: 80%";
         when(localeText.get(VideoMessage.VIDEO_VOLUME, volume)).thenReturn(expectedResult);
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
         controller.initialize(url, resourceBundle);
 
         sectionListenerHolder.get().onVolumeChanged(volume);
 
-        assertEquals(expectedResult, controller.infoLabel.getText());
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.infoLabel.getText().equals(expectedResult));
     }
 
     @Test
@@ -84,6 +87,7 @@ class PopcornPlayerSectionControllerTest {
         var deltaY = 15.0;
         var event = mock(ScrollEvent.class);
         when(event.getDeltaY()).thenReturn(deltaY);
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
         controller.initialize(url, resourceBundle);
 
         var eventHandler = controller.playerPane.getOnScroll();
@@ -97,6 +101,7 @@ class PopcornPlayerSectionControllerTest {
         var deltaY = -40.0;
         var event = mock(ScrollEvent.class);
         when(event.getDeltaY()).thenReturn(deltaY);
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
         controller.initialize(url, resourceBundle);
 
         var eventHandler = controller.playerPane.getOnScroll();

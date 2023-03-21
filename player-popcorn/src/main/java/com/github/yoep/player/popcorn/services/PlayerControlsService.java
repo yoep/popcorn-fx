@@ -38,6 +38,10 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     //region Methods
 
+    public long getTime() {
+        return player.getTime();
+    }
+
     public void toggleFullscreen() {
         screenService.toggleFullscreen();
     }

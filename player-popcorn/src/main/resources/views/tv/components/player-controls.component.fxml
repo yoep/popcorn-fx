@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.player.popcorn.controls.ProgressControl?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.github.yoep.player.popcorn.controllers.components.TvPlayerControlsComponent">
+    <GridPane styleClass="player-controls">
+        <columnConstraints>
+            <ColumnConstraints halignment="RIGHT" hgrow="ALWAYS"/>
+            <ColumnConstraints halignment="CENTER"/>
+            <ColumnConstraints halignment="CENTER"/>
+            <ColumnConstraints halignment="CENTER"/>
+            <ColumnConstraints halignment="CENTER"/>
+            <ColumnConstraints halignment="CENTER"/>
+            <ColumnConstraints halignment="LEFT" hgrow="ALWAYS"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints/>
+            <RowConstraints/>
+        </rowConstraints>
+        <hgap>5</hgap>
+        <vgap>2</vgap>
+
+        <Icon onMouseClicked="#onReverseClicked" onKeyPressed="#onReversePressed" focusTraversable="true"
+              GridPane.columnIndex="1" GridPane.rowIndex="0">
+            <Icon fx:constant="BACKWARD_UNICODE"/>
+        </Icon>
+        <Icon focusTraversable="true" onMouseClicked="#onStopClicked" onKeyPressed="#onStopPressed"
+              GridPane.columnIndex="2" GridPane.rowIndex="0">
+            <Icon fx:constant="STOP_UNICODE"/>
+        </Icon>
+        <Icon fx:id="playButton" onMouseClicked="#onPlayClicked" onKeyPressed="#onPlayPressed" focusTraversable="true"
+              GridPane.columnIndex="3" GridPane.rowIndex="0">
+            <Icon fx:constant="PLAY_UNICODE"/>
+        </Icon>
+        <Icon onMouseClicked="#onForwardClicked" onKeyPressed="#onForwardPressed" focusTraversable="true"
+              GridPane.columnIndex="4" GridPane.rowIndex="0">
+            <Icon fx:constant="FORWARD_UNICODE"/>
+        </Icon>
+        <Icon focusTraversable="true"
+              GridPane.columnIndex="5" GridPane.rowIndex="0">
+            <Icon fx:constant="TH_LIST_UNICODE"/>
+        </Icon>
+
+        <Label fx:id="time" styleClass="time" textAlignment="RIGHT"
+               GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <ProgressControl fx:id="timeline"
+                         GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.columnSpan="5"/>
+        <Label fx:id="duration" styleClass="time" textAlignment="LEFT"
+               GridPane.columnIndex="6" GridPane.rowIndex="1"/>
+    </GridPane>
+</StackPane>

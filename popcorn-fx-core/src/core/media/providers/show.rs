@@ -23,12 +23,12 @@ pub struct ShowProvider {
 }
 
 impl ShowProvider {
-    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>) -> Self {
+    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool) -> Self {
         let mutex = settings.blocking_lock();
         let uris = available_uris(&mutex, PROVIDER_NAME);
 
         Self {
-            base: Arc::new(Mutex::new(BaseProvider::new(uris))),
+            base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),
         }
     }
 }
@@ -94,10 +94,12 @@ impl MediaProvider for ShowProvider {
 
 #[cfg(test)]
 mod test {
+    use httpmock::Method::GET;
     use tokio::runtime;
 
     use crate::core::media::MediaIdentifier;
-    use crate::testing::init_logger;
+    use crate::test::start_mock_server;
+    use crate::testing::{init_logger, read_test_file};
 
     use super::*;
 
@@ -107,9 +109,19 @@ mod test {
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
-        let provider = ShowProvider::new(&settings);
+        let (server, settings) = start_mock_server(&temp_dir);
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/shows/1")
+                .query_param("sort", "trending".to_string())
+                .query_param("order", "-1".to_string())
+                .query_param("genre", "all".to_string())
+                .query_param("keywords", "".to_string());
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_test_file("show-search.json"));
+        });
+        let provider = ShowProvider::new(&settings, false);
         let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &String::new(), 1))
@@ -123,9 +135,15 @@ mod test {
         init_logger();
         let imdb_id = "tt2861424".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
-        let provider = ShowProvider::new(&settings);
+        let (server, settings) = start_mock_server(&temp_dir);
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/show/tt2861424");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_test_file("show-details.json"));
+        });
+        let provider = ShowProvider::new(&settings, false);
         let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(provider.retrieve_details(&imdb_id))

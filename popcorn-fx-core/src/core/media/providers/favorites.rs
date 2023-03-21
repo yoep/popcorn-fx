@@ -264,7 +264,7 @@ mod test {
                     String::new(),
                 )))
             });
-        let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings)) as Box<dyn MediaProvider>);
+        let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings, false)) as Box<dyn MediaProvider>);
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
             Arc::new(Box::new(DefaultWatchedService::new(temp_path))),

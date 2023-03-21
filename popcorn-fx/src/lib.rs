@@ -898,9 +898,13 @@ pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings:
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
     if !media.show_overview.is_null() {
-        let _ = from_c_owned(media.show_overview).to_struct();
+        let _ = from_c_owned(media.show_overview);
+    } else if !media.show_details.is_null() {
+        let _ = from_c_owned(media.show_details);
     } else if !media.movie_overview.is_null() {
-        let _ = from_c_owned(media.movie_overview).to_struct();
+        let _ = from_c_owned(media.movie_overview);
+    } else if !media.movie_details.is_null() {
+        let _ = from_c_owned(media.movie_details);
     }
 }
 
@@ -994,6 +998,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1011,6 +1016,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieOverview::new(
@@ -1036,6 +1042,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         let movie = MovieDetails::new(
@@ -1061,6 +1068,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         let id = "tt0000001111".to_string();
@@ -1094,6 +1102,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1126,6 +1135,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1172,6 +1182,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1196,6 +1207,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1217,6 +1229,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         copy_test_file(temp_path, "torrent-collection.json", None);
@@ -1247,6 +1260,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
 
@@ -1266,6 +1280,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         let settings = SubtitleSettings {
@@ -1309,6 +1324,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            insecure: false,
             app_directory: temp_path.to_string(),
         });
         let genre = GenreC::from(Genre::all());

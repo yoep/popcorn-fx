@@ -4,6 +4,7 @@ import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
 import com.sun.jna.Union;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -13,6 +14,7 @@ import java.util.Objects;
 
 @Getter
 @ToString
+@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"tag", "union"})
 public class FavoriteEvent extends Structure implements Closeable {
     public static class ByValue extends FavoriteEvent implements Structure.ByValue {

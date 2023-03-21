@@ -1,16 +1,16 @@
 package com.github.yoep.popcorn.backend.media.favorites;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
@@ -18,13 +18,15 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Service
 public class FavoriteService {
     private final FxLib fxLib;
-    
+    private final PopcornFx instance;
+
     private final Object lock = new Object();
     private final FavoriteEventCallback callback = createCallback();
     private final ConcurrentLinkedDeque<FavoriteEventCallback> listeners = new ConcurrentLinkedDeque<>();
 
-    public FavoriteService(FxLib fxLib) {
+    public FavoriteService(FxLib fxLib, PopcornFx instance) {
         this.fxLib = fxLib;
+        this.instance = instance;
         init();
     }
 
@@ -35,9 +37,11 @@ public class FavoriteService {
      * @return Returns true if the favorable is liked, else false.
      */
     public boolean isLiked(Media favorable) {
-        Assert.notNull(favorable, "favorable cannot be null");
+        Objects.requireNonNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            return fxLib.is_media_liked(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
+            try (var item = MediaItem.from(favorable)) {
+                return fxLib.is_media_liked(instance, item) == 1;
+            }
         }
     }
 
@@ -48,7 +52,7 @@ public class FavoriteService {
      */
     public List<Media> getAll() {
         synchronized (lock) {
-            return Optional.ofNullable(fxLib.retrieve_all_favorites(PopcornFxInstance.INSTANCE.get()))
+            return Optional.ofNullable(fxLib.retrieve_all_favorites(instance))
                     .map(FavoritesSet::<Media>getAll)
                     .orElse(Collections.emptyList());
         }
@@ -60,9 +64,10 @@ public class FavoriteService {
      * @param favorable The favorable to add.
      */
     public void addToFavorites(Media favorable) {
-        Assert.notNull(favorable, "favorable cannot be null");
+        Objects.requireNonNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            fxLib.add_to_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
+            log.trace("Adding favorite item {}", favorable);
+            fxLib.add_to_favorites(instance, MediaItem.from(favorable));
         }
     }
 
@@ -72,14 +77,15 @@ public class FavoriteService {
      * @param favorable The favorable to remove.
      */
     public void removeFromFavorites(Media favorable) {
-        Assert.notNull(favorable, "favorable cannot be null");
+        Objects.requireNonNull(favorable, "favorable cannot be null");
         synchronized (lock) {
-            fxLib.remove_from_favorites(PopcornFxInstance.INSTANCE.get(), MediaItem.from(favorable));
+            log.trace("Removing favorite item {}", favorable);
+            fxLib.remove_from_favorites(instance, MediaItem.from(favorable));
         }
     }
 
     public void registerListener(FavoriteEventCallback callback) {
-        Assert.notNull(callback, "callback cannot be null");
+        Objects.requireNonNull(callback, "callback cannot be null");
         listeners.add(callback);
     }
 
@@ -89,7 +95,7 @@ public class FavoriteService {
 
     private void init() {
         synchronized (lock) {
-            fxLib.register_favorites_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
+            fxLib.register_favorites_event_callback(instance, callback);
         }
     }
 

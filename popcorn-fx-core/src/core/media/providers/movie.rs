@@ -23,12 +23,12 @@ pub struct MovieProvider {
 }
 
 impl MovieProvider {
-    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>) -> Self {
+    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool) -> Self {
         let mutex = settings.blocking_lock();
         let uris = available_uris(&mutex, PROVIDER_NAME);
 
         Self {
-            base: Arc::new(Mutex::new(BaseProvider::new(uris))),
+            base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),
         }
     }
 }
@@ -94,45 +94,64 @@ impl MediaProvider for MovieProvider {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
     use httpmock::Method::GET;
-    use httpmock::MockServer;
     use tokio::runtime;
 
-    use crate::core::config::{PopcornProperties, ProviderProperties};
     use crate::core::media::{Images, MediaIdentifier, Rating};
-    use crate::core::storage::Storage;
+    use crate::test::start_mock_server;
     use crate::testing::{init_logger, read_test_file};
 
     use super::*;
 
-    fn start_mock_server() -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
-        let server = MockServer::start();
+    #[test]
+    fn test_reset_apis() {
+        init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
-                update_channel: String::new(),
-                providers: create_providers(&server),
-                enhancers: Default::default(),
-                subtitle: Default::default(),
-            },
-            settings: Default::default(),
-            callbacks: Default::default(),
-        }));
+        let genre = Genre::all();
+        let sort_by = SortBy::new("trending".to_string(), "".to_string());
+        let sort_by_year = SortBy::new("year".to_string(), "".to_string());
+        let (server, settings) = start_mock_server(&temp_dir);
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/movies/1")
+                .query_param("sort", "trending".to_string())
+                .query_param("order", "-1".to_string())
+                .query_param("genre", "all".to_string())
+                .query_param("keywords", "".to_string());
+            then.status(500);
+        });
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/movies/1")
+                .query_param("sort", "year".to_string())
+                .query_param("order", "-1".to_string())
+                .query_param("genre", "all".to_string())
+                .query_param("keywords", "".to_string());
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_test_file("movie-search.json"));
+        });
+        let provider = MovieProvider::new(&settings, false);
+        let runtime = runtime::Runtime::new().unwrap();
 
-        (server, settings)
+        // make the api fail and become disabled
+        let _ = runtime.block_on(provider.retrieve(&genre, &sort_by, &String::new(), 1))
+            .expect_err("expected an error to be returned");
+
+        // reset the api and try again
+        provider.reset_api();
+        let _ = runtime.block_on(provider.retrieve(&genre, &sort_by_year, &String::new(), 1))
+            .expect("expected a response");
     }
 
     #[test]
     fn test_retrieve() {
         init_logger();
-        let (server, settings) = start_mock_server();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let (server, settings) = start_mock_server(&temp_dir);
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
-        let provider = MovieProvider::new(&settings);
+        let provider = MovieProvider::new(&settings, false);
         let expected_result = MovieOverview::new_detailed(
             "Lorem Ipsum".to_string(),
             "tt9764362".to_string(),
@@ -175,11 +194,17 @@ mod test {
     #[test]
     fn test_retrieve_details() {
         init_logger();
-        let imdb_id = "tt14138650".to_string();
+        let imdb_id = "tt9764362".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
-        let provider = MovieProvider::new(&settings);
+        let (server, settings) = start_mock_server(&temp_dir);
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/movie/tt9764362");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(read_test_file("movie-details.json"));
+        });
+        let provider = MovieProvider::new(&settings, false);
         let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(provider.retrieve_details(&imdb_id))
@@ -189,17 +214,5 @@ mod test {
             .expect("expected media to be a movie");
 
         assert_eq!(imdb_id, result.imdb_id())
-    }
-
-    fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {
-        let mut map: HashMap<String, ProviderProperties> = HashMap::new();
-        map.insert(PROVIDER_NAME.to_string(), ProviderProperties {
-            uris: vec![
-                server.url("")
-            ],
-            genres: vec![],
-            sort_by: vec![],
-        });
-        map
     }
 }

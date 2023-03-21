@@ -827,7 +827,7 @@
     -fx-padding: 10 0 20 0;
 }
 
-.root .player .player-header .player-title {
+.root .player .player-header .title {
     -fx-font-family: "Open Sans";
     -fx-text-fill: #fff;
     -fx-font-size: 1.8em;
@@ -1379,7 +1379,7 @@
 
 .root .content-section .sidebar .search-field,
 .root .content-section .sidebar .icon-text {
-    -fx-pref-width: 125px;
+    -fx-pref-width: 135px;
     -fx-min-width: 0;
     -fx-font-size: 1.5em;
     -fx-font-family: "Open Sans Bold";

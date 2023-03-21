@@ -13,7 +13,7 @@
                           AnchorPane.topAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.bottomAnchor="0"/>
 
     <GridPane fx:id="showDetails" styleClass="show-details"
-              AnchorPane.topAnchor="75" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
+              AnchorPane.topAnchor="25" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0">
         <columnConstraints>
             <ColumnConstraints/>
             <ColumnConstraints minWidth="10"/>

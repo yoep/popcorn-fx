@@ -3,7 +3,6 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
-import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayStreamRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
@@ -24,7 +23,6 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderListener> {
-    private final PopcornPlayer player;
     private final VideoService videoService;
     private final EventPublisher eventPublisher;
 
@@ -34,7 +32,6 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
     private TorrentStream lastKnownTorrent;
 
     public void closePlayer() {
-        player.stop();
         eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
     }
 

@@ -4,6 +4,8 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @RequiredArgsConstructor
 public class PlayerEventService {
     private final PlayerManagerService playerService;
+    private final EventPublisher eventPublisher;
 
     private final PlayerListener playerListener = createListener();
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
@@ -46,6 +49,11 @@ public class PlayerEventService {
     @PostConstruct
     void init() {
         playerService.activePlayerProperty().addListener((observable, oldValue, newValue) -> onPlayerChanged(oldValue, newValue));
+        eventPublisher.register(ClosePlayerEvent.class, event -> {
+            playerService.getActivePlayer()
+                    .ifPresent(Player::stop);
+            return event;
+        });
     }
 
     //endregion

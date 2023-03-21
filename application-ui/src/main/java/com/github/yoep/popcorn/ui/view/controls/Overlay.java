@@ -106,7 +106,6 @@ public class Overlay extends GridPane {
         AnchorPane.setBottomAnchor(this, 0d);
         AnchorPane.setLeftAnchor(this, 0d);
 
-        setOnKeyTyped(this::onKeyPressed);
         setOnKeyPressed(this::onKeyPressed);
         setOnMouseClicked(this::onMouseClicked);
 

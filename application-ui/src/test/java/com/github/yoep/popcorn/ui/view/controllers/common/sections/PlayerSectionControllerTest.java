@@ -4,8 +4,11 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,8 +23,7 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class PlayerSectionControllerTest {
@@ -112,5 +114,22 @@ class PlayerSectionControllerTest {
 
         assertEquals(2, controller.playerSectionPane.getChildren().size(), "Expected the previous player to have been cleared");
         assertEquals(player2ViewNode, controller.playerSectionPane.getChildren().get(0));
+    }
+
+    @Test
+    void testOnPlayerPressed() {
+        var backEvent = mock(KeyEvent.class);
+        var escapeEvent = mock(KeyEvent.class);
+        when(backEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
+        when(escapeEvent.getCode()).thenReturn(KeyCode.ESCAPE);
+        controller.init();
+
+        controller.onPlayerPressed(backEvent);
+        verify(backEvent).consume();
+        verify(eventPublisher).publish(new ClosePlayerEvent(controller, ClosePlayerEvent.Reason.USER));
+
+        controller.onPlayerPressed(escapeEvent);
+        verify(escapeEvent).consume();
+        verify(eventPublisher, times(2)).publish(new ClosePlayerEvent(controller, ClosePlayerEvent.Reason.USER));
     }
 }

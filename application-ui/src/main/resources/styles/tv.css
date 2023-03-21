@@ -342,7 +342,7 @@
 }
 
 .root .content-section .sidebar .icon-text {
-    -fx-pref-width: 250px;
+    -fx-pref-width: 300px;
     -fx-font-size: 2em;
 }
 
@@ -556,3 +556,12 @@
 }
 
 /* endregion */
+
+/* region Player */
+
+.root .player .player-header .title {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 2.25em;
+}
+
+/* end region */

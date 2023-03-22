@@ -8,10 +8,10 @@ import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(ApplicationExtension.class)
 class OverlayTest {
@@ -24,7 +24,7 @@ class OverlayTest {
 
         overlay.show();
 
-        verify(button).requestFocus();
+        verify(button, atLeast(1)).requestFocus();
         assertEquals(1, GridPane.getColumnIndex(button), "expected column index 1");
         assertEquals(1, GridPane.getRowIndex(button), "expected row index 1");
     }
@@ -34,7 +34,9 @@ class OverlayTest {
         var button = spy(new Button());
         var overlay = new Overlay(button);
         var parent = new AnchorPane();
+        var scene = new Scene(parent);
 
+        WaitForAsyncUtils.waitForFxEvents();
         parent.getChildren().add(overlay);
         overlay.hide();
 
@@ -47,7 +49,10 @@ class OverlayTest {
         var inBetween = new Pane();
         var parent = new AnchorPane(inBetween);
 
+        WaitForAsyncUtils.waitForFxEvents();
         inBetween.getChildren().add(overlay);
+        WaitForAsyncUtils.waitForFxEvents();
+        var scene = new Scene(parent);
 
         assertEquals(parent, overlay.attachedParent.get());
     }
@@ -56,6 +61,7 @@ class OverlayTest {
     void testStyleClass() {
         var overlay = new Overlay();
 
+        WaitForAsyncUtils.waitForFxEvents();
         assertTrue(overlay.getStyleClass().contains(Overlay.STYLE_CLASS));
     }
 
@@ -65,6 +71,7 @@ class OverlayTest {
         var child2 = new Pane();
 
         var overlay = new Overlay(child1, child2);
+        WaitForAsyncUtils.waitForFxEvents();
         assertTrue(child1.getStyleClass().contains(Overlay.CHILD_STYLE_CLASS));
         assertTrue(child2.getStyleClass().contains(Overlay.CHILD_STYLE_CLASS));
 

@@ -13,6 +13,7 @@ import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
+import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
 import javafx.scene.control.Button;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -48,6 +49,8 @@ class TvMovieActionsComponentTest {
     private LocaleText localeText;
     @Mock
     private DetailsComponentService detailsComponentService;
+    @Mock
+    private VideoQualityService videoQualityService;
     @Mock
     private URL location;
     @Mock

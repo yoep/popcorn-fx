@@ -1,14 +1,15 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
-import com.github.yoep.popcorn.ui.view.ViewHelper;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
+import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -27,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 public abstract class AbstractActionsComponent implements Initializable {
     protected final EventPublisher eventPublisher;
     protected final SubtitleService subtitleService;
+    protected final VideoQualityService videoQualityService;
 
     private CompletableFuture<List<SubtitleInfo>> subtitleFuture;
 
@@ -41,6 +43,13 @@ public abstract class AbstractActionsComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        eventPublisher.register(ShowDetailsEvent.class, event -> {
+            Platform.runLater(() -> {
+                qualityOverlay.hide();
+                subtitleOverlay.hide();
+            });
+            return event;
+        });
         qualities.setOnItemActivated(newValue -> {
             qualityOverlay.hide();
             subtitleOverlay.show();
@@ -77,7 +86,7 @@ public abstract class AbstractActionsComponent implements Initializable {
     protected abstract CompletableFuture<List<SubtitleInfo>> retrieveSubtitles();
 
     protected void updateQualities() {
-        qualities.setItems(ViewHelper.getVideoResolutions(getTorrents()));
+        qualities.setItems(videoQualityService.getVideoResolutions(getTorrents()));
         updateSubtitles();
     }
 

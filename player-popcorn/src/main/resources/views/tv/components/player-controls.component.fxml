@@ -44,11 +44,11 @@
             <Icon fx:constant="TH_LIST_UNICODE"/>
         </Icon>
 
-        <Label fx:id="time" styleClass="time" textAlignment="RIGHT"
+        <Label fx:id="time" styleClass="time" textAlignment="RIGHT" alignment="CENTER_RIGHT"
                GridPane.columnIndex="0" GridPane.rowIndex="1"/>
         <ProgressControl fx:id="timeline"
                          GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.columnSpan="5"/>
-        <Label fx:id="duration" styleClass="time" textAlignment="LEFT"
+        <Label fx:id="duration" styleClass="time"
                GridPane.columnIndex="6" GridPane.rowIndex="1"/>
     </GridPane>
 </StackPane>

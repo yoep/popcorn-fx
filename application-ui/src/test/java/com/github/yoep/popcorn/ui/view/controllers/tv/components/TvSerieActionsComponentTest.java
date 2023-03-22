@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
+import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
 import javafx.scene.control.Button;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -39,6 +40,8 @@ class TvSerieActionsComponentTest {
     private LocaleText localeText;
     @Mock
     private DetailsComponentService detailsComponentService;
+    @Mock
+    private VideoQualityService videoQualityService;
     @Mock
     private URL url;
     @Mock

@@ -86,7 +86,8 @@
 }
 
 .root .movie-details .magnet-link,
-.root .show-details-section .magnet-link {
+.root .show-details-section .magnet-link,
+.root .show-details-section .health {
     visibility: hidden;
 }
 

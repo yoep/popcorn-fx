@@ -67,7 +67,9 @@ public class FavoriteService {
         Objects.requireNonNull(favorable, "favorable cannot be null");
         synchronized (lock) {
             log.trace("Adding favorite item {}", favorable);
-            fxLib.add_to_favorites(instance, MediaItem.from(favorable));
+            try (var mediaItem = MediaItem.from(favorable)) {
+                fxLib.add_to_favorites(instance, mediaItem);
+            }
         }
     }
 
@@ -102,13 +104,14 @@ public class FavoriteService {
     private FavoriteEventCallback createCallback() {
         return event -> {
             log.debug("Received favorite event callback {}", event);
+            event.close();
 
-            try {
-                for (var listener : listeners) {
+            for (var listener : listeners) {
+                try {
                     listener.callback(event);
+                } catch (Exception ex) {
+                    log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
                 }
-            } catch (Exception ex) {
-                log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
             }
         };
     }

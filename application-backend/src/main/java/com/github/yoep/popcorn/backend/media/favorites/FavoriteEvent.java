@@ -11,6 +11,7 @@ import lombok.ToString;
 import java.io.Closeable;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 
 @Getter
 @ToString
@@ -35,6 +36,7 @@ public class FavoriteEvent extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        getUnion().close();
     }
 
     @Getter
@@ -59,10 +61,17 @@ public class FavoriteEvent extends Structure implements Closeable {
 
     @Getter
     @ToString
-    public static class FavoriteEventCUnion extends Union {
+    public static class FavoriteEventCUnion extends Union implements Closeable {
         public static class ByValue extends FavoriteEventCUnion implements Union.ByValue {}
 
         public LikedStateChangedBody liked_state_changed;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            Optional.ofNullable(liked_state_changed)
+                    .ifPresent(LikedStateChangedBody::close);
+        }
     }
 
     public enum Tag implements NativeMapped {

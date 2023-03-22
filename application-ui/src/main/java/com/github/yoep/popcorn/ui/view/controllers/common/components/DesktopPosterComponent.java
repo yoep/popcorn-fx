@@ -12,15 +12,17 @@ import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
+import java.net.URL;
 import java.util.Objects;
+import java.util.ResourceBundle;
 
 @Slf4j
-public class DesktopPosterComponent extends TvPosterComponent {
+public class DesktopPosterComponent extends TvPosterComponent implements Initializable {
     static final String LIKED_STYLE_CLASS = "liked";
     static final String WATCHED_STYLE_CLASS = "seen";
 
@@ -45,22 +47,20 @@ public class DesktopPosterComponent extends TvPosterComponent {
     @FXML
     Tooltip favoriteTooltip;
 
-    @PostConstruct
     @Override
-    void init() {
-        super.init();
+    public void initialize(URL url, ResourceBundle resourceBundle) {
         watchedService.registerListener(event -> {
             if (event.getTag() == WatchedEvent.Tag.WatchedStateChanged) {
                 var stateChanged = event.getUnion().getWatched_state_changed();
-                if (Objects.equals(stateChanged.getImdbId(), media.getId())) {
+                if (media != null && Objects.equals(stateChanged.getImdbId(), media.getId())) {
                     updateWatchedState(stateChanged.getNewState());
                 }
             }
         });
-        favoriteService.removeListener(event -> {
+        favoriteService.registerListener(event -> {
             if (event.getTag() == FavoriteEvent.Tag.LikedStateChanged) {
                 var stateChanged = event.getUnion().getLiked_state_changed();
-                if (Objects.equals(stateChanged.getImdbId(), media.getId())) {
+                if (media != null && Objects.equals(stateChanged.getImdbId(), media.getId())) {
                     updateLikedState(stateChanged.getNewState());
                 }
             }

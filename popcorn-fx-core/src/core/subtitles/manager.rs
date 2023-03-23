@@ -1,11 +1,31 @@
 use std::ops::DerefMut;
 use std::sync::Arc;
 
+use derive_more::Display;
 use log::info;
 use tokio::sync::Mutex;
 
+use crate::core::{CoreCallback, CoreCallbacks};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
+
+/// The callback to listen on events of the subtitle manager.
+pub type SubtitleCallback = CoreCallback<SubtitleEvent>;
+
+/// The events of the subtitle manager.
+#[derive(Debug, Clone, Display)]
+pub enum SubtitleEvent {
+    /// Invoked when the preferred [SubtitleInfo] is changed.
+    ///
+    /// * The new subtitle information.
+    #[display(fmt = "Subtitle info changed to {:?}", _0)]
+    SubtitleInfoChanged(Option<SubtitleInfo>),
+    /// Invoked when the preferred [SubtitleLanguage] is changed.
+    ///
+    /// * The new preferred subtitle language
+    #[display(fmt = "Preferred subtitle language changed to {}", _0)]
+    PreferredLanguageChanged(SubtitleLanguage),
+}
 
 /// The subtitle manager manages the subtitle for the [Media] item playbacks.
 #[derive(Debug)]
@@ -18,6 +38,7 @@ pub struct SubtitleManager {
     custom_subtitle_file: Mutex<Option<String>>,
     /// Indicates if the subtitle has been disabled by the user
     disabled_by_user: Mutex<bool>,
+    callbacks: CoreCallbacks<SubtitleEvent>,
 }
 
 impl SubtitleManager {
@@ -25,7 +46,7 @@ impl SubtitleManager {
     ///
     /// It returns a reference of the preferred [SubtitleInfo] if present.
     pub fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
-        let mutex = self.subtitle_info.blocking_lock();
+        let mutex = futures::executor::block_on(self.subtitle_info.lock());
 
         if mutex.is_some() {
             mutex.clone()
@@ -114,6 +135,11 @@ impl SubtitleManager {
         info!("Subtitle has been reset for next media playback")
     }
 
+    /// Register a new callback listener for the [SubtitleEvent]'s.
+    pub fn register(&self, callback: SubtitleCallback) {
+        self.callbacks.add(callback)
+    }
+
     fn update_language(&self, preferred_language: SubtitleLanguage) {
         let arc = self.preferred_language.clone();
         let mut mutex = futures::executor::block_on(arc.lock());
@@ -122,11 +148,13 @@ impl SubtitleManager {
 
         *value = preferred_language;
         info!("Subtitle language has been updated to {}", language_text);
+        self.callbacks.invoke(SubtitleEvent::PreferredLanguageChanged(mutex.clone()));
     }
 
     fn update_subtitle_info(&self, subtitle: SubtitleInfo) {
         let mut mutex = self.subtitle_info.blocking_lock();
         let _ = mutex.insert(subtitle);
+        self.callbacks.invoke(SubtitleEvent::SubtitleInfoChanged(mutex.clone()));
     }
 
     fn update_disabled_state(&self, new_state: bool) {
@@ -143,12 +171,16 @@ impl Default for SubtitleManager {
             preferred_language: Arc::new(Mutex::new(SubtitleLanguage::None)),
             custom_subtitle_file: Mutex::new(None),
             disabled_by_user: Mutex::new(false),
+            callbacks: Default::default(),
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
     use crate::testing::init_logger;
 
     use super::*;
@@ -170,6 +202,32 @@ mod test {
         assert_eq!(Some(subtitle), subtitle_result);
         assert_eq!(SubtitleLanguage::Croatian, language_result);
         assert_eq!(false, manager.is_disabled())
+    }
+
+    #[test]
+    fn test_subtitle_info_changed() {
+        init_logger();
+        let subtitle = SubtitleInfo::new(
+            "tt1234555".to_string(),
+            SubtitleLanguage::Spanish,
+        );
+        let (tx_info, rx_info) = channel();
+        let (tx_lang, rx_lang) = channel();
+        let manager = SubtitleManager::default();
+
+        manager.register(Box::new(move |event| {
+            match event {
+                SubtitleEvent::SubtitleInfoChanged(info) => tx_info.send(info).unwrap(),
+                SubtitleEvent::PreferredLanguageChanged(lang) => tx_lang.send(lang).unwrap(),
+            }
+        }));
+        manager.update_subtitle(subtitle.clone());
+
+        let info = rx_info.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(Some(subtitle), info);
+
+        let lang = rx_lang.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(SubtitleLanguage::Spanish, lang);
     }
 
     #[test]

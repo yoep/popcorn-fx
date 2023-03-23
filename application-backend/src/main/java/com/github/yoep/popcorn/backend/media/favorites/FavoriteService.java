@@ -106,13 +106,15 @@ public class FavoriteService {
             log.debug("Received favorite event callback {}", event);
             event.close();
 
-            for (var listener : listeners) {
-                try {
-                    listener.callback(event);
-                } catch (Exception ex) {
-                    log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
+            new Thread(() -> {
+                for (var listener : listeners) {
+                    try {
+                        listener.callback(event);
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
+                    }
                 }
-            }
+            }, "FavoriteEventCallbackHandler").start();
         };
     }
 }

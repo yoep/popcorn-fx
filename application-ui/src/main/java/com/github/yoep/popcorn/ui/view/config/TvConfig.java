@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.ui.view.controllers.common.components.TvPosterCom
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
@@ -47,16 +48,18 @@ public class TvConfig {
     @ConditionalOnTvMode
     public TvMovieActionsComponent tvMovieActionsComponent(EventPublisher eventPublisher,
                                                            SubtitleService subtitleService,
+                                                           VideoQualityService videoQualityService,
                                                            LocaleText localeText,
                                                            DetailsComponentService detailsComponentService) {
-        return new TvMovieActionsComponent(eventPublisher, subtitleService, localeText, detailsComponentService);
+        return new TvMovieActionsComponent(eventPublisher, subtitleService, videoQualityService, localeText, detailsComponentService);
     }
 
     @Bean
     @ConditionalOnTvMode
     public TvSerieEpisodeActionsComponent tvSerieEpisodeActionsComponent(EventPublisher eventPublisher,
-                                                                  SubtitleService subtitleService) {
-        return new TvSerieEpisodeActionsComponent(eventPublisher, subtitleService);
+                                                                         SubtitleService subtitleService,
+                                                                         VideoQualityService videoQualityService) {
+        return new TvSerieEpisodeActionsComponent(eventPublisher, subtitleService, videoQualityService);
     }
 
     @Bean

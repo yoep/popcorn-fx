@@ -3,14 +3,14 @@ use std::ptr;
 
 use log::trace;
 
-use crate::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
-use crate::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
-use crate::core::subtitles::language::SubtitleLanguage;
-use crate::core::subtitles::matcher::SubtitleMatcher;
-use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::subtitles::SubtitleFile;
+use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
+use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
+use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
+use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
 
-/// The C compatible struct for [SubtitleInfo].
+/// The C compatible [SubtitleInfo] representation.
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubtitleInfoC {
@@ -102,15 +102,37 @@ impl From<SubtitleInfoC> for SubtitleInfo {
     }
 }
 
+/// The C compatible [SubtitleEvent] representation
+#[repr(C)]
+#[derive(Debug)]
+pub enum SubtitleEventC {
+    SubtitleInfoChanged(*mut SubtitleInfoC),
+    PreferredLanguageChanged(SubtitleLanguage),
+}
+
+impl From<SubtitleEvent> for SubtitleEventC {
+    fn from(value: SubtitleEvent) -> Self {
+        trace!("Converting SubtitleEvent to C for {:?}", value);
+        match value {
+            SubtitleEvent::SubtitleInfoChanged(info) => SubtitleEventC::SubtitleInfoChanged(info
+                .map(|e| into_c_owned(SubtitleInfoC::from(e)))
+                .or_else(|| Some(ptr::null_mut()))
+                .unwrap()),
+            SubtitleEvent::PreferredLanguageChanged(language) => SubtitleEventC::PreferredLanguageChanged(language),
+        }
+    }
+}
+
+/// The C compatible [SubtitleFile] representation.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleFileC {
-    file_id: i32,
-    name: *const c_char,
-    url: *const c_char,
-    score: f32,
-    downloads: i32,
-    quality: *const i32,
+    pub file_id: i32,
+    pub name: *const c_char,
+    pub url: *const c_char,
+    pub score: f32,
+    pub downloads: i32,
+    pub quality: *const i32,
 }
 
 impl From<SubtitleFile> for SubtitleFileC {
@@ -371,7 +393,8 @@ impl StyledTextC {
 
 #[cfg(test)]
 mod test {
-    use crate::testing::init_logger;
+    use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+    use popcorn_fx_core::testing::init_logger;
 
     use super::*;
 
@@ -472,6 +495,31 @@ mod test {
         let result = Subtitle::from(subtitle_c);
 
         assert_eq!(subtitle, result)
+    }
+
+    #[test]
+    fn test_from_subtitle_event() {
+        init_logger();
+        let imdb_id = "tt122121";
+        let info_none_event = SubtitleEvent::SubtitleInfoChanged(None);
+        let subtitle_info = SubtitleInfo::new(imdb_id.to_string(), SubtitleLanguage::Finnish);
+        let info_event = SubtitleEvent::SubtitleInfoChanged(Some(subtitle_info.clone()));
+
+        let info_event_result = SubtitleEventC::from(info_event);
+
+        match SubtitleEventC::from(info_none_event) {
+            SubtitleEventC::SubtitleInfoChanged(info) => assert_eq!(ptr::null_mut(), info),
+            _ => assert!(false, "expected SubtitleEventC::SubtitleInfoChanged"),
+        }
+        match info_event_result {
+            SubtitleEventC::SubtitleInfoChanged(info) => {
+                let subtitle_info_c = from_c_owned(info);
+
+                assert_eq!(imdb_id.to_string(), from_c_string(subtitle_info_c.imdb_id));
+                assert_eq!(SubtitleLanguage::Finnish, subtitle_info_c.language);
+            },
+            _ => assert!(false, "expected SubtitleEventC::SubtitleInfoChanged"),
+        }
     }
 
     fn create_simple_subtitle() -> Subtitle {

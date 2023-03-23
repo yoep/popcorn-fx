@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
+import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
@@ -126,7 +127,9 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
 
     public void setItems(T... items) {
         clear();
-        addAll(items);
+
+        if (items != null)
+            addAll(items);
     }
 
     public void scrollTo(T item) {
@@ -134,25 +137,25 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
     }
 
     public void scrollTo(T item, boolean focus) {
-        Optional.ofNullable(items.get(item))
-                .ifPresent(e -> {
-                    var contentLocalBounds = getContent().getBoundsInLocal();
-                    var x = e.getBoundsInParent().getMaxX();
-                    var y = e.getBoundsInParent().getMaxY();
+        Optional.ofNullable(items.get(item)).ifPresent(e -> {
+            var contentLocalBounds = getContent().getBoundsInLocal();
+            var x = e.getBoundsInParent().getMaxX();
+            var y = e.getBoundsInParent().getMaxY();
 
-                    if (y - e.getBoundsInParent().getHeight() == 0) {
-                        y = 0;
-                    }
-                    if (x - e.getBoundsInParent().getWidth() == 0) {
-                        x = 0;
-                    }
+            if (y - e.getBoundsInParent().getHeight() == 0) {
+                y = 0;
+            }
+            if (x - e.getBoundsInParent().getWidth() == 0) {
+                x = 0;
+            }
 
-                    setVvalue(y / contentLocalBounds.getHeight());
-                    setHvalue(x / contentLocalBounds.getWidth());
+            setVvalue(y / contentLocalBounds.getHeight());
+            setHvalue(x / contentLocalBounds.getWidth());
 
-                    if (focus)
-                        e.requestFocus();
-                });
+            if (focus) {
+                tryFocussingNode(0, e);
+            }
+        });
     }
 
     @Override
@@ -169,6 +172,21 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
                 return;
             }
         }
+    }
+
+    private void tryFocussingNode(int attempt, Node node) {
+        if (node == null)
+            return;
+
+        Platform.runLater(() -> {
+            node.requestFocus();
+            if (node.isFocused())
+                return;
+
+            if (attempt < 15) {
+                tryFocussingNode(attempt + 1, node);
+            }
+        });
     }
 
     private void clear() {
@@ -199,6 +217,7 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         this.setHbarPolicy(ScrollBarPolicy.NEVER);
         this.setVbarPolicy(ScrollBarPolicy.NEVER);
         this.getStyleClass().add(STYLE_CLASS);
+        this.setFocusTraversable(true);
 
         items.addListener((MapChangeListener<? super T, ? super Node>) change -> {
             if (change.wasRemoved()) {

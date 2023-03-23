@@ -13,6 +13,7 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
+import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -46,9 +47,9 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
     @FXML
     Icon favoriteIcon;
 
-    public TvMovieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, LocaleText localeText,
-                                   DetailsComponentService detailsComponentService) {
-        super(eventPublisher, subtitleService);
+    public TvMovieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, VideoQualityService videoQualityService,
+                                   LocaleText localeText, DetailsComponentService detailsComponentService) {
+        super(eventPublisher, subtitleService, videoQualityService);
         this.localeText = localeText;
         this.detailsComponentService = detailsComponentService;
     }
@@ -71,6 +72,11 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
                 if (media != null && media.getImdbId().equals(imdbId)) {
                     Platform.runLater(() -> updateFavoriteState());
                 }
+            }
+        });
+        qualityOverlay.shownProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                Platform.runLater(() -> qualities.setSelectedItem(videoQualityService.getDefaultVideoResolution(qualities.getItems()), true));
             }
         });
     }
@@ -100,9 +106,6 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
         Platform.runLater(() -> {
             updateQualities();
             updateFavoriteState();
-
-            qualityOverlay.hide();
-            subtitleOverlay.hide();
 
             watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
             watchNowButton.requestFocus();

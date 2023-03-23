@@ -9,6 +9,7 @@
 <HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvMovieActionsComponent"
       alignment="CENTER_LEFT" spacing="5">
+
     <Button fx:id="watchNowButton" styleClass="watch-now" text="%details_watch_now">
         <graphic>
             <Icon>

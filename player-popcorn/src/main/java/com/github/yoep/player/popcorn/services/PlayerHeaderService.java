@@ -3,15 +3,12 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
-import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayStreamRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,19 +21,12 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderListener> {
-    private final PopcornPlayer player;
     private final VideoService videoService;
-    private final EventPublisher eventPublisher;
 
     private final PlaybackListener listener = createListener();
     private final TorrentListener torrentListener = createTorrentListener();
 
     private TorrentStream lastKnownTorrent;
-
-    public void closePlayer() {
-        player.stop();
-        eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
-    }
 
     @PostConstruct
     void init() {

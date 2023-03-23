@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -64,12 +65,8 @@ public class Overlay extends GridPane {
 
     //endregion
 
-    public void show() {
+    public synchronized void show() {
         if (!isShown()) {
-            if (attachedParent.get() == null) {
-                attachToParent(getParent());
-            }
-
             var children = attachedParent.get().getChildren();
             children.add(children.size(), this);
             setShown(true);
@@ -78,7 +75,7 @@ public class Overlay extends GridPane {
         doInternalFocusRequest();
     }
 
-    public void hide() {
+    public synchronized void hide() {
         var attachedParent = this.attachedParent.get();
         if (attachedParent == null)
             return;
@@ -100,13 +97,13 @@ public class Overlay extends GridPane {
         getRowConstraints().add(0, resizingRow());
         getRowConstraints().add(1, new RowConstraints());
         getRowConstraints().add(2, resizingRow());
+        setMaxHeight(0d);
 
         AnchorPane.setTopAnchor(this, 0d);
         AnchorPane.setRightAnchor(this, 0d);
         AnchorPane.setBottomAnchor(this, 0d);
         AnchorPane.setLeftAnchor(this, 0d);
 
-        setOnKeyTyped(this::onKeyPressed);
         setOnKeyPressed(this::onKeyPressed);
         setOnMouseClicked(this::onMouseClicked);
 
@@ -115,8 +112,13 @@ public class Overlay extends GridPane {
 
     private void initializeListeners() {
         getChildren().addListener((ListChangeListener<? super Node>) Overlay::onChildrenChanged);
-        attachedParent.addListener((observable, oldValue, newValue) -> ((Pane) getParent()).getChildren().remove(this));
-        sceneProperty().addListener((observable, oldValue, newValue) -> updateParentIfNeeded());
+        attachedParent.addListener((observable, oldValue, newValue) -> {
+            onAttachedParentChanged();
+        });
+        sceneProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null)
+                updateParentIfNeeded();
+        });
         parentProperty().addListener((observable, oldValue, newValue) -> updateParentIfNeeded());
         focusWithinProperty().addListener((observable, oldValue, newValue) -> {
             if (!newValue && isShown()) {
@@ -145,7 +147,11 @@ public class Overlay extends GridPane {
 
     private void updateParentIfNeeded() {
         if (attachedParent.get() == null) {
-            attachToParent(getParent());
+            Platform.runLater(() -> {
+                attachToParent(getParent());
+                if (attachedParent.get() == null)
+                    updateParentIfNeeded();
+            });
         }
     }
 
@@ -170,17 +176,34 @@ public class Overlay extends GridPane {
         lastKnownFocusNode = Optional.ofNullable(getScene())
                 .map(Scene::getFocusOwner)
                 .orElse(null);
-        for (Node child : getChildren()) {
-            var node = findFocusableNode(child);
-            if (node != null) {
-                node.requestFocus();
-                break;
+        doInternalFocusRequest(0);
+    }
+
+    private void doInternalFocusRequest(int attempt) {
+        Platform.runLater(() -> {
+            for (Node child : getChildren()) {
+                var node = findFocusableNode(child);
+                if (node != null) {
+                    node.requestFocus();
+
+                    if (node.isFocused())
+                        return;
+                }
             }
-        }
+
+            if (attempt < 15)
+                doInternalFocusRequest(attempt + 1);
+        });
+    }
+
+    private synchronized void onAttachedParentChanged() {
+        var children = ((Pane) getParent()).getChildren();
+        children.removeIf(e -> e == this);
     }
 
     private void attachToParent(Parent parent) {
         if (parent instanceof AnchorPane pane) {
+            setMaxHeight(USE_COMPUTED_SIZE);
             attachedParent.set(pane);
             log.trace("Overlay has been attached to {}", pane);
         } else if (parent != null) {

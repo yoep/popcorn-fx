@@ -86,7 +86,8 @@
 }
 
 .root .movie-details .magnet-link,
-.root .show-details-section .magnet-link {
+.root .show-details-section .magnet-link,
+.root .show-details-section .health {
     visibility: hidden;
 }
 
@@ -265,40 +266,6 @@
     -fx-padding: 0 15 0 15;
 }
 
-.root .player .player-controls {
-    -fx-min-width: 500;
-    -fx-max-width: 500;
-    -fx-background-color: rgba(0, 0, 0, 0.6);
-    -fx-background-radius: 1em;
-    -fx-padding: 10 20 10 20;
-}
-
-.root .player .player-controls .control-button {
-    -fx-pref-width: 50;
-    -fx-pref-height: 50;
-    -fx-background-radius: 10;
-    -fx-border-color: #ccc;
-    -fx-border-width: 2;
-    -fx-border-radius: 10;
-    -fx-cursor: hand;
-    -fx-font-size: 2em;
-    -fx-text-fill: #ccc;
-    -fx-alignment: center;
-}
-
-.root .player .player-controls .control-button:hover,
-.root .player .player-controls .control-button:focused {
-    -fx-background-color: rgba(45, 114, 217, 0.6);
-    -fx-border-color: #fff;
-    -fx-text-fill: #fff;
-}
-
-.root .player .player-controls .time {
-    -fx-font-family: "Open Sans Semibold";
-    -fx-text-fill: #fff;
-    -fx-font-size: 1.25em;
-}
-
 .root .content-section .settings-section .settings-title {
     -fx-font-size: 2em;
 }
@@ -342,7 +309,7 @@
 }
 
 .root .content-section .sidebar .icon-text {
-    -fx-pref-width: 250px;
+    -fx-pref-width: 300px;
     -fx-font-size: 2em;
 }
 
@@ -556,3 +523,50 @@
 }
 
 /* endregion */
+
+/* region Player */
+
+.root .player .player-header .title {
+    -fx-font-family: "Open Sans Bold";
+    -fx-font-size: 2.25em;
+}
+
+.root .player .player-controls {
+    -fx-max-width: 750;
+    -fx-background-color: rgba(24, 25, 28, 0.65);
+    -fx-background-radius: 0.5em;
+    -fx-padding: 10 20 10 20;
+}
+
+.root .player .player-controls .progress {
+    -fx-min-height: 1.75em;
+    -fx-max-height: 1.75em;
+}
+
+.root .player .player-controls .icon {
+    -fx-pref-width: 2.25em;
+    -fx-pref-height: 2.25em;
+    -fx-font-size: 3em;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+    -fx-background-color: rgba(11, 27, 51, 0.5);
+    -fx-border-color: #808080;
+    -fx-border-width: 3 3 3 3;
+    -fx-border-radius: 0.2em;
+    -fx-cursor: hand;
+}
+
+.root .player .player-controls .icon:hover,
+.root .player .player-controls .icon:focused {
+    -fx-background-color: rgba(28, 68, 128, 0.5);
+    -fx-border-color: #2d72d9;
+}
+
+.root .player .player-controls .time {
+    -fx-min-width: 4em;
+    -fx-font-size: 1.75em;
+    -fx-font-family: "Open Sans Bold";
+    -fx-text-fill: #fff;
+}
+
+/* end region */

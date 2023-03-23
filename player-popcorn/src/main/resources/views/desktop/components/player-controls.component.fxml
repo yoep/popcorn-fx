@@ -6,7 +6,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.player.popcorn.controllers.components.PlayerControlsComponent"
+          fx:controller="com.github.yoep.player.popcorn.controllers.components.DesktopPlayerControlsComponent"
           styleClass="player-controls">
     <columnConstraints>
         <ColumnConstraints minWidth="42"/>
@@ -40,7 +40,7 @@
            GridPane.columnIndex="3" GridPane.rowIndex="0"/>
 
     <!-- Subtitle -->
-    <fx:include fx:id="subtitleSection" source="player-subtitle.component.fxml"
+    <fx:include fx:id="subtitleSection" source="../../common/components/player-subtitle.component.fxml"
                 GridPane.columnIndex="4" GridPane.rowIndex="0"/>
 
     <!-- Volume -->

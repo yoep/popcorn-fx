@@ -18,6 +18,7 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -76,7 +77,7 @@ public interface FxLib extends Library {
 
     Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
 
-    Subtitle parse_subtitle(PopcornFx instance, String filePath);
+    void register_subtitle_callback(PopcornFx instance, SubtitleEventCallback callback);
 
     MediaSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 

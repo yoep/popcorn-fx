@@ -4,6 +4,8 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,14 +13,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PlayerEventServiceTest {
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private PlayerManagerService playerService;
     @InjectMocks
@@ -115,5 +121,16 @@ class PlayerEventServiceTest {
         listenerHolder.get().onStateChanged(PlayerState.BUFFERING);
 
         verify(listener, times(0)).onStateChanged(isA(PlayerState.class));
+    }
+
+    @Test
+    void testOnClosePlayerEvent() {
+        var player = mock(Player.class);
+        when(playerService.getActivePlayer()).thenReturn(Optional.of(player));
+        service.init();
+
+        eventPublisher.publish(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
+
+        verify(player).stop();
     }
 }

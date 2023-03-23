@@ -177,12 +177,8 @@ public class DesktopMovieActionsComponent implements Initializable {
             if (newValue.isCustom()) {
                 detailsComponentService.onCustomSubtitleSelected(() ->
                         languageSelection.select(subtitleService.none()));
-            } else {
-                if (newValue.isNone()) {
-                    subtitleService.disableSubtitle();
-                } else {
-                    subtitleService.updateSubtitle(newValue);
-                }
+            } else if (newValue.isNone()) {
+                subtitleService.disableSubtitle();
             }
         };
     }

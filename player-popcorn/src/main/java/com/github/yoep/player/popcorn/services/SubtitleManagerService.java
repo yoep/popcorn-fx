@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleEvent;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -149,15 +150,30 @@ public class SubtitleManagerService {
     }
 
     private void initializeSubtitleListener() {
-        subtitleService.activeSubtitleProperty().addListener((observable, oldValue, newValue) ->
-                Optional.ofNullable(newValue)
-                        .flatMap(Subtitle::getSubtitleInfo)
-                        .ifPresent(this::onSubtitleChanged));
+        subtitleService.register(event -> {
+            if (event.getTag() == SubtitleEvent.Tag.SubtitleInfoChanged) {
+                Optional.ofNullable(event.getUnion())
+                        .map(SubtitleEvent.SubtitleEventCUnion::getSubtitle_info_changed)
+                        .map(SubtitleEvent.SubtitleInfoChanged_Body::getSubtitleInfo)
+                        .ifPresent(this::onSubtitleChanged);
+            }
+        });
+        videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> onVideoPlayerChanged(newValue));
     }
 
     //endregion
 
     //region Functions
+
+    private void onVideoPlayerChanged(VideoPlayback newPlayer) {
+        if (newPlayer == null)
+            return;
+
+        // invoke the subtitle changed again for the new player
+        subtitleService.preferredSubtitle()
+                .filter(e -> !e.isNone())
+                .ifPresent(this::onSubtitleChanged);
+    }
 
     private void onSubtitleDownloaded(Subtitle subtitle) {
         var videoPlayerOptional = videoService.getVideoPlayer();
@@ -178,8 +194,7 @@ public class SubtitleManagerService {
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
         // check if the subtitle is being disabled
         // if so, update the subtitle to none and ignore the subtitle download & parsing
-        if (isSubtitleAlreadyActive(subtitleInfo) || subtitleService.isDisabled() ||
-                subtitleInfo == null || subtitleInfo.isNone()) {
+        if (subtitleService.isDisabled() || subtitleInfo == null || subtitleInfo.isNone()) {
             log.trace("Subtitle change ignore on popcorn player for {}", subtitleInfo);
             invokeListeners(SubtitleListener::onSubtitleDisabled);
             return;

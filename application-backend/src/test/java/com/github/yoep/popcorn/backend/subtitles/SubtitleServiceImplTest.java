@@ -12,6 +12,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -63,10 +68,29 @@ class SubtitleServiceImplTest {
         var subtitle = new SubtitleInfo();
         subtitle.imdbId = "tt111111";
         subtitle.language = SubtitleLanguage.ENGLISH;
-        var expectedResult = new SubtitleInfo[] {subtitle};
+        var expectedResult = new SubtitleInfo[]{subtitle};
 
         service.getDefaultOrInterfaceLanguage(Collections.singletonList(subtitle));
 
         verify(fxLib).select_or_default_subtitle(instance, expectedResult, 1);
+    }
+
+    @Test
+    void testSubtitleEventCallback() throws ExecutionException, InterruptedException, TimeoutException {
+        var eventFuture = new CompletableFuture<SubtitleEvent.ByValue>();
+        var callbackHolder = new AtomicReference<SubtitleEventCallback>();
+        var event = mock(SubtitleEvent.ByValue.class);
+        doAnswer(invocation -> {
+            callbackHolder.set(invocation.getArgument(1));
+            return null;
+        }).when(fxLib).register_subtitle_callback(eq(instance), isA(SubtitleEventCallback.class));
+        var service = new SubtitleServiceImpl(fxLib, instance);
+        service.register(eventFuture::complete);
+
+        var callback = callbackHolder.get();
+        callback.callback(event);
+
+        var result = eventFuture.get(200, TimeUnit.MILLISECONDS);
+        assertEquals(event, result);
     }
 }

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.player.popcorn.controls.StreamInfo?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.player.popcorn.controllers.components.DesktopHeaderActionsComponent"
+      styleClass="stats" alignment="CENTER_RIGHT">
+    <Label fx:id="quality" styleClass="player-quality" cache="true"/>
+
+    <StreamInfo fx:id="streamInfo" cache="true">
+        <Icon fx:constant="EYE_UNICODE"/>
+    </StreamInfo>
+
+    <Icon id="closePlayer" styleClass="close-button" onMouseClicked="#onCloseClicked" onKeyPressed="#onClosePressed" focusTraversable="true" cache="true">
+        <padding>
+            <Insets right="15"/>
+        </padding>
+        <Icon fx:constant="TIMES_UNICODE"/>
+    </Icon>
+</HBox>

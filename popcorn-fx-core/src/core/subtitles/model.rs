@@ -71,6 +71,7 @@ impl SubtitleType {
 #[derive(Debug, Clone, Display)]
 #[display(fmt = "imdb_id: {:?}, language: {}", imdb_id, language)]
 pub struct SubtitleInfo {
+    /// The IMDB ID of the subtitle title.
     imdb_id: Option<String>,
     language: SubtitleLanguage,
     files: Option<Vec<SubtitleFile>>,

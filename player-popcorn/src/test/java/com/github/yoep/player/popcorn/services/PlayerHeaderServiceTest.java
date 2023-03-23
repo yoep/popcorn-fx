@@ -2,12 +2,9 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
-import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.player.model.StreamPlayRequest;
@@ -16,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,13 +23,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PlayerHeaderServiceTest {
     @Mock
-    private PopcornPlayer player;
-    @Mock
     private VideoService videoService;
     @Mock
     private PlayerHeaderListener listener;
-    @Spy
-    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerHeaderService service;
 
@@ -47,14 +39,6 @@ class PlayerHeaderServiceTest {
         }).when(videoService).addListener(isA(PlaybackListener.class));
 
         service.addListener(listener);
-    }
-
-    @Test
-    void testStop_whenInvokeD_shouldStopThePlayer() {
-        service.closePlayer();
-
-        verify(player).stop();
-        verify(eventPublisher).publishEvent(new ClosePlayerEvent(service, ClosePlayerEvent.Reason.USER));
     }
 
     @Test

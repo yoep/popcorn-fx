@@ -4,47 +4,17 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Async;
 
-import java.io.File;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public interface SubtitleService {
-    /**
-     * Get the current subtitle of the video player.
-     *
-     * @return Returns the subtitle.
-     * @deprecated Use {@link SubtitleService#preferredSubtitle()} instead.
-     */
-    @Deprecated
-    Optional<Subtitle> getActiveSubtitle();
-
-    /**
-     * Get the subtitle property.
-     *
-     * @return Returns the subtitle property.
-     */
-    @Deprecated
-    ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty();
-
-    /**
-     * Set the subtitle for the video player.
-     *
-     * @param activeSubtitle The subtitle for the video player.
-     * @deprecated Use {@link SubtitleService#updateSubtitle(SubtitleInfo)} instead.
-     */
-    @Deprecated
-    void setActiveSubtitle(Subtitle activeSubtitle);
-
     /**
      * Verify if the subtitle is disabled by the user.
      *
@@ -90,16 +60,6 @@ public interface SubtitleService {
      */
     @Async
     CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(String filename);
-
-    /**
-     * Parse the given SRT file to a list of {@link SubtitleCue}'s.
-     *
-     * @param file     The SRT file to parse.
-     * @param encoding The encoding of the SRT file.
-     * @return Returns the parsed subtitle.
-     */
-    @Async
-    CompletableFuture<Subtitle> parse(File file, Charset encoding);
 
     @Async
     CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher matcher);
@@ -161,6 +121,11 @@ public interface SubtitleService {
      * @param subtitleFilepath The filepath to the custom subtitle file.
      */
     void updateCustomSubtitle(String subtitleFilepath);
+
+    /**
+     * Register a new subtitle callback which will be invoked for new {@link SubtitleEvent}'s.
+     */
+    void register(SubtitleEventCallback callback);
 
     /**
      * Disable the subtitle track.

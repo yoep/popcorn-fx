@@ -4,7 +4,6 @@ import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.controls.Volume;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import javafx.beans.property.BooleanProperty;
@@ -20,9 +19,12 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,11 +32,9 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class PlayerControlsComponentIT {
+class DesktopPlayerControlsComponentTest {
     @Mock
     private PlayerControlsService playerControlsService;
-    @Mock
-    private PlatformProvider platformProvider;
     @Mock
     private URL location;
     @Mock
@@ -44,7 +44,7 @@ class PlayerControlsComponentIT {
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
-    private PlayerControlsComponent component;
+    private DesktopPlayerControlsComponent component;
 
     private final AtomicReference<PlayerControlsListener> listenerHolder = new AtomicReference<>();
     private final BooleanProperty valueChangingProperty = new SimpleBooleanProperty();
@@ -52,11 +52,6 @@ class PlayerControlsComponentIT {
 
     @BeforeEach
     void setUp() {
-        lenient().doAnswer(invocationOnMock -> {
-            var runnable = invocationOnMock.getArgument(0, Runnable.class);
-            runnable.run();
-            return null;
-        }).when(platformProvider).runOnRenderer(isA(Runnable.class));
         lenient().doAnswer(invocationOnMock -> {
             listenerHolder.set(invocationOnMock.getArgument(0, PlayerControlsListener.class));
             return null;
@@ -104,20 +99,20 @@ class PlayerControlsComponentIT {
     }
 
     @Test
-    void testPlayerListener_whenDurationIsChanged_shouldUpdateDurationLabel() {
+    void testPlayerListener_whenDurationIsChanged_shouldUpdateDurationLabel() throws TimeoutException {
         component.initialize(location, resources);
 
         listenerHolder.get().onPlayerDurationChanged(1200000);
 
-        assertEquals("20:00", component.durationLabel.getText());
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.durationLabel.getText().equals("20:00"));
     }
 
     @Test
-    void testPlayerListener_whenTimeIsChanged_shouldUpdateTimeLabel() {
+    void testPlayerListener_whenTimeIsChanged_shouldUpdateTimeLabel() throws TimeoutException {
         component.initialize(location, resources);
 
         listenerHolder.get().onPlayerTimeChanged(100000);
 
-        assertEquals("01:40", component.timeLabel.getText());
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.timeLabel.getText().equals("01:40"));
     }
 }

@@ -116,7 +116,7 @@ public class PlayerStopService {
             return;
 
         // clean the current active subtitle
-        subtitleService.setActiveSubtitle(null);
+        subtitleService.updateSubtitle(subtitleService.none());
 
         log.trace("Publishing player stopped event with info: [time: {}, duration: {}]", time, duration);
         eventPublisher.publishEvent(PlayerStoppedEvent.builder()

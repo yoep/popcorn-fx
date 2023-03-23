@@ -8,6 +8,8 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieActionsComponent;
+import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import lombok.extern.slf4j.Slf4j;
@@ -28,16 +30,17 @@ public class TvSerieEpisodeActionsComponent extends AbstractActionsComponent imp
     @FXML
     Button watchNowButton;
 
-    public TvSerieEpisodeActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService) {
-        super(eventPublisher, subtitleService);
+    public TvSerieEpisodeActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, VideoQualityService videoQualityService) {
+        super(eventPublisher, subtitleService, videoQualityService);
     }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         super.initialize(url, resourceBundle);
         qualityOverlay.shownProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue && eventHandler != null) {
+            if (newValue) {
                 eventHandler.run();
+                Platform.runLater(() -> qualities.setSelectedItem(videoQualityService.getDefaultVideoResolution(qualities.getItems()), true));
             }
         });
     }

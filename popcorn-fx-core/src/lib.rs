@@ -107,10 +107,12 @@ pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
 #[cfg(feature = "testing")]
 pub mod testing {
     use std::{env, fs};
+    use std::fs::OpenOptions;
+    use std::io::Read;
     use std::path::PathBuf;
     use std::sync::Once;
 
-    use log::{LevelFilter, trace};
+    use log::{debug, LevelFilter, trace};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::Config;
     use log4rs::config::{Appender, Logger, Root};
@@ -188,7 +190,18 @@ pub mod testing {
 
         trace!("Reading temp filepath {:?}", path);
         if path.exists() {
-            fs::read_to_string(path).unwrap()
+            let mut content = String::new();
+            match OpenOptions::new()
+                .read(true)
+                .open(&path)
+                .unwrap()
+                .read_to_string(&mut content) {
+                Ok(e) => {
+                    debug!("Read temp file {:?} with size {}", path, e);
+                    content
+                }
+                Err(e) => panic!("Failed to read temp file, {}", e)
+            }
         } else {
             panic!("Temp filepath {:?} does not exist", path)
         }

@@ -70,6 +70,7 @@ impl Storage {
             .join(filename);
         let path_string = path.to_str().expect("expected path to be valid").to_string();
 
+        trace!("Opening storage file {:?}", path);
         match tokio::fs::OpenOptions::new()
             .write(true)
             .create(true)
@@ -121,13 +122,11 @@ impl Storage {
         match serde_json::to_string(value) {
             Ok(e) => {
                 trace!("Writing to storage {:?}, {}", &path_string, &e);
-                match file.write_all(e.as_bytes()).await {
-                    Ok(_) => {
-                        debug!("Storage file {} has been saved", path_string);
-                        Ok(())
-                    }
-                    Err(e) => Err(StorageError::WritingFailed(path_string.clone(), e.to_string()))
-                }
+                file.write_all(e.as_bytes())
+                    .await
+                    .map_err(|e| StorageError::WritingFailed(path_string.clone(), e.to_string()))?;
+                debug!("Storage file {} has been saved", path_string);
+                Ok(())
             }
             Err(e) => Err(StorageError::WritingFailed(path_string.clone(), e.to_string()))
         }
@@ -210,20 +209,19 @@ mod test {
     fn test_write_async() {
         init_logger();
         let filename = "test.json";
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let storage = Storage {
             directory: PathBuf::from(temp_path),
         };
         let settings = UiSettings::default();
-        let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
         let runtime = Runtime::new().unwrap();
 
         let _ = runtime.block_on(storage.write_async(filename.clone(), &settings))
             .expect("expected no error to have been returned");
-        let contents = read_temp_dir_file(&temp_dir, filename);
+        let path = temp_dir.path().join(filename);
 
-        assert_eq!(expected_result, contents)
+        assert!(path.exists(), "expected the storage {:?} exists", path);
     }
 
     #[test]

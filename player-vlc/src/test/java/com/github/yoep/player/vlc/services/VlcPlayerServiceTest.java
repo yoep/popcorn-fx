@@ -231,8 +231,8 @@ class VlcPlayerServiceTest {
 
         service.play(SimplePlayRequest.builder().build());
 
-        verify(listener, timeout(1500)).onTimeChanged(200L);
-        verify(listener).onDurationChanged(56000L);
-        verify(listener).onStateChanged(VlcState.PAUSED);
+        verify(listener, timeout(1200)).onTimeChanged(200L);
+        verify(listener, timeout(200)).onDurationChanged(56000L);
+        verify(listener, timeout(200)).onStateChanged(VlcState.PAUSED);
     }
 }

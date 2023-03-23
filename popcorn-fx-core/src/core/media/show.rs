@@ -4,16 +4,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::media::{Episode, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating};
 
+/// The show media information of a specific serie.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "{{ShowOverview: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
 pub struct ShowOverview {
-    imdb_id: String,
-    tvdb_id: String,
-    title: String,
-    year: String,
-    num_seasons: i32,
-    images: Images,
-    rating: Option<Rating>,
+    pub imdb_id: String,
+    pub tvdb_id: String,
+    pub title: String,
+    pub year: String,
+    pub num_seasons: i32,
+    pub images: Images,
+    pub rating: Option<Rating>,
 }
 
 impl ShowOverview {

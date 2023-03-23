@@ -6,9 +6,14 @@ use mockall::automock;
 use crate::core::media::{Category, MediaDetails};
 
 /// The enhancer allows [Media] items to be enhanced before they're returned by the [ProviderManager].
+///
+/// ## async
+///
+/// The Enhancer should be able to be send across threads in a safe manner.
+/// This means that each implementation must guarantee [Send] & [Sync] compatibility.
 #[automock]
 #[async_trait]
-pub trait Enhancer : Debug {
+pub trait Enhancer : Debug + Send + Sync {
     /// Verify if this enhancer supports the given [Category].
     /// 
     /// Returns true when this enhance supports the given category.

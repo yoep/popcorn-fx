@@ -11,11 +11,14 @@ use crate::core::media::{Images, MediaDetails, MediaIdentifier, MediaOverview, M
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "MovieOverview: {{imdb_id: {}, title: {}, year: {}}}", imdb_id, title, year)]
 pub struct MovieOverview {
-    title: String,
-    imdb_id: String,
-    year: String,
-    rating: Option<Rating>,
-    images: Images,
+    /// The title of the movie
+    pub title: String,
+    /// The IMDB identifier of the movie
+    pub imdb_id: String,
+    /// The year the movie has been released
+    pub year: String,
+    pub rating: Option<Rating>,
+    pub images: Images,
 }
 
 impl MovieOverview {

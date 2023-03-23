@@ -19,6 +19,7 @@ import su.litvak.chromecast.api.v2.TestMediaStatus;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -139,7 +140,7 @@ class ChromecastPlayerTest {
 
 
     @Test
-    void testPlay_whenSendResultsInAnException_shouldUpdateStateToError() throws IOException {
+    void testPlay_whenSendResultsInAnException_shouldUpdateStateToError() throws IOException, TimeoutException {
         var request = SimplePlayRequest.builder()
                 .url("http://localhost/my-video.mp4")
                 .title("lorem ipsum")
@@ -152,13 +153,16 @@ class ChromecastPlayerTest {
                         .duration(15000.00)
                         .build())
                 .build();
+        var listener = mock(PlayerListener.class);
         when(chromeCast.launchApp(ChromecastPlayer.MEDIA_RECEIVER_APP_ID)).thenReturn(application);
         when(service.toLoadRequest(sessionId, request)).thenReturn(loadRequest);
         doThrow(new IOException("A Chromecast error occurred")).when(chromeCast).send(isA(String.class), isA(Load.class));
 
+        player.addListener(listener);
         player.play(request);
-        verify(chromeCast, timeout(500)).send(isA(String.class), isA(Load.class));
 
+        verify(chromeCast, timeout(200)).send(isA(String.class), isA(Load.class));
+        verify(listener, timeout(200)).onStateChanged(PlayerState.ERROR);
         assertEquals(PlayerState.ERROR, player.getState());
     }
 

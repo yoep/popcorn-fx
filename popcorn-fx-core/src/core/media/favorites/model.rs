@@ -1,5 +1,5 @@
-use chrono::Local;
-use log::{debug, trace};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
+use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::core::media::{MediaIdentifier, MovieOverview, ShowOverview};
@@ -81,7 +81,19 @@ impl Favorites {
         }
     }
 
-    fn current_datetime() -> String {
+    pub fn last_update(&self) -> DateTime<Local> {
+        match self.last_cache_update.parse::<NaiveDateTime>() {
+            Ok(e) => {
+                Local.from_local_datetime(&e).unwrap()
+            }
+            Err(e) => {
+                warn!("Failed to parse last_cache_update, {}", e);
+                Local.timestamp_opt(0, 0).unwrap()
+            }
+        }
+    }
+
+    pub fn current_datetime() -> String {
         let now = Local::now();
         now.format(DATETIME_FORMAT).to_string()
     }
@@ -99,7 +111,10 @@ impl Default for Favorites {
 
 #[cfg(test)]
 mod test {
+    use chrono::Timelike;
+
     use crate::core::media::Images;
+    use crate::testing::init_logger;
 
     use super::*;
 
@@ -188,5 +203,28 @@ mod test {
         let result = favorites.shows();
 
         assert_eq!(1, result.len())
+    }
+
+    #[test]
+    fn test_last_update() {
+        init_logger();
+        let movie = MovieOverview::new(
+            String::new(),
+            String::from("tt111222"),
+            String::new(),
+        );
+        let favorites = Favorites {
+            movies: vec![movie],
+            shows: vec![],
+            last_cache_update: "2022-02-01T22:00:15.100".to_string(),
+        };
+        let expected = Local.with_ymd_and_hms(2022, 2, 1, 22, 0, 15)
+            .unwrap()
+            .with_nanosecond(100000000)
+            .unwrap();
+
+        let result = favorites.last_update();
+
+        assert_eq!(expected, result)
     }
 }

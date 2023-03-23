@@ -15,8 +15,8 @@ use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
-use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteService};
-use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
+use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ProviderManagerBuilder, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, ThumbEnhancer};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
@@ -114,10 +114,11 @@ pub struct PopcornFX {
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
     torrent_collection: Arc<TorrentCollection>,
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
-    providers: ProviderManager,
+    favorite_cache_updater: Arc<FavoriteCacheUpdater>,
+    providers: Arc<ProviderManager>,
     updater: Arc<Updater>,
     /// The runtime pool to use for async tasks
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
     /// The options that were used to create this instance
     opts: PopcornFxArgs,
 }
@@ -135,6 +136,7 @@ impl PopcornFX {
 
         info!("Creating new popcorn fx instance with {:?}", args);
         let app_directory_path = args.app_directory.as_str();
+        let runtime = Arc::new(Self::new_runtime());
         let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(app_directory_path)));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
@@ -142,12 +144,17 @@ impl PopcornFX {
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
-        let providers = Self::default_providers(&settings, &args, &favorites_service, &watched_service);
+        let providers = Arc::new(Self::default_providers(&settings, &args, &favorites_service, &watched_service));
         let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
-        let updater = Arc::new(Updater::new(&settings, args.insecure, &platform, app_directory_path));
+        let favorite_cache_updater = Arc::new(FavoriteCacheUpdater::builder()
+            .favorite_service(favorites_service.clone())
+            .provider_manager(providers.clone())
+            .runtime(runtime.clone())
+            .build());
+        let app_updater = Arc::new(Updater::new(&settings, args.insecure, &platform, app_directory_path));
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -164,18 +171,10 @@ impl PopcornFX {
             torrent_stream_server,
             torrent_collection,
             auto_resume_service,
+            favorite_cache_updater,
             providers,
-            updater,
-            runtime: tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .worker_threads(3)
-                .thread_name_fn(|| {
-                    static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
-                    let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
-                    format!("popcorn-fx-{}", id)
-                })
-                .build()
-                .expect("expected a new runtime"),
+            updater: app_updater,
+            runtime,
             opts: args,
         }
     }
@@ -293,10 +292,23 @@ impl PopcornFX {
         });
     }
 
+    fn new_runtime() -> Runtime {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(3)
+            .thread_name_fn(|| {
+                static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
+                let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
+                format!("popcorn-fx-{}", id)
+            })
+            .build()
+            .expect("expected a new runtime")
+    }
+
     fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, args: &PopcornFxArgs, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
         let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(settings, args.insecure)));
         let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(settings, args.insecure)));
-        let favorites: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![
+        let favorites_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![
             &movie_provider,
             &show_provider,
         ])));
@@ -306,15 +318,12 @@ impl PopcornFX {
             .get("tvdb")
             .expect("expected the tvdb properties to be present").clone())));
 
-        ProviderManager::default()
-            .with_providers(vec![
-                movie_provider,
-                show_provider,
-                favorites,
-            ])
-            .with_enhancers(vec![
-                thumb_enhancer
-            ])
+        ProviderManager::builder()
+            .with_provider(movie_provider)
+            .with_provider(show_provider)
+            .with_provider(favorites_provider)
+            .with_enhancer(thumb_enhancer)
+            .build()
     }
 }
 

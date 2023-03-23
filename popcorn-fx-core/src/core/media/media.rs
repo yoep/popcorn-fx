@@ -8,7 +8,7 @@ use downcast_rs::{DowncastSync, impl_downcast};
 #[cfg(test)]
 use mockall::automock;
 
-use crate::core::media::Rating;
+use crate::core::media::{Category, Rating};
 
 /// The media type identifier.
 #[derive(Debug, Copy, Clone, Eq, Display, PartialEq)]
@@ -37,9 +37,20 @@ impl Ord for MediaType {
     }
 }
 
+impl From<MediaType> for Category {
+    fn from(value: MediaType) -> Self {
+        match value {
+            MediaType::Unknown => Category::Movies,
+            MediaType::Movie => Category::Movies,
+            MediaType::Show => Category::Series,
+            MediaType::Episode => Category::Series,
+        }
+    }
+}
+
 /// Basic identification information about a media item.
 #[cfg_attr(test, automock)]
-pub trait MediaIdentifier: Debug + DowncastSync + Display + Send {
+pub trait MediaIdentifier: Debug + DowncastSync + Display {
     /// Retrieve an owned instance of the IMDB id.
     fn imdb_id(&self) -> &str;
 
@@ -83,7 +94,7 @@ pub trait MediaDetails: MediaOverview {
 mod test {
     use std::cmp::Ordering;
 
-    use crate::core::media::MediaType;
+    use super::*;
 
     #[test]
     fn test_media_type_ordering() {
@@ -94,6 +105,13 @@ mod test {
         assert_eq!(Ordering::Equal, equal);
         assert_eq!(Ordering::Less, less);
         assert_eq!(Ordering::Greater, greater);
+    }
+
+    #[test]
+    fn test_from_media_type() {
+        assert_eq!(Category::Movies, Category::from(MediaType::Movie));
+        assert_eq!(Category::Series, Category::from(MediaType::Show));
+        assert_eq!(Category::Series, Category::from(MediaType::Episode));
     }
 }
 

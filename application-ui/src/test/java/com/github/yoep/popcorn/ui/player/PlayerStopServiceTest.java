@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,12 +51,14 @@ class PlayerStopServiceTest {
     @Test
     void testOnPlayerStopped_whenIsEndOfVideoAndNextEpisodeIsNotPresent_shouldPublishClosePlayerEvent() {
         var listenerHolder = new AtomicReference<PlayerListener>();
+        var subtitleNone = mock(SubtitleInfo.class);
         var videoLength = 1000L;
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(playerEventService).addListener(isA(PlayerListener.class));
         when(playNextService.getNextEpisode()).thenReturn(Optional.empty());
+        when(subtitleService.none()).thenReturn(subtitleNone);
         service.init();
         eventPublisher.publishEvent(PlayMediaEvent.mediaBuilder()
                 .source(this)
@@ -74,7 +77,7 @@ class PlayerStopServiceTest {
         playerListener.onStateChanged(PlayerState.STOPPED);
 
         verify(torrentStreamService).stopAllStreams();
-        verify(subtitleService).setActiveSubtitle(null);
+        verify(subtitleService).updateSubtitle(subtitleNone);
         verify(eventPublisher).publishEvent(new com.github.yoep.popcorn.backend.events.ClosePlayerEvent(service,
                 com.github.yoep.popcorn.backend.events.ClosePlayerEvent.Reason.END_OF_VIDEO));
     }

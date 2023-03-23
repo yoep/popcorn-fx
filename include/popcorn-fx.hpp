@@ -344,6 +344,7 @@ struct PopcornSettingsC {
   PlaybackSettingsC playback_settings;
 };
 
+/// The C compatible [SubtitleFile] representation.
 struct SubtitleFileC {
   int32_t file_id;
   const char *name;
@@ -353,7 +354,7 @@ struct SubtitleFileC {
   const int32_t *quality;
 };
 
-/// The C compatible struct for [SubtitleInfo].
+/// The C compatible [SubtitleInfo] representation.
 struct SubtitleInfoC {
   /// The IMDB ID if known, this can be [ptr::null]
   const char *imdb_id;
@@ -523,6 +524,31 @@ struct ApplicationConfigEventC {
 
 /// The C callback for the setting events.
 using ApplicationConfigCallbackC = void(*)(ApplicationConfigEventC);
+
+/// The C compatible [SubtitleEvent] representation
+struct SubtitleEventC {
+  enum class Tag {
+    SubtitleInfoChanged,
+    PreferredLanguageChanged,
+  };
+
+  struct SubtitleInfoChanged_Body {
+    SubtitleInfoC *_0;
+  };
+
+  struct PreferredLanguageChanged_Body {
+    SubtitleLanguage _0;
+  };
+
+  Tag tag;
+  union {
+    SubtitleInfoChanged_Body subtitle_info_changed;
+    PreferredLanguageChanged_Body preferred_language_changed;
+  };
+};
+
+/// The C callback for the subtitle events.
+using SubtitleCallbackC = void(*)(SubtitleEventC);
 
 /// The C abi compatible torrent stream event.
 struct TorrentStreamEventC {
@@ -788,16 +814,14 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 
-/// Parse the given subtitle file.
-///
-/// It returns the parsed subtitle on success, else null.
-SubtitleC *parse_subtitle(PopcornFX *popcorn_fx, const char *file_path);
-
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
 /// Register a new callback for all setting events.
 void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallbackC callback);
+
+/// Register a new callback for subtitle events.
+void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
 
 /// Register a new callback for the torrent stream.
 void register_torrent_stream_callback(TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));

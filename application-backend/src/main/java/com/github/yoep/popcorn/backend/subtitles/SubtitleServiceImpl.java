@@ -10,57 +10,37 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import java.io.File;
-import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SubtitleServiceImpl implements SubtitleService {
-    public static final String SUBTITLE_PROPERTY = "activeSubtitle";
-
     private final FxLib fxLib;
     private final PopcornFx instance;
 
-    private final ObjectProperty<Subtitle> activeSubtitle = new SimpleObjectProperty<>(this, SUBTITLE_PROPERTY, null);
+    private final SubtitleEventCallback callback = createCallback();
+    private final ConcurrentLinkedDeque<SubtitleEventCallback> listeners = new ConcurrentLinkedDeque<>();
     private final Object mutex = new Object();
 
+    public SubtitleServiceImpl(FxLib fxLib, PopcornFx instance) {
+        this.fxLib = fxLib;
+        this.instance = instance;
+        init();
+    }
+
     //region Properties
-
-    @Override
-    public Optional<Subtitle> getActiveSubtitle() {
-        return Optional.ofNullable(activeSubtitle.get());
-    }
-
-    @Override
-    public ReadOnlyObjectProperty<Subtitle> activeSubtitleProperty() {
-        return activeSubtitle;
-    }
-
-    @Override
-    public void setActiveSubtitle(Subtitle activeSubtitle) {
-        this.activeSubtitle.set(activeSubtitle);
-
-        updateSubtitle(Optional.ofNullable(activeSubtitle)
-                .flatMap(Subtitle::getSubtitleInfo)
-                .orElse(null));
-    }
 
     @Override
     public boolean isDisabled() {
@@ -120,15 +100,6 @@ public class SubtitleServiceImpl implements SubtitleService {
 
         return CompletableFuture.completedFuture(
                 Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
-    }
-
-    @Override
-    @Async
-    public CompletableFuture<Subtitle> parse(File file, Charset encoding) {
-        Objects.requireNonNull(file, "file cannot be null");
-        synchronized (mutex) {
-            return CompletableFuture.completedFuture(fxLib.parse_subtitle(instance, file.getAbsolutePath()));
-        }
     }
 
     @Override
@@ -225,15 +196,42 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
+    public void register(SubtitleEventCallback callback) {
+        Objects.requireNonNull(callback, "callback cannot be null");
+        listeners.add(callback);
+    }
+
+    @Override
     public void disableSubtitle() {
         fxLib.disable_subtitle(instance);
     }
 
     //endregion
 
+    private void init() {
+        fxLib.register_subtitle_callback(instance, callback);
+    }
+
     private List<SubtitleInfo> defaultOptions() {
         try (var set = fxLib.default_subtitle_options(instance)) {
             return set.getSubtitles();
         }
+    }
+
+    private SubtitleEventCallback createCallback() {
+        return event -> {
+            log.debug("Received subtitle event callback {}", event);
+            event.close();
+
+            new Thread(() -> {
+                for (var listener : listeners) {
+                    try {
+                        listener.callback(event);
+                    } catch (Exception ex) {
+                        log.error("Failed to invoke subtitle callback, {}", ex.getMessage(), ex);
+                    }
+                }
+            }, "SubtitleEventCallbackHandler").start();
+        };
     }
 }

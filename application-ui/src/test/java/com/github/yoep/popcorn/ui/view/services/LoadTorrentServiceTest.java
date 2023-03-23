@@ -211,6 +211,23 @@ class LoadTorrentServiceTest {
     }
 
     @Test
+    void testLoadMediaTorrent_shouldUpdatePreferredSubtitle() {
+        var subtitleInfo = mock(SubtitleInfo.class);
+        var event = LoadMediaTorrentEvent.builder()
+                .source(this)
+                .torrent(mock(MediaTorrentInfo.class))
+                .quality("1080p")
+                .media(mock(Media.class))
+                .subtitle(subtitleInfo)
+                .build();
+        service.init();
+
+        eventPublisher.publish(event);
+
+        verify(subtitleService).updateSubtitle(subtitleInfo);
+    }
+
+    @Test
     void testLoadTorrentUrl_whenUrlIsGiven_shouldInvokePlayVideoEvent() {
         var listenerHolder = new AtomicReference<TorrentStreamListener>();
         var filename = "lorem ipsum.mkv";

@@ -46,7 +46,7 @@ impl SubtitleManager {
     ///
     /// It returns a reference of the preferred [SubtitleInfo] if present.
     pub fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
-        let mutex = self.subtitle_info.blocking_lock();
+        let mutex = futures::executor::block_on(self.subtitle_info.lock());
 
         if mutex.is_some() {
             mutex.clone()

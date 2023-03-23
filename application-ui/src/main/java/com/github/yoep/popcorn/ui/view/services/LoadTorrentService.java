@@ -129,6 +129,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         this.event = event;
         invokeListeners(e -> e.onMediaChanged(event.getMedia()));
         invokeListeners(e -> e.onStateChanged(LoadTorrentListener.State.STARTING));
+        subtitleService.updateSubtitle(event.getSubtitle().orElse(null));
 
         // check if the torrent stream is initialized, of not, wait for it to be initialized before proceeding
         if (torrentService.getSessionState() != SessionState.RUNNING)

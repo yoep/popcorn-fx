@@ -1,9 +1,14 @@
 use log::trace;
 
-use popcorn_fx_core::{into_c_owned, SubtitleInfoC, SubtitleInfoSet};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+use popcorn_fx_core::core::subtitles::SubtitleCallback;
+use popcorn_fx_core::into_c_owned;
 
+use crate::ffi::{SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
 use crate::PopcornFX;
+
+/// The C callback for the subtitle events.
+pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
 
 /// Retrieve the default options available for the subtitles.
 #[no_mangle]
@@ -29,8 +34,22 @@ pub extern "C" fn subtitle_custom() -> *mut SubtitleInfoC {
     into_c_owned(SubtitleInfoC::from(SubtitleInfo::custom()))
 }
 
+/// Register a new callback for subtitle events.
+#[no_mangle]
+pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callback: SubtitleCallbackC) {
+    trace!("Wrapping C callback for SubtitleCallback");
+    let wrapper: SubtitleCallback = Box::new(move |event| {
+        let event_c = SubtitleEventC::from(event);
+        trace!("Invoking SubtitleEventC {:?}", event_c);
+        callback(event_c)
+    });
+
+    popcorn_fx.subtitle_manager().register(wrapper);
+}
+
 #[cfg(test)]
 mod test {
+    use log::info;
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
@@ -40,6 +59,11 @@ mod test {
     use crate::PopcornFxArgs;
 
     use super::*;
+
+    #[no_mangle]
+    pub extern "C" fn subtitle_callback(event: SubtitleEventC) {
+        info!("Received subtitle callback event {:?}", event)
+    }
 
     #[test]
     fn test_default_subtitle_options() {
@@ -82,5 +106,25 @@ mod test {
         let result = from_c_owned(subtitle_custom());
 
         assert_eq!(SubtitleLanguage::Custom, result.language)
+    }
+
+    #[test]
+    fn test_register_subtitle_callback() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
+            insecure: false,
+            app_directory: temp_path.to_string(),
+        });
+
+        register_subtitle_callback(&mut instance, subtitle_callback);
+        instance.subtitle_manager().update_subtitle(SubtitleInfo::none())
     }
 }

@@ -70,8 +70,6 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
         languageSelection.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null && newValue.isNone()) {
                 subtitleService.disableSubtitle();
-            } else {
-                subtitleService.updateSubtitle(newValue);
             }
         });
         languageSelection.setFactory(new LanguageFlagCell() {

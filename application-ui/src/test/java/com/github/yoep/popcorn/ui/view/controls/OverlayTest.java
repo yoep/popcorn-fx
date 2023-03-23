@@ -24,7 +24,7 @@ class OverlayTest {
 
         overlay.show();
 
-        verify(button, atLeast(1)).requestFocus();
+        verify(button, timeout(250).atLeast(1)).requestFocus();
         assertEquals(1, GridPane.getColumnIndex(button), "expected column index 1");
         assertEquals(1, GridPane.getRowIndex(button), "expected row index 1");
     }

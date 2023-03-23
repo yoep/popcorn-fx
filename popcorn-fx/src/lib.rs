@@ -2,12 +2,11 @@ extern crate core;
 
 use std::{mem, ptr, slice};
 use std::os::raw::c_char;
-use std::path::Path;
 
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string, SubtitleC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC, TorrentCollectionSet};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string, TorrentCollectionSet};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
@@ -206,26 +205,6 @@ pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtit
         }
         Err(e) => {
             error!("Failed to download subtitle, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
-/// Parse the given subtitle file.
-///
-/// It returns the parsed subtitle on success, else null.
-#[no_mangle]
-pub extern "C" fn parse_subtitle(popcorn_fx: &mut PopcornFX, file_path: *const c_char) -> *mut SubtitleC {
-    let string_path = from_c_string(file_path);
-    let path = Path::new(&string_path);
-
-    match popcorn_fx.subtitle_provider().parse(path) {
-        Ok(e) => {
-            debug!("Parsed subtitle file, {}", e);
-            into_c_owned(SubtitleC::from(e))
-        }
-        Err(e) => {
-            error!("File parsing failed, {}", e);
             ptr::null_mut()
         }
     }

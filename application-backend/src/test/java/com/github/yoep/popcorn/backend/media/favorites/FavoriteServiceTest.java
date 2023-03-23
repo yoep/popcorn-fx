@@ -9,6 +9,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,8 +42,8 @@ class FavoriteServiceTest {
     }
 
     @Test
-    void testFavoriteEventCallback() {
-        var eventHolder = new AtomicReference<FavoriteEvent>();
+    void testFavoriteEventCallback() throws ExecutionException, InterruptedException, TimeoutException {
+        var eventFuture = new CompletableFuture<FavoriteEvent.ByValue>();
         var listenerHolder = new AtomicReference<FavoriteEventCallback>();
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(1));
@@ -48,13 +52,14 @@ class FavoriteServiceTest {
 
         var service = new FavoriteService(fxLib, instance);
         verify(fxLib).register_favorites_event_callback(eq(instance), isA(FavoriteEventCallback.class));
-        service.registerListener(eventHolder::set);
+        service.registerListener(eventFuture::complete);
 
         var listener = listenerHolder.get();
         var event = new FavoriteEvent.ByValue();
         event.tag = FavoriteEvent.Tag.LikedStateChanged;
         listener.callback(event);
 
-        assertEquals(event, eventHolder.get(), "expected the listener to have been invoked");
+        var result = eventFuture.get(200, TimeUnit.MILLISECONDS);
+        assertEquals(event, result, "expected the listener to have been invoked");
     }
 }

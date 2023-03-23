@@ -7,8 +7,8 @@ import com.github.yoep.player.vlc.model.VlcStatus;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
@@ -19,7 +19,6 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.validation.constraints.NotNull;
-import java.io.File;
 import java.net.ConnectException;
 import java.text.MessageFormat;
 import java.time.Duration;
@@ -27,6 +26,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
@@ -53,10 +55,16 @@ public class VlcPlayerService extends AbstractListenerService<VlcListener> {
      */
     public boolean play(PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
-        var subtitleOption = subtitleService.getActiveSubtitle()
+        var subtitleOption = subtitleService.preferredSubtitle()
                 .filter(e -> !e.isNone())
-                .map(Subtitle::getFile)
-                .map(File::getAbsolutePath)
+                .map(e -> {
+                    try {
+                        return subtitleService.download(e, SubtitleMatcher.from(request.getUrl(), request.getQuality().orElse(null))).get(10, TimeUnit.SECONDS);
+                    } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+                        log.error("Failed to download subtitle, {}", ex.getMessage(), ex);
+                        return null;
+                    }
+                })
                 .map(e -> SUBTITLE_OPTION + e)
                 .orElse("");
         var command = MessageFormat.format("vlc {0} {1} {2}", request.getUrl(), OPTIONS, subtitleOption).trim();

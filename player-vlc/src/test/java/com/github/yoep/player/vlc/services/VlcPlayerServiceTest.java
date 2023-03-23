@@ -5,8 +5,9 @@ import com.github.yoep.player.vlc.VlcPlayerConstants;
 import com.github.yoep.player.vlc.model.VlcState;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import lombok.extern.slf4j.Slf4j;
 import mockwebserver3.Dispatcher;
 import mockwebserver3.MockResponse;
@@ -28,11 +29,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Timer;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -122,11 +123,11 @@ class VlcPlayerServiceTest {
         var request = SimplePlayRequest.builder()
                 .url(url)
                 .build();
-        var subtitleFile = new File("");
-        var subtitle = mock(Subtitle.class);
-        var expectedCommand = "vlc my-video-url.mp4 " + VlcPlayerService.OPTIONS + " " + VlcPlayerService.SUBTITLE_OPTION + subtitleFile.getAbsolutePath();
-        when(subtitle.getFile()).thenReturn(subtitleFile);
-        when(subtitleService.getActiveSubtitle()).thenReturn(Optional.of(subtitle));
+        var expectedSubtitleFile = "/tmp/lorem.srt";
+        var subtitleInfo = mock(SubtitleInfo.class);
+        var expectedCommand = "vlc my-video-url.mp4 " + VlcPlayerService.OPTIONS + " " + VlcPlayerService.SUBTITLE_OPTION + expectedSubtitleFile;
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(subtitleService.download(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(expectedSubtitleFile));
         when(platformProvider.launch(isA(String.class))).thenReturn(true);
         MOCK_SERVER.setDispatcher(new Dispatcher() {
             @NotNull

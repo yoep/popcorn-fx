@@ -4,12 +4,10 @@ use std::os::raw::c_char;
 
 use log::error;
 
-pub use crate::subtitle_c::*;
 pub use crate::torrent_collection_c::*;
 
 pub mod core;
 
-mod subtitle_c;
 mod torrent_collection_c;
 
 /// The current application version of Popcorn FX.

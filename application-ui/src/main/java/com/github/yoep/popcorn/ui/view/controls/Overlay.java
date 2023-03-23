@@ -65,7 +65,7 @@ public class Overlay extends GridPane {
 
     //endregion
 
-    public void show() {
+    public synchronized void show() {
         if (!isShown()) {
             var children = attachedParent.get().getChildren();
             children.add(children.size(), this);
@@ -75,7 +75,7 @@ public class Overlay extends GridPane {
         doInternalFocusRequest();
     }
 
-    public void hide() {
+    public synchronized void hide() {
         var attachedParent = this.attachedParent.get();
         if (attachedParent == null)
             return;
@@ -112,7 +112,9 @@ public class Overlay extends GridPane {
 
     private void initializeListeners() {
         getChildren().addListener((ListChangeListener<? super Node>) Overlay::onChildrenChanged);
-        attachedParent.addListener((observable, oldValue, newValue) -> ((Pane) getParent()).getChildren().remove(this));
+        attachedParent.addListener((observable, oldValue, newValue) -> {
+            onAttachedParentChanged();
+        });
         sceneProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null)
                 updateParentIfNeeded();
@@ -192,6 +194,11 @@ public class Overlay extends GridPane {
             if (attempt < 15)
                 doInternalFocusRequest(attempt + 1);
         });
+    }
+
+    private synchronized void onAttachedParentChanged() {
+        var children = ((Pane) getParent()).getChildren();
+        children.removeIf(e -> e == this);
     }
 
     private void attachToParent(Parent parent) {

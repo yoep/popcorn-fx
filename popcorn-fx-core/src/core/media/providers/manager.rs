@@ -7,9 +7,20 @@ use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaOvervie
 use crate::core::media::providers::enhancers::Enhancer;
 use crate::core::media::providers::MediaProvider;
 
-/// Manages available [MediaProvider]'s that can be used to retrieve [Media] items.
+/// Manages the available [MediaProvider]'s that can be used to retrieve [Media] items.
 /// Multiple providers for the same [Category] can be registered to overrule an existing one.
-#[derive(Debug, Default)]
+///
+/// # Example new instance
+///
+/// Use the [ProviderManagerBuilder] to build new instance of this manager.
+/// ```no_run
+/// use popcorn_fx_core::core::media::providers::ProviderManagerBuilder;
+/// let manager = ProviderManagerBuilder::new()
+///     .with_provider(ProviderA::new())
+///     .with_enhancer(EnhancerX::new())
+///     .build();
+/// ```
+#[derive(Debug)]
 pub struct ProviderManager {
     /// The media providers
     providers: Vec<Arc<Box<dyn MediaProvider>>>,
@@ -18,21 +29,8 @@ pub struct ProviderManager {
 }
 
 impl ProviderManager {
-    /// Add the media providers used by this manager.
-    /// The [Arc] instances should be owned by this manager.
-    pub fn with_providers(mut self, providers: Vec<Arc<Box<dyn MediaProvider>>>) -> Self {
-        self.providers = providers;
-        self
-    }
-
-    /// Add the media item enhancers to this manager.
-    /// The [Arc] instances should be owned by this manager.
-    ///
-    /// Each enhancer is invoked in the same order as given within this array.
-    /// This means that multiple enhancers for the same [Category] can be added and will be applied by this manager when needed.
-    pub fn with_enhancers(mut self, enhancers: Vec<Arc<Box<dyn Enhancer>>>) -> Self {
-        self.enhancers = enhancers;
-        self
+    pub fn builder() -> ProviderManagerBuilder {
+        ProviderManagerBuilder::new()
     }
 
     /// Retrieve a page of [MediaOverview] items based on the given criteria.
@@ -96,6 +94,49 @@ impl ProviderManager {
     }
 }
 
+unsafe impl Send for ProviderManager {}
+
+unsafe impl Sync for ProviderManager {}
+
+/// The builder for the [ProviderManager] instance.
+#[derive(Debug)]
+pub struct ProviderManagerBuilder {
+    providers: Vec<Arc<Box<dyn MediaProvider>>>,
+    enhancers: Vec<Arc<Box<dyn Enhancer>>>,
+}
+
+impl ProviderManagerBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_provider(mut self, provider: Arc<Box<dyn MediaProvider>>) -> Self {
+        self.providers.push(provider);
+        self
+    }
+
+    pub fn with_enhancer(mut self, enhancer: Arc<Box<dyn Enhancer>>) -> Self {
+        self.enhancers.push(enhancer);
+        self
+    }
+
+    pub fn build(self) -> ProviderManager {
+        ProviderManager {
+            providers: self.providers,
+            enhancers: self.enhancers,
+        }
+    }
+}
+
+impl Default for ProviderManagerBuilder {
+    fn default() -> Self {
+        Self {
+            providers: Vec::new(),
+            enhancers: Vec::new(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
@@ -114,8 +155,8 @@ mod test {
     #[tokio::test]
     async fn test_retrieve_when_provider_not_found() {
         let sort_by = SortBy::new(String::new(), String::new());
-        let manager = ProviderManager::default()
-            .with_providers(vec![]);
+        let manager = ProviderManagerBuilder::new()
+            .build();
 
         let result = manager.retrieve(&Category::Movies, &Genre::all(), &sort_by, &String::new(), 1)
             .await;
@@ -133,8 +174,9 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
         let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings, false));
-        let manager = ProviderManager::default()
-            .with_providers(vec![Arc::new(provider)]);
+        let manager = ProviderManagerBuilder::new()
+            .with_provider(Arc::new(provider))
+            .build();
 
         let result = manager.provider(&Category::Series);
 
@@ -143,7 +185,7 @@ mod test {
 
     #[test]
     fn test_get_not_supported_category() {
-        let manager = ProviderManager::default();
+        let manager = ProviderManagerBuilder::new().build();
 
         let result = manager.provider(&Category::Movies);
 
@@ -197,13 +239,10 @@ mod test {
                 show.episodes.get_mut(0).unwrap().thumb = Some(thumb.to_string());
                 show
             });
-        let manager = ProviderManager::default()
-            .with_providers(vec![
-                Arc::new(Box::new(provider))
-            ])
-            .with_enhancers(vec![
-                Arc::new(Box::new(enhancer))
-            ]);
+        let manager = ProviderManager::builder()
+            .with_provider(Arc::new(Box::new(provider)))
+            .with_enhancer(Arc::new(Box::new(enhancer)))
+            .build();
         let runtime = Runtime::new().unwrap();
 
         let media = runtime.block_on(manager.retrieve_details(&Category::Series, "tt3581920"))

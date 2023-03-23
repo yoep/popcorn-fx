@@ -16,6 +16,7 @@ const FILENAME: &str = "favorites.json";
 /// The callback to listen on events of the favorite service.
 pub type FavoriteCallback = CoreCallback<FavoriteEvent>;
 
+/// The events that can be produced by the [FavoriteService].
 #[derive(Debug, Clone, Display)]
 pub enum FavoriteEvent {
     /// Invoked when a media item's liked state has changed.
@@ -51,6 +52,15 @@ pub trait FavoriteService: Debug + Send + Sync {
     /// Remove the media item from the favorites.
     /// Not liked favorite item will just be ignored and not result in an error.
     fn remove(&self, favorite: Box<dyn MediaIdentifier>);
+
+    /// Update the existing liked items with the new given information.
+    /// This will update only existing items (non-existing items won't be added).
+    fn update(&self, favorites: Vec<Box<dyn MediaIdentifier>>);
+
+    /// Retrieve a copy of the current [Favorites]/liked items.
+    ///
+    /// It returns the a copy when available, else [None].
+    fn favorites(&self) -> Option<Favorites>;
 
     /// Register the given callback to the favorite events.
     /// The callback will be invoked when an event happens within this service.
@@ -244,6 +254,57 @@ impl FavoriteService for DefaultFavoriteService {
         }
     }
 
+    fn update(&self, favorites: Vec<Box<dyn MediaIdentifier>>) {
+        let mut mutex = futures::executor::block_on(self.cache.lock());
+
+        if mutex.is_some() {
+            let cache = mutex.as_mut().expect("expected the cache to be present");
+
+            for media in favorites.into_iter() {
+                if !cache.contains(media.imdb_id()) {
+                    warn!("Unable to update favorite {}, media is not stored as a favorite item", media.imdb_id());
+                    continue;
+                }
+
+                match media.media_type() {
+                    MediaType::Movie => {
+                        let movie = media.into_any()
+                            .downcast::<MovieOverview>()
+                            .expect("expected MovieOverview");
+                        cache.remove_id(movie.imdb_id());
+                        cache.add_movie(&*movie);
+                    }
+                    MediaType::Show => {
+                        let show = media.into_any()
+                            .downcast::<ShowOverview>()
+                            .expect("expected ShowOverview");
+                        cache.remove_id(show.imdb_id());
+                        cache.add_show(&*show);
+                    }
+                    _ => warn!("Unable to update media item {} type {}", media.imdb_id(), media.media_type())
+                }
+            }
+
+            cache.last_cache_update = Favorites::current_datetime();
+            debug!("Favorites have been updated at {}", &cache.last_cache_update);
+        } else {
+            warn!("Unable to update favorites, no cache is present")
+        }
+    }
+
+    fn favorites(&self) -> Option<Favorites> {
+        match futures::executor::block_on(self.load_favorites_cache()) {
+            Ok(_) => {
+                let mutex = futures::executor::block_on(self.cache.lock());
+                mutex.clone()
+            }
+            Err(e) => {
+                warn!("Failed to load favorites, using defaults instead, {}", e);
+                None
+            }
+        }
+    }
+
     fn register(&self, callback: FavoriteCallback) {
         self.callbacks.add(callback)
     }
@@ -272,7 +333,7 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::media::MovieOverview;
+    use crate::core::media::{Images, MovieOverview, Rating};
     use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
@@ -306,6 +367,26 @@ mod test {
     }
 
     #[test]
+    fn test_find_id() {
+        init_logger();
+        let imdb_id = String::from("tt8111666");
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "favorites.json", None);
+        let service = DefaultFavoriteService::new(temp_path);
+
+        let result = service.find_id(imdb_id.as_str());
+
+        match result {
+            Some(e) => {
+                assert_eq!(imdb_id, e.imdb_id());
+                assert_eq!("Ipsum".to_string(), e.title())
+            }
+            None => assert!(false, "expected the ID to have been found")
+        }
+    }
+
+    #[test]
     fn test_all() {
         init_logger();
         let temp_dir = tempdir().unwrap();
@@ -318,12 +399,12 @@ mod test {
         let result = result.get(0).expect("expected at least one result");
 
         assert_eq!("tt1156398".to_string(), result.imdb_id());
-        assert_eq!("Zombieland".to_string(), result.title());
+        assert_eq!("Lorem".to_string(), result.title());
         assert_eq!(MediaType::Movie, result.media_type());
     }
 
     #[test]
-    fn test_add_not_favorite_media() {
+    fn test_add_new_movie_item() {
         init_logger();
         let imdb_id = "tt12345678";
         let title = "lorem ipsum";
@@ -337,6 +418,35 @@ mod test {
         )) as Box<dyn MediaIdentifier>;
 
         service.add(movie)
+            .expect("expected the favorite media item add to have succeeded");
+        let result = service.all()
+            .expect("expected the favorites to have been loaded");
+
+        assert_eq!(1, result.len());
+        let media = result.get(0).unwrap();
+        assert_eq!(imdb_id.to_string(), media.imdb_id());
+        assert_eq!(title.to_string(), media.title());
+    }
+
+    #[test]
+    fn test_add_new_show_item() {
+        init_logger();
+        let imdb_id = "tt12345678";
+        let title = "lorem ipsum";
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultFavoriteService::new(temp_path);
+        let show = Box::new(ShowOverview::new(
+            String::from(imdb_id),
+            String::from(imdb_id),
+            String::from(title),
+            String::new(),
+            2,
+            Default::default(),
+            None,
+        )) as Box<dyn MediaIdentifier>;
+
+        service.add(show)
             .expect("expected the favorite media item add to have succeeded");
         let result = service.all()
             .expect("expected the favorites to have been loaded");
@@ -371,6 +481,37 @@ mod test {
     }
 
     #[test]
+    fn test_favorites() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "favorites.json", None);
+        let service = DefaultFavoriteService::new(temp_path);
+        let movies = vec![MovieOverview {
+            title: "Lorem".to_string(),
+            imdb_id: "tt1156398".to_string(),
+            year: "2009".to_string(),
+            rating: Some(Rating {
+                percentage: 72,
+                watching: 1,
+                votes: 22330,
+                loved: 0,
+                hated: 0,
+            }),
+            images: Images {
+                poster: "http://localhost/img.jpg".to_string(),
+                fanart: "http://localhost/img.jpg".to_string(),
+                banner: "http://localhost/img.jpg".to_string(),
+            },
+        }];
+
+        let favorites = service.favorites()
+            .expect("expected favorites to be present");
+
+        assert_eq!(movies, favorites.movies)
+    }
+
+    #[test]
     fn test_register_when_add_is_called_should_invoke_callback() {
         init_logger();
         let id = "tt1122333";
@@ -396,5 +537,65 @@ mod test {
                 assert_eq!(true, state)
             }
         }
+    }
+
+    #[test]
+    fn test_update() {
+        init_logger();
+        let movie_id = "tt111122244";
+        let show_id = "tt111125555";
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let movie = MovieOverview {
+            imdb_id: movie_id.to_string(),
+            title: "lorem".to_string(),
+            year: "".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+        let updated_movie = MovieOverview {
+            imdb_id: movie_id.to_string(),
+            title: "ipsum".to_string(),
+            year: "2019".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+        let show = ShowOverview {
+            imdb_id: show_id.to_string(),
+            tvdb_id: "".to_string(),
+            title: "".to_string(),
+            year: "".to_string(),
+            num_seasons: 0,
+            images: Default::default(),
+            rating: None,
+        };
+        let updated_show = ShowOverview {
+            imdb_id: show_id.to_string(),
+            tvdb_id: show_id.to_string(),
+            title: "lipsum dolor".to_string(),
+            year: "2011".to_string(),
+            num_seasons: 3,
+            images: Default::default(),
+            rating: None,
+        };
+        let service = DefaultFavoriteService::new(temp_path);
+
+        service.add(Box::new(movie)).expect("expected the movie to have been added");
+        service.add(Box::new(show)).expect("expected the show to have been added");
+        service.update(vec![Box::new(updated_movie.clone()), Box::new(updated_show.clone())]);
+
+        let movie_result = service.find_id(movie_id)
+            .expect("expected movie to be found")
+            .into_any()
+            .downcast::<MovieOverview>()
+            .unwrap();
+        let show_result = service.find_id(show_id)
+            .expect("expected show to be found")
+            .into_any()
+            .downcast::<ShowOverview>()
+            .unwrap();
+
+        assert_eq!(updated_movie, *movie_result);
+        assert_eq!(updated_show, *show_result);
     }
 }

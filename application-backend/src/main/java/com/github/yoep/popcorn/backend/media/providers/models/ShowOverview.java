@@ -1,8 +1,6 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.jna.Structure;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,7 +16,6 @@ import java.util.Optional;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"imdbId", "tvdbId", "title", "year", "numberOfSeasons", "images", "rating"})
 public class ShowOverview extends Structure implements Media, Closeable {
     public static class ByReference extends ShowOverview implements Structure.ByReference {
@@ -28,7 +25,6 @@ public class ShowOverview extends Structure implements Media, Closeable {
     public String tvdbId;
     public String title;
     public String year;
-    @JsonProperty("num_seasons")
     public int numberOfSeasons;
     public Images images;
     public Rating.ByReference rating;

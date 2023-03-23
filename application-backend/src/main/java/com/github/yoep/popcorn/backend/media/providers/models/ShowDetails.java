@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.AllArgsConstructor;
@@ -21,7 +19,6 @@ import java.util.Optional;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"synopsis", "runtime", "status", "genresRef", "genresLen", "genresCap", "episodesRef", "episodesLen", "episodesCap"})
 public class ShowDetails extends ShowOverview implements Media, Closeable {
     public static class ByReference extends ShowDetails implements Structure.ByReference {
@@ -30,20 +27,13 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
     public String synopsis;
     public Integer runtime;
     public String status;
-    @JsonIgnore
     public Pointer genresRef;
-    @JsonIgnore
     public int genresLen;
-    @JsonIgnore
     public int genresCap;
-    @JsonIgnore
     public Episode.ByReference episodesRef;
-    @JsonIgnore
     public int episodesLen;
-    @JsonIgnore
     public int episodesCap;
 
-    @JsonIgnore
     private List<Episode> cache;
 
     public List<Episode> getEpisodes() {

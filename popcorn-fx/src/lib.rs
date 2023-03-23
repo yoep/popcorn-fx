@@ -32,7 +32,7 @@ pub mod ffi;
 /// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetailsC) -> *mut SubtitleInfoSet {
-    let movie_instance = movie.to_struct();
+    let movie_instance = MovieDetails::from(movie);
 
     match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().movie_subtitles(movie_instance)) {
         Ok(e) => {
@@ -463,10 +463,10 @@ pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaI
         mem::forget(boxed);
     } else if !favorite.movie_details.is_null() {
         let boxed = from_c_into_boxed(favorite.movie_details);
-        let details = boxed.to_struct();
+        let details = MovieDetails::from(&*boxed);
         media = Box::new(details.to_overview());
         trace!("Created media struct {:?}", media);
-        mem::forget(details);
+        mem::forget(boxed);
     } else if !favorite.show_overview.is_null() {
         let boxed = from_c_into_boxed(favorite.show_overview);
         media = Box::new(boxed.to_struct());

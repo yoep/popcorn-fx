@@ -53,6 +53,10 @@ public class MediaItem extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(movieOverview).ifPresent(MovieOverview::close);
+        Optional.ofNullable(movieDetails).ifPresent(MovieDetails::close);
+        Optional.ofNullable(showOverview).ifPresent(ShowOverview::close);
+        Optional.ofNullable(showDetails).ifPresent(ShowDetails::close);
         Optional.ofNullable(this.fxLib)
                 .ifPresent(e -> {
                     log.trace("Disposing MediaItem {}", this);
@@ -64,7 +68,7 @@ public class MediaItem extends Structure implements Closeable {
         var mediaItem = new MediaItem();
 
         if (media instanceof MovieDetails.ByReference movie) {
-            mediaItem.movieDetails = movie;
+            mediaItem.fromMovieDetails(movie);
         } else if (media instanceof MovieDetails movie) {
             mediaItem.fromMovieDetails(movie);
         } else if (media instanceof MovieOverview.ByReference) {

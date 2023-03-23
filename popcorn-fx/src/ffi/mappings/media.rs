@@ -141,21 +141,24 @@ impl MovieOverviewC {
     }
 }
 
+/// The C compatible [MovieDetails] representation
+///
+/// Use the [MovieDetails::from] to convert the C instance back to a rust struct.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MovieDetailsC {
-    title: *const c_char,
-    imdb_id: *const c_char,
-    year: *const c_char,
-    rating: *mut RatingC,
-    images: ImagesC,
-    synopsis: *const c_char,
-    runtime: i32,
-    trailer: *const c_char,
-    genres: *mut *const c_char,
-    genres_len: i32,
-    torrents: *mut TorrentEntryC,
-    torrents_len: i32,
+    pub title: *const c_char,
+    pub imdb_id: *const c_char,
+    pub year: *const c_char,
+    pub rating: *mut RatingC,
+    pub images: ImagesC,
+    pub synopsis: *const c_char,
+    pub runtime: i32,
+    pub trailer: *const c_char,
+    pub genres: *mut *const c_char,
+    pub genres_len: i32,
+    pub torrents: *mut TorrentEntryC,
+    pub torrents_len: i32,
 }
 
 impl MovieDetailsC {
@@ -186,32 +189,39 @@ impl MovieDetailsC {
             torrents_len,
         }
     }
+}
 
-    pub fn to_struct(&self) -> MovieDetails {
-        trace!("Converting MovieDetails from C {:?}", self);
+impl From<&MovieDetailsC> for MovieDetails {
+    fn from(value: &MovieDetailsC) -> Self {
+        trace!("Converting MovieDetails from C {:?}", value);
         let mut rating = None;
-        trace!("Converting MovieDetails genres");
-        let genres = from_c_vec(self.genres, self.genres_len).into_iter()
-            .map(|e| from_c_string(e))
-            .collect();
+        let genres = if !value.genres.is_null() && value.genres_len > 0 {
+            trace!("Converting MovieDetails genres {:?}", value.genres);
+            from_c_vec(value.genres, value.genres_len).into_iter()
+                .map(|e| from_c_string(e))
+                .collect()
+        } else {
+            trace!("MovieDetails genres is empty, using empty array");
+            vec![]
+        };
 
-        if !self.rating.is_null() {
+        if !value.rating.is_null() {
             trace!("Converting MovieDetails rating");
-            let owned = from_c_into_boxed(self.rating);
+            let owned = from_c_into_boxed(value.rating);
             rating = Some(owned.to_struct());
             mem::forget(owned);
         }
 
         MovieDetails::new_detailed(
-            from_c_string(self.title),
-            from_c_string(self.imdb_id),
-            from_c_string(self.year),
-            self.runtime.to_string(),
+            from_c_string(value.title.clone()),
+            from_c_string(value.imdb_id.clone()),
+            from_c_string(value.year.clone()),
+            value.runtime.to_string(),
             genres,
-            from_c_string(self.synopsis),
+            from_c_string(value.synopsis.clone()),
             rating,
-            self.images.to_struct(),
-            from_c_string(self.trailer),
+            value.images.to_struct(),
+            from_c_string(value.trailer.clone()),
         )
     }
 }
@@ -441,7 +451,7 @@ impl MediaItemC {
             mem::forget(boxed);
         } else if !self.movie_details.is_null() {
             let boxed = from_c_into_boxed(self.movie_details);
-            media = Box::new(boxed.to_struct());
+            media = Box::new(MovieDetails::from(&*boxed));
             trace!("Created media struct {:?}", media);
             mem::forget(boxed);
         } else if !self.show_overview.is_null() {
@@ -573,12 +583,13 @@ impl RatingC {
     }
 }
 
+/// The C compatible [Images] representation.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ImagesC {
-    poster: *const c_char,
-    fanart: *const c_char,
-    banner: *const c_char,
+    pub poster: *const c_char,
+    pub fanart: *const c_char,
+    pub banner: *const c_char,
 }
 
 impl ImagesC {
@@ -752,9 +763,9 @@ mod test {
             episode: 2,
             first_aired: 16000,
             title: into_c_string("lorem".to_string()),
-            synopsis:  into_c_string("ipsum".to_string()),
-            tvdb_id:  into_c_string("tt112244".to_string()),
-            thumb:  into_c_string(thumb.to_string()),
+            synopsis: into_c_string("ipsum".to_string()),
+            tvdb_id: into_c_string("tt112244".to_string()),
+            thumb: into_c_string(thumb.to_string()),
             torrents: ptr::null_mut(),
             len: 0,
         };
@@ -764,5 +775,43 @@ mod test {
         assert_eq!(1, result.season);
         assert_eq!(2, result.episode);
         assert_eq!(Some(thumb.to_string()), result.thumb);
+    }
+
+    #[test]
+    fn test_from_movie_details_c() {
+        let movie_c = MovieDetailsC {
+            title: into_c_string("lorem".to_string()),
+            imdb_id: into_c_string("tt1122".to_string()),
+            year: into_c_string("2021".to_string()),
+            rating: ptr::null_mut(),
+            images: ImagesC {
+                poster: ptr::null_mut(),
+                fanart: ptr::null_mut(),
+                banner: ptr::null_mut(),
+            },
+            synopsis: into_c_string("lorem ipsum dolor".to_string()),
+            runtime: 20,
+            trailer: into_c_string("https://www.youtube.com".to_string()),
+            genres: ptr::null_mut(),
+            genres_len: 0,
+            torrents: ptr::null_mut(),
+            torrents_len: 0,
+        };
+        let expected_result = MovieDetails {
+            title: "lorem".to_string(),
+            imdb_id: "tt1122".to_string(),
+            year: "2021".to_string(),
+            runtime: "20".to_string(),
+            genres: vec![],
+            synopsis: "lorem ipsum dolor".to_string(),
+            rating: None,
+            images: Default::default(),
+            trailer: "https://www.youtube.com".to_string(),
+            torrents: Default::default(),
+        };
+
+        let result = MovieDetails::from(&movie_c);
+
+        assert_eq!(expected_result, result)
     }
 }

@@ -157,6 +157,7 @@ struct RatingC {
   uint32_t hated;
 };
 
+/// The C compatible [Images] representation.
 struct ImagesC {
   const char *poster;
   const char *fanart;
@@ -195,6 +196,9 @@ struct TorrentEntryC {
   int32_t len;
 };
 
+/// The C compatible [MovieDetails] representation
+///
+/// Use the [MovieDetails::from] to convert the C instance back to a rust struct.
 struct MovieDetailsC {
   const char *title;
   const char *imdb_id;

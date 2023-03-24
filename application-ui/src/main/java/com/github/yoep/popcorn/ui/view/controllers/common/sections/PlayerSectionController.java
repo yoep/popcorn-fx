@@ -8,8 +8,10 @@ import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlay
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -18,28 +20,31 @@ import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
+import java.net.URL;
+import java.util.ResourceBundle;
 
 @Slf4j
 @ViewController
 @RequiredArgsConstructor
-public class PlayerSectionController {
+public class PlayerSectionController implements Initializable {
     static final String EXTERNAL_PLAYER_VIEW = "common/components/player-external.component.fxml";
 
     private final PlayerManagerService playerManagerService;
     private final ViewLoader viewLoader;
     private final EventPublisher eventPublisher;
+    private final OptionsService optionsService;
 
     @FXML
     Pane playerSectionPane;
+    @FXML
+    Pane playerPlayNextPane;
 
     Pane externalPlayerPane;
 
-    //region PostConstruct
-
-    @PostConstruct
-    void init() {
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
         loadExternalPlayerPane();
+        initializePlayNext();
         eventPublisher.register(PlayVideoEvent.class, event -> {
             playerManagerService.getActivePlayer().ifPresentOrElse(
                     this::onPlayVideo,
@@ -48,13 +53,15 @@ public class PlayerSectionController {
         });
     }
 
-    //endregion
-
     //region Functions
 
     private void loadExternalPlayerPane() {
         log.trace("Loading the external player pane");
         externalPlayerPane = viewLoader.load(EXTERNAL_PLAYER_VIEW);
+    }
+
+    private void initializePlayNext() {
+        AnchorPane.setBottomAnchor(playerPlayNextPane, optionsService.isTvMode() ? 150d : 50d);
     }
 
     private void onPlayVideo(Player player) {

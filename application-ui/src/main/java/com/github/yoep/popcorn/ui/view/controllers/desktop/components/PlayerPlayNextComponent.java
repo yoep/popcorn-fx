@@ -1,18 +1,19 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
+import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
-import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ResourceBundle;
 
@@ -22,33 +23,27 @@ public class PlayerPlayNextComponent implements Initializable {
     private final ImageService imageService;
     private final PlayNextService playNextService;
 
+    private long lastKnownPlayingIn;
+
     @FXML
-    private Pane playNextPane;
+    Pane playNextPane;
     @FXML
-    private ImageView playNextPoster;
+    SizedImageView playNextPoster;
     @FXML
-    private Label showName;
+    Label showName;
     @FXML
-    private Label episodeTitle;
+    Label episodeTitle;
     @FXML
-    private Label episodeNumber;
+    Label episodeNumber;
     @FXML
-    private Label playingInCountdown;
+    Label playingInCountdown;
 
     //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        reset();
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    private void init() {
         initializeListeners();
+        reset();
     }
 
     private void initializeListeners() {
@@ -75,7 +70,7 @@ public class PlayerPlayNextComponent implements Initializable {
             episodeNumber.setText(String.valueOf(nextEpisode.getEpisode().getEpisode()));
         });
 
-        imageService.loadPoster(nextEpisode.getShow(), 100, 140).whenComplete((image, throwable) -> {
+        imageService.loadPoster(nextEpisode.getShow()).whenComplete((image, throwable) -> {
             if (throwable == null) {
                 image.ifPresentOrElse(playNextPoster::setImage,
                         () -> playNextPoster.setImage(imageService.getPosterHolder()));
@@ -90,7 +85,16 @@ public class PlayerPlayNextComponent implements Initializable {
         Platform.runLater(() -> {
             playNextPane.setVisible(remainingTime != PlayNextService.UNDEFINED);
             playingInCountdown.setText(String.valueOf(remainingTime));
+            focusPlayingNextIfNeeded(remainingTime);
+
+            lastKnownPlayingIn = remainingTime;
         });
+    }
+
+    private void focusPlayingNextIfNeeded(long remainingTime) {
+        if (lastKnownPlayingIn == PlayNextService.UNDEFINED && remainingTime != PlayNextService.UNDEFINED) {
+            playNextPane.requestFocus();
+        }
     }
 
     private void reset() {
@@ -103,11 +107,23 @@ public class PlayerPlayNextComponent implements Initializable {
         });
     }
 
-    @FXML
-    private void onPlayNextClicked(MouseEvent event) {
-        event.consume();
+    private void onPlayNextNow() {
         playNextService.playNextEpisodeNow();
         reset();
+    }
+
+    @FXML
+    void onPlayNextClicked(MouseEvent event) {
+        event.consume();
+        onPlayNextNow();
+    }
+
+    @FXML
+    void onPlayNextPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onPlayNextNow();
+        }
     }
 
     @FXML

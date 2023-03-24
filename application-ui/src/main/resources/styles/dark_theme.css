@@ -22,6 +22,7 @@
 .root .list-view,
 .root .table-view,
 .root .loader,
+.root .player,
 .root .player-external,
 .root .content-section {
     -fx-border-width: 0;
@@ -1004,16 +1005,24 @@
     -fx-cursor: hand;
 }
 
-.root .player .playing-next:hover {
+.root .player .playing-next .poster {
+    -fx-pref-width: 100px;
+    -fx-pref-height: 140px;
+}
+
+.root .player .playing-next:hover,
+.root .player .playing-next:focused {
     -fx-background-color: rgba(45, 114, 217, 0.5);
 }
 
-.root .player .playing-next:hover .button {
+.root .player .playing-next:hover .button,
+.root .player .playing-next:focused .button {
     -fx-background-color: #2d72d9;
     -fx-text-fill: #fff;
 }
 
-.root .player .playing-next:hover .button:hover {
+.root .player .playing-next:hover .button:hover,
+.root .player .playing-next:hover .button:focused {
     -fx-background-color: #fff;
     -fx-text-fill: #1f375f;
 }
@@ -1042,6 +1051,11 @@
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1.5em;
     -fx-text-fill: #2d72d9;
+}
+
+.root .player .playing-next:hover .playing-in,
+.root .player .playing-next:focused .playing-in {
+    -fx-text-fill: #fff;
 }
 
 .root .player .playing-next .playing-in-countdown {

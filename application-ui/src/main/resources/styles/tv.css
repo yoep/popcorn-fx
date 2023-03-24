@@ -289,6 +289,7 @@
 .root .table-view,
 .root .header .bar,
 .root .loader,
+.root .player,
 .root .player-external,
 .root .overlay,
 .root .content-section {
@@ -544,9 +545,9 @@
 }
 
 .root .player .player-controls .icon {
-    -fx-pref-width: 2.25em;
-    -fx-pref-height: 2.25em;
-    -fx-font-size: 3em;
+    -fx-pref-width: 2em;
+    -fx-pref-height: 2em;
+    -fx-font-size: 2.5em;
     -fx-text-alignment: center;
     -fx-alignment: center;
     -fx-background-color: rgba(11, 27, 51, 0.5);
@@ -569,4 +570,20 @@
     -fx-text-fill: #fff;
 }
 
-/* end region */
+/* endregion */
+
+/* region Playing Next */
+
+.root .player .playing-next {
+    -fx-min-width: 840px;
+    -fx-max-width: 840px;
+    -fx-min-height: 280px;
+    -fx-max-height: 280px;
+}
+
+.root .player .playing-next .poster {
+    -fx-pref-width: 200px;
+    -fx-pref-height: 280px;
+}
+
+/* endregion */

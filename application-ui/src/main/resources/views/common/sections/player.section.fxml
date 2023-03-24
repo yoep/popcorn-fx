@@ -6,5 +6,5 @@
             fx:id="playerSectionPane" styleClass="player" onKeyPressed="#onPlayerPressed">
     <!-- Play next -->
     <fx:include fx:id="playerPlayNextPane" source="../../desktop/components/player-play-next.component.fxml"
-                AnchorPane.bottomAnchor="50" AnchorPane.rightAnchor="0"/>
+                AnchorPane.rightAnchor="0"/>
 </AnchorPane>

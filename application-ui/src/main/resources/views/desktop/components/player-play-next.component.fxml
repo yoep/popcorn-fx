@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.yoep.popcorn.ui.view.controls.SizedImageView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<HBox fx:id="playNextPane" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
+<HBox xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerPlayNextComponent"
-      onMouseClicked="#onPlayNextClicked" styleClass="playing-next">
+      fx:id="playNextPane" styleClass="playing-next" focusTraversable="true" onMouseClicked="#onPlayNextClicked" onKeyPressed="#onPlayNextPressed">
     <!-- Image poster -->
-    <ImageView fx:id="playNextPoster" fitHeight="140" fitWidth="100" preserveRatio="true"/>
+    <BorderPane styleClass="poster">
+        <SizedImageView fx:id="playNextPoster" preserveRatio="true"/>
+    </BorderPane>
 
     <GridPane>
         <columnConstraints>

@@ -38,7 +38,12 @@ pub struct SubtitleServer {
 
 impl SubtitleServer {
     pub fn new(provider: &Arc<Box<dyn SubtitleProvider>>) -> Self {
-        let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(1)
+            .thread_name("subtitle-server")
+            .build()
+            .expect("expected a new runtime");
         let listener = TcpListener::bind("0.0.0.0:0").expect("expected a TCP address to be bound");
         let socket = listener.local_addr().expect("expected a valid socket");
         let ip = local_ip().expect("expected an ip address from a network interface");

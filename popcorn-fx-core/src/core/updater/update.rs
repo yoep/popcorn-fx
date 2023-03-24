@@ -1,13 +1,16 @@
 use std::cmp::Ordering;
+use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
 
 use derive_more::Display;
 use futures::StreamExt;
+use itertools::Update;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
+use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use url::Url;
 
@@ -58,17 +61,9 @@ pub struct Updater {
 }
 
 impl Updater {
-    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str) -> Self {
-        Self::new_with_callbacks(settings, insecure, platform, storage_path, vec![])
-    }
-
-    pub fn new_with_callbacks(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
-        let instance = Self {
-            inner: Arc::new(InnerUpdater::new(settings, insecure, platform, storage_path, callbacks))
-        };
-
-        instance.start_polling();
-        instance
+    /// Create a builder instance for the updater.
+    pub fn builder() -> UpdaterBuilder {
+        UpdaterBuilder::default()
     }
 
     /// Retrieve the version information from the update channel.
@@ -118,6 +113,78 @@ impl Updater {
     }
 }
 
+/// The builder for creating new [Updater] instances.
+#[derive(Default)]
+pub struct UpdaterBuilder {
+    settings: Option<Arc<Mutex<ApplicationConfig>>>,
+    insecure: bool,
+    platform: Option<Arc<Box<dyn PlatformData>>>,
+    storage_path: Option<String>,
+    callbacks: Vec<UpdateCallback>,
+    runtime: Option<Arc<Runtime>>,
+}
+
+impl UpdaterBuilder {
+    pub fn settings(mut self, settings: Arc<Mutex<ApplicationConfig>>) -> Self {
+        self.settings = Some(settings);
+        self
+    }
+
+    pub fn insecure(mut self, insecure: bool) -> Self {
+        self.insecure = insecure;
+        self
+    }
+
+    pub fn platform(mut self, platform: Arc<Box<dyn PlatformData>>) -> Self {
+        self.platform = Some(platform);
+        self
+    }
+
+    pub fn storage_path(mut self, storage_path: &str) -> Self {
+        self.storage_path = Some(storage_path.to_owned());
+        self
+    }
+
+    pub fn with_callback(mut self, callback: UpdateCallback) -> Self {
+        self.callbacks.push(callback);
+        self
+    }
+
+    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
+        self.runtime = Some(runtime);
+        self
+    }
+
+    pub fn build(self) -> Updater {
+        let instance = Updater {
+            inner: Arc::new(InnerUpdater::new(
+                self.settings.expect("Settings are not set"),
+                self.insecure,
+                self.platform.expect("Platform is not set"),
+                self.storage_path.expect("Storage path is not set").as_str(),
+                self.callbacks,
+                self.runtime
+                    .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
+                    .unwrap()))
+        };
+
+        instance.start_polling();
+        instance
+    }
+}
+
+impl Debug for UpdaterBuilder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UpdaterBuilder")
+            .field("settings", &self.settings)
+            .field("insecure", &self.insecure)
+            .field("platform", &self.platform)
+            .field("storage_path", &self.storage_path)
+            .field("runtime", &self.runtime)
+            .finish()
+    }
+}
+
 #[derive(Debug)]
 struct InnerUpdater {
     settings: Arc<Mutex<ApplicationConfig>>,
@@ -128,7 +195,7 @@ struct InnerUpdater {
     cache: Mutex<Option<VersionInfo>>,
     /// The last know state of the updater
     state: Mutex<UpdateState>,
-    runtime: Arc<tokio::runtime::Runtime>,
+    runtime: Arc<Runtime>,
     /// The event callbacks for the updater
     callbacks: CoreCallbacks<UpdateEvent>,
     storage_path: PathBuf,
@@ -137,7 +204,7 @@ struct InnerUpdater {
 }
 
 impl InnerUpdater {
-    fn new(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: &Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>) -> Self {
+    fn new(settings: Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>, runtime: Arc<Runtime>) -> Self {
         let core_callbacks: CoreCallbacks<UpdateEvent> = Default::default();
 
         // add the given callbacks to the initial list
@@ -146,15 +213,15 @@ impl InnerUpdater {
         }
 
         Self {
-            settings: settings.clone(),
-            platform: platform.clone(),
+            settings,
+            platform,
             client: ClientBuilder::new()
                 .danger_accept_invalid_certs(insecure.clone())
                 .build()
                 .unwrap(),
-            cache: tokio::sync::Mutex::new(None),
-            state: tokio::sync::Mutex::new(CheckingForNewVersion),
-            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap()),
+            cache: Mutex::new(None),
+            state: Mutex::new(CheckingForNewVersion),
+            runtime,
             callbacks: core_callbacks,
             storage_path: PathBuf::from(storage_path),
             updating: Default::default(),
@@ -195,6 +262,7 @@ impl InnerUpdater {
             }
             Err(e) => {
                 error!("Failed to poll update channel, {}", e);
+                self.update_state_async(UpdateState::Error).await;
                 Err(UpdateError::InvalidUpdateChannel(update_channel.to_string()))
             }
         }
@@ -435,18 +503,21 @@ impl Drop for InnerUpdater {
         // check if an update has been started
         // if not, we try to clean the updates directory
         if !*updating {
+            trace!("Starting cleanup of updates directory located at {:?}", self.update_directory_path());
             match Storage::clean_directory(self.update_directory_path()) {
                 Ok(_) => info!("Cleaned updates directory located at {:?}", self.update_directory_path()),
                 Err(e) => warn!("Failed to clean the updates directory, {}", e)
             }
+        } else {
+            debug!("Application update running, not cleaning updates directory")
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::{fs, thread};
     use std::collections::HashMap;
-    use std::fs;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
@@ -495,8 +566,13 @@ mod test {
                 arch: "x86_64".to_string(),
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let updater = Updater::new(&settings, false, &platform, temp_path);
+        let runtime = Runtime::new().unwrap();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .build();
         let expected_result = VersionInfo {
             version: "1.0.0".to_string(),
             changelog: ChangeLog {
@@ -535,9 +611,15 @@ mod test {
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
-        let _ = Updater::new_with_callbacks(&settings, false, &platform, temp_path, vec![Box::new(move |event| {
-            tx.send(event).unwrap()
-        })]);
+        let _ = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .with_callback(Box::new(move |event| {
+                tx.send(event).unwrap()
+            }))
+            .build();
 
         let event = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
@@ -574,9 +656,15 @@ mod test {
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
-        let _ = Updater::new_with_callbacks(&settings, false, &platform, temp_path, vec![Box::new(move |event| {
-            tx.send(event).unwrap()
-        })]);
+        let _ = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .with_callback(Box::new(move |event| {
+                tx.send(event).unwrap()
+            }))
+            .build();
 
         let event = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
@@ -621,8 +709,13 @@ mod test {
                 arch: "x86_64".to_string(),
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let updater = Updater::new(&settings, false, &platform, temp_path);
+        let runtime = Runtime::new().unwrap();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .build();
         let expected_result = read_test_file(filename);
 
         let _ = runtime.block_on(async {
@@ -658,8 +751,13 @@ mod test {
                 arch: "x86_64".to_string(),
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let updater = Updater::new(&settings, false, &platform, temp_path);
+        let runtime = Runtime::new().unwrap();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .build();
 
         let result = runtime.block_on(async {
             updater.download().await
@@ -690,11 +788,15 @@ mod test {
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
-        let updater = Updater::new_with_callbacks(&settings, false, &platform, temp_path, vec![
-            Box::new(move |event| {
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .with_callback(Box::new(move |event| {
                 tx.send(event).unwrap()
-            })
-        ]);
+            }))
+            .build();
 
         rx.recv_timeout(Duration::from_millis(100))
             .expect("expected the state changed event");
@@ -729,15 +831,27 @@ mod test {
             settings: Default::default(),
             callbacks: Default::default(),
         }));
-        let updater = Updater::new(&settings, false, &platform, temp_path);
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .build();
         copy_test_file(updates_directory.to_str().unwrap(), filename, None);
+
+        // wait for the polling to complete
+        while updater.state() == CheckingForNewVersion {
+            info!("Waiting for update poll to complete");
+            thread::sleep(Duration::from_millis(50));
+        }
 
         // drop the updater to start the cleanup
         drop(updater);
 
         let dir = fs::read_dir(&updates_directory).unwrap();
         let mut num_files = 0;
-        for _ in dir {
+        for file in dir {
+            warn!("Found remaining file {:?}", file);
             num_files += 1;
         }
 

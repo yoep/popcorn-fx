@@ -16,7 +16,7 @@ use tokio::sync::{Mutex, MutexGuard};
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
-use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ProviderManagerBuilder, ShowProvider};
+use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, ThumbEnhancer};
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
@@ -154,7 +154,13 @@ impl PopcornFX {
             .provider_manager(providers.clone())
             .runtime(runtime.clone())
             .build());
-        let app_updater = Arc::new(Updater::new(&settings, args.insecure, &platform, app_directory_path));
+        let app_updater = Arc::new(Updater::builder()
+            .settings(settings.clone())
+            .platform(platform.clone())
+            .insecure(args.insecure)
+            .storage_path(app_directory_path)
+            .runtime(runtime.clone())
+            .build());
 
         // disable the screensaver
         platform.disable_screensaver();

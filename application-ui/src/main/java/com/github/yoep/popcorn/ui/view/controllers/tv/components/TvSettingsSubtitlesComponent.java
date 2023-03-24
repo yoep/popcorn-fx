@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
+import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -24,9 +25,19 @@ public class TvSettingsSubtitlesComponent implements Initializable {
     @FXML
     AxisItemSelection<SubtitleLanguage> subtitles;
     @FXML
+    Overlay defaultSubtitleOverlay;
+    @FXML
     Button fontFamily;
     @FXML
     AxisItemSelection<SubtitleFamily> fontFamilies;
+    @FXML
+    Overlay fontFamilyOverlay;
+    @FXML
+    Button fontSize;
+    @FXML
+    AxisItemSelection<Integer> fontSizes;
+    @FXML
+    Overlay fontSizeOverlay;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -36,6 +47,7 @@ public class TvSettingsSubtitlesComponent implements Initializable {
             settings.setDefaultSubtitle(newValue);
             applicationConfig.update(settings);
             defaultSubtitle.setText(newValue.getNativeName());
+            defaultSubtitleOverlay.hide();
         });
         subtitles.setSelectedItem(getSettings().getDefaultSubtitle(), true);
 
@@ -45,8 +57,19 @@ public class TvSettingsSubtitlesComponent implements Initializable {
             settings.setFontFamily(newValue);
             applicationConfig.update(settings);
             fontFamily.setText(newValue.getFamily());
+            fontFamilyOverlay.hide();
         });
         fontFamilies.setSelectedItem(getSettings().getFontFamily());
+
+        fontSizes.setItems(SubtitleSettings.supportedFontSizes().toArray(Integer[]::new));
+        fontSizes.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            var settings = getSettings();
+            settings.setFontSize(newValue);
+            applicationConfig.update(settings);
+            fontSize.setText(String.valueOf(newValue));
+            fontSizeOverlay.hide();
+        });
+        fontSizes.setSelectedItem(getSettings().getFontSize());
     }
 
     public SubtitleSettings getSettings() {

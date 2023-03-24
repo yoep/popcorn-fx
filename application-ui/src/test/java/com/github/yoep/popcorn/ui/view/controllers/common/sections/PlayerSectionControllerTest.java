@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlay
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.settings.OptionsService;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
@@ -20,7 +21,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.net.URL;
 import java.util.Optional;
+import java.util.ResourceBundle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -31,8 +34,14 @@ class PlayerSectionControllerTest {
     private PlayerManagerService playerManagerService;
     @Mock
     private ViewLoader viewLoader;
+    @Mock
+    private OptionsService optionsService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher();
+    @Mock
+    private URL url;
+    @Mock
+    private ResourceBundle resourceBundle;
     @InjectMocks
     private PlayerSectionController controller;
 
@@ -41,6 +50,7 @@ class PlayerSectionControllerTest {
     @BeforeEach
     void setUp() {
         controller.playerSectionPane = new Pane();
+        controller.playerPlayNextPane = new Pane();
 
         controller.playerSectionPane.getChildren().add(playNextPane);
     }
@@ -50,7 +60,7 @@ class PlayerSectionControllerTest {
         var pane = new Pane();
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(pane);
 
-        controller.init();
+        controller.initialize(url, resourceBundle);
 
         assertEquals(pane, controller.externalPlayerPane);
     }
@@ -63,7 +73,7 @@ class PlayerSectionControllerTest {
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(externalPlayerPane);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(player.isEmbeddedPlaybackSupported()).thenReturn(false);
-        controller.init();
+        controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
@@ -82,7 +92,7 @@ class PlayerSectionControllerTest {
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(player.isEmbeddedPlaybackSupported()).thenReturn(true);
         when(player.getEmbeddedPlayer()).thenReturn(playerViewNode);
-        controller.init();
+        controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
@@ -105,7 +115,7 @@ class PlayerSectionControllerTest {
         when(player2.isEmbeddedPlaybackSupported()).thenReturn(true);
         when(player1.getEmbeddedPlayer()).thenReturn(player1ViewNode);
         when(player2.getEmbeddedPlayer()).thenReturn(player2ViewNode);
-        controller.init();
+        controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
@@ -122,7 +132,7 @@ class PlayerSectionControllerTest {
         var escapeEvent = mock(KeyEvent.class);
         when(backEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
         when(escapeEvent.getCode()).thenReturn(KeyCode.ESCAPE);
-        controller.init();
+        controller.initialize(url, resourceBundle);
 
         controller.onPlayerPressed(backEvent);
         verify(backEvent).consume();

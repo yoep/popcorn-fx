@@ -149,8 +149,17 @@ public class Overlay extends GridPane {
         if (attachedParent.get() == null) {
             Platform.runLater(() -> {
                 attachToParent(getParent());
-                if (attachedParent.get() == null)
-                    updateParentIfNeeded();
+                if (attachedParent.get() == null) {
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            log.warn(e.getMessage(), e);
+                        }
+
+                        updateParentIfNeeded();
+                    }, "Overlay.AttachParent").start();
+                }
             });
         }
     }
@@ -191,8 +200,17 @@ public class Overlay extends GridPane {
                 }
             }
 
-            if (attempt < 15)
-                doInternalFocusRequest(attempt + 1);
+            if (attempt < 15) {
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        log.warn(e.getMessage(), e);
+                    }
+
+                    doInternalFocusRequest(attempt + 1);
+                }, "Overlay.AttachParent").start();
+            }
         });
     }
 

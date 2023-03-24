@@ -11,6 +11,6 @@ The following tools are recommended to be used within Cargo:
 
 - [cargo-edit](https://github.com/killercup/cargo-edit)
 - [cargo-nextest](https://github.com/nextest-rs/nextest)
-- [tarpaulin](https://github.com/xd009642/tarpaulin) (_only supported on linux_)
+- [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov)
 
-_These plugins can also be installed through Make with `make tooling`_
+_These plugins can also be installed through Make with `make prerequisites`_

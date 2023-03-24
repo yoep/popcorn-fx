@@ -10,10 +10,9 @@ To run the application from source code locally, add the following VM options.
 The following dependencies are required for development:
 
 - Java 17+
-- OpenJFX 17+
+- OpenJFX 19+
 - Make
 - Rust/Cargo
-- Qt5+
 - Make (_optional, recommended to use_)
 
 ## Getting started

@@ -8,14 +8,11 @@ The following launch options can be used as startup arguments.
 | disable-youtube-video-player | Disabled the youtube player from being activated.               |
 | disable-javafx-video-player  | Disabled the JavaFX player from being activated.                |
 | disable-chromecast-player    | Disabled the chromecast player from being loaded.               |
-| disable-qt-player            | Disabled the QT player from being loaded.                       |
-| disable-keep-alive           | Disable the keep alive which sends periodic key events.         |
 | disable-mouse                | Permanently hides the mouse from the application.               |
-| force-arm-video-player       | Force the use of the arm video player.                          |
-| big-picture                  | Activate the big picture mode.                                  |
 | kiosk                        | Activate the kiosk mode (use alt+f4 to close the application).  |
 | tv                           | Activate the tv mode (easier to use UI but less functionality). |
 | maximized                    | Maximize the window on startup.                                 |
+| insecure                     | Allow insecure connections                                      |
 
 ## Java launch options
 

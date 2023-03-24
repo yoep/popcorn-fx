@@ -195,6 +195,7 @@ impl InnerUpdater {
             }
             Err(e) => {
                 error!("Failed to poll update channel, {}", e);
+                self.update_state_async(UpdateState::Error).await;
                 Err(UpdateError::InvalidUpdateChannel(update_channel.to_string()))
             }
         }
@@ -435,18 +436,21 @@ impl Drop for InnerUpdater {
         // check if an update has been started
         // if not, we try to clean the updates directory
         if !*updating {
+            trace!("Starting cleanup of updates directory located at {:?}", self.update_directory_path());
             match Storage::clean_directory(self.update_directory_path()) {
                 Ok(_) => info!("Cleaned updates directory located at {:?}", self.update_directory_path()),
                 Err(e) => warn!("Failed to clean the updates directory, {}", e)
             }
+        } else {
+            debug!("Application update running, not cleaning updates directory")
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::{fs, thread};
     use std::collections::HashMap;
-    use std::fs;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
@@ -732,12 +736,19 @@ mod test {
         let updater = Updater::new(&settings, false, &platform, temp_path);
         copy_test_file(updates_directory.to_str().unwrap(), filename, None);
 
+        // wait for the polling to complete
+        while updater.state() == CheckingForNewVersion {
+            info!("Waiting for update poll to complete");
+            thread::sleep(Duration::from_millis(50));
+        }
+
         // drop the updater to start the cleanup
         drop(updater);
 
         let dir = fs::read_dir(&updates_directory).unwrap();
         let mut num_files = 0;
-        for _ in dir {
+        for file in dir {
+            warn!("Found remaining file {:?}", file);
             num_files += 1;
         }
 

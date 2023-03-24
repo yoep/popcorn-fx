@@ -4,6 +4,7 @@ use std::{mem, ptr, slice};
 use std::os::raw::c_char;
 
 use log::{debug, error, info, trace, warn};
+use tokio::runtime::Runtime;
 
 pub use fx::*;
 use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string, TorrentCollectionSet};
@@ -341,10 +342,12 @@ pub extern "C" fn reset_show_apis(popcorn_fx: &mut PopcornFX) {
 /// It returns the [VecFavoritesC] holder for the array on success, else [ptr::null_mut].
 #[no_mangle]
 pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut VecFavoritesC {
+    trace!("Retrieving favorites from C for genre: {:?}, sort_by: {:?}, keywords: {:?}, page: {}", genre, sort_by, keywords, page);
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
 
+    trace!("Retrieving favorites for genre: {:?}, sort_by: {:?}, page: {}", genre, sort_by, page);
     match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Favorites, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);

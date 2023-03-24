@@ -153,7 +153,7 @@ impl DefaultWatchedService {
 
 impl WatchedService for DefaultWatchedService {
     fn is_watched(&self, imdb_id: &str) -> bool {
-        trace!("Verifying if ID {} is watched", imdb_id);
+        trace!("Verifying if {} is watched", imdb_id);
         match futures::executor::block_on(self.load_watched_cache()) {
             Ok(_) => {
                 let mutex = self.cache.clone();

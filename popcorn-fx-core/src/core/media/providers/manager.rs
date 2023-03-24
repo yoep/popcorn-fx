@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::{debug, warn};
+use log::{debug, trace, warn};
 
 use crate::core::media;
 use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaOverview, SortBy};
@@ -38,9 +38,11 @@ impl ProviderManager {
     ///
     /// It returns the retrieves page on success, else the [providers::ProviderError].
     pub async fn retrieve(&self, category: &Category, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> media::Result<Vec<Box<dyn MediaOverview>>> {
+        trace!("Retrieving provider for category {}", category);
         match self.provider(category) {
             None => Err(MediaError::ProviderNotFound(category.to_string())),
             Some(provider) => {
+                trace!("Retrieving provider page {} for category {} with {:?}", page, category, provider);
                 provider.retrieve(genre, sort_by, keywords, page).await
             }
         }

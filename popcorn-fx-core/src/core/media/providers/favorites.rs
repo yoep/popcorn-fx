@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use itertools::Itertools;
-use log::{error, trace};
+use log::{debug, error, trace};
 use tokio::sync::Mutex;
 
 use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaOverview, MediaType, SortBy};
@@ -183,6 +183,7 @@ impl MediaProvider for FavoritesProvider {
 
         match self.favorites.all() {
             Ok(favorites) => {
+                debug!("Retrieved a total of {} favorites before filtering", favorites.len());
                 Ok(favorites.into_iter()
                     .filter(|e| Self::filter_movies(e, genre))
                     .filter(|e| Self::filter_shows(e, genre))

@@ -22,6 +22,7 @@ use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, ThumbEnhancer
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
+use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrent::collection::TorrentCollection;
@@ -119,6 +120,7 @@ pub struct PopcornFX {
     providers: Arc<ProviderManager>,
     updater: Arc<Updater>,
     event_publisher: Arc<EventPublisher>,
+    playback_controls: Arc<PlaybackControls>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -167,6 +169,10 @@ impl PopcornFX {
             .storage_path(app_directory_path)
             .runtime(runtime.clone())
             .build());
+        let playback_controls = Arc::new(PlaybackControls::builder()
+            .platform(platform.clone())
+            .event_publisher(event_publisher.clone())
+            .build());
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -187,6 +193,7 @@ impl PopcornFX {
             providers,
             updater: app_updater,
             event_publisher,
+            playback_controls,
             runtime,
             opts: args,
         }

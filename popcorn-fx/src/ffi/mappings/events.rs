@@ -2,6 +2,7 @@ use std::os::raw::c_char;
 
 use popcorn_fx_core::{from_c_owned, from_c_string};
 use popcorn_fx_core::core::events::{Event, PlayerStoppedEvent, PlayVideoEvent};
+use popcorn_fx_core::core::playback::PlaybackState;
 
 use crate::ffi::MediaItemC;
 
@@ -13,6 +14,8 @@ pub enum EventC {
     PlayerStopped(PlayerStoppedEventC),
     /// Invoked when a new video playback is started
     PlayVideo(PlayVideoEventC),
+    /// Invoked when the playback state is changed
+    PlaybackStateChanged(PlaybackState),
 }
 
 impl From<EventC> for Event {
@@ -20,6 +23,7 @@ impl From<EventC> for Event {
         match value {
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
             EventC::PlayVideo(event_c) => Event::PlayVideo(PlayVideoEvent::from(event_c)),
+            EventC::PlaybackStateChanged(new_state) => Event::PlaybackStateChanged(new_state),
         }
     }
 }
@@ -67,18 +71,26 @@ impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
 }
 
 /// The C compatible [PlayVideo] representation.
+#[repr(C)]
 #[derive(Debug)]
 pub struct PlayVideoEventC {
     /// The video playback url
     pub url: *const c_char,
     /// The video playback title
     pub title: *const c_char,
+    /// The media playback show name
+    pub show_name: *const c_char,
     /// The optional video playback thumbnail
     pub thumb: *const c_char,
 }
 
 impl From<PlayVideoEventC> for PlayVideoEvent {
     fn from(value: PlayVideoEventC) -> Self {
+        let show_name = if !value.show_name.is_null() {
+            Some(from_c_string(value.show_name))
+        } else {
+            None
+        };
         let thumb = if !value.thumb.is_null() {
             Some(from_c_string(value.thumb))
         } else {
@@ -88,6 +100,7 @@ impl From<PlayVideoEventC> for PlayVideoEvent {
         Self {
             url: from_c_string(value.url),
             title: from_c_string(value.title),
+            show_name: show_name,
             thumb,
         }
     }
@@ -174,6 +187,7 @@ mod test {
         let play_video_event_c = PlayVideoEventC {
             url: into_c_string(url.to_string()),
             title: into_c_string(title.to_string()),
+            show_name: ptr::null(),
             thumb: into_c_string(thumb.to_string()),
         };
 
@@ -182,11 +196,12 @@ mod test {
 
         // Verify that the conversion was successful
         assert_eq!(play_video_event,
-            PlayVideoEvent {
-                url: url.to_string(),
-                title: title.to_string(),
-                thumb: Some(thumb.to_string()),
-            }
+                   PlayVideoEvent {
+                       url: url.to_string(),
+                       title: title.to_string(),
+                       show_name: None,
+                       thumb: Some(thumb.to_string()),
+                   }
         );
     }
 }

@@ -18,6 +18,8 @@ pub extern "C" fn publish_event(popcorn_fx: &mut PopcornFX, event: EventC) {
 
 #[cfg(test)]
 mod test {
+    use std::ptr;
+
     use tempfile::tempdir;
 
     use popcorn_fx_core::into_c_string;
@@ -46,6 +48,7 @@ mod test {
         let event = EventC::PlayVideo(PlayVideoEventC {
             url: into_c_string("http://localhost/video.mp4".to_string()),
             title: into_c_string("Lorem ipsum dolor".to_string()),
+            show_name: ptr::null_mut(),
             thumb: into_c_string("http://localhost/thumb.jpg".to_string()),
         });
 

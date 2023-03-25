@@ -57,6 +57,10 @@ impl Platform for PlatformMac {
         result
     }
 
+    fn notify_media_event(&self, _: MediaNotification) {
+        // no-op
+    }
+
     fn window_handle(&self) -> Option<*mut std::ffi::c_void> {
         None
     }

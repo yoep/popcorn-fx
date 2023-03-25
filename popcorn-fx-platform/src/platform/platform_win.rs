@@ -1,4 +1,4 @@
-use log::{debug, info, trace, warn};
+use log::{info, trace, warn};
 use tokio::sync::Mutex;
 use windows::core::{PCWSTR, PWSTR};
 use windows::core::Result;
@@ -7,6 +7,7 @@ use windows::Win32::System::Power::{PowerClearRequest, PowerCreateRequest, Power
 use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0};
 
 use popcorn_fx_core::core::platform::Platform;
+use popcorn_fx_core::core::playback::MediaNotificationEvent;
 
 const WINDOW_NAME: &str = "Popcorn Time";
 
@@ -77,6 +78,10 @@ impl Platform for PlatformWin {
         }
     }
 
+    fn notify_media_event(&self, _: MediaNotificationEvent) {
+        // no-op
+    }
+
     fn window_handle(&self) -> Option<*mut std::ffi::c_void> {
         let mut encoded_name = WINDOW_NAME
             .encode_utf16()
@@ -87,7 +92,7 @@ impl Platform for PlatformWin {
         let handle = unsafe { windows::Win32::UI::WindowsAndMessaging::FindWindowW(PCWSTR::null(), PCWSTR(encoded_name.as_mut_ptr())) };
 
         if handle.0 == 0 {
-            debug!("Window handle couldn't be found");
+            warn!("Windows window handle for \"{}\" couldn't be found", WINDOW_NAME);
             None
         } else {
             trace!("Converting window handle {:?} to std::ffi::c_void", handle);

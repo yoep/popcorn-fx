@@ -2002,6 +2002,7 @@ version = "0.5.1"
 dependencies = [
  "core-foundation",
  "derive_more",
+ "futures",
  "libc",
  "log",
  "popcorn-fx-core",

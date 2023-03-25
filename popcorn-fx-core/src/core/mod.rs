@@ -9,6 +9,7 @@ pub mod storage;
 pub mod subtitles;
 pub mod torrent;
 pub mod updater;
+pub mod playback;
 
 mod callback;
 mod runtime;

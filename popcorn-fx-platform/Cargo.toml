@@ -15,9 +15,10 @@ crate-type = ["rlib"]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 derive_more = "0"
+futures = "0.3"
 log.workspace = true
-tokio.workspace = true
 souvlaki = "0.6"
+tokio.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

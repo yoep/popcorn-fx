@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.events;
 
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -46,6 +47,7 @@ public class EventC extends Structure implements Closeable {
         switch (tag) {
             case PlayerStopped -> union.setType(PlayerStopped_Body.class);
             case PlayVideo -> union.setType(PlayVideo_Body.class);
+            case PlaybackStateChanged -> union.setType(PlaybackState_Body.class);
         }
     }
 
@@ -77,6 +79,18 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"newState"})
+    public static class PlaybackState_Body extends Structure implements Closeable {
+        public PlayerState newState;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class EventCUnion extends Union implements Closeable {
         public static class ByValue extends EventCUnion implements Union.ByValue {
@@ -84,6 +98,7 @@ public class EventC extends Structure implements Closeable {
 
         public PlayerStopped_Body playerStopped_body;
         public PlayVideo_Body playVideo_body;
+        public PlaybackState_Body playbackState_body;
 
         @Override
         public void close() {
@@ -92,12 +107,15 @@ public class EventC extends Structure implements Closeable {
                     .ifPresent(PlayerStopped_Body::close);
             Optional.ofNullable(playVideo_body)
                     .ifPresent(PlayVideo_Body::close);
+            Optional.ofNullable(playbackState_body)
+                    .ifPresent(PlaybackState_Body::close);
         }
     }
 
     public enum Tag implements NativeMapped {
         PlayerStopped,
-        PlayVideo;
+        PlayVideo,
+        PlaybackStateChanged;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

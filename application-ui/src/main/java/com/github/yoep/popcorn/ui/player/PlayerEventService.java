@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayerStateEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -65,13 +66,13 @@ public class PlayerEventService {
         // check if we need to unregister the listener from the old player
         Optional.ofNullable(oldValue)
                 .ifPresent(e -> e.removeListener(playerListener));
-
         Optional.ofNullable(newValue)
                 .ifPresent(e -> e.addListener(playerListener));
     }
 
     private void onPlayerStateChanged(PlayerState newState) {
         listeners.forEach(e -> e.onStateChanged(newState));
+        eventPublisher.publish(new PlayerStateEvent(this, newState));
     }
 
     private void onPlayerDurationChanged(long duration) {

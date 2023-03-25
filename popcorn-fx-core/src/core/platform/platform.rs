@@ -3,6 +3,8 @@ use std::fmt::Debug;
 use derive_more::Display;
 use mockall::{automock, mock};
 
+use crate::core::playback::MediaNotificationEvent;
+
 /// The platform system specific functions trait.
 /// This trait defines actions which should be performed on the current platform.
 #[automock]
@@ -14,7 +16,10 @@ pub trait Platform: Debug + Send + Sync {
     /// Enable the screensaver on the current platform
     /// It returns `true` if the screensaver was enabled with success, else `false`.
     fn enable_screensaver(&self) -> bool;
-    
+
+    /// Notify the system that a new media playback has been started.
+    fn notify_media_event(&self, notification: MediaNotificationEvent);
+
     /// Retrieve the handle of the window for the platform.
     fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
 }
@@ -70,6 +75,8 @@ mock! {
         fn disable_screensaver(&self) -> bool;
 
         fn enable_screensaver(&self) -> bool;
+        
+        fn notify_media_event(&self, notification: MediaNotificationEvent);
 
         fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
     }

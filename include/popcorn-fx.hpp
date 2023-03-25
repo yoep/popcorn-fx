@@ -22,6 +22,20 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
+/// The playback state of the current media item.
+/// This describes the information of the playback state known by the player.
+enum class PlaybackState : int32_t {
+  /// This is the initial state and indicates that FX has no known state received from the player.
+  UNKNOWN = -1,
+  READY = 0,
+  LOADING = 1,
+  BUFFERING = 2,
+  PLAYING = 3,
+  PAUSED = 4,
+  STOPPED = 5,
+  ERROR = 6,
+};
+
 /// The playback quality defined in a resolution size
 enum class Quality {
   P480,
@@ -128,9 +142,6 @@ struct Arc;
 
 template<typename T = void>
 struct Box;
-
-/// The C compatible [PlayVideo] representation.
-struct PlayVideoEventC;
 
 /// The [PopcornFX] application instance.
 /// This is the main entry into the FX application and manages all known data.
@@ -458,6 +469,18 @@ struct PlayerStoppedEventC {
   MediaItemC *media;
 };
 
+/// The C compatible [PlayVideo] representation.
+struct PlayVideoEventC {
+  /// The video playback url
+  const char *url;
+  /// The video playback title
+  const char *title;
+  /// The media playback show name
+  const char *show_name;
+  /// The optional video playback thumbnail
+  const char *thumb;
+};
+
 /// The C compatible [Event] representation.
 struct EventC {
   enum class Tag {
@@ -465,6 +488,8 @@ struct EventC {
     PlayerStopped,
     /// Invoked when a new video playback is started
     PlayVideo,
+    /// Invoked when the playback state is changed
+    PlaybackStateChanged,
   };
 
   struct PlayerStopped_Body {
@@ -475,10 +500,15 @@ struct EventC {
     PlayVideoEventC _0;
   };
 
+  struct PlaybackStateChanged_Body {
+    PlaybackState _0;
+  };
+
   Tag tag;
   union {
     PlayerStopped_Body player_stopped;
     PlayVideo_Body play_video;
+    PlaybackStateChanged_Body playback_state_changed;
   };
 };
 

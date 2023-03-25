@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
 import com.github.yoep.popcorn.ui.events.ShowAboutEvent;
+import com.github.yoep.popcorn.ui.events.ShowUpdateEvent;
 import com.github.yoep.popcorn.ui.messages.UpdateMessage;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
@@ -25,6 +26,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,6 +51,8 @@ public class AboutSectionController implements Initializable {
     ImageView logoImage;
     @FXML
     Label versionLabel;
+    @FXML
+    Label newVersionLabel;
     @FXML
     AboutDetails playersPane;
     @FXML
@@ -115,14 +119,17 @@ public class AboutSectionController implements Initializable {
                 case UPDATE_AVAILABLE -> {
                     updateButton.setText(localeText.get(UpdateMessage.DOWNLOAD_UPDATE));
                     updateIcon.setText(Icon.DOWNLOAD_UNICODE);
+                    updateService.getUpdateInfo().ifPresent(e -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getVersion())));
                 }
                 case NO_UPDATE_AVAILABLE -> {
                     updateButton.setText(localeText.get(UpdateMessage.CHECK_FOR_NEW_UPDATES));
                     updateIcon.setText(Icon.REFRESH_UNICODE);
+                    newVersionLabel.setText(null);
                 }
                 case ERROR -> {
                     updateButton.setText(localeText.get(UpdateMessage.NO_UPDATE_AVAILABLE));
                     updateIcon.setText(Icon.TIMES_UNICODE);
+                    newVersionLabel.setText(null);
                 }
             }
         });
@@ -136,11 +143,33 @@ public class AboutSectionController implements Initializable {
         Platform.runLater(() -> videoPane.setItems(videoPlayers));
     }
 
+    private void onUpdate() {
+        if (updateService.getState() == UpdateState.UPDATE_AVAILABLE) {
+            eventPublisher.publish(new ShowUpdateEvent(this));
+        } else {
+            updateService.checkForUpdates();
+        }
+    }
+
     @FXML
     void onAboutPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE) {
             event.consume();
             eventPublisher.publish(new CloseAboutEvent(this));
+        }
+    }
+
+    @FXML
+    void onUpdateClicked(MouseEvent event) {
+        event.consume();
+        onUpdate();
+    }
+
+    @FXML
+    void onUpdatePressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onUpdate();
         }
     }
 }

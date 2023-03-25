@@ -1307,6 +1307,7 @@
 }
 
 .root .about-section .label {
+    -fx-font-family: "Open Sans";
     -fx-text-fill: #fff;
 }
 
@@ -1334,6 +1335,15 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 2em;
     -fx-text-fill: #bbb;
+}
+
+.root .about-section .new-version {
+    -fx-font-family: "Verdana", "Arial";
+    -fx-font-style: italic;
+    -fx-font-weight: bold;
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #fff;
+    -fx-padding: 0 0 0 0;
 }
 
 .root .about-section .about-details .details-card {

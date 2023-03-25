@@ -73,14 +73,14 @@ public class ContentSectionController implements Initializable {
             watchlistPane = viewLoader.load("common/sections/watchlist.section.fxml");
             settingsPane = viewLoader.load(SETTINGS_SECTION);
             aboutPane = viewLoader.load("common/sections/about.section.fxml");
-            //            updatePane = viewLoader.load("sections/update.section.fxml");
+            updatePane = viewLoader.load("common/sections/update.section.fxml");
 
             setAnchor(detailsPane);
             setAnchor(torrentCollectionPane);
             setAnchor(watchlistPane);
             setAnchor(settingsPane);
             setAnchor(aboutPane);
-            //            setAnchor(updatePane);
+            setAnchor(updatePane);
         }, "content-loader").start();
     }
 
@@ -122,6 +122,10 @@ public class ContentSectionController implements Initializable {
             return event;
         });
         eventPublisher.register(CloseAboutEvent.class, event -> {
+            switchContent(ContentType.LIST);
+            return event;
+        });
+        eventPublisher.register(CloseUpdateEvent.class, event -> {
             switchContent(ContentType.LIST);
             return event;
         });

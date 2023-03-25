@@ -54,6 +54,10 @@ public class UpdateService {
         listeners.add(listener);
     }
 
+    public void checkForUpdates() {
+
+    }
+
     //endregion
 
     @PostConstruct

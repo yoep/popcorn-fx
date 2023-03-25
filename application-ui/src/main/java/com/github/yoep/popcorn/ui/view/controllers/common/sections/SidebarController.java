@@ -106,6 +106,10 @@ public class SidebarController implements Initializable {
             switchCategory(lastKnownSelectedCategory, false);
             return event;
         });
+        eventPublisher.register(CloseUpdateEvent.class, event -> {
+            switchCategory(lastKnownSelectedCategory, false);
+            return event;
+        });
         eventPublisher.register(HomeEvent.class, event -> {
             activateStartCategory();
             return event;

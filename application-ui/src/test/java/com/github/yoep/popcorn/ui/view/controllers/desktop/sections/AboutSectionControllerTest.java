@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.updater.UpdateCallbackEvent;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
+import com.github.yoep.popcorn.ui.events.ShowUpdateEvent;
 import com.github.yoep.popcorn.ui.messages.UpdateMessage;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
@@ -18,6 +19,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,6 +71,7 @@ class AboutSectionControllerTest {
         }).when(updateService).register(isA(UpdateCallback.class));
 
         controller.versionLabel = new Label("versionLabel");
+        controller.newVersionLabel = new Label("newVersionLabel");
         controller.backgroundCover = new ImageCover();
         controller.logoImage = new ImageView();
         controller.updateButton = new Button();
@@ -155,5 +158,34 @@ class AboutSectionControllerTest {
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.updateButton.getText().equals("lorem"));
         assertEquals(Icon.DOWNLOAD_UNICODE, controller.updateIcon.getText());
+    }
+
+    @Test
+    void testOnUpdateClickedAndStateIsNoUpdateAvailable() {
+        var event = mock(MouseEvent.class);
+        when(updateService.getState()).thenReturn(UpdateState.NO_UPDATE_AVAILABLE);
+        when(localeText.get(UpdateMessage.CHECK_FOR_NEW_UPDATES)).thenReturn("lorem");
+        when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
+        controller.initialize(url, resourceBundle);
+
+        controller.onUpdateClicked(event);
+
+        verify(event).consume();
+        verify(updateService).checkForUpdates();
+    }
+
+    @Test
+    void testOnUpdatePressedAndStateIsUpdateAvailable() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(KeyCode.ENTER);
+        when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
+        when(localeText.get(UpdateMessage.DOWNLOAD_UPDATE)).thenReturn("ipsum");
+        when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
+        controller.initialize(url, resourceBundle);
+
+        controller.onUpdatePressed(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new ShowUpdateEvent(controller));
     }
 }

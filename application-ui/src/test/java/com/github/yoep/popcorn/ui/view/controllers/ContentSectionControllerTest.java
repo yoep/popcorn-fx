@@ -131,6 +131,19 @@ class ContentSectionControllerTest {
     }
 
     @Test
+    void testOnCloseUpdate() {
+        controller.initialize(url, resourceBundle);
+
+        eventPublisher.publish(new ShowAboutEvent(this));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(ContentSectionController.ContentType.ABOUT, controller.activeType);
+
+        eventPublisher.publish(new CloseUpdateEvent(this));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);
+    }
+
+    @Test
     void testOnKeyPressed_whenHomeIsPressed() {
         var event = mock(KeyEvent.class);
         when(event.getCode()).thenReturn(KeyCode.HOME);

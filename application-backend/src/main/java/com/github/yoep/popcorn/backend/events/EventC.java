@@ -10,7 +10,6 @@ import lombok.ToString;
 
 import java.io.Closeable;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.Optional;
 
 @Getter
@@ -44,15 +43,16 @@ public class EventC extends Structure implements Closeable {
     }
 
     private void updateUnionType() {
-        if (Objects.requireNonNull(tag) == Tag.PlayerStopped) {
-            union.setType(PlayerStoppedEventCBody.class);
+        switch (tag) {
+            case PlayerStopped -> union.setType(PlayerStopped_Body.class);
+            case PlayVideo -> union.setType(PlayVideo_Body.class);
         }
     }
 
     @Getter
     @ToString
     @FieldOrder({"stoppedEvent"})
-    public static class PlayerStoppedEventCBody extends Structure implements Closeable {
+    public static class PlayerStopped_Body extends Structure implements Closeable {
         public PlayerStoppedEventC.ByValue stoppedEvent;
 
         @Override
@@ -64,17 +64,34 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
-    public static class EventCUnion extends Union implements Closeable {
-        public static class ByValue extends EventCUnion implements Union.ByValue {
-        }
-
-        public PlayerStoppedEventCBody playerStoppedEventCBody;
+    @FieldOrder({"playVideoEvent"})
+    public static class PlayVideo_Body extends Structure implements Closeable {
+        public PlayVideoEventC.ByValue playVideoEvent;
 
         @Override
         public void close() {
             setAutoSynch(false);
-            Optional.ofNullable(playerStoppedEventCBody)
-                    .ifPresent(PlayerStoppedEventCBody::close);
+            playVideoEvent.close();
+        }
+    }
+
+    @Getter
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    public static class EventCUnion extends Union implements Closeable {
+        public static class ByValue extends EventCUnion implements Union.ByValue {
+        }
+
+        public PlayerStopped_Body playerStopped_body;
+        public PlayVideo_Body playVideo_body;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            Optional.ofNullable(playerStopped_body)
+                    .ifPresent(PlayerStopped_Body::close);
+            Optional.ofNullable(playVideo_body)
+                    .ifPresent(PlayVideo_Body::close);
         }
     }
 

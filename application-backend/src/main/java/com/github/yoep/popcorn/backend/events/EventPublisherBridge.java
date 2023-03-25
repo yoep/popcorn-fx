@@ -25,18 +25,32 @@ public class EventPublisherBridge {
             var event_c = new EventC.ByValue();
             event_c.tag = EventC.Tag.PlayerStopped;
             event_c.union = new EventC.EventCUnion.ByValue();
-            event_c.union.playerStoppedEventCBody = new EventC.PlayerStoppedEventCBody();
-            event_c.union.playerStoppedEventCBody.stoppedEvent = PlayerStoppedEventC.from(event);
+            event_c.union.playerStopped_body = new EventC.PlayerStopped_Body();
+            event_c.union.playerStopped_body.stoppedEvent = PlayerStoppedEventC.from(event);
 
-            try (event_c) {
-                log.debug("Handling closed player event for auto-resume with {}", event_c);
-                fxLib.publish_event(instance, event_c);
-            }
+            publishEvent(event_c);
 
             return event;
         }, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(PlayVideoEvent.class, event -> {
+            var event_c = new EventC.ByValue();
+            event_c.tag = EventC.Tag.PlayVideo;
+            event_c.union = new EventC.EventCUnion.ByValue();
+            event_c.union.playVideo_body = new EventC.PlayVideo_Body();
+            event_c.union.playVideo_body.playVideoEvent = PlayVideoEventC.from(event);
+
+            publishEvent(event_c);
+
             return event;
         }, EventPublisher.HIGHEST_ORDER);
+    }
+
+    private void publishEvent(EventC.ByValue event_c) {
+        try (event_c) {
+            log.debug("Sending FFI EventC for {}", event_c);
+            fxLib.publish_event(instance, event_c);
+        } catch (Exception ex) {
+            log.error("An error occurred while publishing the FFI event, {}", ex.getMessage(), ex);
+        }
     }
 }

@@ -54,8 +54,11 @@ mod test {
     #[test]
     fn test_new_popcorn_fx() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let (args, len) = to_c_vec(vec![
             "popcorn-fx".to_string(),
+            format!("--app-directory={}", temp_path),
             "--disable-logger".to_string(),
         ].into_iter()
             .map(|e| into_c_string(e))

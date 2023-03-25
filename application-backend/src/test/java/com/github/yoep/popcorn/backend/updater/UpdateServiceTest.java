@@ -50,7 +50,7 @@ class UpdateServiceTest {
     void testRegisterCallback_shouldInvokedListeners() {
         var callback = mock(UpdateCallback.class);
         var listenerHolder = new AtomicReference<UpdateCallback>();
-        var event = mock(UpdateEvent.ByValue.class);
+        var event = mock(UpdateCallbackEvent.ByValue.class);
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
             return null;
@@ -66,11 +66,7 @@ class UpdateServiceTest {
     @Test
     void testCallbackListener_onUpdateInstalling() {
         var listenerHolder = new AtomicReference<UpdateCallback>();
-        var event = new UpdateEvent.ByValue();
-        event.tag = UpdateEvent.Tag.StateChanged;
-        event.union = new UpdateEvent.UpdateEventCUnion.ByValue();
-        event.union.state_changed = new UpdateEvent.StateChangedBody();
-        event.union.state_changed.newState = UpdateState.INSTALLING;
+        UpdateCallbackEvent.ByValue event = createStateChangedEvent(UpdateState.INSTALLING);
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
             return null;
@@ -87,5 +83,14 @@ class UpdateServiceTest {
         service.startUpdateAndExit();
 
         verify(fxLib).install_update(instance);
+    }
+
+    private static UpdateCallbackEvent.ByValue createStateChangedEvent(UpdateState state) {
+        var event = new UpdateCallbackEvent.ByValue();
+        event.tag = UpdateCallbackEvent.Tag.StateChanged;
+        event.union = new UpdateCallbackEvent.UpdateEventCUnion.ByValue();
+        event.union.state_changed = new UpdateCallbackEvent.StateChangedBody();
+        event.union.state_changed.newState = state;
+        return event;
     }
 }

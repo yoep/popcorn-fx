@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.AboutDetails?>
 <?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -26,27 +27,44 @@
     <ImageView fx:id="logoImage" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
 
     <VBox GridPane.columnIndex="2" GridPane.rowIndex="1">
-        <Label fx:id="titleLabel" styleClass="title"/>
-        <Label fx:id="versionLabel" styleClass="version"/>
 
-        <GridPane>
+        <GridPane GridPane.columnIndex="2" GridPane.rowIndex="1">
             <columnConstraints>
                 <ColumnConstraints percentWidth="50"/>
                 <ColumnConstraints percentWidth="50"/>
             </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
             <hgap>5</hgap>
+
+            <Label styleClass="title" text="%application_title"
+                   GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2"/>
+            <Label fx:id="versionLabel" styleClass="version"
+                   GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <Button fx:id="updateButton"
+                    GridPane.columnIndex="1" GridPane.rowIndex="1">
+                <graphic>
+                    <Icon fx:id="updateIcon">
+                        <Icon fx:constant="REFRESH_UNICODE" />
+                    </Icon>
+                </graphic>
+            </Button>
 
             <!-- Section players -->
             <Label styleClass="subsection-title" text="%about_players"
-                   GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                   GridPane.columnIndex="0" GridPane.rowIndex="2"/>
             <AboutDetails fx:id="playersPane" spacing="8"
-                          GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                          GridPane.columnIndex="0" GridPane.rowIndex="3"/>
 
             <!-- Section video -->
             <Label styleClass="subsection-title" text="%about_video"
-                   GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                   GridPane.columnIndex="1" GridPane.rowIndex="2"/>
             <AboutDetails fx:id="videoPane" spacing="8"
-                          GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                          GridPane.columnIndex="1" GridPane.rowIndex="3"/>
         </GridPane>
     </VBox>
 </GridPane>

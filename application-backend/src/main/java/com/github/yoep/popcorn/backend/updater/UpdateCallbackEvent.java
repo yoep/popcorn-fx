@@ -9,23 +9,24 @@ import lombok.ToString;
 
 import java.io.Closeable;
 import java.util.Arrays;
+import java.util.Optional;
 
 @Getter
 @ToString
 @Structure.FieldOrder({"tag", "union"})
-public class UpdateEvent extends Structure implements Closeable {
-    public static class ByValue extends UpdateEvent implements Structure.ByValue {
+public class UpdateCallbackEvent extends Structure implements Closeable {
+    public static class ByValue extends UpdateCallbackEvent implements Structure.ByValue {
     }
 
-    public UpdateEvent.Tag tag;
-    public UpdateEvent.UpdateEventCUnion.ByValue union;
+    public UpdateCallbackEvent.Tag tag;
+    public UpdateCallbackEvent.UpdateEventCUnion.ByValue union;
 
     @Override
     public void read() {
         super.read();
         switch (tag) {
-            case StateChanged -> union.setType(UpdateEvent.StateChangedBody.class);
-            case UpdateAvailable -> union.setType(UpdateEvent.UpdateAvailableBody.class);
+            case StateChanged -> union.setType(UpdateCallbackEvent.StateChangedBody.class);
+            case UpdateAvailable -> union.setType(UpdateCallbackEvent.UpdateAvailableBody.class);
         }
         union.read();
     }
@@ -33,6 +34,7 @@ public class UpdateEvent extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        getUnion().close();
     }
 
     @Getter
@@ -67,12 +69,20 @@ public class UpdateEvent extends Structure implements Closeable {
 
     @Getter
     @ToString
-    public static class UpdateEventCUnion extends Union {
+    public static class UpdateEventCUnion extends Union implements Closeable {
         public static class ByValue extends UpdateEventCUnion implements Union.ByValue {
-        }
 
+        }
         public StateChangedBody state_changed;
         public UpdateAvailableBody update_available;
+
+        @Override
+        public void close() {
+            Optional.ofNullable(state_changed)
+                    .ifPresent(StateChangedBody::close);
+            Optional.ofNullable(update_available)
+                    .ifPresent(UpdateAvailableBody::close);
+        }
     }
 
     public enum Tag implements NativeMapped {

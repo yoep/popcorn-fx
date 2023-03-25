@@ -35,11 +35,11 @@ class UpdateSectionServiceTest {
     @Test
     void testUpdateInfoListener_whenUpdateInfoIsChanged_shouldInvokedListeners() {
         var versionInfo = VersionInfo.builder().build();
-        var event = mock(UpdateEvent.ByValue.class);
-        var union = mock(UpdateEvent.UpdateEventCUnion.ByValue.class);
-        var updateAvailableBody = new UpdateEvent.UpdateAvailableBody();
+        var event = mock(UpdateCallbackEvent.ByValue.class);
+        var union = mock(UpdateCallbackEvent.UpdateEventCUnion.ByValue.class);
+        var updateAvailableBody = new UpdateCallbackEvent.UpdateAvailableBody();
         updateAvailableBody.newVersion = versionInfo;
-        when(event.getTag()).thenReturn(UpdateEvent.Tag.UpdateAvailable);
+        when(event.getTag()).thenReturn(UpdateCallbackEvent.Tag.UpdateAvailable);
         when(event.getUnion()).thenReturn(union);
         when(union.getUpdate_available()).thenReturn(updateAvailableBody);
         updateSectionService.init();
@@ -53,11 +53,11 @@ class UpdateSectionServiceTest {
     @Test
     void testStateListener_whenStateIsChanged_shouldInvokedListeners() {
         var expectedState = UpdateState.DOWNLOADING;
-        var event = mock(UpdateEvent.ByValue.class);
-        var union = mock(UpdateEvent.UpdateEventCUnion.ByValue.class);
-        var stateBody = new UpdateEvent.StateChangedBody();
+        var event = mock(UpdateCallbackEvent.ByValue.class);
+        var union = mock(UpdateCallbackEvent.UpdateEventCUnion.ByValue.class);
+        var stateBody = new UpdateCallbackEvent.StateChangedBody();
         stateBody.newState = expectedState;
-        when(event.getTag()).thenReturn(UpdateEvent.Tag.StateChanged);
+        when(event.getTag()).thenReturn(UpdateCallbackEvent.Tag.StateChanged);
         when(event.getUnion()).thenReturn(union);
         when(union.getState_changed()).thenReturn(stateBody);
         updateSectionService.init();

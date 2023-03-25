@@ -14,6 +14,9 @@ pub trait Platform: Debug + Send + Sync {
     /// Enable the screensaver on the current platform
     /// It returns `true` if the screensaver was enabled with success, else `false`.
     fn enable_screensaver(&self) -> bool;
+    
+    /// Retrieve the handle of the window for the platform.
+    fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
 }
 
 /// The information data of the current system platform.
@@ -67,6 +70,8 @@ mock! {
         fn disable_screensaver(&self) -> bool;
 
         fn enable_screensaver(&self) -> bool;
+
+        fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
     }
 }
 

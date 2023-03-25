@@ -4,12 +4,10 @@ use std::{mem, ptr, slice};
 use std::os::raw::c_char;
 
 use log::{debug, error, info, trace, warn};
-use tokio::runtime::Runtime;
 
 pub use fx::*;
 use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string, TorrentCollectionSet};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
-use popcorn_fx_core::core::events::PlayerStoppedEvent;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
@@ -24,7 +22,6 @@ use crate::ffi::*;
 mod fx;
 #[cfg(feature = "ffi")]
 pub mod ffi;
-
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
@@ -732,17 +729,6 @@ pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c
             into_c_owned(e)
         }
     }
-}
-
-/// Handle the player stopped event.
-/// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
-///
-/// * `event`   - The C event instance of the player stopped data.
-#[no_mangle]
-pub extern "C" fn handle_player_stopped_event(popcorn_fx: &mut PopcornFX, event: PlayerStoppedEventC) {
-    trace!("Handling the player stopped event {:?}", event);
-    let event = PlayerStoppedEvent::from(&event);
-    popcorn_fx.auto_resume_service().player_stopped(&event);
 }
 
 /// Resolve the given torrent url into meta information of the torrent.

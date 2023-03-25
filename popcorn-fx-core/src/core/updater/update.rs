@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use derive_more::Display;
 use futures::StreamExt;
-use itertools::Update;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;

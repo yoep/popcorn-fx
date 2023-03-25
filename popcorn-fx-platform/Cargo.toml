@@ -17,6 +17,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 derive_more = "0"
 log.workspace = true
 tokio.workspace = true
+souvlaki = "0.6"
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
@@ -25,7 +26,8 @@ popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 windows = { version = "0", features = [
     "Win32_System_Power",
     "Win32_Foundation",
-    "Win32_System_Threading"
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging"
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

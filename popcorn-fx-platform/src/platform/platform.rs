@@ -1,6 +1,11 @@
+use std::fmt;
+use std::fmt::Debug;
+use std::os::raw::c_void;
 use std::sync::Arc;
 
-use log::trace;
+use log::{debug, error, trace};
+use souvlaki::{MediaControls, PlatformConfig};
+use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::platform::{Platform, PlatformData, PlatformInfo, PlatformType};
 
@@ -17,6 +22,9 @@ const X64: &str = "x86-64";
 const ARM: &str = "arm";
 #[cfg(target_arch = "aarch64")]
 const ARCH64: &str = "aarch64";
+
+const DBUS_NAME: &str = ":popcorn_time.media";
+const DISPLAY_NAME: &str = "Popcorn Time";
 
 /// Initialize a new platform
 #[cfg(target_os = "windows")]
@@ -86,11 +94,35 @@ pub fn platform_info() -> PlatformInfo {
     }
 }
 
-/// A default implementation of the [PlatformData] which handles most system specific actions and information.
-#[derive(Debug)]
+/// The `DefaultPlatform` struct represents the [PlatformData], which contains a reference to a
+/// platform and platform information.
 pub struct DefaultPlatform {
-    platform: Arc<Box<dyn Platform>>,
-    platform_info: PlatformInfo,
+    pub platform: Arc<Box<dyn Platform>>,
+    pub platform_info: PlatformInfo,
+    pub controls: Mutex<Option<MediaControls>>,
+}
+
+impl DefaultPlatform {
+    fn create_controls(&self) -> Option<MediaControls> {
+        match MediaControls::new(self.create_controls_config()) {
+            Ok(e) => {
+                debug!("Media controls have been created");
+                Some(e)
+            }
+            Err(e) => {
+                error!("Failed to create media controls, {:?}", e);
+                None
+            }
+        }
+    }
+
+    fn create_controls_config(&self) -> PlatformConfig {
+        PlatformConfig {
+            dbus_name: DBUS_NAME,
+            display_name: DISPLAY_NAME,
+            hwnd: self.platform.window_handle(),
+        }
+    }
 }
 
 impl Platform for DefaultPlatform {
@@ -100,6 +132,10 @@ impl Platform for DefaultPlatform {
 
     fn enable_screensaver(&self) -> bool {
         self.platform.enable_screensaver()
+    }
+
+    fn window_handle(&self) -> Option<*mut c_void> {
+        None
     }
 }
 
@@ -115,7 +151,17 @@ impl Default for DefaultPlatform {
         Self {
             platform: Arc::new(new_platform()),
             platform_info: platform_info(),
+            controls: Default::default(),
         }
+    }
+}
+
+impl Debug for DefaultPlatform {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DefaultPlatform")
+            .field("platform", &self.platform)
+            .field("platform_info", &self.platform_info)
+            .finish()
     }
 }
 

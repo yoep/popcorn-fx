@@ -44,25 +44,25 @@ impl SearchResult {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OpenSubtitlesAttributes {
-    subtitle_id: String,
-    language: Option<String>,
-    download_count: i32,
-    new_download_count: i32,
-    hearing_impaired: bool,
-    hd: bool,
-    fps: f32,
-    votes: i32,
-    points: Option<i32>,
-    ratings: f32,
-    from_trusted: Option<bool>,
-    foreign_parts_only: bool,
-    ai_translated: bool,
-    machine_translated: bool,
-    upload_date: String,
-    release: String,
-    url: String,
-    files: Vec<OpenSubtitlesFile>,
-    feature_details: OpenSubtitlesFeatureDetails,
+    pub subtitle_id: String,
+    pub language: Option<String>,
+    pub download_count: i32,
+    pub new_download_count: i32,
+    pub hearing_impaired: bool,
+    pub hd: bool,
+    pub fps: f32,
+    pub votes: i32,
+    pub points: Option<i32>,
+    pub ratings: f32,
+    pub from_trusted: Option<bool>,
+    pub foreign_parts_only: bool,
+    pub ai_translated: bool,
+    pub machine_translated: bool,
+    pub upload_date: String,
+    pub release: String,
+    pub url: String,
+    pub files: Vec<OpenSubtitlesFile>,
+    pub feature_details: OpenSubtitlesFeatureDetails,
 }
 
 impl OpenSubtitlesAttributes {
@@ -130,9 +130,9 @@ impl OpenSubtitlesAttributes {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OpenSubtitlesFile {
-    file_id: i32,
-    cd_number: Option<i32>,
-    file_name: Option<String>,
+    pub file_id: i32,
+    pub cd_number: Option<i32>,
+    pub file_name: Option<String>,
 }
 
 impl OpenSubtitlesFile {

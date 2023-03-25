@@ -135,7 +135,7 @@ public interface FxLib extends Library {
 
     Pointer auto_resume_timestamp(PopcornFx instance, String id, String filename);
 
-    void handle_player_stopped_event(PopcornFx instance, PlayerStoppedEventC.ByValue event);
+    void handle_event(PopcornFx instance, PlayerStoppedEventC.ByValue event);
 
     void torrent_info(PopcornFx instance, String url);
 

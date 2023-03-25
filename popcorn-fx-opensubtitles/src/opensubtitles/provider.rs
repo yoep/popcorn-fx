@@ -398,9 +398,9 @@ impl OpensubtitlesProvider {
 
     /// Filters any extension that should not be accepted as valid.
     fn is_invalid_extension(extension: &OsStr) -> bool {
-        let normalized_extension = extension.to_ascii_lowercase();
-        let extension = normalized_extension.to_str()
-            .expect("expected the extension to be a valid unicode");
+        let normalized_extension = extension.to_str()
+            .expect("expected a valid utf-8 extension")
+            .to_lowercase();
         let invalid_extensions: Vec<&str> = vec![
             "com",
             "de",
@@ -412,7 +412,7 @@ impl OpensubtitlesProvider {
             "nl",
         ];
 
-        invalid_extensions.contains(&extension)
+        invalid_extensions.contains(&normalized_extension.as_str())
     }
 }
 
@@ -1037,5 +1037,18 @@ mod test {
         let result = service.convert(subtitle, Vtt);
 
         assert_eq!(expected_result, result.expect("Expected the conversion to have succeeded"))
+    }
+
+    #[test]
+    fn test_invalid_extensions() {
+        let filename1 = OpensubtitlesProvider::subtitle_file_name(
+            &OpenSubtitlesFile::new_with_filename(0, "tpz-house302.Ned".to_string()),
+            &OpenSubtitlesAttributes::new("tt11110".to_string(), String::new()));
+        let filename2 = OpensubtitlesProvider::subtitle_file_name(
+            &OpenSubtitlesFile::new_with_filename(0, "lorem.2009.Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR.ENG".to_string()),
+            &OpenSubtitlesAttributes::new("tt11110".to_string(), String::new()));
+
+        assert_eq!("tpz-house302.Ned.srt".to_string(), filename1);
+        assert_eq!("lorem.2009.Bluray.1080p.DTSMA5.1.x264.dxva-FraMeSToR.ENG.srt".to_string(), filename2);
     }
 }

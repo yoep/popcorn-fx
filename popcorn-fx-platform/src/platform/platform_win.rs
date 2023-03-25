@@ -1,6 +1,6 @@
-use log::{info, trace, warn};
+use log::{debug, info, trace, warn};
 use tokio::sync::Mutex;
-use windows::core::PWSTR;
+use windows::core::{PCWSTR, PWSTR};
 use windows::core::Result;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Power::{PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerSetRequest};
@@ -8,7 +8,7 @@ use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REA
 
 use popcorn_fx_core::core::platform::Platform;
 
-// TODO: integrate ISystemMediaTransportControls (https://docs.microsoft.com/en-us/windows/win32/api/systemmediatransportcontrolsinterop/nn-systemmediatransportcontrolsinterop-isystemmediatransportcontrolsinterop)
+const WINDOW_NAME: &str = "Popcorn Time";
 
 /// Windows specific platform instructions
 #[derive(Debug)]
@@ -76,6 +76,24 @@ impl Platform for PlatformWin {
             true
         }
     }
+
+    fn window_handle(&self) -> Option<*mut std::ffi::c_void> {
+        let mut encoded_name = WINDOW_NAME
+            .encode_utf16()
+            .chain([0u16])
+            .collect::<Vec<u16>>();
+
+        trace!("Retrieving window handle");
+        let handle = unsafe { windows::Win32::UI::WindowsAndMessaging::FindWindowW(PCWSTR::null(), PCWSTR(encoded_name.as_mut_ptr())) };
+
+        if handle.0 == 0 {
+            debug!("Window handle couldn't be found");
+            None
+        } else {
+            trace!("Converting window handle {:?} to std::ffi::c_void", handle);
+            Some(handle.0 as *mut std::ffi::c_void)
+        }
+    }
 }
 
 impl Default for PlatformWin {
@@ -88,6 +106,8 @@ impl Default for PlatformWin {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::testing::init_logger;
+
     use super::*;
 
     #[test]
@@ -103,5 +123,14 @@ mod test {
 
         assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
         assert_eq!(platform.enable_screensaver(), true, "Expected the screensaver to have been enabled");
+    }
+
+    #[test]
+    fn test_window_handle() {
+        init_logger();
+        let platform = PlatformWin::default();
+
+        let handle = platform.window_handle();
+        info!("Retrieved window handle {:?}", handle);
     }
 }

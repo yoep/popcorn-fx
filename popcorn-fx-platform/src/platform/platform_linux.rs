@@ -1,11 +1,11 @@
 use log::{debug, error, info, trace, warn};
+
+use popcorn_fx_core::core::platform;
+use popcorn_fx_core::core::platform::{Platform, PlatformError};
 use x11rb::connection::RequestConnection;
 use x11rb::protocol::dpms::{ConnectionExt as DpmsConnectionExt, DPMSMode};
 use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionExt, Exposures};
 use x11rb::rust_connection::{ConnectionError, RustConnection};
-
-use popcorn_fx_core::core::platform;
-use popcorn_fx_core::core::platform::{Platform, PlatformError};
 
 /// The linux platform specific implementation
 #[derive(Debug)]
@@ -91,6 +91,10 @@ impl Platform for PlatformLinux {
             }
         }
     }
+
+    fn window_handle(&self) -> Option<*mut std::ffi::c_void> {
+        None
+    }
 }
 
 impl Default for PlatformLinux {
@@ -135,5 +139,12 @@ mod test {
         let platform = PlatformLinux::default();
 
         let _ = platform.enable_screensaver();
+    }
+    
+    #[test]
+    fn test_window_handle() {
+        let platform = PlatformLinux::default();
+        
+        assert_eq!(None, platform.window_handle())
     }
 }

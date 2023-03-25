@@ -270,12 +270,12 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultAutoResumeService::new(temp_path);
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/ipsum.mp4".to_string(),
-            None,
-            Some(30000),
-            Some(120000),
-        );
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/ipsum.mp4".to_string(),
+            media: None,
+            time: Some(30000),
+            duration: Some(120000),
+        };
 
         service.player_stopped(&event);
         let result = service.resume_timestamp(None, Some("ipsum.mp4"));
@@ -296,12 +296,12 @@ mod test {
             id.to_string(),
             "2022".to_string(),
         )) as Box<dyn MediaIdentifier>;
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/lorem.mp4".to_string(),
-            Some(movie),
-            Some(expected_timestamp.clone()),
-            Some(350000),
-        );
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/lorem.mp4".to_string(),
+            media: Some(movie),
+            time: Some(expected_timestamp.clone()),
+            duration: Some(350000),
+        };
 
         service.player_stopped(&event);
         let result = service.resume_timestamp(Some(id), None)
@@ -323,12 +323,12 @@ mod test {
             "tt11223344".to_string(),
             "2022".to_string(),
         )) as Box<dyn MediaIdentifier>;
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/already-started-watching.mkv".to_string(),
-            Some(movie),
-            Some(550000),
-            Some(600000),
-        );
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/already-started-watching.mkv".to_string(),
+            media: Some(movie),
+            time: Some(550000),
+            duration: Some(600000),
+        };
 
         service.player_stopped(&event);
         let result = service.resume_timestamp(Some(id), None);
@@ -348,12 +348,12 @@ mod test {
             id.to_string(),
             "2022".to_string(),
         )) as Box<dyn MediaIdentifier>;
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/already-started-watching.mkv".to_string(),
-            Some(movie),
-            Some(20000),
-            Some(600000),
-        );
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/already-started-watching.mkv".to_string(),
+            media: Some(movie),
+            time: Some(20000),
+            duration: Some(600000),
+        };
         let expected_result = "{\"video_timestamps\":[{\"id\":\"tt00001212\",\"filename\":\"already-started-watching.mkv\",\"last_known_time\":20000}]}";
 
         service.player_stopped(&event);

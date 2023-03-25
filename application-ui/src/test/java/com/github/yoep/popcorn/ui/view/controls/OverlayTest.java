@@ -20,7 +20,9 @@ class OverlayTest {
         var button = spy(new Button());
         var overlay = new Overlay(button);
         var parent = new AnchorPane(overlay);
+        WaitForAsyncUtils.waitForFxEvents();
         var scene = new Scene(parent);
+        WaitForAsyncUtils.waitForFxEvents();
 
         overlay.show();
 
@@ -34,7 +36,9 @@ class OverlayTest {
         var button = spy(new Button());
         var overlay = new Overlay(button);
         var parent = new AnchorPane();
+        WaitForAsyncUtils.waitForFxEvents();
         var scene = new Scene(parent);
+        WaitForAsyncUtils.waitForFxEvents();
 
         WaitForAsyncUtils.waitForFxEvents();
         parent.getChildren().add(overlay);
@@ -53,6 +57,7 @@ class OverlayTest {
         inBetween.getChildren().add(overlay);
         WaitForAsyncUtils.waitForFxEvents();
         var scene = new Scene(parent);
+        WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(parent, overlay.attachedParent.get());
     }

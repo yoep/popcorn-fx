@@ -30,7 +30,7 @@ Popcorn FX has been tested with **Raspberry Pi 3B+ and 4**.
 
 _This new UI is as of version **0.6.0+**_
 
-#### Desktop mode
+### Desktop mode
 
 ![Desktop preview](https://i.imgur.com/4l62V5y.png)
 
@@ -42,7 +42,7 @@ _This new UI is as of version **0.6.0+**_
 
 ![Desktop Episode playback](https://i.imgur.com/g50gKJk.png)
 
-#### TV mode
+### TV mode
 
 ![TV Movie overview](https://i.imgur.com/9QJ7Tow.png)
 

@@ -822,6 +822,7 @@ mod test {
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
+                loggers: Default::default(),
                 update_channel: String::new(),
                 providers: Default::default(),
                 enhancers: Default::default(),
@@ -864,6 +865,7 @@ mod test {
         (server, Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
+                loggers: Default::default(),
                 update_channel,
                 providers: Default::default(),
                 enhancers: Default::default(),

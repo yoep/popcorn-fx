@@ -5,6 +5,7 @@ use log::{debug, info, warn};
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
 use popcorn_fx_core::core::platform::Platform;
+use popcorn_fx_core::core::playback::MediaNotificationEvent;
 
 const KIOPMASSERTIONLEVEL_ON: u32 = 255;
 const KIOPMASSERTIONLEVEL_OFF: u32 = 0;
@@ -57,7 +58,7 @@ impl Platform for PlatformMac {
         result
     }
 
-    fn notify_media_event(&self, _: MediaNotification) {
+    fn notify_media_event(&self, _: MediaNotificationEvent) {
         // no-op
     }
 

@@ -19,3 +19,30 @@ logging:
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
     org.springframework: INFO
+
+popcorn:
+  loggers:
+    popcorn_fx:
+      level: trace
+    popcorn_fx::ffi::mappings::subtitle:
+      level: info
+    popcorn_fx_core:
+      level: trace
+    popcorn_fx_core::core::callback:
+      level: info
+    popcorn_fx_core::core::config:
+      level: info
+    popcorn_fx_core::core::events:
+      level: trace
+    popcorn_fx_core::core::media:
+      level: info
+    popcorn_fx_core::core::subtitles:
+      level: info
+    popcorn_fx_core::core::subtitles::parsers:
+      level: info
+    popcorn_fx_opensubtitles:
+      level: info
+    popcorn_fx_platform:
+      level: trace
+    popcorn_fx_torrent_stream:
+      level: info

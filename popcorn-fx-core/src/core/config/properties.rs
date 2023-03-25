@@ -120,6 +120,7 @@ const DEFAULT_ENHANCERS: fn() -> HashMap<String, EnhancerProperties> = || {
     });
     map
 };
+const DEFAULT_LOGGERS: fn() -> HashMap<String, LoggingProperties> = || HashMap::new();
 
 const DEFAULT_CONFIG_FILENAME: &str = "application";
 const CONFIG_EXTENSIONS: [&str; 2] = [
@@ -139,6 +140,10 @@ struct PropertiesWrapper {
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
 #[display(fmt = "update_channel: {}, subtitle: {:?}", update_channel, subtitle)]
 pub struct PopcornProperties {
+    #[serde(default = "DEFAULT_LOGGERS")]
+    pub loggers: HashMap<String, LoggingProperties>,
+    #[serde(alias = "update-channel")]
+    #[serde(alias = "update_channel")]
     #[serde(default = "DEFAULT_UPDATE_CHANNEL")]
     pub update_channel: String,
     #[serde(default = "DEFAULT_PROVIDERS")]
@@ -246,6 +251,7 @@ impl From<&str> for PopcornProperties {
 impl Default for PopcornProperties {
     fn default() -> Self {
         Self {
+            loggers: DEFAULT_LOGGERS(),
             update_channel: DEFAULT_UPDATE_CHANNEL(),
             providers: DEFAULT_PROVIDERS(),
             enhancers: DEFAULT_ENHANCERS(),
@@ -295,6 +301,12 @@ impl Default for SubtitleProperties {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct LoggingProperties {
+    /// The logging level to apply
+    pub level: String,
+}
+
 #[cfg(test)]
 mod test {
     use std::path::MAIN_SEPARATOR;
@@ -319,6 +331,7 @@ mod test {
     fn test_from_filename_when_not_found_should_return_defaults() {
         init_logger();
         let expected_result = PopcornProperties {
+            loggers: Default::default(),
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
             enhancers: PopcornProperties::default_enhancers(),
@@ -344,6 +357,7 @@ popcorn:
     user-agent: lorem
     api-token: ipsum";
         let expected_result = PopcornProperties {
+            loggers: Default::default(),
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
             enhancers: PopcornProperties::default_enhancers(),
@@ -367,6 +381,7 @@ popcorn:
   subtitle:
     user-agent: lorem"#;
         let expected_result = PopcornProperties {
+            loggers: Default::default(),
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
             providers: PopcornProperties::default_providers(),
             enhancers: PopcornProperties::default_enhancers(),

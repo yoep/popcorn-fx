@@ -2,6 +2,7 @@ use log::{debug, error, info, trace, warn};
 
 use popcorn_fx_core::core::platform;
 use popcorn_fx_core::core::platform::{Platform, PlatformError};
+use popcorn_fx_core::core::playback::MediaNotificationEvent;
 use x11rb::connection::RequestConnection;
 use x11rb::protocol::dpms::{ConnectionExt as DpmsConnectionExt, DPMSMode};
 use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionExt, Exposures};
@@ -92,7 +93,7 @@ impl Platform for PlatformLinux {
         }
     }
 
-    fn notify_media_event(&self, _: MediaNotification) {
+    fn notify_media_event(&self, _: MediaNotificationEvent) {
         // no-op
     }
 

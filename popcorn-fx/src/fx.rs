@@ -35,7 +35,7 @@ use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 static INIT: Once = Once::new();
 
 const LOG_FILENAME: &str = "log4.yml";
-const LOG_FORMAT: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I} --- [{T:>15.15}] {M} : {m}{n}";
+const LOG_FORMAT: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I:>6.6} --- [{T:>15.15}] {M} : {m}{n}";
 const CONSOLE_APPENDER: &str = "stdout";
 const DEFAULT_APP_DIRECTORY_NAME: &str = ".popcorn-time";
 const DEFAULT_APP_DIRECTORY: fn() -> String = || {

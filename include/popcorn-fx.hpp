@@ -129,6 +129,9 @@ struct Arc;
 template<typename T = void>
 struct Box;
 
+/// The C compatible [PlayVideo] representation.
+struct PlayVideoEventC;
+
 /// The [PopcornFX] application instance.
 /// This is the main entry into the FX application and manages all known data.
 ///
@@ -460,15 +463,22 @@ struct EventC {
   enum class Tag {
     /// Invoked when the player is being stopped
     PlayerStopped,
+    /// Invoked when a new video playback is started
+    PlayVideo,
   };
 
   struct PlayerStopped_Body {
     PlayerStoppedEventC _0;
   };
 
+  struct PlayVideo_Body {
+    PlayVideoEventC _0;
+  };
+
   Tag tag;
   union {
     PlayerStopped_Body player_stopped;
+    PlayVideo_Body play_video;
   };
 };
 

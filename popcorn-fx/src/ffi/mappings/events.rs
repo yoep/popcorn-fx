@@ -1,7 +1,7 @@
 use std::os::raw::c_char;
 
 use popcorn_fx_core::{from_c_owned, from_c_string};
-use popcorn_fx_core::core::events::{Event, PlayerStoppedEvent};
+use popcorn_fx_core::core::events::{Event, PlayerStoppedEvent, PlayVideoEvent};
 
 use crate::ffi::MediaItemC;
 
@@ -11,12 +11,15 @@ use crate::ffi::MediaItemC;
 pub enum EventC {
     /// Invoked when the player is being stopped
     PlayerStopped(PlayerStoppedEventC),
+    /// Invoked when a new video playback is started
+    PlayVideo(PlayVideoEventC),
 }
 
 impl From<EventC> for Event {
     fn from(value: EventC) -> Self {
         match value {
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
+            EventC::PlayVideo(event_c) => Event::PlayVideo(PlayVideoEvent::from(event_c)),
         }
     }
 }
@@ -59,6 +62,33 @@ impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
             media,
             time,
             duration,
+        }
+    }
+}
+
+/// The C compatible [PlayVideo] representation.
+#[derive(Debug)]
+pub struct PlayVideoEventC {
+    /// The video playback url
+    pub url: *const c_char,
+    /// The video playback title
+    pub title: *const c_char,
+    /// The optional video playback thumbnail
+    pub thumb: *const c_char,
+}
+
+impl From<PlayVideoEventC> for PlayVideoEvent {
+    fn from(value: PlayVideoEventC) -> Self {
+        let thumb = if !value.thumb.is_null() {
+            Some(from_c_string(value.thumb))
+        } else {
+            None
+        };
+
+        Self {
+            url: from_c_string(value.url),
+            title: from_c_string(value.title),
+            thumb,
         }
     }
 }
@@ -133,5 +163,30 @@ mod test {
             }
             _ => panic!("Expected PlayerStopped event"),
         }
+    }
+
+    #[test]
+    fn test_from_play_video_event_c_to_play_video_event() {
+        // Create a PlayVideoEventC instance for testing
+        let url = "http://example.com/video.mp4";
+        let title = "Test Video";
+        let thumb = "http://example.com/video_thumb.png";
+        let play_video_event_c = PlayVideoEventC {
+            url: into_c_string(url.to_string()),
+            title: into_c_string(title.to_string()),
+            thumb: into_c_string(thumb.to_string()),
+        };
+
+        // Convert the PlayVideoEventC instance to a PlayVideoEvent instance
+        let play_video_event = PlayVideoEvent::from(play_video_event_c);
+
+        // Verify that the conversion was successful
+        assert_eq!(play_video_event,
+            PlayVideoEvent {
+                url: url.to_string(),
+                title: title.to_string(),
+                thumb: Some(thumb.to_string()),
+            }
+        );
     }
 }

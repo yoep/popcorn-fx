@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.favorites;
+package com.github.yoep.popcorn.backend.events;
 
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
@@ -17,20 +17,24 @@ import java.util.Optional;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"tag", "union"})
-public class FavoriteEvent extends Structure implements Closeable {
-    public static class ByValue extends FavoriteEvent implements Structure.ByValue {
+public class EventC extends Structure implements Closeable {
+    public static class ByValue extends EventC implements Structure.ByValue {
     }
 
-    public Tag tag;
-    public FavoriteEventCUnion.ByValue union;
+    public EventC.Tag tag;
+    public EventCUnion.ByValue union;
 
     @Override
     public void read() {
         super.read();
-        if (Objects.requireNonNull(tag) == Tag.LikedStateChanged) {
-            union.setType(LikedStateChangedBody.class);
-        }
+        updateUnionType();
         union.read();
+    }
+
+    @Override
+    public void write() {
+        updateUnionType();
+        super.write();
     }
 
     @Override
@@ -39,40 +43,44 @@ public class FavoriteEvent extends Structure implements Closeable {
         getUnion().close();
     }
 
-    @Getter
-    @ToString
-    @FieldOrder({"imdbId", "newState"})
-    public static class LikedStateChangedBody extends Structure implements Closeable {
-        public String imdbId;
-        public byte newState;
-
-        public boolean getNewState() {
-            return newState == 1;
-        }
-
-        @Override
-        public void close() {
-            setAutoSynch(false);
+    private void updateUnionType() {
+        if (Objects.requireNonNull(tag) == Tag.PlayerStopped) {
+            union.setType(PlayerStoppedEventCBody.class);
         }
     }
 
     @Getter
     @ToString
-    public static class FavoriteEventCUnion extends Union implements Closeable {
-        public static class ByValue extends FavoriteEventCUnion implements Union.ByValue {}
-
-        public LikedStateChangedBody liked_state_changed;
+    @FieldOrder({"stoppedEvent"})
+    public static class PlayerStoppedEventCBody extends Structure implements Closeable {
+        public PlayerStoppedEventC.ByValue stoppedEvent;
 
         @Override
         public void close() {
             setAutoSynch(false);
-            Optional.ofNullable(liked_state_changed)
-                    .ifPresent(LikedStateChangedBody::close);
+            stoppedEvent.close();
+        }
+    }
+
+    @Getter
+    @ToString
+    public static class EventCUnion extends Union implements Closeable {
+        public static class ByValue extends EventCUnion implements Union.ByValue {
+        }
+
+        public PlayerStoppedEventCBody playerStoppedEventCBody;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            Optional.ofNullable(playerStoppedEventCBody)
+                    .ifPresent(PlayerStoppedEventCBody::close);
         }
     }
 
     public enum Tag implements NativeMapped {
-        LikedStateChanged;
+        PlayerStopped,
+        PlayVideo;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

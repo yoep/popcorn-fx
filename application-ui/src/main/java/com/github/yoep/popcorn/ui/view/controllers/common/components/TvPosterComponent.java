@@ -44,7 +44,7 @@ public class TvPosterComponent {
     }
 
     private void updatePoster() {
-        Platform.runLater(() -> poster.setImage(imageService.getPosterHolder()));
+        Platform.runLater(() -> poster.setImage(imageService.getPosterHolder(poster.getPrefWidth(), poster.getPrefHeight())));
 
         imageService.loadPoster(media).whenComplete((image, throwable) -> {
             if (throwable == null) {

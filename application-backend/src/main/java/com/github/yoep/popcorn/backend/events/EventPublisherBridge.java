@@ -22,14 +22,20 @@ public class EventPublisherBridge {
 
     private void init() {
         eventPublisher.register(PlayerStoppedEvent.class, event -> {
-            try (var event_c = PlayerStoppedEventC.from(event)) {
+            var event_c = new EventC.ByValue();
+            event_c.tag = EventC.Tag.PlayerStopped;
+            event_c.union = new EventC.EventCUnion.ByValue();
+            event_c.union.playerStoppedEventCBody = new EventC.PlayerStoppedEventCBody();
+            event_c.union.playerStoppedEventCBody.stoppedEvent = PlayerStoppedEventC.from(event);
+
+            try (event_c) {
                 log.debug("Handling closed player event for auto-resume with {}", event_c);
-                fxLib.handle_event(instance, event_c);
+                fxLib.publish_event(instance, event_c);
             }
+
             return event;
         }, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(PlayVideoEvent.class, event -> {
-            
             return event;
         }, EventPublisher.HIGHEST_ORDER);
     }

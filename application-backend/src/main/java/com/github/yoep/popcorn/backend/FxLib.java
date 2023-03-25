@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
-import com.github.yoep.popcorn.backend.events.PlayerStoppedEventC;
+import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaSet;
@@ -135,7 +135,7 @@ public interface FxLib extends Library {
 
     Pointer auto_resume_timestamp(PopcornFx instance, String id, String filename);
 
-    void handle_event(PopcornFx instance, PlayerStoppedEventC.ByValue event);
+    void publish_event(PopcornFx instance, EventC.ByValue event);
 
     void torrent_info(PopcornFx instance, String url);
 

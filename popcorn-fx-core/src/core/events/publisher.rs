@@ -3,7 +3,7 @@ use std::fmt;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use log::{debug, trace};
+use log::{debug, info, trace};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
@@ -100,6 +100,7 @@ impl EventPublisher {
         let callbacks = self.callbacks.clone();
         self.runtime.spawn(async move {
             let invocations = callbacks.lock().await;
+            info!("Publishing event {}", event);
             let mut arg = event;
 
             trace!("Invoking a total of {} callbacks for the event publisher", invocations.len());
@@ -203,9 +204,8 @@ mod test {
 
         // Register a new event consumer that handles PlayerStopped events
         let callback: EventCallback = Box::new(move |event| {
-            match &event {
-                Event::PlayerStopped(stopped_event) => tx.send(stopped_event.clone()).unwrap(),
-                _ => {}
+            if let Event::PlayerStopped(stopped_event) = &event {
+                tx.send(stopped_event.clone()).unwrap();
             }
             // return the original event to continue the event chain
             Some(event)
@@ -229,16 +229,14 @@ mod test {
 
         // Register two event consumers that handle PlayerStarted and PlayerStopped events, respectively
         let callback1: EventCallback = Box::new(move |event| {
-            match &event {
-                Event::PlayerStopped(event) => tx_callback1.send(event.clone()).unwrap(),
-                _ => {}
+            if let Event::PlayerStopped(event) = &event {
+                tx_callback1.send(event.clone()).unwrap();
             }
             Some(event)
         });
         let callback2: EventCallback = Box::new(move |event| {
-            match &event {
-                Event::PlayerStopped(event) => tx_callback2.send(event.clone()).unwrap(),
-                _ => {}
+            if let Event::PlayerStopped(event) = &event {
+                tx_callback2.send(event.clone()).unwrap();
             }
             Some(event)
         });

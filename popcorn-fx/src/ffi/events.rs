@@ -1,27 +1,29 @@
 use log::trace;
 
-use popcorn_fx_core::core::events::PlayerStoppedEvent;
+use popcorn_fx_core::core::events::Event;
 
-use crate::ffi::PlayerStoppedEventC;
+use crate::ffi::EventC;
 use crate::PopcornFX;
 
-/// Handle the player stopped event.
-/// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
+/// Publish a new application event over the FFI layer.
+/// This will invoke the [popcorn_fx_core::core::events::EventPublisher] publisher on the backend.
 ///
-/// * `event`   - The C event instance of the player stopped data.
+/// _Please keep in mind that the consumption of the event chain is not communicated over the FFI layer_
 #[no_mangle]
-pub extern "C" fn handle_event(popcorn_fx: &mut PopcornFX, event: PlayerStoppedEventC) {
-    trace!("Handling the player stopped event {:?}", event);
-    let event = PlayerStoppedEvent::from(&event);
-    popcorn_fx.auto_resume_service().player_stopped(&event);
+pub extern "C" fn publish_event(popcorn_fx: &mut PopcornFX, event: EventC) {
+    trace!("Handling EventPublisher bridge event of C for {:?}", event);
+    let event = Event::from(event);
+    popcorn_fx.event_publisher().publish(event);
 }
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::testing::init_logger;
+
     use super::*;
 
     #[test]
     fn test_handle_player_stopped_event() {
-        
+        init_logger();
     }
 }

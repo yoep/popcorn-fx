@@ -1,9 +1,25 @@
 use std::os::raw::c_char;
 
 use popcorn_fx_core::{from_c_owned, from_c_string};
-use popcorn_fx_core::core::events::PlayerStoppedEvent;
+use popcorn_fx_core::core::events::{Event, PlayerStoppedEvent};
 
 use crate::ffi::MediaItemC;
+
+/// The C compatible [Event] representation.
+#[repr(C)]
+#[derive(Debug)]
+pub enum EventC {
+    /// Invoked when the player is being stopped
+    PlayerStopped(PlayerStoppedEventC),
+}
+
+impl From<EventC> for Event {
+    fn from(value: EventC) -> Self {
+        match value {
+            EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
+        }
+    }
+}
 
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
@@ -20,8 +36,8 @@ pub struct PlayerStoppedEventC {
     pub media: *mut MediaItemC,
 }
 
-impl From<&PlayerStoppedEventC> for PlayerStoppedEvent {
-    fn from(value: &PlayerStoppedEventC) -> Self {
+impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
+    fn from(value: PlayerStoppedEventC) -> Self {
         let media = if !value.media.is_null() {
             from_c_owned(value.media).into_identifier()
         } else {
@@ -38,17 +54,19 @@ impl From<&PlayerStoppedEventC> for PlayerStoppedEvent {
             None
         };
 
-        PlayerStoppedEvent::new(
-            from_c_string(value.url),
+        PlayerStoppedEvent {
+            url: from_c_string(value.url),
             media,
             time,
             duration,
-        )
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::ptr;
+
     use popcorn_fx_core::{into_c_owned, into_c_string};
     use popcorn_fx_core::core::media::MovieOverview;
 
@@ -72,7 +90,7 @@ mod test {
             duration: into_c_owned(1800000),
         };
 
-        let result = PlayerStoppedEvent::from(&event);
+        let result = PlayerStoppedEvent::from(event);
         let media_result = result.media()
             .expect("expected a media item");
 
@@ -80,5 +98,40 @@ mod test {
         assert_eq!(id, media_result.imdb_id());
         assert_eq!(Some(&time), result.time());
         assert_eq!(Some(&duration), result.duration());
+    }
+
+    #[test]
+    fn test_from_event_c_to_event_player_stopped() {
+        // Create a PlayerStoppedEventC instance for testing
+        let url = into_c_string("http://example.com/video.mp4".to_string());
+        let time = Box::new(1000);
+        let duration = Box::new(5000);
+        let media_item_c = Box::new(MediaItemC {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        });
+        let player_stopped_event_c = PlayerStoppedEventC {
+            url,
+            time: Box::into_raw(time),
+            duration: Box::into_raw(duration),
+            media: Box::into_raw(media_item_c),
+        };
+
+        // Convert the PlayerStoppedEventC instance to an Event instance
+        let event_c = EventC::PlayerStopped(player_stopped_event_c);
+        let event = Event::from(event_c);
+
+        // Verify that the conversion was successful
+        match event {
+            Event::PlayerStopped(player_stopped_event) => {
+                assert_eq!(player_stopped_event.time, Some(1000 as u64));
+                assert_eq!(player_stopped_event.duration, Some(5000 as u64));
+                assert!(player_stopped_event.media.is_none(), "expected no media item");
+            }
+            _ => panic!("Expected PlayerStopped event"),
+        }
     }
 }

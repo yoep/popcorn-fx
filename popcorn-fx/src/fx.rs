@@ -15,6 +15,7 @@ use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
+use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, ThumbEnhancer};
@@ -117,6 +118,7 @@ pub struct PopcornFX {
     favorite_cache_updater: Arc<FavoriteCacheUpdater>,
     providers: Arc<ProviderManager>,
     updater: Arc<Updater>,
+    event_publisher: Arc<EventPublisher>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -137,6 +139,7 @@ impl PopcornFX {
         info!("Creating new popcorn fx instance with {:?}", args);
         let app_directory_path = args.app_directory.as_str();
         let runtime = Arc::new(Self::new_runtime());
+        let event_publisher = Arc::new(EventPublisher::default());
         let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(app_directory_path)));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
@@ -148,7 +151,10 @@ impl PopcornFX {
         let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
-        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::new(app_directory_path)) as Box<dyn AutoResumeService>);
+        let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::builder()
+            .storage_directory(app_directory_path)
+            .event_publisher(event_publisher.clone())
+            .build()) as Box<dyn AutoResumeService>);
         let favorite_cache_updater = Arc::new(FavoriteCacheUpdater::builder()
             .favorite_service(favorites_service.clone())
             .provider_manager(providers.clone())
@@ -180,6 +186,7 @@ impl PopcornFX {
             favorite_cache_updater,
             providers,
             updater: app_updater,
+            event_publisher,
             runtime,
             opts: args,
         }
@@ -257,6 +264,11 @@ impl PopcornFX {
             let mut mutex = self.settings.lock().await;
             mutex.reload()
         })
+    }
+
+    /// Retrieve the event publisher of the FX instance.
+    pub fn event_publisher(&self) -> &Arc<EventPublisher> {
+        &self.event_publisher
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.

@@ -455,6 +455,23 @@ struct PlayerStoppedEventC {
   MediaItemC *media;
 };
 
+/// The C compatible [Event] representation.
+struct EventC {
+  enum class Tag {
+    /// Invoked when the player is being stopped
+    PlayerStopped,
+  };
+
+  struct PlayerStopped_Body {
+    PlayerStoppedEventC _0;
+  };
+
+  Tag tag;
+  union {
+    PlayerStopped_Body player_stopped;
+  };
+};
+
 struct FavoriteEventC {
   enum class Tag {
     /// Event indicating that the like state of a media item changed.
@@ -763,12 +780,6 @@ SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *sh
 /// Retrieve the available subtitles for the given filename
 SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
-/// Handle the player stopped event.
-/// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
-///
-/// * `event`   - The C event instance of the player stopped data.
-void handle_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
-
 /// Install the latest available update.
 void install_update(PopcornFX *popcorn_fx);
 
@@ -813,6 +824,12 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
+
+/// Publish a new application event over the FFI layer.
+/// This will invoke the [popcorn_fx_core::core::events::EventPublisher] publisher on the backend.
+///
+/// _Please keep in mind that the consumption of the event chain is not communicated over the FFI layer_
+void publish_event(PopcornFX *popcorn_fx, EventC event);
 
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));

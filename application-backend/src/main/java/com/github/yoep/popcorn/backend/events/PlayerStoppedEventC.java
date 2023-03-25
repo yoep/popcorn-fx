@@ -13,6 +13,9 @@ import java.io.Closeable;
 @Structure.FieldOrder({"url", "time", "duration", "media"})
 public class PlayerStoppedEventC extends Structure implements Closeable {
     public static class ByValue extends PlayerStoppedEventC implements Structure.ByValue {
+        public ByValue() {
+        }
+
         public ByValue(String url, MediaItem media, Long time, Long duration) {
             super(url, media, time, duration);
         }
@@ -47,8 +50,6 @@ public class PlayerStoppedEventC extends Structure implements Closeable {
     public void close() {
         setAutoSynch(false);
     }
-
-
 
     public static PlayerStoppedEventC.ByValue from(PlayerStoppedEvent event) {
         var media = event.getMedia().map(MediaItem::from).orElse(null);

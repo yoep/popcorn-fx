@@ -1,9 +1,9 @@
 logging:
   level:
     com.github.yoep.player.chromecast: INFO
-    com.github.yoep.popcorn.backend.media.favorites: DEBUG
+    com.github.yoep.popcorn.backend.media.favorites: INFO
     com.github.yoep.popcorn.backend.media.providers: INFO
-    com.github.yoep.popcorn.backend.media.resume: TRACE
+    com.github.yoep.popcorn.backend.media.resume: INFO
     com.github.yoep.popcorn.backend.media.watched: INFO
     com.github.yoep.popcorn.backend.settings: DEBUG
     com.github.yoep.popcorn.backend.subtitles: DEBUG

@@ -2,11 +2,12 @@ use log::{debug, error, info, trace, warn};
 
 use popcorn_fx_core::core::platform;
 use popcorn_fx_core::core::platform::{Platform, PlatformError};
-use popcorn_fx_core::core::playback::MediaNotificationEvent;
 use x11rb::connection::RequestConnection;
 use x11rb::protocol::dpms::{ConnectionExt as DpmsConnectionExt, DPMSMode};
 use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionExt, Exposures};
 use x11rb::rust_connection::{ConnectionError, RustConnection};
+
+use crate::platform::SystemPlatform;
 
 /// The linux platform specific implementation
 #[derive(Debug)]
@@ -52,7 +53,7 @@ impl PlatformLinux {
     }
 }
 
-impl Platform for PlatformLinux {
+impl SystemPlatform for PlatformLinux {
     fn disable_screensaver(&self) -> bool {
         if self.conn.is_none() {
             warn!("Unable to disable_screensaver, no X11 connection could be established");
@@ -91,10 +92,6 @@ impl Platform for PlatformLinux {
                 false
             }
         }
-    }
-
-    fn notify_media_event(&self, _: MediaNotificationEvent) {
-        // no-op
     }
 
     fn window_handle(&self) -> Option<*mut std::ffi::c_void> {
@@ -145,11 +142,11 @@ mod test {
 
         let _ = platform.enable_screensaver();
     }
-    
+
     #[test]
     fn test_window_handle() {
         let platform = PlatformLinux::default();
-        
+
         assert_eq!(None, platform.window_handle())
     }
 }

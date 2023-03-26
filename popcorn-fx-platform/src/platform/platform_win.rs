@@ -6,8 +6,7 @@ use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Power::{PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerSetRequest};
 use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0};
 
-use popcorn_fx_core::core::platform::Platform;
-use popcorn_fx_core::core::playback::MediaNotificationEvent;
+use crate::platform::SystemPlatform;
 
 const WINDOW_NAME: &str = "Popcorn Time";
 
@@ -18,7 +17,7 @@ pub struct PlatformWin {
     screensaver_request: Mutex<Option<HANDLE>>,
 }
 
-impl Platform for PlatformWin {
+impl SystemPlatform for PlatformWin {
     fn disable_screensaver(&self) -> bool {
         let mut encoded = "Popcorn FX playing media"
             .encode_utf16()
@@ -76,10 +75,6 @@ impl Platform for PlatformWin {
             trace!("Windows screensaver not disabled, not trying to clear power request");
             true
         }
-    }
-
-    fn notify_media_event(&self, _: MediaNotificationEvent) {
-        // no-op
     }
 
     fn window_handle(&self) -> Option<*mut std::ffi::c_void> {

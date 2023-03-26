@@ -3,7 +3,11 @@ use std::fmt::Debug;
 use derive_more::Display;
 use mockall::{automock, mock};
 
+use crate::core::CoreCallback;
 use crate::core::playback::MediaNotificationEvent;
+
+/// The platform event specific callback type.
+pub type PlatformCallback = CoreCallback<PlatformEvent>;
 
 /// The platform system specific functions trait.
 /// This trait defines actions which should be performed on the current platform.
@@ -20,14 +24,26 @@ pub trait Platform: Debug + Send + Sync {
     /// Notify the system that a new media playback has been started.
     fn notify_media_event(&self, notification: MediaNotificationEvent);
 
-    /// Retrieve the handle of the window for the platform.
-    fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
+    /// Register a new callback listener for the [PlatformEvent]'s.
+    fn register(&self, callback: PlatformCallback);
 }
 
 /// The information data of the current system platform.
 pub trait PlatformData: Platform {
     /// Retrieve the platform info of the current system.
     fn info(&self) -> PlatformInfo;
+}
+
+/// The events of the system platform.
+#[derive(Debug, Clone, Display, PartialEq)]
+pub enum PlatformEvent {
+    /// Invoked when the play/pause state of the application needs to be toggled
+    #[display(fmt = "Toggle the media playback state")]
+    TogglePlaybackState,
+    #[display(fmt = "Forward the current media playback time")]
+    ForwardMedia,
+    #[display(fmt = "Rewind the current media playback time")]
+    RewindMedia,
 }
 
 /// PlatformInfo defines the info of the current platform
@@ -78,7 +94,7 @@ mock! {
         
         fn notify_media_event(&self, notification: MediaNotificationEvent);
 
-        fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
+        fn register(&self, callback: PlatformCallback);
     }
 }
 
@@ -93,7 +109,7 @@ mock! {
 
         fn notify_media_event(&self, notification: MediaNotificationEvent);
 
-        fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
+        fn register(&self, callback: PlatformCallback);
     }
 }
 

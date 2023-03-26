@@ -1,14 +1,15 @@
 use std::env::consts::{ARCH, OS};
 use std::fmt;
 use std::fmt::Debug;
-use std::os::raw::c_void;
 use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
+use mockall::mock;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::platform::{Platform, PlatformData, PlatformInfo, PlatformType};
+use popcorn_fx_core::core::CoreCallbacks;
+use popcorn_fx_core::core::platform::{Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType};
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
 
 #[cfg(target_os = "linux")]
@@ -21,11 +22,39 @@ use crate::platform::platform_win::PlatformWin;
 const DBUS_NAME: &str = "popcorn_time.media";
 const DISPLAY_NAME: &str = "Popcorn Time";
 
+/// The os system specific actions.
+pub trait SystemPlatform: Debug + Send + Sync {
+    /// Disable the screensaver on the current platform
+    /// It returns `true` if the screensaver was disabled with success, else `false`.
+    fn disable_screensaver(&self) -> bool;
+
+    /// Enable the screensaver on the current platform
+    /// It returns `true` if the screensaver was enabled with success, else `false`.
+    fn enable_screensaver(&self) -> bool;
+
+    /// Retrieve the handle of the window for the platform.
+    fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
+}
+
+mock! {
+    #[derive(Debug)]
+    pub DummySystemPlatform{}
+
+    impl SystemPlatform for DummySystemPlatform {
+        fn disable_screensaver(&self) -> bool;
+
+        fn enable_screensaver(&self) -> bool;
+
+        fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
+    }
+}
+
 /// The `DefaultPlatform` struct represents the [PlatformData], which contains a reference to a
 /// platform and platform information.
 pub struct DefaultPlatform {
-    pub platform: Arc<Box<dyn Platform>>,
-    pub controls: Mutex<Option<MediaControls>>,
+    platform: Arc<Box<dyn SystemPlatform>>,
+    controls: Mutex<Option<MediaControls>>,
+    callbacks: Arc<CoreCallbacks<PlatformEvent>>,
 }
 
 impl DefaultPlatform {
@@ -68,7 +97,8 @@ impl DefaultPlatform {
         };
 
         // this always needs to be done before calling `controls.set_metadata`
-        match controls.attach(|event: MediaControlEvent| info!("Received media controle event {:?}", event)) {
+        let callbacks = self.callbacks.clone();
+        match controls.attach(move |event: MediaControlEvent| Self::handle_media_event(event, &callbacks)) {
             Ok(_) => debug!("System media controls attached"),
             Err(e) => error!("Failed to attach system media controls, {:?}", e)
         };
@@ -87,6 +117,18 @@ impl DefaultPlatform {
         match controls.set_playback(state) {
             Ok(_) => debug!("System media state has changed {}", state_info),
             Err(e) => error!("System media state couldn't be updated, {:?}", e)
+        }
+    }
+
+    fn handle_media_event(event: MediaControlEvent, callbacks: &Arc<CoreCallbacks<PlatformEvent>>) {
+        debug!("Received system media control event {:?}", event);
+        match event {
+            MediaControlEvent::Play => callbacks.invoke(PlatformEvent::TogglePlaybackState),
+            MediaControlEvent::Pause => callbacks.invoke(PlatformEvent::TogglePlaybackState),
+            MediaControlEvent::Toggle => callbacks.invoke(PlatformEvent::TogglePlaybackState),
+            MediaControlEvent::Next => callbacks.invoke(PlatformEvent::ForwardMedia),
+            MediaControlEvent::Previous => callbacks.invoke(PlatformEvent::RewindMedia),
+            _ => {}
         }
     }
 }
@@ -127,8 +169,8 @@ impl Platform for DefaultPlatform {
         }
     }
 
-    fn window_handle(&self) -> Option<*mut c_void> {
-        None
+    fn register(&self, callback: PlatformCallback) {
+        self.callbacks.add(callback);
     }
 }
 
@@ -161,6 +203,7 @@ impl Default for DefaultPlatform {
         Self {
             platform: Arc::new(platform),
             controls: Default::default(),
+            callbacks: Arc::new(Default::default()),
         }
     }
 }
@@ -181,7 +224,9 @@ impl Drop for DefaultPlatform {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::core::platform::MockDummyPlatform;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
     use popcorn_fx_core::testing::init_logger;
 
     use super::*;
@@ -189,7 +234,7 @@ mod test {
     #[test]
     fn test_disable_screensaver() {
         init_logger();
-        let mut sys_platform = MockDummyPlatform::new();
+        let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_disable_screensaver()
             .returning(|| true);
         sys_platform.expect_enable_screensaver()
@@ -197,6 +242,7 @@ mod test {
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
+            callbacks: Default::default(),
         };
 
         assert!(platform.disable_screensaver(), "expected the screensaver to be disabled")
@@ -205,12 +251,13 @@ mod test {
     #[test]
     fn test_enable_screensaver() {
         init_logger();
-        let mut sys_platform = MockDummyPlatform::new();
+        let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_enable_screensaver()
             .returning(|| true);
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
+            callbacks: Default::default(),
         };
 
         assert!(platform.enable_screensaver(), "expected the screensaver to be enabled")
@@ -219,13 +266,14 @@ mod test {
     #[test]
     fn test_drop_default_platform() {
         init_logger();
-        let mut sys_platform = MockDummyPlatform::new();
+        let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_enable_screensaver()
             .returning(|| true)
             .times(1);
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
+            callbacks: Default::default(),
         };
 
         drop(platform);
@@ -268,5 +316,44 @@ mod test {
         // verify that the other events don't crash the program
         // when no controls are present
         platform.notify_media_event(MediaNotificationEvent::StatePaused);
+    }
+
+    #[test]
+    fn test_handle_media_play_event() {
+        let (tx, rx) = channel();
+        let callbacks = Arc::new(CoreCallbacks::default());
+        let event = MediaControlEvent::Play;
+
+        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        DefaultPlatform::handle_media_event(event, &callbacks.clone());
+
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        assert_eq!(PlatformEvent::TogglePlaybackState, result);
+    }
+
+    #[test]
+    fn test_handle_media_pause_event() {
+        let (tx, rx) = channel();
+        let callbacks = Arc::new(CoreCallbacks::default());
+        let event = MediaControlEvent::Pause;
+
+        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        DefaultPlatform::handle_media_event(event, &callbacks.clone());
+
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        assert_eq!(PlatformEvent::TogglePlaybackState, result);
+    }
+
+    #[test]
+    fn test_handle_media_next_event() {
+        let (tx, rx) = channel();
+        let callbacks = Arc::new(CoreCallbacks::default());
+        let event = MediaControlEvent::Next;
+
+        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        DefaultPlatform::handle_media_event(event, &callbacks.clone());
+
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        assert_eq!(PlatformEvent::ForwardMedia, result);
     }
 }

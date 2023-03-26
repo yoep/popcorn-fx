@@ -1,11 +1,12 @@
 use std::os::raw::c_int;
 
-use core_foundation::base::TCFType;
-use core_foundation::string::{CFString, CFStringRef};
 use log::{debug, info, warn};
 
+use core_foundation::base::TCFType;
+use core_foundation::string::{CFString, CFStringRef};
 use popcorn_fx_core::core::platform::Platform;
-use popcorn_fx_core::core::playback::MediaNotificationEvent;
+
+use crate::platform::SystemPlatform;
 
 const KIOPMASSERTIONLEVEL_ON: u32 = 255;
 const KIOPMASSERTIONLEVEL_OFF: u32 = 0;
@@ -41,7 +42,7 @@ impl PlatformMac {
     }
 }
 
-impl Platform for PlatformMac {
+impl SystemPlatform for PlatformMac {
     fn disable_screensaver(&self) -> bool {
         let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_ON);
         info!("Disable screensaver returned state {}", result);
@@ -52,10 +53,6 @@ impl Platform for PlatformMac {
         let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_OFF);
         info!("Enable screensaver returned state {}", result);
         result
-    }
-
-    fn notify_media_event(&self, _: MediaNotificationEvent) {
-        // no-op
     }
 
     fn window_handle(&self) -> Option<*mut std::ffi::c_void> {

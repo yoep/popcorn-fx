@@ -1,7 +1,7 @@
 pub use controls::*;
-pub use notification::*;
+pub use events::*;
 pub use state::*;
 
 mod controls;
-mod notification;
+mod events;
 mod state;

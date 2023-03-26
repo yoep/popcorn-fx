@@ -17,6 +17,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 derive_more = "0"
 futures = "0.3"
 log.workspace = true
+mockall = "0"
 souvlaki = "0.6"
 tokio.workspace = true
 

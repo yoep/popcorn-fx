@@ -110,6 +110,11 @@ impl PlaybackControlsBuilder {
         };
 
         let inner = instance.inner.clone();
+        instance.inner.platform.register(Box::new(move |event| {
+
+        }));
+
+        let inner = instance.inner.clone();
         if let Some(event_publisher) = self.event_publisher {
             event_publisher.register(Box::new(move |event| {
                 match &event {

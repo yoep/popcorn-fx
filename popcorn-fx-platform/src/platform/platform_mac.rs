@@ -1,9 +1,9 @@
 use std::os::raw::c_int;
 
-use log::{debug, info, warn};
-
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
+use log::{debug, info, warn};
+
 use popcorn_fx_core::core::platform::Platform;
 
 use crate::platform::SystemPlatform;
@@ -64,6 +64,8 @@ impl SystemPlatform for PlatformMac {
 mod test {
     use popcorn_fx_core::core::platform::Platform;
     use popcorn_fx_core::testing::init_logger;
+
+    use crate::platform::SystemPlatform;
 
     use super::PlatformMac;
 

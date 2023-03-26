@@ -1,16 +1,22 @@
 {
-  "version": "0.5.1",
+  "version": "0.6.0",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1_arm64.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1.dmg",
-    "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.5.1/popcorn-time_0.5.1.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.0/popcorn-time_0.6.0.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.0/popcorn-time_0.6.0_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.0/popcorn-time_0.6.0.dmg",
+    "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.0/popcorn-time_0.6.0.exe"
   },
   "changelog": {
     "features": [
+      "Media keyboard shortcuts are now supported on all system",
+      "New TV mode has been introduced",
+      "New modern UI overhaul",
+      "Cleaned updates directory on closure",
+      "Added episode thumbnails"
     ],
     "bugfixes": [
-      "Fixed subtitles directory not being created"
+      "Fixed crash on unix system when adding a movie to favorites",
+      "Fixed clear subtitles & torrents directory settings not being saved"
     ]
   }
 }

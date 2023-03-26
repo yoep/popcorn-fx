@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.controls;
+package com.github.yoep.popcorn.ui.view.controls;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;

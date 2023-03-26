@@ -22,6 +22,13 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
+/// The events of the playback controller.
+enum class PlaybackControlEvent : int32_t {
+  TogglePlaybackState = 0,
+  Forward = 1,
+  Rewind = 2,
+};
+
 /// The playback state of the current media item.
 /// This describes the information of the playback state known by the player.
 enum class PlaybackState : int32_t {
@@ -532,6 +539,9 @@ struct FavoriteEventC {
   };
 };
 
+/// The C compatible callback for playback control events.
+using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
+
 /// The C compatible application events.
 struct ApplicationConfigEventC {
   enum class Tag {
@@ -873,6 +883,9 @@ void publish_event(PopcornFX *popcorn_fx, EventC event);
 
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
+
+/// Register a new callback listener for the playback controls.
+void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC callback);
 
 /// Register a new callback for all setting events.
 void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallbackC callback);

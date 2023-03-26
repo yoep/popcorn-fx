@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.player;
+package com.github.yoep.popcorn.backend.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStateEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -23,7 +22,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * and only want to register ones instead of each time a different player is used.
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class PlayerEventService {
     private final PlayerManagerService playerService;

@@ -1,11 +1,30 @@
+use derive_more::Display;
+
+use crate::core::CoreCallback;
+
+/// The callback for playback control events.
+pub type PlaybackControlCallback = CoreCallback<PlaybackControlEvent>;
+
+/// The events of the playback controller.
+#[repr(i32)]
+#[derive(Debug, Clone, Display)]
+pub enum PlaybackControlEvent {
+    #[display(fmt = "Toggle the playback state")]
+    TogglePlaybackState = 0,
+    #[display(fmt = "Forward media")]
+    Forward = 1,
+    #[display(fmt = "Rewind media")]
+    Rewind = 2,
+}
+
 /// The media notification playback that media is being played.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MediaNotificationEvent {
     /// Invoked when a new playback has started
     PlaybackStarted(MediaInfo),
     StatePaused,
     StatePlaying,
-    StateStopped
+    StateStopped,
 }
 
 #[derive(Debug, Clone, PartialEq)]

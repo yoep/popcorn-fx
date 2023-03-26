@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use log::warn;
+use log::{trace, warn};
 
+use crate::core::CoreCallbacks;
 use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayVideoEvent};
-use crate::core::platform::PlatformData;
-use crate::core::playback::{MediaInfo, MediaNotificationEvent, PlaybackState};
+use crate::core::platform::{PlatformData, PlatformEvent};
+use crate::core::playback::{MediaInfo, MediaNotificationEvent, PlaybackControlCallback, PlaybackControlEvent, PlaybackState};
 
 /// Manages media playback state and communication with the operating system's media control system for
 /// the application.
@@ -57,6 +58,11 @@ impl PlaybackControls {
     pub fn builder() -> PlaybackControlsBuilder {
         PlaybackControlsBuilder::default()
     }
+
+    /// Register a new callback listener for the [PlaybackControlEvent]'s.
+    pub fn register(&self, callback: PlaybackControlCallback) {
+        self.inner.register(callback);
+    }
 }
 
 /// A builder for `PlaybackControls`.
@@ -106,12 +112,13 @@ impl PlaybackControlsBuilder {
         let instance = PlaybackControls {
             inner: Arc::new(InnerPlaybackControls {
                 platform: self.platform.expect("Platform not set"),
+                callbacks: Default::default(),
             }),
         };
 
         let inner = instance.inner.clone();
         instance.inner.platform.register(Box::new(move |event| {
-
+            inner.handle_event(event)
         }));
 
         let inner = instance.inner.clone();
@@ -139,6 +146,7 @@ impl PlaybackControlsBuilder {
 #[derive(Debug)]
 struct InnerPlaybackControls {
     platform: Arc<Box<dyn PlatformData>>,
+    callbacks: CoreCallbacks<PlaybackControlEvent>,
 }
 
 impl InnerPlaybackControls {
@@ -157,6 +165,19 @@ impl InnerPlaybackControls {
             _ => {}
         }
     }
+
+    fn register(&self, callback: PlaybackControlCallback) {
+        self.callbacks.add(callback)
+    }
+
+    fn handle_event(&self, event: PlatformEvent) {
+        trace!("Handling platform event {:?}", event);
+        match event {
+            PlatformEvent::TogglePlaybackState => self.callbacks.invoke(PlaybackControlEvent::TogglePlaybackState),
+            PlatformEvent::ForwardMedia => self.callbacks.invoke(PlaybackControlEvent::Forward),
+            PlatformEvent::RewindMedia => self.callbacks.invoke(PlaybackControlEvent::Rewind),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -164,16 +185,74 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::platform::MockDummyPlatformData;
+    use crate::core::platform::{MockDummyPlatformData, Platform};
     use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_platform_event_toggle_playback() {
+        init_logger();
+        let (tx, rx) = channel();
+        let (tx_ce, rx_ce) = channel();
+        let mut platform = MockDummyPlatformData::new();
+        platform.expect_register()
+            .returning(move |callback| tx.send(callback).unwrap());
+        let event_publisher = Arc::new(EventPublisher::default());
+        let controls = PlaybackControls::builder()
+            .platform(Arc::new(Box::new(platform)))
+            .event_publisher(event_publisher.clone())
+            .build();
+
+        // add a callback to the playback control events
+        controls.register(Box::new(move |e| tx_ce.send(e).unwrap()));
+
+        // invoke the callback on the platform
+        let callback = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        callback(PlatformEvent::TogglePlaybackState);
+
+        let result = rx_ce.recv_timeout(Duration::from_millis(100)).unwrap();
+        match result {
+            PlaybackControlEvent::TogglePlaybackState => {}
+            _ => panic!("Expected PlaybackControlEvent::TogglePlaybackState")
+        }
+    }
+
+    #[test]
+    fn test_platform_event_forward() {
+        init_logger();
+        let (tx, rx) = channel();
+        let (tx_ce, rx_ce) = channel();
+        let mut platform = MockDummyPlatformData::new();
+        platform.expect_register()
+            .returning(move |callback| tx.send(callback).unwrap());
+        let event_publisher = Arc::new(EventPublisher::default());
+        let controls = PlaybackControls::builder()
+            .platform(Arc::new(Box::new(platform)))
+            .event_publisher(event_publisher.clone())
+            .build();
+
+        // add a callback to the playback control events
+        controls.register(Box::new(move |e| tx_ce.send(e).unwrap()));
+
+        // invoke the callback on the platform
+        let callback = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        callback(PlatformEvent::ForwardMedia);
+
+        let result = rx_ce.recv_timeout(Duration::from_millis(100)).unwrap();
+        match result {
+            PlaybackControlEvent::Forward => {}
+            _ => panic!("Expected PlaybackControlEvent::Forward")
+        }
+    }
 
     #[test]
     fn test_on_play_video_event() {
         init_logger();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
+        platform.expect_register()
+            .returning(|_| {});
         platform.expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
         let event_publisher = Arc::new(EventPublisher::default());
@@ -196,7 +275,7 @@ mod test {
                 show_name: Some("My showname".to_string()),
                 thumb: None,
             }),
-            _=> panic!("Expected MediaNotificationEvent::PlaybackStarted")
+            _ => panic!("Expected MediaNotificationEvent::PlaybackStarted")
         }
     }
 }

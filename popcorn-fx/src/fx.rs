@@ -271,6 +271,11 @@ impl PopcornFX {
         &self.updater
     }
 
+    /// The playback controls handler of the system.
+    pub fn playback_controls(&self) -> &Arc<PlaybackControls> {
+        &self.playback_controls
+    }
+
     /// Reload the settings of this instance.
     /// This will read the settings from the storage and notify all subscribers of new changes.
     pub fn reload_settings(&mut self) {

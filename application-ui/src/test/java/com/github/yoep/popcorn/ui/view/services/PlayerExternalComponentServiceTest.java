@@ -14,7 +14,7 @@ import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
 import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.ui.player.PlayerEventService;
+import com.github.yoep.popcorn.backend.player.PlayerEventService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

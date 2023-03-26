@@ -6,7 +6,7 @@ use std::sync::Arc;
 use log::{debug, error, info, trace, warn};
 use mockall::mock;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::CoreCallbacks;
 use popcorn_fx_core::core::platform::{Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType};
@@ -69,9 +69,16 @@ impl DefaultPlatform {
 
         trace!("Creating system media control with {:?}", platform_config);
         match MediaControls::new(platform_config) {
-            Ok(e) => {
+            Ok(mut controls) => {
                 debug!("System media controls have been created");
-                Some(e)
+                // attach the media controls events of the system to our known callbacks
+                let callbacks = self.callbacks.clone();
+                match controls.attach(move |event: MediaControlEvent| Self::handle_media_event(event, &callbacks)) {
+                    Ok(_) => debug!("System media controls attached"),
+                    Err(e) => error!("Failed to attach system media controls, {:?}", e)
+                };
+
+                Some(controls)
             }
             Err(e) => {
                 error!("Failed to create system media controls, {:?}", e);
@@ -94,13 +101,6 @@ impl DefaultPlatform {
             artist: info.show_name.as_ref().map(|e| e.as_str()),
             cover_url: info.thumb.as_ref().map(|e| e.as_ref()),
             ..Default::default()
-        };
-
-        // this always needs to be done before calling `controls.set_metadata`
-        let callbacks = self.callbacks.clone();
-        match controls.attach(move |event: MediaControlEvent| Self::handle_media_event(event, &callbacks)) {
-            Ok(_) => debug!("System media controls attached"),
-            Err(e) => error!("Failed to attach system media controls, {:?}", e)
         };
 
         trace!("Notifying system of media playback {:?}", metadata);
@@ -131,6 +131,19 @@ impl DefaultPlatform {
             _ => {}
         }
     }
+
+    fn dispose_media_controls(mutex: &mut MutexGuard<Option<MediaControls>>) {
+        // release the controls
+        debug!("Releasing system media controls");
+        if let Some(controls) = mutex.as_mut() {
+            match controls.detach() {
+                Ok(_) => debug!("Detached system media controls"),
+                Err(e) => error!("Failed to detach from system media controls, {:?}", e),
+            }
+        }
+
+        let _ = mutex.take();
+    }
 }
 
 impl Platform for DefaultPlatform {
@@ -153,19 +166,18 @@ impl Platform for DefaultPlatform {
         }
 
         if let Some(mut controls) = mutex.as_mut() {
-            match event {
-                MediaNotificationEvent::PlaybackStarted(info) => self.on_media_info_changed(&mut controls, info),
+            match &event {
+                MediaNotificationEvent::PlaybackStarted(info) => self.on_media_info_changed(&mut controls, info.clone()),
                 MediaNotificationEvent::StatePlaying => self.on_playback_state_changed(&mut controls, MediaPlayback::Playing { progress: None }),
                 MediaNotificationEvent::StatePaused => self.on_playback_state_changed(&mut controls, MediaPlayback::Paused { progress: None }),
-                MediaNotificationEvent::StateStopped => {
-                    self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped);
-                    // release the controls
-                    debug!("Releasing system media controls");
-                    *mutex = None;
-                }
+                MediaNotificationEvent::StateStopped => self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped),
             }
         } else {
             warn!("Unable to handle the media playback notification, MediaControls not present")
+        }
+
+        if MediaNotificationEvent::StateStopped == event {
+            Self::dispose_media_controls(&mut mutex);
         }
     }
 

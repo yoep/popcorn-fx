@@ -33,7 +33,6 @@ public class ImageService {
 
     private final RestTemplate restTemplate;
 
-    private Image posterHolder;
     private Image artHolder;
 
     //region Methods
@@ -44,7 +43,16 @@ public class ImageService {
      * @return Returns the poster holder image.
      */
     public Image getPosterHolder() {
-        return posterHolder;
+        return getPosterHolder(0, 0);
+    }
+
+    public Image getPosterHolder(double requestedWidth, double requestedHeight) {
+        try {
+            return new Image(new ClassPathResource(POSTER_HOLDER).getInputStream(), requestedWidth, requestedHeight, true, true);
+        } catch (Exception ex) {
+            log.error("Failed to load poster holder, " + ex.getMessage(), ex);
+            return null;
+        }
     }
 
     public Image getArtHolder() {
@@ -148,16 +156,7 @@ public class ImageService {
 
     @PostConstruct
     void init() {
-        loadPosterHolder();
         loadArtHolder();
-    }
-
-    private void loadPosterHolder() {
-        try {
-            posterHolder = new Image(new ClassPathResource(POSTER_HOLDER).getInputStream());
-        } catch (Exception ex) {
-            log.error("Failed to load poster holder, " + ex.getMessage(), ex);
-        }
     }
 
     private void loadArtHolder() {

@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.ui.events.*;
 import javafx.animation.Animation;
 import javafx.scene.control.Label;
@@ -46,6 +47,8 @@ class SidebarControllerTest {
     private UISettings settings;
     @Mock
     private ViewLoader viewLoader;
+    @Mock
+    private UpdateService updateService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock

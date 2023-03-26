@@ -1,12 +1,13 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
 use mockall::automock;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, media};
-use crate::core::events::PlayerStoppedEvent;
+use crate::core::events::{Event, EventPublisher, HIGHEST_ORDER, PlayerStoppedEvent};
 use crate::core::media::MediaError;
 use crate::core::media::resume::AutoResume;
 use crate::core::storage::{Storage, StorageError};
@@ -14,7 +15,7 @@ use crate::core::storage::{Storage, StorageError};
 const FILENAME: &str = "auto-resume.json";
 /// The minimum duration a video playback should have
 const VIDEO_DURATION_THRESHOLD: u64 = 5 * 60 * 1000;
-/// The percentage of the video that should heva been watched
+/// The percentage of the video that should have been watched
 /// to be assumed as "viewed"
 const RESUME_PERCENTAGE_THRESHOLD: u32 = 85;
 
@@ -37,18 +38,115 @@ pub trait AutoResumeService: Debug + Send + Sync {
 /// The default auto-resume service for Popcorn FX.
 #[derive(Debug)]
 pub struct DefaultAutoResumeService {
+    inner: Arc<InnerAutoResumeService>,
+}
+
+impl DefaultAutoResumeService {
+    pub fn builder() -> DefaultAutoResumeServiceBuilder {
+        DefaultAutoResumeServiceBuilder::default()
+    }
+}
+
+impl AutoResumeService for DefaultAutoResumeService {
+    fn resume_timestamp<'a>(&self, id: Option<&'a str>, filename: Option<&'a str>) -> Option<u64> {
+        self.inner.resume_timestamp(id, filename)
+    }
+
+    fn player_stopped(&self, event: &PlayerStoppedEvent) {
+        self.inner.player_stopped(event)
+    }
+}
+
+/// A builder for `DefaultAutoResumeService` which allows saving auto-resume timestamps of video playbacks.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::sync::Arc;
+/// use my_crate::event_publisher::EventPublisher;
+/// use my_crate::DefaultAutoResumeService;
+/// use popcorn_fx_core::core::events::EventPublisher;
+/// use popcorn_fx_core::core::media::resume::DefaultAutoResumeService;
+///
+/// let auto_resume_service = DefaultAutoResumeService::builder()
+///     .storage_directory("my-storage-directory")
+///     .event_publisher(Arc::new(EventPublisher::new()))
+///     .build();
+/// ```
+#[derive(Default)]
+pub struct DefaultAutoResumeServiceBuilder {
+    storage_directory: Option<String>,
+    event_publisher: Option<Arc<EventPublisher>>,
+}
+
+impl DefaultAutoResumeServiceBuilder {
+    /// Sets the `storage_directory` field for the `DefaultAutoResumeService`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `storage_directory` is not set when `build()` is called.
+    pub fn storage_directory(mut self, storage_directory: &str) -> Self {
+        self.storage_directory = Some(storage_directory.to_string());
+        self
+    }
+
+    /// Sets the `event_publisher` field for the `DefaultAutoResumeService`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::sync::Arc;
+    /// use my_crate::event_publisher::EventPublisher;
+    /// use my_crate::DefaultAutoResumeService;
+    /// use popcorn_fx_core::core::events::EventPublisher;
+    /// use popcorn_fx_core::core::media::resume::DefaultAutoResumeService;
+    ///
+    /// let auto_resume_service = DefaultAutoResumeService::builder()
+    ///     .storage_directory("my-storage-directory")
+    ///     .event_publisher(Arc::new(EventPublisher::new()))
+    ///     .build();
+    /// ```
+    pub fn event_publisher(mut self, event_publisher: Arc<EventPublisher>) -> Self {
+        self.event_publisher = Some(event_publisher);
+        self
+    }
+
+    /// Builds a new `DefaultAutoResumeService`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `storage_directory` is not set.
+    pub fn build(self) -> DefaultAutoResumeService {
+        let instance = DefaultAutoResumeService {
+            inner: Arc::new(InnerAutoResumeService {
+                storage: Storage::from(self.storage_directory.expect("Storage directory not set").as_str()),
+                cache: Mutex::new(None),
+            }),
+        };
+
+        if let Some(event_publisher) = self.event_publisher {
+            let inner = instance.inner.clone();
+            event_publisher.register(Box::new(move |event| {
+                if let Event::PlayerStopped(player_stopped) = &event {
+                    inner.player_stopped(player_stopped);
+                }
+                Some(event)
+            }), HIGHEST_ORDER + 10);
+        } else {
+            warn!("No EventPublisher configured for DefaultAutoResumeService, unable to automatically detect PlayerStopped events");
+        }
+
+        instance
+    }
+}
+
+#[derive(Debug)]
+struct InnerAutoResumeService {
     storage: Storage,
     cache: Mutex<Option<AutoResume>>,
 }
 
-impl DefaultAutoResumeService {
-    pub fn new(storage_directory: &str) -> Self {
-        Self {
-            storage: Storage::from(storage_directory),
-            cache: Mutex::new(None),
-        }
-    }
-
+impl InnerAutoResumeService {
     async fn load_resume_cache(&self) -> media::Result<()> {
         let mut cache = self.cache.lock().await;
 
@@ -101,7 +199,7 @@ impl DefaultAutoResumeService {
     }
 }
 
-impl AutoResumeService for DefaultAutoResumeService {
+impl AutoResumeService for InnerAutoResumeService {
     fn resume_timestamp<'a>(&self, id: Option<&'a str>, filename: Option<&'a str>) -> Option<u64> {
         match futures::executor::block_on(self.load_resume_cache()) {
             Ok(_) => {
@@ -152,7 +250,7 @@ impl AutoResumeService for DefaultAutoResumeService {
 
             match futures::executor::block_on(self.load_resume_cache()) {
                 Ok(_) => {
-                    let mut mutex = self.cache.blocking_lock();
+                    let mut mutex = futures::executor::block_on(self.cache.lock());
                     let cache = mutex.as_mut().expect("expected the cache to be available");
                     let percentage_watched = ((*time as f64 / *duration as f64) * 100f64) as u32;
                     let path = PathBuf::from(event.url());
@@ -184,7 +282,7 @@ impl AutoResumeService for DefaultAutoResumeService {
     }
 }
 
-impl Drop for DefaultAutoResumeService {
+impl Drop for InnerAutoResumeService {
     fn drop(&mut self) {
         let mutex = self.cache.blocking_lock();
         let cache = mutex.as_ref();
@@ -211,7 +309,9 @@ mod test {
         let filename = "Lorem.mp4";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
         copy_test_file(temp_path, "auto-resume.json", None);
 
         let result = service.resume_timestamp(None, Some(filename));
@@ -228,7 +328,9 @@ mod test {
         let filename = "random-video-not-known.mkv";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
 
         let result = service.resume_timestamp(None, Some(filename));
 
@@ -241,7 +343,9 @@ mod test {
         let id = "110999";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
         copy_test_file(temp_path, "auto-resume.json", None);
 
         let result = service.resume_timestamp(Some(id), None);
@@ -257,7 +361,9 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
 
         let result = service.resume_timestamp(None, None);
 
@@ -269,13 +375,15 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/ipsum.mp4".to_string(),
-            None,
-            Some(30000),
-            Some(120000),
-        );
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/ipsum.mp4".to_string(),
+            media: None,
+            time: Some(30000),
+            duration: Some(120000),
+        };
 
         service.player_stopped(&event);
         let result = service.resume_timestamp(None, Some("ipsum.mp4"));
@@ -289,19 +397,21 @@ mod test {
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
         let expected_timestamp = 40000;
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),
             id.to_string(),
             "2022".to_string(),
         )) as Box<dyn MediaIdentifier>;
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/lorem.mp4".to_string(),
-            Some(movie),
-            Some(expected_timestamp.clone()),
-            Some(350000),
-        );
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/lorem.mp4".to_string(),
+            media: Some(movie),
+            time: Some(expected_timestamp.clone()),
+            duration: Some(350000),
+        };
 
         service.player_stopped(&event);
         let result = service.resume_timestamp(Some(id), None)
@@ -316,19 +426,21 @@ mod test {
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
         copy_test_file(temp_path, "auto-resume.json", None);
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),
             "tt11223344".to_string(),
             "2022".to_string(),
         )) as Box<dyn MediaIdentifier>;
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/already-started-watching.mkv".to_string(),
-            Some(movie),
-            Some(550000),
-            Some(600000),
-        );
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/already-started-watching.mkv".to_string(),
+            media: Some(movie),
+            time: Some(550000),
+            duration: Some(600000),
+        };
 
         service.player_stopped(&event);
         let result = service.resume_timestamp(Some(id), None);
@@ -342,18 +454,20 @@ mod test {
         let id = "tt00001212";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultAutoResumeService::new(temp_path);
+        let service = DefaultAutoResumeService::builder()
+            .storage_directory(temp_path)
+            .build();
         let movie = Box::new(MovieOverview::new(
             "My video".to_string(),
             id.to_string(),
             "2022".to_string(),
         )) as Box<dyn MediaIdentifier>;
-        let event = PlayerStoppedEvent::new(
-            "http://localhost/already-started-watching.mkv".to_string(),
-            Some(movie),
-            Some(20000),
-            Some(600000),
-        );
+        let event = PlayerStoppedEvent {
+            url: "http://localhost/already-started-watching.mkv".to_string(),
+            media: Some(movie),
+            time: Some(20000),
+            duration: Some(600000),
+        };
         let expected_result = "{\"video_timestamps\":[{\"id\":\"tt00001212\",\"filename\":\"already-started-watching.mkv\",\"last_known_time\":20000}]}";
 
         service.player_stopped(&event);

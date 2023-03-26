@@ -27,7 +27,9 @@ jobs:
       - name: Prepare packaging
         run: make prerequisites
       - name: Package
-        run: xvfb-run make package
+        run: |
+          sudo apt install libdbus-1-dev pkg-config
+          xvfb-run make package
       - name: Archive artifacts
         uses: actions/upload-artifact@v2
         with:

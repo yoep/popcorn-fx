@@ -54,6 +54,10 @@ public class UpdateService {
         listeners.add(listener);
     }
 
+    public void checkForUpdates() {
+
+    }
+
     //endregion
 
     @PostConstruct
@@ -61,12 +65,19 @@ public class UpdateService {
         fxLib.register_update_callback(instance, callback);
     }
 
+    private void onStateChanged(UpdateState newState) {
+        if (Objects.requireNonNull(newState) == UpdateState.INSTALLING) {
+            platform.exit();
+        }
+    }
+
     private UpdateCallback createCallback() {
         return event -> new Thread(() -> {
             log.debug("Received update callback event {}", event);
-            if (event.getTag() == UpdateEvent.Tag.StateChanged &&
-                    event.getUnion().getState_changed().getNewState() == UpdateState.INSTALLING) {
-                platform.exit();
+            event.close();
+
+            if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
+                onStateChanged(event.getUnion().getState_changed().getNewState());
             }
 
             try {

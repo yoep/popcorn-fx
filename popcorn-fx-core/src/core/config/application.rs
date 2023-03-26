@@ -55,24 +55,22 @@ pub struct ApplicationConfig {
 }
 
 impl ApplicationConfig {
-    /// Create new [Settings] which will look for the [DEFAULT_CONFIG_FILENAME] config file.
-    /// It will parse the config file if found, else uses the defaults instead.
-    pub fn new_auto(storage_directory: &str) -> Self {
-        let storage = Storage::from(storage_directory);
-        let settings = match storage.read::<PopcornSettings>(DEFAULT_SETTINGS_FILENAME) {
-            Ok(e) => e,
-            Err(e) => {
-                warn!("Failed to read settings from storage, using default settings instead, {}", e);
-                PopcornSettings::default()
-            }
-        };
-
-        Self {
-            storage,
-            properties: PopcornProperties::new_auto(),
-            settings,
-            callbacks: CoreCallbacks::default(),
-        }
+    /// Creates a new `ApplicationConfigBuilder` with which a new [ApplicationConfig] can be
+    /// initialized.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::config::{ApplicationConfig, ApplicationConfigCallback, PopcornProperties};
+    ///
+    /// let config = ApplicationConfig::builder()
+    ///     .storage("storage-path") // This field is required and will panic when not set
+    ///     .properties(PopcornProperties::default())
+    ///     .with_callback(callback)
+    ///     .build();
+    /// ```
+    pub fn builder() -> ApplicationConfigBuilder {
+        ApplicationConfigBuilder::default()
     }
 
     /// The popcorn properties of the application.
@@ -205,6 +203,126 @@ impl Drop for ApplicationConfig {
     }
 }
 
+/// The builder for the [ApplicationConfig].
+#[derive(Debug, Default)]
+pub struct ApplicationConfigBuilder {
+    storage: Option<Storage>,
+    properties: Option<PopcornProperties>,
+    settings: Option<PopcornSettings>,
+    callbacks: CoreCallbacks<ApplicationConfigEvent>,
+}
+
+impl ApplicationConfigBuilder {
+    /// Sets the storage to use for reading the settings.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
+    ///
+    /// let config = ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .properties(PopcornProperties::default())
+    ///     .build();
+    /// ```
+    pub fn storage(mut self, storage: &str) -> Self {
+        self.storage = Some(Storage::from(storage));
+        self
+    }
+
+    /// Sets the user settings for the application.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::config::{ApplicationConfig, PopcornSettings};
+    ///
+    /// let config = ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .settings(PopcornSettings::default())
+    ///     .build();
+    /// ```
+    pub fn settings(mut self, settings: PopcornSettings) -> Self {
+        self.settings = Some(settings);
+        self
+    }
+
+    /// Sets the static properties of the application.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
+    ///
+    /// let config = ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .properties(PopcornProperties::default())
+    ///     .build();
+    /// ```
+    pub fn properties(mut self, properties: PopcornProperties) -> Self {
+        self.properties = Some(properties);
+        self
+    }
+
+    /// Adds an additional callback to the `CoreCallbacks` object for the application config.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::config::ApplicationConfig;
+    ///
+    /// let config = ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .with_callback(callback)
+    ///     .build();
+    /// ```
+    pub fn with_callback(self, callback: ApplicationConfigCallback) -> Self {
+        self.callbacks.add(callback);
+        self
+    }
+
+    /// Builds an `ApplicationConfig` object with the specified parameters.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `storage` path has not been set.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
+    ///
+    /// let config = ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .properties(PopcornProperties::default())
+    ///     .build();
+    /// ```
+    pub fn build(self) -> ApplicationConfig {
+        let storage = self.storage.expect("storage path has not been set");
+        let settings = self.settings
+            .or_else(|| {
+                match storage.read::<PopcornSettings>(DEFAULT_SETTINGS_FILENAME) {
+                    Ok(e) => Some(e),
+                    Err(e) => {
+                        warn!("Failed to read settings from storage, using default settings instead, {}", e);
+                        Some(PopcornSettings::default())
+                    }
+                }
+            })
+            .unwrap();
+        let properties = self.properties
+            .or_else(|| Some(PopcornProperties::new_auto()))
+            .unwrap();
+
+        ApplicationConfig {
+            storage,
+            properties,
+            settings,
+            callbacks: self.callbacks,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -225,7 +343,9 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let result = ApplicationConfig::new_auto(temp_path);
+        let result = ApplicationConfig::builder()
+            .storage(temp_path)
+            .build();
         let expected_result = "https://api.opensubtitles.com/api/v1".to_string();
 
         assert_eq!(&expected_result, result.properties().subtitle().url())
@@ -237,7 +357,9 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
-        let application = ApplicationConfig::new_auto(temp_path);
+        let application = ApplicationConfig::builder()
+            .storage(temp_path)
+            .build();
         let expected_result = PopcornSettings {
             subtitle_settings: SubtitleSettings::new(
                 None,
@@ -264,7 +386,9 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let application = ApplicationConfig::new_auto(temp_path);
+        let application = ApplicationConfig::builder()
+            .storage(temp_path)
+            .build();
         let expected_result = PopcornSettings::default();
 
         let result = application.user_settings();

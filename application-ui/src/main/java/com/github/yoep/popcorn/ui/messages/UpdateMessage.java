@@ -5,6 +5,10 @@ import lombok.Getter;
 
 @Getter
 public enum UpdateMessage implements Message {
+    CHECK_FOR_NEW_UPDATES("update_check"),
+    NO_UPDATE_AVAILABLE("no_update_available"),
+    DOWNLOAD_UPDATE("download_update"),
+    NEW_VERSION("new_version"),
     DOWNLOADING("update_state_downloading"),
     DOWNLOAD_FINISHED("update_state_download_finished"),
     INSTALLING("update_state_installing"),

@@ -6,8 +6,13 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.updater.UpdateCallbackEvent;
+import com.github.yoep.popcorn.backend.updater.UpdateService;
+import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.ui.events.*;
+import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
+import javafx.animation.Transition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -18,6 +23,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,8 +40,10 @@ public class SidebarController implements Initializable {
     private final ApplicationConfig applicationConfig;
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
+    private final UpdateService updateService;
 
-    final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500.0), new Pane());
+    final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500), new Pane());
+    final Transition updateTransition = createColorTransition();
     Category lastKnownSelectedCategory;
 
     @FXML
@@ -65,7 +73,7 @@ public class SidebarController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        initializeSlideAnimation();
+        initializeAnimations();
         initializeEventListeners();
         activateStartCategory();
         initializeSearch();
@@ -74,7 +82,7 @@ public class SidebarController implements Initializable {
         sidebar.getColumnConstraints().get(0).setPrefWidth(searchIcon.getPrefWidth());
     }
 
-    private void initializeSlideAnimation() {
+    private void initializeAnimations() {
         slideAnimation.setFromValue(0);
         slideAnimation.setToValue(1);
         slideAnimation.getNode().setOpacity(0.0);
@@ -98,6 +106,10 @@ public class SidebarController implements Initializable {
             switchCategory(lastKnownSelectedCategory, false);
             return event;
         });
+        eventPublisher.register(CloseUpdateEvent.class, event -> {
+            switchCategory(lastKnownSelectedCategory, false);
+            return event;
+        });
         eventPublisher.register(HomeEvent.class, event -> {
             activateStartCategory();
             return event;
@@ -111,6 +123,22 @@ public class SidebarController implements Initializable {
                 }
             });
             return event;
+        });
+        updateService.register(event -> {
+            if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
+                onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
+            }
+        });
+        onUpdateStateChanged(updateService.getState());
+    }
+
+    private void onUpdateStateChanged(UpdateState newState) {
+        Platform.runLater(() -> {
+            if (newState == UpdateState.UPDATE_AVAILABLE) {
+                updateTransition.playFromStart();
+            } else {
+                updateTransition.stop();
+            }
         });
     }
 
@@ -212,6 +240,22 @@ public class SidebarController implements Initializable {
 
     private void onSearchFocusRequest() {
         eventPublisher.publish(new RequestSearchFocus(this));
+    }
+
+    private Transition createColorTransition() {
+        return new Transition() {
+            {
+                setCycleCount(Animation.INDEFINITE);
+                setCycleDuration(Duration.seconds(2));
+                setAutoReverse(true);
+            }
+
+            @Override
+            protected void interpolate(double frac) {
+                var color = Color.rgb(36, 104, 204);
+                infoIcon.setTextFill(color.interpolate(Color.rgb(45, 150, 217), frac));
+            }
+        };
     }
 
     @FXML

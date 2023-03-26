@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.player;
+package com.github.yoep.popcorn.backend.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)

@@ -54,6 +54,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = is_youtube_video_player_disabled(&mut instance);
@@ -75,6 +76,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = is_fx_video_player_disabled(&mut instance);
@@ -96,6 +98,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = is_vlc_video_player_disabled(&mut instance);
@@ -117,6 +120,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = is_tv_mode(&mut instance);
@@ -138,6 +142,7 @@ mod test {
             maximized: true,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = is_maximized(&mut instance);

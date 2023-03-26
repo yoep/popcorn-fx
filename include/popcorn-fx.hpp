@@ -22,6 +22,27 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
+/// The events of the playback controller.
+enum class PlaybackControlEvent : int32_t {
+  TogglePlaybackState = 0,
+  Forward = 1,
+  Rewind = 2,
+};
+
+/// The playback state of the current media item.
+/// This describes the information of the playback state known by the player.
+enum class PlaybackState : int32_t {
+  /// This is the initial state and indicates that FX has no known state received from the player.
+  UNKNOWN = -1,
+  READY = 0,
+  LOADING = 1,
+  BUFFERING = 2,
+  PLAYING = 3,
+  PAUSED = 4,
+  STOPPED = 5,
+  ERROR = 6,
+};
+
 /// The playback quality defined in a resolution size
 enum class Quality {
   P480,
@@ -455,6 +476,49 @@ struct PlayerStoppedEventC {
   MediaItemC *media;
 };
 
+/// The C compatible [PlayVideo] representation.
+struct PlayVideoEventC {
+  /// The video playback url
+  const char *url;
+  /// The video playback title
+  const char *title;
+  /// The media playback show name
+  const char *show_name;
+  /// The optional video playback thumbnail
+  const char *thumb;
+};
+
+/// The C compatible [Event] representation.
+struct EventC {
+  enum class Tag {
+    /// Invoked when the player is being stopped
+    PlayerStopped,
+    /// Invoked when a new video playback is started
+    PlayVideo,
+    /// Invoked when the playback state is changed
+    PlaybackStateChanged,
+  };
+
+  struct PlayerStopped_Body {
+    PlayerStoppedEventC _0;
+  };
+
+  struct PlayVideo_Body {
+    PlayVideoEventC _0;
+  };
+
+  struct PlaybackStateChanged_Body {
+    PlaybackState _0;
+  };
+
+  Tag tag;
+  union {
+    PlayerStopped_Body player_stopped;
+    PlayVideo_Body play_video;
+    PlaybackStateChanged_Body playback_state_changed;
+  };
+};
+
 struct FavoriteEventC {
   enum class Tag {
     /// Event indicating that the like state of a media item changed.
@@ -474,6 +538,9 @@ struct FavoriteEventC {
     LikedStateChanged_Body liked_state_changed;
   };
 };
+
+/// The C compatible callback for playback control events.
+using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
 
 /// The C compatible application events.
 struct ApplicationConfigEventC {
@@ -763,12 +830,6 @@ SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *sh
 /// Retrieve the available subtitles for the given filename
 SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
-/// Handle the player stopped event.
-/// The event data will be cleaned by this fn, reuse of the data is thereby not possible.
-///
-/// * `event`   - The C event instance of the player stopped data.
-void handle_player_stopped_event(PopcornFX *popcorn_fx, PlayerStoppedEventC event);
-
 /// Install the latest available update.
 void install_update(PopcornFX *popcorn_fx);
 
@@ -814,8 +875,17 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 
+/// Publish a new application event over the FFI layer.
+/// This will invoke the [popcorn_fx_core::core::events::EventPublisher] publisher on the backend.
+///
+/// _Please keep in mind that the consumption of the event chain is not communicated over the FFI layer_
+void publish_event(PopcornFX *popcorn_fx, EventC event);
+
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
+
+/// Register a new callback listener for the playback controls.
+void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC callback);
 
 /// Register a new callback for all setting events.
 void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallbackC callback);

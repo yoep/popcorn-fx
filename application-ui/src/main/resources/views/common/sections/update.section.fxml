@@ -5,10 +5,9 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<GridPane xmlns="http://javafx.com/javafx"
-          xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.UpdateSectionController"
-          styleClass="loader,about-section">
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.UpdateSectionController"
+          fx:id="updatePane" onKeyPressed="#onUpdatePressed" styleClass="loader,about-section">
     <columnConstraints>
         <ColumnConstraints percentWidth="15"/>
         <ColumnConstraints/>
@@ -27,7 +26,7 @@
     <ImageView fx:id="logoImage" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
 
     <VBox fx:id="changelogPane" GridPane.columnIndex="2" GridPane.rowIndex="1">
-        <Label fx:id="titleLabel" styleClass="title"/>
+        <Label styleClass="title" text="%application_title"/>
         <Label fx:id="versionLabel" styleClass="version"/>
         <Label text="%update_available_description"/>
 
@@ -40,9 +39,9 @@
         <Label fx:id="changelogBugfixesLabel"/>
 
         <!-- Update button -->
-        <Button text="%update_now" onMouseClicked="#onUpdateNowClicked">
+        <Button fx:id="updateNowButton" text="%update_now" onMouseClicked="#onUpdateNowClicked" onKeyPressed="#onUpdateNowPressed">
             <VBox.margin>
-                <Insets top="10" />
+                <Insets top="10"/>
             </VBox.margin>
         </Button>
     </VBox>

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -13,6 +12,7 @@ import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.PlayerExternalComponentService;
+import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class PlayerExternalComponent implements Initializable {
     private final ImageService imageService;
-    private final PlatformProvider platformProvider;
     private final PlayerExternalComponentService playerExternalService;
     private final EventHandler<KeyEvent> keyPressedEventHandler = this::onPaneKeyReleased;
 
@@ -123,7 +122,7 @@ public class PlayerExternalComponent implements Initializable {
     //region Functions
 
     private void onTitleChanged(String title) {
-        platformProvider.runOnRenderer(() -> titleText.setText(title));
+        Platform.runLater(() -> titleText.setText(title));
     }
 
     private void onMediaChanged(Media media) {
@@ -132,7 +131,7 @@ public class PlayerExternalComponent implements Initializable {
     }
 
     private void reset() {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             backgroundImage.reset();
             playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
         });
@@ -150,7 +149,7 @@ public class PlayerExternalComponent implements Initializable {
 
     private void onPlayerDurationChanged(long duration) {
         this.duration = duration;
-        platformProvider.runOnRenderer(() -> durationText.setText(TimeUtils.format(duration)));
+        Platform.runLater(() -> durationText.setText(TimeUtils.format(duration)));
     }
 
     private void onPlayerTimeChanged(long time) {
@@ -160,7 +159,7 @@ public class PlayerExternalComponent implements Initializable {
             progress.set((double) time / duration);
         }
 
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             timeText.setText(TimeUtils.format(time));
             playbackProgress.setProgress(progress.get());
         });
@@ -170,13 +169,12 @@ public class PlayerExternalComponent implements Initializable {
         switch (state) {
             case PLAYING -> updatePlayState(true);
             case PAUSED -> updatePlayState(false);
-            case LOADING ->
-                    platformProvider.runOnRenderer(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
+            case LOADING -> Platform.runLater(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
         }
     }
 
     private void updatePlayState(boolean isPlaying) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             if (isPlaying) {
                 playPauseIcon.setText(Icon.PAUSE_UNICODE);
             } else {
@@ -186,7 +184,7 @@ public class PlayerExternalComponent implements Initializable {
     }
 
     private void onDownloadStatus(DownloadStatus status) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             progressPercentage.setText(ProgressUtils.progressToPercentage(status));
             downloadText.setText(ProgressUtils.progressToDownload(status));
             uploadText.setText(ProgressUtils.progressToUpload(status));

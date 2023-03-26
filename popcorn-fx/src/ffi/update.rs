@@ -80,6 +80,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = version_info(&mut instance);
@@ -101,6 +102,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = update_state(&mut instance);
@@ -125,6 +127,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         download_update(&mut instance);

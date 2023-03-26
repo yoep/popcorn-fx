@@ -1,29 +1,24 @@
-use crate::core::media::MediaIdentifier;
+use std::any::Any;
+
+use log::error;
+
+use crate::core::media::{Episode, MediaIdentifier, MovieOverview, ShowOverview};
 
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
 #[derive(Debug)]
 pub struct PlayerStoppedEvent {
     /// The playback url that was being played
-    url: String,
+    pub url: String,
     /// The media item that was being played
-    media: Option<Box<dyn MediaIdentifier>>,
+    pub media: Option<Box<dyn MediaIdentifier>>,
     /// The last known video time of the player in millis
-    time: Option<u64>,
+    pub time: Option<u64>,
     /// The duration of the video playback in millis
-    duration: Option<u64>,
+    pub duration: Option<u64>,
 }
 
 impl PlayerStoppedEvent {
-    pub fn new(url: String, media: Option<Box<dyn MediaIdentifier>>, time: Option<u64>, duration: Option<u64>) -> Self {
-        Self {
-            url,
-            media,
-            time,
-            duration,
-        }
-    }
-
     /// The video playback url that was being played.
     pub fn url(&self) -> &str {
         self.url.as_str()
@@ -48,5 +43,156 @@ impl PlayerStoppedEvent {
     /// video couldn't be determined.
     pub fn duration(&self) -> Option<&u64> {
         self.duration.as_ref()
+    }
+}
+
+impl Clone for PlayerStoppedEvent {
+    fn clone(&self) -> Self {
+        let cloned_media = match &self.media {
+            None => None,
+            Some(media) => {
+                if let Some(e) = media.as_ref().as_any().downcast_ref::<Episode>() {
+                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+                } else if let Some(e) = media.as_ref().as_any().downcast_ref::<ShowOverview>() {
+                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+                } else if let Some(e) = media.as_ref().as_any().downcast_ref::<MovieOverview>() {
+                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+                } else {
+                    error!("Unable to clone MediaIdentifier, unknown type {:?}", (*media).type_id());
+                    None
+                }
+            }
+        };
+
+        PlayerStoppedEvent {
+            url: self.url.clone(),
+            media: cloned_media,
+            time: self.time,
+            duration: self.duration,
+        }
+    }
+}
+
+impl PartialEq for PlayerStoppedEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url &&
+            self.time == other.time &&
+            self.duration == other.duration
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use crate::core::media::{Images, Rating};
+    use crate::testing::init_logger;
+
+    use super::*;
+
+    #[test]
+    fn test_player_stopped_event_clone_with_episode() {
+        init_logger();
+        let media = Episode {
+            season: 1,
+            episode: 1,
+            first_aired: 1234567890,
+            title: String::from("Episode 1"),
+            overview: String::from("The first episode"),
+            tvdb_id: 123,
+            tvdb_id_value: String::from("123"),
+            thumb: Some(String::from("https://example.com/thumb.jpg")),
+            torrents: HashMap::new(),
+        };
+        let boxed_media = Box::new(media.clone());
+        let event = PlayerStoppedEvent {
+            url: String::from("https://example.com/video.mp4"),
+            media: Some(boxed_media),
+            time: Some(100),
+            duration: Some(500),
+        };
+
+        let cloned_event = event.clone();
+
+        let cloned_media = cloned_event.media.unwrap();
+        let cloned_episode = cloned_media.as_ref().downcast_ref::<Episode>().unwrap();
+
+        assert_eq!(cloned_episode, &media);
+    }
+
+    #[test]
+    fn test_player_stopped_event_clone_with_show_overview() {
+        let media_with_rating = ShowOverview {
+            imdb_id: String::from("tt1234567"),
+            tvdb_id: String::from("12345"),
+            title: String::from("The Test Show"),
+            year: String::from("2021"),
+            num_seasons: 3,
+            images: Images {
+                poster: String::from("https://example.com/poster.jpg"),
+                fanart: String::from("https://example.com/fanart.jpg"),
+                banner: String::from("https://example.com/banner.jpg"),
+            },
+            rating: Some(Rating {
+                percentage: 85,
+                watching: 100,
+                votes: 200,
+                loved: 150,
+                hated: 50,
+            }),
+        };
+        let boxed_media_with_rating = Box::new(media_with_rating.clone()) as Box<dyn MediaIdentifier>;
+
+        let event_with_rating = PlayerStoppedEvent {
+            url: String::from("https://example.com/video.mp4"),
+            media: Some(boxed_media_with_rating),
+            time: Some(100),
+            duration: Some(500),
+        };
+
+        let cloned_event_with_rating = event_with_rating.clone();
+
+        let cloned_media_with_rating = cloned_event_with_rating.media.unwrap();
+        let cloned_show_overview_with_rating = cloned_media_with_rating.as_ref().downcast_ref::<ShowOverview>().unwrap();
+
+        assert_eq!(cloned_show_overview_with_rating, &media_with_rating);
+    }
+
+    #[test]
+    fn test_player_stopped_event_equality() {
+        let event1 = PlayerStoppedEvent {
+            url: String::from("http://example.com/video.mp4"),
+            media: None,
+            time: Some(5000),
+            duration: Some(10000),
+        };
+
+        let event2 = PlayerStoppedEvent {
+            url: String::from("http://example.com/video.mp4"),
+            media: None,
+            time: Some(5000),
+            duration: Some(10000),
+        };
+
+        assert_eq!(event1, event2);
+    }
+
+    #[test]
+    fn test_player_stopped_event_inequality() {
+        let event1 = PlayerStoppedEvent {
+            url: String::from("http://example.com/video.mp4"),
+            media: None,
+            time: Some(5000),
+            duration: Some(10000),
+        };
+
+        let event2 = PlayerStoppedEvent {
+            url: String::from("http://example.com/video.mp4"),
+            media: None,
+            time: Some(8000),
+            duration: Some(30000),
+        };
+
+        assert_ne!(event1, event2);
     }
 }

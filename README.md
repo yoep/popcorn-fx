@@ -28,16 +28,28 @@ Popcorn FX has been tested with **Raspberry Pi 3B+ and 4**.
 
 ## Screenshots
 
-#### Desktop mode
+_This new UI is as of version **0.6.0+**_
 
-![Desktop preview](https://i.imgur.com/hkmMGDb.png)
+### Desktop mode
 
-![Desktop Movie details](https://i.imgur.com/Rz6ABUu.png)
+![Desktop preview](https://i.imgur.com/4l62V5y.png)
 
-![Desktop watchlist](https://i.imgur.com/bG5MiKF.png)
+![Desktop Movie details](https://i.imgur.com/ffQtrcf.png)
 
-#### TV mode _(old)_
+![Desktop Movie trailer](https://i.imgur.com/NN53EFP.png)
 
-![TV preview](https://i.imgur.com/QHQQKQk.png)
+![Desktop Serie details](https://i.imgur.com/MScowql.png)
 
-![TV Movie details](https://i.imgur.com/FD0Hp3o.png)
+![Desktop Episode playback](https://i.imgur.com/g50gKJk.png)
+
+### TV mode
+
+![TV Movie overview](https://i.imgur.com/9QJ7Tow.png)
+
+![TV Movie trailer](https://i.imgur.com/EtaMrJw.png)
+
+![TV Search section](https://i.imgur.com/ZiRSUlM.png)
+
+![TV Movie details](https://i.imgur.com/0le9jvR.png)
+
+![TV Episode playback](https://i.imgur.com/1OSOfrI.png)

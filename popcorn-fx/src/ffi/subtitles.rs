@@ -56,7 +56,7 @@ mod test {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::PopcornFxArgs;
+    use crate::test::default_args;
 
     use super::*;
 
@@ -70,16 +70,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
 
         let set_ptr = from_c_owned(default_subtitle_options(&mut instance));
@@ -113,16 +104,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
 
         register_subtitle_callback(&mut instance, subtitle_callback);
         instance.subtitle_manager().update_subtitle(SubtitleInfo::none())

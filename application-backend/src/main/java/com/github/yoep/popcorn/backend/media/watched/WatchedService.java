@@ -45,7 +45,9 @@ public class WatchedService {
     public boolean isWatched(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
         synchronized (lock) {
-            return FxLibInstance.INSTANCE.get().is_media_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable)) == 1;
+            try (var media = MediaItem.from(watchable)) {
+                return FxLibInstance.INSTANCE.get().is_media_watched(PopcornFxInstance.INSTANCE.get(), media) == 1;
+            }
         }
     }
 
@@ -85,7 +87,9 @@ public class WatchedService {
     public void addToWatchList(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
         synchronized (lock) {
-            FxLibInstance.INSTANCE.get().add_to_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
+            try (var media = MediaItem.from(watchable)) {
+                FxLibInstance.INSTANCE.get().add_to_watched(PopcornFxInstance.INSTANCE.get(), media);
+            }
         }
     }
 
@@ -97,7 +101,9 @@ public class WatchedService {
     public void removeFromWatchList(Media watchable) {
         Assert.notNull(watchable, "watchable cannot be null");
         synchronized (lock) {
-            FxLibInstance.INSTANCE.get().remove_from_watched(PopcornFxInstance.INSTANCE.get(), MediaItem.from(watchable));
+            try (var media = MediaItem.from(watchable)) {
+                FxLibInstance.INSTANCE.get().remove_from_watched(PopcornFxInstance.INSTANCE.get(), media);
+            }
         }
     }
 

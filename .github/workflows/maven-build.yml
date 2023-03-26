@@ -33,6 +33,7 @@ jobs:
       run: make prerequisites
     - name: Build
       run: |
+        sudo apt install libdbus-1-dev pkg-config
         xvfb-run -a make test && make build
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3

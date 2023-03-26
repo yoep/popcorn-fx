@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.player.PlayerEventService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import lombok.RequiredArgsConstructor;

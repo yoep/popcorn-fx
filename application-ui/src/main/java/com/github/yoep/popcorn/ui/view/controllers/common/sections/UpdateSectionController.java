@@ -1,26 +1,31 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
+package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.updater.Changelog;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
+import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
 import com.github.yoep.popcorn.ui.messages.UpdateMessage;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.UpdateSectionService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
 
 import java.net.URL;
 import java.util.Optional;
@@ -34,17 +39,18 @@ public class UpdateSectionController implements Initializable {
     private static final String PROGRESS_ERROR_STYLE_CLASS = "error";
 
     private final UpdateSectionService updateSectionService;
-    private final ApplicationContext applicationContext;
     private final ImageService imageService;
-    private final PlatformProvider platformProvider;
     private final LocaleText localeText;
+    private final EventPublisher eventPublisher;
 
+    @FXML
+    GridPane updatePane;
     @FXML
     BackgroundImageCover backgroundCover;
     @FXML
     ImageView logoImage;
     @FXML
-    Label titleLabel;
+    Button updateNowButton;
     @FXML
     Label versionLabel;
     @FXML
@@ -64,7 +70,6 @@ public class UpdateSectionController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeLogo();
         initializeBackgroundCover();
-        initializeLabels();
         initializeListener();
     }
 
@@ -78,6 +83,11 @@ public class UpdateSectionController implements Initializable {
             @Override
             public void onUpdateStateChanged(UpdateState newState) {
                 UpdateSectionController.this.onUpdateStateChanged(newState);
+            }
+        });
+        updatePane.sceneProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                updateNowButton.requestFocus();
             }
         });
 
@@ -94,16 +104,12 @@ public class UpdateSectionController implements Initializable {
                 .thenAccept(e -> backgroundCover.setBackgroundImage(e));
     }
 
-    private void initializeLabels() {
-        titleLabel.setText(applicationContext.getId());
-    }
-
     private void onUpdateInfoChanged(VersionInfo versionInfo) {
         if (versionInfo == null) {
             return;
         }
 
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             versionLabel.setText(versionInfo.getVersion());
             changelogFeaturesLabel.setText(Optional.ofNullable(versionInfo.getChangelog())
                     .map(Changelog::getFeatures)
@@ -123,7 +129,7 @@ public class UpdateSectionController implements Initializable {
     private void onUpdateStateChanged(UpdateState newState) {
         switchPane(newState != UpdateState.UPDATE_AVAILABLE);
 
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             switch (newState) {
                 case DOWNLOADING -> handleStateChanged(UpdateMessage.DOWNLOADING);
                 case DOWNLOAD_FINISHED -> handleStateChanged(UpdateMessage.DOWNLOAD_FINISHED);
@@ -144,7 +150,7 @@ public class UpdateSectionController implements Initializable {
     }
 
     private void switchPane(boolean isUpdateProgressOngoing) {
-        platformProvider.runOnRenderer(() -> {
+        Platform.runLater(() -> {
             changelogPane.setVisible(!isUpdateProgressOngoing);
             progressPane.setVisible(isUpdateProgressOngoing);
         });
@@ -154,5 +160,21 @@ public class UpdateSectionController implements Initializable {
     void onUpdateNowClicked(MouseEvent event) {
         event.consume();
         updateSectionService.startUpdate();
+    }
+
+    @FXML
+    void onUpdateNowPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            updateSectionService.startUpdate();
+        }
+    }
+
+    @FXML
+    void onUpdatePressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE) {
+            event.consume();
+            eventPublisher.publish(new CloseUpdateEvent(this));
+        }
     }
 }

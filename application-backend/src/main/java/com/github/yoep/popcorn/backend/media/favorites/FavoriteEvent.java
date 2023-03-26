@@ -43,9 +43,6 @@ public class FavoriteEvent extends Structure implements Closeable {
     @ToString
     @FieldOrder({"imdbId", "newState"})
     public static class LikedStateChangedBody extends Structure implements Closeable {
-        public static class ByReference extends LikedStateChangedBody implements Structure.ByReference {
-        }
-
         public String imdbId;
         public byte newState;
 

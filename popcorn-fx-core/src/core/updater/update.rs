@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use derive_more::Display;
 use futures::StreamExt;
-use itertools::Update;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
@@ -823,6 +822,7 @@ mod test {
         let settings = Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
+                loggers: Default::default(),
                 update_channel: String::new(),
                 providers: Default::default(),
                 enhancers: Default::default(),
@@ -865,6 +865,7 @@ mod test {
         (server, Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
+                loggers: Default::default(),
                 update_channel,
                 providers: Default::default(),
                 enhancers: Default::default(),

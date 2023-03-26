@@ -98,8 +98,9 @@ public class ApplicationConfig {
      */
     public void update(SubtitleSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
-        var settings_c = new SubtitleSettings.ByValue(settings);
-        fxLib.update_subtitle_settings(instance, settings_c);
+        try (var settings_c = new SubtitleSettings.ByValue(settings)) {
+            fxLib.update_subtitle_settings(instance, settings_c);
+        }
     }
 
     /**
@@ -109,8 +110,9 @@ public class ApplicationConfig {
      */
     public void update(TorrentSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
-        var settings_c = new TorrentSettings.ByValue(settings);
-        fxLib.update_torrent_settings(instance, settings_c);
+        try (var settings_c = new TorrentSettings.ByValue(settings)) {
+            fxLib.update_torrent_settings(instance, settings_c);
+        }
     }
 
     public void update(UISettings settings) {

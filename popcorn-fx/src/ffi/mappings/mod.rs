@@ -1,4 +1,5 @@
 pub use arrays::*;
+pub use controls::*;
 pub use events::*;
 pub use media::*;
 pub use media_mappers::*;
@@ -8,6 +9,7 @@ pub use update::*;
 pub use version_info::*;
 
 mod arrays;
+mod controls;
 mod events;
 mod media;
 mod media_mappers;

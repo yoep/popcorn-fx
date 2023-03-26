@@ -16,6 +16,8 @@ import javafx.scene.layout.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 public class Overlay extends GridPane {
@@ -147,20 +149,25 @@ public class Overlay extends GridPane {
 
     private void updateParentIfNeeded() {
         if (attachedParent.get() == null) {
-            Platform.runLater(() -> {
-                attachToParent(getParent());
-                if (attachedParent.get() == null) {
-                    new Thread(() -> {
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException e) {
-                            log.warn(e.getMessage(), e);
-                        }
+            new Thread(() -> {
+                var attached = false;
 
-                        updateParentIfNeeded();
-                    }, "Overlay.AttachParent").start();
-                }
-            });
+                do {
+                    var future = new CompletableFuture<Boolean>();
+                    Platform.runLater(() -> {
+                        attachToParent(getParent());
+                        future.complete(attachedParent.get() != null);
+                    });
+
+                    try {
+                        attached = future.get();
+                        Thread.sleep(200);
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.warn("Unable to attach to parent, {}", e.getMessage(), e);
+                        break;
+                    }
+                } while (!attached);
+            }, "Overlay.AttachParent").start();
         }
     }
 

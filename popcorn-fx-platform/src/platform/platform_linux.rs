@@ -7,6 +7,8 @@ use x11rb::rust_connection::{ConnectionError, RustConnection};
 use popcorn_fx_core::core::platform;
 use popcorn_fx_core::core::platform::{Platform, PlatformError};
 
+use crate::platform::SystemPlatform;
+
 /// The linux platform specific implementation
 #[derive(Debug)]
 pub struct PlatformLinux {
@@ -51,7 +53,7 @@ impl PlatformLinux {
     }
 }
 
-impl Platform for PlatformLinux {
+impl SystemPlatform for PlatformLinux {
     fn disable_screensaver(&self) -> bool {
         if self.conn.is_none() {
             warn!("Unable to disable_screensaver, no X11 connection could be established");
@@ -91,6 +93,10 @@ impl Platform for PlatformLinux {
             }
         }
     }
+
+    fn window_handle(&self) -> Option<*mut std::ffi::c_void> {
+        None
+    }
 }
 
 impl Default for PlatformLinux {
@@ -114,10 +120,10 @@ impl Default for PlatformLinux {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::core::platform::Platform;
     use popcorn_fx_core::testing::init_logger;
 
     use crate::platform::platform_linux::PlatformLinux;
+    use crate::platform::SystemPlatform;
 
     /* NOTE: Github actions is unable to activate the DPMS and XScreenSaver within xvfb */
     /* thereby actually verifying the results of the actions is useless as they will always fail within the CI */
@@ -135,5 +141,12 @@ mod test {
         let platform = PlatformLinux::default();
 
         let _ = platform.enable_screensaver();
+    }
+
+    #[test]
+    fn test_window_handle() {
+        let platform = PlatformLinux::default();
+
+        assert_eq!(None, platform.window_handle())
     }
 }

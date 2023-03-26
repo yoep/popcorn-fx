@@ -27,6 +27,8 @@ ASSETS := linux
 endif
 
 prerequisites: ## Install the requirements for the application
+	$(info Updating rust)
+	@rustup update
 	$(info Installing Cargo plugins)
 	@cargo install cbindgen
 	@cargo install cargo-nextest

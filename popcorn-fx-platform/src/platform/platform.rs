@@ -18,7 +18,7 @@ use crate::platform::platform_mac::PlatformMac;
 #[cfg(target_os = "windows")]
 use crate::platform::platform_win::PlatformWin;
 
-const DBUS_NAME: &str = ":popcorn_time.media";
+const DBUS_NAME: &str = "popcorn_time.media";
 const DISPLAY_NAME: &str = "Popcorn Time";
 
 /// The `DefaultPlatform` struct represents the [PlatformData], which contains a reference to a

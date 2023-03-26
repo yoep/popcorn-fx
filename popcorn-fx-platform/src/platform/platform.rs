@@ -167,7 +167,7 @@ impl Platform for DefaultPlatform {
 
         if let Some(mut controls) = mutex.as_mut() {
             match &event {
-                MediaNotificationEvent::PlaybackStarted(info) => self.on_media_info_changed(&mut controls, info.clone()),
+                MediaNotificationEvent::StateStarting(info) => self.on_media_info_changed(&mut controls, info.clone()),
                 MediaNotificationEvent::StatePlaying => self.on_playback_state_changed(&mut controls, MediaPlayback::Playing { progress: None }),
                 MediaNotificationEvent::StatePaused => self.on_playback_state_changed(&mut controls, MediaPlayback::Paused { progress: None }),
                 MediaNotificationEvent::StateStopped => self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped),
@@ -320,7 +320,7 @@ mod test {
 
         // notify the system about a new media playback
         // this will however do nothing as we have no actual playback going on
-        platform.notify_media_event(MediaNotificationEvent::PlaybackStarted(MediaInfo {
+        platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: "Lorem".to_string(),
             show_name: None,
             thumb: None,

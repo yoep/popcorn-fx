@@ -53,6 +53,7 @@ public class SubtitleEvent extends Structure implements Closeable {
         @Override
         public void close() {
             setAutoSynch(false);
+            subtitleInfo.close();
         }
     }
 

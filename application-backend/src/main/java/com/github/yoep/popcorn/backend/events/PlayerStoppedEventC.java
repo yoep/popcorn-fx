@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.io.Closeable;
+import java.util.Optional;
 
 @ToString
 @EqualsAndHashCode(callSuper = false)
@@ -42,8 +43,12 @@ public class PlayerStoppedEventC extends Structure implements Closeable {
 
         this.url = url;
         this.media = mediaRef;
-        this.time = new LongByReference(time);
-        this.duration = new LongByReference(duration);
+        this.time = Optional.ofNullable(time)
+                .map(LongByReference::new)
+                .orElse(null);
+        this.duration = Optional.ofNullable(duration)
+                .map(LongByReference::new)
+                .orElse(null);
     }
 
     @Override

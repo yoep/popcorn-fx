@@ -2,10 +2,11 @@ use derive_more::Display;
 
 use crate::core::CoreCallback;
 
-/// The callback for playback control events.
+/// A callback for playback control events, used to handle events coming from the media system of the OS.
 pub type PlaybackControlCallback = CoreCallback<PlaybackControlEvent>;
 
-/// The events of the playback controller.
+/// Events related to playback control, triggered by the media system of the OS.
+/// These events can be used to modify the player state based on the given media event.
 #[repr(i32)]
 #[derive(Debug, Clone, Display)]
 pub enum PlaybackControlEvent {
@@ -17,21 +18,26 @@ pub enum PlaybackControlEvent {
     Rewind = 2,
 }
 
-/// The media notification playback that media is being played.
+/// Events related to media playback notifications.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MediaNotificationEvent {
-    /// Invoked when a new playback has started
-    PlaybackStarted(MediaInfo),
+    /// Invoked when a new playback is being started
+    StateStarting(MediaInfo),
+    /// Invoked when the playback state is changed to paused
     StatePaused,
+    /// Invoked when the playback state is changed to playing/resuming
     StatePlaying,
+    /// Invoked when the playback state is changed to stopped
+    /// This state cannot be resumed anymore and requires a new [MediaNotificationEvent::StateStarting]
     StateStopped,
 }
 
+/// Information about the media being played.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MediaInfo {
-    /// The media title that is currently being played
+    /// The title of the media.
     pub title: String,
-    /// The name of the show
+    /// The name of the show.
     pub show_name: Option<String>,
     /// The thumbnail of the currently playing media item
     pub thumb: Option<String>,

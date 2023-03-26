@@ -131,6 +131,7 @@ impl PlaybackControlsBuilder {
                     Event::PlaybackStateChanged(new_state) => {
                         inner.notify_media_state_changed(new_state.clone())
                     }
+                    Event::PlayerStopped(_) => inner.notify_media_stopped(),
                     _ => {}
                 }
                 Some(event)
@@ -151,7 +152,7 @@ struct InnerPlaybackControls {
 
 impl InnerPlaybackControls {
     fn notify_media_playback(&self, event: PlayVideoEvent) {
-        self.platform.notify_media_event(MediaNotificationEvent::PlaybackStarted(MediaInfo {
+        self.platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: event.title.clone(),
             show_name: event.show_name,
             thumb: event.thumb,
@@ -164,6 +165,10 @@ impl InnerPlaybackControls {
             PlaybackState::PAUSED => self.platform.notify_media_event(MediaNotificationEvent::StatePaused),
             _ => {}
         }
+    }
+
+    fn notify_media_stopped(&self) {
+        self.platform.notify_media_event(MediaNotificationEvent::StateStopped)
     }
 
     fn register(&self, callback: PlaybackControlCallback) {
@@ -270,7 +275,7 @@ mod test {
 
         let notif_result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
         match notif_result {
-            MediaNotificationEvent::PlaybackStarted(info) => assert_eq!(info, MediaInfo {
+            MediaNotificationEvent::StateStarting(info) => assert_eq!(info, MediaInfo {
                 title: "Lorem ipsum".to_string(),
                 show_name: Some("My showname".to_string()),
                 thumb: None,

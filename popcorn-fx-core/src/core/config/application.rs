@@ -93,6 +93,7 @@ impl ApplicationConfig {
             self.settings.subtitle_settings = subtitle_settings;
             debug!("Subtitle settings have been updated");
             self.callbacks.invoke(ApplicationConfigEvent::SubtitleSettingsChanged(self.settings.subtitle_settings.clone()));
+            self.save();
         }
     }
 
@@ -103,6 +104,7 @@ impl ApplicationConfig {
             self.settings.torrent_settings = torrent_settings;
             debug!("Torrent settings have been updated");
             self.callbacks.invoke(ApplicationConfigEvent::TorrentSettingsChanged(self.settings.torrent_settings.clone()));
+            self.save();
         }
     }
 
@@ -113,6 +115,7 @@ impl ApplicationConfig {
             self.settings.ui_settings = ui_settings;
             debug!("UI settings have been updated");
             self.callbacks.invoke(ApplicationConfigEvent::UiSettingsChanged(self.settings.ui().clone()));
+            self.save();
         }
     }
 
@@ -123,6 +126,7 @@ impl ApplicationConfig {
             self.settings.server_settings = settings;
             debug!("Server settings have been updated");
             self.callbacks.invoke(ApplicationConfigEvent::ServerSettingsChanged(self.settings.server().clone()));
+            self.save();
         }
     }
 
@@ -133,6 +137,7 @@ impl ApplicationConfig {
             self.settings.playback_settings = settings;
             debug!("Playback settings have been updated");
             self.callbacks.invoke(ApplicationConfigEvent::PlaybackSettingsChanged(self.settings.playback().clone()));
+            self.save();
         }
     }
 

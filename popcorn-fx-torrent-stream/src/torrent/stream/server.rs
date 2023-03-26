@@ -374,7 +374,12 @@ impl Default for TorrentStreamServerInner {
         let port = socket.port();
 
         Self {
-            runtime: Arc::new(tokio::runtime::Runtime::new().expect("expected a new runtime")),
+            runtime: Arc::new(tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(2)
+                .thread_name("torrent-stream")
+                .build()
+                .expect("expected a new runtime")),
             socket: Arc::new(SocketAddr::new(ip, port)),
             streams: Arc::new(Mutex::new(HashMap::new())),
             state: Arc::new(Mutex::new(TorrentStreamServerState::Stopped)),

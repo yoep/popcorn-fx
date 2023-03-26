@@ -8,13 +8,13 @@ use derive_more::Display;
 use log::{info, LevelFilter, warn};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::Config;
-use log4rs::config::{Appender, Root};
+use log4rs::config::{Appender, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
-use popcorn_fx_core::core::config::ApplicationConfig;
+use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
@@ -75,6 +75,9 @@ pub struct PopcornFxArgs {
     /// Indicates if insecure TLS connections are allowed
     #[arg(long, default_value_t = false)]
     pub insecure: bool,
+    /// The properties of the application which are constant during the lifecycle of [PopcornFX]
+    #[arg(skip = PopcornProperties::new_auto())]
+    pub properties: PopcornProperties,
 }
 
 impl Default for PopcornFxArgs {
@@ -88,6 +91,7 @@ impl Default for PopcornFxArgs {
             tv: false,
             maximized: false,
             insecure: false,
+            properties: PopcornProperties::new_auto(),
         }
     }
 }
@@ -132,7 +136,7 @@ impl PopcornFX {
     pub fn new(args: PopcornFxArgs) -> Self {
         // check if we need to enabled the logger
         if !args.disable_logger {
-            Self::initialize_logger();
+            Self::initialize_logger(&args);
         }
         if args.insecure {
             warn!("INSECURE CONNECTIONS ARE ENABLED");
@@ -142,7 +146,10 @@ impl PopcornFX {
         let app_directory_path = args.app_directory.as_str();
         let runtime = Arc::new(Self::new_runtime());
         let event_publisher = Arc::new(EventPublisher::default());
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(app_directory_path)));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(app_directory_path)
+            .properties(args.properties.clone())
+            .build()));
         let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
         let subtitle_manager = Arc::new(SubtitleManager::default());
@@ -289,7 +296,7 @@ impl PopcornFX {
         &self.opts
     }
 
-    fn initialize_logger() {
+    fn initialize_logger(args: &PopcornFxArgs) {
         INIT.call_once(|| {
             let config: Config;
             let root_level = env::var("LOG_LEVEL").unwrap_or("Info".to_string());
@@ -302,18 +309,33 @@ impl PopcornFX {
                     Ok(e) => config = e,
                 };
             } else {
-                config = Config::builder()
+                let mut config_builder = Config::builder()
                     .appender(Appender::builder().build(CONSOLE_APPENDER, Box::new(ConsoleAppender::builder()
                         .encoder(Box::new(PatternEncoder::new(LOG_FORMAT)))
-                        .build())))
+                        .build())));
+
+                for (logger, logging) in args.properties.loggers.iter() {
+                    config_builder = config_builder.logger(Logger::builder()
+                        .build(logger, match LevelFilter::from_str(logging.level.as_str()) {
+                            Ok(e) => e,
+                            Err(e) => {
+                                eprintln!("Failed to parse log level for {}, {}", logger, e);
+                                LevelFilter::Info
+                            }
+                        }));
+                }
+
+                config = config_builder
                     .build(Root::builder()
                         .appender(CONSOLE_APPENDER)
                         .build(LevelFilter::from_str(root_level.as_str()).unwrap()))
                     .unwrap()
             }
 
-            log4rs::init_config(config).unwrap();
-            info!("Logger has been initialized");
+            match log4rs::init_config(config) {
+                Ok(_) => info!("Popcorn FX logger has been initialized"),
+                Err(e) => eprintln!("Failed to configure logger, {}", e),
+            }
         });
     }
 
@@ -360,14 +382,17 @@ impl Default for PopcornFX {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::config::ApplicationConfigEvent;
+    use popcorn_fx_core::core::config::{ApplicationConfigEvent, LoggingProperties};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
+
+    use crate::test::default_args;
 
     use super::*;
 
@@ -376,16 +401,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
 
         let _ = popcorn_fx.platform().info();
         let _ = popcorn_fx.subtitle_server();
@@ -403,16 +419,7 @@ mod test {
         let id = "tt00000021544";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
 
         let result = popcorn_fx.favorite_service().is_liked(id);
 
@@ -425,16 +432,7 @@ mod test {
         let filename = "something-totally_random123qwe.mp4";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
 
         let result = popcorn_fx.auto_resume_service().resume_timestamp(None, Some(filename));
 
@@ -446,16 +444,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
 
         let result = popcorn_fx.torrent_collection().is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet");
 
@@ -468,16 +457,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
-        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
         copy_test_file(temp_path, "settings.json", None);
 
         let mutex = popcorn_fx.settings();
@@ -493,5 +473,38 @@ mod test {
             ApplicationConfigEvent::SettingsLoaded => {}
             _ => assert!(false, "expected ApplicationConfigEvent::SettingsLoaded")
         }
+    }
+
+    #[test]
+    fn test_initialize_logger() {
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let args = PopcornFxArgs {
+            app_directory: temp_path.to_string(),
+            disable_logger: false,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
+            insecure: false,
+            properties: PopcornProperties {
+                loggers: HashMap::from([
+                    ("popcorn_fx".to_string(), LoggingProperties {
+                        level: "trace".to_string(),
+                    }),
+                    ("popcorn_fx::ffi".to_string(), LoggingProperties {
+                        level: "invalid".to_string(),
+                    })
+                ]),
+                update_channel: String::new(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+            },
+        };
+
+        // should not panic on the invalid level
+        PopcornFX::initialize_logger(&args);
     }
 }

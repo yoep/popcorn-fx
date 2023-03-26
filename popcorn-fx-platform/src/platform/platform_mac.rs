@@ -1,9 +1,9 @@
 use std::os::raw::c_int;
 
-use log::{debug, info, warn};
-
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
+use log::{debug, info, warn};
+
 use popcorn_fx_core::core::platform::Platform;
 use popcorn_fx_core::core::playback::MediaNotificationEvent;
 
@@ -16,14 +16,10 @@ extern {
     fn IOPMAssertionCreateWithName(AssertionType: CFStringRef, AssertionLevel: u32, AssertionName: CFStringRef, AssertionID: *mut u32) -> c_int;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PlatformMac {}
 
 impl PlatformMac {
-    pub fn new() -> PlatformMac {
-        return PlatformMac {};
-    }
-
     fn call_io_assertion(&self, assertion_level: u32) -> bool {
         let prevent_sleep = CFString::new("PreventUserIdleSystemSleep");
         let reason = CFString::new("Media playback application is active");
@@ -77,7 +73,7 @@ mod test {
     #[test]
     fn disable_screensaver_macos_should_return_true() {
         init_logger();
-        let mut platform = PlatformMac::new();
+        let platform = PlatformMac::default();
 
         assert_eq!(true, platform.disable_screensaver());
     }
@@ -85,7 +81,7 @@ mod test {
     #[test]
     fn enable_screensaver_macos_should_return_true() {
         init_logger();
-        let mut platform = PlatformMac::new();
+        let platform = PlatformMac::default();
 
         assert_eq!(true, platform.disable_screensaver(), "Failed to disable the screensaver first");
         assert_eq!(true, platform.enable_screensaver());
@@ -94,7 +90,7 @@ mod test {
     #[test]
     fn test_window_handle() {
         init_logger();
-        let platform = PlatformLinux::default();
+        let platform = PlatformMac::default();
 
         assert_eq!(None, platform.window_handle())
     }

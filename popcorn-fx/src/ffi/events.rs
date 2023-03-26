@@ -27,6 +27,7 @@ mod test {
 
     use crate::ffi::PlayVideoEventC;
     use crate::PopcornFxArgs;
+    use crate::test::default_args;
 
     use super::*;
 
@@ -35,16 +36,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
         let event = EventC::PlayVideo(PlayVideoEventC {
             url: into_c_string("http://localhost/video.mp4".to_string()),
             title: into_c_string("Lorem ipsum dolor".to_string()),

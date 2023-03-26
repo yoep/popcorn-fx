@@ -589,7 +589,9 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
         let imdb_id = "tt1156398".to_string();
         let movie = MovieDetails::new(
             "lorem".to_string(),
@@ -872,7 +874,9 @@ mod test {
         let test_file = "subtitle_example.srt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
         let service = OpensubtitlesProvider::new(&settings);
         let destination = copy_test_file(temp_dir.into_path().to_str().unwrap(), test_file, None);
         let expected_result = Subtitle::new(
@@ -1030,7 +1034,9 @@ mod test {
         );
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
         let service = OpensubtitlesProvider::new(&settings);
         let expected_result = read_test_file("example-conversion.vtt")
             .replace("\r\n", "\n");

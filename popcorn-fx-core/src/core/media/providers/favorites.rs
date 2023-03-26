@@ -255,7 +255,9 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::new_auto(temp_path)));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
         let mut favorites = MockFavoriteService::new();
         favorites.expect_find_id()
             .returning(|_id: &str| -> Option<Box<dyn MediaOverview>> {

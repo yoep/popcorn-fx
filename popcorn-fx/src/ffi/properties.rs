@@ -69,6 +69,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let array = from_c_owned(retrieve_provider_genres(&mut instance, into_c_string("series".to_string())));
@@ -93,6 +94,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let result = retrieve_provider_genres(&mut instance, into_c_string("lorem ipsum dolor estla".to_string()));
@@ -114,6 +116,7 @@ mod test {
             maximized: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            properties: Default::default(),
         });
 
         let array = from_c_owned(retrieve_provider_sort_by(&mut instance, into_c_string("favorites".to_string())));

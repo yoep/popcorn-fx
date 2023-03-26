@@ -6,7 +6,7 @@
     <parent>
         <artifactId>popcorn-fx</artifactId>
         <groupId>com.github.yoep</groupId>
-        <version>0.5.1</version>
+        <version>0.6.0</version>
     </parent>
 
     <artifactId>application-ui</artifactId>

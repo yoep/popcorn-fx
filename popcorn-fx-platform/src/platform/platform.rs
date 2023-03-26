@@ -1,3 +1,4 @@
+use std::env::consts::{ARCH, OS};
 use std::fmt;
 use std::fmt::Debug;
 use std::os::raw::c_void;
@@ -17,89 +18,13 @@ use crate::platform::platform_mac::PlatformMac;
 #[cfg(target_os = "windows")]
 use crate::platform::platform_win::PlatformWin;
 
-#[cfg(target_arch = "x86_64")]
-const X64: &str = "x86-64";
-#[cfg(target_arch = "arm")]
-const ARM: &str = "arm";
-#[cfg(target_arch = "aarch64")]
-const ARCH64: &str = "aarch64";
-
 const DBUS_NAME: &str = ":popcorn_time.media";
 const DISPLAY_NAME: &str = "Popcorn Time";
-
-/// Initialize a new platform
-#[cfg(target_os = "windows")]
-pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformWin::default());
-}
-
-/// Initialize a new platform
-#[cfg(target_os = "macos")]
-pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformMac::new());
-}
-
-/// Initialize a new platform
-#[cfg(target_os = "linux")]
-pub fn new_platform() -> Box<dyn Platform> {
-    return Box::new(PlatformLinux::default());
-}
-
-#[cfg(target_os = "windows")]
-#[cfg(target_arch = "x86_64")]
-pub fn platform_info() -> PlatformInfo {
-    trace!("Retrieving windows platform info");
-    PlatformInfo {
-        platform_type: PlatformType::Windows,
-        arch: String::from(X64),
-    }
-}
-
-#[cfg(target_os = "macos")]
-#[cfg(target_arch = "x86_64")]
-pub fn platform_info() -> PlatformInfo {
-    trace!("Retrieving macos platform info");
-    PlatformInfo {
-        platform_type: PlatformType::MacOs,
-        arch: String::from(X64),
-    }
-}
-
-#[cfg(target_os = "linux")]
-#[cfg(target_arch = "x86_64")]
-pub fn platform_info() -> PlatformInfo {
-    trace!("Retrieving linux platform info");
-    PlatformInfo {
-        platform_type: PlatformType::Linux,
-        arch: String::from(X64),
-    }
-}
-
-#[cfg(target_os = "linux")]
-#[cfg(target_arch = "aarch64")]
-pub fn platform_info() -> PlatformInfo {
-    trace!("Retrieving linux platform info");
-    PlatformInfo {
-        platform_type: PlatformType::Linux,
-        arch: String::from(ARCH64.to_string()),
-    }
-}
-
-#[cfg(target_os = "linux")]
-#[cfg(target_arch = "arm")]
-pub fn platform_info() -> PlatformInfo {
-    trace!("Retrieving linux platform info");
-    PlatformInfo {
-        platform_type: PlatformType::Linux,
-        arch: String::from(ARM.to_string()),
-    }
-}
 
 /// The `DefaultPlatform` struct represents the [PlatformData], which contains a reference to a
 /// platform and platform information.
 pub struct DefaultPlatform {
     pub platform: Arc<Box<dyn Platform>>,
-    pub platform_info: PlatformInfo,
     pub controls: Mutex<Option<MediaControls>>,
 }
 
@@ -110,7 +35,7 @@ impl DefaultPlatform {
         #[cfg(target_os = "windows")]
         if platform_config.hwnd == None {
             warn!("No window handle present for Windows DefaultPlatform::create_controls, preventing thread panic");
-            return None
+            return None;
         }
 
         trace!("Creating system media control with {:?}", platform_config);
@@ -208,17 +133,33 @@ impl Platform for DefaultPlatform {
 }
 
 impl PlatformData for DefaultPlatform {
-    fn info(&self) -> &PlatformInfo {
+    fn info(&self) -> PlatformInfo {
         trace!("Retrieving system information");
-        &self.platform_info
+        let platform_type = match OS {
+            "windows" => PlatformType::Windows,
+            "macos" => PlatformType::MacOs,
+            _ => PlatformType::Linux
+        };
+        let arch = String::from(ARCH);
+
+        PlatformInfo {
+            platform_type,
+            arch,
+        }
     }
 }
 
 impl Default for DefaultPlatform {
     fn default() -> Self {
+        #[cfg(target_os = "windows")]
+            let platform = Box::new(PlatformWin::default());
+        #[cfg(target_os = "macos")]
+            let platform = Box::new(PlatformMac::default());
+        #[cfg(target_os = "linux")]
+            let platform = Box::new(PlatformLinux::default());
+
         Self {
-            platform: Arc::new(new_platform()),
-            platform_info: platform_info(),
+            platform: Arc::new(platform),
             controls: Default::default(),
         }
     }
@@ -228,7 +169,6 @@ impl Debug for DefaultPlatform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DefaultPlatform")
             .field("platform", &self.platform)
-            .field("platform_info", &self.platform_info)
             .finish()
     }
 }
@@ -241,9 +181,77 @@ impl Drop for DefaultPlatform {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::core::platform::MockDummyPlatform;
     use popcorn_fx_core::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_disable_screensaver() {
+        init_logger();
+        let mut sys_platform = MockDummyPlatform::new();
+        sys_platform.expect_disable_screensaver()
+            .returning(|| true);
+        sys_platform.expect_enable_screensaver()
+            .returning(|| false);
+        let platform = DefaultPlatform {
+            platform: Arc::new(Box::new(sys_platform)),
+            controls: Default::default(),
+        };
+
+        assert!(platform.disable_screensaver(), "expected the screensaver to be disabled")
+    }
+
+    #[test]
+    fn test_enable_screensaver() {
+        init_logger();
+        let mut sys_platform = MockDummyPlatform::new();
+        sys_platform.expect_enable_screensaver()
+            .returning(|| true);
+        let platform = DefaultPlatform {
+            platform: Arc::new(Box::new(sys_platform)),
+            controls: Default::default(),
+        };
+
+        assert!(platform.enable_screensaver(), "expected the screensaver to be enabled")
+    }
+
+    #[test]
+    fn test_drop_default_platform() {
+        init_logger();
+        let mut sys_platform = MockDummyPlatform::new();
+        sys_platform.expect_enable_screensaver()
+            .returning(|| true)
+            .times(1);
+        let platform = DefaultPlatform {
+            platform: Arc::new(Box::new(sys_platform)),
+            controls: Default::default(),
+        };
+
+        drop(platform);
+    }
+
+    #[test]
+    fn test_platform_info() {
+        let platform = DefaultPlatform::default();
+        #[cfg(target_os = "windows")]
+            let platform_type = PlatformType::Windows;
+        #[cfg(target_os = "linux")]
+            let platform_type = PlatformType::Linux;
+        #[cfg(target_os = "macos")]
+            let platform_type = PlatformType::MacOs;
+        #[cfg(target_arch = "x86_64")]
+            let arch = "x86_64";
+        #[cfg(target_arch = "aarch64")]
+            let arch = "aarch64";
+        #[cfg(target_arch = "arm")]
+            let arch = "arm";
+
+        let result = platform.info();
+
+        assert_eq!(platform_type, result.platform_type);
+        assert_eq!(arch.to_string(), result.arch);
+    }
 
     #[test]
     fn test_platform_notify_media_event() {
@@ -260,71 +268,5 @@ mod test {
         // verify that the other events don't crash the program
         // when no controls are present
         platform.notify_media_event(MediaNotificationEvent::StatePaused);
-    }
-
-    #[test]
-    fn test_new_platform() {
-        init_logger();
-        let platform = new_platform();
-
-        assert_eq!(None, platform.window_handle())
-    }
-
-    #[test]
-    fn test_default_platform() {
-        let platform = DefaultPlatform::default();
-        let expected_result = platform_info();
-
-        let result = platform.info();
-
-        assert_eq!(&expected_result, result)
-    }
-
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_platform_info() {
-        let info = platform_info();
-
-        assert!(matches!(info.platform_type, PlatformType::Windows));
-    }
-
-    #[test]
-    #[cfg(target_os = "linux")]
-    fn test_platform_info() {
-        let info = platform_info();
-
-        assert!(matches!(info.platform_type, PlatformType::Linux));
-    }
-
-    #[test]
-    #[cfg(target_os = "macos")]
-    fn test_platform_info() {
-        let info = platform_info();
-
-        assert!(matches!(info.platform_type, PlatformType::MacOs));
-    }
-
-    #[test]
-    #[cfg(target_arch = "x86_64")]
-    fn test_platform_info_new_should_return_x64_info() {
-        let info = platform_info();
-
-        assert_eq!(X64, String::from(info.arch))
-    }
-
-    #[test]
-    #[cfg(target_arch = "aarch64")]
-    fn test_platform_info_new_should_return_aarch64_info() {
-        let info = platform_info();
-
-        assert_eq!(ARCH64, String::from(info.arch))
-    }
-
-    #[test]
-    #[cfg(target_arch = "arm")]
-    fn test_platform_info_new_should_return_arm_info() {
-        let info = platform_info();
-
-        assert_eq!(ARM, String::from(info.arch))
     }
 }

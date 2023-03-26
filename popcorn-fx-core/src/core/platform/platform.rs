@@ -27,7 +27,7 @@ pub trait Platform: Debug + Send + Sync {
 /// The information data of the current system platform.
 pub trait PlatformData: Platform {
     /// Retrieve the platform info of the current system.
-    fn info(&self) -> &PlatformInfo;
+    fn info(&self) -> PlatformInfo;
 }
 
 /// PlatformInfo defines the info of the current platform
@@ -68,7 +68,7 @@ mock! {
     pub DummyPlatformData {}
 
     impl PlatformData for DummyPlatformData {
-        fn info(&self) -> &PlatformInfo;
+        fn info(&self) -> PlatformInfo;
     }
 
     impl Platform for DummyPlatformData {
@@ -76,6 +76,21 @@ mock! {
 
         fn enable_screensaver(&self) -> bool;
         
+        fn notify_media_event(&self, notification: MediaNotificationEvent);
+
+        fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
+    }
+}
+
+mock! {
+    #[derive(Debug)]
+    pub DummyPlatform {}
+
+    impl Platform for DummyPlatform {
+        fn disable_screensaver(&self) -> bool;
+
+        fn enable_screensaver(&self) -> bool;
+
         fn notify_media_event(&self, notification: MediaNotificationEvent);
 
         fn window_handle(&self) -> Option<*mut std::ffi::c_void>;

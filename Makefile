@@ -16,14 +16,17 @@ ifeq ($(SYSTEM),Windows)
 LIBRARY := "popcorn_fx.dll"
 PROFILE := windows
 ASSETS := windows
+PYTHON := python.exe
 else ifeq ($(SYSTEM),Darwin)
 LIBRARY := "libpopcorn_fx.dylib"
 PROFILE := macosx
 ASSETS := mac
+PYTHON := python3
 else
 LIBRARY := "libpopcorn_fx.so"
 PROFILE := linux
 ASSETS := linux
+PYTHON := python3
 endif
 
 prerequisites: ## Install the requirements for the application
@@ -37,7 +40,7 @@ prerequisites: ## Install the requirements for the application
 	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
 
 bump-dependencies: ## Install required bump dependencies
-	@python.exe -m pip install --upgrade pip
+	@$(PYTHON) -m pip install --upgrade pip
 	@pip install bump2version --user
 
 bump-%: bump-dependencies ## Bump the (major, minor, patch) version of the application

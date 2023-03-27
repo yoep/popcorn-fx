@@ -57,11 +57,10 @@ public class MediaItem extends Structure implements Closeable {
         Optional.ofNullable(movieDetails).ifPresent(MovieDetails::close);
         Optional.ofNullable(showOverview).ifPresent(ShowOverview::close);
         Optional.ofNullable(showDetails).ifPresent(ShowDetails::close);
-        Optional.ofNullable(this.fxLib)
-                .ifPresent(e -> {
-                    log.trace("Disposing MediaItem {}", this);
-                    e.dispose_media_item(this);
-                });
+        Optional.ofNullable(this.fxLib).ifPresent(e -> {
+            log.trace("Disposing MediaItem {}", this);
+            e.dispose_media_item(this);
+        });
     }
 
     public static MediaItem from(Media media) {

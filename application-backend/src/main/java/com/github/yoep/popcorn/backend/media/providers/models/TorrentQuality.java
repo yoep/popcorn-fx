@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.io.Closeable;
+import java.util.Optional;
 
 @Getter
 @ToString
@@ -21,5 +22,7 @@ public class TorrentQuality extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(info)
+                .ifPresent(MediaTorrentInfo::close);
     }
 }

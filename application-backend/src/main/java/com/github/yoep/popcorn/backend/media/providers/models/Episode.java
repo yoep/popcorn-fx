@@ -11,7 +11,6 @@ import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
 import java.io.Closeable;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -143,8 +142,10 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(torrentRef)
+                .ifPresent(TorrentQuality::close);
     }
 
     @Override

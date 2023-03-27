@@ -6,7 +6,6 @@ use std::sync::Arc;
 use log::{debug, error, info, trace, warn};
 use mockall::mock;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
-use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::CoreCallbacks;
@@ -181,7 +180,7 @@ impl Platform for DefaultPlatform {
         }
 
         if MediaNotificationEvent::StateStopped == event {
-            // Self::dispose_media_controls(&mut mutex);
+            Self::dispose_media_controls(&mut mutex);
         }
     }
 

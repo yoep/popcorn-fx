@@ -54,6 +54,8 @@ public class PlayerStoppedEventC extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(media)
+                .ifPresent(MediaItem::close);
     }
 
     public static PlayerStoppedEventC.ByValue from(PlayerStoppedEvent event) {

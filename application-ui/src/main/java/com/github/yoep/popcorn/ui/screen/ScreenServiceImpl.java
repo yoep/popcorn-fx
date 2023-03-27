@@ -77,7 +77,7 @@ public class ScreenServiceImpl implements ScreenService {
     void init() {
         initializeViewManagerListeners();
         eventPublisher.register(PlayerStoppedEvent.class, event -> {
-            if (!optionsService.options().isKioskMode()) {
+            if (!optionsService.isKioskMode()) {
                 Platform.runLater(() -> primaryStage.setFullScreen(false));
             }
             return event;
@@ -93,13 +93,11 @@ public class ScreenServiceImpl implements ScreenService {
     //region Functions
 
     private void registerListener(Stage primaryStage) {
-        var options = optionsService.options();
-
         // store the primary screen for later use
         log.trace("Primary stage is being registered");
         this.primaryStage = primaryStage;
 
-        if (options.isKioskMode()) {
+        if (optionsService.isKioskMode()) {
             log.trace("Kiosk mode is activated, disabling the fullscreen exit key");
             primaryStage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
             primaryStage.setFullScreen(true);

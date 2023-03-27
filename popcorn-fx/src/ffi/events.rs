@@ -26,7 +26,6 @@ mod test {
     use popcorn_fx_core::testing::init_logger;
 
     use crate::ffi::PlayVideoEventC;
-    use crate::PopcornFxArgs;
     use crate::test::default_args;
 
     use super::*;

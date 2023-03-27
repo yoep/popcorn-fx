@@ -11,14 +11,6 @@ import lombok.ToString;
 @Builder
 public class ApplicationOptions {
     /**
-     * Indicates if the big picture mode is enabled.
-     */
-    private final boolean bigPictureMode;
-    /**
-     * Indicates if the kiosk mode is enabled.
-     */
-    private final boolean kioskMode;
-    /**
      * Indicates if the mouse should be permanently disabled from the application.
      */
     private final boolean mouseDisabled;

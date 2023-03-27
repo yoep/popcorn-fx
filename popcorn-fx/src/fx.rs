@@ -72,6 +72,9 @@ pub struct PopcornFxArgs {
     /// Indicates if the application should be maximized on startup.
     #[arg(long, default_value_t = false)]
     pub maximized: bool,
+    /// Indicates if the application should be started in kiosk mode.
+    #[arg(long, default_value_t = false)]
+    pub kiosk: bool,
     /// Indicates if insecure TLS connections are allowed
     #[arg(long, default_value_t = false)]
     pub insecure: bool,
@@ -90,6 +93,7 @@ impl Default for PopcornFxArgs {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             properties: PopcornProperties::new_auto(),
         }
@@ -492,6 +496,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             properties: PopcornProperties {
                 loggers: HashMap::from([

@@ -933,6 +933,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
             properties: Default::default(),

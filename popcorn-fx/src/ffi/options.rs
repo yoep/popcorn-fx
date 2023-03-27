@@ -30,6 +30,13 @@ pub extern "C" fn is_maximized(popcorn_fx: &mut PopcornFX) -> bool {
     popcorn_fx.opts().maximized
 }
 
+/// Verify if the application should started in kiosk mode.
+/// The behavior of kiosk mode is dependant on the UI implementation and not delegated by the backend.
+#[no_mangle]
+pub extern "C" fn is_kiosk_mode(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().kiosk
+}
+
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
@@ -52,6 +59,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
             properties: Default::default(),
@@ -74,6 +82,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
             properties: Default::default(),
@@ -96,6 +105,7 @@ mod test {
             disable_vlc_video_player: true,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
             properties: Default::default(),
@@ -118,6 +128,7 @@ mod test {
             disable_vlc_video_player: false,
             tv: true,
             maximized: false,
+            kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
             properties: Default::default(),
@@ -140,12 +151,36 @@ mod test {
             disable_vlc_video_player: false,
             tv: false,
             maximized: true,
+            kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
             properties: Default::default(),
         });
 
         let result = is_maximized(&mut instance);
+
+        assert_eq!(true, result)
+    }
+
+    #[test]
+    fn test_is_kiosk_mode() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            tv: false,
+            maximized: true,
+            kiosk: true,
+            insecure: false,
+            app_directory: temp_path.to_string(),
+            properties: Default::default(),
+        });
+
+        let result = is_kiosk_mode(&mut instance);
 
         assert_eq!(true, result)
     }

@@ -80,7 +80,6 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var optionsService = applicationContext.getBean(OptionsService.class);
         var maximizeService = applicationContext.getBean(MaximizeService.class);
         var platformProvider = applicationContext.getBean(PlatformProvider.class);
-        var options = optionsService.options();
         var properties = ViewProperties.builder()
                 .title(APPLICATION_TITLE)
                 .icon(ICON_NAME)
@@ -89,7 +88,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         // check if the big-picture or kiosk mode or maximized is enabled
         // if so, force the application to be maximized
-        if (optionsService.isTvMode() || options.isKioskMode() || optionsService.isMaximized()) {
+        if (optionsService.isTvMode() || optionsService.isKioskMode() || optionsService.isMaximized()) {
             maximizeService.setMaximized(true);
         } else {
             var settingsService = applicationContext.getBean(ApplicationConfig.class);
@@ -100,7 +99,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         // check if the kiosk mode is enabled
         // if so, prevent the application from being resized
-        if (options.isKioskMode()) {
+        if (optionsService.isKioskMode()) {
             properties.resizable(false);
         }
 

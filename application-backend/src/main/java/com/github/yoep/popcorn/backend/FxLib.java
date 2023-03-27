@@ -174,6 +174,8 @@ public interface FxLib extends Library {
 
     byte is_maximized(PopcornFx instance);
 
+    byte is_kiosk_mode(PopcornFx instance);
+
     VersionInfo version_info(PopcornFx instance);
 
     UpdateState update_state(PopcornFx instance);

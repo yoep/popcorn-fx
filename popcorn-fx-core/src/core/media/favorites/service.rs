@@ -70,7 +70,7 @@ pub trait FavoriteService: Debug + Send + Sync {
 /// The standard favorite service which stores & retrieves liked media items based on the ID.
 #[derive(Debug)]
 pub struct DefaultFavoriteService {
-    storage: Arc<Storage>,
+    storage: Arc<Mutex<Storage>>,
     cache: Arc<Mutex<Option<Favorites>>>,
     callbacks: CoreCallbacks<FavoriteEvent>,
 }
@@ -81,7 +81,7 @@ impl DefaultFavoriteService {
     /// * `storage_directory` - The directory to use to read & store the favorites.
     pub fn new(storage_path: &str) -> Self {
         Self {
-            storage: Arc::new(Storage::from(storage_path)),
+            storage: Arc::new(Mutex::new(Storage::from(storage_path))),
             cache: Arc::new(Mutex::new(None)),
             callbacks: CoreCallbacks::default(),
         }
@@ -92,7 +92,8 @@ impl DefaultFavoriteService {
     }
 
     async fn save_async(&self, favorites: &Favorites) {
-        match self.storage.write_async(FILENAME, &favorites).await {
+        let mutex = self.storage.lock().await;
+        match mutex.write_async(FILENAME, &favorites).await {
             Ok(_) => info!("Favorites have been saved"),
             Err(e) => error!("Failed to save favorites, {}", e)
         }
@@ -104,7 +105,7 @@ impl DefaultFavoriteService {
 
         if cache.is_none() {
             trace!("Loading favorites cache");
-            return match self.load_favorites_from_storage() {
+            return match self.load_favorites_from_storage().await {
                 Ok(e) => {
                     let _ = cache.insert(e);
                     Ok(())
@@ -117,8 +118,9 @@ impl DefaultFavoriteService {
         Ok(())
     }
 
-    fn load_favorites_from_storage(&self) -> media::Result<Favorites> {
-        match self.storage.read(FILENAME) {
+    async fn load_favorites_from_storage(&self) -> media::Result<Favorites> {
+        let mutex = self.storage.lock().await;
+        match mutex.read(FILENAME) {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {

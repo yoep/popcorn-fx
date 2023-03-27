@@ -57,6 +57,9 @@ pub struct PopcornFxArgs {
     /// This allows you to bring your own logger for the instance which should support [log].
     #[arg(long, global = true, default_value_t = false)]
     pub disable_logger: bool,
+    /// Disable the mouse within the application.
+    #[arg(long, default_value_t = false)]
+    pub disable_mouse: bool,
     /// Disable the youtube video player.
     #[arg(long, default_value_t = false)]
     pub disable_youtube_video_player: bool,
@@ -88,6 +91,7 @@ impl Default for PopcornFxArgs {
         Self {
             app_directory: DEFAULT_APP_DIRECTORY(),
             disable_logger: false,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
@@ -491,6 +495,7 @@ mod test {
         let args = PopcornFxArgs {
             app_directory: temp_path.to_string(),
             disable_logger: false,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,

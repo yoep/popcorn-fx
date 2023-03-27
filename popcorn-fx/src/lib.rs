@@ -928,6 +928,7 @@ mod test {
     pub fn default_args(temp_path: &str) -> PopcornFxArgs {
         PopcornFxArgs {
             disable_logger: true,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,

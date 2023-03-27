@@ -5,8 +5,6 @@ import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -32,9 +30,7 @@ class PopcornTimeApplicationTest {
     @Mock
     private ConfigurableApplicationContext applicationContext;
     @Mock
-    private ApplicationConfig settingsService;
-    @Mock
-    private OptionsService optionsService;
+    private ApplicationConfig applicationConfig;
     @Mock
     private MaximizeService maximizeService;
     @Mock
@@ -50,9 +46,8 @@ class PopcornTimeApplicationTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(applicationContext.getBean(ApplicationConfig.class)).thenReturn(settingsService);
+        lenient().when(applicationContext.getBean(ApplicationConfig.class)).thenReturn(applicationConfig);
         lenient().when(applicationContext.getBean(ViewManager.class)).thenReturn(viewManager);
-        lenient().when(applicationContext.getBean(OptionsService.class)).thenReturn(optionsService);
         lenient().when(applicationContext.getBean(PlatformProvider.class)).thenReturn(platformProvider);
         lenient().when(applicationContext.getBean(MaximizeService.class)).thenReturn(maximizeService);
         lenient().when(applicationContext.getBean(ViewLoader.class)).thenReturn(viewLoader);
@@ -63,14 +58,12 @@ class PopcornTimeApplicationTest {
 
     @Test
     void testStart_whenNativeUiIsDisabled_shouldRegisterBorderlessStage() throws Exception {
-        var options = mock(ApplicationOptions.class);
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
                         .nativeWindowEnabled((byte) 0)
                         .build())
                 .build();
-        when(settingsService.getSettings()).thenReturn(settings);
-        when(optionsService.options()).thenReturn(options);
+        when(applicationConfig.getSettings()).thenReturn(settings);
         when(stage.isShowing()).thenReturn(false);
 
         application.start(stage);
@@ -81,14 +74,12 @@ class PopcornTimeApplicationTest {
 
     @Test
     void testStart_whenNativeUiIsEnabled_shouldNotAddUndecoratedStyle() throws Exception {
-        var options = mock(ApplicationOptions.class);
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
                         .nativeWindowEnabled((byte) 1)
                         .build())
                 .build();
-        when(settingsService.getSettings()).thenReturn(settings);
-        when(optionsService.options()).thenReturn(options);
+        when(applicationConfig.getSettings()).thenReturn(settings);
 
         application.start(stage);
 
@@ -98,15 +89,13 @@ class PopcornTimeApplicationTest {
 
     @Test
     void testStart_whenTvModeIsEnabled_shouldMaximizeOnStartup() throws Exception {
-        var options = ApplicationOptions.builder().build();
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
                         .nativeWindowEnabled((byte) 1)
                         .build())
                 .build();
-        when(settingsService.getSettings()).thenReturn(settings);
-        when(optionsService.options()).thenReturn(options);
-        when(optionsService.isTvMode()).thenReturn(true);
+        when(applicationConfig.getSettings()).thenReturn(settings);
+        when(applicationConfig.isTvMode()).thenReturn(true);
 
         application.start(stage);
 
@@ -116,9 +105,6 @@ class PopcornTimeApplicationTest {
 
     @Test
     void testStart_whenKioskModeIsEnabled_shouldDisableResizing() throws Exception {
-        var options = ApplicationOptions.builder()
-                .kioskMode(true)
-                .build();
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
                         .nativeWindowEnabled((byte) 1)
@@ -131,8 +117,8 @@ class PopcornTimeApplicationTest {
                 .centerOnScreen(false)
                 .background(Color.BLACK)
                 .build();
-        when(settingsService.getSettings()).thenReturn(settings);
-        when(optionsService.options()).thenReturn(options);
+        when(applicationConfig.getSettings()).thenReturn(settings);
+        when(applicationConfig.isKioskMode()).thenReturn(true);
         when(platformProvider.isTransparentWindowSupported()).thenReturn(false);
 
         application.start(stage);

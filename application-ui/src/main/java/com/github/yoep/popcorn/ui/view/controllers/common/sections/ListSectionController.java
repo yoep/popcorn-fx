@@ -15,7 +15,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
@@ -58,7 +58,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
     private final ImageService imageService;
-    private final OptionsService optionsService;
+    private final ApplicationConfig applicationConfig;
 
     private final OverlayItemMetadataProvider metadataProvider = metadataProvider();
     private final OverlayItemListener overlayItemListener = createItemListener();
@@ -78,12 +78,12 @@ public class ListSectionController extends AbstractListSectionController impleme
                                  LocaleText localeText,
                                  EventPublisher eventPublisher,
                                  ImageService imageService,
-                                 OptionsService optionsService) {
+                                 ApplicationConfig applicationConfig) {
         super(providerServices, viewLoader, localeText, eventPublisher);
         this.favoriteService = favoriteService;
         this.watchedService = watchedService;
         this.imageService = imageService;
-        this.optionsService = optionsService;
+        this.applicationConfig = applicationConfig;
     }
 
     //endregion
@@ -103,8 +103,8 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private void initializeScrollPane() {
-        AnchorPane.setTopAnchor(scrollPane, optionsService.isTvMode() ? 50.0 : 35.0);
-        AnchorPane.setLeftAnchor(scrollPane, optionsService.isTvMode() ? LEFT_SPACING_TV : LEFT_SPACING_DESKTOP);
+        AnchorPane.setTopAnchor(scrollPane, applicationConfig.isTvMode() ? 50.0 : 35.0);
+        AnchorPane.setLeftAnchor(scrollPane, applicationConfig.isTvMode() ? LEFT_SPACING_TV : LEFT_SPACING_DESKTOP);
         scrollPane.setLoaderFactory(() -> viewLoader.load("common/components/loading-card.component.fxml"));
         scrollPane.setItemFactory(new InfiniteScrollItemFactory<>() {
             @Override
@@ -130,7 +130,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     private void initializeFilter() {
         var filter = viewLoader.load("components/filter.component.fxml");
 
-        if (optionsService.isTvMode()) {
+        if (applicationConfig.isTvMode()) {
             AnchorPane.setTopAnchor(filter, 0d);
             AnchorPane.setBottomAnchor(filter, 0d);
             AnchorPane.setLeftAnchor(filter, LEFT_SPACING_TV);
@@ -140,14 +140,14 @@ public class ListSectionController extends AbstractListSectionController impleme
             AnchorPane.setLeftAnchor(filter, LEFT_SPACING_DESKTOP);
         }
 
-        listSection.getChildren().add(optionsService.isTvMode() ? 2 : 1, filter);
+        listSection.getChildren().add(applicationConfig.isTvMode() ? 2 : 1, filter);
     }
 
     @Override
     protected Node createItemNode(Media item) {
         TvMediaCardComponent mediaCardComponent;
 
-        if (optionsService.isTvMode()) {
+        if (applicationConfig.isTvMode()) {
             mediaCardComponent = new TvMediaCardComponent(item, imageService, metadataProvider, overlayItemListener);
         } else {
             // load a new media card controller and inject it into the view

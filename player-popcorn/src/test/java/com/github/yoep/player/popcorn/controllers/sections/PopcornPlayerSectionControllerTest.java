@@ -8,7 +8,7 @@ import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.scene.control.Label;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
@@ -47,7 +47,7 @@ class PopcornPlayerSectionControllerTest {
     @Mock
     private ViewLoader viewLoader;
     @Mock
-    private OptionsService optionsService;
+    private ApplicationConfig applicationConfig;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks

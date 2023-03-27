@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlay
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -32,7 +32,7 @@ public class PlayerSectionController implements Initializable {
     private final PlayerManagerService playerManagerService;
     private final ViewLoader viewLoader;
     private final EventPublisher eventPublisher;
-    private final OptionsService optionsService;
+    private final ApplicationConfig applicationConfig;
 
     @FXML
     Pane playerSectionPane;
@@ -61,7 +61,7 @@ public class PlayerSectionController implements Initializable {
     }
 
     private void initializePlayNext() {
-        AnchorPane.setBottomAnchor(playerPlayNextPane, optionsService.isTvMode() ? 150d : 50d);
+        AnchorPane.setBottomAnchor(playerPlayNextPane, applicationConfig.isTvMode() ? 150d : 50d);
     }
 
     private void onPlayVideo(Player player) {

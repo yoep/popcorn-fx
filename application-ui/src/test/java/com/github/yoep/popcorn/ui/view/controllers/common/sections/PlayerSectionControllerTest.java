@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlay
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
@@ -35,7 +35,7 @@ class PlayerSectionControllerTest {
     @Mock
     private ViewLoader viewLoader;
     @Mock
-    private OptionsService optionsService;
+    private ApplicationConfig applicationConfig;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher();
     @Mock

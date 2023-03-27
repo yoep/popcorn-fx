@@ -11,7 +11,6 @@ import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.scene.paint.Color;
@@ -77,7 +76,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
     private ViewProperties getViewProperties() {
         log.trace("Building the view properties of the application");
-        var optionsService = applicationContext.getBean(OptionsService.class);
+        var applicationConfig = applicationContext.getBean(ApplicationConfig.class);
         var maximizeService = applicationContext.getBean(MaximizeService.class);
         var platformProvider = applicationContext.getBean(PlatformProvider.class);
         var properties = ViewProperties.builder()
@@ -88,7 +87,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         // check if the big-picture or kiosk mode or maximized is enabled
         // if so, force the application to be maximized
-        if (optionsService.isTvMode() || optionsService.isKioskMode() || optionsService.isMaximized()) {
+        if (applicationConfig.isTvMode() || applicationConfig.isKioskMode() || applicationConfig.isMaximized()) {
             maximizeService.setMaximized(true);
         } else {
             var settingsService = applicationContext.getBean(ApplicationConfig.class);
@@ -99,7 +98,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         // check if the kiosk mode is enabled
         // if so, prevent the application from being resized
-        if (optionsService.isKioskMode()) {
+        if (applicationConfig.isKioskMode()) {
             properties.resizable(false);
         }
 

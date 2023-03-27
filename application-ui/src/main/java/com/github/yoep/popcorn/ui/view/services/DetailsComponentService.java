@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import javafx.application.Platform;
@@ -23,7 +23,7 @@ import java.util.Objects;
 public class DetailsComponentService extends AbstractListenerService<DetailsComponentListener> {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
-    private final OptionsService optionsService;
+    private final ApplicationConfig applicationConfig;
     private final SubtitlePickerService subtitlePickerService;
 
     private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback();
@@ -38,7 +38,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     }
 
     public boolean isTvMode() {
-        return optionsService.isTvMode();
+        return applicationConfig.isTvMode();
     }
 
     public void updateWatchedStated(Media media, boolean isWatched) {

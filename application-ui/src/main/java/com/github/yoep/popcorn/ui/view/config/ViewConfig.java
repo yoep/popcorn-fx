@@ -11,7 +11,6 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.PopcornViewLoader;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
@@ -40,9 +39,8 @@ public class ViewConfig {
                                          ApplicationArguments arguments,
                                          UrlService urlService,
                                          ApplicationConfig settingsService,
-                                         OptionsService optionsService,
                                          TaskExecutor taskExecutor) {
-        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, optionsService, taskExecutor);
+        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, taskExecutor);
     }
 
     @Bean
@@ -50,8 +48,8 @@ public class ViewConfig {
                                                              LocaleText localeText,
                                                              EventPublisher eventPublisher,
                                                              MaximizeService maximizeService,
-                                                             OptionsService optionsService) {
-        return new ContentSectionController(viewLoader, localeText, eventPublisher, maximizeService, optionsService);
+                                                             ApplicationConfig applicationConfig) {
+        return new ContentSectionController(viewLoader, localeText, eventPublisher, maximizeService, applicationConfig);
     }
 
     @Bean
@@ -62,13 +60,11 @@ public class ViewConfig {
     }
 
     @Bean
-    public ViewLoader viewLoader(ApplicationContext applicationContext, ViewManager viewManager, LocaleText localeText, OptionsService optionsService) {
-        return PopcornViewLoader.builder()
-                .applicationContext(applicationContext)
-                .viewManager(viewManager)
-                .localeText(localeText)
-                .optionsService(optionsService)
-                .build();
+    public ViewLoader viewLoader(ApplicationContext applicationContext,
+                                 ViewManager viewManager,
+                                 LocaleText localeText,
+                                 ApplicationConfig applicationConfig) {
+        return new PopcornViewLoader(applicationContext, viewManager, localeText, applicationConfig);
     }
 
     @Bean

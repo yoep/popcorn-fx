@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,7 +23,7 @@ class DetailsComponentServiceTest {
     @Mock
     private WatchedService watchedService;
     @Mock
-    private OptionsService optionsService;
+    private ApplicationConfig applicationConfig;
     @InjectMocks
     private DetailsComponentService service;
 
@@ -104,7 +104,7 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsTvMode() {
-        when(optionsService.isTvMode()).thenReturn(true);
+        when(applicationConfig.isTvMode()).thenReturn(true);
 
         var result = service.isTvMode();
 

@@ -1,7 +1,8 @@
 package com.github.yoep.popcorn.ui;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.FxLibInstance;
+import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.application.Preloader;
@@ -86,7 +87,7 @@ public class PopcornTimePreloader extends Preloader {
 
     private void processParameters(Stage primaryStage, Scene scene) {
         // check if the mouse should be hidden
-        if (containsOption(OptionsService.DISABLE_MOUSE_OPTION)) {
+        if (FxLibInstance.INSTANCE.get().is_mouse_disabled(PopcornFxInstance.INSTANCE.get()) == (byte) 1) {
             log.trace("Hiding preloader cursor");
             scene.setCursor(Cursor.NONE);
         }
@@ -98,19 +99,6 @@ public class PopcornTimePreloader extends Preloader {
 
     private ClassPathResource getPreloaderResource() {
         return new ClassPathResource(ViewLoader.VIEW_DIRECTORY + "/preloader.fxml");
-    }
-
-    /**
-     * Check if the given option (unnamed parameter) is present.
-     *
-     * @param option The option to check for.
-     * @return Returns true if the option is present, else false.
-     */
-    private boolean containsOption(String option) {
-        var parameters = getParameters();
-        var options = parameters.getUnnamed();
-
-        return options.contains(OPTIONS_PREFIX + option);
     }
 
     /**

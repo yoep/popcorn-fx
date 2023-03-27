@@ -18,6 +18,14 @@ pub extern "C" fn is_vlc_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bo
     popcorn_fx.opts().disable_vlc_video_player
 }
 
+/// Verify if the application mouse should be disabled.
+/// The disabling of the mouse should be implemented by the UI implementation and has no behavior on
+/// the backend itself.
+#[no_mangle]
+pub extern "C" fn is_mouse_disabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().disable_mouse
+}
+
 /// Verify if the TV mode is activated for the application.
 #[no_mangle]
 pub extern "C" fn is_tv_mode(popcorn_fx: &mut PopcornFX) -> bool {
@@ -54,6 +62,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
+            disable_mouse: false,
             disable_youtube_video_player: true,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
@@ -77,6 +86,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: true,
             disable_vlc_video_player: false,
@@ -100,6 +110,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: true,
@@ -117,12 +128,37 @@ mod test {
     }
 
     #[test]
+    fn test_is_mouse_disabled() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(PopcornFxArgs {
+            disable_logger: true,
+            disable_mouse: true,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
+            kiosk: false,
+            insecure: false,
+            app_directory: temp_path.to_string(),
+            properties: Default::default(),
+        });
+
+        let result = is_mouse_disabled(&mut instance);
+
+        assert_eq!(true, result)
+    }
+
+    #[test]
     fn test_is_tv_mode() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
@@ -146,6 +182,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
@@ -169,6 +206,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,

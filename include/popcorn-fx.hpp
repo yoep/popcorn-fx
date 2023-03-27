@@ -855,6 +855,11 @@ bool is_media_liked(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 /// It returns true when the item is watched, else false.
 bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 
+/// Verify if the application mouse should be disabled.
+/// The disabling of the mouse should be implemented by the UI implementation and has no behavior on
+/// the backend itself.
+bool is_mouse_disabled(PopcornFX *popcorn_fx);
+
 /// Verify if the subtitle has been disabled by the user.
 ///
 /// It returns true when the subtitle track should be disabled, else false.

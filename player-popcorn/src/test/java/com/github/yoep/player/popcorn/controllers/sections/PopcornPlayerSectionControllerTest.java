@@ -8,11 +8,13 @@ import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.scene.control.Label;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,6 +68,7 @@ class PopcornPlayerSectionControllerTest {
         controller.playerHeaderPane = new Pane();
         controller.playerControlsPane = new Pane();
         controller.infoLabel = new Label();
+        controller.errorText = new Label();
         controller.subtitleTrack = new SubtitleTrack();
     }
 
@@ -108,5 +111,17 @@ class PopcornPlayerSectionControllerTest {
         eventHandler.handle(event);
 
         verify(sectionService).onVolumeScroll(-PopcornPlayerSectionController.VOLUME_INCREASE_AMOUNT);
+    }
+
+    @Test
+    void testOnPlayVideoEvent() throws TimeoutException {
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
+        controller.initialize(url, resourceBundle);
+
+        controller.errorText.setText("Lorem");
+        eventPublisher.publish(new PlayVideoEvent(this, "http://localhost/video.mp4", "Lorem ipsum", false));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> StringUtils.isEmpty(controller.errorText.getText()));
     }
 }

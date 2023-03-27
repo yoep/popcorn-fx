@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::{trace, warn};
+use log::{debug, trace, warn};
 
 use crate::core::CoreCallbacks;
 use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayVideoEvent};
@@ -151,6 +151,7 @@ struct InnerPlaybackControls {
 
 impl InnerPlaybackControls {
     fn notify_media_playback(&self, event: PlayVideoEvent) {
+        debug!("Notifying system that a new media playback is being started");
         self.platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: event.title.clone(),
             show_name: event.show_name,
@@ -159,6 +160,7 @@ impl InnerPlaybackControls {
     }
 
     fn notify_media_state_changed(&self, state: PlaybackState) {
+        debug!("Notifying system that the media playback state has changed to {}", state);
         match state {
             PlaybackState::PLAYING => self.platform.notify_media_event(MediaNotificationEvent::StatePlaying),
             PlaybackState::PAUSED => self.platform.notify_media_event(MediaNotificationEvent::StatePaused),
@@ -167,6 +169,7 @@ impl InnerPlaybackControls {
     }
 
     fn notify_media_stopped(&self) {
+        debug!("Notifying system that the media playback has stopped");
         self.platform.notify_media_event(MediaNotificationEvent::StateStopped)
     }
 

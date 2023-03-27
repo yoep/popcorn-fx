@@ -6,6 +6,7 @@ use std::sync::Arc;
 use log::{debug, error, info, trace, warn};
 use mockall::mock;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
+use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::CoreCallbacks;
@@ -136,13 +137,16 @@ impl DefaultPlatform {
         // release the controls
         debug!("Releasing system media controls");
         if let Some(controls) = mutex.as_mut() {
+            trace!("Detaching system media controls");
             match controls.detach() {
                 Ok(_) => debug!("Detached system media controls"),
                 Err(e) => error!("Failed to detach from system media controls, {:?}", e),
             }
         }
 
+        trace!("Releasing system media controls");
         let _ = mutex.take();
+        info!("System media controls have been released");
     }
 }
 
@@ -177,7 +181,7 @@ impl Platform for DefaultPlatform {
         }
 
         if MediaNotificationEvent::StateStopped == event {
-            Self::dispose_media_controls(&mut mutex);
+            // Self::dispose_media_controls(&mut mutex);
         }
     }
 

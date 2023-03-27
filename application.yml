@@ -1,7 +1,7 @@
 logging:
   level:
     com.github.yoep.player.chromecast: INFO
-    com.github.yoep.popcorn.backend.events: DEBUG
+    com.github.yoep.popcorn.backend.events: INFO
     com.github.yoep.popcorn.backend.media.favorites: INFO
     com.github.yoep.popcorn.backend.media.providers: INFO
     com.github.yoep.popcorn.backend.media.resume: INFO
@@ -44,6 +44,6 @@ popcorn:
     popcorn_fx_opensubtitles:
       level: info
     popcorn_fx_platform:
-      level: info
+      level: trace
     popcorn_fx_torrent_stream:
       level: info

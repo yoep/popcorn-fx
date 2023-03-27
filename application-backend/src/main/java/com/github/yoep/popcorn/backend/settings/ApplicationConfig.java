@@ -41,7 +41,6 @@ public class ApplicationConfig {
                 cachedSettings = settings;
             }
         }
-
         return cachedSettings;
     }
 

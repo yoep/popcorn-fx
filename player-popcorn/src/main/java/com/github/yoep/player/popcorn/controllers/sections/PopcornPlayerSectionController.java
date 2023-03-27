@@ -10,6 +10,7 @@ import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -94,13 +95,6 @@ public class PopcornPlayerSectionController implements Initializable {
         initializeListeners();
         initializePaneListeners();
         initializeSubtitleTrack();
-        eventPublisher.register(PlayerStoppedEvent.class, event -> {
-            Platform.runLater(() -> {
-                subtitleTrack.clear();
-                errorText.setText(null);
-            });
-            return event;
-        });
     }
 
     private void initializeSceneEvents() {
@@ -119,6 +113,17 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void initializeListeners() {
+        eventPublisher.register(PlayVideoEvent.class, event -> {
+            Platform.runLater(() -> errorText.setText(""));
+            return event;
+        }, EventPublisher.HIGHEST_ORDER);
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            Platform.runLater(() -> {
+                subtitleTrack.clear();
+                errorText.setText(null);
+            });
+            return event;
+        });
         sectionService.addListener(new PopcornPlayerSectionListener() {
             @Override
             public void onSubtitleChanged(Subtitle subtitle) {

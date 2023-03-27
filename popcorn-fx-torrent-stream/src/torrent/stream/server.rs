@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use hyper::Body;
 use local_ip_address::local_ip;
 use log::{debug, error, info, trace, warn};
+use percent_encoding::percent_encode;
 use tokio::sync::{Mutex, MutexGuard};
 use url::Url;
 use warp::{Filter, hyper, Rejection};
@@ -376,7 +378,7 @@ impl Default for TorrentStreamServerInner {
         Self {
             runtime: Arc::new(tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
-                .worker_threads(2)
+                .worker_threads(3)
                 .thread_name("torrent-stream")
                 .build()
                 .expect("expected a new runtime")),

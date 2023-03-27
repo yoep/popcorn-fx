@@ -21,8 +21,7 @@ use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, Subt
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::subtitles::parsers::{Parser, VttParser};
-use popcorn_fx_core::core::subtitles::parsers::SrtParser;
+use popcorn_fx_core::core::subtitles::parsers::Parser;
 
 use crate::opensubtitles::model::*;
 
@@ -42,29 +41,25 @@ pub struct OpensubtitlesProvider {
 }
 
 impl OpensubtitlesProvider {
-    /// Create a new OpenSubtitles service instance.
-    pub fn new(settings: &Arc<Mutex<ApplicationConfig>>) -> Self {
-        let mut default_headers = HeaderMap::new();
-        let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
-        let vtt_parser: Box<dyn Parser> = Box::new(VttParser::default());
-        let mutex = settings.blocking_lock();
-        let api_token = mutex.properties().subtitle().api_token().to_string();
-        let user_agent = mutex.properties().subtitle().user_agent().to_string();
-
-        default_headers.insert(USER_AGENT_HEADER_KEY, user_agent.parse().unwrap());
-        default_headers.insert(API_HEADER_KEY, api_token.parse().unwrap());
-
-        Self {
-            settings: settings.clone(),
-            client: ClientBuilder::new()
-                .default_headers(default_headers)
-                .build()
-                .unwrap(),
-            parsers: HashMap::from([
-                (SubtitleType::Srt, srt_parser),
-                (SubtitleType::Vtt, vtt_parser)
-            ]),
-        }
+    /// Returns a new `OpensubtitlesProviderBuilder` instance to configure an `OpensubtitlesProvider`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::sync::Arc;
+    /// use tokio::sync::Mutex;
+    /// use popcorn_fx_core::core::config::ApplicationConfig;
+    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    ///
+    /// let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .build()));
+    /// let provider = OpensubtitlesProvider::builder()
+    ///     .settings(settings)
+    ///     .build();
+    /// ```
+    pub fn builder() -> OpensubtitlesProviderBuilder {
+        OpensubtitlesProviderBuilder::default()
     }
 
     async fn create_search_url(&self, media_id: Option<&str>, episode: Option<&Episode>, filename: Option<&str>, page: i32) -> Result<Url> {
@@ -527,6 +522,118 @@ impl Drop for OpensubtitlesProvider {
     }
 }
 
+#[derive(Default)]
+pub struct OpensubtitlesProviderBuilder {
+    settings: Option<Arc<Mutex<ApplicationConfig>>>,
+    parsers: HashMap<SubtitleType, Box<dyn Parser>>,
+    insecure: bool,
+}
+
+impl OpensubtitlesProviderBuilder {
+    /// Sets the `ApplicationConfig` instance to use.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::sync::Arc;
+    /// use tokio::sync::Mutex;
+    /// use popcorn_fx_core::core::config::ApplicationConfig;
+    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    ///
+    /// let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .build()));
+    /// let provider = OpensubtitlesProvider::builder()
+    ///     .settings(settings)
+    ///     .build();
+    /// ```
+    pub fn settings(mut self, settings: Arc<Mutex<ApplicationConfig>>) -> Self {
+        self.settings = Some(settings);
+        self
+    }
+
+    /// Adds a parser instance to the `HashMap` of parsers used by the provider.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::subtitles::model::SubtitleType;
+    /// use popcorn_fx_core::core::subtitles::parsers::{Parser, SrtParser};
+    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    ///
+    /// let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
+    /// let provider = OpensubtitlesProvider::builder()
+    ///     .with_parser(SubtitleType::Srt, srt_parser)
+    ///     .build();
+    /// ```
+    pub fn with_parser(mut self, parser_type: SubtitleType, parser: Box<dyn Parser>) -> Self {
+        self.parsers.insert(parser_type, parser);
+        self
+    }
+
+    /// Sets whether insecure connections are allowed the API requests.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    ///
+    /// let provider = OpensubtitlesProvider::builder()
+    ///     .insecure(true)
+    ///     .build();
+    /// ```
+    pub fn insecure(mut self, insecure: bool) -> Self {
+        self.insecure = insecure;
+        self
+    }
+
+    /// Builds an `OpensubtitlesProvider` object with the specified parameters.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `settings` have not been set.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::sync::Arc;
+    /// use tokio::sync::Mutex;
+    /// use popcorn_fx_core::core::config::ApplicationConfig;
+    /// use popcorn_fx_core::core::subtitles::model::SubtitleType;
+    /// use popcorn_fx_core::core::subtitles::parsers::{Parser, SrtParser};
+    /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
+    ///
+    /// let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
+    /// let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+    ///     .storage("storage/path")
+    ///     .build()));
+    /// let provider = OpensubtitlesProvider::builder()
+    ///     .settings(settings)
+    ///     .with_parser(SubtitleType::Srt, srt_parser)
+    ///     .build();
+    /// ```
+    pub fn build(self) -> OpensubtitlesProvider {
+        let settings = self.settings.expect("Settings have not been set for OpensubtitlesProvider");
+        let mut default_headers = HeaderMap::new();
+        let mutex = settings.blocking_lock();
+        let api_token = mutex.properties().subtitle().api_token().to_string();
+        let user_agent = mutex.properties().subtitle().user_agent().to_string();
+
+        default_headers.insert(USER_AGENT_HEADER_KEY, user_agent.parse().unwrap());
+        default_headers.insert(API_HEADER_KEY, api_token.parse().unwrap());
+
+        OpensubtitlesProvider {
+            settings: settings.clone(),
+            client: ClientBuilder::new()
+                .default_headers(default_headers)
+                .danger_accept_invalid_certs(self.insecure)
+                .build()
+                .unwrap(),
+            parsers: self.parsers,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use httpmock::Method::{GET, POST};
@@ -537,7 +644,7 @@ mod test {
     use popcorn_fx_core::core::storage::Storage;
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::{English, French};
-    use popcorn_fx_core::core::subtitles::model::SubtitleType::Vtt;
+    use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
 
     use super::*;
@@ -598,7 +705,9 @@ mod test {
             imdb_id.clone(),
             "2021".to_string(),
         );
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .build();
         let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(service.movie_subtitles(movie));
@@ -625,7 +734,9 @@ mod test {
             "ipsum".to_string(),
             "tt12003946".to_string(),
             "2021".to_string());
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .build();
         server.mock(|when, then| {
             when.method(GET)
                 .path("/subtitles")
@@ -681,7 +792,9 @@ mod test {
             "tt2169080".to_string(),
             "Pilot".to_string(),
             9238597);
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .build();
         server.mock(|when, then| {
             when.method(GET)
                 .path("/subtitles")
@@ -714,7 +827,9 @@ mod test {
         init_logger();
         let (server, settings) = start_mock_server();
         let filename = "House.of.the.Dragon.S01E01.HMAX.WEBRip.x264-XEN0N.mkv".to_string();
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .build();
         server.mock(|when, then| {
             when.method(GET)
                 .path("/subtitles")
@@ -740,7 +855,10 @@ mod test {
         init_logger();
         let (server, settings) = start_mock_server();
         let temp_dir = settings.blocking_lock().user_settings().subtitle().directory().to_str().unwrap().to_string();
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
+            .build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
             SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
@@ -781,7 +899,10 @@ mod test {
         let subdirectory = "subtitles";
         let (server, settings) = start_mock_server_with_subtitle_dir(Some(subdirectory));
         let temp_dir = settings.blocking_lock().user_settings().subtitle().directory().to_str().unwrap().to_string();
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
+            .build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
             SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
@@ -849,7 +970,10 @@ mod test {
             callbacks: Default::default(),
         }));
         let destination = copy_test_file(temp_path, test_file, None);
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
+            .build();
         let subtitle_info = SubtitleInfo::new_with_files(Some("tt00001".to_string()), SubtitleLanguage::German, vec![
             SubtitleFile::new(10001111, "subtitle_existing.srt".to_string(), String::new(), 0.0, 0)
         ]);
@@ -877,7 +1001,10 @@ mod test {
         let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build()));
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
+            .build();
         let destination = copy_test_file(temp_dir.into_path().to_str().unwrap(), test_file, None);
         let expected_result = Subtitle::new(
             vec![
@@ -919,7 +1046,9 @@ mod test {
             settings: popcorn_settings,
             callbacks: Default::default(),
         }));
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .build();
         let subtitle_info = SubtitleInfo::new("lorem".to_string(), English);
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
 
@@ -961,7 +1090,9 @@ mod test {
             settings: popcorn_settings,
             callbacks: Default::default(),
         }));
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .build();
         let subtitle_info = SubtitleInfo::new("ipsum".to_string(), French);
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
 
@@ -1037,11 +1168,14 @@ mod test {
         let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build()));
-        let service = OpensubtitlesProvider::new(&settings);
+        let service = OpensubtitlesProvider::builder()
+            .settings(settings)
+            .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))
+            .build();
         let expected_result = read_test_file("example-conversion.vtt")
             .replace("\r\n", "\n");
 
-        let result = service.convert(subtitle, Vtt);
+        let result = service.convert(subtitle, SubtitleType::Vtt);
 
         assert_eq!(expected_result, result.expect("Expected the conversion to have succeeded"))
     }

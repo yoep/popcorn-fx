@@ -54,12 +54,14 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
     }
 
     public Page<MovieOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        var movies = Optional.ofNullable(FxLibInstance.INSTANCE.get().retrieve_available_movies(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
-                .map(MediaSet::getMovies)
-                .orElse(Collections.emptyList());
-        log.debug("Retrieved movies {}", movies);
+        try (var mediaItem = FxLibInstance.INSTANCE.get().retrieve_available_movies(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page)) {
+            var movies = Optional.ofNullable(mediaItem)
+                    .map(MediaSet::getMovies)
+                    .orElse(Collections.emptyList());
+            log.debug("Retrieved movies {}", movies);
 
-        return new PageImpl<>(movies);
+            return new PageImpl<>(movies);
+        }
     }
 
     private static MovieDetails getInternalDetails(String imdbId) {

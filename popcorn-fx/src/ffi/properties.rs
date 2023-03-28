@@ -51,7 +51,7 @@ mod test {
     use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string};
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::PopcornFxArgs;
+    use crate::test::default_args;
 
     use super::*;
 
@@ -60,17 +60,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: true,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-            properties: Default::default(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
 
         let array = from_c_owned(retrieve_provider_genres(&mut instance, into_c_string("series".to_string())));
         let result: Vec<String> = from_c_vec(array.values, array.len).into_iter()
@@ -85,17 +75,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: true,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-            properties: Default::default(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
 
         let result = retrieve_provider_genres(&mut instance, into_c_string("lorem ipsum dolor estla".to_string()));
 
@@ -107,17 +87,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: true,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-            properties: Default::default(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
 
         let array = from_c_owned(retrieve_provider_sort_by(&mut instance, into_c_string("favorites".to_string())));
         let result: Vec<String> = from_c_vec(array.values, array.len).into_iter()

@@ -62,7 +62,7 @@ mod test {
 
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::PopcornFxArgs;
+    use crate::test::default_args;
 
     use super::*;
 
@@ -71,17 +71,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-            properties: Default::default(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
 
         let result = version_info(&mut instance);
 
@@ -93,17 +83,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-            properties: Default::default(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
 
         let result = update_state(&mut instance);
 
@@ -118,17 +98,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(PopcornFxArgs {
-            disable_logger: true,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            insecure: false,
-            app_directory: temp_path.to_string(),
-            properties: Default::default(),
-        });
+        let mut instance = PopcornFX::new(default_args(temp_path));
 
         download_update(&mut instance);
     }

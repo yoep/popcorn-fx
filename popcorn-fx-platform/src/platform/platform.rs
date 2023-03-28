@@ -98,7 +98,7 @@ impl DefaultPlatform {
     fn on_media_info_changed(&self, controls: &mut MediaControls, info: MediaInfo) {
         let metadata = MediaMetadata {
             title: Some(&info.title),
-            artist: info.show_name.as_ref().map(|e| e.as_str()),
+            artist: info.subtitle.as_ref().map(|e| e.as_str()),
             cover_url: info.thumb.as_ref().map(|e| e.as_ref()),
             ..Default::default()
         };
@@ -136,13 +136,16 @@ impl DefaultPlatform {
         // release the controls
         debug!("Releasing system media controls");
         if let Some(controls) = mutex.as_mut() {
+            trace!("Detaching system media controls");
             match controls.detach() {
                 Ok(_) => debug!("Detached system media controls"),
                 Err(e) => error!("Failed to detach from system media controls, {:?}", e),
             }
         }
 
+        trace!("Releasing system media controls");
         let _ = mutex.take();
+        info!("System media controls have been released");
     }
 }
 
@@ -167,7 +170,7 @@ impl Platform for DefaultPlatform {
 
         if let Some(mut controls) = mutex.as_mut() {
             match &event {
-                MediaNotificationEvent::PlaybackStarted(info) => self.on_media_info_changed(&mut controls, info.clone()),
+                MediaNotificationEvent::StateStarting(info) => self.on_media_info_changed(&mut controls, info.clone()),
                 MediaNotificationEvent::StatePlaying => self.on_playback_state_changed(&mut controls, MediaPlayback::Playing { progress: None }),
                 MediaNotificationEvent::StatePaused => self.on_playback_state_changed(&mut controls, MediaPlayback::Paused { progress: None }),
                 MediaNotificationEvent::StateStopped => self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped),
@@ -320,9 +323,9 @@ mod test {
 
         // notify the system about a new media playback
         // this will however do nothing as we have no actual playback going on
-        platform.notify_media_event(MediaNotificationEvent::PlaybackStarted(MediaInfo {
+        platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: "Lorem".to_string(),
-            show_name: None,
+            subtitle: None,
             thumb: None,
         }));
         // verify that the other events don't crash the program

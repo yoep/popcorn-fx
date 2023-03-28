@@ -8,6 +8,7 @@ use crate::PopcornFX;
 pub extern "C" fn register_playback_controls(popcorn_fx: &mut PopcornFX, callback: PlaybackControlsCallbackC) {
     trace!("Registering new playback controls callback from C");
     popcorn_fx.playback_controls().register(Box::new(move |event| {
+        trace!("Invoking C PlaybackControlsCallbackC for {:?}", event);
         callback(event)
     }))
 }

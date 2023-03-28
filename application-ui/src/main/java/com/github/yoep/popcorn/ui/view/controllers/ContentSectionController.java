@@ -5,7 +5,7 @@ import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.messages.ContentMessage;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -37,7 +37,7 @@ public class ContentSectionController implements Initializable {
     private final LocaleText localeText;
     private final EventPublisher eventPublisher;
     private final MaximizeService maximizeService;
-    private final OptionsService optionsService;
+    private final ApplicationConfig applicationConfig;
 
     Pane detailsPane;
     Pane watchlistPane;
@@ -132,7 +132,7 @@ public class ContentSectionController implements Initializable {
     }
 
     private void initializeMode() {
-        if (optionsService.isTvMode()) {
+        if (applicationConfig.isTvMode()) {
             rightTopSection = viewLoader.load(SYSTEM_TIME_COMPONENT);
         } else {
             rightTopSection = viewLoader.load(WINDOW_COMPONENT);

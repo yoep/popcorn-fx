@@ -7,7 +7,6 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
@@ -51,8 +50,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private final ViewLoader viewLoader;
     private final ApplicationArguments arguments;
     private final UrlService urlService;
-    private final ApplicationConfig settingsService;
-    private final OptionsService optionsService;
+    private final ApplicationConfig applicationConfig;
     private final TaskExecutor taskExecutor;
 
     @FXML
@@ -98,9 +96,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     private void initializeOptions() {
-        var options = optionsService.options();
-
-        if (options.isMouseDisabled()) {
+        if (applicationConfig.isMouseDisabled()) {
             rootPane.setCursor(Cursor.NONE);
             rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> {
                 if (newValue != null) {
@@ -134,7 +130,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     private void initializeTvStylesheet() {
-        if (optionsService.isTvMode()) {
+        if (applicationConfig.isTvMode()) {
             rootPane.getStylesheets().add(TV_STYLESHEET);
         }
     }
@@ -227,10 +223,10 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
         if (UI_ENLARGE_KEY_COMBINATION_1.match(event) || UI_ENLARGE_KEY_COMBINATION_2.match(event) || UI_ENLARGE_KEY_COMBINATION_3.match(event)) {
             event.consume();
-            settingsService.increaseUIScale();
+            applicationConfig.increaseUIScale();
         } else if (UI_REDUCE_KEY_COMBINATION_1.match(event) || UI_REDUCE_KEY_COMBINATION_2.match(event)) {
             event.consume();
-            settingsService.decreaseUIScale();
+            applicationConfig.decreaseUIScale();
         }
     }
 

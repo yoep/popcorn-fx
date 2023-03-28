@@ -182,7 +182,7 @@ public class TraktService {
                         movie.imdbId = e.getId();
                         movie.title = e.getTitle();
                         movie.year = "" + e.getYear();
-                        movie.images = new Images();
+                        movie.images = new Images.ByValue();
                         return movie;
                     })
                     .forEach(watchedService::addToWatchList);

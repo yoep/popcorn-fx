@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::{trace, warn};
+use log::{debug, trace, warn};
 
 use crate::core::CoreCallbacks;
 use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayVideoEvent};
@@ -131,7 +131,7 @@ impl PlaybackControlsBuilder {
                     Event::PlaybackStateChanged(new_state) => {
                         inner.notify_media_state_changed(new_state.clone())
                     }
-                    _ => {}
+                    Event::PlayerStopped(_) => inner.notify_media_stopped(),
                 }
                 Some(event)
             }), DEFAULT_ORDER);
@@ -151,19 +151,26 @@ struct InnerPlaybackControls {
 
 impl InnerPlaybackControls {
     fn notify_media_playback(&self, event: PlayVideoEvent) {
-        self.platform.notify_media_event(MediaNotificationEvent::PlaybackStarted(MediaInfo {
+        debug!("Notifying system that a new media playback is being started");
+        self.platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: event.title.clone(),
-            show_name: event.show_name,
+            subtitle: event.subtitle,
             thumb: event.thumb,
         }))
     }
 
     fn notify_media_state_changed(&self, state: PlaybackState) {
+        debug!("Notifying system that the media playback state has changed to {}", state);
         match state {
             PlaybackState::PLAYING => self.platform.notify_media_event(MediaNotificationEvent::StatePlaying),
             PlaybackState::PAUSED => self.platform.notify_media_event(MediaNotificationEvent::StatePaused),
             _ => {}
         }
+    }
+
+    fn notify_media_stopped(&self) {
+        debug!("Notifying system that the media playback has stopped");
+        self.platform.notify_media_event(MediaNotificationEvent::StateStopped)
     }
 
     fn register(&self, callback: PlaybackControlCallback) {
@@ -185,7 +192,8 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::platform::{MockDummyPlatformData, Platform};
+    use crate::core::events::PlayerStoppedEvent;
+    use crate::core::platform::MockDummyPlatformData;
     use crate::testing::init_logger;
 
     use super::*;
@@ -264,18 +272,68 @@ mod test {
         event_publisher.publish(Event::PlayVideo(PlayVideoEvent {
             url: "http://localhost/video.mp4".to_string(),
             title: "Lorem ipsum".to_string(),
-            show_name: Some("My showname".to_string()),
+            subtitle: Some("My showname".to_string()),
             thumb: None,
         }));
 
-        let notif_result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
-        match notif_result {
-            MediaNotificationEvent::PlaybackStarted(info) => assert_eq!(info, MediaInfo {
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        match result {
+            MediaNotificationEvent::StateStarting(info) => assert_eq!(info, MediaInfo {
                 title: "Lorem ipsum".to_string(),
-                show_name: Some("My showname".to_string()),
+                subtitle: Some("My showname".to_string()),
                 thumb: None,
             }),
             _ => panic!("Expected MediaNotificationEvent::PlaybackStarted")
         }
+    }
+
+    #[test]
+    fn test_on_player_stopped_event() {
+        init_logger();
+        let (tx, rx) = channel();
+        let mut platform = MockDummyPlatformData::new();
+        platform.expect_register()
+            .returning(|_| {});
+        platform.expect_notify_media_event()
+            .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
+        let event_publisher = Arc::new(EventPublisher::default());
+        let _controls = PlaybackControls::builder()
+            .platform(Arc::new(Box::new(platform)))
+            .event_publisher(event_publisher.clone())
+            .build();
+
+        event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
+            url: "http://localhost/my-video.mp4".to_string(),
+            media: None,
+            time: Some(10000),
+            duration: Some(50000),
+        }));
+
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        assert_eq!(MediaNotificationEvent::StateStopped, result);
+    }
+
+    #[test]
+    fn test_on_playback_state_changed_event() {
+        init_logger();
+        let (tx, rx) = channel();
+        let mut platform = MockDummyPlatformData::new();
+        platform.expect_register()
+            .returning(|_| {});
+        platform.expect_notify_media_event()
+            .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
+        let event_publisher = Arc::new(EventPublisher::default());
+        let _controls = PlaybackControls::builder()
+            .platform(Arc::new(Box::new(platform)))
+            .event_publisher(event_publisher.clone())
+            .build();
+
+        event_publisher.publish(Event::PlaybackStateChanged(PlaybackState::PLAYING));
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        assert_eq!(MediaNotificationEvent::StatePlaying, result);
+
+        event_publisher.publish(Event::PlaybackStateChanged(PlaybackState::PAUSED));
+        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        assert_eq!(MediaNotificationEvent::StatePaused, result);
     }
 }

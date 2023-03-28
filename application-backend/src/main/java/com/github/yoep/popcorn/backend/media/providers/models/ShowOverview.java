@@ -69,5 +69,9 @@ public class ShowOverview extends Structure implements Media, Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(rating)
+                .ifPresent(Rating::close);
+        Optional.ofNullable(images)
+                .ifPresent(Images::close);
     }
 }

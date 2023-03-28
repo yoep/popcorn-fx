@@ -24,6 +24,8 @@ use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedServic
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
+use popcorn_fx_core::core::subtitles::model::SubtitleType;
+use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrent::collection::TorrentCollection;
 use popcorn_fx_core::core::updater::Updater;
@@ -57,6 +59,9 @@ pub struct PopcornFxArgs {
     /// This allows you to bring your own logger for the instance which should support [log].
     #[arg(long, global = true, default_value_t = false)]
     pub disable_logger: bool,
+    /// Disable the mouse within the application.
+    #[arg(long, default_value_t = false)]
+    pub disable_mouse: bool,
     /// Disable the youtube video player.
     #[arg(long, default_value_t = false)]
     pub disable_youtube_video_player: bool,
@@ -72,6 +77,9 @@ pub struct PopcornFxArgs {
     /// Indicates if the application should be maximized on startup.
     #[arg(long, default_value_t = false)]
     pub maximized: bool,
+    /// Indicates if the application should be started in kiosk mode.
+    #[arg(long, default_value_t = false)]
+    pub kiosk: bool,
     /// Indicates if insecure TLS connections are allowed
     #[arg(long, default_value_t = false)]
     pub insecure: bool,
@@ -85,11 +93,13 @@ impl Default for PopcornFxArgs {
         Self {
             app_directory: DEFAULT_APP_DIRECTORY(),
             disable_logger: false,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             properties: PopcornProperties::new_auto(),
         }
@@ -110,7 +120,7 @@ impl Default for PopcornFxArgs {
 #[repr(C)]
 pub struct PopcornFX {
     settings: Arc<Mutex<ApplicationConfig>>,
-    subtitle_service: Arc<Box<dyn SubtitleProvider>>,
+    subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
     subtitle_manager: Arc<SubtitleManager>,
     platform: Arc<Box<dyn PlatformData>>,
@@ -150,8 +160,13 @@ impl PopcornFX {
             .storage(app_directory_path)
             .properties(args.properties.clone())
             .build()));
-        let subtitle_service: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::new(&settings)));
-        let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_service));
+        let subtitle_provider: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::builder()
+            .settings(settings.clone())
+            .with_parser(SubtitleType::Srt, Box::new(SrtParser::default()))
+            .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))
+            .insecure(args.insecure)
+            .build()));
+        let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
         let subtitle_manager = Arc::new(SubtitleManager::default());
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
@@ -186,7 +201,7 @@ impl PopcornFX {
 
         Self {
             settings,
-            subtitle_service,
+            subtitle_provider,
             subtitle_server,
             subtitle_manager,
             platform,
@@ -213,7 +228,7 @@ impl PopcornFX {
 
     /// The platform service of the popcorn FX instance.
     pub fn subtitle_provider(&self) -> &Arc<Box<dyn SubtitleProvider>> {
-        &self.subtitle_service
+        &self.subtitle_provider
     }
 
     /// Retrieve the subtitle server instance.
@@ -487,11 +502,13 @@ mod test {
         let args = PopcornFxArgs {
             app_directory: temp_path.to_string(),
             disable_logger: false,
+            disable_mouse: false,
             disable_youtube_video_player: false,
             disable_fx_video_player: false,
             disable_vlc_video_player: false,
             tv: false,
             maximized: false,
+            kiosk: false,
             insecure: false,
             properties: PopcornProperties {
                 loggers: HashMap::from([

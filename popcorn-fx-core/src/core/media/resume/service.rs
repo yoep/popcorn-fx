@@ -119,7 +119,7 @@ impl DefaultAutoResumeServiceBuilder {
     pub fn build(self) -> DefaultAutoResumeService {
         let instance = DefaultAutoResumeService {
             inner: Arc::new(InnerAutoResumeService {
-                storage: Storage::from(self.storage_directory.expect("Storage directory not set").as_str()),
+                storage: Mutex::new(Storage::from(self.storage_directory.expect("Storage directory not set").as_str())),
                 cache: Mutex::new(None),
             }),
         };
@@ -142,7 +142,7 @@ impl DefaultAutoResumeServiceBuilder {
 
 #[derive(Debug)]
 struct InnerAutoResumeService {
-    storage: Storage,
+    storage: Mutex<Storage>,
     cache: Mutex<Option<AutoResume>>,
 }
 
@@ -152,7 +152,7 @@ impl InnerAutoResumeService {
 
         if cache.is_none() {
             trace!("Loading auto-resume cache");
-            return match self.load_resume_from_storage() {
+            return match self.load_resume_from_storage().await {
                 Ok(e) => {
                     let _ = cache.insert(e);
                     Ok(())
@@ -165,8 +165,9 @@ impl InnerAutoResumeService {
         Ok(())
     }
 
-    fn load_resume_from_storage(&self) -> media::Result<AutoResume> {
-        match self.storage.read(FILENAME) {
+    async fn load_resume_from_storage(&self) -> media::Result<AutoResume> {
+        let mutex = self.storage.lock().await;
+        match mutex.read(FILENAME) {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
@@ -192,7 +193,8 @@ impl InnerAutoResumeService {
     }
 
     async fn save_async(&self, resume: &AutoResume) {
-        match self.storage.write_async(FILENAME, &resume).await {
+        let mutex = self.storage.lock().await;
+        match mutex.write_async(FILENAME, &resume).await {
             Ok(_) => info!("Auto-resume data has been saved"),
             Err(e) => error!("Failed to save auto-resume, {}", e)
         }

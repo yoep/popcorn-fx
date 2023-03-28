@@ -23,10 +23,7 @@ pub struct SrtParser {
 impl SrtParser {
     /// Create a new srt parser instance.
     pub fn new() -> Self {
-        Self {
-            time_regex: Regex::new(TIME_PATTERN).unwrap(),
-            style_parser: StyleParser::new(),
-        }
+        Self::default()
     }
 
     fn parse<R: Read>(&self, reader: &mut BufReader<R>) -> Vec<SubtitleCue> {
@@ -166,6 +163,15 @@ impl Parser for SrtParser {
         }
 
         Ok(output)
+    }
+}
+
+impl Default for SrtParser {
+    fn default() -> Self {
+        Self {
+            time_regex: Regex::new(TIME_PATTERN).unwrap(),
+            style_parser: StyleParser::new(),
+        }
     }
 }
 

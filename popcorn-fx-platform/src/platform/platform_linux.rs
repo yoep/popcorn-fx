@@ -5,7 +5,7 @@ use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionEx
 use x11rb::rust_connection::{ConnectionError, RustConnection};
 
 use popcorn_fx_core::core::platform;
-use popcorn_fx_core::core::platform::{Platform, PlatformError};
+use popcorn_fx_core::core::platform::PlatformError;
 
 use crate::platform::SystemPlatform;
 

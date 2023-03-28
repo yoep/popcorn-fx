@@ -3,9 +3,8 @@ package com.github.yoep.popcorn.ui.view;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoaderImpl;
 import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.fxml.FXMLLoader;
-import lombok.Builder;
 import org.springframework.context.ApplicationContext;
 
 import java.io.File;
@@ -13,15 +12,19 @@ import java.io.File;
 public class PopcornViewLoader extends ViewLoaderImpl {
     private static final String COMMON_DIRECTORY = "common";
 
-    private final OptionsService optionsService;
+    private final ApplicationConfig applicationConfig;
 
-    @Builder
     public PopcornViewLoader(ApplicationContext applicationContext,
                              ViewManager viewManager,
                              LocaleText localeText,
-                             OptionsService optionsService) {
+                             ApplicationConfig applicationConfig) {
         super(applicationContext, viewManager, localeText);
-        this.optionsService = optionsService;
+        this.applicationConfig = applicationConfig;
+        init();
+    }
+
+    float getScale() {
+        return scale;
     }
 
     //region Functions
@@ -40,12 +43,16 @@ public class PopcornViewLoader extends ViewLoaderImpl {
         }
     }
 
+    private void init() {
+        applicationConfig.setOnUiScaleChanged(this::setScale);
+    }
+
     private boolean isLocatedInCommonDirectory(String view) {
         return view.startsWith(COMMON_DIRECTORY);
     }
 
     private boolean isTvMode() {
-        return optionsService.isTvMode();
+        return applicationConfig.isTvMode();
     }
 
     //endregion

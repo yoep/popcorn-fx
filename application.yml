@@ -1,6 +1,7 @@
 logging:
   level:
     com.github.yoep.player.chromecast: INFO
+    com.github.yoep.popcorn.backend.events: INFO
     com.github.yoep.popcorn.backend.media.favorites: INFO
     com.github.yoep.popcorn.backend.media.providers: INFO
     com.github.yoep.popcorn.backend.media.resume: INFO

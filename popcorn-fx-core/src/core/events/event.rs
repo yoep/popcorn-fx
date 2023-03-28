@@ -17,7 +17,7 @@ use crate::core::playback::PlaybackState;
 /// let event = Event::PlayVideo(PlayVideoEvent {
 ///     url: "https://example.com/video.mp4".to_string(),
 ///     title: "Example Video".to_string(),
-///     show_name: None,
+///     subtitle: None,
 ///     thumb: Some("https://example.com/thumb.jpg".to_string()),
 /// });
 /// ```
@@ -47,7 +47,7 @@ pub enum Event {
 /// let event = PlayVideoEvent {
 ///     url: "https://example.com/video.mp4".to_string(),
 ///     title: "Example Video".to_string(),
-///     show_name: None,
+///     subtitle: None,
 ///     thumb: Some("https://example.com/thumb.jpg".to_string()),
 /// };
 /// ```
@@ -57,8 +57,8 @@ pub struct PlayVideoEvent {
     pub url: String,
     /// The video title
     pub title: String,
-    /// The name of the media item show being played
-    pub show_name: Option<String>,
+    /// The video subtitle/additional info
+    pub subtitle: Option<String>,
     /// The url to the video thumbnail
     pub thumb: Option<String>,
 }

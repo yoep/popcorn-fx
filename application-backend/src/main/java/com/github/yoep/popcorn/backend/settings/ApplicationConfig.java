@@ -1,28 +1,22 @@
 package com.github.yoep.popcorn.backend.settings;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class ApplicationConfig {
-    private final ViewLoader viewLoader;
     private final LocaleText localeText;
     private final FxLib fxLib;
     private final PopcornFx instance;
@@ -31,8 +25,9 @@ public class ApplicationConfig {
     private final ApplicationConfigEventCallback callback = createCallback();
 
     private ApplicationSettings cachedSettings;
+    private Consumer<Float> onUiScaleChanged;
 
-    //region Getters
+    //region Properties
 
     /**
      * Get the application settings.
@@ -46,8 +41,27 @@ public class ApplicationConfig {
                 cachedSettings = settings;
             }
         }
-
         return cachedSettings;
+    }
+
+    public boolean isTvMode() {
+        return fxLib.is_tv_mode(instance) == 1;
+    }
+
+    public boolean isMaximized() {
+        return fxLib.is_maximized(instance) == 1;
+    }
+
+    public boolean isKioskMode() {
+        return fxLib.is_kiosk_mode(instance) == 1;
+    }
+
+    public boolean isMouseDisabled() {
+        return fxLib.is_mouse_disabled(instance) == 1;
+    }
+
+    public void setOnUiScaleChanged(Consumer<Float> onUiScaleChanged) {
+        this.onUiScaleChanged = onUiScaleChanged;
     }
 
     //endregion
@@ -174,7 +188,8 @@ public class ApplicationConfig {
     //region Functions
 
     private void updateUIScale(float scale) {
-        viewLoader.setScale(scale);
+        Optional.ofNullable(onUiScaleChanged)
+                .ifPresent(e -> e.accept(scale));
     }
 
     private int getCurrentUIScaleIndex() {

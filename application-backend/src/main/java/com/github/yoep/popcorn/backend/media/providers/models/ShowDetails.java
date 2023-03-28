@@ -63,6 +63,8 @@ public class ShowDetails extends ShowOverview implements Media, Closeable {
 
     @Override
     public void close() {
-        setAutoSynch(false);
+        super.close();
+        Optional.ofNullable(episodesRef)
+                .ifPresent(Episode::close);
     }
 }

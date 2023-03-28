@@ -25,6 +25,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -75,7 +76,7 @@ class PlayerPlayNextComponentTest {
 
         nextEpisodeProperty.set(nextEpisode);
 
-        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> component.showName.getText().equals(showTitle));
+        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> Objects.equals(component.showName.getText(), showTitle));
         WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> component.episodeTitle.getText().equals(episode.title));
         WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> component.episodeNumber.getText().equals(String.valueOf(episode.episode)));
         verify(imageService).loadPoster(show);

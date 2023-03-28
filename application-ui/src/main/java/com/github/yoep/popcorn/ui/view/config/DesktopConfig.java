@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
@@ -41,9 +40,9 @@ public class DesktopConfig {
                                                        LocaleText localeText,
                                                        EventPublisher eventPublisher,
                                                        ImageService imageService,
-                                                       OptionsService optionsService) {
+                                                       ApplicationConfig applicationConfig) {
         return new ListSectionController(providerServices, favoriteService, watchedService, viewLoader, localeText, eventPublisher, imageService,
-                optionsService);
+                applicationConfig);
     }
 
     @Bean

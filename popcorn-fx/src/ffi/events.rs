@@ -13,7 +13,10 @@ use crate::PopcornFX;
 pub extern "C" fn publish_event(popcorn_fx: &mut PopcornFX, event: EventC) {
     trace!("Handling EventPublisher bridge event of C for {:?}", event);
     let event = Event::from(event);
-    popcorn_fx.event_publisher().publish(event);
+    let event_publisher = popcorn_fx.event_publisher().clone();
+    popcorn_fx.runtime().spawn(async move {
+        event_publisher.publish(event);
+    });
 }
 
 #[cfg(test)]
@@ -26,7 +29,6 @@ mod test {
     use popcorn_fx_core::testing::init_logger;
 
     use crate::ffi::PlayVideoEventC;
-    use crate::PopcornFxArgs;
     use crate::test::default_args;
 
     use super::*;

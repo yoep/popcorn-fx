@@ -34,7 +34,7 @@ public class MovieDetails extends MovieOverview implements Closeable {
     public MovieDetails(String title, String imdbId, String year, Rating.ByReference rating, Images images, String synopsis, Integer runtime,
                         String trailer, Pointer genresRef, int genresLen, int genresCap, TorrentEntry.ByReference torrentEntry, int torrentLen,
                         int torrentCap, Map<String, Map<String, MediaTorrentInfo>> torrents) {
-        super(title, imdbId, year, rating, images);
+        super(title, imdbId, year, rating, new Images.ByValue(images));
         this.synopsis = synopsis;
         this.runtime = runtime;
         this.trailer = trailer;

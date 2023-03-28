@@ -22,7 +22,8 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
-/// The events of the playback controller.
+/// Events related to playback control, triggered by the media system of the OS.
+/// These events can be used to modify the player state based on the given media event.
 enum class PlaybackControlEvent : int32_t {
   TogglePlaybackState = 0,
   Forward = 1,
@@ -836,6 +837,10 @@ void install_update(PopcornFX *popcorn_fx);
 /// Verify if the FX embedded video player has been disabled.
 bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
 
+/// Verify if the application should started in kiosk mode.
+/// The behavior of kiosk mode is dependant on the UI implementation and not delegated by the backend.
+bool is_kiosk_mode(PopcornFX *popcorn_fx);
+
 /// Verify if the application should be maximized on startup.
 bool is_maximized(PopcornFX *popcorn_fx);
 
@@ -849,6 +854,11 @@ bool is_media_liked(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 ///
 /// It returns true when the item is watched, else false.
 bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
+
+/// Verify if the application mouse should be disabled.
+/// The disabling of the mouse should be implemented by the UI implementation and has no behavior on
+/// the backend itself.
+bool is_mouse_disabled(PopcornFX *popcorn_fx);
 
 /// Verify if the subtitle has been disabled by the user.
 ///

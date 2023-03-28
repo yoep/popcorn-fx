@@ -1,5 +1,7 @@
 use std::os::raw::c_char;
 
+use log::trace;
+
 use popcorn_fx_core::{from_c_owned, from_c_string};
 use popcorn_fx_core::core::events::{Event, PlayerStoppedEvent, PlayVideoEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
@@ -20,6 +22,7 @@ pub enum EventC {
 
 impl From<EventC> for Event {
     fn from(value: EventC) -> Self {
+        trace!("Converting from C event {:?}", value);
         match value {
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
             EventC::PlayVideo(event_c) => Event::PlayVideo(PlayVideoEvent::from(event_c)),
@@ -100,7 +103,7 @@ impl From<PlayVideoEventC> for PlayVideoEvent {
         Self {
             url: from_c_string(value.url),
             title: from_c_string(value.title),
-            show_name: show_name,
+            subtitle: show_name,
             thumb,
         }
     }
@@ -199,7 +202,7 @@ mod test {
                    PlayVideoEvent {
                        url: url.to_string(),
                        title: title.to_string(),
-                       show_name: None,
+                       subtitle: None,
                        thumb: Some(thumb.to_string()),
                    }
         );

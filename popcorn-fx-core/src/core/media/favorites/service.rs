@@ -203,6 +203,7 @@ impl FavoriteService for DefaultFavoriteService {
     }
 
     fn add(&self, favorite: Box<dyn MediaIdentifier>) -> media::Result<()> {
+        trace!("Adding favorite media item {:?}", favorite);
         futures::executor::block_on(self.load_favorites_cache())?;
         let mutex = self.cache.clone();
         let mut cache = futures::executor::block_on(mutex.lock());

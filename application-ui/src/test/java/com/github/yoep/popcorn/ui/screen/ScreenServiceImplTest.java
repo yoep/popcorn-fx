@@ -2,8 +2,7 @@ package com.github.yoep.popcorn.ui.screen;
 
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationOptions;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.beans.property.ReadOnlyProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
@@ -29,9 +28,7 @@ class ScreenServiceImplTest {
     @Mock
     private ViewManager viewManager;
     @Mock
-    private OptionsService optionsService;
-    @Mock
-    private ApplicationOptions options;
+    private ApplicationConfig applicationConfig;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
@@ -54,8 +51,8 @@ class ScreenServiceImplTest {
             return null;
         }).when(primaryStage).setFullScreen(isA(Boolean.class));
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
-        when(optionsService.options()).thenReturn(options);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
+        when(applicationConfig.isKioskMode()).thenReturn(true);
         screenService.fullscreenProperty().addListener((observable, oldValue, newValue) -> future.complete(newValue));
         screenService.init();
 

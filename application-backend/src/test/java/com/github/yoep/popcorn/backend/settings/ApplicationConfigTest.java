@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.settings;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
@@ -17,14 +16,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.File;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationConfigTest {
-    @Mock
-    private ViewLoader viewLoader;
-    @Mock
-    private OptionsService optionsService;
     @Mock
     private LocaleText localeText;
     @Mock
@@ -70,5 +66,32 @@ class ApplicationConfigTest {
         config.update(settings);
 
         verify(fxLib).update_torrent_settings(instance, expected);
+    }
+
+    @Test
+    void testIsTvMode() {
+        when(fxLib.is_tv_mode(instance)).thenReturn((byte) 1);
+
+        var result = config.isTvMode();
+
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsMaximized() {
+        when(fxLib.is_maximized(instance)).thenReturn((byte) 1);
+
+        var result = config.isMaximized();
+
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsKioskMode() {
+        when(fxLib.is_kiosk_mode(instance)).thenReturn((byte) 1);
+
+        var result = config.isKioskMode();
+
+        assertTrue(result);
     }
 }

@@ -10,9 +10,10 @@ import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
-import com.github.yoep.popcorn.backend.settings.OptionsService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.animation.FadeTransition;
@@ -54,7 +55,7 @@ public class PopcornPlayerSectionController implements Initializable {
     private final LocaleText localeText;
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
-    private final OptionsService optionsService;
+    private final ApplicationConfig applicationConfig;
 
     private final PauseTransition idleTimer = getIdleTimer();
     private final PauseTransition offsetTimer = getOffsetTimer();
@@ -94,13 +95,6 @@ public class PopcornPlayerSectionController implements Initializable {
         initializeListeners();
         initializePaneListeners();
         initializeSubtitleTrack();
-        eventPublisher.register(PlayerStoppedEvent.class, event -> {
-            Platform.runLater(() -> {
-                subtitleTrack.clear();
-                errorText.setText(null);
-            });
-            return event;
-        });
     }
 
     private void initializeSceneEvents() {
@@ -114,11 +108,22 @@ public class PopcornPlayerSectionController implements Initializable {
         playerControlsPane = viewLoader.load(VIEW_CONTROLS);
         AnchorPane.setLeftAnchor(playerControlsPane, 0d);
         AnchorPane.setRightAnchor(playerControlsPane, 0d);
-        AnchorPane.setBottomAnchor(playerControlsPane, optionsService.isTvMode() ? 50d : 0d);
+        AnchorPane.setBottomAnchor(playerControlsPane, applicationConfig.isTvMode() ? 50d : 0d);
         playerPane.getChildren().add(playerControlsPane);
     }
 
     private void initializeListeners() {
+        eventPublisher.register(PlayVideoEvent.class, event -> {
+            Platform.runLater(() -> errorText.setText(""));
+            return event;
+        }, EventPublisher.HIGHEST_ORDER);
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            Platform.runLater(() -> {
+                subtitleTrack.clear();
+                errorText.setText(null);
+            });
+            return event;
+        });
         sectionService.addListener(new PopcornPlayerSectionListener() {
             @Override
             public void onSubtitleChanged(Subtitle subtitle) {
@@ -345,13 +350,13 @@ public class PopcornPlayerSectionController implements Initializable {
                     updateSubtitleOffset(event, true);
                 }
                 case REVERSE -> {
-                    if (!optionsService.isTvMode()) {
+                    if (!applicationConfig.isTvMode()) {
                         event.consume();
                         sectionService.videoTimeOffset(-5000);
                     }
                 }
                 case FORWARD -> {
-                    if (!optionsService.isTvMode()) {
+                    if (!applicationConfig.isTvMode()) {
                         event.consume();
                         sectionService.videoTimeOffset(5000);
                     }

@@ -60,5 +60,9 @@ public class MovieOverview extends Structure implements Media, Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(rating)
+                .ifPresent(Rating::close);
+        Optional.ofNullable(images)
+                .ifPresent(Images::close);
     }
 }

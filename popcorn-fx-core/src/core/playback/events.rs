@@ -38,7 +38,7 @@ pub struct MediaInfo {
     /// The title of the media.
     pub title: String,
     /// The name of the show.
-    pub show_name: Option<String>,
+    pub subtitle: Option<String>,
     /// The thumbnail of the currently playing media item
     pub thumb: Option<String>,
 }

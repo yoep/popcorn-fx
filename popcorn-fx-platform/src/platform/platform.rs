@@ -98,7 +98,7 @@ impl DefaultPlatform {
     fn on_media_info_changed(&self, controls: &mut MediaControls, info: MediaInfo) {
         let metadata = MediaMetadata {
             title: Some(&info.title),
-            artist: info.show_name.as_ref().map(|e| e.as_str()),
+            artist: info.subtitle.as_ref().map(|e| e.as_str()),
             cover_url: info.thumb.as_ref().map(|e| e.as_ref()),
             ..Default::default()
         };
@@ -325,7 +325,7 @@ mod test {
         // this will however do nothing as we have no actual playback going on
         platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: "Lorem".to_string(),
-            show_name: None,
+            subtitle: None,
             thumb: None,
         }));
         // verify that the other events don't crash the program

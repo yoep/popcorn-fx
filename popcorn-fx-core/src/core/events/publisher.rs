@@ -288,7 +288,7 @@ mod test {
         let event = PlayVideoEvent {
             url: "http://localhost/video.mkv".to_string(),
             title: "Lorem ipsum".to_string(),
-            show_name: None,
+            subtitle: None,
             thumb: None,
         };
         publisher.publish(Event::PlayVideo(event.clone()));

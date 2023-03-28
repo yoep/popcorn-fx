@@ -154,7 +154,7 @@ impl InnerPlaybackControls {
         debug!("Notifying system that a new media playback is being started");
         self.platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: event.title.clone(),
-            show_name: event.show_name,
+            subtitle: event.subtitle,
             thumb: event.thumb,
         }))
     }
@@ -272,7 +272,7 @@ mod test {
         event_publisher.publish(Event::PlayVideo(PlayVideoEvent {
             url: "http://localhost/video.mp4".to_string(),
             title: "Lorem ipsum".to_string(),
-            show_name: Some("My showname".to_string()),
+            subtitle: Some("My showname".to_string()),
             thumb: None,
         }));
 
@@ -280,7 +280,7 @@ mod test {
         match result {
             MediaNotificationEvent::StateStarting(info) => assert_eq!(info, MediaInfo {
                 title: "Lorem ipsum".to_string(),
-                show_name: Some("My showname".to_string()),
+                subtitle: Some("My showname".to_string()),
                 thumb: None,
             }),
             _ => panic!("Expected MediaNotificationEvent::PlaybackStarted")

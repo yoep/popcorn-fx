@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.events;
 
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -10,14 +11,26 @@ import java.io.Closeable;
 
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"url", "title", "showName", "thumb"})
+@Structure.FieldOrder({"url", "title", "subtitle", "thumb"})
 public class PlayVideoEventC extends Structure implements Closeable {
     public static class ByValue extends PlayVideoEventC implements Structure.ByValue {
     }
 
+    /**
+     * The video playback url
+     */
     public String url;
+    /**
+     * The video title
+     */
     public String title;
-    public String showName;
+    /**
+     * The video subtitle/additional info
+     */
+    public String subtitle;
+    /**
+     * The video thumbnail
+     */
     public String thumb;
 
     @Override
@@ -39,9 +52,9 @@ public class PlayVideoEventC extends Structure implements Closeable {
         instance.title = event.getSubMediaItem()
                 .map(Media::getTitle)
                 .orElse(event.getTitle());
-        instance.showName = event.getSubMediaItem()
+        instance.subtitle = event.getSubMediaItem()
                 .map(e -> event.getMedia().getTitle())
-                .orElse(null);
+                .orElseGet(() -> retrieveMovieSubtitle(event.getMedia()));
         instance.thumb = event.getSubMediaItem()
                 .filter(e -> e instanceof Episode)
                 .map(e -> (Episode) e)
@@ -50,5 +63,13 @@ public class PlayVideoEventC extends Structure implements Closeable {
                         .getImages()
                         .getPoster());
         return instance;
+    }
+
+    private static String retrieveMovieSubtitle(Media media) {
+        if (media instanceof MovieOverview movie) {
+            return movie.getYear();
+        }
+
+        return null;
     }
 }

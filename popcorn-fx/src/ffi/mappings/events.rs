@@ -103,7 +103,7 @@ impl From<PlayVideoEventC> for PlayVideoEvent {
         Self {
             url: from_c_string(value.url),
             title: from_c_string(value.title),
-            show_name: show_name,
+            subtitle: show_name,
             thumb,
         }
     }
@@ -202,7 +202,7 @@ mod test {
                    PlayVideoEvent {
                        url: url.to_string(),
                        title: title.to_string(),
-                       show_name: None,
+                       subtitle: None,
                        thumb: Some(thumb.to_string()),
                    }
         );

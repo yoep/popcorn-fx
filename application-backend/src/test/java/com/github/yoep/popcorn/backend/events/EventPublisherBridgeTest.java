@@ -100,6 +100,6 @@ class EventPublisherBridgeTest {
         assertEquals(EventC.Tag.PlayVideo, result.tag);
         assertEquals(url, result.union.playVideo_body.playVideoEvent.url);
         assertEquals(episodeTitle, result.union.playVideo_body.playVideoEvent.title);
-        assertEquals(showName, result.union.playVideo_body.playVideoEvent.showName);
+        assertEquals(showName, result.union.playVideo_body.playVideoEvent.subtitle);
     }
 }

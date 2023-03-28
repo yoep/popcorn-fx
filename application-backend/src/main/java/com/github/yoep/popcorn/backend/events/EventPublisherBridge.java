@@ -21,17 +21,17 @@ public class EventPublisherBridge {
     }
 
     private void init() {
-//        eventPublisher.register(PlayerStoppedEvent.class, event -> {
-//            var event_c = new EventC.ByValue();
-//            event_c.tag = EventC.Tag.PlayerStopped;
-//            event_c.union = new EventC.EventCUnion.ByValue();
-//            event_c.union.playerStopped_body = new EventC.PlayerStopped_Body();
-//            event_c.union.playerStopped_body.stoppedEvent = PlayerStoppedEventC.from(event);
-//
-//            publishEvent(event_c);
-//
-//            return event;
-//        }, EventPublisher.HIGHEST_ORDER);
+        eventPublisher.register(PlayerStoppedEvent.class, event -> {
+            var event_c = new EventC.ByValue();
+            event_c.tag = EventC.Tag.PlayerStopped;
+            event_c.union = new EventC.EventCUnion.ByValue();
+            event_c.union.playerStopped_body = new EventC.PlayerStopped_Body();
+            event_c.union.playerStopped_body.stoppedEvent = PlayerStoppedEventC.from(event);
+
+            publishEvent(event_c);
+
+            return event;
+        }, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(PlayVideoEvent.class, event -> {
             var event_c = new EventC.ByValue();
             event_c.tag = EventC.Tag.PlayVideo;

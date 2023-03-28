@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
@@ -29,7 +30,9 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsWatched_whenInvoked_shouldPassMediaItemToWatchedService() {
-        var media = MovieDetails.builder().build();
+        var media = MovieDetails.builder()
+                .images(new Images())
+                .build();
         var expectedResult = true;
         when(watchedService.isWatched(media)).thenReturn(expectedResult);
 
@@ -41,7 +44,9 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsLiked_whenInvoked_shouldPassMediaItemToFavoriteService() {
-        var media = MovieDetails.builder().build();
+        var media = MovieDetails.builder()
+                .images(new Images())
+                .build();
         var expectedResult = false;
         when(favoriteService.isLiked(media)).thenReturn(expectedResult);
 
@@ -72,6 +77,7 @@ class DetailsComponentServiceTest {
     @Test
     void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist() {
         var movie = MovieDetails.builder()
+                .images(new Images())
                 .build();
         service.init();
 

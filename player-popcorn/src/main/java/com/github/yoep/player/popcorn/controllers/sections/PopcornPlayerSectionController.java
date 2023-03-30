@@ -178,6 +178,10 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void initializePaneListeners() {
+        // ignore all mouse events if the mouse is disabled
+        if (applicationConfig.isMouseDisabled())
+            return;
+
         playerHeaderPane.setOnMouseEntered(event -> uiBlocked = true);
         playerHeaderPane.setOnMouseExited(event -> uiBlocked = false);
 

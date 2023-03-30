@@ -15,6 +15,8 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
@@ -30,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -97,12 +100,15 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private void initializeOptions() {
         if (applicationConfig.isMouseDisabled()) {
+            log.trace("Hiding the mouse on the main scene");
             rootPane.setCursor(Cursor.NONE);
             rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> {
                 if (newValue != null) {
                     newValue.setCursor(Cursor.NONE);
                 }
             });
+            log.trace("Disabling mouse events on the root pane");
+            rootPane.addEventFilter(MouseEvent.ANY, this::handleRootMouseEvent);
         }
     }
 
@@ -279,6 +285,32 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         AnchorPane.setRightAnchor(pane, 0d);
         AnchorPane.setBottomAnchor(pane, 0d);
         AnchorPane.setLeftAnchor(pane, 0d);
+    }
+
+    private void handleRootMouseEvent(MouseEvent event) {
+        event.consume();
+        if (event.getEventType() == MouseEvent.MOUSE_CLICKED && rootPane.isFocusWithin()) {
+            Optional.ofNullable(rootPane.getScene())
+                    .map(Scene::getFocusOwner)
+                    .ifPresent(e -> {
+                        var onKeyPressed = e.getOnKeyPressed();
+                        if (onKeyPressed != null) {
+                            var keyEvent = mapMouseEventToKeyEvent(event, e);
+                            onKeyPressed.handle(keyEvent);
+                        }
+                    });
+        }
+    }
+
+    private KeyEvent mapMouseEventToKeyEvent(MouseEvent event, Node targetNode) {
+        return switch (event.getButton()) {
+            case BACK ->
+                    new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(), KeyCode.BACK_SPACE.getName(), KeyCode.BACK_SPACE, false, false, false, false);
+            case MIDDLE ->
+                    new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.HOME.getChar(), KeyCode.HOME.getName(), KeyCode.HOME, false, false, false, false);
+            default ->
+                    new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false, false, false);
+        };
     }
 
     //endregion

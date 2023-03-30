@@ -15,8 +15,8 @@
       "Added episode thumbnails"
     ],
     "bugfixes": [
-      "Fixed crash on unix system when adding a movie to favorites",
-      "Fixed clear subtitles & torrents directory settings not being saved"
+      "Improved application options",
+      "Fixed crash within the events of the FFI layer"
     ]
   }
 }

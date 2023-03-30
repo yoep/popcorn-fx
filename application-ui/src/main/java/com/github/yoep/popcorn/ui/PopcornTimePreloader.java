@@ -1,7 +1,9 @@
 package com.github.yoep.popcorn.ui;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.FxLibInstance;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
@@ -23,9 +25,22 @@ import java.io.File;
 
 @Slf4j
 public class PopcornTimePreloader extends Preloader {
-    private static final String OPTIONS_PREFIX = "--";
+    private final FxLib fxLib;
+    private final PopcornFx instance;
 
     private Stage stage;
+
+    @SuppressWarnings("unused")
+    public PopcornTimePreloader() {
+        this.fxLib = FxLibInstance.INSTANCE.get();
+        this.instance = PopcornFxInstance.INSTANCE.get();
+    }
+
+    @SuppressWarnings("unused")
+    public PopcornTimePreloader(FxLib fxLib, PopcornFx instance) {
+        this.fxLib = fxLib;
+        this.instance = instance;
+    }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -85,11 +100,16 @@ public class PopcornTimePreloader extends Preloader {
         }
     }
 
-    private void processParameters(Stage primaryStage, Scene scene) {
+    void processParameters(Stage primaryStage, Scene scene) {
         // check if the mouse should be hidden
-        if (FxLibInstance.INSTANCE.get().is_mouse_disabled(PopcornFxInstance.INSTANCE.get()) == (byte) 1) {
+        if (fxLib.is_mouse_disabled(instance) == (byte) 1) {
             log.trace("Hiding preloader cursor");
             scene.setCursor(Cursor.NONE);
+        }
+        // check if the preloader needs to be maximized
+        if (fxLib.is_kiosk_mode(instance) == (byte) 1) {
+            log.trace("Maximizing preloader");
+            primaryStage.setMaximized(true);
         }
     }
 

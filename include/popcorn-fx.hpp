@@ -26,6 +26,7 @@ enum class DecorationType : int32_t {
 enum class MediaErrorC : int32_t {
   Failed = 0,
   NoItemsFound = 1,
+  NoAvailableProviders = 2,
 };
 
 /// Events related to playback control, triggered by the media system of the OS.
@@ -169,9 +170,6 @@ struct Box;
 /// let instance = PopcornFX::default();
 /// ```
 struct PopcornFX;
-
-template<typename T = void, typename E = void>
-struct Result;
 
 /// The C compatible struct for [TorrentStream].
 struct TorrentStreamC;
@@ -735,6 +733,28 @@ struct SortByC {
   const char *text;
 };
 
+/// The C compatible media result for an array of media items.
+struct MediaSetResult {
+  enum class Tag {
+    Ok,
+    Err,
+  };
+
+  struct Ok_Body {
+    MediaSetC _0;
+  };
+
+  struct Err_Body {
+    MediaErrorC _0;
+  };
+
+  Tag tag;
+  union {
+    Ok_Body ok;
+    Err_Body err;
+  };
+};
+
 /// The wrapper communication between rust and C.
 /// This is a temp wrapper which will be replaced in the future.
 struct TorrentWrapperC {
@@ -960,11 +980,7 @@ VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC 
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
-Result<MediaSetC, MediaErrorC> retrieve_available_movies(PopcornFX *popcorn_fx,
-                                                         const GenreC *genre,
-                                                         const SortByC *sort_by,
-                                                         const char *keywords,
-                                                         uint32_t page);
+MediaSetResult retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///

@@ -18,6 +18,9 @@ import java.util.Optional;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"movies", "moviesLen", "shows", "showsLen"})
 public class MediaSet extends Structure implements Closeable {
+    public static class ByValue extends MediaSet implements Structure.ByValue {
+    }
+
     public MovieOverview.ByReference movies;
     public int moviesLen;
     public ShowOverview.ByReference shows;

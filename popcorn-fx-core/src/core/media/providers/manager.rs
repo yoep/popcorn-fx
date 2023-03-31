@@ -68,11 +68,13 @@ impl ProviderManager {
 
     /// Reset the api statics and re-enable all disabled api's.
     pub fn reset_api(&self, category: &Category) {
+        trace!("Starting reset of api provider for category {}", category);
         match self.provider(category) {
             None => {
                 warn!("Unable to reset api, category {} is not supported", category)
             }
             Some(provider) => {
+                debug!("Resetting api provider {}", provider);
                 provider.reset_api()
             }
         }

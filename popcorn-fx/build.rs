@@ -9,6 +9,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/ffi/mod.rs");
     println!("cargo:rerun-if-changed=src/ffi/mappings/mod.rs");
     println!("cargo:rerun-if-changed=../Cargo.lock");
+    println!("cargo:rerun-if-changed=../cbindgen.toml");
 
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let package_name = env::var("CARGO_PKG_NAME").unwrap();

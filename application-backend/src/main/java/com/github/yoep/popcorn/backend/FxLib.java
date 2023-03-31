@@ -4,10 +4,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
-import com.github.yoep.popcorn.backend.media.FavoritesSet;
-import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.MediaSet;
-import com.github.yoep.popcorn.backend.media.StringArray;
+import com.github.yoep.popcorn.backend.media.*;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -80,7 +77,7 @@ public interface FxLib extends Library {
 
     void register_subtitle_callback(PopcornFx instance, SubtitleEventCallback callback);
 
-    MediaSet retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
+    MediaSetResult.ByValue retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
     MovieDetails retrieve_movie_details(PopcornFx instance, String imdbId);
 

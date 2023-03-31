@@ -231,13 +231,6 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
     }
 }
 
-/// Reset all available api stats for the movie api.
-/// This will make all disabled api's available again.
-#[no_mangle]
-pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
-    popcorn_fx.providers().reset_api(&Category::Movies)
-}
-
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
@@ -1030,16 +1023,6 @@ mod test {
         reset_subtitle(&mut instance);
         let preferred_result = retrieve_preferred_subtitle_language(&mut instance);
         assert_eq!(SubtitleLanguage::None, preferred_result);
-    }
-
-    #[test]
-    fn test_reset_movie_apis() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
-
-        reset_movie_apis(&mut instance);
     }
 
     #[test]

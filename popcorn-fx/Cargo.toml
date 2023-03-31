@@ -18,13 +18,14 @@ popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
 popcorn-fx-torrent-stream = { path = "../popcorn-fx-torrent-stream" }
 
 async-trait = "0"
-derive_more = "0"
 clap = { version = "4", features = ["derive"] }
+derive_more = "0"
 futures = "0"
 home = "0"
 itertools = "0"
 log.workspace = true
 log4rs = { version = "1", features = ["console_writer"] }
+thiserror = "1.0"
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [dev-dependencies]

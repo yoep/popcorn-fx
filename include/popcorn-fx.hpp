@@ -22,6 +22,13 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
+/// The C compatible media error types.
+enum class MediaErrorC : int32_t {
+  Failed = 0,
+  NoItemsFound = 1,
+  NoAvailableProviders = 2,
+};
+
 /// Events related to playback control, triggered by the media system of the OS.
 /// These events can be used to modify the player state based on the given media event.
 enum class PlaybackControlEvent : int32_t {
@@ -726,6 +733,28 @@ struct SortByC {
   const char *text;
 };
 
+/// The C compatible media result for an array of media items.
+struct MediaSetResult {
+  enum class Tag {
+    Ok,
+    Err,
+  };
+
+  struct Ok_Body {
+    MediaSetC _0;
+  };
+
+  struct Err_Body {
+    MediaErrorC _0;
+  };
+
+  Tag tag;
+  union {
+    Ok_Body ok;
+    Err_Body err;
+  };
+};
+
 /// The wrapper communication between rust and C.
 /// This is a temp wrapper which will be replaced in the future.
 struct TorrentWrapperC {
@@ -951,12 +980,12 @@ VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC 
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
-MediaSetC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+MediaSetResult retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
-MediaSetC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+MediaSetResult retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the details of a favorite item on the given IMDB ID.
 /// The details contain all information about the media item.

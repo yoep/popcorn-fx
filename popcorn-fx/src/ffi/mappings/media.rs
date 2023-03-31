@@ -5,9 +5,35 @@ use std::os::raw::c_char;
 use log::{error, trace};
 
 use popcorn_fx_core::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
-use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
+use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use popcorn_fx_core::core::media::favorites::FavoriteEvent;
 use popcorn_fx_core::core::media::watched::WatchedEvent;
+
+/// The C compatible media result for an array of media items.
+#[repr(C)]
+#[derive(Debug)]
+pub enum MediaSetResult {
+    Ok(MediaSetC),
+    Err(MediaErrorC),
+}
+
+impl From<MediaError> for MediaSetResult {
+    fn from(value: MediaError) -> Self {
+        match value {
+            MediaError::NoAvailableProviders => MediaSetResult::Err(MediaErrorC::NoAvailableProviders),
+            _ => MediaSetResult::Err(MediaErrorC::Failed),
+        }
+    }
+}
+
+/// The C compatible media error types.
+#[repr(i32)]
+#[derive(Debug, PartialEq)]
+pub enum MediaErrorC {
+    Failed = 0,
+    NoItemsFound = 1,
+    NoAvailableProviders = 2,
+}
 
 /// Structure defining a set of media items.
 /// Each media items is separated in a specific implementation array.

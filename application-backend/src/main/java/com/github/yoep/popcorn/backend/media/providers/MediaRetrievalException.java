@@ -12,4 +12,9 @@ public class MediaRetrievalException extends MediaException {
         super(message, cause);
         this.uri = uri;
     }
+
+    public MediaRetrievalException(String message) {
+        super(message);
+        this.uri = null;
+    }
 }

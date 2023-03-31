@@ -83,7 +83,7 @@ public interface FxLib extends Library {
 
     void reset_movie_apis(PopcornFx instance);
 
-    MediaSet retrieve_available_shows(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
+    MediaSetResult.ByValue retrieve_available_shows(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
     ShowDetails retrieve_show_details(PopcornFx instance, String imdbId);
 

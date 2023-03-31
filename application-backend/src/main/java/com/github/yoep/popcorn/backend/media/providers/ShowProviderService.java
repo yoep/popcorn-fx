@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.media.MediaError;
 import com.github.yoep.popcorn.backend.media.MediaSet;
+import com.github.yoep.popcorn.backend.media.MediaSetResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -27,6 +29,7 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
     private static final Category CATEGORY = Category.SERIES;
 
     private final FxLib fxLib;
+    private final PopcornFx instance;
 
     @Override
     public boolean supports(Category category) {
@@ -59,19 +62,32 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
 
     @Override
     public void resetApiAvailability() {
-        fxLib.reset_show_apis(PopcornFxInstance.INSTANCE.get());
+        fxLib.reset_show_apis(instance);
     }
 
     public Page<ShowOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
-        var shows = Optional.ofNullable(fxLib.retrieve_available_shows(PopcornFxInstance.INSTANCE.get(), genre, sortBy, keywords, page))
-                .map(MediaSet::getShows)
-                .orElse(Collections.emptyList());
-        log.debug("Retrieved shows {}", shows);
+        try (var mediaResult = fxLib.retrieve_available_shows(instance, genre, sortBy, keywords, page)) {
+            if (mediaResult.getTag() == MediaSetResult.Tag.Ok) {
+                var shows = Optional.ofNullable(mediaResult.getUnion())
+                        .map(MediaSetResult.MediaSetResultUnion::getOk)
+                        .map(MediaSetResult.OkBody::getMediaSet)
+                        .map(MediaSet::getShows)
+                        .orElse(Collections.emptyList());
+                log.debug("Retrieved shows {}", shows);
 
-        return new PageImpl<>(shows);
+                return new PageImpl<>(shows);
+            } else {
+                var mediaError = mediaResult.getUnion().getErr().getMediaError();
+                if (mediaError == MediaError.NoAvailableProviders) {
+                    throw new MediaRetrievalException(mediaError.getMessage());
+                } else {
+                    throw new MediaException(mediaError.getMessage());
+                }
+            }
+        }
     }
 
     private ShowDetails getDetailsInternal(String imdbId) {
-        return fxLib.retrieve_show_details(PopcornFxInstance.INSTANCE.get(), imdbId);
+        return fxLib.retrieve_show_details(instance, imdbId);
     }
 }

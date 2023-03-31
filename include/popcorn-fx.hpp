@@ -985,7 +985,7 @@ MediaSetResult retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *ge
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
-MediaSetC *retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+MediaSetResult retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
 
 /// Retrieve the details of a favorite item on the given IMDB ID.
 /// The details contain all information about the media item.

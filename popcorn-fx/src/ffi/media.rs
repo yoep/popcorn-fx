@@ -1,9 +1,10 @@
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::{debug, error, info, trace};
 
-use popcorn_fx_core::{from_c_string, into_c_owned};
-use popcorn_fx_core::core::media::{Category, MovieOverview};
+use popcorn_fx_core::core::media::{Category, MovieOverview, ShowOverview};
+use popcorn_fx_core::from_c_string;
 
 use crate::ffi::{GenreC, MediaErrorC, MediaSetC, MediaSetResult, MovieOverviewC, SortByC};
 use crate::PopcornFX;
@@ -31,6 +32,39 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
                 MediaSetResult::Ok(MediaSetC::from_movies(movies))
             } else {
                 debug!("No movies have been found, returning ptr::null");
+                MediaSetResult::Err(MediaErrorC::NoItemsFound)
+            }
+        }
+        Err(e) => {
+            error!("Failed to retrieve movies, {}", e);
+            MediaSetResult::from(e)
+        }
+    }
+}
+
+/// Retrieve the available [ShowOverviewC] items for the given criteria.
+///
+/// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
+#[no_mangle]
+pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> MediaSetResult {
+    let genre = genre.to_struct();
+    let sort_by = sort_by.to_struct();
+    let keywords = from_c_string(keywords);
+
+    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Series, &genre, &sort_by, &keywords, page)) {
+        Ok(e) => {
+            info!("Retrieved a total of {} shows, {:?}", e.len(), &e);
+            let shows: Vec<ShowOverview> = e.into_iter()
+                .map(|e| *e
+                    .into_any()
+                    .downcast::<ShowOverview>()
+                    .expect("expected media to be a show"))
+                .collect();
+
+            if shows.len() > 0 {
+                MediaSetResult::Ok(MediaSetC::from_shows(shows))
+            } else {
+                debug!("No shows have been found, returning ptr::null");
                 MediaSetResult::Err(MediaErrorC::NoItemsFound)
             }
         }
@@ -108,5 +142,41 @@ mod test {
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         reset_movie_apis(&mut instance);
+    }
+
+    #[test]
+    fn test_retrieve_available_shows() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let genre = GenreC::from(Genre::all());
+        let sort_by = SortByC::from(SortBy::new(String::from("trending"), String::new()));
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        let result = retrieve_available_shows(&mut instance, &genre, &sort_by, into_c_string("".to_string()), 1);
+
+        match result {
+            MediaSetResult::Ok(set) => {}
+            _ => panic!("Expected MediaSetResult::Ok")
+        }
+    }
+
+    #[test]
+    fn test_retrieve_available_shows_error() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let genre = GenreC::from(Genre::all());
+        let sort_by = SortByC::from(SortBy::new(String::from("trending"), String::new()));
+        let mut popcorn_fx_args = default_args(temp_path);
+        popcorn_fx_args.properties.providers = HashMap::new();
+        let mut instance = PopcornFX::new(popcorn_fx_args);
+
+        let result = retrieve_available_shows(&mut instance, &genre, &sort_by, into_c_string("".to_string()), 1);
+
+        match result {
+            MediaSetResult::Err(error) => assert_eq!(MediaErrorC::NoAvailableProviders, error),
+            _ => panic!("Expected MediaSetResult::Err")
+        }
     }
 }

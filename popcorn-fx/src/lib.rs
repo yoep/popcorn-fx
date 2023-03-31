@@ -231,39 +231,6 @@ pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *c
     }
 }
 
-/// Retrieve the available [ShowOverviewC] items for the given criteria.
-///
-/// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut MediaSetC {
-    let genre = genre.to_struct();
-    let sort_by = sort_by.to_struct();
-    let keywords = from_c_string(keywords);
-
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Series, &genre, &sort_by, &keywords, page)) {
-        Ok(e) => {
-            info!("Retrieved a total of {} shows, {:?}", e.len(), &e);
-            let shows: Vec<ShowOverview> = e.into_iter()
-                .map(|e| *e
-                    .into_any()
-                    .downcast::<ShowOverview>()
-                    .expect("expected media to be a show"))
-                .collect();
-
-            if shows.len() > 0 {
-                into_c_owned(MediaSetC::from_shows(shows))
-            } else {
-                debug!("No shows have been found, returning ptr::null");
-                ptr::null_mut()
-            }
-        }
-        Err(e) => {
-            error!("Failed to retrieve movies, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
 /// Retrieve the details of a show based on the given IMDB ID.
 /// The details contain all information about the show such as episodes and descriptions.
 ///
@@ -1160,9 +1127,12 @@ mod test {
         let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
         let keywords = into_c_string(String::new());
 
-        let media_items = retrieve_available_shows(&mut instance, &genre, &sort_by, keywords, 1);
+        let result = retrieve_available_shows(&mut instance, &genre, &sort_by, keywords, 1);
 
-        dispose_media_items(Box::new(from_c_owned(media_items)))
+        match result {
+            MediaSetResult::Ok(items) => dispose_media_items(Box::new(items)),
+            _ => panic!("Expected MediaSetResult::Ok")
+        }
     }
 
     #[test]

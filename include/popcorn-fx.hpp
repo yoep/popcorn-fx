@@ -22,6 +22,12 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
+/// The C compatible media error types.
+enum class MediaErrorC : int32_t {
+  Failed = 0,
+  NoItemsFound = 1,
+};
+
 /// Events related to playback control, triggered by the media system of the OS.
 /// These events can be used to modify the player state based on the given media event.
 enum class PlaybackControlEvent : int32_t {
@@ -163,6 +169,9 @@ struct Box;
 /// let instance = PopcornFX::default();
 /// ```
 struct PopcornFX;
+
+template<typename T = void, typename E = void>
+struct Result;
 
 /// The C compatible struct for [TorrentStream].
 struct TorrentStreamC;
@@ -951,7 +960,11 @@ VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC 
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
-MediaSetC *retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+Result<MediaSetC, MediaErrorC> retrieve_available_movies(PopcornFX *popcorn_fx,
+                                                         const GenreC *genre,
+                                                         const SortByC *sort_by,
+                                                         const char *keywords,
+                                                         uint32_t page);
 
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///

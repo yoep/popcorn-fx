@@ -208,39 +208,6 @@ pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtit
     }
 }
 
-/// Retrieve the available movies for the given criteria.
-///
-/// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut MediaSetC {
-    let genre = genre.to_struct();
-    let sort_by = sort_by.to_struct();
-    let keywords = from_c_string(keywords);
-
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Movies, &genre, &sort_by, &keywords, page)) {
-        Ok(e) => {
-            info!("Retrieved a total of {} movies, {:?}", e.len(), &e);
-            let movies: Vec<MovieOverview> = e.into_iter()
-                .map(|e| *e
-                    .into_any()
-                    .downcast::<MovieOverview>()
-                    .expect("expected media to be a movie overview"))
-                .collect();
-
-            if movies.len() > 0 {
-                into_c_owned(MediaSetC::from_movies(movies))
-            } else {
-                debug!("No movies have been found, returning ptr::null");
-                ptr::null_mut()
-            }
-        }
-        Err(e) => {
-            error!("Failed to retrieve movies, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
 /// Retrieve the details of a given movie.
 /// It will query the api for the given IMDB ID.
 ///
@@ -1210,7 +1177,7 @@ mod test {
         let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
         let keywords = into_c_string(String::new());
 
-        let media_items = retrieve_available_movies(&mut instance, &genre, &sort_by, keywords, 1);
+        let media_items = retrieve_available_shows(&mut instance, &genre, &sort_by, keywords, 1);
 
         dispose_media_items(Box::new(from_c_owned(media_items)))
     }

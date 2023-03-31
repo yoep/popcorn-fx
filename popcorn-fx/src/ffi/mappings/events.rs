@@ -48,17 +48,21 @@ pub struct PlayerStoppedEventC {
 
 impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
     fn from(value: PlayerStoppedEventC) -> Self {
+        trace!("Converting PlayerStoppedEvent from C for {:?}", value);
         let media = if !value.media.is_null() {
+            trace!("Converting MediaItem from C for {:?}", value.media);
             from_c_owned(value.media).into_identifier()
         } else {
             None
         };
         let time = if !value.time.is_null() {
+            trace!("Converting PlayerStoppedEventC.time from C for {:?}", value.time);
             Some(unsafe { value.time.read() as u64 })
         } else {
             None
         };
         let duration = if !value.duration.is_null() {
+            trace!("Converting PlayerStoppedEventC.duration from C for {:?}", value.duration);
             Some(unsafe { value.duration.read() as u64 })
         } else {
             None
@@ -89,6 +93,7 @@ pub struct PlayVideoEventC {
 
 impl From<PlayVideoEventC> for PlayVideoEvent {
     fn from(value: PlayVideoEventC) -> Self {
+        trace!("Converting PlayVideoEvent from C for {:?}", value);
         let show_name = if !value.show_name.is_null() {
             Some(from_c_string(value.show_name))
         } else {

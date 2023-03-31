@@ -1940,6 +1940,7 @@ dependencies = [
  "popcorn-fx-torrent",
  "popcorn-fx-torrent-stream",
  "tempfile",
+ "thiserror",
  "tokio",
 ]
 

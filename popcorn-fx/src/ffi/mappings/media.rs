@@ -3,11 +3,22 @@ use std::collections::HashMap;
 use std::os::raw::c_char;
 
 use log::{error, trace};
+use thiserror::Error;
 
 use popcorn_fx_core::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
 use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use popcorn_fx_core::core::media::favorites::FavoriteEvent;
 use popcorn_fx_core::core::media::watched::WatchedEvent;
+
+/// The C compatible media error types.
+#[repr(i32)]
+#[derive(Debug, Error)]
+pub enum MediaErrorC {
+    #[error("failed to retrieve media items")]
+    Failed = 0,
+    #[error("no media items are available")]
+    NoItemsFound = 1
+}
 
 /// Structure defining a set of media items.
 /// Each media items is separated in a specific implementation array.

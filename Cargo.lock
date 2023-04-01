@@ -1922,7 +1922,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "cbindgen",
@@ -1946,7 +1946,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-core"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1980,7 +1980,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-opensubtitles"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1999,7 +1999,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-platform"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "core-foundation",
  "derive_more",
@@ -2016,7 +2016,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-torrent"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "log",
@@ -2027,7 +2027,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-torrent-stream"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "derive_more",

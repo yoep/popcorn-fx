@@ -200,6 +200,7 @@
                     <macConfig>
                         <generateDmg>true</generateDmg>
                         <generatePkg>false</generatePkg>
+                        <codesignApp>false</codesignApp>
                     </macConfig>
                     <winConfig>
                         <generateMsi>false</generateMsi>

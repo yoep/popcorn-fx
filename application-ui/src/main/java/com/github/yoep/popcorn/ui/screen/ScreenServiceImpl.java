@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -27,6 +28,7 @@ public class ScreenServiceImpl implements ScreenService {
     private final ViewManager viewManager;
     private final ApplicationConfig applicationConfig;
     private final EventPublisher eventPublisher;
+    private final MaximizeService maximizeService;
 
     private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, FULLSCREEN_PROPERTY, false);
 
@@ -99,6 +101,7 @@ public class ScreenServiceImpl implements ScreenService {
 
         if (applicationConfig.isKioskMode()) {
             log.trace("Kiosk mode is activated, disabling the fullscreen exit key");
+            maximizeService.setMaximized(false);
             primaryStage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
             primaryStage.setFullScreen(true);
         } else {

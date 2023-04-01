@@ -3,10 +3,14 @@ package com.github.yoep.popcorn.ui.screen;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.view.services.MaximizeService;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,30 +33,38 @@ class ScreenServiceImplTest {
     private ViewManager viewManager;
     @Mock
     private ApplicationConfig applicationConfig;
+    @Mock
+    private MaximizeService maximizeService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
+    @Mock
+    private ReadOnlyProperty<Stage> primaryStageProperty;
     @InjectMocks
     private ScreenServiceImpl screenService;
 
-    private AtomicReference<ChangeListener<Stage>> primaryStageListener = new AtomicReference<>();
+    private final AtomicReference<ChangeListener<Stage>> primaryStageListener = new AtomicReference<>();
+    private final BooleanProperty fullscreenProperty = new SimpleBooleanProperty();
+
+    @BeforeEach
+    void setUp() {
+        doAnswer(invocation -> {
+            primaryStageListener.set(invocation.getArgument(0));
+            return null;
+        }).when(primaryStageProperty).addListener(isA(ChangeListener.class));
+        when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
+    }
 
     @Test
     void testToggleFullscreen() {
         var primaryStage = mock(Stage.class);
-        var primaryStageProperty = mock(ReadOnlyProperty.class);
-        var fullscreenProperty = new SimpleBooleanProperty();
         var future = new CompletableFuture<Boolean>();
-        doAnswer(invocation -> {
-            primaryStageListener.set(invocation.getArgument(0, ChangeListener.class));
-            return null;
-        }).when(primaryStageProperty).addListener(isA(ChangeListener.class));
         doAnswer(invocation -> {
             fullscreenProperty.set(invocation.getArgument(0, Boolean.class));
             return null;
         }).when(primaryStage).setFullScreen(isA(Boolean.class));
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
-        when(applicationConfig.isKioskMode()).thenReturn(true);
+        when(applicationConfig.isKioskMode()).thenReturn(false);
         screenService.fullscreenProperty().addListener((observable, oldValue, newValue) -> future.complete(newValue));
         screenService.init();
 
@@ -61,5 +73,20 @@ class ScreenServiceImplTest {
 
         assertEquals(true, future.join());
         assertTrue(screenService.isFullscreen());
+    }
+
+    @Test
+    void testRegisterListenerOnKioskMode() {
+        var primaryStage = mock(Stage.class);
+        when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
+        when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
+        when(applicationConfig.isKioskMode()).thenReturn(true);
+        screenService.init();
+
+        primaryStageListener.get().changed(null, null, primaryStage);
+
+        verify(maximizeService).setMaximized(false);
+        verify(primaryStage).setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
+        verify(primaryStage).setFullScreen(true);
     }
 }

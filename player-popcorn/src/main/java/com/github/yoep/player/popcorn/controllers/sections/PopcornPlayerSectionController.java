@@ -47,6 +47,7 @@ public class PopcornPlayerSectionController implements Initializable {
     static final int OVERLAY_FADE_DURATION = 1500;
     static final int INFO_FADE_DURATION = 2000;
     static final int VOLUME_INCREASE_AMOUNT = 5;
+    static final double INFO_TOP_TV_MODE = 100d;
     static final String BUFFER_STYLE_CLASS = "buffer";
     static final String VIEW_CONTROLS = "components/player-controls.component.fxml";
 
@@ -110,6 +111,8 @@ public class PopcornPlayerSectionController implements Initializable {
         AnchorPane.setRightAnchor(playerControlsPane, 0d);
         AnchorPane.setBottomAnchor(playerControlsPane, applicationConfig.isTvMode() ? 50d : 0d);
         playerPane.getChildren().add(playerControlsPane);
+
+        AnchorPane.setTopAnchor(infoLabel, applicationConfig.isTvMode() ? INFO_TOP_TV_MODE : 50d);
     }
 
     private void initializeListeners() {

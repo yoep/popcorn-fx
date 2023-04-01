@@ -29,6 +29,21 @@
     -fx-font-size: 12px;
 }
 
+.root .mouse-disabled,
+.root .mouse-disabled .loader,
+.root .mouse-disabled .player,
+.root .mouse-disabled .player .player-header,
+.root .mouse-disabled .player .playing-next,
+.root .mouse-disabled .player .player-overlay,
+.root .mouse-disabled .player-external,
+.root .mouse-disabled .content-section,
+.root .mouse-disabled .icon,
+.root .mouse-disabled .button,
+.root .mouse-disabled .poster-item,
+.root .mouse-disabled .episode-overview {
+    -fx-cursor: none !important;
+}
+
 .root,
 .root .scroll-bar,
 .root .table-row-cell,

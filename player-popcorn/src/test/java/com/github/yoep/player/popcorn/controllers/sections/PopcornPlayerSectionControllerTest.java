@@ -124,4 +124,14 @@ class PopcornPlayerSectionControllerTest {
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> StringUtils.isEmpty(controller.errorText.getText()));
     }
+
+    @Test
+    void testTvMode() throws TimeoutException {
+        when(applicationConfig.isTvMode()).thenReturn(true);
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
+
+        controller.initialize(url, resourceBundle);
+
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> AnchorPane.getTopAnchor(controller.infoLabel) == PopcornPlayerSectionController.INFO_TOP_TV_MODE);
+    }
 }

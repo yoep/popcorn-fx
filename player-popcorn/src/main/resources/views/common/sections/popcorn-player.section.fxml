@@ -19,7 +19,7 @@
 
     <!-- Subtitle offset info -->
     <Label fx:id="infoLabel" styleClass="video-info" cache="true" cacheHint="SPEED"
-           AnchorPane.topAnchor="50" AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="15"/>
+           AnchorPane.rightAnchor="0" AnchorPane.leftAnchor="15"/>
 
     <!-- Error info -->
     <Label fx:id="errorText" styleClass="video-info" textAlignment="CENTER" alignment="CENTER" cache="true"

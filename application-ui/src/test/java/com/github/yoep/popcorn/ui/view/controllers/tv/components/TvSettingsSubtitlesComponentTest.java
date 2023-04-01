@@ -90,12 +90,13 @@ class TvSettingsSubtitlesComponentTest {
         var expectedText = "lorem";
         when(subtitleSettings.getDecoration()).thenReturn(DecorationType.NONE);
         when(localeText.get("settings_subtitles_style_outline")).thenReturn(expectedText);
+        when(localeText.get("settings_subtitles_style_none")).thenReturn("none");
         component.initialize(url, resourceBundle);
 
         component.decorations.setSelectedItem(DecorationType.OUTLINE);
 
         verify(component.decorationOverlay, times(2)).hide();
-        verify(applicationConfig).update(subtitleSettings);
+        verify(applicationConfig, times(3)).update(subtitleSettings);
         verify(subtitleSettings).setDecoration(DecorationType.OUTLINE);
         assertEquals(expectedText, component.decoration.getText());
     }

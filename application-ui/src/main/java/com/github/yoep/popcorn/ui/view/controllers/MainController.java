@@ -292,10 +292,10 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         if (event.getEventType() == MouseEvent.MOUSE_CLICKED && rootPane.isFocusWithin()) {
             Optional.ofNullable(rootPane.getScene())
                     .map(Scene::getFocusOwner)
-                    .ifPresent(e -> {
-                        var onKeyPressed = e.getOnKeyPressed();
+                    .ifPresent(focussedNode -> {
+                        var onKeyPressed = focussedNode.getOnKeyPressed();
                         if (onKeyPressed != null) {
-                            var keyEvent = mapMouseEventToKeyEvent(event, e);
+                            var keyEvent = mapMouseEventToKeyEvent(event, focussedNode);
                             onKeyPressed.handle(keyEvent);
                         }
                     });

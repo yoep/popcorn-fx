@@ -273,7 +273,7 @@ public class SidebarController implements Initializable {
     void onCategoryPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            switchCategory((Icon) event.getSource());
+            switchCategory((Icon) event.getTarget());
         }
     }
 

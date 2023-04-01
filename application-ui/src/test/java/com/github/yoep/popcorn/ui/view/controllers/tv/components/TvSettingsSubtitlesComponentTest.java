@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
@@ -26,6 +28,8 @@ class TvSettingsSubtitlesComponentTest {
     @Mock
     private ApplicationConfig applicationConfig;
     @Mock
+    private LocaleText localeText;
+    @Mock
     private ApplicationSettings settings;
     @Mock
     private SubtitleSettings subtitleSettings;
@@ -47,6 +51,9 @@ class TvSettingsSubtitlesComponentTest {
         component.fontFamily = new Button();
         component.fontFamilies = new AxisItemSelection<>();
         component.fontFamilyOverlay = spy(new Overlay());
+        component.decoration = new Button();
+        component.decorations = new AxisItemSelection<>();
+        component.decorationOverlay = spy(new Overlay());
         component.fontSize = new Button();
         component.fontSizes = new AxisItemSelection<>();
         component.fontSizeOverlay = spy(new Overlay());
@@ -76,5 +83,21 @@ class TvSettingsSubtitlesComponentTest {
         verify(applicationConfig, times(2)).update(subtitleSettings);
         verify(subtitleSettings).setFontSize(32);
         assertEquals("32", component.fontSize.getText());
+    }
+
+    @Test
+    void testOnDecorationChanged() {
+        var expectedText = "lorem";
+        when(subtitleSettings.getDecoration()).thenReturn(DecorationType.NONE);
+        when(localeText.get("settings_subtitles_style_outline")).thenReturn(expectedText);
+        when(localeText.get("settings_subtitles_style_none")).thenReturn("none");
+        component.initialize(url, resourceBundle);
+
+        component.decorations.setSelectedItem(DecorationType.OUTLINE);
+
+        verify(component.decorationOverlay, times(2)).hide();
+        verify(applicationConfig, times(3)).update(subtitleSettings);
+        verify(subtitleSettings).setDecoration(DecorationType.OUTLINE);
+        assertEquals(expectedText, component.decoration.getText());
     }
 }

@@ -16,10 +16,11 @@
         <RowConstraints/>
         <RowConstraints/>
         <RowConstraints/>
+        <RowConstraints/>
     </rowConstraints>
 
     <Label styleClass="subsection-title" text="%settings_subtitles" GridPane.valignment="TOP"
-           GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+           GridPane.rowSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
     <Label styleClass="subsection-label" text="%settings_subtitles_default"
            GridPane.columnIndex="1" GridPane.rowIndex="0"/>
@@ -31,18 +32,26 @@
     <Button fx:id="fontFamily"
               GridPane.columnIndex="2" GridPane.rowIndex="1"/>
 
-    <Label text="%settings_subtitles_font_size"
+    <Label text="%settings_subtitles_decoration"
            GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-    <Button fx:id="fontSize" styleClass="small"
-              GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+    <Button fx:id="decoration"
+            GridPane.columnIndex="2" GridPane.rowIndex="2"/>
 
-    <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+    <Label text="%settings_subtitles_font_size"
+           GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+    <Button fx:id="fontSize" styleClass="small"
+              GridPane.columnIndex="2" GridPane.rowIndex="3"/>
+
+    <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 
     <Overlay fx:id="defaultSubtitleOverlay" for="$defaultSubtitle">
         <AxisItemSelection fx:id="subtitles" orientation="VERTICAL" spacing="5"/>
     </Overlay>
     <Overlay fx:id="fontFamilyOverlay" for="$fontFamily">
         <AxisItemSelection fx:id="fontFamilies" orientation="VERTICAL" spacing="5"/>
+    </Overlay>
+    <Overlay fx:id="decorationOverlay" for="$decoration">
+        <AxisItemSelection fx:id="decorations" orientation="VERTICAL" spacing="5"/>
     </Overlay>
     <Overlay fx:id="fontSizeOverlay" for="$fontSize">
         <AxisItemSelection fx:id="fontSizes" orientation="VERTICAL" spacing="5"/>

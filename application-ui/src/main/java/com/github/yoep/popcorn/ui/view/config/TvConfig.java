@@ -77,8 +77,9 @@ public class TvConfig {
 
     @Bean
     @ConditionalOnTvMode
-    public TvSettingsSubtitlesComponent tvSettingsSubtitlesComponent(ApplicationConfig applicationConfig) {
-        return new TvSettingsSubtitlesComponent(applicationConfig);
+    public TvSettingsSubtitlesComponent tvSettingsSubtitlesComponent(ApplicationConfig applicationConfig,
+                                                                     LocaleText localeText) {
+        return new TvSettingsSubtitlesComponent(applicationConfig, localeText);
     }
 
     @Bean

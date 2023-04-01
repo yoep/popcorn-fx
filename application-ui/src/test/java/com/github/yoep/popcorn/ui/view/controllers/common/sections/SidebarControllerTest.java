@@ -150,7 +150,7 @@ class SidebarControllerTest {
     void testOnCategoryPressed() {
         var event = mock(KeyEvent.class);
         when(settings.getStartScreen()).thenReturn(Category.MOVIES);
-        when(event.getSource()).thenReturn(controller.favoriteIcon);
+        when(event.getTarget()).thenReturn(controller.favoriteIcon);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         controller.initialize(url, resourceBundle);
 

@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class MainController extends ScaleAwareImpl implements Initializable {
     static final String TV_STYLESHEET = "/styles/tv.css";
+    static final String MOUSE_DISABLED_STYLE_CLASS = "mouse-disabled";
 
     private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.ADD, KeyCombination.CONTROL_DOWN);
@@ -101,6 +102,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private void initializeOptions() {
         if (applicationConfig.isMouseDisabled()) {
             log.trace("Hiding the mouse on the main scene");
+            rootPane.getStyleClass().add(MOUSE_DISABLED_STYLE_CLASS);
             rootPane.setCursor(Cursor.NONE);
             rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> {
                 if (newValue != null) {
@@ -289,7 +291,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private void handleRootMouseEvent(MouseEvent event) {
         event.consume();
-        if (event.getEventType() == MouseEvent.MOUSE_CLICKED && rootPane.isFocusWithin()) {
+        if (event.getEventType() == MouseEvent.MOUSE_CLICKED) {
             Optional.ofNullable(rootPane.getScene())
                     .map(Scene::getFocusOwner)
                     .ifPresent(focussedNode -> {
@@ -304,7 +306,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private KeyEvent mapMouseEventToKeyEvent(MouseEvent event, Node targetNode) {
         return switch (event.getButton()) {
-            case BACK ->
+            case BACK, SECONDARY ->
                     new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(), KeyCode.BACK_SPACE.getName(), KeyCode.BACK_SPACE, false, false, false, false);
             case MIDDLE ->
                     new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.HOME.getChar(), KeyCode.HOME.getName(), KeyCode.HOME, false, false, false, false);

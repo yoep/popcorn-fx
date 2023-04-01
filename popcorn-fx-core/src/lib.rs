@@ -11,7 +11,7 @@ pub mod core;
 mod torrent_collection_c;
 
 /// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.6.2";
+pub const VERSION: &str = "0.6.3";
 
 /// Convert the given [String] into a C compatible string.
 ///

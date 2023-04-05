@@ -26,7 +26,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.ApplicationArguments;
-import org.springframework.core.task.TaskExecutor;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,7 +54,6 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private final ApplicationArguments arguments;
     private final UrlService urlService;
     private final ApplicationConfig applicationConfig;
-    private final TaskExecutor taskExecutor;
 
     @FXML
     AnchorPane rootPane;
@@ -159,13 +157,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         anchor(contentPane);
 
         // load the other panes on a different thread
-        taskExecutor.execute(() -> {
+        new Thread(() -> {
             playerPane = viewLoader.load("common/sections/player.section.fxml");
             loaderPane = viewLoader.load("common/sections/loader.section.fxml");
 
             anchor(playerPane);
             anchor(loaderPane);
-        });
+        }, "MainController.loader").start();
     }
 
     private void onContentPasted() {
@@ -304,11 +302,14 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private KeyEvent mapMouseEventToKeyEvent(MouseEvent event, Node targetNode) {
         return switch (event.getButton()) {
             case BACK, SECONDARY ->
-                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(), KeyCode.BACK_SPACE.getName(), KeyCode.BACK_SPACE, false, false, false, false);
+                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(), KeyCode.BACK_SPACE.getName(), KeyCode.BACK_SPACE
+                            , false, false, false, false);
             case MIDDLE ->
-                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.HOME.getChar(), KeyCode.HOME.getName(), KeyCode.HOME, false, false, false, false);
+                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.HOME.getChar(), KeyCode.HOME.getName(), KeyCode.HOME, false, false,
+                            false, false);
             default ->
-                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false, false, false);
+                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false,
+                            false, false);
         };
     }
 

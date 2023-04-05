@@ -3,6 +3,9 @@ package com.github.yoep.popcorn.ui.view.controllers;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.scene.Cursor;
@@ -15,10 +18,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.ApplicationArguments;
-import org.springframework.core.task.TaskExecutor;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -30,12 +34,13 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class MainControllerTest {
-    @Mock
-    private EventPublisher eventPublisher;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ViewLoader viewLoader;
     @Mock
@@ -44,8 +49,6 @@ class MainControllerTest {
     private UrlService urlService;
     @Mock
     private ApplicationConfig applicationConfig;
-    @Mock
-    private TaskExecutor taskExecutor;
     @Mock
     private URL url;
     @Mock
@@ -78,5 +81,26 @@ class MainControllerTest {
         controller.rootPane.fireEvent(event);
         var eventResult = eventFuture.get(200, TimeUnit.MILLISECONDS);
         assertEquals(KeyCode.ENTER, eventResult.getCode());
+    }
+
+    @Test
+    void testShowDetailsEvent() throws TimeoutException {
+        when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
+        controller.initialize(url, resourceBundle);
+
+        eventPublisher.publish(new ShowDetailsEvent<>(this, mock(MovieDetails.class)));
+
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.rootPane.getChildren().contains(controller.contentPane));
+    }
+
+    @Test
+    void testPlayVideoEvent() throws TimeoutException {
+        when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
+        controller.initialize(url, resourceBundle);
+
+        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> controller.playerPane != null);
+        eventPublisher.publish(new PlayVideoEvent(this, "http://localhost", "lorem", false));
+
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.rootPane.getChildren().contains(controller.playerPane));
     }
 }

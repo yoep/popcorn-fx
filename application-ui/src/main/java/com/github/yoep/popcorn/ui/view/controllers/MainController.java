@@ -295,11 +295,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             Optional.ofNullable(rootPane.getScene())
                     .map(Scene::getFocusOwner)
                     .ifPresent(focussedNode -> {
-                        var onKeyPressed = focussedNode.getOnKeyPressed();
-                        if (onKeyPressed != null) {
-                            var keyEvent = mapMouseEventToKeyEvent(event, focussedNode);
-                            onKeyPressed.handle(keyEvent);
-                        }
+                        var keyEvent = mapMouseEventToKeyEvent(event, focussedNode);
+                        focussedNode.fireEvent(keyEvent);
                     });
         }
     }
@@ -307,11 +304,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private KeyEvent mapMouseEventToKeyEvent(MouseEvent event, Node targetNode) {
         return switch (event.getButton()) {
             case BACK, SECONDARY ->
-                    new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(), KeyCode.BACK_SPACE.getName(), KeyCode.BACK_SPACE, false, false, false, false);
+                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(), KeyCode.BACK_SPACE.getName(), KeyCode.BACK_SPACE, false, false, false, false);
             case MIDDLE ->
-                    new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.HOME.getChar(), KeyCode.HOME.getName(), KeyCode.HOME, false, false, false, false);
+                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.HOME.getChar(), KeyCode.HOME.getName(), KeyCode.HOME, false, false, false, false);
             default ->
-                    new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false, false, false);
+                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false, false, false);
         };
     }
 

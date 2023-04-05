@@ -7,9 +7,11 @@ import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import javafx.animation.Animation;
 import javafx.scene.control.Label;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
@@ -67,6 +69,7 @@ class PopcornPlayerSectionControllerTest {
         controller.playerPane = new AnchorPane();
         controller.playerHeaderPane = new Pane();
         controller.playerControlsPane = new Pane();
+        controller.bufferPane = new Pane();
         controller.infoLabel = new Label();
         controller.errorText = new Label();
         controller.subtitleTrack = new SubtitleTrack();
@@ -132,6 +135,19 @@ class PopcornPlayerSectionControllerTest {
 
         controller.initialize(url, resourceBundle);
 
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> AnchorPane.getTopAnchor(controller.infoLabel) == PopcornPlayerSectionController.INFO_TOP_TV_MODE);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS,
+                () -> AnchorPane.getTopAnchor(controller.infoLabel) == PopcornPlayerSectionController.INFO_TOP_TV_MODE);
+    }
+
+    @Test
+    void testOnPlaying() throws TimeoutException {
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
+        controller.initialize(url, resourceBundle);
+
+        var listener = sectionListenerHolder.get();
+        listener.onPlayerStateChanged(PlayerState.PLAYING);
+
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.bufferPane.getChildren().size() == 0);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.idleTimer.getStatus() == Animation.Status.RUNNING);
     }
 }

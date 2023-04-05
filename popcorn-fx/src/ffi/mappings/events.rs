@@ -1,3 +1,4 @@
+use std::mem;
 use std::os::raw::c_char;
 
 use log::trace;
@@ -51,7 +52,10 @@ impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
         trace!("Converting PlayerStoppedEvent from C for {:?}", value);
         let media = if !value.media.is_null() {
             trace!("Converting MediaItem from C for {:?}", value.media);
-            from_c_owned(value.media).into_identifier()
+            let media_item = from_c_owned(value.media);
+            let identifier = media_item.into_identifier();
+            mem::forget(media_item);
+            identifier
         } else {
             None
         };

@@ -58,8 +58,8 @@ public class PopcornPlayerSectionController implements Initializable {
     private final ViewLoader viewLoader;
     private final ApplicationConfig applicationConfig;
 
-    private final PauseTransition idleTimer = getIdleTimer();
-    private final PauseTransition offsetTimer = getOffsetTimer();
+    final PauseTransition idleTimer = new PauseTransition(Duration.seconds(3));
+    final PauseTransition offsetTimer = new PauseTransition(Duration.seconds(2));
 
     private FadeTransition fadeTransition;
     private FadeTransition transitionHeader;
@@ -220,6 +220,7 @@ public class PopcornPlayerSectionController implements Initializable {
 
     private void onPlaying() {
         updateBufferIndicator(false);
+        idleTimer.play();
     }
 
     private void onError() {
@@ -268,14 +269,6 @@ public class PopcornPlayerSectionController implements Initializable {
 
     private void onVolumeChanged(int volume) {
         showInfo(localeText.get(VideoMessage.VIDEO_VOLUME, volume));
-    }
-
-    private PauseTransition getIdleTimer() {
-        return new PauseTransition(Duration.seconds(3));
-    }
-
-    private PauseTransition getOffsetTimer() {
-        return new PauseTransition(Duration.seconds(2));
     }
 
     private void updateBufferIndicator(boolean showBuffer) {

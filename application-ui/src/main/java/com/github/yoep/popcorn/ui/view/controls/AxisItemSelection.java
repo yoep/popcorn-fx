@@ -200,12 +200,12 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         node.setFocusTraversable(true);
         node.setOnMouseClicked(event -> {
             event.consume();
-            handleItemSelected((Node) event.getTarget());
+            handleItemSelected((Node) event.getSource());
         });
         node.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 event.consume();
-                handleItemSelected((Node) event.getTarget());
+                handleItemSelected((Node) event.getSource());
             }
         });
 

@@ -41,5 +41,7 @@ public class TorrentEntry extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(quality)
+                .ifPresent(TorrentQuality::close);
     }
 }

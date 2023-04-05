@@ -508,7 +508,7 @@ struct EventC {
   };
 
   struct PlayerStopped_Body {
-    PlayerStoppedEventC _0;
+    const PlayerStoppedEventC *_0;
   };
 
   struct PlayVideo_Body {

@@ -38,9 +38,8 @@ public class ViewConfig {
                                          ViewLoader viewLoader,
                                          ApplicationArguments arguments,
                                          UrlService urlService,
-                                         ApplicationConfig settingsService,
-                                         TaskExecutor taskExecutor) {
-        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, taskExecutor);
+                                         ApplicationConfig settingsService) {
+        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService);
     }
 
     @Bean

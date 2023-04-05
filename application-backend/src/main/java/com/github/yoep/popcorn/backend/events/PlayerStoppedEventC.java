@@ -54,9 +54,8 @@ public class PlayerStoppedEventC extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        // TODO: Fix as this is causing the app to crash when this event is invoked
-//        Optional.ofNullable(media)
-//                .ifPresent(MediaItem::close);
+        Optional.ofNullable(media)
+                .ifPresent(MediaItem::close);
     }
 
     public static PlayerStoppedEventC.ByValue from(PlayerStoppedEvent event) {
@@ -65,7 +64,7 @@ public class PlayerStoppedEventC extends Structure implements Closeable {
         var duration = event.getDuration() == PlayerStoppedEvent.UNKNOWN ? null : event.getDuration();
 
         return new PlayerStoppedEventC.ByValue(
-                event.getUrl(),
+                new String(event.getUrl()),
                 media,
                 time,
                 duration

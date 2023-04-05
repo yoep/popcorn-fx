@@ -1,12 +1,11 @@
 use std::os::raw::c_char;
-use std::ptr;
 
 use log::{debug, error, info, trace};
 
 use popcorn_fx_core::core::media::{Category, MovieOverview, ShowOverview};
 use popcorn_fx_core::from_c_string;
 
-use crate::ffi::{GenreC, MediaErrorC, MediaSetC, MediaSetResult, MovieOverviewC, SortByC};
+use crate::ffi::{GenreC, MediaErrorC, MediaSetC, MediaSetResult, SortByC};
 use crate::PopcornFX;
 
 /// Retrieve the available movies for the given criteria.

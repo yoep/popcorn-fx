@@ -81,5 +81,7 @@ public class MovieDetails extends MovieOverview implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(torrentEntry)
+                .ifPresent(TorrentEntry::close);
     }
 }

@@ -112,7 +112,7 @@ mod test {
     use tokio::runtime::Runtime;
 
     use crate::core::media::{Episode, Images, MovieDetails, ShowDetails};
-    use crate::testing::{init_logger, read_test_file};
+    use crate::testing::{init_logger, read_test_file_to_string};
 
     use super::*;
 
@@ -164,7 +164,7 @@ mod test {
                 .path(format!("/{}", tvdb_id));
             then.status(200)
                 .header("content-type", "text/html; charset=UTF-8")
-                .body(read_test_file("tvdb_response.html"));
+                .body(read_test_file_to_string("tvdb_response.html"));
         });
         let enhancer = ThumbEnhancer::new(EnhancerProperties {
             uri: server.url(""),

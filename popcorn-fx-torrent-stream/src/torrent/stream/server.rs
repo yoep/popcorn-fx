@@ -397,7 +397,7 @@ mod test {
     use reqwest::Client;
 
     use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState, TorrentStreamState};
-    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
+    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;
 
@@ -505,7 +505,7 @@ mod test {
         torrent.expect_state()
             .return_const(TorrentState::Downloading);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let expected_result = read_test_file(filename)
+        let expected_result = read_test_file_to_string(filename)
             .replace("\r\n", "\n");
 
         wait_for_server(&server);

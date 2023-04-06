@@ -528,7 +528,7 @@ mod test {
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
     use crate::core::updater::ChangeLog;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file, test_resource_filepath};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
 
@@ -715,7 +715,7 @@ mod test {
             .storage_path(temp_path)
             .insecure(false)
             .build();
-        let expected_result = read_test_file(filename);
+        let expected_result = read_test_file_to_string(filename);
 
         let _ = runtime.block_on(async {
             updater.download().await

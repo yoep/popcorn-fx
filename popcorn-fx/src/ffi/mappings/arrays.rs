@@ -38,6 +38,27 @@ impl From<&[String]> for StringArray {
     }
 }
 
+/// The C compatible byte array.
+/// It's mainly used for returning byte arrays as result of C function calls.
+#[repr(C)]
+pub struct ByteArray {
+    /// The byte array
+    pub values: *mut u8,
+    /// The length of the byte array
+    pub len: i32,
+}
+
+impl From<Vec<u8>> for ByteArray {
+    fn from(value: Vec<u8>) -> Self {
+        let (values, len) = to_c_vec(value);
+
+        Self {
+            values,
+            len,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use popcorn_fx_core::{from_c_string, from_c_vec};
@@ -70,6 +91,16 @@ mod test {
         let result: Vec<String> = from_c_vec(array.values, array.len).into_iter()
             .map(|e| from_c_string(e))
             .collect();
+
+        assert_eq!(vec, result)
+    }
+
+    #[test]
+    fn test_from_byte_array() {
+        let vec: Vec<u8> = vec![13, 12];
+
+        let array = ByteArray::from(vec.clone());
+        let result = from_c_vec(array.values, array.len);
 
         assert_eq!(vec, result)
     }

@@ -1930,6 +1930,7 @@ dependencies = [
  "derive_more",
  "futures",
  "home",
+ "httpmock",
  "itertools",
  "log",
  "log4rs",

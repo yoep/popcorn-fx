@@ -4,11 +4,11 @@ use std::fmt::{Debug, Display};
 use std::fmt::Formatter;
 
 use derive_more::Display;
-use downcast_rs::{DowncastSync, impl_downcast};
+use downcast_rs::{Downcast, DowncastSync, impl_downcast};
 #[cfg(test)]
 use mockall::automock;
 
-use crate::core::media::{Category, Rating};
+use crate::core::media::{Category, Images, Rating};
 
 /// The media type identifier.
 #[derive(Debug, Copy, Clone, Eq, Display, PartialEq)]
@@ -72,13 +72,17 @@ impl Display for MockMediaIdentifier {
 
 /// The most basic information of a media item.
 /// It can be used for an overview information but won't contain any details.
-pub trait MediaOverview: MediaIdentifier {
+pub trait MediaOverview: MediaIdentifier + Downcast {
     /// Retrieve the rating of the media item if available.
     fn rating(&self) -> Option<&Rating>;
 
     /// Retrieve the release year of the media item.
     fn year(&self) -> &String;
+
+    /// Retrieve the images of the media item.
+    fn images(&self) -> &Images;
 }
+impl_downcast!(sync MediaOverview);
 
 /// The detailed information of a media item containing all information need.
 pub trait MediaDetails: MediaOverview {

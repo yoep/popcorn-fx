@@ -4,7 +4,12 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
-import com.github.yoep.popcorn.backend.media.*;
+import com.github.yoep.popcorn.backend.lib.ByteArray;
+import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.media.FavoritesSet;
+import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.MediaSet;
+import com.github.yoep.popcorn.backend.media.MediaSetResult;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -190,6 +195,8 @@ public interface FxLib extends Library {
     StringArray retrieve_provider_sort_by(PopcornFx instance, String name);
 
     void register_playback_controls(PopcornFx instance, PlaybackControlCallback callback);
+
+    ByteArray load_fanart(PopcornFx instance, MediaItem item);
 
     void dispose_media_item(MediaItem media);
 

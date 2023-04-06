@@ -1,26 +1,23 @@
-package com.github.yoep.popcorn.backend.media;
+package com.github.yoep.popcorn.backend.lib;
 
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.Getter;
 
 import java.io.Closeable;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
-@ToString
+@Getter
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"values", "len"})
-public class StringArray extends Structure implements Closeable {
+public class ByteArray extends Structure implements Closeable {
     public Pointer values;
     public int len;
 
-    private List<String> cache;
+    private byte[] cache;
 
-    public List<String> values() {
+    public byte[] getBytes() {
         return cache;
     }
 
@@ -28,9 +25,8 @@ public class StringArray extends Structure implements Closeable {
     public void read() {
         super.read();
         cache = Optional.ofNullable(values)
-                .map(e -> e.getStringArray(0, len))
-                .map(Arrays::asList)
-                .orElse(Collections.emptyList());
+                .map(e -> e.getByteArray(0, len))
+                .orElse(new byte[0]);
     }
 
     @Override

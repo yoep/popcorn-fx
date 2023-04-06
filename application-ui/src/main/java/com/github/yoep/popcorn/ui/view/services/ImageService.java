@@ -1,5 +1,9 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.lib.ByteArray;
+import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import javafx.scene.image.Image;
@@ -32,6 +36,8 @@ public class ImageService {
     static final String ART_HOLDER = "/images/artholder.png";
 
     private final RestTemplate restTemplate;
+    private final FxLib fxLib;
+    private final PopcornFx instance;
 
     private Image artHolder;
 
@@ -69,15 +75,15 @@ public class ImageService {
     @Async
     public CompletableFuture<Optional<Image>> loadFanart(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
-        var image = Optional.ofNullable(media.getImages())
-                .map(Images::getFanart)
-                .filter(StringUtils::isNotEmpty)
-                .filter(this::isImageUrlKnown)
-                .map(this::internalLoad)
-                .map(this::convertToImage)
-                .filter(this::isSuccessfullyLoaded);
-
-        return CompletableFuture.completedFuture(image);
+        try (var bytes = fxLib.load_fanart(instance, MediaItem.from(media))) {
+            return CompletableFuture.completedFuture(Optional.of(bytes)
+                    .map(ByteArray::getBytes)
+                    .map(ByteArrayInputStream::new)
+                    .map(Image::new));
+        } catch (Exception ex) {
+            log.error("Failed to load image, {}", ex.getMessage(), ex);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
     }
 
     /**

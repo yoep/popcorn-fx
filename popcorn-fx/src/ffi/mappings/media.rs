@@ -446,13 +446,19 @@ impl From<&EpisodeC> for Episode {
     }
 }
 
+/// A C-compatible holder for a media item, which may represent a movie, show, or episode.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MediaItemC {
+    /// A pointer to the movie overview struct.
     pub movie_overview: *mut MovieOverviewC,
+    /// A pointer to the movie details struct.
     pub movie_details: *mut MovieDetailsC,
+    /// A pointer to the show overview struct.
     pub show_overview: *mut ShowOverviewC,
+    /// A pointer to the show details struct.
     pub show_details: *mut ShowDetailsC,
+    /// A pointer to the episode struct.
     pub episode: *mut EpisodeC,
 }
 
@@ -467,7 +473,10 @@ impl MediaItemC {
         }
     }
 
-    pub fn into_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
+    /// Attempts to convert the `MediaItemC` into a `Box<dyn MediaIdentifier>`, which represents a unique identifier for a media item.
+    ///
+    /// Returns `None` if the `MediaItemC` does not represent a valid media item.
+    pub fn as_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
         let media: Box<dyn MediaIdentifier>;
 
         if !self.movie_overview.is_null() {
@@ -493,6 +502,39 @@ impl MediaItemC {
         } else if !self.episode.is_null() {
             let boxed = from_c_into_boxed(self.episode);
             media = Box::new(Episode::from(&*boxed));
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else {
+            return None;
+        }
+
+        Some(media)
+    }
+
+    /// Attempts to convert the `MediaItemC` into a `Box<dyn MediaOverview>`, which represents an overview of a media item.
+    ///
+    /// Returns `None` if the `MediaItemC` does not represent a valid media item.
+    pub fn as_overview(&self) -> Option<Box<dyn MediaOverview>> {
+        let media: Box<dyn MediaOverview>;
+
+        if !self.movie_overview.is_null() {
+            let boxed = from_c_into_boxed(self.movie_overview);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.movie_details.is_null() {
+            let boxed = from_c_into_boxed(self.movie_details);
+            media = Box::new(MovieDetails::from(&*boxed));
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.show_overview.is_null() {
+            let boxed = from_c_into_boxed(self.show_overview);
+            media = Box::new(boxed.to_struct());
+            trace!("Created media struct {:?}", media);
+            mem::forget(boxed);
+        } else if !self.show_details.is_null() {
+            let boxed = from_c_into_boxed(self.show_details);
+            media = Box::new(boxed.to_struct());
             trace!("Created media struct {:?}", media);
             mem::forget(boxed);
         } else {
@@ -622,9 +664,9 @@ impl ImagesC {
     pub fn from(images: &Images) -> Self {
         trace!("Converting Images to C {{{}}}", images);
         Self {
-            poster: into_c_string(images.poster().clone()),
-            fanart: into_c_string(images.fanart().clone()),
-            banner: into_c_string(images.banner().clone()),
+            poster: into_c_string(images.poster().to_string()),
+            fanart: into_c_string(images.fanart().to_string()),
+            banner: into_c_string(images.banner().to_string()),
         }
     }
 
@@ -757,6 +799,8 @@ impl WatchedEventC {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::testing::init_logger;
+
     use super::*;
 
     #[test]
@@ -839,5 +883,89 @@ mod test {
         let result = MovieDetails::from(&movie_c);
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_media_item_as_identifier() {
+        init_logger();
+        let title = "lorem ipsum";
+        let id = "tt111222";
+        let media = MovieOverview {
+            title: title.to_string(),
+            imdb_id: id.to_string(),
+            year: "2008".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+        let media_item = MediaItemC {
+            movie_overview: into_c_owned(MovieOverviewC::from(media.clone())),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        };
+
+        let result = media_item.as_identifier().unwrap();
+
+        assert_eq!(title, result.title().as_str());
+        assert_eq!(id, result.imdb_id())
+    }
+
+    #[test]
+    fn test_media_item_as_identifier_episode() {
+        init_logger();
+        let id = "2121";
+        let title = "my episode title";
+        let episode = Episode {
+            season: 5,
+            episode: 10,
+            first_aired: 0,
+            title: title.to_string(),
+            overview: "lorem ipsum dolor".to_string(),
+            tvdb_id: 2121,
+            tvdb_id_value: id.to_string(),
+            thumb: None,
+            torrents: Default::default(),
+        };
+        let media_item = MediaItemC {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: into_c_owned(EpisodeC::from(episode)),
+        };
+
+        let result = media_item.as_identifier().unwrap();
+
+        assert_eq!(id, result.imdb_id());
+        assert_eq!(title, result.title().as_str());
+    }
+
+    #[test]
+    fn test_media_item_as_overview() {
+        init_logger();
+        let title = "lorem ipsum";
+        let id = "tt111222";
+        let media = ShowOverview {
+            imdb_id: id.to_string(),
+            tvdb_id: "215487".to_string(),
+            title: title.to_string(),
+            year: "2001".to_string(),
+            num_seasons: 0,
+            images: Default::default(),
+            rating: None,
+        };
+        let media_item = MediaItemC {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: into_c_owned(ShowOverviewC::from(media)),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        };
+
+        let result = media_item.as_overview().unwrap();
+
+        assert_eq!(title, result.title().as_str());
+        assert_eq!(id, result.imdb_id())
     }
 }

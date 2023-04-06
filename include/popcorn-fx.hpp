@@ -283,11 +283,17 @@ struct ShowDetailsC {
   int32_t episodes_len;
 };
 
+/// A C-compatible holder for a media item, which may represent a movie, show, or episode.
 struct MediaItemC {
+  /// A pointer to the movie overview struct.
   MovieOverviewC *movie_overview;
+  /// A pointer to the movie details struct.
   MovieDetailsC *movie_details;
+  /// A pointer to the show overview struct.
   ShowOverviewC *show_overview;
+  /// A pointer to the show details struct.
   ShowDetailsC *show_details;
+  /// A pointer to the episode struct.
   EpisodeC *episode;
 };
 
@@ -471,6 +477,15 @@ struct SubtitleMatcherC {
   const char *quality;
 };
 
+/// The C compatible byte array.
+/// It's mainly used for returning byte arrays as result of C function calls.
+struct ByteArray {
+  /// The byte array
+  uint8_t *values;
+  /// The length of the byte array
+  int32_t len;
+};
+
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
 struct PlayerStoppedEventC {
@@ -508,7 +523,7 @@ struct EventC {
   };
 
   struct PlayerStopped_Body {
-    const PlayerStoppedEventC *_0;
+    PlayerStoppedEventC _0;
   };
 
   struct PlayVideo_Body {
@@ -902,6 +917,12 @@ bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
 
 /// Verify if the youtube video player has been disabled.
 bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
+
+/// Load the fanart image data for the given media item.
+///
+/// It will return a byte array with the image data when available,
+/// else the placeholder data to use instead on failure.
+ByteArray *load_fanart(PopcornFX *popcorn_fx, const MediaItemC *media);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///

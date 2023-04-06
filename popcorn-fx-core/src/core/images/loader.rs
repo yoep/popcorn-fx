@@ -19,6 +19,12 @@ const BACKGROUND_HOLDER: &[u8] = include_bytes!("../../../resources/background.j
 /// All methods in this trait are asynchronous and return a `Future` that will resolve to the image data when it's available.
 #[async_trait]
 pub trait ImageLoader {
+    /// Retrieve the default poster (holder) image data.
+    ///
+    /// This method returns a `Vec<u8>` containing the data for the default poster holder image.
+    /// The default poster holder image is typically used as a fallback when a poster image is not available for a media item or is still being loaded.
+    fn default_poster(&self) -> Vec<u8>;
+
     /// Load the fanart image for the given media item.
     ///
     /// If fanart image data is available for the media item, it is returned as a `Vec<u8>`.
@@ -89,6 +95,10 @@ impl DefaultImageLoader {
 
 #[async_trait]
 impl ImageLoader for DefaultImageLoader {
+    fn default_poster(&self) -> Vec<u8> {
+        POSTER_HOLDER.to_vec()
+    }
+
     async fn load_fanart(&self, media: &Box<dyn MediaOverview>) -> Vec<u8> {
         trace!("Loading fanart image for {:?}", media);
         let fanart_url = media.images().fanart();

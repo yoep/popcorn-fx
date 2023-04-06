@@ -1,11 +1,31 @@
-use std::mem;
-
 use log::trace;
 
 use popcorn_fx_core::{from_c_vec, into_c_owned};
 
 use crate::ffi::{ByteArray, MediaItemC};
 use crate::PopcornFX;
+
+/// Retrieve the default poster (holder) image data as a C compatible byte array.
+///
+/// This function returns a pointer to a `ByteArray` struct that contains the data for the default poster holder image.
+/// The default poster holder image is typically used as a fallback when a poster image is not available for a media item.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+///
+/// # Returns
+///
+/// A pointer to a `ByteArray` struct containing the default poster holder image data.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
+#[no_mangle]
+pub extern "C" fn poster_holder(popcorn_fx: &mut PopcornFX) -> *mut ByteArray {
+    trace!("Retrieving the default poster image from C");
+    into_c_owned(ByteArray::from(popcorn_fx.image_loader().default_poster()))
+}
 
 /// Loads the fanart image data for the given media item.
 ///
@@ -91,6 +111,19 @@ mod test {
     use crate::test::default_args;
 
     use super::*;
+
+    #[test]
+    fn test_default_poster() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        let array = from_c_owned(poster_holder(&mut instance));
+        let result = from_c_vec(array.values, array.len);
+
+        assert!(result.len() > 0)
+    }
 
     #[test]
     fn test_load_fanart() {

@@ -197,6 +197,8 @@ public interface FxLib extends Library {
 
     void register_playback_controls(PopcornFx instance, PlaybackControlCallback callback);
 
+    ByteArray poster_holder(PopcornFx instance);
+
     ByteArray load_fanart(PopcornFx instance, MediaItem item);
 
     ByteArray load_poster(PopcornFx instance, MediaItem item);

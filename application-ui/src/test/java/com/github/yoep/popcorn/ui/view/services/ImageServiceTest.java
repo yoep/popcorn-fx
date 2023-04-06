@@ -8,21 +8,17 @@ import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import javafx.scene.image.Image;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
@@ -40,14 +36,14 @@ class ImageServiceTest {
     private ImageService imageService;
 
     @Test
-    void testGetPosterHolder_whenInvoked_shouldReturnTheExpectedResult() throws IOException {
-        var resource = new ClassPathResource(ImageService.POSTER_HOLDER);
-        var image = new Image(resource.getInputStream());
-        imageService.init();
+    void testGetPosterHolder() {
+        var byteArray = mock(ByteArray.class);
+        when(byteArray.getBytes()).thenReturn(new byte[0]);
+        when(fxLib.poster_holder(instance)).thenReturn(byteArray);
 
         var result = imageService.getPosterHolder();
 
-        assertEquals(image.getUrl(), result.getUrl());
+        assertNotNull(result);
     }
 
     @Test

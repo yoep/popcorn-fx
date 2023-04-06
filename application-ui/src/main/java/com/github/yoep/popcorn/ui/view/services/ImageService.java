@@ -50,11 +50,12 @@ public class ImageService {
     }
 
     public Image getPosterHolder(double requestedWidth, double requestedHeight) {
-        try {
-            return new Image(new ClassPathResource(POSTER_HOLDER).getInputStream(), requestedWidth, requestedHeight, true, true);
-        } catch (Exception ex) {
-            log.error("Failed to load poster holder, " + ex.getMessage(), ex);
-            return null;
+        try (var bytes = fxLib.poster_holder(instance)) {
+            return Optional.of(bytes)
+                    .map(ByteArray::getBytes)
+                    .map(ByteArrayInputStream::new)
+                    .map(e -> new Image(e, requestedWidth, requestedHeight, true, true))
+                    .get();
         }
     }
 
@@ -174,14 +175,6 @@ public class ImageService {
     //endregion
 
     //region Functions
-
-    private boolean isImageUrlKnown(String url) {
-        return !url.equalsIgnoreCase("n/a");
-    }
-
-    private boolean isSuccessfullyLoaded(Image image) {
-        return !image.isError();
-    }
 
     private Image convertToImage(byte[] imageData) {
         return convertToImage(imageData, 0, 0);

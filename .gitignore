@@ -7,6 +7,7 @@ cmake-build*/
 assets/linux/vlc/lua/
 assets/linux/vlc/plugins/
 assets/linux/vlc/vlc-*/
+assets/linux/*.so
 assets/mac/vlc/lua/
 assets/mac/vlc/plugins/
 assets/mac/vlc/vlc-*/

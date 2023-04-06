@@ -13,7 +13,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
@@ -75,6 +74,7 @@ public class ImageService {
     @Async
     public CompletableFuture<Optional<Image>> loadFanart(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
+        log.debug("Loading fanart image for {}", media);
         try (var bytes = fxLib.load_fanart(instance, MediaItem.from(media))) {
             return CompletableFuture.completedFuture(Optional.of(bytes)
                     .map(ByteArray::getBytes)
@@ -110,7 +110,7 @@ public class ImageService {
      */
     @Async
     public CompletableFuture<Optional<Image>> loadPoster(final Media media, final double width, final double height) {
-        Assert.notNull(media, "media cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
         Optional<Image> image = Optional.ofNullable(media.getImages())
                 .map(Images::getPoster)
                 .filter(StringUtils::isNotEmpty)

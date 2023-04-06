@@ -32,5 +32,6 @@ public class ByteArray extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        FxLibInstance.INSTANCE.get().dispose_byte_array(this);
     }
 }

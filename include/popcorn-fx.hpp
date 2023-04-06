@@ -406,6 +406,17 @@ struct SubtitleInfoSet {
   int32_t len;
 };
 
+/// A C-compatible byte array that can be used to return byte array data from Rust functions.
+///
+/// This struct contains a pointer to the byte array data and the length of the byte array.
+/// It is intended for use in C code that needs to interact with Rust functions that return byte array data.
+struct ByteArray {
+  /// A pointer to the byte array data.
+  uint8_t *values;
+  /// The length of the byte array.
+  int32_t len;
+};
+
 /// Structure defining a set of media items.
 /// Each media items is separated in a specific implementation array.
 struct MediaSetC {
@@ -475,15 +486,6 @@ struct SubtitleMatcherC {
   /// The nullable quality of the media item.
   /// This can be represented as `720p` or `720`.
   const char *quality;
-};
-
-/// The C compatible byte array.
-/// It's mainly used for returning byte arrays as result of C function calls.
-struct ByteArray {
-  /// The byte array
-  uint8_t *values;
-  /// The length of the byte array
-  int32_t len;
 };
 
 /// The player stopped event which indicates a video playback has been stopped.
@@ -835,6 +837,15 @@ SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 /// This will make the [is_subtitle_disabled] return `true`.
 void disable_subtitle(PopcornFX *popcorn_fx);
 
+/// Frees the memory allocated for the given C-compatible byte array.
+///
+/// This function should be called from C code in order to free memory that has been allocated by Rust.
+///
+/// # Safety
+///
+/// This function should only be called on C-compatible byte arrays that have been allocated by Rust.
+void dispose_byte_array(Box<ByteArray> array);
+
 /// Dispose the given media item from memory.
 void dispose_media_item(Box<MediaItemC> media);
 
@@ -918,10 +929,23 @@ bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
 /// Verify if the youtube video player has been disabled.
 bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
 
-/// Load the fanart image data for the given media item.
+/// Loads the fanart image data for the given media item.
 ///
-/// It will return a byte array with the image data when available,
-/// else the placeholder data to use instead on failure.
+/// This function should be called from C code in order to load fanart image data for a media item.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to the `PopcornFX` instance that will load the image data.
+/// * `media` - a C-compatible media item holder that contains information about the media item to load.
+///
+/// # Returns
+///
+/// If fanart image data is available for the media item, a C-compatible byte array containing the image data is returned.
+/// Otherwise, a placeholder byte array is returned.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
 ByteArray *load_fanart(PopcornFX *popcorn_fx, const MediaItemC *media);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].

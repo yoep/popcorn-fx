@@ -209,6 +209,8 @@ public interface FxLib extends Library {
 
     void dispose_torrent_collection(StoredTorrentSet set);
 
+    void dispose_byte_array(ByteArray byteArray);
+
     void dispose_popcorn_fx(PopcornFx instance);
 
     String version();

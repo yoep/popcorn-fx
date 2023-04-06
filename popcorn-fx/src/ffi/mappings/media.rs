@@ -569,6 +569,18 @@ impl From<MovieDetails> for MediaItemC {
     }
 }
 
+impl From<ShowOverview> for MediaItemC {
+    fn from(value: ShowOverview) -> Self {
+        Self {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: into_c_owned(ShowOverviewC::from(value)),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct GenreC {

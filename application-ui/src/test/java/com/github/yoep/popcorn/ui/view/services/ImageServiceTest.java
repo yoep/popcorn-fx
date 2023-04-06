@@ -1,5 +1,9 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.lib.ByteArray;
+import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import javafx.scene.image.Image;
@@ -9,23 +13,27 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.text.MessageFormat;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
     @Mock
     private RestTemplate restTemplate;
+    @Mock
+    private FxLib fxLib;
+    @Mock
+    private PopcornFx instance;
     @InjectMocks
     private ImageService imageService;
 
@@ -41,41 +49,33 @@ class ImageServiceTest {
     }
 
     @Test
-    void testLoadFanart_whenMediaIsNull_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> imageService.loadPoster(null), "media cannot be null");
-    }
-
-    @Test
-    void testLoadFanart_whenRemoteCallFails_shouldCallImageException() {
+    void testLoadFanartException() throws ExecutionException, InterruptedException {
         var url = "http://my-fanart-url.com";
         var images = Images.builder()
                 .fanart(url)
                 .build();
         var media = createMovie(images);
-        var response = mock(ResponseEntity.class);
-        var statusCode = HttpStatus.BAD_REQUEST.value();
-        var expectedMessage = MessageFormat.format("Failed to load image \"{0}\", expected status 2xx, but got {1} instead", url, statusCode);
-        when(restTemplate.getForEntity(isA(String.class), eq(byte[].class))).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(HttpStatus.BAD_REQUEST);
-        when(response.getStatusCodeValue()).thenReturn(statusCode);
+        when(fxLib.load_fanart(eq(instance), isA(MediaItem.class))).thenThrow(new RuntimeException("my exception"));
 
-        assertThrows(ImageException.class, () -> imageService.loadFanart(media), expectedMessage);
+        var result = imageService.loadFanart(media);
+
+        assertEquals(Optional.empty(), result.get());
     }
 
     @Test
-    void testLoadFanart_whenInvoked_shouldCallTheRemoteFanartUrl() {
+    void testLoadFanart() throws ExecutionException, InterruptedException {
         var url = "http://fanart-url.com";
-        var images = Images.builder()
+        var media = createMovie(Images.builder()
                 .fanart(url)
-                .build();
-        var media = createMovie(images);
-        var response = mock(ResponseEntity.class);
-        when(restTemplate.getForEntity(isA(String.class), eq(byte[].class))).thenReturn(response);
-        when(response.getStatusCode()).thenReturn(HttpStatus.OK);
+                .build());
+        var byteArray = mock(ByteArray.class);
+        when(byteArray.getBytes()).thenReturn(new byte[0]);
+        when(fxLib.load_fanart(eq(instance), isA(MediaItem.class))).thenReturn(byteArray);
 
-        imageService.loadFanart(media);
+        var future = imageService.loadFanart(media);
+        var image = future.get();
 
-        verify(restTemplate).getForEntity(url, byte[].class);
+        assertTrue(image.isPresent());
     }
 
     private MovieDetails createMovie(Images images) {

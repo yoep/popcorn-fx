@@ -38,13 +38,16 @@ impl From<&[String]> for StringArray {
     }
 }
 
-/// The C compatible byte array.
-/// It's mainly used for returning byte arrays as result of C function calls.
+/// A C-compatible byte array that can be used to return byte array data from Rust functions.
+///
+/// This struct contains a pointer to the byte array data and the length of the byte array.
+/// It is intended for use in C code that needs to interact with Rust functions that return byte array data.
 #[repr(C)]
+#[derive(Debug)]
 pub struct ByteArray {
-    /// The byte array
+    /// A pointer to the byte array data.
     pub values: *mut u8,
-    /// The length of the byte array
+    /// The length of the byte array.
     pub len: i32,
 }
 

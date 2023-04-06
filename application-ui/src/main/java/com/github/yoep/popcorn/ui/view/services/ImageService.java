@@ -4,12 +4,10 @@ import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -111,15 +109,15 @@ public class ImageService {
     @Async
     public CompletableFuture<Optional<Image>> loadPoster(final Media media, final double width, final double height) {
         Objects.requireNonNull(media, "media cannot be null");
-        Optional<Image> image = Optional.ofNullable(media.getImages())
-                .map(Images::getPoster)
-                .filter(StringUtils::isNotEmpty)
-                .filter(this::isImageUrlKnown)
-                .map(this::internalLoad)
-                .map(e -> this.convertToImage(e, width, height))
-                .filter(this::isSuccessfullyLoaded);
-
-        return CompletableFuture.completedFuture(image);
+        try (var byteArray = fxLib.load_poster(instance, MediaItem.from(media))) {
+            return CompletableFuture.completedFuture(Optional.of(byteArray)
+                    .map(ByteArray::getBytes)
+                    .map(ByteArrayInputStream::new)
+                    .map(e -> new Image(e, width, height, true, true)));
+        } catch (Exception ex) {
+            log.error("Failed to load image, {}", ex.getMessage(), ex);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
     }
 
     /**

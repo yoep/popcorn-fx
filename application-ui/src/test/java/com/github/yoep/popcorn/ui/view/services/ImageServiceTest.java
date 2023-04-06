@@ -6,6 +6,8 @@ import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import javafx.scene.image.Image;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,15 +66,25 @@ class ImageServiceTest {
 
     @Test
     void testLoadFanart() throws ExecutionException, InterruptedException {
-        var url = "http://fanart-url.com";
-        var media = createMovie(Images.builder()
-                .fanart(url)
-                .build());
+        var media = mock(ShowDetails.class);
         var byteArray = mock(ByteArray.class);
         when(byteArray.getBytes()).thenReturn(new byte[0]);
         when(fxLib.load_fanart(eq(instance), isA(MediaItem.class))).thenReturn(byteArray);
 
         var future = imageService.loadFanart(media);
+        var image = future.get();
+
+        assertTrue(image.isPresent());
+    }
+
+    @Test
+    void testLoadPoster() throws ExecutionException, InterruptedException {
+        var media = mock(MovieOverview.class);
+        var byteArray = mock(ByteArray.class);
+        when(byteArray.getBytes()).thenReturn(new byte[0]);
+        when(fxLib.load_poster(eq(instance), isA(MediaItem.class))).thenReturn(byteArray);
+
+        var future = imageService.loadPoster(media);
         var image = future.get();
 
         assertTrue(image.isPresent());

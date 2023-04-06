@@ -199,6 +199,8 @@ public interface FxLib extends Library {
 
     ByteArray load_fanart(PopcornFx instance, MediaItem item);
 
+    ByteArray load_poster(PopcornFx instance, MediaItem item);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);

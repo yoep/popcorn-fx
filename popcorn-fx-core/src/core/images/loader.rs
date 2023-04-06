@@ -9,14 +9,35 @@ const POSTER_HOLDER: &[u8] = include_bytes!("../../../resources/posterholder.png
 const ART_HOLDER: &[u8] = include_bytes!("../../../resources/artholder.png");
 const BACKGROUND_HOLDER: &[u8] = include_bytes!("../../../resources/background.jpg");
 
-/// The image loader is responsible for loading image data from local or remote locations.
+/// The `ImageLoader` trait is responsible for loading image data from local or remote locations.
+///
+/// Implementations of this trait provide methods for loading the fanart and poster images for a given media item.
 /// The loaded data can then be converted into a graphic that can be shown to the user.
+///
+/// # Asynchronous
+///
+/// All methods in this trait are asynchronous and return a `Future` that will resolve to the image data when it's available.
 #[async_trait]
 pub trait ImageLoader {
     /// Load the fanart image for the given media item.
     ///
-    /// It returns the fanart when available, else the default placeholder.
+    /// If fanart image data is available for the media item, it is returned as a `Vec<u8>`.
+    /// Otherwise, a placeholder byte array is returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `media` - a reference to a boxed `dyn MediaOverview` object that represents the media item to load.
     async fn load_fanart(&self, media: &Box<dyn MediaOverview>) -> Vec<u8>;
+
+    /// Load the poster image for the given media item.
+    ///
+    /// If poster image data is available for the media item, it is returned as a `Vec<u8>`.
+    /// Otherwise, a placeholder byte array is returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `media` - a reference to a boxed `dyn MediaOverview` object that represents the media item to load.
+    async fn load_poster(&self, media: &Box<dyn MediaOverview>) -> Vec<u8>;
 }
 
 /// The default image loader implementation used by Popcorn FX.
@@ -74,6 +95,13 @@ impl ImageLoader for DefaultImageLoader {
 
         self.retrieve_image_data(fanart_url, BACKGROUND_HOLDER).await
     }
+
+    async fn load_poster(&self, media: &Box<dyn MediaOverview>) -> Vec<u8> {
+        trace!("Loading poster image for {:?}", media);
+        let poster_url = media.images().poster();
+
+        self.retrieve_image_data(poster_url, POSTER_HOLDER).await
+    }
 }
 
 impl Default for DefaultImageLoader {
@@ -92,7 +120,7 @@ mod test {
     use httpmock::MockServer;
     use tokio::runtime::Runtime;
 
-    use crate::core::media::{Images, MovieOverview};
+    use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::testing::{init_logger, read_test_file_to_bytes};
 
     use super::*;
@@ -182,5 +210,39 @@ mod test {
         });
 
         assert_eq!(BACKGROUND_HOLDER, result)
+    }
+
+    #[test]
+    fn test_load_poster() {
+        init_logger();
+        let server = MockServer::start();
+        let expected_result = read_test_file_to_bytes("image.png");
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/poster.png");
+            then.status(200)
+                .body(expected_result.as_slice());
+        });
+        let media = Box::new(ShowOverview{
+            imdb_id: "".to_string(),
+            tvdb_id: "".to_string(),
+            title: "".to_string(),
+            year: "".to_string(),
+            num_seasons: 0,
+            images: Images {
+                poster: server.url("/poster.png"),
+                fanart: "".to_string(),
+                banner: "".to_string(),
+            },
+            rating: None,
+        }) as Box<dyn MediaOverview>;
+        let loader = DefaultImageLoader::default();
+        let runtime = Runtime::new().unwrap();
+
+        let result = runtime.block_on(async move {
+            loader.load_poster(&media).await
+        });
+
+        assert_eq!(expected_result, result)
     }
 }

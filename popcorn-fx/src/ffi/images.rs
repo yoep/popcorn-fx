@@ -38,6 +38,33 @@ pub extern "C" fn load_fanart(popcorn_fx: &mut PopcornFX, media: &MediaItemC) ->
     })
 }
 
+/// Load the poster image data for the given media item.
+///
+/// If poster image data is available for the media item, it is returned as a `ByteArray`.
+/// Otherwise, a placeholder `ByteArray` containing the default poster holder image data is returned.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+/// * `media` - a reference to a `MediaItemC` object that represents the media item to load.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
+#[no_mangle]
+pub extern "C" fn load_poster(popcorn_fx: &mut PopcornFX, media: &MediaItemC) -> *mut ByteArray {
+    trace!("Loading poster from C for {:?}", media);
+    let image_loader = popcorn_fx.image_loader().clone();
+    popcorn_fx.runtime().block_on(async move {
+        match media.as_overview() {
+            None => into_c_owned(ByteArray::from(vec![])),
+            Some(media_overview) => {
+                into_c_owned(ByteArray::from(image_loader.load_poster(&media_overview).await))
+            }
+        }
+    })
+}
+
 /// Frees the memory allocated for the given C-compatible byte array.
 ///
 /// This function should be called from C code in order to free memory that has been allocated by Rust.
@@ -58,7 +85,7 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
-    use popcorn_fx_core::core::media::{Images, MovieDetails, ShowOverview};
+    use popcorn_fx_core::core::media::{Images, MovieDetails, ShowDetails, ShowOverview};
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
 
     use crate::test::default_args;
@@ -97,6 +124,47 @@ mod test {
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         let array = from_c_owned(load_fanart(&mut instance, &MediaItemC::from(media)));
+        let result = from_c_vec(array.values, array.len);
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_load_poster() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let expected_result = read_test_file_to_bytes("image.jpg");
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/poster.png");
+            then.status(200)
+                .body(expected_result.as_slice());
+        });
+        let media = ShowDetails {
+            imdb_id: "".to_string(),
+            tvdb_id: "".to_string(),
+            title: "".to_string(),
+            year: "".to_string(),
+            num_seasons: 0,
+            images: Images {
+                poster: server.url("/poster.png"),
+                fanart: "".to_string(),
+                banner: "".to_string(),
+            },
+            rating: None,
+            context_locale: "".to_string(),
+            synopsis: "".to_string(),
+            runtime: "".to_string(),
+            status: "".to_string(),
+            genres: vec![],
+            episodes: vec![],
+            liked: None,
+        };
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        let array = from_c_owned(load_poster(&mut instance, &MediaItemC::from(media)));
         let result = from_c_vec(array.values, array.len);
 
         assert_eq!(expected_result, result)

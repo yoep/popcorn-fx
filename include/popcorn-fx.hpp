@@ -948,6 +948,21 @@ bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
 /// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
 ByteArray *load_fanart(PopcornFX *popcorn_fx, const MediaItemC *media);
 
+/// Load the poster image data for the given media item.
+///
+/// If poster image data is available for the media item, it is returned as a `ByteArray`.
+/// Otherwise, a placeholder `ByteArray` containing the default poster holder image data is returned.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+/// * `media` - a reference to a `MediaItemC` object that represents the media item to load.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
+ByteArray *load_poster(PopcornFX *popcorn_fx, const MediaItemC *media);
+
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
 /// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.

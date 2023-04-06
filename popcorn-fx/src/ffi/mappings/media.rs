@@ -581,6 +581,18 @@ impl From<ShowOverview> for MediaItemC {
     }
 }
 
+impl From<ShowDetails> for MediaItemC {
+    fn from(value: ShowDetails) -> Self {
+        Self {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: into_c_owned(ShowDetailsC::from(value)),
+            episode: ptr::null_mut(),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct GenreC {
@@ -909,13 +921,7 @@ mod test {
             rating: None,
             images: Default::default(),
         };
-        let media_item = MediaItemC {
-            movie_overview: into_c_owned(MovieOverviewC::from(media.clone())),
-            movie_details: ptr::null_mut(),
-            show_overview: ptr::null_mut(),
-            show_details: ptr::null_mut(),
-            episode: ptr::null_mut(),
-        };
+        let media_item = MediaItemC::from(media);
 
         let result = media_item.as_identifier().unwrap();
 
@@ -967,13 +973,7 @@ mod test {
             images: Default::default(),
             rating: None,
         };
-        let media_item = MediaItemC {
-            movie_overview: ptr::null_mut(),
-            movie_details: ptr::null_mut(),
-            show_overview: into_c_owned(ShowOverviewC::from(media)),
-            show_details: ptr::null_mut(),
-            episode: ptr::null_mut(),
-        };
+        let media_item = MediaItemC::from(media);
 
         let result = media_item.as_overview().unwrap();
 

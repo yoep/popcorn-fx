@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.StringArray;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.torrent;
 
-import com.github.yoep.popcorn.backend.FxLibInstance;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

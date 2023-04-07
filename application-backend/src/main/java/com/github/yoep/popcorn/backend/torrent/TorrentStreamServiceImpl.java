@@ -1,12 +1,12 @@
 package com.github.yoep.popcorn.backend.torrent;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

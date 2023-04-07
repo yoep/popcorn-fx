@@ -69,6 +69,7 @@ class PopcornPlayerSectionControllerTest {
         controller.playerPane = new AnchorPane();
         controller.playerHeaderPane = new Pane();
         controller.playerControlsPane = new Pane();
+        controller.playerVideoOverlay = new Pane();
         controller.bufferPane = new Pane();
         controller.infoLabel = new Label();
         controller.errorText = new Label();

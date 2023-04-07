@@ -1,5 +1,6 @@
-package com.github.yoep.popcorn.backend;
+package com.github.yoep.popcorn.backend.lib;
 
+import com.github.yoep.popcorn.backend.PopcornFx;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

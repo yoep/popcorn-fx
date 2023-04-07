@@ -1,5 +1,6 @@
 pub use controls::*;
 pub use events::*;
+pub use images::*;
 pub use main::*;
 pub use mappings::*;
 pub use media::*;
@@ -10,10 +11,11 @@ pub use update::*;
 
 mod controls;
 mod events;
+mod images;
 mod main;
 mod mappings;
+mod media;
 mod options;
 mod properties;
 mod subtitles;
 mod update;
-mod media;

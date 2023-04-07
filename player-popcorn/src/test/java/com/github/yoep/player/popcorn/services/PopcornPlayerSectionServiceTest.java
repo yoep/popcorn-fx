@@ -191,9 +191,10 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testProvideSubtitleValues_whenInvoked_shouldSetSubtitleFontWeight() {
-        var subtitle = mock(SubtitleSettings.ByValue.class);
-        when(subtitle.isBold()).thenReturn(true);
-        when(settings.getSubtitleSettings()).thenReturn(subtitle);
+        var subtitleSettings = new SubtitleSettings.ByValue();
+        subtitleSettings.bold = (byte) 1;
+        subtitleSettings.fontFamily = SubtitleFamily.ARIAL;
+        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         service.provideSubtitleValues();
@@ -217,9 +218,10 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testProvideSubtitleValues_whenInvoked_shouldSetSubtitleDecoration() {
         var value = DecorationType.OUTLINE;
-        var subtitle = mock(SubtitleSettings.ByValue.class);
-        when(subtitle.getDecoration()).thenReturn(value);
-        when(settings.getSubtitleSettings()).thenReturn(subtitle);
+        var subtitleSettings = new SubtitleSettings.ByValue();
+        subtitleSettings.decoration = value;
+        subtitleSettings.fontFamily = SubtitleFamily.ARIAL;
+        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
         service.init();
 
         service.provideSubtitleValues();

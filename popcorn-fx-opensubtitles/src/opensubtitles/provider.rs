@@ -645,7 +645,7 @@ mod test {
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::{English, French};
     use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
-    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
+    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;
 
@@ -743,7 +743,7 @@ mod test {
                 .query_param(IMDB_ID_PARAM_KEY, "1156398".to_string());
             then.status(200)
                 .header("content-type", "application/json")
-                .body(read_test_file("search_result_tt1156398.json"));
+                .body(read_test_file_to_string("search_result_tt1156398.json"));
         });
         server.mock(|when, then| {
             when.method(GET)
@@ -751,7 +751,7 @@ mod test {
                 .query_param(IMDB_ID_PARAM_KEY, "12003946".to_string());
             then.status(200)
                 .header("content-type", "application/json")
-                .body(read_test_file("search_result_tt12003946.json"));
+                .body(read_test_file_to_string("search_result_tt12003946.json"));
         });
         let runtime = runtime::Runtime::new().unwrap();
 
@@ -801,7 +801,7 @@ mod test {
                 .query_param(IMDB_ID_PARAM_KEY, "4236770".to_string());
             then.status(200)
                 .header("content-type", "application/json")
-                .body(read_test_file("search_result_episode.json"));
+                .body(read_test_file_to_string("search_result_episode.json"));
         });
         let expected_result = SubtitleInfo::new(
             "tt2861424".to_string(),
@@ -836,7 +836,7 @@ mod test {
                 .query_param(FILENAME_PARAM_KEY, filename.clone());
             then.status(200)
                 .header("content-type", "application/json")
-                .body(read_test_file("search_result_episode.json"));
+                .body(read_test_file_to_string("search_result_episode.json"));
         });
         let runtime = runtime::Runtime::new().unwrap();
 
@@ -864,7 +864,7 @@ mod test {
             SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
         ]);
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
-        let response_body = read_test_file("download_response.json");
+        let response_body = read_test_file_to_string("download_response.json");
         server.mock(|when, then| {
             when.method(POST)
                 .path("/download");
@@ -879,7 +879,7 @@ mod test {
                 .path("/download/example.srt");
             then.status(200)
                 .header("content-type", "text")
-                .body(read_test_file("subtitle_example.srt"));
+                .body(read_test_file_to_string("subtitle_example.srt"));
         });
         let expected_file: PathBuf = [temp_dir, filename].iter().collect();
         let expected_result = Subtitle::new(vec![SubtitleCue::new("1".to_string(), 30296, 34790, vec![
@@ -908,7 +908,7 @@ mod test {
             SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
         ]);
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
-        let response_body = read_test_file("download_response.json");
+        let response_body = read_test_file_to_string("download_response.json");
         server.mock(|when, then| {
             when.method(POST)
                 .path("/download");
@@ -923,7 +923,7 @@ mod test {
                 .path("/download/example.srt");
             then.status(200)
                 .header("content-type", "text")
-                .body(read_test_file("subtitle_example.srt"));
+                .body(read_test_file_to_string("subtitle_example.srt"));
         });
         let runtime = runtime::Runtime::new().unwrap();
 
@@ -1172,7 +1172,7 @@ mod test {
             .settings(settings)
             .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))
             .build();
-        let expected_result = read_test_file("example-conversion.vtt")
+        let expected_result = read_test_file_to_string("example-conversion.vtt")
             .replace("\r\n", "\n");
 
         let result = service.convert(subtitle, SubtitleType::Vtt);

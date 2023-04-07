@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.torrent.collection;
 
-import com.github.yoep.popcorn.backend.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.sun.jna.Structure;
 import lombok.Getter;
 import lombok.ToString;

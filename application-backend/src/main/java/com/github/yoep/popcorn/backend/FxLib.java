@@ -4,7 +4,13 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
-import com.github.yoep.popcorn.backend.media.*;
+import com.github.yoep.popcorn.backend.lib.ByteArray;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.media.FavoritesSet;
+import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.MediaSet;
+import com.github.yoep.popcorn.backend.media.MediaSetResult;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -191,6 +197,16 @@ public interface FxLib extends Library {
 
     void register_playback_controls(PopcornFx instance, PlaybackControlCallback callback);
 
+    ByteArray poster_placeholder(PopcornFx instance);
+
+    ByteArray artwork_placeholder(PopcornFx instance);
+
+    ByteArray load_fanart(PopcornFx instance, MediaItem item);
+
+    ByteArray load_poster(PopcornFx instance, MediaItem item);
+
+    ByteArray load_image(PopcornFx instance, String url);
+
     void dispose_media_item(MediaItem media);
 
     void dispose_media_items(MediaSet media);
@@ -200,6 +216,8 @@ public interface FxLib extends Library {
     void dispose_subtitle(Subtitle subtitle);
 
     void dispose_torrent_collection(StoredTorrentSet set);
+
+    void dispose_byte_array(ByteArray byteArray);
 
     void dispose_popcorn_fx(PopcornFx instance);
 

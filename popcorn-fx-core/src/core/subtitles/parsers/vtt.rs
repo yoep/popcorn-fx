@@ -72,7 +72,7 @@ impl Parser for VttParser {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleLine};
-    use crate::testing::read_test_file;
+    use crate::testing::read_test_file_to_string;
 
     use super::*;
 
@@ -94,7 +94,7 @@ mod test {
             ]),
         ];
         let parser = VttParser::default();
-        let expected_result = read_test_file("conversion-example.vtt")
+        let expected_result = read_test_file_to_string("conversion-example.vtt")
             .replace("\r\n", "\n");
 
         let result = parser.convert(&cues);

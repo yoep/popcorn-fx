@@ -43,10 +43,6 @@ impl ShowOverview {
     pub fn number_of_seasons(&self) -> &i32 {
         &self.num_seasons
     }
-
-    pub fn images(&self) -> &Images {
-        &self.images
-    }
 }
 
 impl MediaIdentifier for ShowOverview {
@@ -73,6 +69,10 @@ impl MediaOverview for ShowOverview {
 
     fn year(&self) -> &String {
         &self.year
+    }
+
+    fn images(&self) -> &Images {
+        &self.images
     }
 }
 
@@ -128,10 +128,6 @@ impl ShowDetails {
         &self.num_seasons
     }
 
-    pub fn images(&self) -> &Images {
-        &self.images
-    }
-
     pub fn status(&self) -> &String {
         &self.status
     }
@@ -181,6 +177,10 @@ impl MediaOverview for ShowDetails {
 
     fn year(&self) -> &String {
         &self.year
+    }
+
+    fn images(&self) -> &Images {
+        &self.images
     }
 }
 

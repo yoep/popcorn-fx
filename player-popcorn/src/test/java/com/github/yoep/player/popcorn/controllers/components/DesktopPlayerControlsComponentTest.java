@@ -1,5 +1,6 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.controls.Volume;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
@@ -11,6 +12,7 @@ import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.scene.control.Label;
+import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,10 +61,13 @@ class DesktopPlayerControlsComponentTest {
         when(playProgress.valueChangingProperty()).thenReturn(valueChangingProperty);
         when(playProgress.timeProperty()).thenReturn(timeProperty);
 
-        component.playProgress = playProgress;
-        component.volumeIcon = new Volume();
-        component.durationLabel = new Label();
+        component.playPauseIcon = new Icon();
         component.timeLabel = new Label();
+        component.playProgress = playProgress;
+        component.durationLabel = new Label();
+        component.volumeIcon = new Volume();
+        component.fullscreenIcon = new Icon();
+        component.subtitleSection = new Pane();
     }
 
     @Test

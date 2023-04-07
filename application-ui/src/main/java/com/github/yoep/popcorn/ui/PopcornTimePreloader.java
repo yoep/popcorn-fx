@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.ui;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.application.Preloader;

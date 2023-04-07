@@ -113,7 +113,7 @@ class AboutSectionControllerTest {
         controller.initialize(url, resourceBundle);
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.updateButton.getText().equals(buttonText));
-        assertEquals(Icon.REFRESH_UNICODE, controller.updateIcon.getText());
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.updateIcon.getText().equals(Icon.REFRESH_UNICODE));
     }
 
     @Test

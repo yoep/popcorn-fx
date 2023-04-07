@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
-import com.github.yoep.popcorn.backend.FxLibInstance;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;

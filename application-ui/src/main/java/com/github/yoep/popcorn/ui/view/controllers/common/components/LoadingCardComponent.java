@@ -3,11 +3,9 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.fxml.Initializable;
-import javafx.scene.image.Image;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
 
@@ -27,12 +25,6 @@ public class LoadingCardComponent extends AbstractCardComponent implements Initi
     }
 
     private void initializePoster() {
-        try {
-            Image image = new Image(getPosterHolderResource().getInputStream(), POSTER_WIDTH, POSTER_HEIGHT, true, true);
-            setBackgroundImage(image, false);
-        } catch (IOException ex) {
-            log.error(ex.getMessage(), ex);
-        }
+        setBackgroundImage(imageService.getPosterPlaceholder(POSTER_WIDTH, POSTER_HEIGHT), false);
     }
-
 }

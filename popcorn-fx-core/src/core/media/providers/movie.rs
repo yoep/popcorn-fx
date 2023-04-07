@@ -99,7 +99,7 @@ mod test {
 
     use crate::core::media::{Images, MediaIdentifier, Rating};
     use crate::test::start_mock_server;
-    use crate::testing::{init_logger, read_test_file};
+    use crate::testing::{init_logger, read_test_file_to_string};
 
     use super::*;
 
@@ -129,7 +129,7 @@ mod test {
                 .query_param("keywords", "".to_string());
             then.status(200)
                 .header("content-type", "application/json")
-                .body(read_test_file("movie-search.json"));
+                .body(read_test_file_to_string("movie-search.json"));
         });
         let provider = MovieProvider::new(&settings, false);
         let runtime = runtime::Runtime::new().unwrap();
@@ -178,7 +178,7 @@ mod test {
                 .query_param("keywords", "".to_string());
             then.status(200)
                 .header("content-type", "application/json")
-                .body(read_test_file("movie-search.json"));
+                .body(read_test_file_to_string("movie-search.json"));
         });
         let runtime = runtime::Runtime::new().unwrap();
 
@@ -202,7 +202,7 @@ mod test {
                 .path("/movie/tt9764362");
             then.status(200)
                 .header("content-type", "application/json")
-                .body(read_test_file("movie-details.json"));
+                .body(read_test_file_to_string("movie-details.json"));
         });
         let provider = MovieProvider::new(&settings, false);
         let runtime = runtime::Runtime::new().unwrap();

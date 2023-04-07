@@ -594,7 +594,7 @@ mod test {
     use tokio::runtime;
 
     use popcorn_fx_core::core::torrent::{MockTorrent, StreamBytes};
-    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file};
+    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;
 
@@ -654,7 +654,7 @@ mod test {
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
-        let bytes = read_test_file(filename).as_bytes().len();
+        let bytes = read_test_file_to_string(filename).as_bytes().len();
         let expected_result = format!("bytes 0-{}/{}", bytes - 1, bytes);
 
         let result = stream.content_range();
@@ -709,7 +709,7 @@ mod test {
             .return_const(());
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let expected_result = read_test_file(filename);
+        let expected_result = read_test_file_to_string(filename);
         let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
 
         let range = stream.content_range();
@@ -742,7 +742,7 @@ mod test {
             .return_const(());
         let torrent = Arc::new(Box::new(mock) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let expected_result = read_test_file(filename);
+        let expected_result = read_test_file_to_string(filename);
         let stream = DefaultTorrentStreamingResource::new(&torrent).unwrap();
 
         let result = read_stream(stream);

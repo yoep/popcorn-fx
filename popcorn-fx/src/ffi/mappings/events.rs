@@ -53,7 +53,7 @@ impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
         let media = if !value.media.is_null() {
             trace!("Converting MediaItem from C for {:?}", value.media);
             let media_item = from_c_owned(value.media);
-            let identifier = media_item.into_identifier();
+            let identifier = media_item.as_identifier();
             mem::forget(media_item);
             identifier
         } else {

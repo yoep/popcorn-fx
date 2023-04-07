@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;

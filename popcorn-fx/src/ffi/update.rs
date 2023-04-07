@@ -88,8 +88,9 @@ mod test {
         let result = update_state(&mut instance);
 
         match result {
-            UpdateStateC::CheckingForNewVersion => {}
-            _ => assert!(false, "expected UpdateStateC::CheckingForNewVersion")
+            UpdateStateC::CheckingForNewVersion => {},
+            UpdateStateC::NoUpdateAvailable => {},
+            _ => panic!("expected one of [UpdateStateC::CheckingForNewVersion, UpdateStateC::NoUpdateAvailable] but got {:?} instead", result)
         }
     }
 

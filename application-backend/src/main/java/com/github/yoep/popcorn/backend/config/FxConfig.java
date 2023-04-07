@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.backend.config;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

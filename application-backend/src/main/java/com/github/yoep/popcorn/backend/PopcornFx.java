@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.sun.jna.PointerType;
 import lombok.extern.slf4j.Slf4j;
 

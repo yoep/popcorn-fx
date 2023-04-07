@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.conditions;
 
-import com.github.yoep.popcorn.backend.FxLibInstance;
-import com.github.yoep.popcorn.backend.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.ConfigurationCondition;

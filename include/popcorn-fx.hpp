@@ -283,11 +283,17 @@ struct ShowDetailsC {
   int32_t episodes_len;
 };
 
+/// A C-compatible holder for a media item, which may represent a movie, show, or episode.
 struct MediaItemC {
+  /// A pointer to the movie overview struct.
   MovieOverviewC *movie_overview;
+  /// A pointer to the movie details struct.
   MovieDetailsC *movie_details;
+  /// A pointer to the show overview struct.
   ShowOverviewC *show_overview;
+  /// A pointer to the show details struct.
   ShowDetailsC *show_details;
+  /// A pointer to the episode struct.
   EpisodeC *episode;
 };
 
@@ -371,6 +377,17 @@ struct PopcornSettingsC {
   ServerSettingsC server_settings;
   /// The playback settings of the application
   PlaybackSettingsC playback_settings;
+};
+
+/// A C-compatible byte array that can be used to return byte array data from Rust functions.
+///
+/// This struct contains a pointer to the byte array data and the length of the byte array.
+/// It is intended for use in C code that needs to interact with Rust functions that return byte array data.
+struct ByteArray {
+  /// A pointer to the byte array data.
+  uint8_t *values;
+  /// The length of the byte array.
+  int32_t len;
 };
 
 /// The C compatible [SubtitleFile] representation.
@@ -508,7 +525,7 @@ struct EventC {
   };
 
   struct PlayerStopped_Body {
-    const PlayerStoppedEventC *_0;
+    PlayerStoppedEventC _0;
   };
 
   struct PlayVideo_Body {
@@ -810,6 +827,20 @@ void add_to_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 /// These are the setting preferences of the users for the popcorn FX instance.
 PopcornSettingsC *application_settings(PopcornFX *popcorn_fx);
 
+/// Retrieve the default artwork (placeholder) image data as a C-compatible byte array.
+///
+/// This function returns a C-compatible byte array containing the data for the default artwork (placeholder) image.
+/// The default artwork image is typically used as a fallback when an artwork image is not available for a media item or is still being loaded.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
+ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
+
 /// Retrieve the auto-resume timestamp for the given media id and/or filename.
 uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const char *filename);
 
@@ -819,6 +850,15 @@ SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 /// Disable the subtitle track on request of the user.
 /// This will make the [is_subtitle_disabled] return `true`.
 void disable_subtitle(PopcornFX *popcorn_fx);
+
+/// Frees the memory allocated for the given C-compatible byte array.
+///
+/// This function should be called from C code in order to free memory that has been allocated by Rust.
+///
+/// # Safety
+///
+/// This function should only be called on C-compatible byte arrays that have been allocated by Rust.
+void dispose_byte_array(Box<ByteArray> array);
 
 /// Dispose the given media item from memory.
 void dispose_media_item(Box<MediaItemC> media);
@@ -903,6 +943,55 @@ bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
 /// Verify if the youtube video player has been disabled.
 bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
 
+/// Loads the fanart image data for the given media item.
+///
+/// This function should be called from C code in order to load fanart image data for a media item.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to the `PopcornFX` instance that will load the image data.
+/// * `media` - a C-compatible media item holder that contains information about the media item to load.
+///
+/// # Returns
+///
+/// If fanart image data is available for the media item, a C-compatible byte array containing the image data is returned.
+/// Otherwise, a placeholder byte array is returned.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
+ByteArray *load_fanart(PopcornFX *popcorn_fx, const MediaItemC *media);
+
+/// Load the image data from the given URL.
+///
+/// If image data is available for the provided URL, it is returned as a ByteArray.
+/// Otherwise, a null pointer is returned when the data couldn't be loaded.
+///
+/// # Arguments
+///
+/// * popcorn_fx - a mutable reference to a PopcornFX instance.
+/// * url - a pointer to a null-terminated C string that contains the URL from which to load the image data.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the dispose_byte_array function.
+ByteArray *load_image(PopcornFX *popcorn_fx, const char *url);
+
+/// Load the poster image data for the given media item.
+///
+/// If poster image data is available for the media item, it is returned as a `ByteArray`.
+/// Otherwise, a placeholder `ByteArray` containing the default poster holder image data is returned.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+/// * `media` - a reference to a `MediaItemC` object that represents the media item to load.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
+ByteArray *load_poster(PopcornFX *popcorn_fx, const MediaItemC *media);
+
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
 /// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
@@ -913,6 +1002,24 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
+
+/// Retrieve the default poster (placeholder) image data as a C compatible byte array.
+///
+/// This function returns a pointer to a `ByteArray` struct that contains the data for the default poster placeholder image.
+/// The default poster placeholder image is typically used as a fallback when a poster image is not available for a media item.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+///
+/// # Returns
+///
+/// A pointer to a `ByteArray` struct containing the default poster holder image data.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
+ByteArray *poster_placeholder(PopcornFX *popcorn_fx);
 
 /// Publish a new application event over the FFI layer.
 /// This will invoke the [popcorn_fx_core::core::events::EventPublisher] publisher on the backend.

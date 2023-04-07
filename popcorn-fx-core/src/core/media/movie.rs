@@ -41,10 +41,6 @@ impl MovieOverview {
             images,
         }
     }
-
-    pub fn images(&self) -> &Images {
-        &self.images
-    }
 }
 
 impl MediaIdentifier for MovieOverview {
@@ -71,6 +67,10 @@ impl MediaOverview for MovieOverview {
 
     fn year(&self) -> &String {
         &self.year
+    }
+
+    fn images(&self) -> &Images {
+        &self.images
     }
 }
 
@@ -123,10 +123,6 @@ impl MovieDetails {
         }
     }
 
-    pub fn images(&self) -> &Images {
-        &self.images
-    }
-
     pub fn trailer(&self) -> &String {
         &self.trailer
     }
@@ -174,6 +170,10 @@ impl MediaOverview for MovieDetails {
 
     fn year(&self) -> &String {
         &self.year
+    }
+
+    fn images(&self) -> &Images {
+        &self.images
     }
 }
 

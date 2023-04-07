@@ -1,5 +1,6 @@
-package com.github.yoep.popcorn.backend;
+package com.github.yoep.popcorn.backend.lib;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import lombok.AccessLevel;

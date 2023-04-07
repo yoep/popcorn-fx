@@ -1,11 +1,11 @@
 package com.github.yoep.popcorn.backend.torrent;
 
-import com.github.yoep.popcorn.backend.FxLibInstance;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
+import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.sun.jna.Structure;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import lombok.EqualsAndHashCode;

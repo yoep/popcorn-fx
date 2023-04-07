@@ -176,10 +176,16 @@ pub mod testing {
     }
 
     /// Read a test resource file as a [String].
-    pub fn read_test_file(filename: &str) -> String {
+    pub fn read_test_file_to_string(filename: &str) -> String {
         let source = test_resource_filepath(filename);
 
         fs::read_to_string(&source).unwrap()
+    }
+    
+    pub fn read_test_file_to_bytes(filename: &str) -> Vec<u8> {
+        let source = test_resource_filepath(filename);
+
+        fs::read(&source).unwrap()
     }
 
     /// Read a file from the temp directory.

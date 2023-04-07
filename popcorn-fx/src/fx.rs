@@ -16,6 +16,7 @@ use tokio::sync::{Mutex, MutexGuard};
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
+use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, ThumbEnhancer};
@@ -135,6 +136,7 @@ pub struct PopcornFX {
     updater: Arc<Updater>,
     event_publisher: Arc<EventPublisher>,
     playback_controls: Arc<PlaybackControls>,
+    image_loader: Arc<Box<dyn ImageLoader>>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -195,6 +197,7 @@ impl PopcornFX {
             .platform(platform.clone())
             .event_publisher(event_publisher.clone())
             .build());
+        let image_loader = Arc::new(Box::new(DefaultImageLoader::default()) as Box<dyn ImageLoader>);
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -216,6 +219,7 @@ impl PopcornFX {
             updater: app_updater,
             event_publisher,
             playback_controls,
+            image_loader,
             runtime,
             opts: args,
         }
@@ -289,6 +293,11 @@ impl PopcornFX {
     /// The playback controls handler of the system.
     pub fn playback_controls(&self) -> &Arc<PlaybackControls> {
         &self.playback_controls
+    }
+
+    /// The image loader of the Popcorn FX application.
+    pub fn image_loader(&self) -> &Arc<Box<dyn ImageLoader>> {
+        &self.image_loader
     }
 
     /// Reload the settings of this instance.

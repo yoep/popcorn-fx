@@ -86,11 +86,10 @@ pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
 mod test {
     use std::collections::HashMap;
 
-    use futures::future::err;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, into_c_string};
     use popcorn_fx_core::core::media::{Genre, SortBy};
+    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 
     use crate::test::default_args;

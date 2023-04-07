@@ -13,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -27,8 +26,6 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
     @Mock
-    private RestTemplate restTemplate;
-    @Mock
     private FxLib fxLib;
     @Mock
     private PopcornFx instance;
@@ -36,12 +33,22 @@ class ImageServiceTest {
     private ImageService imageService;
 
     @Test
-    void testGetPosterHolder() {
+    void testGetPosterPlaceholder() {
         var byteArray = mock(ByteArray.class);
         when(byteArray.getBytes()).thenReturn(new byte[0]);
-        when(fxLib.poster_holder(instance)).thenReturn(byteArray);
+        when(fxLib.poster_placeholder(instance)).thenReturn(byteArray);
 
-        var result = imageService.getPosterHolder();
+        var result = imageService.getPosterPlaceholder();
+
+        assertNotNull(result);
+    }
+    @Test
+    void testGetArtworkPlaceholder() {
+        var byteArray = mock(ByteArray.class);
+        when(byteArray.getBytes()).thenReturn(new byte[0]);
+        when(fxLib.artwork_placeholder(instance)).thenReturn(byteArray);
+
+        var result = imageService.getArtPlaceholder();
 
         assertNotNull(result);
     }
@@ -84,6 +91,19 @@ class ImageServiceTest {
         var image = future.get();
 
         assertTrue(image.isPresent());
+    }
+
+    @Test
+    void testLoad() throws ExecutionException, InterruptedException {
+        var url = "http://localhost/image.png";
+        var byteArray = mock(ByteArray.class);
+        when(byteArray.getBytes()).thenReturn(new byte[0]);
+        when(fxLib.load_image(instance, url)).thenReturn(byteArray);
+
+        var future = imageService.load(url);
+        var image = future.get();
+
+        assertNotNull(image);
     }
 
     private MovieDetails createMovie(Images images) {

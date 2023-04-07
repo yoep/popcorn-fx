@@ -8,15 +8,11 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.PostConstruct;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.text.MessageFormat;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -29,14 +25,8 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 public class ImageService {
-    static final String POSTER_HOLDER = "/images/posterholder.png";
-    static final String ART_HOLDER = "/images/artholder.png";
-
-    private final RestTemplate restTemplate;
     private final FxLib fxLib;
     private final PopcornFx instance;
-
-    private Image artHolder;
 
     //region Methods
 
@@ -45,12 +35,13 @@ public class ImageService {
      *
      * @return Returns the poster holder image.
      */
-    public Image getPosterHolder() {
-        return getPosterHolder(0, 0);
+    public Image getPosterPlaceholder() {
+        return getPosterPlaceholder(0, 0);
     }
 
-    public Image getPosterHolder(double requestedWidth, double requestedHeight) {
-        try (var bytes = fxLib.poster_holder(instance)) {
+    public Image getPosterPlaceholder(double requestedWidth, double requestedHeight) {
+        log.debug("Retrieving the poster placeholder");
+        try (var bytes = fxLib.poster_placeholder(instance)) {
             return Optional.of(bytes)
                     .map(ByteArray::getBytes)
                     .map(ByteArrayInputStream::new)
@@ -59,8 +50,15 @@ public class ImageService {
         }
     }
 
-    public Image getArtHolder() {
-        return artHolder;
+    public Image getArtPlaceholder() {
+        log.debug("Retrieving the artwork placeholder");
+        try (var bytes = fxLib.artwork_placeholder(instance)) {
+            return Optional.of(bytes)
+                    .map(ByteArray::getBytes)
+                    .map(ByteArrayInputStream::new)
+                    .map(Image::new)
+                    .get();
+        }
     }
 
     /**
@@ -110,8 +108,9 @@ public class ImageService {
     @Async
     public CompletableFuture<Optional<Image>> loadPoster(final Media media, final double width, final double height) {
         Objects.requireNonNull(media, "media cannot be null");
-        try (var byteArray = fxLib.load_poster(instance, MediaItem.from(media))) {
-            return CompletableFuture.completedFuture(Optional.of(byteArray)
+        log.debug("Loading the poster holder for {}", media);
+        try (var bytes = fxLib.load_poster(instance, MediaItem.from(media))) {
+            return CompletableFuture.completedFuture(Optional.of(bytes)
                     .map(ByteArray::getBytes)
                     .map(ByteArrayInputStream::new)
                     .map(e -> new Image(e, width, height, true, true)));
@@ -131,9 +130,13 @@ public class ImageService {
     @Async
     public CompletableFuture<Image> load(String url) {
         Objects.requireNonNull(url, "url cannot be null");
-        byte[] image = internalLoad(url);
-
-        return CompletableFuture.completedFuture(convertToImage(image));
+        try (var bytes = fxLib.load_image(instance, url)) {
+            return CompletableFuture.completedFuture(Optional.ofNullable(bytes)
+                    .map(ByteArray::getBytes)
+                    .map(ByteArrayInputStream::new)
+                    .map(Image::new)
+                    .orElseThrow(() -> new ImageException(url, "Failed to load image data")));
+        }
     }
 
     /**
@@ -152,57 +155,6 @@ public class ImageService {
             return CompletableFuture.completedFuture(new Image(resource));
         } catch (IOException ex) {
             throw new ImageException(classpathUrl, ex.getMessage(), ex);
-        }
-    }
-
-    //endregion
-
-    //region PostConstruct
-
-    @PostConstruct
-    void init() {
-        loadArtHolder();
-    }
-
-    private void loadArtHolder() {
-        try {
-            artHolder = new Image(new ClassPathResource(ART_HOLDER).getInputStream());
-        } catch (Exception ex) {
-            log.error("Failed to load art holder, " + ex.getMessage(), ex);
-        }
-    }
-
-    //endregion
-
-    //region Functions
-
-    private Image convertToImage(byte[] imageData) {
-        return convertToImage(imageData, 0, 0);
-    }
-
-    private Image convertToImage(byte[] imageData, double width, double height) {
-        var inputStream = new ByteArrayInputStream(imageData);
-
-        return new Image(inputStream, width, height, true, true);
-    }
-
-    /**
-     * Load the image internally using the rest template as it automatically follows the 3xx redirects.
-     *
-     * @param url The image url to load.
-     * @return Returns the image byte data.
-     */
-    byte[] internalLoad(String url) {
-        try {
-            var response = restTemplate.getForEntity(url, byte[].class);
-
-            // check if the response is a success
-            if (response.getStatusCode().is2xxSuccessful())
-                return response.getBody();
-
-            throw new ImageException(url, MessageFormat.format("expected status 2xx, but got {0} instead", response.getStatusCodeValue()));
-        } catch (Exception ex) {
-            throw new ImageException(url, ex.getMessage(), ex);
         }
     }
 

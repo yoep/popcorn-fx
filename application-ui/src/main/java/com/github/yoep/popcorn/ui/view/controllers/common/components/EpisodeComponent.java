@@ -54,7 +54,7 @@ public class EpisodeComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        episodeArt.setImage(imageService.getArtHolder());
+        episodeArt.setImage(imageService.getArtPlaceholder());
         episodeNumber.setText(String.valueOf(media.getEpisode()));
         title.setText(media.getTitle());
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(media.getAirDate())));

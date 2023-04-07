@@ -73,9 +73,9 @@ public class PlayerPlayNextComponent implements Initializable {
         imageService.loadPoster(nextEpisode.getShow()).whenComplete((image, throwable) -> {
             if (throwable == null) {
                 image.ifPresentOrElse(playNextPoster::setImage,
-                        () -> playNextPoster.setImage(imageService.getPosterHolder()));
+                        () -> playNextPoster.setImage(imageService.getPosterPlaceholder()));
             } else {
-                playNextPoster.setImage(imageService.getPosterHolder());
+                playNextPoster.setImage(imageService.getPosterPlaceholder());
                 log.error("Failed to load poster of next episode, " + throwable.getMessage(), throwable);
             }
         });
@@ -103,7 +103,7 @@ public class PlayerPlayNextComponent implements Initializable {
             showName.setText(null);
             episodeTitle.setText(null);
             episodeNumber.setText(null);
-            playNextPoster.setImage(imageService.getPosterHolder());
+            playNextPoster.setImage(imageService.getPosterPlaceholder());
         });
     }
 

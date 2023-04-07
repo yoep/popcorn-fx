@@ -5,8 +5,8 @@ use url::Url;
 
 use crate::core::media::MediaOverview;
 
-const POSTER_HOLDER: &[u8] = include_bytes!("../../../resources/posterholder.png");
-const ART_HOLDER: &[u8] = include_bytes!("../../../resources/artholder.png");
+const POSTER_PLACEHOLDER: &[u8] = include_bytes!("../../../resources/posterholder.png");
+const ART_PLACEHOLDER: &[u8] = include_bytes!("../../../resources/artholder.png");
 const BACKGROUND_HOLDER: &[u8] = include_bytes!("../../../resources/background.jpg");
 
 /// The `ImageLoader` trait is responsible for loading image data from local or remote locations.
@@ -19,11 +19,17 @@ const BACKGROUND_HOLDER: &[u8] = include_bytes!("../../../resources/background.j
 /// All methods in this trait are asynchronous and return a `Future` that will resolve to the image data when it's available.
 #[async_trait]
 pub trait ImageLoader {
-    /// Retrieve the default poster (holder) image data.
+    /// Retrieve the default poster (placeholder) image data.
     ///
     /// This method returns a `Vec<u8>` containing the data for the default poster holder image.
     /// The default poster holder image is typically used as a fallback when a poster image is not available for a media item or is still being loaded.
     fn default_poster(&self) -> Vec<u8>;
+
+    /// Retrieve the default artwork (placeholder) image data.
+    ///
+    /// This method returns a `Vec<u8>` containing the data for the default artwork placeholder image.
+    /// The default artwork placeholder image is typically used as a fallback when artwork image is not available for a media item or is still being loaded.
+    fn default_artwork(&self) -> Vec<u8>;
 
     /// Load the fanart image for the given media item.
     ///
@@ -44,16 +50,35 @@ pub trait ImageLoader {
     ///
     /// * `media` - a reference to a boxed `dyn MediaOverview` object that represents the media item to load.
     async fn load_poster(&self, media: &Box<dyn MediaOverview>) -> Vec<u8>;
+
+    /// Load the image data from the given URL.
+    ///
+    /// This method fetches the image data from the provided URL location and converts it to binary data.
+    /// If the operation succeeds, it returns the image binary data wrapped in a Some variant.
+    /// If the operation fails, it returns None.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL from where to fetch the image data.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Vec<u8>)` - The binary data of the image on success.
+    /// * `None` - If the operation fails.
+    async fn load(&self, url: &str) -> Option<Vec<u8>>;
 }
 
-/// The default image loader implementation used by Popcorn FX.
+/// The DefaultImageLoader struct is an implementation of the ImageLoader trait and is responsible for loading image data from local or remote locations.
+/// This implementation is the default image loader used by the Popcorn FX library.
+///
+/// Most methods implemented from the [ImageLoader] trait are asynchronous and return a Future that will resolve to the image data when it's available.
 #[derive(Debug)]
 pub struct DefaultImageLoader {
     client: Client,
 }
 
 impl DefaultImageLoader {
-    async fn retrieve_image_data(&self, image_url: &str, default_value: &[u8]) -> Vec<u8> {
+    async fn retrieve_image_data(&self, image_url: &str) -> Option<Vec<u8>> {
         trace!("Parsing image url {}", image_url);
         match Url::parse(image_url) {
             Ok(url) => {
@@ -67,27 +92,27 @@ impl DefaultImageLoader {
                             debug!("Retrieved image data from {}", image_url);
                             match response.bytes().await {
                                 Ok(bytes) => {
-                                    bytes.to_vec()
+                                    Some(bytes.to_vec())
                                 }
                                 Err(e) => {
                                     error!("Failed to retrieve the image binary data, {}", e);
-                                    default_value.to_vec()
+                                    None
                                 }
                             }
                         } else {
                             error!("Received invalid response status {} for image url {}", response.status(), image_url);
-                            default_value.to_vec()
+                            None
                         }
                     }
                     Err(e) => {
                         error!("Failed to load image data, {}", e);
-                        default_value.to_vec()
+                        None
                     }
                 }
             }
             Err(e) => {
                 error!("Failed to parse image url, {}", e);
-                default_value.to_vec()
+                None
             }
         }
     }
@@ -96,21 +121,34 @@ impl DefaultImageLoader {
 #[async_trait]
 impl ImageLoader for DefaultImageLoader {
     fn default_poster(&self) -> Vec<u8> {
-        POSTER_HOLDER.to_vec()
+        POSTER_PLACEHOLDER.to_vec()
+    }
+
+    fn default_artwork(&self) -> Vec<u8> {
+        ART_PLACEHOLDER.to_vec()
     }
 
     async fn load_fanart(&self, media: &Box<dyn MediaOverview>) -> Vec<u8> {
         trace!("Loading fanart image for {:?}", media);
         let fanart_url = media.images().fanart();
 
-        self.retrieve_image_data(fanart_url, BACKGROUND_HOLDER).await
+        self.retrieve_image_data(fanart_url).await
+            .or_else(|| Some(BACKGROUND_HOLDER.to_vec()))
+            .unwrap()
     }
 
     async fn load_poster(&self, media: &Box<dyn MediaOverview>) -> Vec<u8> {
         trace!("Loading poster image for {:?}", media);
         let poster_url = media.images().poster();
 
-        self.retrieve_image_data(poster_url, POSTER_HOLDER).await
+        self.retrieve_image_data(poster_url).await
+            .or_else(|| Some(POSTER_PLACEHOLDER.to_vec()))
+            .unwrap()
+    }
+
+    async fn load(&self, url: &str) -> Option<Vec<u8>> {
+        trace!("Loading image data from url for {}", url);
+        self.retrieve_image_data(url).await
     }
 }
 
@@ -134,6 +172,14 @@ mod test {
     use crate::testing::{init_logger, read_test_file_to_bytes};
 
     use super::*;
+
+    #[test]
+    fn test_default_poster() {
+        init_logger();
+        let loader = DefaultImageLoader::default();
+
+        assert_eq!(POSTER_PLACEHOLDER.to_vec(), loader.default_poster())
+    }
 
     #[test]
     fn test_load_fanart() {
@@ -233,7 +279,7 @@ mod test {
             then.status(200)
                 .body(expected_result.as_slice());
         });
-        let media = Box::new(ShowOverview{
+        let media = Box::new(ShowOverview {
             imdb_id: "".to_string(),
             tvdb_id: "".to_string(),
             title: "".to_string(),
@@ -254,5 +300,27 @@ mod test {
         });
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_load_url() {
+        init_logger();
+        let server = MockServer::start();
+        let expected_result = read_test_file_to_bytes("image.png");
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/my-image.png");
+            then.status(200)
+                .body(expected_result.as_slice());
+        });
+        let url = server.url("/my-image.png");
+        let loader = DefaultImageLoader::default();
+        let runtime = Runtime::new().unwrap();
+
+        let result = runtime.block_on(async move {
+            loader.load(url.as_str()).await
+        });
+
+        assert_eq!(Some(expected_result), result)
     }
 }

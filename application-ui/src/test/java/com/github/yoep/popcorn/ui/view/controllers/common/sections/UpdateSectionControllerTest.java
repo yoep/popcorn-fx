@@ -2,16 +2,19 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.updater.*;
 import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.UpdateSectionService;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,17 +23,22 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class UpdateSectionControllerTest {
     @Mock
-    private UpdateSectionService updateSectionService;
+    private UpdateService updateService;
     @Mock
     private ImageService imageService;
     @Mock
@@ -50,18 +58,27 @@ class UpdateSectionControllerTest {
         controller.updateNowButton = new Button();
         controller.logoImage = new ImageView();
         controller.backgroundCover = new BackgroundImageCover();
+        controller.changelogPane = new Pane();
+        controller.versionLabel = new Label();
+        controller.progressPane = new Pane();
+        controller.progressLabel = new Label();
+        controller.progressBar = new ProgressBar();
+        controller.changelogFeaturesLabel = new Label();
+        controller.changelogBugfixesLabel = new Label();
     }
 
     @Test
     void testOnUpdateNowClicked() {
         var event = mock(MouseEvent.class);
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
+        when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
+        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
         controller.initialize(url, resourceBundle);
 
         controller.onUpdateNowClicked(event);
 
         verify(event).consume();
-        verify(updateSectionService).startUpdate();
+        verify(updateService).downloadUpdate();
     }
 
     @Test
@@ -69,12 +86,14 @@ class UpdateSectionControllerTest {
         var event = mock(KeyEvent.class);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
+        when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
+        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
         controller.initialize(url, resourceBundle);
 
         controller.onUpdateNowPressed(event);
 
         verify(event).consume();
-        verify(updateSectionService).startUpdate();
+        verify(updateService).downloadUpdate();
     }
 
     @Test
@@ -84,6 +103,8 @@ class UpdateSectionControllerTest {
         when(backSpaceEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
         when(escapeEvent.getCode()).thenReturn(KeyCode.ESCAPE);
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
+        when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
+        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
         controller.initialize(url, resourceBundle);
 
         controller.onUpdatePressed(backSpaceEvent);
@@ -93,5 +114,30 @@ class UpdateSectionControllerTest {
         controller.onUpdatePressed(escapeEvent);
         verify(backSpaceEvent).consume();
         verify(eventPublisher, times(2)).publish(new CloseUpdateEvent(controller));
+    }
+
+    @Test
+    void testOnDownloadProgress() throws TimeoutException {
+        var listenerHolder = new AtomicReference<UpdateCallback>();
+        var event = new UpdateCallbackEvent.ByValue();
+        event.tag = UpdateCallbackEvent.Tag.DownloadProgress;
+        event.union = new UpdateCallbackEvent.UpdateEventCUnion.ByValue();
+        event.union.download_progress = new UpdateCallbackEvent.DownloadProgressBody();
+        event.union.download_progress.downloadProgress = new DownloadProgress();
+        event.union.download_progress.downloadProgress.totalSize = 1024;
+        event.union.download_progress.downloadProgress.downloaded = 512;
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0));
+            return null;
+        }).when(updateService).register(isA(UpdateCallback.class));
+        when(updateService.getState()).thenReturn(UpdateState.DOWNLOADING);
+        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
+        when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
+        controller.initialize(url, resourceBundle);
+
+        var listener = listenerHolder.get();
+        listener.callback(event);
+
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.progressBar.getProgress() == 0.5);
     }
 }

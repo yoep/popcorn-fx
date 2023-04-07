@@ -80,7 +80,7 @@ class UpdateServiceTest {
 
     @Test
     void testStartUpdateAndExit() {
-        service.startUpdateAndExit();
+        service.startUpdateInstallation();
 
         verify(fxLib).install_update(instance);
     }

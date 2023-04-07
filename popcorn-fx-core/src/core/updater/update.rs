@@ -24,7 +24,7 @@ use crate::VERSION;
 const UPDATE_INFO_FILE: &str = "versions.json";
 const UPDATE_DIRECTORY: &str = "updates";
 
-/// The callback type for update events.
+/// A callback type for update events.
 pub type UpdateCallback = CoreCallback<UpdateEvent>;
 
 /// The update events of the updater.
@@ -36,20 +36,37 @@ pub enum UpdateEvent {
     /// Invoked when a new update is available
     #[display(fmt = "New application update available")]
     UpdateAvailable(VersionInfo),
+    /// Invoked when the update download progresses
+    #[display(fmt = "The update download has progressed to {:?}", _0)]
+    DownloadProgress(DownloadProgress),
 }
 
-/// The state of the updater
+/// The state of the updater.
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum UpdateState {
+    /// The updater is currently checking for a new version.
     CheckingForNewVersion,
+    /// A new update is available for the application.
     UpdateAvailable,
+    /// The updater has found that there is no update available.
     NoUpdateAvailable,
+    /// The updater is currently downloading the update.
     Downloading,
-    /// Indicates that the download has finished.
-    /// The `String` points to the downloaded file on the system.
+    /// The download has finished and the update is ready to be installed.
     DownloadFinished(String),
+    /// The updater is currently installing the update.
     Installing,
+    /// The updater has encountered an error.
     Error,
+}
+
+/// The current progress of the update that is being downloaded.
+#[derive(Debug, Clone)]
+pub struct DownloadProgress {
+    /// The total size of the download in bytes.
+    pub total_size: u64,
+    /// The total downloaded size of the update in bytes.
+    pub downloaded: u64,
 }
 
 /// The updater of the application which is responsible of retrieving
@@ -354,6 +371,10 @@ impl InnerUpdater {
 
                 trace!("Received update download status code {}", status_code);
                 if status_code == StatusCode::OK {
+                    let total_size = response.content_length()
+                        .or_else(|| Some(0))
+                        .unwrap();
+                    let mut downloaded_size = 0;
                     let mut stream = response.bytes_stream();
                     while let Some(chunk) = stream.next().await {
                         let chunk = chunk.map_err(|e| {
@@ -365,6 +386,9 @@ impl InnerUpdater {
                             error!("Failed to write update chunk, {}", e);
                             UpdateError::IO("Failed to write chunk to file".to_string())
                         })?;
+
+                        downloaded_size = downloaded_size + (chunk.len() as u64);
+                        self.trigger_download_progress(total_size, downloaded_size);
                     }
 
                     let filepath_buf = directory.join(filename);
@@ -382,6 +406,13 @@ impl InnerUpdater {
                 Err(UpdateError::DownloadFailed("UNKNOWN".to_string(), e.to_string()))
             }
         }
+    }
+
+    fn trigger_download_progress(&self, total_size: u64, downloaded_size: u64) {
+        self.callbacks.invoke(UpdateEvent::DownloadProgress(DownloadProgress {
+            total_size,
+            downloaded: downloaded_size,
+        }));
     }
 
     async fn create_update_file(&self, directory: &PathBuf, filename: &str) -> updater::Result<tokio::fs::File> {

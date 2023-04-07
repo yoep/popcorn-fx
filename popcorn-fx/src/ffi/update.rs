@@ -48,6 +48,21 @@ pub extern "C" fn install_update(popcorn_fx: &mut PopcornFX) {
 }
 
 /// Register a new callback for update events.
+///
+/// This function registers a new callback listener for update events in the PopcornFX application.
+/// The `callback` argument should be a C-compatible function that will be invoked when an update event occurs.
+///
+/// The `callback` function should take a single argument of type `UpdateEventC` and return nothing.
+/// The `UpdateEventC` type is a C-compatible version of the `UpdateEvent` enum used internally by the PopcornFX updater.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+/// * `callback` - a C-compatible function that will be invoked when an update event occurs.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the provided `callback` function should be a valid C function pointer.
 #[no_mangle]
 pub extern "C" fn register_update_callback(popcorn_fx: &mut PopcornFX, callback: UpdateCallbackC) {
     trace!("Registering new update callback from C");

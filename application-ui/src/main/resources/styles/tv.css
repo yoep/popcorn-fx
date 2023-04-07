@@ -367,6 +367,10 @@
     -fx-max-width: 800;
 }
 
+.root .loader .progress-bar {
+    -fx-pref-height: 1em;
+}
+
 /* endregion */
 
 /* region Details */

@@ -45,8 +45,8 @@
             </VBox.margin>
         </Button>
     </VBox>
-    <VBox fx:id="progressPane" GridPane.columnIndex="2" GridPane.rowIndex="1" alignment="CENTER">
+    <VBox fx:id="progressPane" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.columnSpan="2" alignment="CENTER">
         <Label fx:id="progressLabel" styleClass="status-text"/>
-        <ProgressBar fx:id="progressBarUpdate" cache="true" cacheHint="SPEED" maxWidth="Infinity"/>
+        <ProgressBar fx:id="progressBar" cache="true" cacheHint="SPEED" maxWidth="Infinity"/>
     </VBox>
 </GridPane>

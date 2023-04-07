@@ -41,7 +41,7 @@ public class UpdateService {
 
     //region Methods
 
-    public void startUpdateAndExit() {
+    public void startUpdateInstallation() {
         fxLib.install_update(instance);
     }
 

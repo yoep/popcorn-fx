@@ -9,6 +9,7 @@ public enum UpdateMessage implements Message {
     NO_UPDATE_AVAILABLE("no_update_available"),
     DOWNLOAD_UPDATE("download_update"),
     NEW_VERSION("new_version"),
+    STARTING_DOWNLOAD("update_state_starting_download"),
     DOWNLOADING("update_state_downloading"),
     DOWNLOAD_FINISHED("update_state_download_finished"),
     INSTALLING("update_state_installing"),

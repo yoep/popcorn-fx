@@ -3,21 +3,18 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.updater.Changelog;
-import com.github.yoep.popcorn.backend.updater.UpdateState;
-import com.github.yoep.popcorn.backend.updater.VersionInfo;
+import com.github.yoep.popcorn.backend.updater.*;
 import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
 import com.github.yoep.popcorn.ui.messages.UpdateMessage;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
-import com.github.yoep.popcorn.ui.view.listeners.UpdateListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.UpdateSectionService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -38,7 +35,7 @@ import java.util.stream.Collectors;
 public class UpdateSectionController implements Initializable {
     private static final String PROGRESS_ERROR_STYLE_CLASS = "error";
 
-    private final UpdateSectionService updateSectionService;
+    private final UpdateService updateService;
     private final ImageService imageService;
     private final LocaleText localeText;
     private final EventPublisher eventPublisher;
@@ -60,7 +57,7 @@ public class UpdateSectionController implements Initializable {
     @FXML
     Label progressLabel;
     @FXML
-    ProgressBar progressBarUpdate;
+    ProgressBar progressBar;
     @FXML
     Pane changelogPane;
     @FXML
@@ -74,15 +71,11 @@ public class UpdateSectionController implements Initializable {
     }
 
     private void initializeListener() {
-        updateSectionService.addListener(new UpdateListener() {
-            @Override
-            public void onUpdateInfoChanged(VersionInfo newValue) {
-                UpdateSectionController.this.onUpdateInfoChanged(newValue);
-            }
-
-            @Override
-            public void onUpdateStateChanged(UpdateState newState) {
-                UpdateSectionController.this.onUpdateStateChanged(newState);
+        updateService.register(event -> {
+            switch (event.getTag()) {
+                case UpdateAvailable -> onUpdateInfoChanged(event.getUnion().getUpdate_available().getNewVersion());
+                case StateChanged -> onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
+                case DownloadProgress -> onUpdateDownloadProgress(event.getUnion().getDownload_progress().getDownloadProgress());
             }
         });
         updatePane.sceneProperty().addListener((observable, oldValue, newValue) -> {
@@ -91,7 +84,8 @@ public class UpdateSectionController implements Initializable {
             }
         });
 
-        updateSectionService.updateAll();
+        onUpdateInfoChanged(updateService.getUpdateInfo().orElse(null));
+        onUpdateStateChanged(updateService.getState());
     }
 
     private void initializeLogo() {
@@ -131,11 +125,27 @@ public class UpdateSectionController implements Initializable {
 
         Platform.runLater(() -> {
             switch (newState) {
-                case DOWNLOADING -> handleStateChanged(UpdateMessage.DOWNLOADING);
-                case DOWNLOAD_FINISHED -> handleStateChanged(UpdateMessage.DOWNLOAD_FINISHED);
-                case INSTALLING -> handleStateChanged(UpdateMessage.INSTALLING);
+                case DOWNLOADING -> handleStateChanged(UpdateMessage.STARTING_DOWNLOAD);
+                case DOWNLOAD_FINISHED -> {
+                    handleStateChanged(UpdateMessage.DOWNLOAD_FINISHED);
+                    updateService.startUpdateInstallation();
+                }
+                case INSTALLING -> {
+                    handleStateChanged(UpdateMessage.INSTALLING);
+                    Platform.runLater(() -> progressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS));
+                }
                 case ERROR -> handleUpdateErrorState();
             }
+        });
+    }
+
+    private void onUpdateDownloadProgress(DownloadProgress downloadProgress) {
+        var progress = ((double) downloadProgress.getDownloaded()) / downloadProgress.getTotalSize();
+        var percentage = (int) (progress * 100);
+
+        Platform.runLater(() -> {
+            progressBar.setProgress(progress);
+            progressLabel.setText(localeText.get(UpdateMessage.DOWNLOADING, percentage));
         });
     }
 
@@ -145,12 +155,13 @@ public class UpdateSectionController implements Initializable {
 
     private void handleUpdateErrorState() {
         handleStateChanged(UpdateMessage.ERROR);
-        progressBarUpdate.setProgress(1.0);
-        progressBarUpdate.getStyleClass().add(PROGRESS_ERROR_STYLE_CLASS);
+        progressBar.setProgress(1.0);
+        progressBar.getStyleClass().add(PROGRESS_ERROR_STYLE_CLASS);
     }
 
     private void switchPane(boolean isUpdateProgressOngoing) {
         Platform.runLater(() -> {
+            logoImage.setVisible(!isUpdateProgressOngoing);
             changelogPane.setVisible(!isUpdateProgressOngoing);
             progressPane.setVisible(isUpdateProgressOngoing);
         });
@@ -159,14 +170,14 @@ public class UpdateSectionController implements Initializable {
     @FXML
     void onUpdateNowClicked(MouseEvent event) {
         event.consume();
-        updateSectionService.startUpdate();
+        updateService.downloadUpdate();
     }
 
     @FXML
     void onUpdateNowPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            updateSectionService.startUpdate();
+            updateService.downloadUpdate();
         }
     }
 

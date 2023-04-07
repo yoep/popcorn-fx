@@ -1,6 +1,6 @@
 use std::os::raw::c_char;
 
-use popcorn_fx_core::{into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_string, into_c_string, to_c_vec};
 use popcorn_fx_core::core::updater::{ChangeLog, VersionInfo};
 
 /// The version information from the update channel.
@@ -18,6 +18,12 @@ impl From<&VersionInfo> for VersionInfoC {
             version: into_c_string(value.version().to_string()),
             changelog: ChangelogC::from(&value.changelog),
         }
+    }
+}
+
+impl PartialEq for VersionInfoC {
+    fn eq(&self, other: &Self) -> bool {
+        from_c_string(self.version) == from_c_string(other.version)
     }
 }
 

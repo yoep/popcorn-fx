@@ -25,8 +25,9 @@ public class UpdateCallbackEvent extends Structure implements Closeable {
     public void read() {
         super.read();
         switch (tag) {
-            case StateChanged -> union.setType(UpdateCallbackEvent.StateChangedBody.class);
-            case UpdateAvailable -> union.setType(UpdateCallbackEvent.UpdateAvailableBody.class);
+            case StateChanged -> union.setType(StateChangedBody.class);
+            case UpdateAvailable -> union.setType(UpdateAvailableBody.class);
+            case DownloadProgress -> union.setType(DownloadProgressBody.class);
         }
         union.read();
     }
@@ -64,6 +65,23 @@ public class UpdateCallbackEvent extends Structure implements Closeable {
         @Override
         public void close() {
             setAutoSynch(false);
+            newVersion.close();
+        }
+    }
+
+    @Getter
+    @ToString
+    @FieldOrder({"downloadProgress"})
+    public static class DownloadProgressBody extends Structure implements Closeable {
+        public static class ByReference extends DownloadProgressBody implements Structure.ByReference {
+        }
+
+        public DownloadProgress downloadProgress;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            downloadProgress.close();
         }
     }
 
@@ -73,8 +91,10 @@ public class UpdateCallbackEvent extends Structure implements Closeable {
         public static class ByValue extends UpdateEventCUnion implements Union.ByValue {
 
         }
+
         public StateChangedBody state_changed;
         public UpdateAvailableBody update_available;
+        public DownloadProgressBody download_progress;
 
         @Override
         public void close() {
@@ -82,12 +102,15 @@ public class UpdateCallbackEvent extends Structure implements Closeable {
                     .ifPresent(StateChangedBody::close);
             Optional.ofNullable(update_available)
                     .ifPresent(UpdateAvailableBody::close);
+            Optional.ofNullable(download_progress)
+                    .ifPresent(DownloadProgressBody::close);
         }
     }
 
     public enum Tag implements NativeMapped {
         StateChanged,
-        UpdateAvailable;
+        UpdateAvailable,
+        DownloadProgress;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

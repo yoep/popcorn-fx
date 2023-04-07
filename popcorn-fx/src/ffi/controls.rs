@@ -3,7 +3,18 @@ use log::trace;
 use crate::ffi::PlaybackControlsCallbackC;
 use crate::PopcornFX;
 
-/// Register a new callback listener for the playback controls.
+/// Register a new callback listener for the system playback controls.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+/// * `callback` - a callback function pointer of type `PlaybackControlsCallbackC`.
+///
+/// # Safety
+///
+/// This function should only be called from C code and the callback function should be implemented in C as well.
+/// The `callback` function pointer should point to a valid C function that can receive a `PlaybackControlsEventC` parameter and return nothing.
+/// The callback function will be invoked whenever a playback control event occurs in the system.
 #[no_mangle]
 pub extern "C" fn register_playback_controls(popcorn_fx: &mut PopcornFX, callback: PlaybackControlsCallbackC) {
     trace!("Registering new playback controls callback from C");

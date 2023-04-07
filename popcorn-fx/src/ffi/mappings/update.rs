@@ -1,18 +1,25 @@
-use popcorn_fx_core::core::updater::{UpdateEvent, UpdateState};
+use popcorn_fx_core::core::updater::{DownloadProgress, UpdateEvent, UpdateState};
 
 use crate::ffi::VersionInfoC;
 
 /// The C compatible callback for update events.
 pub type UpdateCallbackC = extern "C" fn(UpdateEventC);
 
-/// The C compatible update events.
+/// The C compatible representation of the update events.
+///
+/// This enum maps to the `UpdateEvent` enum but with C-compatible data types.
+///
+/// # Fields
+///
+/// * `StateChanged(state)` - Invoked when the state of the updater has changed
+/// * `UpdateAvailable(version)` - Invoked when a new update is available
+/// * `DownloadProgress(progress)` - Invoked when the update download progresses
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum UpdateEventC {
-    /// Invoked when the state of the updater has changed
     StateChanged(UpdateStateC),
-    /// Invoked when a new update is available
     UpdateAvailable(VersionInfoC),
+    DownloadProgress(DownloadProgressC),
 }
 
 impl From<UpdateEvent> for UpdateEventC {
@@ -20,6 +27,7 @@ impl From<UpdateEvent> for UpdateEventC {
         match value {
             UpdateEvent::StateChanged(state) => UpdateEventC::StateChanged(UpdateStateC::from(state)),
             UpdateEvent::UpdateAvailable(version) => UpdateEventC::UpdateAvailable(VersionInfoC::from(&version)),
+            UpdateEvent::DownloadProgress(progress) => UpdateEventC::DownloadProgress(DownloadProgressC::from(progress))
         }
     }
 }
@@ -38,7 +46,7 @@ pub enum UpdateStateC {
     Error = 6,
 }
 
-impl From<UpdateState> for UpdateStateC{
+impl From<UpdateState> for UpdateStateC {
     fn from(value: UpdateState) -> Self {
         match value {
             UpdateState::CheckingForNewVersion => UpdateStateC::CheckingForNewVersion,
@@ -48,6 +56,30 @@ impl From<UpdateState> for UpdateStateC{
             UpdateState::DownloadFinished(_) => UpdateStateC::DownloadFinished,
             UpdateState::Installing => UpdateStateC::Installing,
             UpdateState::Error => UpdateStateC::Error,
+        }
+    }
+}
+
+/// The C-compatible representation of the [DownloadProgress] struct.
+///
+/// This struct is used to provide C code access to the download progress of an update event.
+///
+/// # Fields
+///
+/// * `total_size` - The total size of the update download in bytes.
+/// * `downloaded` - The total number of bytes downloaded so far.
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct DownloadProgressC {
+    pub total_size: u64,
+    pub downloaded: u64,
+}
+
+impl From<DownloadProgress> for DownloadProgressC {
+    fn from(value: DownloadProgress) -> Self {
+        Self {
+            total_size: value.total_size,
+            downloaded: value.downloaded,
         }
     }
 }
@@ -69,11 +101,38 @@ mod test {
     }
 
     #[test]
+    fn test_from_update_event_download_progress() {
+        let progress = DownloadProgress {
+            total_size: 1024,
+            downloaded: 512,
+        };
+        let event = UpdateEvent::DownloadProgress(progress.clone());
+        let expected = UpdateEventC::DownloadProgress(DownloadProgressC::from(progress));
+
+        let actual = UpdateEventC::from(event);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn test_from_update_state() {
         assert_eq!(UpdateStateC::CheckingForNewVersion, UpdateStateC::from(UpdateState::CheckingForNewVersion));
         assert_eq!(UpdateStateC::NoUpdateAvailable, UpdateStateC::from(UpdateState::NoUpdateAvailable));
         assert_eq!(UpdateStateC::UpdateAvailable, UpdateStateC::from(UpdateState::UpdateAvailable));
         assert_eq!(UpdateStateC::Downloading, UpdateStateC::from(UpdateState::Downloading));
         assert_eq!(UpdateStateC::DownloadFinished, UpdateStateC::from(UpdateState::DownloadFinished(String::new())));
+    }
+
+    #[test]
+    fn test_from_download_progress() {
+        let progress = DownloadProgress {
+            total_size: 1024,
+            downloaded: 512,
+        };
+
+        let progress_c = DownloadProgressC::from(progress);
+
+        assert_eq!(progress_c.total_size, 1024);
+        assert_eq!(progress_c.downloaded, 512);
     }
 }

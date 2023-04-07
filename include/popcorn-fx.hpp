@@ -677,13 +677,33 @@ struct VersionInfoC {
   ChangelogC changelog;
 };
 
-/// The C compatible update events.
+/// The C-compatible representation of the [DownloadProgress] struct.
+///
+/// This struct is used to provide C code access to the download progress of an update event.
+///
+/// # Fields
+///
+/// * `total_size` - The total size of the update download in bytes.
+/// * `downloaded` - The total number of bytes downloaded so far.
+struct DownloadProgressC {
+  uint64_t total_size;
+  uint64_t downloaded;
+};
+
+/// The C compatible representation of the update events.
+///
+/// This enum maps to the `UpdateEvent` enum but with C-compatible data types.
+///
+/// # Fields
+///
+/// * `StateChanged(state)` - Invoked when the state of the updater has changed
+/// * `UpdateAvailable(version)` - Invoked when a new update is available
+/// * `DownloadProgress(progress)` - Invoked when the update download progresses
 struct UpdateEventC {
   enum class Tag {
-    /// Invoked when the state of the updater has changed
     StateChanged,
-    /// Invoked when a new update is available
     UpdateAvailable,
+    DownloadProgress,
   };
 
   struct StateChanged_Body {
@@ -694,10 +714,15 @@ struct UpdateEventC {
     VersionInfoC _0;
   };
 
+  struct DownloadProgress_Body {
+    DownloadProgressC _0;
+  };
+
   Tag tag;
   union {
     StateChanged_Body state_changed;
     UpdateAvailable_Body update_available;
+    DownloadProgress_Body download_progress;
   };
 };
 
@@ -1030,7 +1055,18 @@ void publish_event(PopcornFX *popcorn_fx, EventC event);
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
 
-/// Register a new callback listener for the playback controls.
+/// Register a new callback listener for the system playback controls.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+/// * `callback` - a callback function pointer of type `PlaybackControlsCallbackC`.
+///
+/// # Safety
+///
+/// This function should only be called from C code and the callback function should be implemented in C as well.
+/// The `callback` function pointer should point to a valid C function that can receive a `PlaybackControlsEventC` parameter and return nothing.
+/// The callback function will be invoked whenever a playback control event occurs in the system.
 void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC callback);
 
 /// Register a new callback for all setting events.
@@ -1043,6 +1079,21 @@ void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callbac
 void register_torrent_stream_callback(TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
 
 /// Register a new callback for update events.
+///
+/// This function registers a new callback listener for update events in the PopcornFX application.
+/// The `callback` argument should be a C-compatible function that will be invoked when an update event occurs.
+///
+/// The `callback` function should take a single argument of type `UpdateEventC` and return nothing.
+/// The `UpdateEventC` type is a C-compatible version of the `UpdateEvent` enum used internally by the PopcornFX updater.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+/// * `callback` - a C-compatible function that will be invoked when an update event occurs.
+///
+/// # Safety
+///
+/// This function should only be called from C code, and the provided `callback` function should be a valid C function pointer.
 void register_update_callback(PopcornFX *popcorn_fx, UpdateCallbackC callback);
 
 /// Register a new callback listener for watched events.

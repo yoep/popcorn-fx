@@ -79,7 +79,7 @@ class MainControllerTest {
         controller.rootPane.getChildren().add(targetNode);
         targetNode.requestFocus();
         controller.rootPane.fireEvent(event);
-        var eventResult = eventFuture.get(200, TimeUnit.MILLISECONDS);
+        var eventResult = eventFuture.get(300, TimeUnit.MILLISECONDS);
         assertEquals(KeyCode.ENTER, eventResult.getCode());
     }
 

@@ -76,6 +76,7 @@ class MainControllerTest {
         when(applicationConfig.isMouseDisabled()).thenReturn(true);
 
         controller.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.loaderPane != null);
         assertEquals(Cursor.NONE, controller.rootPane.getCursor());
         assertTrue(controller.rootPane.getStyleClass().contains(MainController.MOUSE_DISABLED_STYLE_CLASS));
 

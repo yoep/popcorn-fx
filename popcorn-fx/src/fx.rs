@@ -43,7 +43,8 @@ use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 static INIT: Once = Once::new();
 
 const LOG_FILENAME: &str = "log4.yml";
-const LOG_FORMAT: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I:>6.6} --- [{T:>15.15}] {M} : {m}{n}";
+const LOG_FORMAT_CONSOLE: &str = "\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}";
+const LOG_FORMAT_FILE: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I:>6.6} --- [{T:>15.15}] {t:<40.40} : {m}{n}";
 const CONSOLE_APPENDER: &str = "stdout";
 const FILE_APPENDER: &str = "file";
 const LOG_FILE_DIRECTORY: &str = "logs";
@@ -350,7 +351,7 @@ impl PopcornFX {
                 let rolling_file_appender = Self::create_rolling_file_appender(args);
                 let mut config_builder = Config::builder()
                     .appender(Appender::builder().build(CONSOLE_APPENDER, Box::new(ConsoleAppender::builder()
-                        .encoder(Box::new(PatternEncoder::new(LOG_FORMAT)))
+                        .encoder(Box::new(PatternEncoder::new(LOG_FORMAT_CONSOLE)))
                         .build())))
                     .appender(rolling_file_appender);
 
@@ -392,7 +393,7 @@ impl PopcornFX {
                 .expect("expected the window roller to be valid")));
 
         Appender::builder().build(FILE_APPENDER, Box::new(RollingFileAppender::builder()
-            .encoder(Box::new(PatternEncoder::new(LOG_FORMAT)))
+            .encoder(Box::new(PatternEncoder::new(LOG_FORMAT_FILE)))
             .append(false)
             .build(log_path.clone(), Box::new(policy))
             .map_err(|e| {

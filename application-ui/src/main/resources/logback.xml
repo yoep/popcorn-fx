@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+    <appender name="bridge" class="com.github.yoep.popcorn.backend.logging.LoggingBridge"/>
+
+    <root level="INFO">
+        <appender-ref ref="bridge"/>
+    </root>
+</configuration>

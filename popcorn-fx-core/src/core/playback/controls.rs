@@ -153,7 +153,7 @@ impl InnerPlaybackControls {
     fn notify_media_playback(&self, event: PlayVideoEvent) {
         debug!("Notifying system that a new media playback is being started");
         self.platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
-            title: event.title.clone(),
+            title: event.title,
             subtitle: event.subtitle,
             thumb: event.thumb,
         }))

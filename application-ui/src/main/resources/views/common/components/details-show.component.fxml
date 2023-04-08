@@ -58,7 +58,7 @@
         </HBox>
 
         <!-- Synopsis/overview text -->
-        <Label fx:id="overview" styleClass="overview" wrapText="true"
+        <Label fx:id="overview" styleClass="overview" wrapText="true" alignment="TOP_LEFT"
                GridPane.columnIndex="2" GridPane.rowIndex="2"/>
 
         <!-- PLACEHOLDER SERIE ACTIONS -->

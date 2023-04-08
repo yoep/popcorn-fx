@@ -1,4 +1,5 @@
 use std::env;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Once};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -7,6 +8,10 @@ use clap::Parser;
 use derive_more::Display;
 use log::{info, LevelFilter, warn};
 use log4rs::append::console::ConsoleAppender;
+use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
+use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
+use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
+use log4rs::append::rolling_file::RollingFileAppender;
 use log4rs::Config;
 use log4rs::config::{Appender, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
@@ -40,6 +45,10 @@ static INIT: Once = Once::new();
 const LOG_FILENAME: &str = "log4.yml";
 const LOG_FORMAT: &str = "{d(%Y-%m-%d %H:%M:%S%.3f)} {h({l:>5.5})} {I:>6.6} --- [{T:>15.15}] {M} : {m}{n}";
 const CONSOLE_APPENDER: &str = "stdout";
+const FILE_APPENDER: &str = "file";
+const LOG_FILE_DIRECTORY: &str = "logs";
+const LOG_FILE_NAME: &str = "popcorn-time.log";
+const LOG_FILE_SIZE: u64 = 50 * 1024 * 1024;
 const DEFAULT_APP_DIRECTORY_NAME: &str = ".popcorn-time";
 const DEFAULT_APP_DIRECTORY: fn() -> String = || {
     let mut app_path = home::home_dir().expect("expected a home dir to exist");
@@ -338,10 +347,12 @@ impl PopcornFX {
                     Ok(e) => config = e,
                 };
             } else {
+                let rolling_file_appender = Self::create_rolling_file_appender(args);
                 let mut config_builder = Config::builder()
                     .appender(Appender::builder().build(CONSOLE_APPENDER, Box::new(ConsoleAppender::builder()
                         .encoder(Box::new(PatternEncoder::new(LOG_FORMAT)))
-                        .build())));
+                        .build())))
+                    .appender(rolling_file_appender);
 
                 for (logger, logging) in args.properties.loggers.iter() {
                     config_builder = config_builder.logger(Logger::builder()
@@ -357,6 +368,7 @@ impl PopcornFX {
                 config = config_builder
                     .build(Root::builder()
                         .appender(CONSOLE_APPENDER)
+                        .appender(FILE_APPENDER)
                         .build(LevelFilter::from_str(root_level.as_str()).unwrap()))
                     .unwrap()
             }
@@ -366,6 +378,28 @@ impl PopcornFX {
                 Err(e) => eprintln!("Failed to configure logger, {}", e),
             }
         });
+    }
+
+    fn create_rolling_file_appender(args: &PopcornFxArgs) -> Appender {
+        let log_path = PathBuf::from(args.app_directory.clone())
+            .join(LOG_FILE_DIRECTORY)
+            .join(LOG_FILE_NAME);
+        let policy = CompoundPolicy::new(
+            Box::new(SizeTrigger::new(LOG_FILE_SIZE)),
+            Box::new(FixedWindowRoller::builder()
+                .base(1)
+                .build("popcorn-time.{}.log", 5)
+                .expect("expected the window roller to be valid")));
+
+        Appender::builder().build(FILE_APPENDER, Box::new(RollingFileAppender::builder()
+            .encoder(Box::new(PatternEncoder::new(LOG_FORMAT)))
+            .append(false)
+            .build(log_path.clone(), Box::new(policy))
+            .map_err(|e| {
+                eprintln!("Invalid log path {:?}, {}", log_path, e);
+                e
+            })
+            .unwrap()))
     }
 
     fn new_runtime() -> Runtime {
@@ -537,5 +571,24 @@ mod test {
 
         // should not panic on the invalid level
         PopcornFX::initialize_logger(&args);
+    }
+
+    #[test]
+    fn test() {
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
+            app_directory: DEFAULT_APP_DIRECTORY(),
+            disable_logger: false,
+            disable_mouse: false,
+            disable_youtube_video_player: false,
+            disable_fx_video_player: false,
+            disable_vlc_video_player: false,
+            tv: false,
+            maximized: false,
+            kiosk: false,
+            insecure: false,
+            properties: Default::default(),
+        });
     }
 }

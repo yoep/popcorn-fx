@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.backend.controls;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 
+import java.util.Arrays;
+
 public enum PlaybackControlEvent implements NativeMapped {
     TogglePlaybackState,
     Forward,
@@ -10,8 +12,10 @@ public enum PlaybackControlEvent implements NativeMapped {
 
     @Override
     public Object fromNative(Object nativeValue, FromNativeContext context) {
-        var ordinal = (int) nativeValue;
-        return PlaybackControlEvent.values()[ordinal];
+        return Arrays.stream(values())
+                .filter(e -> e.ordinal() == (int) nativeValue)
+                .findFirst()
+                .orElse(null);
     }
 
     @Override

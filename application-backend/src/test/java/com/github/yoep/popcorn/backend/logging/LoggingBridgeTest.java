@@ -53,4 +53,28 @@ class LoggingBridgeTest {
 
         verify(fxLib).log("java::LoggingBridgeTest", "dolor", LogLevel.INFO);
     }
+
+    @Test
+    void testAppendWarn() {
+        var event = mock(ILoggingEvent.class);
+        when(event.getFormattedMessage()).thenReturn("sit");
+        when(event.getLevel()).thenReturn(Level.WARN);
+        when(event.getLoggerName()).thenReturn("LoggingBridgeTest");
+
+        bridge.append(event);
+
+        verify(fxLib).log("java::LoggingBridgeTest", "sit", LogLevel.WARN);
+    }
+
+    @Test
+    void testAppendError() {
+        var event = mock(ILoggingEvent.class);
+        when(event.getFormattedMessage()).thenReturn("amit");
+        when(event.getLevel()).thenReturn(Level.ERROR);
+        when(event.getLoggerName()).thenReturn("LoggingBridgeTest");
+
+        bridge.append(event);
+
+        verify(fxLib).log("java::LoggingBridgeTest", "amit", LogLevel.ERROR);
+    }
 }

@@ -218,6 +218,11 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         this.setVbarPolicy(ScrollBarPolicy.NEVER);
         this.getStyleClass().add(STYLE_CLASS);
         this.setFocusTraversable(true);
+        this.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                traverseFocusToItem();
+            }
+        });
 
         items.addListener((MapChangeListener<? super T, ? super Node>) change -> {
             if (change.wasRemoved()) {
@@ -247,6 +252,22 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
 
         orientationProperty().addListener((observable, oldValue, newValue) -> updateOrientation());
         updateOrientation();
+    }
+
+    void traverseFocusToItem() {
+        if (getSelectedItem() != null) {
+            requestFocus();
+        } else {
+            if (content.getChildren().size() > 0) {
+                var node = content.getChildren().get(0);
+                for (Map.Entry<T, Node> entry : items.entrySet()) {
+                    if (entry.getValue() == node) {
+                        scrollTo(entry.getKey(), true);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private void updateOrientation() {

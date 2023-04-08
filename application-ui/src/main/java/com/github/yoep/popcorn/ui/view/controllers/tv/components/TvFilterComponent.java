@@ -34,7 +34,7 @@ public class TvFilterComponent implements Initializable {
     private final PopcornFx instance;
 
     final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500.0), new Pane());
-    final PauseTransition searchTimeout = new PauseTransition(Duration.seconds(2));
+    final PauseTransition searchTimeout = new PauseTransition(Duration.seconds(3));
 
     @FXML
     VBox filter;
@@ -50,7 +50,7 @@ public class TvFilterComponent implements Initializable {
         initializeSlideAnimation();
         initializeEvents();
 
-        searchTimeout.setOnFinished(e -> eventPublisher.publish(new SearchEvent(this, virtualKeyboard.getText())));
+        searchTimeout.setOnFinished(e -> onSearch());
         filter.focusWithinProperty().addListener((observable, oldValue, newValue) -> onFocusChanged(newValue));
         virtualKeyboard.textProperty().addListener((observable, oldValue, newValue) -> {
             searchValue.setText(newValue);
@@ -76,6 +76,14 @@ public class TvFilterComponent implements Initializable {
             return event;
         });
         eventPublisher.register(CategoryChangedEvent.class, this::onCategoryChanged);
+    }
+
+    private void onSearch() {
+        var value = virtualKeyboard.getText();
+
+        if (value.length() == 0 || value.length() >= 3) {
+            eventPublisher.publish(new SearchEvent(this, virtualKeyboard.getText()));
+        }
     }
 
     private void onFocusChanged(boolean newValue) {

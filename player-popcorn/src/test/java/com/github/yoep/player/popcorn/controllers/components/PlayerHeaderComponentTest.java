@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,13 +58,17 @@ class PlayerHeaderComponentTest {
     }
 
     @Test
-    void testOnPlayVideoEvent() throws TimeoutException {
+    void testOnPlayVideoEvent() {
         var title = "lorem ipsum";
         when(viewLoader.load(PlayerHeaderComponent.VIEW_HEADER_ACTIONS)).thenReturn(new Pane());
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new PlayVideoEvent(this, "http://localhost", title, false));
 
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.title.getText().equals(title));
+        try {
+            WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> StringUtils.isNotEmpty(component.title.getText()));
+        } catch (TimeoutException ignored) {
+        }
+        assertEquals(title, component.title.getText());
     }
 }

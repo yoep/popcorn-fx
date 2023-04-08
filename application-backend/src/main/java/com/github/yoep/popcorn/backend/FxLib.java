@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.logging.LogLevel;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaSet;
@@ -206,6 +207,8 @@ public interface FxLib extends Library {
     ByteArray load_poster(PopcornFx instance, MediaItem item);
 
     ByteArray load_image(PopcornFx instance, String url);
+
+    void log(String target, String message, LogLevel level);
 
     void dispose_media_item(MediaItem media);
 

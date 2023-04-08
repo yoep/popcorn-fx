@@ -3,11 +3,13 @@ package com.github.yoep.popcorn.backend.events;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 @Getter
+@ToString
 @EqualsAndHashCode(callSuper = false)
 public class PlayVideoEvent extends ApplicationEvent {
     /**

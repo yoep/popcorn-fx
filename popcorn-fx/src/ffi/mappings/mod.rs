@@ -1,6 +1,7 @@
 pub use arrays::*;
 pub use controls::*;
 pub use events::*;
+pub use log_bridge::*;
 pub use media::*;
 pub use media_mappers::*;
 pub use settings::*;
@@ -11,6 +12,7 @@ pub use version_info::*;
 mod arrays;
 mod controls;
 mod events;
+mod log_bridge;
 mod media;
 mod media_mappers;
 mod settings;

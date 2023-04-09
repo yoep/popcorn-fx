@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use clap::Parser;
 use derive_more::Display;
+use directories::UserDirs;
 use log::{info, LevelFilter, warn};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
@@ -51,11 +52,14 @@ const LOG_FILE_DIRECTORY: &str = "logs";
 const LOG_FILE_NAME: &str = "popcorn-time.log";
 const LOG_FILE_SIZE: u64 = 50 * 1024 * 1024;
 const DEFAULT_APP_DIRECTORY_NAME: &str = ".popcorn-time";
-const DEFAULT_APP_DIRECTORY: fn() -> String = || {
-    let mut app_path = home::home_dir().expect("expected a home dir to exist");
-    app_path.push(DEFAULT_APP_DIRECTORY_NAME);
-    app_path.to_str().unwrap().to_string()
-};
+const DEFAULT_APP_DIRECTORY: fn() -> String = || UserDirs::new()
+    .map(|e| PathBuf::from(e.home_dir()))
+    .map(|mut e| {
+        e.push(DEFAULT_APP_DIRECTORY_NAME);
+        e
+    })
+    .map(|e| e.to_str().expect("expected a valid home path").to_string())
+    .expect("expected a home directory to exist");
 
 /// The options for the [PopcornFX] instance.
 #[derive(Debug, Clone, Display, Parser)]

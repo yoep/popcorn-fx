@@ -1,0 +1,25 @@
+[package]
+name = "popcorn-fx-bootstrap"
+version = "0.6.5"
+edition = "2021"
+rust-version = "1.62"
+publish = false
+license-file = "../LICENSE"
+
+[[bin]]
+name = "popcorn-fx"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+directories.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
+mockall = "0"
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util", "macros"] }

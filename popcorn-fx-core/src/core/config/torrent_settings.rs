@@ -1,16 +1,18 @@
 use std::path::PathBuf;
 
 use derive_more::Display;
+use directories::UserDirs;
 use serde::{Deserialize, Serialize};
 
 use crate::core::config::DEFAULT_HOME_DIRECTORY;
 
 const DEFAULT_TORRENT_DIRECTORY_NAME: &str = "torrents";
-const DEFAULT_DIRECTORY: fn() -> PathBuf = || home::home_dir()
+const DEFAULT_DIRECTORY: fn() -> PathBuf = || UserDirs::new()
+    .map(|e| PathBuf::from(e.home_dir()))
     .map(|e| e
         .join(DEFAULT_HOME_DIRECTORY)
         .join(DEFAULT_TORRENT_DIRECTORY_NAME))
-    .expect("Home directory should exist");
+    .expect("expected a home directory to exist");
 const DEFAULT_AUTO_CLEANING: fn() -> bool = || true;
 const DEFAULT_CONNECTIONS_LIMIT: fn() -> u32 = || 300;
 const DEFAULT_DOWNLOAD_RATE_LIMIT: fn() -> u32 = || 0;

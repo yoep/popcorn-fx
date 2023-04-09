@@ -186,6 +186,8 @@ public interface FxLib extends Library {
 
     UpdateState update_state(PopcornFx instance);
 
+    void check_for_updates(PopcornFx instance);
+
     void download_update(PopcornFx instance);
 
     void install_update(PopcornFx instance);

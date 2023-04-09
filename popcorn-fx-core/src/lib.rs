@@ -181,7 +181,7 @@ pub mod testing {
 
         fs::read_to_string(&source).unwrap()
     }
-    
+
     pub fn read_test_file_to_bytes(filename: &str) -> Vec<u8> {
         let source = test_resource_filepath(filename);
 
@@ -210,6 +210,31 @@ pub mod testing {
             panic!("Temp filepath {:?} does not exist", path)
         }
     }
+
+    #[macro_export]
+    macro_rules! assert_timeout {
+    ($timeout:expr, $condition:expr) => {{
+        use std::thread;
+        use std::time::{Duration, Instant};
+
+        let start_time = Instant::now();
+        let timeout: Duration = $timeout;
+
+        let result = loop {
+            if $condition {
+                break true;
+            }
+            if start_time.elapsed() >= timeout {
+                break false;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+
+        if !result {
+            assert!(false, "Timeout assertion failed after {:?}", $timeout);
+        }
+    }};
+}
 }
 
 #[cfg(test)]

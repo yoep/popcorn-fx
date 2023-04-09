@@ -1,10 +1,10 @@
 {
-  "version": "0.6.4",
+  "version": "0.6.5",
   "platforms": {
-    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.4/popcorn-time_0.6.4.deb",
-    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.4/popcorn-time_0.6.4_arm64.deb",
-    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.4/popcorn-time_0.6.4.dmg",
-    "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.4/popcorn-time_0.6.4.exe"
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/popcorn-time_0.6.5.deb",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/popcorn-time_0.6.5_arm64.deb",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/popcorn-time_0.6.5.dmg",
+    "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/popcorn-time_0.6.5.exe"
   },
   "changelog": {
     "features": [

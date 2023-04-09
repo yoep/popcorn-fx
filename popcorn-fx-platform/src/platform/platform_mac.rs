@@ -4,8 +4,6 @@ use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
 use log::{debug, info, warn};
 
-use popcorn_fx_core::core::platform::Platform;
-
 use crate::platform::SystemPlatform;
 
 const KIOPMASSERTIONLEVEL_ON: u32 = 255;

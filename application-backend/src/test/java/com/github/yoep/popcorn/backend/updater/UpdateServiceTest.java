@@ -85,6 +85,13 @@ class UpdateServiceTest {
         verify(fxLib).install_update(instance);
     }
 
+    @Test
+    void testCheckForUpdates() {
+        service.checkForUpdates();
+
+        verify(fxLib).check_for_updates(instance);
+    }
+
     private static UpdateCallbackEvent.ByValue createStateChangedEvent(UpdateState state) {
         var event = new UpdateCallbackEvent.ByValue();
         event.tag = UpdateCallbackEvent.Tag.StateChanged;

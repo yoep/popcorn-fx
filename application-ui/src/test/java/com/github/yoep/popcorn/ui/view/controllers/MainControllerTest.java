@@ -10,10 +10,8 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.input.PickResult;
+import javafx.scene.control.Button;
+import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,7 +63,7 @@ class MainControllerTest {
     }
 
     @Test
-    void testOnMouseDisabled() throws ExecutionException, InterruptedException, TimeoutException {
+    void testOnMouseDisabledMouseEvent() throws ExecutionException, InterruptedException, TimeoutException {
         var eventFuture = new CompletableFuture<KeyEvent>();
         var targetNode = new Icon();
         var event = new MouseEvent(MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, MouseButton.PRIMARY, 1, false, false, false, false, true,
@@ -86,6 +84,24 @@ class MainControllerTest {
         // TODO: fix this test, it doesn't work within github actions
 //        var eventResult = eventFuture.get(200, TimeUnit.MILLISECONDS);
 //        assertEquals(KeyCode.ENTER, eventResult.getCode());
+    }
+
+    @Test
+    void testOnMouseDisabledKeyEvent() throws TimeoutException {
+        var eventFuture = new CompletableFuture<KeyEvent>();
+        var targetNode = new Button();
+        var event = new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, "", "", KeyCode.UNDEFINED, false, false, false, false);
+        var scene = new Scene(controller.rootPane);
+        targetNode.setOnKeyPressed(eventFuture::complete);
+        when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
+        when(applicationConfig.isMouseDisabled()).thenReturn(true);
+
+        controller.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.loaderPane != null);
+
+        controller.rootPane.getChildren().add(targetNode);
+        targetNode.requestFocus();
+        controller.rootPane.fireEvent(event);
     }
 
     @Test

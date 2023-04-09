@@ -182,7 +182,7 @@ public class Overlay extends GridPane {
     }
 
     private void onKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE || event.getCode() == KeyCode.UNDEFINED) {
+        if (event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.ESCAPE) {
             event.consume();
             hide();
         }

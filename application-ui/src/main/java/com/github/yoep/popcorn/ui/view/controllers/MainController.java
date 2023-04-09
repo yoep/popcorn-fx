@@ -109,6 +109,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             });
             log.trace("Disabling mouse events on the root pane");
             rootPane.addEventFilter(MouseEvent.ANY, this::handleRootMouseEvent);
+            rootPane.addEventFilter(KeyEvent.KEY_PRESSED, this::handleRootKeyEvent);
         }
     }
 
@@ -299,6 +300,20 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         }
     }
 
+    private void handleRootKeyEvent(KeyEvent event) {
+        if (event.getCode() == KeyCode.UNDEFINED) {
+            event.consume();
+            Optional.ofNullable(rootPane.getScene())
+                    .map(Scene::getFocusOwner)
+                    .ifPresent(focussedNode -> {
+                        var keyEvent = new KeyEvent(focussedNode, focussedNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(),
+                                KeyCode.BACK_SPACE.getName(), KeyCode.BACK_SPACE
+                                , false, false, false, false);
+                        focussedNode.fireEvent(keyEvent);
+                    });
+        }
+    }
+
     private KeyEvent mapMouseEventToKeyEvent(MouseEvent event, Node targetNode) {
         return switch (event.getButton()) {
             case BACK, SECONDARY ->
@@ -307,9 +322,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             case MIDDLE ->
                     new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.HOME.getChar(), KeyCode.HOME.getName(), KeyCode.HOME, false, false,
                             false, false);
-            default ->
-                    new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false,
-                            false, false);
+            default -> new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false,
+                    false, false);
         };
     }
 

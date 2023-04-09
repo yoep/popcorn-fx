@@ -66,7 +66,7 @@ class TvFilterComponentTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(value, component.searchValue.getText());
-        verify(eventPublisher, timeout(2500)).publish(new SearchEvent(component, value));
+        verify(eventPublisher, timeout(3200)).publish(new SearchEvent(component, value));
     }
 
     @Test

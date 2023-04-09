@@ -186,6 +186,7 @@
                     <copyDependencies>false</copyDependencies>
                     <generateInstaller>true</generateInstaller>
                     <administratorRequired>false</administratorRequired>
+                    <createTarball>true</createTarball>
                     <platform>auto</platform>
                     <customizedJre>false</customizedJre>
                     <name>popcorn-time</name>
@@ -196,6 +197,10 @@
                     <version>${project.version}</version>
                     <linuxConfig>
                         <generateRpm>false</generateRpm>
+                        <categories>
+                            <category>AudioVideo</category>
+                            <category>Video</category>
+                        </categories>
                     </linuxConfig>
                     <macConfig>
                         <generateDmg>true</generateDmg>

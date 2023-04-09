@@ -27,11 +27,12 @@ enum class DecorationType : int32_t {
 /// This enum represents the different logging levels that can be used to send log messages from Rust to C code.
 /// It includes five different levels of logging: `Trace`, `Debug`, `Info`, `Warn`, and `Error`.
 enum class LogLevel : int32_t {
-  Trace = 0,
-  Debug = 1,
-  Info = 2,
-  Warn = 3,
-  Error = 4,
+  Off = 0,
+  Trace = 1,
+  Debug = 2,
+  Info = 3,
+  Warn = 4,
+  Error = 5,
 };
 
 /// The C compatible media error types.
@@ -1029,8 +1030,13 @@ ByteArray *load_image(PopcornFX *popcorn_fx, const char *url);
 /// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
 ByteArray *load_poster(PopcornFX *popcorn_fx, const MediaItemC *media);
 
-/// The logging bridge which allows logs from C to be logged by the Rust logger.
-void log(const char *message, LogLevel level);
+/// Logs a message sent over FFI using the Rust logger.
+///
+/// # Arguments
+///
+/// * `message` - A pointer to the null-terminated C string containing the log message to be logged.
+/// * `level` - The log level of the message. Determines the verbosity of the message and how it will be formatted by the Rust logger.
+void log(const char *target, const char *message, LogLevel level);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///

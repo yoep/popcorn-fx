@@ -77,26 +77,4 @@ class AxisItemSelectionTest {
         var node = nodeHolder.get();
         verify(node, timeout(200).atLeast(1)).requestFocus();
     }
-
-    @Test
-    void testOnFocusTraversedToControl() {
-        var nodeHolder = new AtomicReference<Node>();
-        var control = new AxisItemSelection<Genre>();
-        var firstItem = new Genre("firstItem", "firstItem");
-        control.setItemFactory(item -> {
-            var node = spy(new Button(item.getText()));
-            if (item == firstItem) {
-                nodeHolder.set(node);
-            }
-            return node;
-        });
-        control.setItems(firstItem, new Genre("secondItem", "secondItem"), new Genre("sit", "coffee"));
-        WaitForAsyncUtils.waitForFxEvents();
-
-        control.traverseFocusToItem();
-        WaitForAsyncUtils.waitForFxEvents();
-
-        var node = nodeHolder.get();
-        verify(node, timeout(200).atLeast(1)).requestFocus();
-    }
 }

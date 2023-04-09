@@ -18,6 +18,8 @@ import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
 import com.github.yoep.popcorn.ui.view.services.AboutSectionService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.animation.Animation;
+import javafx.animation.RotateTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -27,6 +29,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,6 +47,8 @@ public class AboutSectionController implements Initializable {
     private final UpdateService updateService;
     private final LocaleText localeText;
     private final FxLib fxLib;
+
+    private final RotateTransition updateAnimation = new RotateTransition(Duration.seconds(1));
 
     @FXML
     ImageCover backgroundCover;
@@ -105,6 +110,10 @@ public class AboutSectionController implements Initializable {
     }
 
     private void initializeButton() {
+        updateAnimation.setNode(updateButton.getGraphic());
+        updateAnimation.setCycleCount(Animation.INDEFINITE);
+        updateAnimation.setFromAngle(0.0);
+        updateAnimation.setToAngle(360.0);
         updateService.register(event -> {
             if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
                 onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
@@ -116,20 +125,29 @@ public class AboutSectionController implements Initializable {
     private void onUpdateStateChanged(UpdateState newState) {
         Platform.runLater(() -> {
             switch (newState) {
+                case CHECKING_FOR_NEW_VERSION -> {
+                    updateButton.setText(localeText.get(UpdateMessage.CHECKING_FOR_UPDATES));
+                    updateIcon.setText(Icon.REFRESH_UNICODE);
+                    newVersionLabel.setText(null);
+                    updateAnimation.playFromStart();
+                }
                 case UPDATE_AVAILABLE -> {
                     updateButton.setText(localeText.get(UpdateMessage.DOWNLOAD_UPDATE));
                     updateIcon.setText(Icon.DOWNLOAD_UNICODE);
                     updateService.getUpdateInfo().ifPresent(e -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getVersion())));
+                    updateAnimation.stop();
                 }
                 case NO_UPDATE_AVAILABLE -> {
                     updateButton.setText(localeText.get(UpdateMessage.CHECK_FOR_NEW_UPDATES));
                     updateIcon.setText(Icon.REFRESH_UNICODE);
                     newVersionLabel.setText(null);
+                    updateAnimation.stop();
                 }
                 case ERROR -> {
                     updateButton.setText(localeText.get(UpdateMessage.NO_UPDATE_AVAILABLE));
                     updateIcon.setText(Icon.TIMES_UNICODE);
                     newVersionLabel.setText(null);
+                    updateAnimation.stop();
                 }
             }
         });

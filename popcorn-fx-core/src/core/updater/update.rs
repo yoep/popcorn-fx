@@ -3,6 +3,8 @@ use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 use derive_more::Display;
 use futures::StreamExt;
@@ -18,7 +20,6 @@ use crate::core::config::ApplicationConfig;
 use crate::core::platform::PlatformData;
 use crate::core::storage::Storage;
 use crate::core::updater::{UpdateError, VersionInfo};
-use crate::core::updater::UpdateState::CheckingForNewVersion;
 use crate::VERSION;
 
 const UPDATE_INFO_FILE: &str = "versions.json";
@@ -69,7 +70,7 @@ pub struct DownloadProgress {
     pub downloaded: u64,
 }
 
-/// The updater of the application which is responsible of retrieving
+/// The updater of the application which is responsible for retrieving
 /// the latest release information and verifying if an update can be applied.
 #[derive(Debug)]
 pub struct Updater {
@@ -83,44 +84,78 @@ impl Updater {
     }
 
     /// Retrieve the version information from the update channel.
+    ///
     /// This will return the cached info if present and otherwise poll the channel for the info.
     ///
-    /// It returns the version info of the latest release on success, else the [UpdateError].
+    /// # Returns
+    ///
+    /// The version info of the latest release on success, else the [UpdateError].
     pub async fn version_info(&self) -> updater::Result<VersionInfo> {
         self.inner.version_info().await
     }
 
     /// Retrieve an owned instance of the current update state.
+    ///
+    /// # Returns
+    ///
+    /// The current update state.
     pub fn state(&self) -> UpdateState {
         self.inner.state()
     }
 
     /// Poll the [PopcornProperties] for a new version.
+    ///
     /// This will always query the channel for the latest release information.
     ///
-    /// It returns when the action is completed or returns an error when the polling failed.
+    /// # Returns
+    ///
+    /// Returns when the action is completed or returns an error when the polling failed.
     pub async fn poll(&self) -> updater::Result<VersionInfo> {
         self.inner.poll().await
     }
 
     /// Register a new callback for events of the updater.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - the callback to be registered.
     pub fn register(&self, callback: UpdateCallback) {
         self.inner.register(callback)
     }
 
     /// Download the latest update version of the application if available.
+    ///
     /// The download will do nothing if no new version is available.
+    ///
+    /// # Returns
+    ///
+    /// An error if the download failed.
     pub async fn download(&self) -> updater::Result<()> {
         self.inner.download().await
     }
 
     /// Install the downloaded update.
-    /// It will return an error when no update is downloaded.
+    ///
+    /// # Returns
+    ///
+    /// An error when the update installation failed to start.
     pub fn install(&self) -> updater::Result<()> {
         self.inner.install(self.inner.clone())
     }
 
-    /// Start polling the update channel on a new thread
+    /// Poll the update channel for new versions.
+    ///
+    /// If the updater state is [UpdateState::CheckingForNewVersion], then the call will be ignored.
+    pub fn check_for_updates(&self) {
+        if self.inner.state() == UpdateState::CheckingForNewVersion {
+            debug!("Updater is already checking for new version, ignoring check_for_updates");
+            return;
+        }
+
+        self.start_polling()
+    }
+
+    /// Start polling the update channel on a new thread.
     fn start_polling(&self) {
         let updater = self.inner.clone();
         self.inner.runtime.spawn(async move {
@@ -236,7 +271,7 @@ impl InnerUpdater {
                 .build()
                 .unwrap(),
             cache: Mutex::new(None),
-            state: Mutex::new(CheckingForNewVersion),
+            state: Mutex::new(UpdateState::CheckingForNewVersion),
             runtime,
             callbacks: core_callbacks,
             storage_path: PathBuf::from(storage_path),
@@ -263,13 +298,16 @@ impl InnerUpdater {
 
     /// Poll the update channel for a new version.
     async fn poll(&self) -> updater::Result<VersionInfo> {
+        trace!("Polling for application information on the update channel");
         let settings_mutex = self.settings.lock().await;
         let update_channel = settings_mutex.properties().update_channel();
 
-        self.update_state_async(CheckingForNewVersion).await;
+        self.update_state_async(UpdateState::CheckingForNewVersion).await;
+        trace!("Parsing update channel url {}", update_channel);
         match Url::parse(update_channel) {
             Ok(mut url) => {
                 url = url.join(UPDATE_INFO_FILE).unwrap();
+                debug!("Polling update information from {:?}", url);
                 let response = self.poll_info_from_url(url).await?;
                 let version_info = Self::handle_query_response(response).await?;
 
@@ -319,6 +357,7 @@ impl InnerUpdater {
             return; // ignore duplicate state updates
         }
 
+        debug!("Changing update state to {}", state);
         *mutex = state.clone();
         self.callbacks.invoke(UpdateEvent::StateChanged(state));
     }
@@ -555,6 +594,7 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
+    use crate::assert_timeout;
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
@@ -871,7 +911,7 @@ mod test {
         copy_test_file(updates_directory.to_str().unwrap(), filename, None);
 
         // wait for the polling to complete
-        while updater.state() == CheckingForNewVersion {
+        while updater.state() == UpdateState::CheckingForNewVersion {
             info!("Waiting for update poll to complete");
             thread::sleep(Duration::from_millis(50));
         }
@@ -887,6 +927,56 @@ mod test {
         }
 
         assert_eq!(0, num_files);
+    }
+
+    #[test]
+    fn test_check_for_updates() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (server, settings) = create_server_and_settings(temp_path);
+        let mut first_mock = server.mock(move |when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{"version": "0.0.1",
+  "platforms": {},
+  "changelog": {}}"#);
+        });
+        let mut platform_mock = MockDummyPlatformData::new();
+        platform_mock.expect_info()
+            .returning(|| PlatformInfo {
+                platform_type: PlatformType::Linux,
+                arch: "x86_64".to_string(),
+            });
+        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .storage_path(temp_path)
+            .insecure(false)
+            .build();
+
+        assert_timeout!(Duration::from_millis(300), updater.state() != UpdateState::CheckingForNewVersion);
+        assert_eq!(UpdateState::NoUpdateAvailable, updater.state());
+        first_mock.delete();
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .delay(Duration::from_millis(500))
+                .header("content-type", "application/json")
+                .body(r#"{"version": "999.0.0",
+  "platforms": {
+    "debian.x86_64": ""
+  },
+  "changelog": {}}"#);
+        });
+
+        updater.check_for_updates();
+        assert_timeout!(Duration::from_millis(200), updater.state() == UpdateState::CheckingForNewVersion);
+        assert_timeout!(Duration::from_millis(500), updater.state() == UpdateState::UpdateAvailable);
     }
 
     fn create_server_and_settings(temp_path: &str) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {

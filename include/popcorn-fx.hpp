@@ -882,6 +882,13 @@ ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
 /// Retrieve the auto-resume timestamp for the given media id and/or filename.
 uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const char *filename);
 
+/// Start polling the update channel for new application versions.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+void check_for_updates(PopcornFX *popcorn_fx);
+
 /// Retrieve the default options available for the subtitles.
 SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 
@@ -930,6 +937,10 @@ const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const
 SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
 /// Start downloading the application update if available.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
 void download_update(PopcornFX *popcorn_fx);
 
 /// Retrieve the given subtitles for the given episode
@@ -939,6 +950,10 @@ SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *sh
 SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 
 /// Install the latest available update.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
 void install_update(PopcornFX *popcorn_fx);
 
 /// Verify if the FX embedded video player has been disabled.
@@ -1274,6 +1289,14 @@ void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings)
 void update_server_settings(PopcornFX *popcorn_fx, ServerSettingsC settings);
 
 /// Retrieve the current update state of the application.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// The current update state of the application as a [UpdateStateC] value.
 UpdateStateC update_state(PopcornFX *popcorn_fx);
 
 /// Update the preferred subtitle for the [Media] item playback.
@@ -1296,7 +1319,11 @@ void update_ui_settings(PopcornFX *popcorn_fx, UiSettingsC settings);
 /// Retrieve the version of Popcorn FX.
 const char *version();
 
-/// Retrieve the latest release version information.
+/// Retrieve the latest release version information from the update channel.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
 VersionInfoC *version_info(PopcornFX *popcorn_fx);
 
 } // extern "C"

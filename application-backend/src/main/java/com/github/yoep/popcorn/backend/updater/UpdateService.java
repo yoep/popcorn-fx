@@ -55,7 +55,7 @@ public class UpdateService {
     }
 
     public void checkForUpdates() {
-
+        fxLib.check_for_updates(instance);
     }
 
     //endregion

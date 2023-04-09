@@ -217,7 +217,6 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         this.setHbarPolicy(ScrollBarPolicy.NEVER);
         this.setVbarPolicy(ScrollBarPolicy.NEVER);
         this.getStyleClass().add(STYLE_CLASS);
-        this.setFocusTraversable(true);
 
         items.addListener((MapChangeListener<? super T, ? super Node>) change -> {
             if (change.wasRemoved()) {

@@ -1392,7 +1392,7 @@
 
 .root .content-section .sidebar,
 .root .content-section .filter {
-    -fx-background-color: rgba(24, 25, 28, 0.5);
+    -fx-background-color: rgba(24, 25, 28, 0.75);
 }
 
 .root .content-section .sidebar .logo {

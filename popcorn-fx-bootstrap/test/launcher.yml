@@ -1,0 +1,4 @@
+version: 99.0.0
+vm_args:
+  - lorem
+  - ipsum

@@ -6,6 +6,7 @@ use std::env::VarError;
 use crate::bootstrapper::Bootstrapper;
 
 mod bootstrapper;
+mod launcher;
 
 /// The main entry of the bootstrap application.
 ///

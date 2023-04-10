@@ -1,0 +1,2 @@
+version: "summit"
+vm_args: "lorem ipsum dolor"

@@ -1,6 +1,6 @@
 use std::env;
-use std::path::PathBuf;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::process::{Command, ExitStatus};
 use std::str::FromStr;
 
 use directories::BaseDirs;
@@ -10,6 +10,8 @@ use log4rs::Config;
 use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use thiserror::Error;
+
+use crate::launcher::LauncherOptions;
 
 const CONSOLE_APPENDER: &str = "stdout";
 const LOG_FORMAT_CONSOLE: &str = "\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}";
@@ -61,9 +63,10 @@ enum Action {
 /// ```
 #[derive(Debug)]
 pub struct Bootstrapper {
-    path: String,
-    args: Vec<String>,
-    data_base_path: PathBuf,
+    pub path: String,
+    pub args: Vec<String>,
+    pub data_base_path: PathBuf,
+    pub options: LauncherOptions,
 }
 
 impl Bootstrapper {
@@ -94,6 +97,20 @@ impl Bootstrapper {
     }
 
     fn launch_instance(&self) -> Result<Action> {
+        let mut command = self.command();
+        trace!("Spawning process {:?}", command);
+        let mut child = command
+            .spawn()
+            .map_err(|e| BootstrapError::ExecuteFailed(e.to_string()))?;
+
+        let exit_status = child.wait()
+            .map_err(|e| BootstrapError::InvalidHandle(e.to_string()))?;
+
+        Ok(Self::handle_exit_status(exit_status))
+    }
+
+    /// Build the application command that will be bootstrapped.
+    fn command(&self) -> Command {
         let data_path = self.data_base_path
             .join(DATA_DIRECTORY_NAME);
         let data_path_value = data_path.to_str().unwrap();
@@ -105,8 +122,8 @@ impl Bootstrapper {
             .join(JAR_NAME);
 
         trace!("Creating process command for {:?} with {:?}", process_path, self.args);
-        let mut process_command = Command::new(process_path);
-        let command = process_command
+        let mut command = Command::new(process_path);
+        command
             .arg(format!("-Djna.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
             .arg(format!("-Djava.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
             .arg("-Dsun.awt.disablegrab=true")
@@ -116,23 +133,20 @@ impl Bootstrapper {
             .arg("-jar")
             .arg(jar_path.to_str().unwrap())
             .args(self.args.clone());
-        trace!("Spawning process {:?}", command);
-        let mut child = command
-            .spawn()
-            .map_err(|e| BootstrapError::ExecuteFailed(e.to_string()))?;
 
-        let exit_code = child.wait()
-            .map_err(|e| BootstrapError::InvalidHandle(e.to_string()))?;
+        command
+    }
 
-        Ok(exit_code.code()
-            .map(|e| if e == 0 || e == 1 {
-                trace!("Application process exited with {}", exit_code);
+    fn handle_exit_status(exit_status: ExitStatus) -> Action {
+        exit_status.code()
+            .map(|e| if e == 0 {
+                trace!("Application process exited with {}", exit_status);
                 Action::Shutdown
             } else {
-                warn!("Application process exited with {}", exit_code);
+                warn!("Application process exited with {}", exit_status);
                 Action::Restart
             })
-            .unwrap_or(Action::Shutdown))
+            .unwrap_or(Action::Shutdown)
     }
 
     fn initialize_logger() {
@@ -159,6 +173,7 @@ pub struct BootstrapperBuilder {
     path: Option<String>,
     args: Option<Vec<String>>,
     data_base_path: Option<PathBuf>,
+    options: Option<LauncherOptions>,
     disable_logger: bool,
 }
 
@@ -181,6 +196,12 @@ impl BootstrapperBuilder {
         self
     }
 
+    /// Sets the launcher options for the `Bootstrapper`.
+    pub fn options(mut self, options: LauncherOptions) -> Self {
+        self.options = Some(options);
+        self
+    }
+
     /// Disables the logger for the `Bootstrapper`.
     pub fn disable_logger(mut self, disable_logger: bool) -> Self {
         self.disable_logger = disable_logger;
@@ -198,14 +219,21 @@ impl BootstrapperBuilder {
         }
         let mut args = self.args.expect("Args are not set").into_iter();
         let _program_name = args.next().unwrap();
+        let data_path = self.data_base_path.unwrap_or_else(|| BaseDirs::new()
+            .map(|e| PathBuf::from(e.data_dir()))
+            .expect("expected a system data directory"));
 
         Bootstrapper {
             path: self.path.expect("Path is not set"),
             args: args.collect(),
-            data_base_path: self.data_base_path.unwrap_or_else(|| BaseDirs::new()
-                .map(|e| PathBuf::from(e.data_dir()))
-                .expect("expected a system data directory")),
+            options: Self::get_launcher_options(data_path.as_path()),
+            data_base_path: data_path,
         }
+    }
+
+    /// Discover the launcher options based on the given data path.
+    fn get_launcher_options(path: &Path) -> LauncherOptions {
+        LauncherOptions::new(path)
     }
 }
 

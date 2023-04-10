@@ -14,16 +14,19 @@ $(info Detected arch: $(ARCH))
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
 LIBRARY := "popcorn_fx.dll"
+EXECUTABLE := "popcorn-time.exe"
 PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
 else ifeq ($(SYSTEM),Darwin)
 LIBRARY := "libpopcorn_fx.dylib"
+EXECUTABLE := "popcorn-time"
 PROFILE := macosx
 ASSETS := mac
 PYTHON := python3
 else
 LIBRARY := "libpopcorn_fx.so"
+EXECUTABLE := "popcorn-time"
 PROFILE := linux
 ASSETS := linux
 PYTHON := python3
@@ -77,7 +80,8 @@ build-cargo-release:  ## Build the rust part of the application in release profi
 
 ## Copy the cargo libraries to the java resources
 lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
-	cp -v "./target/$*/$(LIBRARY)" "./assets/$(ASSETS)/"
+	@cp -v "./target/$*/$(LIBRARY)" "./assets/$(ASSETS)/"
+	@cp -v "./target/$*/$(EXECUTABLE)" "./assets/$(ASSETS)/"
 
 lib-copy: lib-copy-debug ## The default lib-copy target
 

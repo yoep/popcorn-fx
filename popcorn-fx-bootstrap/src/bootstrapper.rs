@@ -17,7 +17,7 @@ const DATA_DIRECTORY_NAME: &str = "popcorn-fx";
 #[cfg(target_family = "windows")]
 const EXECUTABLE_NAME: &str = "javaw.exe";
 #[cfg(target_family = "unix")]
-const EXECUTABLE_NAME: &str = "javaw";
+const EXECUTABLE_NAME: &str = "java";
 const JAR_NAME: &str = "popcorn-time.jar";
 
 /// The bootstrap specific results.

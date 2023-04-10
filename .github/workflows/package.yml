@@ -35,7 +35,9 @@ jobs:
         with:
           name: linux-package
           path: |
-            application/target/popcorn-time*.deb
+            assets/linux/popcorn-time
+            assets/linux/libpopcorn_fx.so
+            application/target/popcorn-time.jar
   package-windows:
     runs-on: windows-latest
 
@@ -64,7 +66,9 @@ jobs:
         with:
           name: windows-package
           path: |
-            application/target/popcorn-time*.exe
+            assets/windows/popcorn-time.exe
+            assets/windows/popcorn_fx.dll
+            application/target/popcorn-time.jar
   package-macos:
     runs-on: macos-latest
 
@@ -91,4 +95,6 @@ jobs:
         with:
           name: macos-package
           path: |
-            application/target/popcorn-time*.dmg
+            assets/mac/popcorn-time
+            assets/mac/libpopcorn_fx.dylib
+            application/target/popcorn-time.jar

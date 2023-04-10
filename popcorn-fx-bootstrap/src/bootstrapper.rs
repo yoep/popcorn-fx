@@ -30,8 +30,10 @@ pub type Result<T> = std::result::Result<T, BootstrapError>;
 /// The bootstrap errors.
 #[derive(Debug, Error)]
 pub enum BootstrapError {
-    #[error("The child process failed to start, {0}")]
+    #[error("the child process failed to start, {0}")]
     ExecuteFailed(String),
+    #[error("invalid process handle, {0}")]
+    InvalidHandle(String),
 }
 
 /// The action to take after an instance process has completed.
@@ -102,21 +104,25 @@ impl Bootstrapper {
         let jar_path = data_path
             .join(JAR_NAME);
 
-        trace!("Launching process {:?} with {:?}", process_path, self.args);
-        let mut child = Command::new(process_path)
-            .arg(format!("-Djna.library.path=\"{}{}{}\"", data_path_value, PATH_SEPARATOR, self.path.as_str()))
-            .arg(format!("-Djava.library.path=\"{}\"", data_path_value))
+        trace!("Creating process command for {:?} with {:?}", process_path, self.args);
+        let mut process_command = Command::new(process_path);
+        let command = process_command
+            .arg(format!("-Djna.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
+            .arg(format!("-Djava.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
             .arg("-Dsun.awt.disablegrab=true")
             .arg("-Dprism.dirtyopts=false")
             .arg("-Xms100M")
             .arg("-XX:+UseG1GC")
             .arg("-jar")
             .arg(jar_path.to_str().unwrap())
-            .args(self.args.clone())
+            .args(self.args.clone());
+        trace!("Spawning process {:?}", command);
+        let mut child = command
             .spawn()
             .map_err(|e| BootstrapError::ExecuteFailed(e.to_string()))?;
 
-        let exit_code = child.wait().expect("expected exit status");
+        let exit_code = child.wait()
+            .map_err(|e| BootstrapError::InvalidHandle(e.to_string()))?;
 
         Ok(exit_code.code()
             .map(|e| if e == 0 || e == 1 {
@@ -141,7 +147,7 @@ impl Bootstrapper {
             .unwrap();
 
         match log4rs::init_config(config) {
-            Ok(_) => debug!("Popcorn FX bootstrap logger has been initialized"),
+            Ok(_) => trace!("Popcorn FX bootstrap logger has been initialized"),
             Err(e) => eprintln!("Failed to configure logger, {}", e),
         }
     }

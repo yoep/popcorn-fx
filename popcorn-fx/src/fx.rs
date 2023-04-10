@@ -54,7 +54,7 @@ const LOG_FILE_SIZE: u64 = 50 * 1024 * 1024;
 const DEFAULT_APP_DIRECTORY_NAME: &str = ".popcorn-time";
 const DEFAULT_APP_DIRECTORY: fn() -> String = || UserDirs::new()
     .map(|e| PathBuf::from(e.home_dir()))
-    .map(|mut e|  e.join(DEFAULT_APP_DIRECTORY_NAME))
+    .map(|e|  e.join(DEFAULT_APP_DIRECTORY_NAME))
     .map(|e| e.to_str().expect("expected a valid home path").to_string())
     .expect("expected a home directory to exist");
 

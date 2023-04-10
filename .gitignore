@@ -4,24 +4,18 @@
 target/
 cmake-build*/
 
+assets/*/popcorn-time
+assets/linux/*.so
 assets/linux/vlc/lua/
 assets/linux/vlc/plugins/
 assets/linux/vlc/vlc-*/
-assets/linux/*.so
 assets/mac/vlc/lua/
 assets/mac/vlc/plugins/
 assets/mac/vlc/vlc-*/
+assets/windows/**.dll
+assets/windows/**.exe
 assets/windows/vlc/lua/
 assets/windows/vlc/plugins/
 assets/windows/vlc/vlc-*/
-assets/windows/**.dll
-assets/windows/**.exe
 
 **/*.iml
-**/docker-compose.yml
-**/dependency-reduced-pom.xml
-**/pom.xml.versionsBackup
-**/pom.xml.releaseBackup
-release.properties
-**/*.dll
-**/*.dylib

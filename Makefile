@@ -73,13 +73,15 @@ build-cargo: ## Build the rust part of the application
 	$(info Building cargo packages)
 	@cargo build --features ffi
 
+build-cargo-debug: build-cargo ## The alias for build-cargo which build the rust part of the application in debug profile
+
 build-cargo-release:  ## Build the rust part of the application in release profile
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
 	@cargo build --release --features ffi
 
 ## Copy the cargo libraries to the java resources
-lib-copy-%: build-cargo $(RESOURCE_DIRECTORIES)
+lib-copy-%: build-cargo-% $(RESOURCE_DIRECTORIES)
 	@cp -v "./target/$*/$(LIBRARY)" "./assets/$(ASSETS)/"
 	@cp -v "./target/$*/$(EXECUTABLE)" "./assets/$(ASSETS)/"
 

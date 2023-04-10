@@ -36,7 +36,6 @@ jobs:
           name: linux-package
           path: |
             application/target/popcorn-time*.deb
-            application/target/popcorn-time*.tar.gz
   package-windows:
     runs-on: windows-latest
 
@@ -93,4 +92,3 @@ jobs:
           name: macos-package
           path: |
             application/target/popcorn-time*.dmg
-            application/target/popcorn-time*.tar.gz

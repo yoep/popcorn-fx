@@ -54,10 +54,7 @@ const LOG_FILE_SIZE: u64 = 50 * 1024 * 1024;
 const DEFAULT_APP_DIRECTORY_NAME: &str = ".popcorn-time";
 const DEFAULT_APP_DIRECTORY: fn() -> String = || UserDirs::new()
     .map(|e| PathBuf::from(e.home_dir()))
-    .map(|mut e| {
-        e.push(DEFAULT_APP_DIRECTORY_NAME);
-        e
-    })
+    .map(|mut e|  e.join(DEFAULT_APP_DIRECTORY_NAME))
     .map(|e| e.to_str().expect("expected a valid home path").to_string())
     .expect("expected a home directory to exist");
 
@@ -576,24 +573,5 @@ mod test {
 
         // should not panic on the invalid level
         PopcornFX::initialize_logger(&args);
-    }
-
-    #[test]
-    fn test() {
-        let temp_dir = tempdir().expect("expected a temp dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(PopcornFxArgs {
-            app_directory: DEFAULT_APP_DIRECTORY(),
-            disable_logger: false,
-            disable_mouse: false,
-            disable_youtube_video_player: false,
-            disable_fx_video_player: false,
-            disable_vlc_video_player: false,
-            tv: false,
-            maximized: false,
-            kiosk: false,
-            insecure: false,
-            properties: Default::default(),
-        });
     }
 }

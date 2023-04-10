@@ -108,7 +108,7 @@ mod test {
         let result = retrieve_available_movies(&mut instance, &genre, &sort_by, into_c_string("".to_string()), 1);
 
         match result {
-            MediaSetResult::Ok(set) => {}
+            MediaSetResult::Ok(_) => {}
             _ => panic!("Expected MediaSetResult::Ok")
         }
     }
@@ -154,7 +154,7 @@ mod test {
         let result = retrieve_available_shows(&mut instance, &genre, &sort_by, into_c_string("".to_string()), 1);
 
         match result {
-            MediaSetResult::Ok(set) => {}
+            MediaSetResult::Ok(_) => {}
             _ => panic!("Expected MediaSetResult::Ok")
         }
     }

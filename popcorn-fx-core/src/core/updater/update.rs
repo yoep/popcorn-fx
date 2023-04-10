@@ -3,8 +3,6 @@ use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 
 use derive_more::Display;
 use futures::StreamExt;

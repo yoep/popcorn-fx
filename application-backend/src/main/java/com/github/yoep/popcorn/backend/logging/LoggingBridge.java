@@ -7,6 +7,8 @@ import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 
 public class LoggingBridge extends AppenderBase<ILoggingEvent> {
+    static final String PREFIX = "jvm";
+
     private final FxLib fxLib;
 
     public LoggingBridge() {
@@ -19,7 +21,7 @@ public class LoggingBridge extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        fxLib.log("java::" + event.getLoggerName(), event.getFormattedMessage(), map(event.getLevel()));
+        fxLib.log(PREFIX + "::" + event.getLoggerName(), event.getFormattedMessage(), map(event.getLevel()));
     }
 
     private static LogLevel map(Level level) {

@@ -7,7 +7,7 @@ publish = false
 license-file = "../LICENSE"
 
 [[bin]]
-name = "popcorn-fx"
+name = "popcorn-time"
 path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,6 +16,8 @@ path = "src/main.rs"
 
 directories.workspace = true
 log.workspace = true
+log4rs = { version = "1", features = ["console_writer"] }
+thiserror = "1.0"
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
@@ -23,3 +25,6 @@ popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 mockall = "0"
 tempfile = "3"
 tokio = { workspace = true, features = ["test-util", "macros"] }
+
+[build-dependencies]
+winres = "0.1"

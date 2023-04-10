@@ -16,8 +16,12 @@ const LOG_FORMAT_CONSOLE: &str = "\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({
 const DATA_DIRECTORY_NAME: &str = "popcorn-fx";
 #[cfg(target_family = "windows")]
 const EXECUTABLE_NAME: &str = "javaw.exe";
+#[cfg(target_family = "windows")]
+const PATH_SEPARATOR: &str = ";";
 #[cfg(target_family = "unix")]
 const EXECUTABLE_NAME: &str = "java";
+#[cfg(target_family = "unix")]
+const PATH_SEPARATOR: &str = ":";
 const JAR_NAME: &str = "popcorn-time.jar";
 
 /// The bootstrap specific results.
@@ -100,7 +104,7 @@ impl Bootstrapper {
 
         trace!("Launching process {:?} with {:?}", process_path, self.args);
         let mut child = Command::new(process_path)
-            .arg(format!("-Djna.library.path=\"{};{}\"", data_path_value, self.path.as_str()))
+            .arg(format!("-Djna.library.path=\"{}{}{}\"", data_path_value, PATH_SEPARATOR, self.path.as_str()))
             .arg(format!("-Djava.library.path=\"{}\"", data_path_value))
             .arg("-Dsun.awt.disablegrab=true")
             .arg("-Dprism.dirtyopts=false")

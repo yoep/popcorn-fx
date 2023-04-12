@@ -32,8 +32,8 @@ pub type Result<T> = std::result::Result<T, BootstrapError>;
 /// The bootstrap errors.
 #[derive(Debug, Error)]
 pub enum BootstrapError {
-    #[error("the child process failed to start, {0}")]
-    ExecuteFailed(String),
+    #[error("child process failed to execute, {1}\nCommand: {0:?}")]
+    ExecuteFailed(Command, String),
     #[error("invalid process handle, {0}")]
     InvalidHandle(String),
 }
@@ -66,7 +66,7 @@ pub struct Bootstrapper {
     pub path: String,
     pub args: Vec<String>,
     pub data_base_path: PathBuf,
-    pub options: LauncherOptions,
+    pub process_path: Option<String>,
 }
 
 impl Bootstrapper {
@@ -101,7 +101,7 @@ impl Bootstrapper {
         trace!("Spawning process {:?}", command);
         let mut child = command
             .spawn()
-            .map_err(|e| BootstrapError::ExecuteFailed(e.to_string()))?;
+            .map_err(|e| BootstrapError::ExecuteFailed(command, e.to_string()))?;
 
         let exit_status = child.wait()
             .map_err(|e| BootstrapError::InvalidHandle(e.to_string()))?;
@@ -111,8 +111,11 @@ impl Bootstrapper {
 
     /// Build the application command that will be bootstrapped.
     fn command(&self) -> Command {
+        let options = Self::get_launcher_options(&self.data_base_path);
         let data_path = self.data_base_path
-            .join(DATA_DIRECTORY_NAME);
+            .join(DATA_DIRECTORY_NAME)
+            // the actual base_path always contains the version from the [LauncherOptions]
+            .join(options.version.as_str());
         let data_path_value = data_path.to_str().unwrap();
         let process_path = data_path
             .join("jre")
@@ -122,15 +125,18 @@ impl Bootstrapper {
             .join(JAR_NAME);
 
         trace!("Creating process command for {:?} with {:?}", process_path, self.args);
-        let mut command = Command::new(process_path);
+        let mut command = Command::new(self.process_path.as_ref()
+            .map(PathBuf::from)
+            .unwrap_or(process_path));
         command
             .arg(format!("-Djna.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
-            .arg(format!("-Djava.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
-            .arg("-Dsun.awt.disablegrab=true")
-            .arg("-Dprism.dirtyopts=false")
-            .arg("-Xms100M")
-            .arg("-XX:+UseG1GC")
-            .arg("-jar")
+            .arg(format!("-Djava.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str());
+
+        for vm_arg in options.vm_args.iter() {
+            command.arg(vm_arg.as_str());
+        }
+
+        command.arg("-jar")
             .arg(jar_path.to_str().unwrap())
             .args(self.args.clone());
 
@@ -146,7 +152,7 @@ impl Bootstrapper {
                 warn!("Application process exited with {}", exit_status);
                 Action::Restart
             })
-            .unwrap_or(Action::Shutdown)
+            .unwrap_or(Action::Restart)
     }
 
     fn initialize_logger() {
@@ -165,20 +171,44 @@ impl Bootstrapper {
             Err(e) => eprintln!("Failed to configure logger, {}", e),
         }
     }
+
+    fn get_launcher_options<P: AsRef<Path>>(path: P) -> LauncherOptions {
+        LauncherOptions::new(path)
+    }
 }
 
-/// The `Bootstrapper` builder.
+/// The `BootstrapperBuilder` struct is used to configure and create a new `Bootstrapper` instance.
+///
+/// # Examples
+///
+/// ```no_run
+/// let bootstrapper = BootstrapperBuilder::default()
+///     .path("/usr/bin/my_program".to_string())
+///     .args(vec!["arg1".to_string(), "arg2".to_string()])
+///     .data_base_path("/var/lib/my_program".into())
+///     .process_path("echo")
+///     .disable_logger(true)
+///     .build();
+/// ```
 #[derive(Default)]
 pub struct BootstrapperBuilder {
     path: Option<String>,
     args: Option<Vec<String>>,
     data_base_path: Option<PathBuf>,
-    options: Option<LauncherOptions>,
     disable_logger: bool,
+    process_path: Option<String>,
 }
 
 impl BootstrapperBuilder {
     /// Sets the `$PATH` variable value for the `Bootstrapper`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let bootstrapper = BootstrapperBuilder::default()
+    ///     .path("/usr/bin/my_program".to_string())
+    ///     .build();
+    /// ```
     pub fn path(mut self, path: String) -> Self {
         self.path = Some(path);
         self
@@ -196,15 +226,15 @@ impl BootstrapperBuilder {
         self
     }
 
-    /// Sets the launcher options for the `Bootstrapper`.
-    pub fn options(mut self, options: LauncherOptions) -> Self {
-        self.options = Some(options);
-        self
-    }
-
     /// Disables the logger for the `Bootstrapper`.
     pub fn disable_logger(mut self, disable_logger: bool) -> Self {
         self.disable_logger = disable_logger;
+        self
+    }
+
+    /// Sets the static path to the process executable for the `Bootstrapper`.
+    pub fn process_path(mut self, process_path: String) -> Self {
+        self.process_path = Some(process_path);
         self
     }
 
@@ -226,19 +256,17 @@ impl BootstrapperBuilder {
         Bootstrapper {
             path: self.path.expect("Path is not set"),
             args: args.collect(),
-            options: Self::get_launcher_options(data_path.as_path()),
             data_base_path: data_path,
+            process_path: self.process_path,
         }
-    }
-
-    /// Discover the launcher options based on the given data path.
-    fn get_launcher_options(path: &Path) -> LauncherOptions {
-        LauncherOptions::new(path)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::fs;
+
+    use log::info;
     use tempfile::tempdir;
 
     use popcorn_fx_core::testing::init_logger;
@@ -267,8 +295,36 @@ mod test {
             .args(vec!["popcorn-fx".to_string()])
             .path("".to_string())
             .data_base_path(PathBuf::from(temp_path))
+            .process_path("echo".to_string())
             .build();
 
-        bootstrap.launch();
+        let result = bootstrap.launch();
+
+        assert!(result.is_ok(), "expected the process to be completed with success")
+    }
+
+    #[test]
+    fn test_launch_failure() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let bootstrap = Bootstrapper::builder()
+            .disable_logger(true)
+            .args(vec!["popcorn-fx".to_string()])
+            .path("".to_string())
+            .data_base_path(PathBuf::from(temp_path))
+            .process_path("lorem".to_string())
+            .build();
+
+        let result = bootstrap.launch();
+
+        if let Err(error) = result {
+            match error {
+                BootstrapError::ExecuteFailed(_command, _message) => {}
+                _ => assert!(false, "expected BootstrapError::ExecuteFailed")
+            }
+        } else {
+            assert!(false, "expected an error to have been returned")
+        }
     }
 }

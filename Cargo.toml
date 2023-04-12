@@ -7,7 +7,7 @@ members = [
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
     "popcorn-fx-torrent",
-    "popcorn-fx-torrent-stream",
+    "popcorn-fx-torrent-stream"
 ]
 
 [workspace.dependencies]

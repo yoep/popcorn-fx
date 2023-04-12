@@ -32,9 +32,9 @@ pub struct LauncherOptions {
 
 impl LauncherOptions {
     /// Automatically discover the launcher options for the given application data path.
-    pub fn new(path: &Path) -> Self {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
         debug!("Searching for options with filename \"{}\"", FILENAME);
-        let config_value = Self::find_existing_file(path, FILENAME)
+        let config_value = Self::find_existing_file(path.as_ref(), FILENAME)
             .map(|mut e| {
                 let mut data = String::new();
                 e.read_to_string(&mut data).expect("Unable to read the config file");

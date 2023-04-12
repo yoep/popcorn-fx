@@ -1,5 +1,10 @@
 .PHONY: cargo mvn help clean test build-cargo build
 
+## Verify environment variables
+ifneq ($(origin JAVA_HOME), environment)
+	$(error JAVA_HOME is not set)
+endif
+
 ## Detect the OS
 ifeq ($(OS),Windows_NT)
 SYSTEM := Windows
@@ -18,6 +23,13 @@ EXECUTABLE := "popcorn-time.exe"
 PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
+INSTALLER_COMMAND := powershell.exe -Command "iscc.exe /Otarget/ /Fpopcorn-time_0.6.5 \"./assets/windows/installer.iss\""
+
+# check required software
+ifeq ($(shell command -v iscc),)
+   $(error "Inno Setup Compiler (iscc) is not installed")
+endif
+
 else ifeq ($(SYSTEM),Darwin)
 LIBRARY := "libpopcorn_fx.dylib"
 EXECUTABLE := "popcorn-time"
@@ -33,9 +45,9 @@ PYTHON := python3
 endif
 
 prerequisites: ## Install the requirements for the application
-	$(info Updating rust)
+	@echo Updating rust
 	@rustup update
-	$(info Installing Cargo plugins)
+	@echo Installing Cargo plugins
 	@cargo install cbindgen
 	@cargo install cargo-nextest
 	@cargo install cargo-llvm-cov
@@ -100,7 +112,16 @@ build: prerequisites build-cargo build-java ## Build the application in debug mo
 build-release: prerequisites build-cargo-release build-java-release ## Build the application in release mode (slower build time)
 
 package: build-release ## Package the application for distribution
-	@mvn -B install -DskipTests -DskipITs -P$(PROFILE)
+	@echo Cleaning package
+	@rm -rf "./target/package"
+	@echo Creating JRE bundle
+	@"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules="ALL-MODULE-PATH" --output "./target/package/jre" --no-header-files --no-man-pages --strip-debug --compress=2
+	@echo Copying exeutable and libraries
+	@cp -v ./target/release/${EXECUTABLE} ./target/package/
+	@cp -v ./target/release/${LIBRARY} ./target/package/
+	@cp -v ./application/target/popcorn-time.jar ./target/package/
+	@echo Creating installer
+	${INSTALLER_COMMAND}
 
 release: bump-minor test-cargo build-release ## Release a new version of the application with increased minor
 

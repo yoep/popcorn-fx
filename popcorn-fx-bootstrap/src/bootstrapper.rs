@@ -16,6 +16,7 @@ use crate::launcher::LauncherOptions;
 const CONSOLE_APPENDER: &str = "stdout";
 const LOG_FORMAT_CONSOLE: &str = "\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}";
 const DATA_DIRECTORY_NAME: &str = "popcorn-fx";
+const RUNTIMES_DIRECTORY_NAME: &str = "runtimes";
 #[cfg(target_family = "windows")]
 const EXECUTABLE_NAME: &str = "javaw.exe";
 #[cfg(target_family = "windows")]
@@ -113,24 +114,24 @@ impl Bootstrapper {
     fn command(&self) -> Command {
         let options = Self::get_launcher_options(&self.data_base_path);
         let data_path = self.data_base_path
-            .join(DATA_DIRECTORY_NAME)
-            // the actual base_path always contains the version from the [LauncherOptions]
+            .join(DATA_DIRECTORY_NAME);
+        let data_version_path = data_path
             .join(options.version.as_str());
-        let data_path_value = data_path.to_str().unwrap();
-        let process_path = data_path
-            .join("jre")
-            .join("bin")
-            .join(EXECUTABLE_NAME);
+        let data_version_path_value = data_version_path
+            .to_str()
+            .unwrap();
+        let process_path = self.process_path.as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| Self::build_process_path(&data_path, &options));
         let jar_path = data_path
+            .join(options.version.as_str())
             .join(JAR_NAME);
 
         trace!("Creating process command for {:?} with {:?}", process_path, self.args);
-        let mut command = Command::new(self.process_path.as_ref()
-            .map(PathBuf::from)
-            .unwrap_or(process_path));
+        let mut command = Command::new(process_path);
         command
-            .arg(format!("-Djna.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
-            .arg(format!("-Djava.library.path={}{}{}", data_path_value, PATH_SEPARATOR, self.path.as_str()).as_str());
+            .arg(format!("-Djna.library.path={}{}{}", data_version_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
+            .arg(format!("-Djava.library.path={}{}{}", data_version_path_value, PATH_SEPARATOR, self.path.as_str()).as_str());
 
         for vm_arg in options.vm_args.iter() {
             command.arg(vm_arg.as_str());
@@ -141,6 +142,16 @@ impl Bootstrapper {
             .args(self.args.clone());
 
         command
+    }
+
+    fn build_process_path(data_path: &Path, options: &LauncherOptions) -> PathBuf {
+        trace!("Creating process path with runtime {}", options.runtime_version);
+        data_path
+            .join(RUNTIMES_DIRECTORY_NAME)
+            .join(options.runtime_version.as_str())
+            .join("jre")
+            .join("bin")
+            .join(EXECUTABLE_NAME)
     }
 
     fn handle_exit_status(exit_status: ExitStatus) -> Action {
@@ -264,9 +275,6 @@ impl BootstrapperBuilder {
 
 #[cfg(test)]
 mod test {
-    use std::fs;
-
-    use log::info;
     use tempfile::tempdir;
 
     use popcorn_fx_core::testing::init_logger;
@@ -326,5 +334,27 @@ mod test {
         } else {
             assert!(false, "expected an error to have been returned")
         }
+    }
+
+    #[test]
+    fn test_build_process_path() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let data_path = PathBuf::from(temp_path);
+        let expected_result = data_path
+            .join("runtimes")
+            .join("10.0.3")
+            .join("jre")
+            .join("bin")
+            .join(EXECUTABLE_NAME);
+
+        let result = Bootstrapper::build_process_path(data_path.as_path(), &LauncherOptions {
+            version: "1.0.0".to_string(),
+            runtime_version: "10.0.3".to_string(),
+            vm_args: vec![],
+        });
+
+        assert_eq!(expected_result.to_str().unwrap(), result.to_str().unwrap())
     }
 }

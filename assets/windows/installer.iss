@@ -1,6 +1,6 @@
 [Setup]
 AppId=Popcorn-Time
-AppName=Popcorn-Time
+AppName=Popcorn Time
 AppVersion=0.6.5
 AppVerName=Popcorn-Time 0.6.5
 AppPublisher=Popcorn FX
@@ -13,7 +13,8 @@ DefaultGroupName=Popcorn Time
 DisableProgramGroupPage=no
 DisableFinishedPage=no
 DisableWelcomePage=no
-PrivilegesRequiredOverridesAllowed=commandline dialog
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=commandline
 LicenseFile=../../LICENSE
 SetupIconFile=./popcorn-time.ico
 UninstallDisplayIcon={app}\popcorn-time.exe
@@ -34,10 +35,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Registry]
 
 [Files]
-Source: "../../target/package/popcorn-time.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "../../target/package/jre/*"; DestDir: "{userappdata}\popcorn-fx\0.6.5\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "../../target/package/popcorn-time.jar"; DestDir: "{userappdata}\popcorn-fx\0.6.5"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "../../target/package/popcorn_fx.dll"; DestDir: "{userappdata}\popcorn-fx\0.6.5"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "../../target/package/popcorn-time.exe"; DestDir: "{app}"; Flags: ignoreversion createallsubdirs
+Source: "../../target/package/jre/*"; DestDir: "{userappdata}\popcorn-fx\runtimes\17.0.6\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "../../target/package/popcorn-time.jar"; DestDir: "{userappdata}\popcorn-fx\0.6.5"; Flags: ignoreversion createallsubdirs
+Source: "../../target/package/popcorn_fx.dll"; DestDir: "{userappdata}\popcorn-fx\0.6.5"; Flags: ignoreversion createallsubdirs
 Source: "jlibtorrent.dll"; DestDir: "{userappdata}\popcorn-fx\0.6.5"; Flags: ignoreversion
 Source: "ffprobe.exe"; DestDir: "{userappdata}\popcorn-fx\0.6.5"; Flags: ignoreversion
 

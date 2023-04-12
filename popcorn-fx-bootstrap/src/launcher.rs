@@ -12,6 +12,7 @@ const EXTENSIONS: [&str; 2] = [
     "yaml"
 ];
 const DEFAULT_VERSION: fn() -> String = || "0.6.5".to_string();
+const DEFAULT_RUNTIME_VERSION: fn() -> String = || "17.0.6".to_string();
 const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
     "-Dsun.awt.disablegrab=true".to_string(),
     "-Dprism.dirtyopts=false".to_string(),
@@ -19,13 +20,31 @@ const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
     "-XX:+UseG1GC".to_string(),
 ];
 
-/// The launcher options for bootstrapping an application.
+/// The options for launching an application.
+///
+/// `LauncherOptions` is a struct that contains options used to bootstrap an application. It includes the application version to launch,
+/// the default Java Virtual Machine (JVM) runtime version to use, and the JVM arguments to apply to the application.
+///
+/// # Examples
+///
+/// ```
+/// use my_crate::LauncherOptions;
+///
+/// let options = LauncherOptions {
+///     version: "1.0.0".to_string(),
+///     runtime_version: "11".to_string(),
+///     vm_args: vec!["-Xms512m".to_string(), "-Xmx1024m".to_string()],
+/// };
+/// ```
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct LauncherOptions {
-    /// The application version to launch
+    /// The application version to launch.
     #[serde(default = "DEFAULT_VERSION")]
     pub version: String,
-    /// The JVM arguments to apply to the application
+    /// The default JVM runtime version to use.
+    #[serde(default = "DEFAULT_RUNTIME_VERSION")]
+    pub runtime_version: String,
+    /// The JVM arguments to apply to the application.
     #[serde(default = "DEFAULT_VM_ARGS")]
     pub vm_args: Vec<String>,
 }
@@ -71,6 +90,7 @@ impl Default for LauncherOptions {
     fn default() -> Self {
         Self {
             version: DEFAULT_VERSION(),
+            runtime_version: DEFAULT_RUNTIME_VERSION(),
             vm_args: DEFAULT_VM_ARGS(),
         }
     }
@@ -105,11 +125,13 @@ mod test {
         init_logger();
         let expected_result = LauncherOptions {
             version: "0.1.0".to_string(),
+            runtime_version: "17.0.0".to_string(),
             vm_args: vec!["test".to_string()],
         };
 
         let options = LauncherOptions::from(r#"
 version: 0.1.0
+runtime_version: 17.0.0
 vm_args:
     - test
         "#);
@@ -125,6 +147,7 @@ vm_args:
         copy_test_file(temp_path, "launcher.yml", None);
         let expected_result = LauncherOptions {
             version: "99.0.0".to_string(),
+            runtime_version: "101.0.0".to_string(),
             vm_args: vec![
                 "lorem".to_string(),
                 "ipsum".to_string(),
@@ -144,6 +167,7 @@ vm_args:
         copy_test_file(temp_path, "invalid_launcher.yml", Some("launcher.yaml"));
         let expected_result = LauncherOptions {
             version: DEFAULT_VERSION(),
+            runtime_version: DEFAULT_RUNTIME_VERSION(),
             vm_args: DEFAULT_VM_ARGS(),
         };
 

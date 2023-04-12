@@ -10,14 +10,12 @@ import java.io.Closeable;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"version", "changelog"})
+@Structure.FieldOrder({"version"})
 public class VersionInfo extends Structure implements Closeable {
     public String version;
-    public Changelog changelog;
 
     @Override
     public void close() {
         setAutoSynch(false);
-        changelog.close();
     }
 }

@@ -3,7 +3,10 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.updater.*;
+import com.github.yoep.popcorn.backend.updater.DownloadProgress;
+import com.github.yoep.popcorn.backend.updater.UpdateService;
+import com.github.yoep.popcorn.backend.updater.UpdateState;
+import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
 import com.github.yoep.popcorn.ui.messages.UpdateMessage;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
@@ -25,9 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.stream.Collectors;
 
 @Slf4j
 @ViewController
@@ -105,18 +106,6 @@ public class UpdateSectionController implements Initializable {
 
         Platform.runLater(() -> {
             versionLabel.setText(versionInfo.getVersion());
-            changelogFeaturesLabel.setText(Optional.ofNullable(versionInfo.getChangelog())
-                    .map(Changelog::getFeatures)
-                    .map(e -> e.stream()
-                            .map(x -> "- " + x)
-                            .collect(Collectors.joining("\n")))
-                    .orElse(null));
-            changelogBugfixesLabel.setText(Optional.ofNullable(versionInfo.getChangelog())
-                    .map(Changelog::getBugfixes)
-                    .map(e -> e.stream()
-                            .map(x -> "- " + x)
-                            .collect(Collectors.joining("\n")))
-                    .orElse(null));
         });
     }
 

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+INSTALL_DIR="$HOME/.local/share/popcorn-fx"
+
+rm -r "$INSTALL_DIR"

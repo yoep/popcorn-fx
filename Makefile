@@ -1,20 +1,24 @@
 .PHONY: cargo mvn help clean test build-cargo build
 
-## Verify environment variables
-ifneq ($(origin JAVA_HOME), environment)
-	$(error JAVA_HOME is not set)
+## Set global variables
+VERSION = 0.6.5
+RUNTIME_VERSION = 17.0.6
+
+ifeq ($(shell command -v jenv >/dev/null 2>&1 && echo "found"),found)
+	JAVA_HOME = $(shell dirname $(shell dirname $(shell readlink -f $(shell jenv which jlink))))
 endif
 
 ## Detect the OS
 ifeq ($(OS),Windows_NT)
-SYSTEM := Windows
-ARCH := $(PROCESSOR_ARCHITECTURE)
+SYSTEM = Windows
+ARCH = $(PROCESSOR_ARCHITECTURE)
 else
-SYSTEM := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
-ARCH := $(shell uname -m)
+SYSTEM = $(shell sh -c 'uname 2>/dev/null || echo Unknown')
+ARCH = $(shell uname -m)
 endif
 $(info Detected OS: $(SYSTEM))
 $(info Detected arch: $(ARCH))
+$(info Detected JAVA_HOME: $(JAVA_HOME))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
@@ -23,7 +27,7 @@ EXECUTABLE := "popcorn-time.exe"
 PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
-INSTALLER_COMMAND := powershell.exe -Command "iscc.exe /Otarget/ /Fpopcorn-time_0.6.5 \"./assets/windows/installer.iss\""
+INSTALLER_COMMAND := powershell.exe -Command "iscc.exe /Otarget/ /Fpopcorn-time_${VERSION} \"./assets/windows/installer.iss\""
 
 # check required software
 ifeq ($(shell command -v iscc),)
@@ -42,6 +46,7 @@ EXECUTABLE := "popcorn-time"
 PROFILE := linux
 ASSETS := linux
 PYTHON := python3
+INSTALLER_COMMAND := dpkg-deb --build -Zgzip target/package target/popcorn-time_${VERSION}.deb
 endif
 
 prerequisites: ## Install the requirements for the application
@@ -114,12 +119,16 @@ build-release: prerequisites build-cargo-release build-java-release ## Build the
 package: build-release ## Package the application for distribution
 	@echo Cleaning package
 	@rm -rf "./target/package"
+
 	@echo Creating JRE bundle
-	@"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules="ALL-MODULE-PATH" --output "./target/package/jre" --no-header-files --no-man-pages --strip-debug --compress=2
+	@"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules="ALL-MODULE-PATH" --output "./target/package/runtimes/${RUNTIME_VERSION}/jre" --no-header-files --no-man-pages --strip-debug --compress=2
+
 	@echo Copying exeutable and libraries
 	@cp -v ./target/release/${EXECUTABLE} ./target/package/
 	@cp -v ./target/release/${LIBRARY} ./target/package/
 	@cp -v ./application/target/popcorn-time.jar ./target/package/
+	@if [ "$(SYSTEM)" = "Linux" ]; then export VERSION=${VERSION}; ./assets/linux/prepare-package.sh; fi
+
 	@echo Creating installer
 	${INSTALLER_COMMAND}
 

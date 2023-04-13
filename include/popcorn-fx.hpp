@@ -671,23 +671,10 @@ struct TorrentStreamEventC {
   };
 };
 
-/// The C compatible changelog
-struct ChangelogC {
-  /// The new features array string
-  const char **features;
-  /// The length of the features array
-  int32_t features_len;
-  /// The new bugfixes array string
-  const char **bugfixes;
-  /// The length of the bugfixes array
-  int32_t bugfixes_len;
-};
-
 /// The version information from the update channel.
 struct VersionInfoC {
   /// The latest release version on the update channel
   const char *version;
-  ChangelogC changelog;
 };
 
 /// The C-compatible representation of the [DownloadProgress] struct.

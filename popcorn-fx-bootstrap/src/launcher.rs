@@ -165,11 +165,7 @@ vm_args:
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "invalid_launcher.yml", Some("launcher.yaml"));
-        let expected_result = LauncherOptions {
-            version: DEFAULT_VERSION(),
-            runtime_version: DEFAULT_RUNTIME_VERSION(),
-            vm_args: DEFAULT_VM_ARGS(),
-        };
+        let expected_result = LauncherOptions::default();
 
         let result = LauncherOptions::new(Path::new(temp_path));
 

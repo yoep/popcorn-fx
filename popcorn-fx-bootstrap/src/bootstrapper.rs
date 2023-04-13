@@ -11,6 +11,7 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use thiserror::Error;
 
+use crate::data_installer::{DataInstaller, DefaultDataInstaller};
 use crate::launcher::LauncherOptions;
 
 const CONSOLE_APPENDER: &str = "stdout";
@@ -33,6 +34,8 @@ pub type Result<T> = std::result::Result<T, BootstrapError>;
 /// The bootstrap errors.
 #[derive(Debug, Error)]
 pub enum BootstrapError {
+    #[error("failed to create the initial data setup, {0}")]
+    InitialSetupFailed(String),
     #[error("child process failed to execute, {1}\nCommand: {0:?}")]
     ExecuteFailed(Command, String),
     #[error("invalid process handle, {0}")]
@@ -67,7 +70,9 @@ pub struct Bootstrapper {
     pub path: String,
     pub args: Vec<String>,
     pub data_base_path: PathBuf,
+    pub data_path: PathBuf,
     pub process_path: Option<String>,
+    pub data_installer: Box<dyn DataInstaller>,
 }
 
 impl Bootstrapper {
@@ -79,6 +84,10 @@ impl Bootstrapper {
     /// Launch the application.
     /// The application will be automatically restarted when needed.
     pub fn launch(&self) -> Result<()> {
+        // prepare the user's data system with the initial installation of the application if needed
+        self.data_installer.prepare()
+            .map_err(|e| BootstrapError::InitialSetupFailed(e.to_string()))?;
+
         loop {
             match self.launch_instance() {
                 Ok(action) => {
@@ -113,17 +122,15 @@ impl Bootstrapper {
     /// Build the application command that will be bootstrapped.
     fn command(&self) -> Command {
         let options = Self::get_launcher_options(&self.data_base_path);
-        let data_path = self.data_base_path
-            .join(DATA_DIRECTORY_NAME);
-        let data_version_path = data_path
+        let data_version_path = self.data_path
             .join(options.version.as_str());
         let data_version_path_value = data_version_path
             .to_str()
             .unwrap();
         let process_path = self.process_path.as_ref()
             .map(PathBuf::from)
-            .unwrap_or_else(|| Self::build_process_path(&data_path, &options));
-        let jar_path = data_path
+            .unwrap_or_else(|| Self::build_process_path(&self.data_path, &options));
+        let jar_path = self.data_path
             .join(options.version.as_str())
             .join(JAR_NAME);
 
@@ -206,6 +213,7 @@ pub struct BootstrapperBuilder {
     path: Option<String>,
     args: Option<Vec<String>>,
     data_base_path: Option<PathBuf>,
+    installation_path: Option<PathBuf>,
     disable_logger: bool,
     process_path: Option<String>,
 }
@@ -232,12 +240,47 @@ impl BootstrapperBuilder {
     }
 
     /// Sets the data base path for the `Bootstrapper`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// let bootstrapper = BootstrapperBuilder::default()
+    ///     .data_base_path(PathBuf::from("/var/lib/my_program"))
+    ///     .build();
+    /// ```
     pub fn data_base_path(mut self, path: PathBuf) -> Self {
         self.data_base_path = Some(path);
         self
     }
 
-    /// Disables the logger for the `Bootstrapper`.
+    /// Sets the installation path of the `Bootstrapper` application.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// let bootstrapper = BootstrapperBuilder::default()
+    ///     .installation_path(Some(PathBuf::from("/usr/local/bin")))
+    ///     .build();
+    /// ```
+    pub fn installation_path(mut self, path: Option<PathBuf>) -> Self {
+        self.installation_path = path;
+        self
+    }
+
+    /// Disables the log4rs logger used by `Bootstrapper`.
+    /// This allows you to use your own logger if needed, or modify the default logger settings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let bootstrapper = BootstrapperBuilder::default()
+    ///     .disable_logger(true)
+    ///     .build();
+    /// ```
     pub fn disable_logger(mut self, disable_logger: bool) -> Self {
         self.disable_logger = disable_logger;
         self
@@ -260,14 +303,20 @@ impl BootstrapperBuilder {
         }
         let mut args = self.args.expect("Args are not set").into_iter();
         let _program_name = args.next().unwrap();
-        let data_path = self.data_base_path.unwrap_or_else(|| BaseDirs::new()
+        let data_base_path = self.data_base_path.unwrap_or_else(|| BaseDirs::new()
             .map(|e| PathBuf::from(e.data_dir()))
             .expect("expected a system data directory"));
+        let data_path = data_base_path.join(DATA_DIRECTORY_NAME);
 
         Bootstrapper {
             path: self.path.expect("Path is not set"),
             args: args.collect(),
-            data_base_path: data_path,
+            data_installer: Box::new(DefaultDataInstaller {
+                data_path: data_path.clone(),
+                installation_path: self.installation_path.unwrap_or_else(|| env::current_dir().expect("expected a working directory")),
+            }),
+            data_path,
+            data_base_path,
             process_path: self.process_path,
         }
     }
@@ -278,6 +327,8 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::testing::init_logger;
+
+    use crate::data_installer::{DataInstallerError, MockDataInstaller};
 
     use super::*;
 
@@ -294,17 +345,35 @@ mod test {
     }
 
     #[test]
+    fn test_builder_disable_logger() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+
+        Bootstrapper::builder()
+            .args(vec!["popcorn-fx".to_string()])
+            .path("".to_string())
+            .data_base_path(PathBuf::from(temp_path))
+            .disable_logger(true)
+            .build();
+    }
+
+    #[test]
     fn test_launch() {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let bootstrap = Bootstrapper::builder()
-            .disable_logger(true)
-            .args(vec!["popcorn-fx".to_string()])
-            .path("".to_string())
-            .data_base_path(PathBuf::from(temp_path))
-            .process_path("echo".to_string())
-            .build();
+        let mut data_installer = MockDataInstaller::new();
+        data_installer.expect_prepare()
+            .returning(|| Ok(()));
+        let bootstrap = Bootstrapper {
+            path: "".to_string(),
+            args: vec!["popcorn-fx".to_string()],
+            data_base_path: PathBuf::from(temp_path).join(DATA_DIRECTORY_NAME),
+            data_path: PathBuf::from(temp_path),
+            process_path: Some("echo".to_string()),
+            data_installer: Box::new(data_installer),
+        };
 
         let result = bootstrap.launch();
 
@@ -312,17 +381,50 @@ mod test {
     }
 
     #[test]
+    fn test_launch_prepare_failure() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut data_installer = MockDataInstaller::new();
+        data_installer.expect_prepare()
+            .returning(|| Err(DataInstallerError::MissingAppData(PathBuf::from("."))));
+        let bootstrap = Bootstrapper {
+            path: "".to_string(),
+            args: vec![],
+            data_base_path: PathBuf::from(temp_path).join(DATA_DIRECTORY_NAME),
+            data_path: PathBuf::from(temp_path),
+            process_path: Some("echo".to_string()),
+            data_installer: Box::new(data_installer),
+        };
+
+        let result = bootstrap.launch();
+
+        if let Err(e) = result {
+            match e {
+                BootstrapError::InitialSetupFailed(_) => {}
+                _ => assert!(false, "expected BootstrapError::InitialSetupFailed")
+            }
+        } else {
+            assert!(false, "expected an error to be returned");
+        }
+    }
+
+    #[test]
     fn test_launch_failure() {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let bootstrap = Bootstrapper::builder()
-            .disable_logger(true)
-            .args(vec!["popcorn-fx".to_string()])
-            .path("".to_string())
-            .data_base_path(PathBuf::from(temp_path))
-            .process_path("lorem".to_string())
-            .build();
+        let mut data_installer = MockDataInstaller::new();
+        data_installer.expect_prepare()
+            .returning(|| Ok(()));
+        let bootstrap = Bootstrapper {
+            path: "".to_string(),
+            args: vec![],
+            data_base_path: PathBuf::from(temp_path).join(DATA_DIRECTORY_NAME),
+            data_path: PathBuf::from(temp_path),
+            process_path: Some("lorem".to_string()),
+            data_installer: Box::new(data_installer),
+        };
 
         let result = bootstrap.launch();
 

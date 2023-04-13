@@ -1963,6 +1963,7 @@ dependencies = [
  "directories",
  "log",
  "log4rs",
+ "mockall",
  "popcorn-fx-core",
  "serde",
  "serde_yaml 0.9.19",

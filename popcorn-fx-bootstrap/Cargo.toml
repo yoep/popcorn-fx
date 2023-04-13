@@ -17,6 +17,7 @@ path = "src/main.rs"
 directories.workspace = true
 log.workspace = true
 log4rs = { version = "1", features = ["console_writer"] }
+mockall = "0"
 serde = "1"
 serde_yaml = "0.9"
 thiserror = "1.0"

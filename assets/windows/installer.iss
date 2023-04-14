@@ -35,10 +35,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Registry]
 
 [Files]
-Source: "../../target/package/popcorn-time.exe"; DestDir: "{app}"; Flags: ignoreversion createallsubdirs
+Source: "../../target/package/popcorn-time.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "../../target/package/runtimes/*"; DestDir: "{app}\main\runtimes"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion createallsubdirs
-Source: "../../target/package/popcorn_fx.dll"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion createallsubdirs
+Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
+Source: "../../target/package/popcorn_fx.dll"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
 Source: "jlibtorrent.dll"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
 Source: "ffprobe.exe"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
 

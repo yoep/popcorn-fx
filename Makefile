@@ -117,7 +117,10 @@ build: prerequisites build-cargo build-java ## Build the application in debug mo
 build-release: prerequisites build-cargo-release build-java-release ## Build the application in release mode (slower build time)
 
 package: build-release ## Package the application for distribution
-	@echo Cleaning package
+	@echo Packaging Java
+	@mvn -B package -P$(PROFILE) -DskipTests -DskipITs
+
+	@echo Cleaning installation package
 	@rm -rf "./target/package"
 
 	@echo Creating JRE bundle

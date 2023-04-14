@@ -7,4 +7,4 @@ Maintainer: Popcorn FX
 Description: Popcorn Time is a multi-platform, free software BitTorrent client that includes an integrated media player.
 Distribution: development
 Homepage: https://github.com/yoep/popcorn-fx
-Depends: (vlc >= 3.0.0)
+Depends: vlc (>= 3.0.0)

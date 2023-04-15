@@ -20,7 +20,9 @@ log4rs = { version = "1", features = ["console_writer"] }
 mockall = "0"
 serde = "1"
 serde_yaml = "0.9"
+signal-hook = { version = "0.3" }
 thiserror = "1.0"
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

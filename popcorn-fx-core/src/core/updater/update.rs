@@ -596,7 +596,6 @@ mod test {
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
-    use crate::core::updater::ChangeLog;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
@@ -643,10 +642,6 @@ mod test {
             .build();
         let expected_result = VersionInfo {
             version: "1.0.0".to_string(),
-            changelog: ChangeLog {
-                features: vec!["lorem ipsum".to_string()],
-                bugfixes: vec!["ipsum dolor".to_string()],
-            },
             platforms: HashMap::from([
                 ("debian.x86_64".to_string(), "http://localhost/v1.0.0/popcorn-time_1.0.0.deb".to_string())
             ]),

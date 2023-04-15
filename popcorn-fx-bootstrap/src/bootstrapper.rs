@@ -1,7 +1,10 @@
-use std::env;
+use std::{env, thread};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::str::FromStr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use directories::BaseDirs;
 use log::{debug, error, LevelFilter, trace, warn};
@@ -73,6 +76,7 @@ pub struct Bootstrapper {
     pub data_path: PathBuf,
     pub process_path: Option<String>,
     pub data_installer: Box<dyn DataInstaller>,
+    pub shutting_down: Arc<AtomicBool>,
 }
 
 impl Bootstrapper {
@@ -106,6 +110,12 @@ impl Bootstrapper {
         }
     }
 
+    /// Shutdown the current running application within the bootstrapper.
+    pub fn shutdown(&self) {
+        debug!("Received bootstrapper shutdown request");
+        self.shutting_down.store(true, Ordering::SeqCst);
+    }
+
     fn launch_instance(&self) -> Result<Action> {
         let mut command = self.command();
         trace!("Spawning process {:?}", command);
@@ -113,15 +123,29 @@ impl Bootstrapper {
             .spawn()
             .map_err(|e| BootstrapError::ExecuteFailed(command, e.to_string()))?;
 
-        let exit_status = child.wait()
-            .map_err(|e| BootstrapError::InvalidHandle(e.to_string()))?;
+        while !self.shutting_down.load(Ordering::Relaxed) {
+            match child.try_wait() {
+                Ok(None) => thread::sleep(Duration::from_millis(100)),
+                Ok(Some(exit_status)) => return Ok(Self::handle_exit_status(exit_status)),
+                Err(e) => {
+                    error!("Failed to wait for the application process, {}", e);
+                    return Err(BootstrapError::InvalidHandle(e.to_string()));
+                }
+            }
+        }
 
-        Ok(Self::handle_exit_status(exit_status))
+        // shutdown the current running process
+        match child.kill() {
+            Ok(_) => trace!("Application process has been terminated"),
+            Err(_) => trace!("Application has already been terminated"),
+        }
+
+        Ok(Action::Shutdown)
     }
 
     /// Build the application command that will be bootstrapped.
     fn command(&self) -> Command {
-        let options = Self::get_launcher_options(&self.data_base_path);
+        let options = Self::get_launcher_options(&self.data_path);
         let data_version_path = self.data_path
             .join(options.version.as_str());
         let data_version_path_value = data_version_path
@@ -250,8 +274,8 @@ impl BootstrapperBuilder {
     ///     .data_base_path(PathBuf::from("/var/lib/my_program"))
     ///     .build();
     /// ```
-    pub fn data_base_path(mut self, path: PathBuf) -> Self {
-        self.data_base_path = Some(path);
+    pub fn data_base_path(mut self, path: Option<PathBuf>) -> Self {
+        self.data_base_path = path;
         self
     }
 
@@ -318,6 +342,7 @@ impl BootstrapperBuilder {
             data_path,
             data_base_path,
             process_path: self.process_path,
+            shutting_down: Arc::new(Default::default()),
         }
     }
 }
@@ -340,7 +365,7 @@ mod test {
         Bootstrapper::builder()
             .args(vec!["popcorn-fx".to_string()])
             .path("".to_string())
-            .data_base_path(PathBuf::from(temp_path))
+            .data_base_path(Some(PathBuf::from(temp_path)))
             .build();
     }
 
@@ -353,7 +378,7 @@ mod test {
         Bootstrapper::builder()
             .args(vec!["popcorn-fx".to_string()])
             .path("".to_string())
-            .data_base_path(PathBuf::from(temp_path))
+            .data_base_path(Some(PathBuf::from(temp_path)))
             .disable_logger(true)
             .build();
     }
@@ -373,6 +398,7 @@ mod test {
             data_path: PathBuf::from(temp_path),
             process_path: Some("echo".to_string()),
             data_installer: Box::new(data_installer),
+            shutting_down: Arc::new(Default::default()),
         };
 
         let result = bootstrap.launch();
@@ -395,6 +421,7 @@ mod test {
             data_path: PathBuf::from(temp_path),
             process_path: Some("echo".to_string()),
             data_installer: Box::new(data_installer),
+            shutting_down: Arc::new(Default::default()),
         };
 
         let result = bootstrap.launch();
@@ -424,6 +451,7 @@ mod test {
             data_path: PathBuf::from(temp_path),
             process_path: Some("lorem".to_string()),
             data_installer: Box::new(data_installer),
+            shutting_down: Arc::new(Default::default()),
         };
 
         let result = bootstrap.launch();

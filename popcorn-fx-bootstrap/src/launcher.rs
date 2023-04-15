@@ -50,9 +50,19 @@ pub struct LauncherOptions {
 }
 
 impl LauncherOptions {
-    /// Automatically discover the launcher options for the given application data path.
+    /// Create a new instance of `LauncherOptions` based on a configuration file found at the given data path.
+    ///
+    /// The configuration file is automatically searched for using the default filename and extensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `path`: The path to search for the configuration file.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the configuration file exists but cannot be read.
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        debug!("Searching for options with filename \"{}\"", FILENAME);
+        debug!("Loading launcher options with name {} from {:?}", FILENAME, path.as_ref());
         let config_value = Self::find_existing_file(path.as_ref(), FILENAME)
             .map(|mut e| {
                 let mut data = String::new();
@@ -65,6 +75,21 @@ impl LauncherOptions {
         Self::from(config_value.as_str())
     }
 
+    /// Retrieve the default filename for the launcher options configuration file.
+    pub fn filename() -> String {
+        format!("{}.{}", FILENAME, &EXTENSIONS[0])
+    }
+
+    /// Find an existing configuration file at the given path with the given filename and extensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `path`: The path to search for the configuration file.
+    /// * `filename`: The base filename of the configuration file to search for.
+    ///
+    /// # Returns
+    ///
+    /// If a configuration file is found, this method returns a `File` instance. Otherwise, it returns `None`.
     fn find_existing_file(path: &Path, filename: &str) -> Option<File> {
         let mut result: Option<File> = None;
 
@@ -170,5 +195,17 @@ vm_args:
         let result = LauncherOptions::new(Path::new(temp_path));
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_filename() {
+        init_logger();
+        let expected_result = PathBuf::new()
+            .join(FILENAME)
+            .with_extension(EXTENSIONS[0]);
+
+        let result = LauncherOptions::filename();
+
+        assert_eq!(expected_result.to_str().unwrap(), result.as_str())
     }
 }

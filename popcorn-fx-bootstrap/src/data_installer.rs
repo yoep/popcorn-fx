@@ -1,10 +1,13 @@
 use std::fmt::Debug;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use log::trace;
 use mockall::automock;
 use thiserror::Error;
+
+use crate::launcher::LauncherOptions;
 
 const INITIAL_INSTALL_DIRECTORY: &str = "main";
 
@@ -16,13 +19,15 @@ pub type Result<T> = std::result::Result<T, DataInstallerError>;
 pub enum DataInstallerError {
     #[error("missing application data in installation at {0:?}")]
     MissingAppData(PathBuf),
+    #[error("failed to parse launcher options, {0}")]
+    ParsingError(String),
     #[error("an IO error occurred, {0}")]
     IoError(String),
 }
 
 /// A trait for installing and preparing application data.
 #[automock]
-pub trait DataInstaller: Debug {
+pub trait DataInstaller: Debug + Send + Sync {
     /// Prepares the user's data system with the initial version of the application if needed.
     ///
     /// # Errors
@@ -41,13 +46,11 @@ pub struct DefaultDataInstaller {
 
 impl DefaultDataInstaller {
     /// Verify if the user's data directory has already been initialized.
-    fn is_initialized(&self) -> bool {
-        // verify if the users data directory has been initialized
-        if let Ok(mut entries) = fs::read_dir(self.data_path.as_path()) {
-            return entries.next().is_some();
-        }
+    fn is_initialized<T: AsRef<Path>>(&self, launcher_options_path: T) -> bool {
+        let expected_path = PathBuf::from(launcher_options_path.as_ref());
 
-        false
+        trace!("Checking if application data is initialized at {:?}", expected_path);
+        expected_path.exists()
     }
 
     fn copy_directory_contents<T: AsRef<Path>>(src: T, dest: T) -> Result<()> {
@@ -77,21 +80,41 @@ impl DefaultDataInstaller {
 
         Ok(())
     }
+
+    fn write_default_launcher_options<T: AsRef<Path>>(launcher_options_path: T) -> Result<()> {
+        let options = LauncherOptions::default();
+        let value = serde_yaml::to_string(&options)
+            .map_err(|e| DataInstallerError::ParsingError(e.to_string()))?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(launcher_options_path.as_ref())
+            .map_err(|e| DataInstallerError::IoError(e.to_string()))?;
+
+        file.write_all(value.as_bytes())
+            .map_err(|e| DataInstallerError::IoError(e.to_string()))
+    }
 }
 
 impl DataInstaller for DefaultDataInstaller {
     fn prepare(&self) -> Result<()> {
-        if !self.is_initialized() {
+        let launcher_options_path = PathBuf::from(self.data_path.as_path())
+            .join(LauncherOptions::filename());
+
+        if !self.is_initialized(launcher_options_path.as_path()) {
             trace!("Initializing application data setup");
             let initial_data_setup_path = self.installation_path.join(INITIAL_INSTALL_DIRECTORY);
             if !initial_data_setup_path.exists() {
                 return Err(DataInstallerError::MissingAppData(initial_data_setup_path));
             }
 
+            trace!("Copying application data to user data directory");
             Self::copy_directory_contents(initial_data_setup_path.as_path(), self.data_path.as_path())?;
+            Self::write_default_launcher_options(launcher_options_path.as_path())?;
             trace!("Initial application data setup completed");
         } else {
-            trace!("Application data setup already initialized, skipping preparation")
+            trace!("Application data setup already initialized, skipping data initialization")
         }
 
         Ok(())
@@ -110,8 +133,7 @@ mod test {
     fn test_prepare_already_initialized() {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
-        let temp_path = PathBuf::from(temp_dir.path())
-            .join(INITIAL_INSTALL_DIRECTORY);
+        let temp_path = PathBuf::from(temp_dir.path());
         copy_test_file(temp_path.to_str().unwrap(), "launcher.yml", None);
         let installer = DefaultDataInstaller {
             data_path: PathBuf::from(temp_dir.path()),

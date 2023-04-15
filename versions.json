@@ -14,5 +14,14 @@
     ],
     "bugfixes": [
     ]
+  },
+  "runtime": {
+    "version": "17.0.6",
+    "platforms": {
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/runtime_debian_x86_64.tar.gz",
+      "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/runtime_debian_arm64.tar.gz",
+      "mac.x86_64": "",
+      "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/runtime_windows.zip"
+    }
   }
 }

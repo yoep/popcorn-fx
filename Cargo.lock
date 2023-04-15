@@ -1967,6 +1967,7 @@ dependencies = [
  "popcorn-fx-core",
  "serde",
  "serde_yaml 0.9.19",
+ "signal-hook",
  "tempfile",
  "thiserror",
  "tokio",

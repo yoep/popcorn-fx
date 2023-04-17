@@ -10,6 +10,7 @@ public enum UpdateState implements NativeMapped {
     DOWNLOADING,
     DOWNLOAD_FINISHED,
     INSTALLING,
+    INSTALLATION_FINISHED,
     ERROR;
 
     @Override

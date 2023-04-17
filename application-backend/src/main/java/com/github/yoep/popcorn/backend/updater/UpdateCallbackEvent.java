@@ -110,7 +110,8 @@ public class UpdateCallbackEvent extends Structure implements Closeable {
     public enum Tag implements NativeMapped {
         StateChanged,
         UpdateAvailable,
-        DownloadProgress;
+        DownloadProgress,
+        InstallationProgress;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

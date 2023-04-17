@@ -10,14 +10,15 @@ import java.io.Closeable;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"version", "runtimeInfo"})
-public class VersionInfo extends Structure implements Closeable {
+@Structure.FieldOrder({"version"})
+public class RuntimeInfo extends Structure implements Closeable {
+    public static class ByValue extends RuntimeInfo implements Structure.ByValue {
+    }
+
     public String version;
-    public RuntimeInfo.ByValue runtimeInfo;
 
     @Override
     public void close() {
         setAutoSynch(false);
-        runtimeInfo.close();
     }
 }

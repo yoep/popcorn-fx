@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 
 use derive_more::Display;
@@ -23,24 +22,27 @@ use crate::VERSION;
 const UPDATE_INFO_FILE: &str = "versions.json";
 const UPDATE_DIRECTORY: &str = "updates";
 
-/// A callback type for update events.
+/// A type representing a callback function that can handle update events.
 pub type UpdateCallback = CoreCallback<UpdateEvent>;
 
-/// The update events of the updater.
+/// Represents the events that can occur during an update process.
 #[derive(Debug, Clone, Display)]
 pub enum UpdateEvent {
-    /// Invoked when the state of the updater has changed
+    /// Indicates that the state of the updater has changed.
     #[display(fmt = "Update state changed to {}", _0)]
     StateChanged(UpdateState),
-    /// Invoked when a new update is available
+    /// Indicates that a new update is available for the application.
     #[display(fmt = "New application update available")]
     UpdateAvailable(VersionInfo),
-    /// Invoked when the update download progresses
+    /// Indicates that the update download has progressed.
     #[display(fmt = "The update download has progressed to {:?}", _0)]
     DownloadProgress(DownloadProgress),
+    /// Indicates that the update installation has progressed.
+    #[display(fmt = "The update installation has progressed to {:?}", _0)]
+    InstallationProgress(InstallationProgress)
 }
 
-/// The state of the updater.
+/// Represents the state of the updater.
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum UpdateState {
     /// The updater is currently checking for a new version.
@@ -55,17 +57,30 @@ pub enum UpdateState {
     DownloadFinished(String),
     /// The updater is currently installing the update.
     Installing,
+    /// The installation has finished and a restart is required.
+    InstallationFinished,
     /// The updater has encountered an error.
     Error,
 }
 
-/// The current progress of the update that is being downloaded.
+/// Represents the current progress of an update being downloaded.
 #[derive(Debug, Clone)]
 pub struct DownloadProgress {
     /// The total size of the download in bytes.
     pub total_size: u64,
     /// The total downloaded size of the update in bytes.
     pub downloaded: u64,
+}
+
+/// Represents the current progress of an update being installed.
+#[derive(Debug, Clone)]
+pub struct InstallationProgress {
+    /// The current installation task.
+    pub task: u16,
+    /// The total number of tasks executed during the installation.
+    pub total_tasks: u16,
+    /// The current task progression as a fraction between 0.0 and 1.0.
+    pub task_progress: f32,
 }
 
 /// The updater of the application which is responsible for retrieving
@@ -487,7 +502,6 @@ impl InnerUpdater {
             UpdateState::DownloadFinished(filepath) => {
                 debug!("Starting update installation of {}", filepath);
                 let runtime = inner.runtime.clone();
-                let clone = inner.clone();
 
                 // make sure the closing state knows the application update has started
                 // to prevent accidental deletion of the update file
@@ -496,10 +510,7 @@ impl InnerUpdater {
                 drop(updating_mutex);
 
                 runtime.spawn(async move {
-                    Command::new(filepath)
-                        .spawn()
-                        .expect("failed to start update");
-                    clone.update_state_async(UpdateState::Installing).await;
+
                 });
 
                 Ok(())
@@ -596,6 +607,7 @@ mod test {
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
+    use crate::core::updater::RuntimeInfo;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
@@ -618,11 +630,15 @@ mod test {
   },
   "changelog": {
     "features": [
-      "lorem ipsum"
+      "lorem ipsum dolor"
     ],
-    "bugfixes": [
-      "ipsum dolor"
-    ]
+    "bugfixes": []
+  },
+  "runtime": {
+    "version": "17.0.6",
+    "platforms": {
+      "debian.x86_64": "http://localhost/runtime_debian_x86_64.tar.gz"
+    }
   }
 }"#);
         });
@@ -645,6 +661,12 @@ mod test {
             platforms: HashMap::from([
                 ("debian.x86_64".to_string(), "http://localhost/v1.0.0/popcorn-time_1.0.0.deb".to_string())
             ]),
+            runtime: RuntimeInfo {
+                version: "17.0.6".to_string(),
+                platforms:HashMap::from([
+                    ("debian.x86_64".to_string(), "http://localhost/runtime_debian_x86_64.tar.gz".to_string())
+                ]),
+            },
         };
 
         let result = runtime.block_on(async {
@@ -668,7 +690,13 @@ mod test {
                 .body(r#"{
   "version": "0.5.0",
   "platforms": {},
-  "changelog": {}
+  "changelog": {},
+  "runtime": {
+    "version": "8.0.12",
+    "platforms": {
+      "debian.x86_64": "http://localhost/runtime.tar.gz"
+    }
+  }
 }"#);
         });
         let platform_mock = MockDummyPlatformData::new();
@@ -708,7 +736,11 @@ mod test {
   "platforms": {
    "debian.x86_64": "http://localhost/v999.0.0/popcorn-time_999.0.0.deb"
   },
-  "changelog": {}
+  "changelog": {},
+  "runtime": {
+    "version": "17.0.0",
+    "platforms": {}
+  }
 }"#);
         });
         let mut platform_mock = MockDummyPlatformData::new();
@@ -755,7 +787,11 @@ mod test {
   "platforms": {{
     "debian.x86_64": "{}"
   }},
-  "changelog": {{}}
+  "changelog": {{}},
+  "runtime": {{
+    "version": "17.0.0",
+    "platforms": {{}}
+  }}
 }}"#, url));
         });
         server.mock(move |when, then| {
@@ -805,7 +841,11 @@ mod test {
   "platforms": {{
     "debian.x86_64": "{}"
   }},
-  "changelog": {{}} }}"#, url));
+  "changelog": {{}},
+  "runtime": {{
+    "version": "17.0.0",
+    "platforms": {{}}
+  }} }}"#, url));
         });
         let mut platform_mock = MockDummyPlatformData::new();
         platform_mock.expect_info()
@@ -846,7 +886,12 @@ mod test {
                 .header("content-type", "application/json")
                 .body(r#"{"version": "0.0.1",
   "platforms": {},
-  "changelog": {}}"#);
+  "changelog": {},
+  "runtime": {
+    "version": "17.0.0",
+    "platforms": {}
+  }
+ }"#);
         });
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
@@ -935,7 +980,12 @@ mod test {
                 .header("content-type", "application/json")
                 .body(r#"{"version": "0.0.1",
   "platforms": {},
-  "changelog": {}}"#);
+  "changelog": {},
+  "runtime": {
+    "version": "0.0.1",
+    "platforms": {}
+  }
+}"#);
         });
         let mut platform_mock = MockDummyPlatformData::new();
         platform_mock.expect_info()
@@ -964,7 +1014,14 @@ mod test {
   "platforms": {
     "debian.x86_64": ""
   },
-  "changelog": {}}"#);
+  "changelog": {},
+  "runtime": {
+    "version": "30.0.1",
+    "platforms": {
+        "debian.x86_64": ""
+    }
+  }
+ }"#);
         });
 
         updater.check_for_updates();

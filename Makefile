@@ -28,6 +28,7 @@ PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
 INSTALLER_COMMAND := powershell.exe -Command "iscc.exe /Otarget/ /Fpopcorn-time_${VERSION} \"./assets/windows/installer.iss\""
+RUNTIME_COMPRESS_COMMAND := 7z a -tzip target/runtime_${RUNTIME_VERSION}_windows.zip target/package/runtimes/${RUNTIME_VERSION}/*
 
 # check required software
 ifeq ($(shell command -v iscc),)
@@ -47,6 +48,7 @@ PROFILE := linux
 ASSETS := linux
 PYTHON := python3
 INSTALLER_COMMAND := dpkg-deb --build -Zgzip target/package target/popcorn-time_${VERSION}.deb
+RUNTIME_COMPRESS_COMMAND := tar -czvf target/runtime_${RUNTIME_VERSION}_debian_x86_64.tar.gz target/package/runtimes/${RUNTIME_VERSION}/*
 endif
 
 prerequisites: ## Install the requirements for the application
@@ -134,6 +136,9 @@ package: build-release ## Package the application for distribution
 
 	@echo Creating installer
 	${INSTALLER_COMMAND}
+
+	@echo Creating runtime update
+	${RUNTIME_COMPRESS_COMMAND}
 
 release: bump-minor test-cargo build-release ## Release a new version of the application with increased minor
 

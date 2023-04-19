@@ -12,6 +12,8 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use url::Url;
 
+use popcorn_fx_launcher::LauncherOptions;
+
 use crate::core::{CoreCallback, CoreCallbacks, updater};
 use crate::core::config::ApplicationConfig;
 use crate::core::platform::PlatformData;
@@ -39,7 +41,7 @@ pub enum UpdateEvent {
     DownloadProgress(DownloadProgress),
     /// Indicates that the update installation has progressed.
     #[display(fmt = "The update installation has progressed to {:?}", _0)]
-    InstallationProgress(InstallationProgress)
+    InstallationProgress(InstallationProgress),
 }
 
 /// Represents the state of the updater.
@@ -178,54 +180,103 @@ impl Updater {
 }
 
 /// The builder for creating new [Updater] instances.
+///
+/// Use this builder to customize and construct [Updater] instances.
+///# Example
+///
+///```no_run
+/// use std::sync::{Arc};
+/// use tokio::sync::Mutex;
+/// use popcorn_fx_core::core::config::ApplicationConfig;
+/// use popcorn_fx_core::core::updater::{UpdateCallback, UpdateEvent, UpdaterBuilder};
+///
+/// let config = Arc::new(Mutex::new(ApplicationConfig::default()));
+/// let platform = Arc::new(Box::new(MyPlatformData));
+///
+/// let callback = UpdateCallback::new(|event| {
+///     if let UpdateEvent::UpdateAvailable(version) = event {
+///         println!("New update available: {}", version);
+///     }
+/// });
+///
+/// let builder = UpdaterBuilder::default()
+///     .settings(config)
+///     .platform(platform)
+///     .data_path("~/.local/share/popcorn-fx")
+///     .with_callback(callback);
+///
+/// let updater = builder.build();
+/// ```
+///
+/// This example creates an `UpdaterBuilder` instance and sets its properties, including the `ApplicationConfig`, `PlatformData`, storage path, and update callback.
+/// It then uses the builder to construct an `Updater` instance, which is returned and can be used to check for and install updates.
 #[derive(Default)]
 pub struct UpdaterBuilder {
     settings: Option<Arc<Mutex<ApplicationConfig>>>,
     insecure: bool,
     platform: Option<Arc<Box<dyn PlatformData>>>,
-    storage_path: Option<String>,
+    data_path: Option<String>,
     callbacks: Vec<UpdateCallback>,
     runtime: Option<Arc<Runtime>>,
 }
 
 impl UpdaterBuilder {
+    /// Sets the application settings for the updater.
     pub fn settings(mut self, settings: Arc<Mutex<ApplicationConfig>>) -> Self {
         self.settings = Some(settings);
         self
     }
 
+    /// Sets whether the updater should use insecure connections to download updates.
     pub fn insecure(mut self, insecure: bool) -> Self {
         self.insecure = insecure;
         self
     }
 
+    /// Sets the platform data for the updater.
     pub fn platform(mut self, platform: Arc<Box<dyn PlatformData>>) -> Self {
         self.platform = Some(platform);
         self
     }
 
-    pub fn storage_path(mut self, storage_path: &str) -> Self {
-        self.storage_path = Some(storage_path.to_owned());
+    /// Sets the data path for the updater.
+    pub fn data_path(mut self, storage_path: &str) -> Self {
+        self.data_path = Some(storage_path.to_owned());
         self
     }
 
+    /// Adds an update callback to the updater.
     pub fn with_callback(mut self, callback: UpdateCallback) -> Self {
         self.callbacks.push(callback);
         self
     }
 
+    /// Sets the Tokio runtime for the updater.
     pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
         self.runtime = Some(runtime);
         self
     }
 
+    /// Constructs a new updater and starts polling the update channel.
+    ///
+    /// This method constructs a new `Updater` instance using the settings, platform, storage path, and callbacks configured
+    /// with the builder's methods. If any of these properties have not been set, this method will panic.
+    ///
+    /// Additionally, this method starts the updater's polling loop, which checks for updates on a regular basis.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if any of the following required properties have not been set on the builder:
+    /// - `settings`
+    /// - `platform`
+    /// - `data_path`
     pub fn build(self) -> Updater {
         let instance = Updater {
             inner: Arc::new(InnerUpdater::new(
                 self.settings.expect("Settings are not set"),
                 self.insecure,
                 self.platform.expect("Platform is not set"),
-                self.storage_path.expect("Storage path is not set").as_str(),
+                self.data_path.expect("Data path is not set").as_str(),
                 self.callbacks,
                 self.runtime
                     .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
@@ -243,7 +294,7 @@ impl Debug for UpdaterBuilder {
             .field("settings", &self.settings)
             .field("insecure", &self.insecure)
             .field("platform", &self.platform)
-            .field("storage_path", &self.storage_path)
+            .field("storage_path", &self.data_path)
             .field("runtime", &self.runtime)
             .finish()
     }
@@ -265,6 +316,7 @@ struct InnerUpdater {
     storage_path: PathBuf,
     /// Indicates if an update is being started
     updating: Mutex<bool>,
+    launcher_options: LauncherOptions,
 }
 
 impl InnerUpdater {
@@ -280,7 +332,7 @@ impl InnerUpdater {
             settings,
             platform,
             client: ClientBuilder::new()
-                .danger_accept_invalid_certs(insecure.clone())
+                .danger_accept_invalid_certs(insecure)
                 .build()
                 .unwrap(),
             cache: Mutex::new(None),
@@ -289,6 +341,7 @@ impl InnerUpdater {
             callbacks: core_callbacks,
             storage_path: PathBuf::from(storage_path),
             updating: Default::default(),
+            launcher_options: LauncherOptions::new(storage_path),
         }
     }
 
@@ -345,10 +398,10 @@ impl InnerUpdater {
 
         match update_version {
             Ok(version) => {
-                let current_version = Self::current_version();
+                let current_version = Self::current_application_version();
 
                 debug!("Checking current version {} against update channel version {}", current_version, version);
-                if self.is_update_available(version_info, &version) {
+                if self.is_application_update_available(version_info, &version) {
                     info!("New version {} is available to be installed", version);
                     self.update_state_async(UpdateState::UpdateAvailable).await;
                     self.callbacks.invoke(UpdateEvent::UpdateAvailable(version_info.clone()))
@@ -387,11 +440,12 @@ impl InnerUpdater {
     }
 
     async fn download(&self) -> updater::Result<()> {
-        trace!("Starting application update download");
+        trace!("Starting update download process");
         let version_info = self.version_info().await?;
         let channel_version = Version::parse(version_info.version()).unwrap();
+        let runtime_version = Version::parse(version_info.runtime.version()).unwrap();
 
-        if self.is_update_available(&version_info, &channel_version) {
+        if self.is_application_update_available(&version_info, &channel_version) {
             let download_link = version_info.platforms.get(self.platform_identifier().as_str()).expect("expected the platform link to have been found");
 
             self.update_state_async(UpdateState::Downloading).await;
@@ -403,6 +457,9 @@ impl InnerUpdater {
                     Err(UpdateError::InvalidDownloadUrl(download_link.clone()))
                 }
             };
+        }
+        if self.is_runtime_update_available(&version_info, &runtime_version) {
+
         }
 
         Ok(())
@@ -509,9 +566,7 @@ impl InnerUpdater {
                 *updating_mutex = true;
                 drop(updating_mutex);
 
-                runtime.spawn(async move {
-
-                });
+                runtime.spawn(async move {});
 
                 Ok(())
             }
@@ -526,11 +581,11 @@ impl InnerUpdater {
         self.callbacks.add(callback)
     }
 
-    /// Verify if an update is available for the current platform.
+    /// Verify if an application update is available for the current platform.
     ///
     /// It returns `true` when a new version is available for the platform, else `false`.
-    fn is_update_available(&self, version_info: &VersionInfo, channel_version: &Version) -> bool {
-        let current_version = Self::current_version();
+    fn is_application_update_available(&self, version_info: &VersionInfo, channel_version: &Version) -> bool {
+        let current_version = Self::current_application_version();
 
         if channel_version.cmp(&current_version) == Ordering::Greater {
             let platform_identifier = self.platform_identifier();
@@ -538,6 +593,23 @@ impl InnerUpdater {
                 return true;
             }
             warn!("New version {} available, but no installer found for {}", channel_version, platform_identifier.as_str());
+        }
+
+        false
+    }
+
+    /// Verify if a runtime update is available for the current platform.
+    ///
+    /// It returns `true` when a new runtime version is available for the platform, else `false`.
+    fn is_runtime_update_available(&self, version_info: &VersionInfo, runtime_version: &Version) -> bool {
+        let current_runtime_version = Version::parse(self.launcher_options.runtime_version.as_str()).unwrap();
+
+        if runtime_version.cmp(&current_runtime_version) == Ordering::Greater {
+            let platform_identifier = self.platform_identifier();
+            if version_info.runtime.platforms.contains_key(platform_identifier.as_str()) {
+                return true;
+            }
+            warn!("New runtime version {} available, but no runtime update found for {}", runtime_version, platform_identifier.as_str());
         }
 
         false
@@ -569,7 +641,7 @@ impl InnerUpdater {
         self.storage_path.join(UPDATE_DIRECTORY)
     }
 
-    fn current_version() -> Version {
+    fn current_application_version() -> Version {
         Version::parse(VERSION).expect("expected the current version to be valid")
     }
 }
@@ -653,7 +725,7 @@ mod test {
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .build();
         let expected_result = VersionInfo {
@@ -663,7 +735,7 @@ mod test {
             ]),
             runtime: RuntimeInfo {
                 version: "17.0.6".to_string(),
-                platforms:HashMap::from([
+                platforms: HashMap::from([
                     ("debian.x86_64".to_string(), "http://localhost/runtime_debian_x86_64.tar.gz".to_string())
                 ]),
             },
@@ -705,7 +777,7 @@ mod test {
         let _ = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .with_callback(Box::new(move |event| {
                 tx.send(event).unwrap()
@@ -754,7 +826,7 @@ mod test {
         let _ = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .with_callback(Box::new(move |event| {
                 tx.send(event).unwrap()
@@ -812,7 +884,7 @@ mod test {
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .build();
         let expected_result = read_test_file_to_string(filename);
@@ -858,7 +930,7 @@ mod test {
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .build();
 
@@ -899,7 +971,7 @@ mod test {
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .with_callback(Box::new(move |event| {
                 tx.send(event).unwrap()
@@ -943,7 +1015,7 @@ mod test {
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .build();
         copy_test_file(updates_directory.to_str().unwrap(), filename, None);
@@ -997,7 +1069,7 @@ mod test {
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .storage_path(temp_path)
+            .data_path(temp_path)
             .insecure(false)
             .build();
 

@@ -7,7 +7,7 @@ use log::trace;
 use mockall::automock;
 use thiserror::Error;
 
-use crate::launcher::LauncherOptions;
+use popcorn_fx_launcher::LauncherOptions;
 
 const INITIAL_INSTALL_DIRECTORY: &str = "main";
 

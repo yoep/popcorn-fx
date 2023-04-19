@@ -16,7 +16,6 @@ use crate::bootstrapper::{BootstrapError, Bootstrapper};
 
 mod data_installer;
 mod bootstrapper;
-mod launcher;
 
 const ENV_INSTALLATION_DIR: &str = "INSTALLATION_DIR";
 const DATA_DIR: &str = "DATA_DIR";

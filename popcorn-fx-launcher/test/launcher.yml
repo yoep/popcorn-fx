@@ -1,0 +1,5 @@
+version: 99.0.0
+runtime_version: 101.0.0
+vm_args:
+  - lorem
+  - ipsum

@@ -1965,6 +1965,7 @@ dependencies = [
  "log4rs",
  "mockall",
  "popcorn-fx-core",
+ "popcorn-fx-launcher",
  "serde",
  "serde_yaml 0.9.19",
  "signal-hook",
@@ -1994,6 +1995,7 @@ dependencies = [
  "mockall",
  "percent-encoding",
  "popcorn-fx-core",
+ "popcorn-fx-launcher",
  "regex",
  "reqwest",
  "semver",
@@ -2006,6 +2008,17 @@ dependencies = [
  "tokio-stream",
  "url",
  "warp",
+]
+
+[[package]]
+name = "popcorn-fx-launcher"
+version = "0.6.5"
+dependencies = [
+ "log",
+ "popcorn-fx-core",
+ "serde",
+ "serde_yaml 0.9.19",
+ "tempfile",
 ]
 
 [[package]]

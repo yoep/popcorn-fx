@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use clap::Parser;
 use derive_more::Display;
-use directories::UserDirs;
+use directories::{BaseDirs, UserDirs};
 use log::{info, LevelFilter, warn};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
@@ -51,12 +51,16 @@ const FILE_APPENDER: &str = "file";
 const LOG_FILE_DIRECTORY: &str = "logs";
 const LOG_FILE_NAME: &str = "popcorn-time.log";
 const LOG_FILE_SIZE: u64 = 50 * 1024 * 1024;
-const DEFAULT_APP_DIRECTORY_NAME: &str = ".popcorn-time";
 const DEFAULT_APP_DIRECTORY: fn() -> String = || UserDirs::new()
     .map(|e| PathBuf::from(e.home_dir()))
-    .map(|e|  e.join(DEFAULT_APP_DIRECTORY_NAME))
+    .map(|e| e.join(".popcorn-time"))
     .map(|e| e.to_str().expect("expected a valid home path").to_string())
     .expect("expected a home directory to exist");
+const DEFAULT_DATA_DIRECTORY: fn() -> String = || BaseDirs::new()
+    .map(|e| PathBuf::from(e.data_dir()))
+    .map(|e| e.join("popcorn-fx"))
+    .map(|e| e.to_str().expect("expected a valid data path").to_string())
+    .expect("expected a data directory to exist");
 
 /// The options for the [PopcornFX] instance.
 #[derive(Debug, Clone, Display, Parser)]
@@ -67,6 +71,10 @@ pub struct PopcornFxArgs {
     /// This directory is also referred to as the `storage_directory` or `storage_path` within the application.
     #[arg(long, default_value_t = DEFAULT_APP_DIRECTORY())]
     pub app_directory: String,
+    /// The directory containing the application data files.
+    /// This directory is also referred to as the `runtime_directory` within the application.
+    #[arg(long, default_value_t = DEFAULT_DATA_DIRECTORY())]
+    pub data_directory: String,
     /// Disable the default `log4rs` logger for popcorn FX.
     /// This allows you to bring your own logger for the instance which should support [log].
     #[arg(long, global = true, default_value_t = false)]
@@ -104,6 +112,7 @@ impl Default for PopcornFxArgs {
     fn default() -> Self {
         Self {
             app_directory: DEFAULT_APP_DIRECTORY(),
+            data_directory: DEFAULT_DATA_DIRECTORY(),
             disable_logger: false,
             disable_mouse: false,
             disable_youtube_video_player: false,
@@ -201,7 +210,7 @@ impl PopcornFX {
             .settings(settings.clone())
             .platform(platform.clone())
             .insecure(args.insecure)
-            .storage_path(app_directory_path)
+            .data_path(args.data_directory.as_str())
             .runtime(runtime.clone())
             .build());
         let playback_controls = Arc::new(PlaybackControls::builder()
@@ -546,6 +555,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let args = PopcornFxArgs {
             app_directory: temp_path.to_string(),
+            data_directory: temp_path.to_string(),
             disable_logger: false,
             disable_mouse: false,
             disable_youtube_video_player: false,

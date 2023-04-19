@@ -71,6 +71,7 @@ mod test {
             kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: temp_dir.path().join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         });
 
@@ -95,6 +96,7 @@ mod test {
             kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: temp_dir.path().join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         });
 
@@ -119,6 +121,7 @@ mod test {
             kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: temp_dir.path().join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         });
 
@@ -143,6 +146,7 @@ mod test {
             kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: temp_dir.path().join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         });
 
@@ -167,6 +171,7 @@ mod test {
             kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: temp_dir.path().join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         });
 
@@ -191,6 +196,7 @@ mod test {
             kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: temp_dir.path().join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         });
 
@@ -215,6 +221,7 @@ mod test {
             kiosk: true,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: temp_dir.path().join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         });
 

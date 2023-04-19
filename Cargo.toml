@@ -4,6 +4,7 @@ members = [
     "popcorn-fx",
     "popcorn-fx-bootstrap",
     "popcorn-fx-core",
+    "popcorn-fx-launcher",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
     "popcorn-fx-torrent",
@@ -13,6 +14,7 @@ members = [
 [workspace.dependencies]
 directories = "5.0"
 log = "0"
+serde = "1"
 tokio = "1"
 
 [profile.release]

@@ -12,6 +12,8 @@ crate-type = ["rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+popcorn-fx-launcher = { path = "../popcorn-fx-launcher" }
+
 async-trait = "0"
 bytes = "1.4"
 chrono = "0"
@@ -28,7 +30,7 @@ mockall = "0"
 percent-encoding = "2"
 regex = "1"
 reqwest = { version = "0", features = ["serde_json", "json", "stream"] }
-serde = "1"
+serde.workspace = true
 serde_json = "1"
 serde_yaml = "0.9"
 semver = "1.0"

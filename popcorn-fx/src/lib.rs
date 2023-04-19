@@ -833,6 +833,7 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
@@ -864,6 +865,7 @@ mod test {
             kiosk: false,
             insecure: false,
             app_directory: temp_path.to_string(),
+            data_directory: PathBuf::from(temp_path).join("data").to_str().unwrap().to_string(),
             properties: Default::default(),
         }
     }

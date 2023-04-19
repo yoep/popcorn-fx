@@ -27,8 +27,8 @@ const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
 ///
 /// # Examples
 ///
-/// ```
-/// use my_crate::LauncherOptions;
+/// ```no_run
+/// use popcorn_fx_launcher::LauncherOptions;
 ///
 /// let options = LauncherOptions {
 ///     version: "1.0.0".to_string(),

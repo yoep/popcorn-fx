@@ -14,13 +14,19 @@
     ],
     "bugfixes": []
   },
+  "patch": {
+    "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/",
+    "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/",
+    "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/",
+    "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_app_0.6.5_windows_amd64.tar.gz"
+  },
   "runtime": {
     "version": "17.0.6",
     "platforms": {
-      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/runtime_17.0.6_debian_x86_64.tar.gz",
-      "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/runtime_17.0.6_debian_arm64.tar.gz",
-      "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/runtime_17.0.6_macos.tar.gz",
-      "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/runtime_17.0.6_windows.zip"
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_debian_x86_64.tar.gz",
+      "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_debian_arm64.tar.gz",
+      "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_macos.tar.gz",
+      "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_windows.tar.gz"
     }
   }
 }

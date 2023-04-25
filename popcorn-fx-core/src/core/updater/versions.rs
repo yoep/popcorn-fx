@@ -8,7 +8,10 @@ pub struct VersionInfo {
     /// The latest release version number in semantic format.
     pub version: String,
     /// Available platform updates, with keys representing the platform name and values representing the update version.
+    /// This is the legacy update information of the application and no longer used.
     pub platforms: HashMap<String, String>,
+    /// Available platform patch updates of the application, with keys representing the platform name and values representing the update version.
+    pub patch: HashMap<String, String>,
     /// Runtime information for the latest version.
     pub runtime: RuntimeInfo,
 }

@@ -711,7 +711,6 @@ struct DownloadProgressC {
 struct InstallationProgressC {
   uint16_t task;
   uint16_t total_tasks;
-  float task_progress;
 };
 
 /// The C compatible representation of the update events.

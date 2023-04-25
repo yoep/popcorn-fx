@@ -1,13 +1,16 @@
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use derive_more::Display;
+use flate2::read::GzDecoder;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
+use tar::Archive;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use url::Url;
@@ -19,6 +22,7 @@ use crate::core::config::ApplicationConfig;
 use crate::core::platform::PlatformData;
 use crate::core::storage::Storage;
 use crate::core::updater::{UpdateError, VersionInfo};
+use crate::core::updater::task::UpdateTask;
 use crate::VERSION;
 
 const UPDATE_INFO_FILE: &str = "versions.json";
@@ -56,7 +60,7 @@ pub enum UpdateState {
     /// The updater is currently downloading the update.
     Downloading,
     /// The download has finished and the update is ready to be installed.
-    DownloadFinished(String),
+    DownloadFinished,
     /// The updater is currently installing the update.
     Installing,
     /// The installation has finished and a restart is required.
@@ -81,8 +85,6 @@ pub struct InstallationProgress {
     pub task: u16,
     /// The total number of tasks executed during the installation.
     pub total_tasks: u16,
-    /// The current task progression as a fraction between 0.0 and 1.0.
-    pub task_progress: f32,
 }
 
 /// The updater of the application which is responsible for retrieving
@@ -313,14 +315,14 @@ struct InnerUpdater {
     runtime: Arc<Runtime>,
     /// The event callbacks for the updater
     callbacks: CoreCallbacks<UpdateEvent>,
-    storage_path: PathBuf,
-    /// Indicates if an update is being started
-    updating: Mutex<bool>,
+    data_path: PathBuf,
+    download_progress: Mutex<Option<DownloadProgress>>,
+    tasks: Mutex<Vec<UpdateTask>>,
     launcher_options: LauncherOptions,
 }
 
 impl InnerUpdater {
-    fn new(settings: Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: Arc<Box<dyn PlatformData>>, storage_path: &str, callbacks: Vec<UpdateCallback>, runtime: Arc<Runtime>) -> Self {
+    fn new(settings: Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: Arc<Box<dyn PlatformData>>, data_path: &str, callbacks: Vec<UpdateCallback>, runtime: Arc<Runtime>) -> Self {
         let core_callbacks: CoreCallbacks<UpdateEvent> = Default::default();
 
         // add the given callbacks to the initial list
@@ -339,9 +341,10 @@ impl InnerUpdater {
             state: Mutex::new(UpdateState::CheckingForNewVersion),
             runtime,
             callbacks: core_callbacks,
-            storage_path: PathBuf::from(storage_path),
-            updating: Default::default(),
-            launcher_options: LauncherOptions::new(storage_path),
+            data_path: PathBuf::from(data_path),
+            download_progress: Default::default(),
+            tasks: Default::default(),
+            launcher_options: LauncherOptions::new(data_path),
         }
     }
 
@@ -377,8 +380,8 @@ impl InnerUpdater {
                 let response = self.poll_info_from_url(url).await?;
                 let version_info = Self::handle_query_response(response).await?;
 
-                self.update_version_info(&version_info).await;
-                Ok(version_info)
+                self.update_version_info(&version_info).await
+                    .map(|_| version_info)
             }
             Err(e) => {
                 error!("Failed to poll update channel, {}", e);
@@ -388,33 +391,57 @@ impl InnerUpdater {
         }
     }
 
-    async fn update_version_info(&self, version_info: &VersionInfo) {
-        let mut mutex = self.cache.lock().await;
-        let update_version = Version::parse(version_info.version());
+    async fn update_version_info(&self, version_info: &VersionInfo) -> updater::Result<()> {
+        let mut info_mutex = self.cache.lock().await;
 
-        *mutex = Some(version_info.clone());
+        *info_mutex = Some(version_info.clone());
         // mutex is not used beyond this point, so release it
-        drop(mutex);
+        drop(info_mutex);
 
-        match update_version {
-            Ok(version) => {
-                let current_version = Self::current_application_version();
+        self.create_update_tasks(version_info).await
+    }
 
-                debug!("Checking current version {} against update channel version {}", current_version, version);
-                if self.is_application_update_available(version_info, &version) {
-                    info!("New version {} is available to be installed", version);
-                    self.update_state_async(UpdateState::UpdateAvailable).await;
-                    self.callbacks.invoke(UpdateEvent::UpdateAvailable(version_info.clone()))
-                } else {
-                    info!("Application version {} is up-to-date", VERSION);
-                    self.update_state_async(UpdateState::NoUpdateAvailable).await
-                }
-            }
-            Err(e) => {
-                error!("Failed to parse update channel version, {}", e);
-                self.update_state_async(UpdateState::Error).await
-            }
+    async fn create_update_tasks(&self, version_info: &VersionInfo) -> updater::Result<()> {
+        let platform_identifier = self.platform_identifier();
+        let current_version = Self::current_application_version();
+        let application_version = Version::parse(version_info.version())
+            .map_err(|e| UpdateError::InvalidApplicationVersion(version_info.version().to_string(), e.to_string()))?;
+        let runtime_version = Version::parse(version_info.runtime.version())
+            .map_err(|e| UpdateError::InvalidRuntimeVersion(version_info.runtime.version().to_string(), e.to_string()))?;
+        let mut tasks_mutex = self.tasks.lock().await;
+
+        debug!("Checking channel app version {} against local version {}", current_version.to_string(), application_version.to_string());
+        if self.is_application_update_available(version_info, &application_version) {
+            info!("New application version {} is available", application_version);
+            tasks_mutex.push(UpdateTask::builder()
+                .current_version(current_version)
+                .new_version(application_version)
+                .download_link(Self::convert_download_link_to_url(version_info.patch.get(platform_identifier.as_str()))?)
+                .build());
+        } else {
+            info!("Application version {} is up-to-date", VERSION);
         }
+
+        debug!("Checking channel runtime version {} against local version {}", self.launcher_options.runtime_version, runtime_version.to_string());
+        if self.is_runtime_update_available(version_info, &runtime_version) {
+            info!("New runtime version {} is available", runtime_version);
+            tasks_mutex.push(UpdateTask::builder()
+                .current_version(Version::parse(self.launcher_options.runtime_version.as_str())
+                    .map_err(|e| UpdateError::InvalidRuntimeVersion(self.launcher_options.runtime_version.clone(), e.to_string()))?)
+                .new_version(runtime_version)
+                .download_link(Self::convert_download_link_to_url(version_info.runtime.platforms.get(platform_identifier.as_str()))?)
+                .build());
+        }
+
+        if tasks_mutex.len() > 0 {
+            debug!("A total of {} update tasks have been created", tasks_mutex.len());
+            self.update_state_async(UpdateState::UpdateAvailable).await;
+            self.callbacks.invoke(UpdateEvent::UpdateAvailable(version_info.clone()));
+        } else {
+            self.update_state_async(UpdateState::NoUpdateAvailable).await;
+        }
+
+        Ok(())
     }
 
     async fn update_state_async(&self, state: UpdateState) {
@@ -441,38 +468,32 @@ impl InnerUpdater {
 
     async fn download(&self) -> updater::Result<()> {
         trace!("Starting update download process");
-        let version_info = self.version_info().await?;
-        let channel_version = Version::parse(version_info.version()).unwrap();
-        let runtime_version = Version::parse(version_info.runtime.version()).unwrap();
+        let mut tasks_mutex = self.tasks.lock().await;
+        let mut futures = vec![];
 
-        if self.is_application_update_available(&version_info, &channel_version) {
-            let download_link = version_info.platforms.get(self.platform_identifier().as_str()).expect("expected the platform link to have been found");
-
-            self.update_state_async(UpdateState::Downloading).await;
-            return match Url::parse(download_link.as_str()) {
-                Ok(url) => self.download_and_store(url).await,
-                Err(e) => {
-                    warn!("Failed to parse update download url, {}" , e);
-                    self.update_state_async(UpdateState::Error).await;
-                    Err(UpdateError::InvalidDownloadUrl(download_link.clone()))
-                }
-            };
-        }
-        if self.is_runtime_update_available(&version_info, &runtime_version) {
-
+        for task in tasks_mutex.iter_mut() {
+            futures.push(self.download_update_task(task));
         }
 
+        self.update_state_async(UpdateState::Downloading).await;
+        let results: Vec<updater::Result<()>> = futures::future::join_all(futures).await;
+
+        for result in results {
+            result?;
+        }
+
+        self.update_state_async(UpdateState::DownloadFinished).await;
         Ok(())
     }
 
-    async fn download_and_store(&self, url: Url) -> updater::Result<()> {
+    async fn download_update_task(&self, task: &mut UpdateTask) -> updater::Result<()> {
         let directory = self.update_directory_path();
-        let url_path = PathBuf::from(url.path());
+        let url_path = PathBuf::from(task.download_link.path());
         let filename = url_path.file_name().expect("expected a valid filename").to_str().unwrap();
         let mut file = self.create_update_file(&directory, filename).await?;
 
-        debug!("Downloading update from {:?}", url);
-        match self.client.get(url)
+        debug!("Downloading update from {}", task.download_link.as_str());
+        match self.client.get(task.download_link.as_ref())
             .send()
             .await {
             Ok(response) => {
@@ -480,11 +501,10 @@ impl InnerUpdater {
 
                 trace!("Received update download status code {}", status_code);
                 if status_code == StatusCode::OK {
-                    let total_size = response.content_length()
-                        .or_else(|| Some(0))
-                        .unwrap();
-                    let mut downloaded_size = 0;
+                    let total_size = response.content_length().unwrap_or(0);
                     let mut stream = response.bytes_stream();
+
+                    self.update_download_progress(Some(total_size), None).await;
                     while let Some(chunk) = stream.next().await {
                         let chunk = chunk.map_err(|e| {
                             error!("Failed to read update chunk, {}", e);
@@ -496,14 +516,10 @@ impl InnerUpdater {
                             UpdateError::IO("Failed to write chunk to file".to_string())
                         })?;
 
-                        downloaded_size = downloaded_size + (chunk.len() as u64);
-                        self.trigger_download_progress(total_size, downloaded_size);
+                        self.update_download_progress(None, Some(chunk.len() as u64)).await;
                     }
 
-                    let filepath_buf = directory.join(filename);
-                    let filepath = filepath_buf.to_str().unwrap();
-                    info!("Update has been stored in {}", filepath);
-                    self.update_state_async(UpdateState::DownloadFinished(filepath.to_string())).await;
+                    task.set_archive_location(directory.join(filename))?;
                     return Ok(());
                 }
 
@@ -517,11 +533,27 @@ impl InnerUpdater {
         }
     }
 
-    fn trigger_download_progress(&self, total_size: u64, downloaded_size: u64) {
-        self.callbacks.invoke(UpdateEvent::DownloadProgress(DownloadProgress {
-            total_size,
-            downloaded: downloaded_size,
-        }));
+    async fn update_download_progress(&self, total_size: Option<u64>, downloaded_size: Option<u64>) {
+        let mut mutex = self.download_progress.lock().await;
+
+        if mutex.is_none() {
+            *mutex = Some(DownloadProgress {
+                total_size: 0,
+                downloaded: 0,
+            })
+        }
+
+        if let Some(total_size) = total_size {
+            mutex.as_mut().unwrap().total_size += total_size;
+        }
+        if let Some(downloaded_size) = downloaded_size {
+            mutex.as_mut().unwrap().downloaded += downloaded_size;
+        }
+
+        let progress = mutex.as_ref().unwrap().clone();
+        drop(mutex);
+
+        self.callbacks.invoke(UpdateEvent::DownloadProgress(progress));
     }
 
     async fn create_update_file(&self, directory: &PathBuf, filename: &str) -> updater::Result<tokio::fs::File> {
@@ -555,26 +587,57 @@ impl InnerUpdater {
     fn install(&self, inner: Arc<InnerUpdater>) -> updater::Result<()> {
         trace!("Starting installer");
         let mutex = self.state.blocking_lock();
-        match mutex.clone() {
-            UpdateState::DownloadFinished(filepath) => {
-                debug!("Starting update installation of {}", filepath);
-                let runtime = inner.runtime.clone();
 
-                // make sure the closing state knows the application update has started
-                // to prevent accidental deletion of the update file
-                let mut updating_mutex = self.updating.blocking_lock();
-                *updating_mutex = true;
-                drop(updating_mutex);
+        if let UpdateState::DownloadFinished = *mutex {
+            debug!("Starting update installation from {:?}", self.update_directory_path());
+            let runtime = inner.runtime.clone();
 
-                runtime.spawn(async move {});
+            runtime.spawn(async move {
+                match Self::execute_installation(inner.clone()).await {
+                    Ok(_) => {
+                        info!("Update installation finished, restart required");
+                        inner.update_state_async(UpdateState::InstallationFinished).await;
+                    }
+                    Err(e) => {
+                        error!("Update installation failed, {}", e);
+                        inner.update_state_async(UpdateState::Error).await;
+                    }
+                }
+            });
 
-                Ok(())
-            }
-            _ => {
-                warn!("Unable to start update, update state is {}", *mutex);
-                Err(UpdateError::UpdateNotAvailable(mutex.clone()))
-            }
+            Ok(())
+        } else {
+            warn!("Unable to start update, update state is {}", *mutex);
+            Err(UpdateError::UpdateNotAvailable(mutex.clone()))
         }
+    }
+
+    async fn execute_installation(updater: Arc<InnerUpdater>) -> updater::Result<()> {
+        let tasks_mutex = updater.tasks.lock().await;
+        let tasks: Vec<&UpdateTask> = tasks_mutex.iter()
+            .filter(|e| e.archive_location().is_some())
+            .collect();
+        let destination = updater.data_path.clone();
+        let total_tasks = tasks.len();
+        let mut index = 0;
+        updater.update_state_async(UpdateState::Installing).await;
+
+        debug!("Installing a total of {} tasks", total_tasks);
+        for task in tasks {
+            let file = OpenOptions::new()
+                .read(true)
+                .open(task.archive_location().expect("expected archive location to be present"))
+                .map_err(|e| UpdateError::IO(e.to_string()))?;
+            let gz = GzDecoder::new(file);
+            let mut archive = Archive::new(gz);
+
+            archive.unpack(destination.clone())
+                .map_err(|e| UpdateError::ExtractionFailed(e.to_string()))?;
+            info!("Installation task {} of {} completed", total_tasks, index);
+            index += 1;
+        }
+
+        Ok(())
     }
 
     fn register(&self, callback: UpdateCallback) {
@@ -638,7 +701,15 @@ impl InnerUpdater {
 
     /// Retrieve the [PathBuf] to the updates directory used by this [InnerUpdater].
     fn update_directory_path(&self) -> PathBuf {
-        self.storage_path.join(UPDATE_DIRECTORY)
+        self.data_path.join(UPDATE_DIRECTORY)
+    }
+
+    fn convert_download_link_to_url(link: Option<&String>) -> updater::Result<Url> {
+        match link {
+            None => Err(UpdateError::PlatformUpdateUnavailable),
+            Some(e) => Url::parse(e.as_str())
+                .map_err(|e| UpdateError::InvalidDownloadUrl(e.to_string()))
+        }
     }
 
     fn current_application_version() -> Version {
@@ -648,18 +719,10 @@ impl InnerUpdater {
 
 impl Drop for InnerUpdater {
     fn drop(&mut self) {
-        let updating = self.updating.blocking_lock();
-
-        // check if an update has been started
-        // if not, we try to clean the updates directory
-        if !*updating {
-            trace!("Starting cleanup of updates directory located at {:?}", self.update_directory_path());
-            match Storage::clean_directory(self.update_directory_path()) {
-                Ok(_) => info!("Cleaned updates directory located at {:?}", self.update_directory_path()),
-                Err(e) => warn!("Failed to clean the updates directory, {}", e)
-            }
-        } else {
-            debug!("Application update running, not cleaning updates directory")
+        trace!("Starting cleanup of update directory located at {:?}", self.update_directory_path());
+        match Storage::clean_directory(self.update_directory_path()) {
+            Ok(_) => info!("Cleaned updates directory located at {:?}", self.update_directory_path()),
+            Err(e) => warn!("Failed to clean the updates directory, {}", e)
         }
     }
 }
@@ -848,7 +911,8 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
         let filename = "popcorn-time_99.0.0.deb";
-        let url = server.url("/v99.0.0/popcorn-time_99.0.0.deb");
+        let app_url = server.url("/v99.0.0/popcorn-time_99.0.0.deb");
+        let runtime_url = server.url("/v100.0.0/runtime.zip");
         server.mock(move |when, then| {
             when.method(GET)
                 .path(format!("/{}", UPDATE_INFO_FILE));
@@ -861,14 +925,23 @@ mod test {
   }},
   "changelog": {{}},
   "runtime": {{
-    "version": "17.0.0",
-    "platforms": {{}}
+    "version": "100.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
   }}
-}}"#, url));
+}}"#, app_url, runtime_url));
         });
         server.mock(move |when, then| {
             when.method(GET)
                 .path("/v99.0.0/popcorn-time_99.0.0.deb");
+            then.status(200)
+                .header("content-type", "application/octet-stream")
+                .body_from_file(test_resource_filepath(filename).to_str().unwrap());
+        });
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path("/v100.0.0/runtime.zip");
             then.status(200)
                 .header("content-type", "application/octet-stream")
                 .body_from_file(test_resource_filepath(filename).to_str().unwrap());
@@ -1099,6 +1172,55 @@ mod test {
         updater.check_for_updates();
         assert_timeout!(Duration::from_millis(200), updater.state() == UpdateState::CheckingForNewVersion);
         assert_timeout!(Duration::from_millis(500), updater.state() == UpdateState::UpdateAvailable);
+    }
+
+    #[tokio::test]
+    async fn test_update_version_info_invalid_application_version() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = create_simple_settings(temp_path);
+        let platform_mock = MockDummyPlatformData::new();
+        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+
+        let result = updater.inner.update_version_info(&VersionInfo {
+            version: "lorem".to_string(),
+            platforms: Default::default(),
+            runtime: RuntimeInfo {
+                version: "".to_string(),
+                platforms: Default::default(),
+            },
+        }).await;
+
+        if let Err(err) = result {
+            match err {
+                UpdateError::InvalidApplicationVersion(_, _) => {}
+                _ => assert!(false, "expected UpdateError::InvalidApplicationVersion")
+            }
+        } else {
+            assert!(false, "expected an error to be returned")
+        }
+    }
+
+    fn create_simple_settings(temp_path: &str) -> Arc<Mutex<ApplicationConfig>> {
+        Arc::new(Mutex::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties {
+                loggers: Default::default(),
+                update_channel: String::new(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+            },
+            settings: Default::default(),
+            callbacks: Default::default(),
+        }))
     }
 
     fn create_server_and_settings(temp_path: &str) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {

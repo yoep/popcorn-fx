@@ -22,6 +22,7 @@ logging:
     org.springframework: INFO
 
 popcorn:
+  update_channel: https://raw.githubusercontent.com/yoep/popcorn-fx/feature/%23187_auto_updater/
   loggers:
     popcorn_fx:
       level: trace
@@ -41,6 +42,8 @@ popcorn:
       level: info
     popcorn_fx_core::core::subtitles::parsers:
       level: info
+    popcorn_fx_core::core::updater:
+      level: trace
     popcorn_fx_opensubtitles:
       level: info
     popcorn_fx_platform:

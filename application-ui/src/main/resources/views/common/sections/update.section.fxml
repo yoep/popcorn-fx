@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.UpdateSectionController"
@@ -23,28 +22,6 @@
     <BackgroundImageCover fx:id="backgroundCover"
                           GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="4" GridPane.rowSpan="3"/>
 
-    <ImageView fx:id="logoImage" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-
-    <VBox fx:id="changelogPane" GridPane.columnIndex="2" GridPane.rowIndex="1">
-        <Label styleClass="title" text="%application_title"/>
-        <Label fx:id="versionLabel" styleClass="version"/>
-        <Label text="%update_available_description"/>
-
-        <!-- Section changelog -->
-        <Label styleClass="subsection-title" text="%update_changelog"/>
-        <Label styleClass="category-title" text="%update_changelog_features"/>
-        <Label fx:id="changelogFeaturesLabel"/>
-
-        <Label styleClass="category-title" text="%update_changelog_bugfixes"/>
-        <Label fx:id="changelogBugfixesLabel"/>
-
-        <!-- Update button -->
-        <Button fx:id="updateNowButton" text="%update_now" onMouseClicked="#onUpdateNowClicked" onKeyPressed="#onUpdateNowPressed">
-            <VBox.margin>
-                <Insets top="10"/>
-            </VBox.margin>
-        </Button>
-    </VBox>
     <VBox fx:id="progressPane" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.columnSpan="2" alignment="CENTER">
         <Label fx:id="progressLabel" styleClass="status-text"/>
         <ProgressBar fx:id="progressBar" cache="true" cacheHint="SPEED" maxWidth="Infinity"/>

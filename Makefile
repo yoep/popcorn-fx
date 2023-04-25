@@ -11,10 +11,10 @@ endif
 ## Detect the OS
 ifeq ($(OS),Windows_NT)
 SYSTEM = Windows
-ARCH = $(PROCESSOR_ARCHITECTURE)
+ARCH = $(shell echo "$(PROCESSOR_ARCHITECTURE)" | tr '[:upper:]' '[:lower:]')
 else
 SYSTEM = $(shell sh -c 'uname 2>/dev/null || echo Unknown')
-ARCH = $(shell uname -m)
+ARCH = $(shell uname -m | tr '[:upper:]' '[:lower:]')
 endif
 $(info Detected OS: $(SYSTEM))
 $(info Detected arch: $(ARCH))
@@ -28,7 +28,7 @@ PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
 INSTALLER_COMMAND := powershell.exe -Command "iscc.exe /Otarget/ /Fpopcorn-time_${VERSION} \"./assets/windows/installer.iss\""
-RUNTIME_COMPRESS_COMMAND := 7z a -tzip target/runtime_${RUNTIME_VERSION}_windows.zip target/package/runtimes/${RUNTIME_VERSION}/*
+RUNTIME_COMPRESS_COMMAND := tar -cvzf ../../patch_runtime_${RUNTIME_VERSION}_windows.tar.gz ${RUNTIME_VERSION}/*
 
 # check required software
 ifeq ($(shell command -v iscc),)
@@ -48,7 +48,7 @@ PROFILE := linux
 ASSETS := linux
 PYTHON := python3
 INSTALLER_COMMAND := dpkg-deb --build -Zgzip target/package target/popcorn-time_${VERSION}.deb
-RUNTIME_COMPRESS_COMMAND := tar -czvf target/runtime_${RUNTIME_VERSION}_debian_x86_64.tar.gz target/package/runtimes/${RUNTIME_VERSION}/*
+RUNTIME_COMPRESS_COMMAND := tar -czvf ../../patch_runtime_${RUNTIME_VERSION}_debian_x86_64.tar.gz ${RUNTIME_VERSION}/*
 endif
 
 prerequisites: ## Install the requirements for the application
@@ -118,13 +118,25 @@ build: prerequisites build-cargo build-java ## Build the application in debug mo
 
 build-release: prerequisites build-cargo-release build-java-release ## Build the application in release mode (slower build time)
 
-package: build-release ## Package the application for distribution
-	@echo Packaging Java
-	@mvn -B package -P$(PROFILE) -DskipTests -DskipITs
-
+# Target: package-clean
+# Description: Remove the old package target directory if it exists.
+#
+# Usage:
+#   make package-clean
+package-clean:
 	@echo Cleaning installation package
 	@rm -rf "./target/package"
 
+# Target: package-java
+# Description: Package the java section of the application for distribution.
+#
+# Usage:
+#   make package-java
+package-java:
+	@echo Packaging Java
+	@mvn -B package -P$(PROFILE) -DskipTests -DskipITsQ
+
+package: build-release package-java ## Package the application for distribution
 	@echo Creating JRE bundle
 	@"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules="ALL-MODULE-PATH" --output "./target/package/runtimes/${RUNTIME_VERSION}/jre" --no-header-files --no-man-pages --strip-debug --compress=2
 
@@ -133,12 +145,17 @@ package: build-release ## Package the application for distribution
 	@cp -v ./target/release/${LIBRARY} ./target/package/
 	@cp -v ./application/target/popcorn-time.jar ./target/package/
 	@if [ "$(SYSTEM)" = "Linux" ]; then export VERSION=${VERSION}; ./assets/linux/prepare-package.sh; fi
+	@if [ "$(SYSTEM)" = "Windows" ]; then cp -v assets/windows/ffprobe.exe target/package/; fi
 
 	@echo Creating installer
 	${INSTALLER_COMMAND}
 
 	@echo Creating runtime update
-	${RUNTIME_COMPRESS_COMMAND}
+	@cd target/package/runtimes && ${RUNTIME_COMPRESS_COMMAND}
+	@rm -rf target/package/runtimes
+
+	@echo Creating app update
+	@cd target/package && tar -cvzf ../patch_app_${VERSION}_${PROFILE}_${ARCH}.tar.gz *
 
 release: bump-minor test-cargo build-release ## Release a new version of the application with increased minor
 

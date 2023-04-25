@@ -56,7 +56,7 @@ impl From<UpdateState> for UpdateStateC {
             UpdateState::UpdateAvailable => UpdateStateC::UpdateAvailable,
             UpdateState::NoUpdateAvailable => UpdateStateC::NoUpdateAvailable,
             UpdateState::Downloading => UpdateStateC::Downloading,
-            UpdateState::DownloadFinished(_) => UpdateStateC::DownloadFinished,
+            UpdateState::DownloadFinished => UpdateStateC::DownloadFinished,
             UpdateState::Installing => UpdateStateC::Installing,
             UpdateState::InstallationFinished => UpdateStateC::InstallationFinished,
             UpdateState::Error => UpdateStateC::Error,
@@ -102,7 +102,6 @@ impl From<DownloadProgress> for DownloadProgressC {
 pub struct InstallationProgressC {
     pub task: u16,
     pub total_tasks: u16,
-    pub task_progress: f32,
 }
 
 impl From<InstallationProgress> for InstallationProgressC {
@@ -110,7 +109,6 @@ impl From<InstallationProgress> for InstallationProgressC {
         Self {
             task: value.task,
             total_tasks: value.total_tasks,
-            task_progress: value.task_progress,
         }
     }
 }
@@ -151,7 +149,7 @@ mod test {
         assert_eq!(UpdateStateC::NoUpdateAvailable, UpdateStateC::from(UpdateState::NoUpdateAvailable));
         assert_eq!(UpdateStateC::UpdateAvailable, UpdateStateC::from(UpdateState::UpdateAvailable));
         assert_eq!(UpdateStateC::Downloading, UpdateStateC::from(UpdateState::Downloading));
-        assert_eq!(UpdateStateC::DownloadFinished, UpdateStateC::from(UpdateState::DownloadFinished(String::new())));
+        assert_eq!(UpdateStateC::DownloadFinished, UpdateStateC::from(UpdateState::DownloadFinished));
         assert_eq!(UpdateStateC::Installing, UpdateStateC::from(UpdateState::Installing));
         assert_eq!(UpdateStateC::InstallationFinished, UpdateStateC::from(UpdateState::InstallationFinished));
     }
@@ -174,13 +172,11 @@ mod test {
         let progress = InstallationProgress {
             task: 3,
             total_tasks: 10,
-            task_progress: 0.5,
         };
 
         let c_progress = InstallationProgressC::from(progress.clone());
 
         assert_eq!(c_progress.task, progress.task);
         assert_eq!(c_progress.total_tasks, progress.total_tasks);
-        assert_eq!(c_progress.task_progress, progress.task_progress);
     }
 }

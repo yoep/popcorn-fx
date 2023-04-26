@@ -47,6 +47,7 @@ pub struct UpdateTask {
     pub current_version: Version,
     pub new_version: Version,
     pub download_link: Url,
+    install_directory: String,
     archive_location: Option<PathBuf>,
 }
 
@@ -54,6 +55,11 @@ impl UpdateTask {
     /// Returns a new `UpdateTaskBuilder` instance.
     pub fn builder() -> UpdateTaskBuilder {
         UpdateTaskBuilder::default()
+    }
+
+    /// Returns the installation subdirectory in which the archive should be extracted.
+    pub fn install_directory(&self) -> &str {
+        self.install_directory.as_str()
     }
 
     /// Returns the current archive location, if one has been set.
@@ -80,6 +86,7 @@ pub struct UpdateTaskBuilder {
     current_version: Option<Version>,
     new_version: Option<Version>,
     download_link: Option<Url>,
+    install_directory: Option<String>,
 }
 
 impl UpdateTaskBuilder {
@@ -101,6 +108,12 @@ impl UpdateTaskBuilder {
         self
     }
 
+    /// Sets the directory within the installation location in which the task will be extracted.
+    pub fn install_directory(mut self, install_directory: String) -> Self {
+        self.install_directory = Some(install_directory);
+        self
+    }
+
     /// Builds an `UpdateTask` object with the specified parameters.
     ///
     /// # Panics
@@ -119,14 +132,16 @@ impl UpdateTaskBuilder {
     ///     .build();
     /// ```
     pub fn build(self) -> UpdateTask {
-        let current_version = self.current_version.expect("Current version has not been set for UpdateTask.");
-        let new_version = self.new_version.expect("New version has not been set for UpdateTask.");
-        let download_link = self.download_link.expect("Download link has not been set for UpdateTask.");
+        let current_version = self.current_version.expect("Current version has not been set");
+        let new_version = self.new_version.expect("New version has not been set");
+        let download_link = self.download_link.expect("Download link has not been set");
+        let install_directory = self.install_directory.expect("Install directory has not been set");
 
         UpdateTask {
             current_version,
             new_version,
             download_link,
+            install_directory,
             archive_location: None,
         }
     }
@@ -149,6 +164,7 @@ mod test {
             .current_version(Version::parse("1.0.0").unwrap())
             .new_version(Version::parse("1.1.0").unwrap())
             .download_link(Url::parse("http://localhost/update").unwrap())
+            .install_directory("install".to_string())
             .build();
 
         assert_eq!(None, update.archive_location())
@@ -163,6 +179,7 @@ mod test {
             .current_version(Version::parse("1.0.0").unwrap())
             .new_version(Version::parse("1.1.0").unwrap())
             .download_link(Url::parse("http://localhost/update").unwrap())
+            .install_directory("install".to_string())
             .build();
 
         let result = update.set_archive_location(temp_path);
@@ -180,6 +197,7 @@ mod test {
             .current_version(Version::parse("1.0.0").unwrap())
             .new_version(Version::parse("1.2.0").unwrap())
             .download_link(Url::parse("http://localhost/update").unwrap())
+            .install_directory("install".to_string())
             .build();
 
         update.archive_location = Some(PathBuf::from(temp_path));

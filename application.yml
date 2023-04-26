@@ -29,7 +29,7 @@ popcorn:
     popcorn_fx::ffi::mappings::subtitle:
       level: info
     popcorn_fx_core:
-      level: trace
+      level: debug
     popcorn_fx_core::core::callback:
       level: info
     popcorn_fx_core::core::config:

@@ -41,6 +41,7 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public void exit() {
-        Platform.runLater(Platform::exit);
+        Platform.exit();
+        System.exit(3);
     }
 }

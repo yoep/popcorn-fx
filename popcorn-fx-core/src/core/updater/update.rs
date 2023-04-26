@@ -27,6 +27,7 @@ use crate::VERSION;
 
 const UPDATE_INFO_FILE: &str = "versions.json";
 const UPDATE_DIRECTORY: &str = "updates";
+const RUNTIMES_DIRECTORY: &str = "runtimes";
 
 /// A type representing a callback function that can handle update events.
 pub type UpdateCallback = CoreCallback<UpdateEvent>;
@@ -415,6 +416,7 @@ impl InnerUpdater {
             info!("New application version {} is available", application_version);
             tasks_mutex.push(UpdateTask::builder()
                 .current_version(current_version)
+                .install_directory(application_version.to_string())
                 .new_version(application_version)
                 .download_link(Self::convert_download_link_to_url(version_info.patch.get(platform_identifier.as_str()))?)
                 .build());
@@ -430,6 +432,7 @@ impl InnerUpdater {
                     .map_err(|e| UpdateError::InvalidRuntimeVersion(self.launcher_options.runtime_version.clone(), e.to_string()))?)
                 .new_version(runtime_version)
                 .download_link(Self::convert_download_link_to_url(version_info.runtime.platforms.get(platform_identifier.as_str()))?)
+                .install_directory(RUNTIMES_DIRECTORY.to_string())
                 .build());
         }
 
@@ -617,13 +620,14 @@ impl InnerUpdater {
         let tasks: Vec<&UpdateTask> = tasks_mutex.iter()
             .filter(|e| e.archive_location().is_some())
             .collect();
-        let destination = updater.data_path.clone();
+        let destination = &updater.data_path;
         let total_tasks = tasks.len();
         let mut index = 0;
         updater.update_state_async(UpdateState::Installing).await;
 
-        debug!("Installing a total of {} tasks", total_tasks);
+        trace!("Installing a total of {} tasks", total_tasks);
         for task in tasks {
+            let destination = destination.join(task.install_directory());
             let file = OpenOptions::new()
                 .read(true)
                 .open(task.archive_location().expect("expected archive location to be present"))
@@ -631,7 +635,8 @@ impl InnerUpdater {
             let gz = GzDecoder::new(file);
             let mut archive = Archive::new(gz);
 
-            archive.unpack(destination.clone())
+            debug!("Extracting archive {:?} to {:?}", task.archive_location().unwrap(), destination);
+            archive.unpack(destination)
                 .map_err(|e| UpdateError::ExtractionFailed(e.to_string()))?;
             info!("Installation task {} of {} completed", total_tasks, index);
             index += 1;
@@ -793,7 +798,8 @@ mod test {
             .build();
         let expected_result = VersionInfo {
             version: "1.0.0".to_string(),
-            platforms: HashMap::from([
+            platforms: Default::default(),
+            patch: HashMap::from([
                 ("debian.x86_64".to_string(), "http://localhost/v1.0.0/popcorn-time_1.0.0.deb".to_string())
             ]),
             runtime: RuntimeInfo {
@@ -1192,6 +1198,7 @@ mod test {
         let result = updater.inner.update_version_info(&VersionInfo {
             version: "lorem".to_string(),
             platforms: Default::default(),
+            patch: Default::default(),
             runtime: RuntimeInfo {
                 version: "".to_string(),
                 platforms: Default::default(),

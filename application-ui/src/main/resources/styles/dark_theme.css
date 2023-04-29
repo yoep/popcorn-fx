@@ -49,6 +49,7 @@
 .root .table-row-cell,
 .root .table-view,
 .root .loader,
+.root .list-view,
 .root .player-external,
 .root .content-section {
     -fx-background-color: #17181b;

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
@@ -25,12 +26,14 @@ public class WatchedService {
 
     private final EventPublisher eventPublisher;
 
+    private final FxLib fxLib;
     private final Object lock = new Object();
     private final WatchedEventCallback callback = createCallback();
     private final ConcurrentLinkedDeque<WatchedEventCallback> listeners = new ConcurrentLinkedDeque<>();
 
-    public WatchedService(EventPublisher eventPublisher) {
+    public WatchedService(EventPublisher eventPublisher, FxLib fxLib) {
         this.eventPublisher = eventPublisher;
+        this.fxLib = fxLib;
         init();
     }
 
@@ -43,10 +46,10 @@ public class WatchedService {
      * @return Returns true if the watchable has already been watched, else false.
      */
     public boolean isWatched(Media watchable) {
-        Assert.notNull(watchable, "watchable cannot be null");
+        Objects.requireNonNull(watchable, "watchable cannot be null");
         synchronized (lock) {
             try (var media = MediaItem.from(watchable)) {
-                return FxLibInstance.INSTANCE.get().is_media_watched(PopcornFxInstance.INSTANCE.get(), media) == 1;
+                return fxLib.is_media_watched(PopcornFxInstance.INSTANCE.get(), media) == 1;
             }
         }
     }
@@ -58,7 +61,7 @@ public class WatchedService {
      */
     public List<String> getWatchedMovies() {
         synchronized (lock) {
-            try (var watched = FxLibInstance.INSTANCE.get().retrieve_watched_movies(PopcornFxInstance.INSTANCE.get())) {
+            try (var watched = fxLib.retrieve_watched_movies(PopcornFxInstance.INSTANCE.get())) {
                 log.debug("Retrieved watched movies {}", watched);
                 return watched.values();
             }
@@ -72,7 +75,7 @@ public class WatchedService {
      */
     public List<String> getWatchedShows() {
         synchronized (lock) {
-            try (var watched = FxLibInstance.INSTANCE.get().retrieve_watched_shows(PopcornFxInstance.INSTANCE.get())) {
+            try (var watched = fxLib.retrieve_watched_shows(PopcornFxInstance.INSTANCE.get())) {
                 log.debug("Retrieved watched shows {}", watched);
                 return watched.values();
             }
@@ -85,10 +88,10 @@ public class WatchedService {
      * @param watchable the watchable item to add.
      */
     public void addToWatchList(Media watchable) {
-        Assert.notNull(watchable, "watchable cannot be null");
+        Objects.requireNonNull(watchable, "watchable cannot be null");
         synchronized (lock) {
             try (var media = MediaItem.from(watchable)) {
-                FxLibInstance.INSTANCE.get().add_to_watched(PopcornFxInstance.INSTANCE.get(), media);
+                fxLib.add_to_watched(PopcornFxInstance.INSTANCE.get(), media);
             }
         }
     }
@@ -99,10 +102,10 @@ public class WatchedService {
      * @param watchable The watchable item to remove.
      */
     public void removeFromWatchList(Media watchable) {
-        Assert.notNull(watchable, "watchable cannot be null");
+        Objects.requireNonNull(watchable, "watchable cannot be null");
         synchronized (lock) {
             try (var media = MediaItem.from(watchable)) {
-                FxLibInstance.INSTANCE.get().remove_from_watched(PopcornFxInstance.INSTANCE.get(), media);
+                fxLib.remove_from_watched(PopcornFxInstance.INSTANCE.get(), media);
             }
         }
     }
@@ -123,7 +126,7 @@ public class WatchedService {
             return event;
         });
         synchronized (lock) {
-            FxLibInstance.INSTANCE.get().register_watched_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
+            fxLib.register_watched_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
         }
     }
 

@@ -23,7 +23,6 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +65,6 @@ class UpdateSectionControllerTest {
         when(escapeEvent.getCode()).thenReturn(KeyCode.ESCAPE);
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
         when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
-        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
         controller.initialize(url, resourceBundle);
 
         controller.onUpdatePressed(backSpaceEvent);
@@ -93,7 +91,6 @@ class UpdateSectionControllerTest {
             return null;
         }).when(updateService).register(isA(UpdateCallback.class));
         when(updateService.getState()).thenReturn(UpdateState.DOWNLOADING);
-        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 

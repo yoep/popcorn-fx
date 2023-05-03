@@ -63,6 +63,10 @@ public class SidebarController implements Initializable {
     @FXML
     Label favoriteText;
     @FXML
+    Icon collectionIcon;
+    @FXML
+    Label collectionText;
+    @FXML
     Icon settingsIcon;
     @FXML
     Label settingsText;
@@ -78,6 +82,7 @@ public class SidebarController implements Initializable {
         activateStartCategory();
         initializeSearch();
         initializeFocusListeners();
+        initializeMode();
 
         sidebar.getColumnConstraints().get(0).setPrefWidth(searchIcon.getPrefWidth());
     }
@@ -130,6 +135,14 @@ public class SidebarController implements Initializable {
             }
         });
         onUpdateStateChanged(updateService.getState());
+    }
+
+    private void initializeMode() {
+        if (applicationConfig.isTvMode()) {
+            log.trace("Removing torrent collection from sidebar");
+            sidebar.getChildren().remove(collectionIcon);
+            sidebar.getChildren().remove(collectionText);
+        }
     }
 
     private void onUpdateStateChanged(UpdateState newState) {
@@ -223,9 +236,17 @@ public class SidebarController implements Initializable {
         if (icon == infoText.getLabelFor()) {
             text = infoText;
         }
+        if (icon == collectionText.getLabelFor()) {
+            text = collectionText;
+        }
 
         icon.getStyleClass().add(ACTIVE_STYLE);
         text.getStyleClass().add(ACTIVE_STYLE);
+    }
+
+    private void onCollectionActivated() {
+        switchActiveItem(collectionIcon);
+        eventPublisher.publish(new ShowTorrentCollectionEvent(this));
     }
 
     private void onSettingsActivated() {
@@ -274,6 +295,20 @@ public class SidebarController implements Initializable {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             switchCategory((Icon) event.getTarget());
+        }
+    }
+
+    @FXML
+    void onCollectionClicked(MouseEvent event) {
+        event.consume();
+        onCollectionActivated();
+    }
+
+    @FXML
+    void onCollectionPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onCollectionActivated();
         }
     }
 

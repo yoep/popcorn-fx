@@ -18,3 +18,6 @@ cp -v ./assets/linux/libjlibtorrent.so "$INSTALLATION_PACKAGE/opt/popcorn-time/m
 
 mkdir -p "$INSTALLATION_PACKAGE/usr/share/applications"
 cp -v ./assets/linux/popcorn-time.dekstop "$INSTALLATION_PACKAGE/usr/share/applications/"
+
+echo "Building DEB package"
+dpkg-deb --build -Zgzip target/package target/popcorn-time_${VERSION}.deb

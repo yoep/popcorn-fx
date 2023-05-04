@@ -27,7 +27,6 @@ EXECUTABLE := "popcorn-time.exe"
 PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
-INSTALLER_COMMAND := powershell.exe -Command "iscc.exe /Otarget/ /Fpopcorn-time_${VERSION} \"./assets/windows/installer.iss\""
 RUNTIME_COMPRESS_COMMAND := tar -cvzf ../../patch_runtime_${RUNTIME_VERSION}_windows.tar.gz ${RUNTIME_VERSION}/*
 
 # check required software
@@ -41,13 +40,13 @@ EXECUTABLE := "popcorn-time"
 PROFILE := macosx
 ASSETS := mac
 PYTHON := python3
+RUNTIME_COMPRESS_COMMAND := tar -czvf ../../patch_runtime_${RUNTIME_VERSION}_mac_x86_64.tar.gz ${RUNTIME_VERSION}/*
 else
 LIBRARY := "libpopcorn_fx.so"
 EXECUTABLE := "popcorn-time"
 PROFILE := linux
 ASSETS := linux
 PYTHON := python3
-INSTALLER_COMMAND := dpkg-deb --build -Zgzip target/package target/popcorn-time_${VERSION}.deb
 RUNTIME_COMPRESS_COMMAND := tar -czvf ../../patch_runtime_${RUNTIME_VERSION}_debian_x86_64.tar.gz ${RUNTIME_VERSION}/*
 endif
 
@@ -136,7 +135,7 @@ package-java:
 	@echo Packaging Java
 	@mvn -B package -P$(PROFILE) -DskipTests -DskipITsQ
 
-package: build-release package-java ## Package the application for distribution
+package: package-clean build-release package-java ## Package the application for distribution
 	@echo Creating JRE bundle
 	@"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules="ALL-MODULE-PATH" --output "./target/package/runtimes/${RUNTIME_VERSION}/jre" --no-header-files --no-man-pages --strip-debug --compress=2
 
@@ -144,11 +143,9 @@ package: build-release package-java ## Package the application for distribution
 	@cp -v ./target/release/${EXECUTABLE} ./target/package/
 	@cp -v ./target/release/${LIBRARY} ./target/package/
 	@cp -v ./application/target/popcorn-time.jar ./target/package/
-	@if [ "$(SYSTEM)" = "Linux" ]; then export VERSION=${VERSION}; ./assets/linux/prepare-package.sh; fi
-	@if [ "$(SYSTEM)" = "Windows" ]; then cp -v assets/windows/ffprobe.exe target/package/; fi
 
 	@echo Creating installer
-	${INSTALLER_COMMAND}
+	@export VERSION=${VERSION}; ./assets/${ASSETS}/installer.sh
 
 	@echo Creating runtime update
 	@cd target/package/runtimes && ${RUNTIME_COMPRESS_COMMAND}

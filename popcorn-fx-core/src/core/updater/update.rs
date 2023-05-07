@@ -149,7 +149,12 @@ impl Updater {
     ///
     /// An error if the download failed.
     pub async fn download(&self) -> updater::Result<()> {
-        self.inner.download().await
+        self.inner.download()
+            .await
+            .map_err(|e| {
+                warn!("Failed to download update, {}", e);
+                e
+            })
     }
 
     /// Install the downloaded update.
@@ -377,7 +382,6 @@ impl InnerUpdater {
         match Url::parse(update_channel) {
             Ok(mut url) => {
                 url = url.join(UPDATE_INFO_FILE).unwrap();
-                debug!("Polling update information from {:?}", url);
                 let response = self.poll_info_from_url(url).await?;
                 let version_info = Self::handle_query_response(response).await?;
 
@@ -459,7 +463,7 @@ impl InnerUpdater {
     }
 
     async fn poll_info_from_url(&self, url: Url) -> updater::Result<Response> {
-        debug!("Polling version update data from {}", url.as_str());
+        debug!("Polling update information from {}", url.as_str());
         self.client.get(url.clone())
             .send()
             .await
@@ -471,16 +475,18 @@ impl InnerUpdater {
 
     async fn download(&self) -> updater::Result<()> {
         // check the state of the updater
-        let current_state = self.state();
-        if current_state != UpdateState::UpdateAvailable {
-            return Err(UpdateError::UpdateNotAvailable(current_state));
+        let current_state = self.state.lock().await;
+        if *current_state != UpdateState::UpdateAvailable {
+            return Err(UpdateError::UpdateNotAvailable(current_state.clone()));
         }
+        drop(current_state);
 
         trace!("Starting update download process");
         let mut tasks_mutex = self.tasks.lock().await;
         let mut futures = vec![];
 
         for task in tasks_mutex.iter_mut() {
+            trace!("Starting download task of {}", task.download_link);
             futures.push(self.download_update_task(task));
         }
 
@@ -1069,7 +1075,12 @@ mod test {
   }
  }"#);
         });
-        let platform_mock = MockDummyPlatformData::new();
+        let mut platform_mock = MockDummyPlatformData::new();
+        platform_mock.expect_info()
+            .returning(|| PlatformInfo {
+                platform_type: PlatformType::Linux,
+                arch: "x86_64".to_string(),
+            });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
         let updater = Updater::builder()
@@ -1215,7 +1226,12 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = create_simple_settings(temp_path);
-        let platform_mock = MockDummyPlatformData::new();
+        let mut platform_mock = MockDummyPlatformData::new();
+        platform_mock.expect_info()
+            .returning(|| PlatformInfo {
+                platform_type: PlatformType::Linux,
+                arch: "x86_64".to_string(),
+            });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let updater = Updater::builder()
             .settings(settings)
@@ -1230,7 +1246,7 @@ mod test {
                 platforms: Default::default(),
             },
             runtime: PatchInfo {
-                version: "".to_string(),
+                version: "ipsum".to_string(),
                 platforms: Default::default(),
             },
         }).await;
@@ -1250,7 +1266,7 @@ mod test {
             storage: Storage::from(temp_path),
             properties: PopcornProperties {
                 loggers: Default::default(),
-                update_channel: String::new(),
+                update_channel: "http://localhost:8080/update.json".to_string(),
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),

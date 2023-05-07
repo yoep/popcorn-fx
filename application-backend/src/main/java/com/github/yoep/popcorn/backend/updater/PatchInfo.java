@@ -11,8 +11,8 @@ import java.io.Closeable;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"version"})
-public class RuntimeInfo extends Structure implements Closeable {
-    public static class ByValue extends RuntimeInfo implements Structure.ByValue {
+public class PatchInfo extends Structure implements Closeable {
+    public static class ByValue extends PatchInfo implements Structure.ByValue {
     }
 
     public String version;

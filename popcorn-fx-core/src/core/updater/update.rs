@@ -405,8 +405,8 @@ impl InnerUpdater {
     async fn create_update_tasks(&self, version_info: &VersionInfo) -> updater::Result<()> {
         let platform_identifier = self.platform_identifier();
         let current_version = Self::current_application_version();
-        let application_version = Version::parse(version_info.version())
-            .map_err(|e| UpdateError::InvalidApplicationVersion(version_info.version().to_string(), e.to_string()))?;
+        let application_version = Version::parse(version_info.application.version())
+            .map_err(|e| UpdateError::InvalidApplicationVersion(version_info.application.version().to_string(), e.to_string()))?;
         let runtime_version = Version::parse(version_info.runtime.version())
             .map_err(|e| UpdateError::InvalidRuntimeVersion(version_info.runtime.version().to_string(), e.to_string()))?;
         let mut tasks_mutex = self.tasks.lock().await;
@@ -418,7 +418,7 @@ impl InnerUpdater {
                 .current_version(current_version)
                 .install_directory(application_version.to_string())
                 .new_version(application_version)
-                .download_link(Self::convert_download_link_to_url(version_info.patch.get(platform_identifier.as_str()))?)
+                .download_link(Self::convert_download_link_to_url(version_info.application.download_link(platform_identifier.as_str()))?)
                 .build());
         } else {
             info!("Application version {} is up-to-date", VERSION);
@@ -431,7 +431,7 @@ impl InnerUpdater {
                 .current_version(Version::parse(self.launcher_options.runtime_version.as_str())
                     .map_err(|e| UpdateError::InvalidRuntimeVersion(self.launcher_options.runtime_version.clone(), e.to_string()))?)
                 .new_version(runtime_version)
-                .download_link(Self::convert_download_link_to_url(version_info.runtime.platforms.get(platform_identifier.as_str()))?)
+                .download_link(Self::convert_download_link_to_url(version_info.runtime.download_link(platform_identifier.as_str()))?)
                 .install_directory(RUNTIMES_DIRECTORY.to_string())
                 .build());
         }
@@ -470,6 +470,12 @@ impl InnerUpdater {
     }
 
     async fn download(&self) -> updater::Result<()> {
+        // check the state of the updater
+        let current_state = self.state();
+        if current_state != UpdateState::UpdateAvailable {
+            return Err(UpdateError::UpdateNotAvailable(current_state));
+        }
+
         trace!("Starting update download process");
         let mut tasks_mutex = self.tasks.lock().await;
         let mut futures = vec![];
@@ -657,7 +663,7 @@ impl InnerUpdater {
 
         if channel_version.cmp(&current_version) == Ordering::Greater {
             let platform_identifier = self.platform_identifier();
-            if version_info.platforms.contains_key(platform_identifier.as_str()) {
+            if version_info.application.download_link(platform_identifier.as_str()).is_some() {
                 return true;
             }
             warn!("New version {} available, but no installer found for {}", channel_version, platform_identifier.as_str());
@@ -713,7 +719,10 @@ impl InnerUpdater {
         match link {
             None => Err(UpdateError::PlatformUpdateUnavailable),
             Some(e) => Url::parse(e.as_str())
-                .map_err(|e| UpdateError::InvalidDownloadUrl(e.to_string()))
+                .map_err(|e| {
+                    warn!("Download link is invalid for {:?}", link);
+                    UpdateError::InvalidDownloadUrl(e.to_string())
+                })
         }
     }
 
@@ -743,11 +752,11 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
-    use crate::assert_timeout;
+    use crate::{assert_timeout, assert_timeout_eq};
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
-    use crate::core::updater::RuntimeInfo;
+    use crate::core::updater::PatchInfo;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
@@ -764,15 +773,12 @@ mod test {
             then.status(200)
                 .header("content-type", "application/json")
                 .body(r#"{
-  "version": "1.0.0",
-  "platforms": {
-    "debian.x86_64": "http://localhost/v1.0.0/popcorn-time_1.0.0.deb"
-  },
-  "changelog": {
-    "features": [
-      "lorem ipsum dolor"
-    ],
-    "bugfixes": []
+  "version": "deprecated",
+  "application": {
+    "version": "1.0.0",
+    "platforms": {
+        "debian.x86_64": "http://localhost/v1.0.0/popcorn-time_1.0.0.deb"
+    }
   },
   "runtime": {
     "version": "17.0.6",
@@ -797,12 +803,13 @@ mod test {
             .insecure(false)
             .build();
         let expected_result = VersionInfo {
-            version: "1.0.0".to_string(),
-            platforms: Default::default(),
-            patch: HashMap::from([
-                ("debian.x86_64".to_string(), "http://localhost/v1.0.0/popcorn-time_1.0.0.deb".to_string())
-            ]),
-            runtime: RuntimeInfo {
+            application: PatchInfo {
+                version: "1.0.0".to_string(),
+                platforms: HashMap::from([
+                    ("debian.x86_64".to_string(), "http://localhost/v1.0.0/popcorn-time_1.0.0.deb".to_string())
+                ]),
+            },
+            runtime: PatchInfo {
                 version: "17.0.6".to_string(),
                 platforms: HashMap::from([
                     ("debian.x86_64".to_string(), "http://localhost/runtime_debian_x86_64.tar.gz".to_string())
@@ -829,9 +836,10 @@ mod test {
             then.status(200)
                 .header("content-type", "application/json")
                 .body(r#"{
-  "version": "0.5.0",
-  "platforms": {},
-  "changelog": {},
+  "application": {
+    "version": "0.5.0",
+    "platforms": {}
+  },
   "runtime": {
     "version": "8.0.12",
     "platforms": {
@@ -840,10 +848,15 @@ mod test {
   }
 }"#);
         });
-        let platform_mock = MockDummyPlatformData::new();
+        let mut platform_mock = MockDummyPlatformData::new();
+        platform_mock.expect_info()
+            .return_const(PlatformInfo {
+                platform_type: PlatformType::Linux,
+                arch: "x86_64".to_string(),
+            });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         let (tx, rx) = channel();
-        let _ = Updater::builder()
+        let _updater = Updater::builder()
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
@@ -873,11 +886,12 @@ mod test {
             then.status(200)
                 .header("content-type", "application/json")
                 .body(r#"{
-  "version": "999.0.0",
-  "platforms": {
-   "debian.x86_64": "http://localhost/v999.0.0/popcorn-time_999.0.0.deb"
+  "application": {
+    "version": "999.0.0",
+    "platforms": {
+        "debian.x86_64": "http://localhost/v999.0.0/popcorn-time_999.0.0.deb"
+    }
   },
-  "changelog": {},
   "runtime": {
     "version": "17.0.0",
     "platforms": {}
@@ -925,11 +939,12 @@ mod test {
             then.status(200)
                 .header("content-type", "application/json")
                 .body(format!(r#"{{
-  "version": "99.0.0",
-  "platforms": {{
-    "debian.x86_64": "{}"
+  "application": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
   }},
-  "changelog": {{}},
   "runtime": {{
     "version": "100.0.0",
     "platforms": {{
@@ -968,6 +983,9 @@ mod test {
             .build();
         let expected_result = read_test_file_to_string(filename);
 
+        // wait for state update available
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+
         let _ = runtime.block_on(async {
             updater.download().await
         }).expect("expected the download to succeed");
@@ -988,11 +1006,13 @@ mod test {
                 .path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{"version": "99.0.0",
-  "platforms": {{
-    "debian.x86_64": "{}"
+                .body(format!(r#"{{
+  "application": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
   }},
-  "changelog": {{}},
   "runtime": {{
     "version": "17.0.0",
     "platforms": {{}}
@@ -1012,6 +1032,9 @@ mod test {
             .data_path(temp_path)
             .insecure(false)
             .build();
+
+        // wait for state update available
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
 
         let result = runtime.block_on(async {
             updater.download().await
@@ -1035,9 +1058,11 @@ mod test {
                 .path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"{"version": "0.0.1",
-  "platforms": {},
-  "changelog": {},
+                .body(r#"{
+  "application": {
+    "version": "0.0.1",
+    "platforms": {}
+  },
   "runtime": {
     "version": "17.0.0",
     "platforms": {}
@@ -1129,9 +1154,11 @@ mod test {
                 .path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"{"version": "0.0.1",
-  "platforms": {},
-  "changelog": {},
+                .body(r#"{
+  "application": {
+    "version": "0.0.1",
+    "platforms": {}
+  },
   "runtime": {
     "version": "0.0.1",
     "platforms": {}
@@ -1161,23 +1188,25 @@ mod test {
             then.status(200)
                 .delay(Duration::from_millis(500))
                 .header("content-type", "application/json")
-                .body(r#"{"version": "999.0.0",
-  "platforms": {
-    "debian.x86_64": ""
+                .body(r#"{
+  "application": {
+    "version": "999.0.0",
+    "platforms": {
+        "debian.x86_64": "http://localhost:9090/app"
+    }
   },
-  "changelog": {},
   "runtime": {
     "version": "30.0.1",
     "platforms": {
-        "debian.x86_64": ""
+        "debian.x86_64": "http://localhost:9090/runtime"
     }
   }
  }"#);
         });
 
         updater.check_for_updates();
-        assert_timeout!(Duration::from_millis(200), updater.state() == UpdateState::CheckingForNewVersion);
-        assert_timeout!(Duration::from_millis(500), updater.state() == UpdateState::UpdateAvailable);
+        assert_timeout_eq!(Duration::from_millis(200), updater.state(), UpdateState::CheckingForNewVersion);
+        assert_timeout_eq!(Duration::from_millis(500), updater.state(), UpdateState::UpdateAvailable);
     }
 
     #[tokio::test]
@@ -1196,10 +1225,11 @@ mod test {
             .build();
 
         let result = updater.inner.update_version_info(&VersionInfo {
-            version: "lorem".to_string(),
-            platforms: Default::default(),
-            patch: Default::default(),
-            runtime: RuntimeInfo {
+            application: PatchInfo {
+                version: "lorem".to_string(),
+                platforms: Default::default(),
+            },
+            runtime: PatchInfo {
                 version: "".to_string(),
                 platforms: Default::default(),
             },

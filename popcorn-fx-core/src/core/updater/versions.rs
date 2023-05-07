@@ -3,46 +3,53 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 /// Latest release version information, including version number, platform updates, and runtime information.
+///
+/// Use this struct to represent information about the latest release version of an application, including the version number, platform updates, and runtime information.
+///
+/// # Fields
+///
+/// * `application` - Information about the application update, including the version number and platform-specific updates.
+/// * `runtime` - Information about the runtime update, including the version number and platform-specific downloads.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct VersionInfo {
-    /// The latest release version number in semantic format.
-    pub version: String,
-    /// Available platform updates, with keys representing the platform name and values representing the update version.
-    /// This is the legacy update information of the application and no longer used.
-    pub platforms: HashMap<String, String>,
-    /// Available platform patch updates of the application, with keys representing the platform name and values representing the update version.
-    pub patch: HashMap<String, String>,
-    /// Runtime information for the latest version.
-    pub runtime: RuntimeInfo,
+    pub application: PatchInfo,
+    pub runtime: PatchInfo,
 }
 
-impl VersionInfo {
-    /// Retrieves the version number for the latest release.
-    ///
-    /// # Returns
-    ///
-    /// A string slice representing the version number in semantic format.
-    pub fn version(&self) -> &str {
-        self.version.as_str()
-    }
-}
-
-/// Runtime update information for the latest version, including runtime version and OS-specific downloads.
+/// The patch information for the latest version, including the OS-specific downloads.
+///
+/// Use this struct to represent the patch information for the latest release version, including the version number and platform-specific updates.
+///
+/// # Fields
+///
+/// * `version` - The version number of the patch in semantic format.
+/// * `platforms` - A mapping of platform names to update versions.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-pub struct RuntimeInfo {
-    /// The version of the runtime to use.
+pub struct PatchInfo {
     pub version: String,
-    /// Available OS-specific downloads for the runtime, with keys representing the platform name and values representing the download URL.
     pub platforms: HashMap<String, String>,
 }
 
-impl RuntimeInfo {
-    /// Retrieves the version number of the runtime.
+impl PatchInfo {
+    /// Returns the version number of the patch.
     ///
     /// # Returns
     ///
     /// A string slice representing the version number in semantic format.
     pub fn version(&self) -> &str {
-        self.version.as_str()
+        &self.version
+    }
+
+    /// Returns the download link for the specified platform.
+    ///
+    /// # Arguments
+    ///
+    /// * `platform` - A string slice representing the name of the platform to retrieve the download link for.
+    ///
+    /// # Returns
+    ///
+    /// An optional string slice representing the download link for the specified platform. Returns `None` if the specified platform is not found.
+    pub fn download_link(&self, platform: &str) -> Option<&String> {
+        self.platforms.get(platform)
     }
 }

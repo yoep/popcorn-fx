@@ -151,15 +151,12 @@ impl UpdateTaskBuilder {
 mod test {
     use tempfile::tempdir;
 
-    use crate::core::updater::UpdaterBuilder;
     use crate::testing::init_logger;
 
     use super::*;
 
     #[test]
     fn test_archive_location_none() {
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
         let update = UpdateTask::builder()
             .current_version(Version::parse("1.0.0").unwrap())
             .new_version(Version::parse("1.1.0").unwrap())

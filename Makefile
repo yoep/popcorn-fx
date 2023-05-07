@@ -22,12 +22,11 @@ $(info Detected JAVA_HOME: $(JAVA_HOME))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
-LIBRARY := "popcorn_fx.dll"
+LIBRARY_EXTENSION := dll
 EXECUTABLE := "popcorn-time.exe"
 PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
-RUNTIME_COMPRESS_COMMAND := tar -cvzf ../../patch_runtime_${RUNTIME_VERSION}_windows.tar.gz ${RUNTIME_VERSION}/*
 
 # check required software
 ifeq ($(shell command -v iscc),)
@@ -35,19 +34,17 @@ ifeq ($(shell command -v iscc),)
 endif
 
 else ifeq ($(SYSTEM),Darwin)
-LIBRARY := "libpopcorn_fx.dylib"
+LIBRARY_EXTENSION := dylib
 EXECUTABLE := "popcorn-time"
 PROFILE := macosx
 ASSETS := mac
 PYTHON := python3
-RUNTIME_COMPRESS_COMMAND := tar -czvf ../../patch_runtime_${RUNTIME_VERSION}_mac_x86_64.tar.gz ${RUNTIME_VERSION}/*
 else
-LIBRARY := "libpopcorn_fx.so"
+LIBRARY_EXTENSION := so
 EXECUTABLE := "popcorn-time"
 PROFILE := linux
 ASSETS := linux
 PYTHON := python3
-RUNTIME_COMPRESS_COMMAND := tar -czvf ../../patch_runtime_${RUNTIME_VERSION}_debian_x86_64.tar.gz ${RUNTIME_VERSION}/*
 endif
 
 prerequisites: ## Install the requirements for the application
@@ -100,7 +97,7 @@ build-cargo-release:  ## Build the rust part of the application in release profi
 
 ## Copy the cargo libraries to the java resources
 lib-copy-%: build-cargo-% $(RESOURCE_DIRECTORIES)
-	@cp -v "./target/$*/$(LIBRARY)" "./assets/$(ASSETS)/"
+	@cp -v ./target/$*/*.$(LIBRARY_EXTENSION) ./assets/$(ASSETS)/
 	@cp -v "./target/$*/$(EXECUTABLE)" "./assets/$(ASSETS)/"
 
 lib-copy: lib-copy-debug ## The default lib-copy target
@@ -125,6 +122,7 @@ build-release: prerequisites build-cargo-release build-java-release ## Build the
 package-clean:
 	@echo Cleaning installation package
 	@rm -rf "./target/package"
+	@rm -f "./target/*.tar.gz"
 
 # Target: package-java
 # Description: Package the java section of the application for distribution.
@@ -140,15 +138,15 @@ package: package-clean build-release package-java ## Package the application for
 	@"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules="ALL-MODULE-PATH" --output "./target/package/runtimes/${RUNTIME_VERSION}/jre" --no-header-files --no-man-pages --strip-debug --compress=2
 
 	@echo Copying exeutable and libraries
+	@cp -v ./assets/${ASSETS}/*.${LIBRARY_EXTENSION} ./target/package/
 	@cp -v ./target/release/${EXECUTABLE} ./target/package/
-	@cp -v ./target/release/${LIBRARY} ./target/package/
 	@cp -v ./application/target/popcorn-time.jar ./target/package/
 
 	@echo Creating installer
 	@export VERSION=${VERSION}; ./assets/${ASSETS}/installer.sh
 
 	@echo Creating runtime update
-	@cd target/package/runtimes && ${RUNTIME_COMPRESS_COMMAND}
+	@cd target/package/runtimes && tar -cvzf ../../patch_runtime_${RUNTIME_VERSION}_${PROFILE}_${ARCH}.tar.gz ${RUNTIME_VERSION}/*
 	@rm -rf target/package/runtimes
 
 	@echo Creating app update

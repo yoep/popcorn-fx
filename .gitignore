@@ -12,6 +12,7 @@ assets/linux/vlc/vlc-*/
 assets/mac/vlc/lua/
 assets/mac/vlc/plugins/
 assets/mac/vlc/vlc-*/
+assets/mac/*.dylib
 assets/windows/**.dll
 assets/windows/**.exe
 assets/windows/vlc/lua/

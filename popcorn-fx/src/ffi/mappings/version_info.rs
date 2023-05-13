@@ -64,7 +64,7 @@ mod test {
                 version: version.to_string(),
                 platforms: Default::default(),
             },
-            runtime: RuntimeInfo {
+            runtime: PatchInfo {
                 version: runtime_version.to_string(),
                 platforms: Default::default(),
             },

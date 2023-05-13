@@ -127,26 +127,21 @@ mod test {
                 .path("/update/versions.json");
             then.status(200)
                 .body(r#"{
-  "version": "0.2.0",
-  "platforms": {
-    "debian.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.deb",
-    "debian.arm64": "http://localhost/update/download/popcorn-time_0.6.5_arm64.deb",
-    "mac.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.dmg",
-    "windows.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.exe"
-  },
-  "changelog": {
-    "features": [
-      "lorem ipsum dolor sit"
-    ],
-    "bugfixes": [
-    ]
+  "application": {
+    "version": "0.2.0",
+    "platforms": {
+        "debian.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.tar.gz",
+        "debian.arm64": "http://localhost/update/download/popcorn-time_0.6.5_arm64.tar.gz",
+        "mac.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.tar.gz",
+        "windows.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.tar.gz"
+    }
   },
   "runtime": {
     "version": "17.0.6",
     "platforms": {
       "debian.x86_64": "http://localhost/update/download/runtime_debian_x86_64.tar.gz",
       "debian.arm64": "http://localhost/update/download/runtime_debian_arm64.tar.gz",
-      "windows.x86_64": "http://localhost/update/download/runtime_windows.zip"
+      "windows.x86_64": "http://localhost/update/download/runtime_windows.tar.gz"
     }
   }
 }"#);
@@ -157,7 +152,7 @@ mod test {
 
         let result = from_c_owned(version_info(&mut instance));
 
-        assert_eq!("0.2.0".to_string(), from_c_string(result.version));
+        assert_eq!("0.2.0".to_string(), from_c_string(result.application.version));
         assert_eq!("17.0.6".to_string(), from_c_string(result.runtime.version));
     }
 

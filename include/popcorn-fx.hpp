@@ -673,7 +673,7 @@ struct TorrentStreamEventC {
 };
 
 /// The C compatible representation of the application runtime information.
-struct RuntimeInfoC {
+struct PatchInfoC {
   /// The runtime version of the application.
   const char *version;
 };
@@ -681,9 +681,9 @@ struct RuntimeInfoC {
 /// The C compatible representation of version information from the update channel.
 struct VersionInfoC {
   /// The latest release version on the update channel.
-  const char *version;
+  PatchInfoC application;
   /// The runtime version of the application.
-  RuntimeInfoC runtime;
+  PatchInfoC runtime;
 };
 
 /// The C-compatible representation of the [DownloadProgress] struct.

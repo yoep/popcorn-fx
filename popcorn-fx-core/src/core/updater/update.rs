@@ -1107,6 +1107,84 @@ mod test {
     }
 
     #[test]
+    fn test_install_update() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let application_patch_filepath = temp_dir.path().join("99.0.0").join("test.txt");
+        let runtime_patch_filepath = temp_dir.path().join("runtimes").join("runtime.txt");
+        let (server, settings) = create_server_and_settings(temp_path);
+        let application_patch_url = server.url("/application.tar.gz");
+        let runtime_patch_url = server.url("/runtime.tar.gz");
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(r#"{{
+  "application": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }}
+ }}"#, application_patch_url, runtime_patch_url));
+        });
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/application.tar.gz");
+            then.status(200)
+                .body_from_file(test_resource_filepath("application.tar.gz").to_str().unwrap());
+        });
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/runtime.tar.gz");
+            then.status(200)
+                .body_from_file(test_resource_filepath("runtime.tar.gz").to_str().unwrap());
+        });
+        let mut platform_mock = MockDummyPlatformData::new();
+        platform_mock.expect_info()
+            .returning(|| PlatformInfo {
+                platform_type: PlatformType::Linux,
+                arch: "x86_64".to_string(),
+            });
+        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+        let runtime = Runtime::new().unwrap();
+
+        // wait for the UpdateAvailable state
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+
+        // download the update
+        if let Err(err) = runtime.block_on(updater.download()) {
+            assert!(false, "expected the download to succeed, {}", err);
+        }
+
+        // install the update
+        if let Err(err) = updater.install() {
+            assert!(false, "expected the installation to succeed, {}", err);
+        }
+
+        // wait for the installation to complete
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::InstallationFinished, updater.state());
+
+        // verify if the patch file exists
+        assert!(application_patch_filepath.exists(), "expected application patch file {:?} to exist", application_patch_filepath);
+        assert!(runtime_patch_filepath.exists(), "expected runtime patch file {:?} to exist", runtime_patch_filepath);
+    }
+
+    #[test]
     fn test_clean_updates_directory() {
         init_logger();
         let temp_dir = tempdir().unwrap();

@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use log::trace;
+use log::{debug, trace};
 use mockall::automock;
 use thiserror::Error;
 
@@ -112,9 +112,9 @@ impl DataInstaller for DefaultDataInstaller {
             trace!("Copying application data to user data directory");
             Self::copy_directory_contents(initial_data_setup_path.as_path(), self.data_path.as_path())?;
             Self::write_default_launcher_options(launcher_options_path.as_path())?;
-            trace!("Initial application data setup completed");
+            debug!("Initial application data setup completed");
         } else {
-            trace!("Application data setup already initialized, skipping data initialization")
+            debug!("Application data setup already initialized, skipping data initialization")
         }
 
         Ok(())

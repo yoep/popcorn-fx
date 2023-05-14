@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Popcorn Time
+GenericName=Popcorn Time
+Comment=Popcorn Time is a multi-platform, free software BitTorrent client that includes an integrated media player.
+Exec=/opt/popcorn-time/popcorn-time %U
+Icon=/opt/popcorn-time/popcorn-time.png
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=AudioVideo;Video

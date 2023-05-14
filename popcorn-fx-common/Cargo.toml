@@ -1,0 +1,24 @@
+[package]
+name = "popcorn-fx-common"
+version = "0.6.5"
+edition = "2021"
+rust-version = "1.62"
+publish = false
+license-file = "../LICENSE"
+
+[lib]
+crate-type = ["rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+log.workspace = true
+serde.workspace = true
+serde_yaml = "0.9"
+thiserror = "1.0"
+
+[dev-dependencies]
+popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
+tempfile = "3"

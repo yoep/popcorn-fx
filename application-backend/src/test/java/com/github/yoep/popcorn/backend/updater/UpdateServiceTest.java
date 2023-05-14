@@ -66,7 +66,7 @@ class UpdateServiceTest {
     @Test
     void testCallbackListener_onUpdateInstalling() {
         var listenerHolder = new AtomicReference<UpdateCallback>();
-        UpdateCallbackEvent.ByValue event = createStateChangedEvent(UpdateState.INSTALLING);
+        UpdateCallbackEvent.ByValue event = createStateChangedEvent(UpdateState.INSTALLATION_FINISHED);
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
             return null;
@@ -75,7 +75,7 @@ class UpdateServiceTest {
 
         listenerHolder.get().callback(event);
 
-        verify(platform, timeout(150)).exit();
+        verify(platform, timeout(150)).exit(3);
     }
 
     @Test

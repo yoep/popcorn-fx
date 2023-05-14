@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -30,7 +31,8 @@ public class TvPosterComponent {
     @PostConstruct
     void init() {
         eventPublisher.register(ShowDetailsEvent.class, e -> {
-            onPlayEvent(e.getMedia());
+            Optional.ofNullable(e.getMedia())
+                    .ifPresent(this::onPlayEvent);
             return e;
         });
     }

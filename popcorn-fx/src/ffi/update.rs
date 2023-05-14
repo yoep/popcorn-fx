@@ -105,8 +105,11 @@ pub extern "C" fn register_update_callback(popcorn_fx: &mut PopcornFX, callback:
 
 #[cfg(test)]
 mod test {
+    use httpmock::Method::GET;
+    use httpmock::MockServer;
     use tempfile::tempdir;
 
+    use popcorn_fx_core::{from_c_owned, from_c_string};
     use popcorn_fx_core::testing::init_logger;
 
     use crate::test::default_args;
@@ -118,11 +121,39 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
+        let server = MockServer::start();
+        server.mock(|mock, then| {
+            mock.method(GET)
+                .path("/update/versions.json");
+            then.status(200)
+                .body(r#"{
+  "application": {
+    "version": "0.2.0",
+    "platforms": {
+        "debian.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.tar.gz",
+        "debian.arm64": "http://localhost/update/download/popcorn-time_0.6.5_arm64.tar.gz",
+        "mac.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.tar.gz",
+        "windows.x86_64": "http://localhost/update/download/popcorn-time_0.6.5.tar.gz"
+    }
+  },
+  "runtime": {
+    "version": "17.0.6",
+    "platforms": {
+      "debian.x86_64": "http://localhost/update/download/runtime_debian_x86_64.tar.gz",
+      "debian.arm64": "http://localhost/update/download/runtime_debian_arm64.tar.gz",
+      "windows.x86_64": "http://localhost/update/download/runtime_windows.tar.gz"
+    }
+  }
+}"#);
+        });
+        let mut popcorn_fx_args = default_args(temp_path);
+        popcorn_fx_args.properties.update_channel = server.url("/update/");
+        let mut instance = PopcornFX::new(popcorn_fx_args);
 
-        let result = version_info(&mut instance);
+        let result = from_c_owned(version_info(&mut instance));
 
-        assert!(!result.is_null())
+        assert_eq!("0.2.0".to_string(), from_c_string(result.application.version));
+        assert_eq!("17.0.6".to_string(), from_c_string(result.runtime.version));
     }
 
     #[test]
@@ -145,8 +176,8 @@ mod test {
         let result = update_state(&mut instance);
 
         match result {
-            UpdateStateC::CheckingForNewVersion => {},
-            UpdateStateC::NoUpdateAvailable => {},
+            UpdateStateC::CheckingForNewVersion => {}
+            UpdateStateC::NoUpdateAvailable => {}
             _ => panic!("expected one of [UpdateStateC::CheckingForNewVersion, UpdateStateC::NoUpdateAvailable] but got {:?} instead", result)
         }
     }

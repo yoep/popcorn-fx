@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton?>
 <?import com.github.yoep.popcorn.ui.view.controls.SubtitleDropDownButton?>
 <?import javafx.scene.control.Button?>
@@ -8,7 +7,8 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DetailsTorrentComponent" styleClass="torrent-details">
+            fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.DetailsTorrentComponent"
+            styleClass="torrent-details" onKeyPressed="#onKeyPressed" onMouseClicked="#onMouseClicked">
     <GridPane AnchorPane.topAnchor="75" AnchorPane.rightAnchor="75" AnchorPane.bottomAnchor="75" AnchorPane.leftAnchor="75">
         <columnConstraints>
             <ColumnConstraints/>
@@ -43,10 +43,4 @@
             <PlayerDropDownButton fx:id="playerButton" styleClass="watch-now"/>
         </HBox>
     </GridPane>
-
-    <!-- Close Button -->
-    <Icon styleClass="close-button" onMouseClicked="#onClose" sizeFactor="2"
-          AnchorPane.topAnchor="5" AnchorPane.rightAnchor="15">
-        <Icon fx:constant="TIMES_UNICODE"/>
-    </Icon>
 </AnchorPane>

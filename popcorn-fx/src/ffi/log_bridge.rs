@@ -5,7 +5,6 @@ use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::from_c_string;
 
 use crate::ffi::LogLevel;
-use crate::PopcornFX;
 
 /// Logs a message sent over FFI using the Rust logger.
 ///

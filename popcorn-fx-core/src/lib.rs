@@ -4,14 +4,13 @@ use std::os::raw::c_char;
 
 use log::error;
 
+pub use popcorn_fx_common::VERSION;
+
 pub use crate::torrent_collection_c::*;
 
 pub mod core;
 
 mod torrent_collection_c;
-
-/// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.6.5";
 
 /// Convert the given [String] into a C compatible string.
 ///
@@ -114,6 +113,7 @@ pub mod testing {
     use log4rs::append::console::ConsoleAppender;
     use log4rs::Config;
     use log4rs::config::{Appender, Logger, Root};
+    use log4rs::encode::pattern::PatternEncoder;
     use tempfile::TempDir;
 
     static INIT: Once = Once::new();
@@ -121,8 +121,12 @@ pub mod testing {
     pub fn init_logger() {
         INIT.call_once(|| {
             log4rs::init_config(Config::builder()
-                .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder().build())))
+                .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
+                    .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
+                    .build())))
                 .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
+                .logger(Logger::builder().build("want", LevelFilter::Info))
+                .logger(Logger::builder().build("polling", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("tracing", LevelFilter::Info))
                 .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
@@ -234,7 +238,32 @@ pub mod testing {
             assert!(false, "Timeout assertion failed after {:?}", $timeout);
         }
     }};
-}
+    }
+
+    #[macro_export]
+    macro_rules! assert_timeout_eq {
+    ($timeout:expr, $left:expr, $right:expr) => {{
+        use std::thread;
+        use std::time::{Duration, Instant};
+
+        let start_time = Instant::now();
+        let timeout: Duration = $timeout;
+
+        let result = loop {
+            if $left == $right {
+                break true;
+            }
+            if start_time.elapsed() >= timeout {
+                break false;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+
+        if !result {
+            assert!(false, "Assertion timed out after {:?}, expected {} but got {} instead", $timeout, $left, $right);
+        }
+    }};
+        }
 }
 
 #[cfg(test)]

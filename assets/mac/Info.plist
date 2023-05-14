@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CFBundleGetInfoString</key>
+		<string>Popcorn Time ${VERSION}</string>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>English</string>
+		<key>CFBundleExecutable</key>
+		<string>popcorn-time</string>
+		<key>CFBundleIconFile</key>
+		<string>popcorn-time.icns</string>
+		<key>CFBundleIdentifier</key>
+		<string>com.github.yoep.popcorn.PopcornTimeStarter</string>
+		<key>CFBundleDisplayName</key>
+		<string>Popcorn Time</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundleName</key>
+		<string>Popcorn Time</string>
+		<key>CFBundlePackageType</key>
+		<string>BNDL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>${VERSION}</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleVersion</key>
+		<string>${VERSION}</string>
+		<key>NSHumanReadableCopyright</key>
+		<string>Popcorn FX project</string>
+		<key>NSHighResolutionCapable</key>
+		<true />
+		<key>NSSupportsAutomaticGraphicsSwitching</key>
+		<true />
+		<key>AdministratorRequired</key>
+		<false />
+		<key>JavaX</key>
+		<dict>
+			<key>MainClass</key>
+			<string>com.github.yoep.popcorn.PopcornTimeStarter</string>
+			<key>ClassPath</key>
+			<array>
+				<string>Java/popcorn-time.jar</string>
+			</array>
+			<key>VMOptions</key>
+			<array>
+				<string>-Djna.library.path="../Resources/:$PATH"</string>
+				<string>-Djava.library.path="../Resources/:$PATH"</string>
+				<string>-Dsun.awt.disablegrab=true</string>
+				<string>-Dprism.dirtyopts=false</string>
+				<string>-Dprism.lcdtext=false</string>
+				<string>-Dprism.verbose=true</string>
+				<string>-Xms100M</string>
+				<string>-XX:+UseG1GC</string>
+			</array>
+			<key>WorkingDirectory</key>
+			<string>$APP_PACKAGE/Contents/Resources</string>
+			<key>JVMOptionsFile</key>
+			<string>$APP_PACKAGE/Contents/Resources/${info.name}.l4j.ini</string>
+			<key>RelocateJar</key>
+			<true/>
+		</dict>
+		<key>LSEnvironment</key>
+		<dict>
+			<key>LSEnvironment</key>
+			<dict>
+				<key>JAVA_HOME</key>
+				<string>Contents/PlugIns/jre/Contents/Home</string>
+			</dict>
+		</dict>
+		<key>NSAppleEventsUsageDescription</key>
+		<string>There was an error while launching the application. Please
+			click OK to display a dialog with more information or cancel and view
+			the syslog for details.</string>
+	</dict>
+</plist>

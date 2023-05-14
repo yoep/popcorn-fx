@@ -162,7 +162,8 @@ enum class UpdateStateC : int32_t {
   /// Indicates that the download has finished.
   DownloadFinished = 4,
   Installing = 5,
-  Error = 6,
+  InstallationFinished = 6,
+  Error = 7,
 };
 
 template<typename T = void>
@@ -671,23 +672,18 @@ struct TorrentStreamEventC {
   };
 };
 
-/// The C compatible changelog
-struct ChangelogC {
-  /// The new features array string
-  const char **features;
-  /// The length of the features array
-  int32_t features_len;
-  /// The new bugfixes array string
-  const char **bugfixes;
-  /// The length of the bugfixes array
-  int32_t bugfixes_len;
+/// The C compatible representation of the application runtime information.
+struct PatchInfoC {
+  /// The runtime version of the application.
+  const char *version;
 };
 
-/// The version information from the update channel.
+/// The C compatible representation of version information from the update channel.
 struct VersionInfoC {
-  /// The latest release version on the update channel
-  const char *version;
-  ChangelogC changelog;
+  /// The latest release version on the update channel.
+  PatchInfoC application;
+  /// The runtime version of the application.
+  PatchInfoC runtime;
 };
 
 /// The C-compatible representation of the [DownloadProgress] struct.
@@ -701,6 +697,20 @@ struct VersionInfoC {
 struct DownloadProgressC {
   uint64_t total_size;
   uint64_t downloaded;
+};
+
+/// The C-compatible representation of the [InstallationProgress] struct.
+///
+/// This struct is used to provide C code access to the installation progress of an update event.
+///
+/// # Fields
+///
+/// * `task` - The current task being executed during the installation process.
+/// * `total_tasks` - The total number of tasks that need to be executed during the installation process.
+/// * `task_progress` - The current progress of the current task, represented as a fraction between 0.0 and 1.0.
+struct InstallationProgressC {
+  uint16_t task;
+  uint16_t total_tasks;
 };
 
 /// The C compatible representation of the update events.
@@ -717,6 +727,7 @@ struct UpdateEventC {
     StateChanged,
     UpdateAvailable,
     DownloadProgress,
+    InstallationProgress,
   };
 
   struct StateChanged_Body {
@@ -731,11 +742,16 @@ struct UpdateEventC {
     DownloadProgressC _0;
   };
 
+  struct InstallationProgress_Body {
+    InstallationProgressC _0;
+  };
+
   Tag tag;
   union {
     StateChanged_Body state_changed;
     UpdateAvailable_Body update_available;
     DownloadProgress_Body download_progress;
+    InstallationProgress_Body installation_progress;
   };
 };
 

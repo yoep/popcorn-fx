@@ -134,7 +134,7 @@ public class AboutSectionController implements Initializable {
                 case UPDATE_AVAILABLE -> {
                     updateButton.setText(localeText.get(UpdateMessage.DOWNLOAD_UPDATE));
                     updateIcon.setText(Icon.DOWNLOAD_UNICODE);
-                    updateService.getUpdateInfo().ifPresent(e -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getVersion())));
+                    updateService.getUpdateInfo().ifPresent(e -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getApplication().getVersion())));
                     updateAnimation.stop();
                 }
                 case NO_UPDATE_AVAILABLE -> {

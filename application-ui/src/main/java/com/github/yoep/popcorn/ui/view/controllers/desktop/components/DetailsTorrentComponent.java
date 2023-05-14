@@ -25,6 +25,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.InnerShadow;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -179,13 +182,7 @@ public class DetailsTorrentComponent implements Initializable {
 
     private void close() {
         reset();
-
         eventPublisher.publishEvent(new CloseTorrentDetailsEvent(this));
-    }
-
-    @FXML
-    void onClose() {
-        close();
     }
 
     @FXML
@@ -197,6 +194,22 @@ public class DetailsTorrentComponent implements Initializable {
         } else {
             torrentCollectionService.addTorrent(magnetUri, torrentInfo);
             updateStoreTorrent(true);
+        }
+    }
+
+    @FXML
+    void onKeyPressed(KeyEvent event) {
+        if (event.getCode() == KeyCode.BACK_SPACE) {
+            event.consume();
+            close();
+        }
+    }
+
+    @FXML
+    void onMouseClicked(MouseEvent event) {
+        if (event.getButton() == MouseButton.BACK) {
+            event.consume();
+            close();
         }
     }
 

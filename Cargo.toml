@@ -2,15 +2,19 @@
 
 members = [
     "popcorn-fx",
+    "popcorn-fx-bootstrap",
+    "popcorn-fx-common",
     "popcorn-fx-core",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
     "popcorn-fx-torrent",
-    "popcorn-fx-torrent-stream",
+    "popcorn-fx-torrent-stream"
 ]
 
 [workspace.dependencies]
+directories = "5.0"
 log = "0"
+serde = "1"
 tokio = "1"
 
 [profile.release]

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use derive_more::Display;
+use directories::UserDirs;
 use serde::{Deserialize, Serialize};
 
 use crate::core::config::DEFAULT_HOME_DIRECTORY;
@@ -8,12 +9,13 @@ use crate::core::subtitles::language::SubtitleLanguage;
 
 const DEFAULT_SUBTITLE_DIRECTORY_NAME: &str = "subtitles";
 const DEFAULT_DIRECTORY: fn() -> String = || {
-    home::home_dir()
+    UserDirs::new()
+        .map(|e| PathBuf::from(e.home_dir()))
         .map(|e| e
             .join(DEFAULT_HOME_DIRECTORY)
             .join(DEFAULT_SUBTITLE_DIRECTORY_NAME))
-        .map(|e| e.into_os_string().into_string().unwrap())
-        .expect("Home directory should exist")
+        .map(|e| e.to_str().unwrap().to_string())
+        .expect("expected a home directory to exist")
 };
 const DEFAULT_AUTO_CLEANING: fn() -> bool = || true;
 const DEFAULT_SUBTITLE_LANGUAGE: fn() -> SubtitleLanguage = || SubtitleLanguage::None;
@@ -130,7 +132,7 @@ pub enum DecorationType {
     None = 0,
     Outline = 1,
     OpaqueBackground = 2,
-    SeeThroughBackground = 3
+    SeeThroughBackground = 3,
 }
 
 #[cfg(test)]
@@ -158,7 +160,7 @@ mod test {
             None,
             None,
             None,
-            None
+            None,
         );
 
         assert_eq!(expected_result, result)

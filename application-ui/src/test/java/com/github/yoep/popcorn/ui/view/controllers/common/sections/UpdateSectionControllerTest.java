@@ -6,13 +6,10 @@ import com.github.yoep.popcorn.backend.updater.*;
 import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +23,6 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -55,45 +51,10 @@ class UpdateSectionControllerTest {
     @BeforeEach
     void setUp() {
         controller.updatePane = new GridPane();
-        controller.updateNowButton = new Button();
-        controller.logoImage = new ImageView();
         controller.backgroundCover = new BackgroundImageCover();
-        controller.changelogPane = new Pane();
-        controller.versionLabel = new Label();
         controller.progressPane = new Pane();
         controller.progressLabel = new Label();
         controller.progressBar = new ProgressBar();
-        controller.changelogFeaturesLabel = new Label();
-        controller.changelogBugfixesLabel = new Label();
-    }
-
-    @Test
-    void testOnUpdateNowClicked() {
-        var event = mock(MouseEvent.class);
-        when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
-        when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
-        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
-        controller.initialize(url, resourceBundle);
-
-        controller.onUpdateNowClicked(event);
-
-        verify(event).consume();
-        verify(updateService).downloadUpdate();
-    }
-
-    @Test
-    void testOnUpdateNowPressed() {
-        var event = mock(KeyEvent.class);
-        when(event.getCode()).thenReturn(KeyCode.ENTER);
-        when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
-        when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
-        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
-        controller.initialize(url, resourceBundle);
-
-        controller.onUpdateNowPressed(event);
-
-        verify(event).consume();
-        verify(updateService).downloadUpdate();
     }
 
     @Test
@@ -104,7 +65,6 @@ class UpdateSectionControllerTest {
         when(escapeEvent.getCode()).thenReturn(KeyCode.ESCAPE);
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
         when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
-        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
         controller.initialize(url, resourceBundle);
 
         controller.onUpdatePressed(backSpaceEvent);
@@ -131,7 +91,6 @@ class UpdateSectionControllerTest {
             return null;
         }).when(updateService).register(isA(UpdateCallback.class));
         when(updateService.getState()).thenReturn(UpdateState.DOWNLOADING);
-        when(updateService.getUpdateInfo()).thenReturn(Optional.of(mock(VersionInfo.class)));
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 

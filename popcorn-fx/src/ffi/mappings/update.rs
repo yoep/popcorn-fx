@@ -1,4 +1,4 @@
-use popcorn_fx_core::core::updater::{DownloadProgress, UpdateEvent, UpdateState};
+use popcorn_fx_core::core::updater::{DownloadProgress, InstallationProgress, UpdateEvent, UpdateState};
 
 use crate::ffi::VersionInfoC;
 
@@ -20,6 +20,7 @@ pub enum UpdateEventC {
     StateChanged(UpdateStateC),
     UpdateAvailable(VersionInfoC),
     DownloadProgress(DownloadProgressC),
+    InstallationProgress(InstallationProgressC),
 }
 
 impl From<UpdateEvent> for UpdateEventC {
@@ -27,7 +28,8 @@ impl From<UpdateEvent> for UpdateEventC {
         match value {
             UpdateEvent::StateChanged(state) => UpdateEventC::StateChanged(UpdateStateC::from(state)),
             UpdateEvent::UpdateAvailable(version) => UpdateEventC::UpdateAvailable(VersionInfoC::from(&version)),
-            UpdateEvent::DownloadProgress(progress) => UpdateEventC::DownloadProgress(DownloadProgressC::from(progress))
+            UpdateEvent::DownloadProgress(progress) => UpdateEventC::DownloadProgress(DownloadProgressC::from(progress)),
+            UpdateEvent::InstallationProgress(progress) => UpdateEventC::InstallationProgress(InstallationProgressC::from(progress)),
         }
     }
 }
@@ -43,7 +45,8 @@ pub enum UpdateStateC {
     /// Indicates that the download has finished.
     DownloadFinished = 4,
     Installing = 5,
-    Error = 6,
+    InstallationFinished = 6,
+    Error = 7,
 }
 
 impl From<UpdateState> for UpdateStateC {
@@ -53,8 +56,9 @@ impl From<UpdateState> for UpdateStateC {
             UpdateState::UpdateAvailable => UpdateStateC::UpdateAvailable,
             UpdateState::NoUpdateAvailable => UpdateStateC::NoUpdateAvailable,
             UpdateState::Downloading => UpdateStateC::Downloading,
-            UpdateState::DownloadFinished(_) => UpdateStateC::DownloadFinished,
+            UpdateState::DownloadFinished => UpdateStateC::DownloadFinished,
             UpdateState::Installing => UpdateStateC::Installing,
+            UpdateState::InstallationFinished => UpdateStateC::InstallationFinished,
             UpdateState::Error => UpdateStateC::Error,
         }
     }
@@ -80,6 +84,31 @@ impl From<DownloadProgress> for DownloadProgressC {
         Self {
             total_size: value.total_size,
             downloaded: value.downloaded,
+        }
+    }
+}
+
+/// The C-compatible representation of the [InstallationProgress] struct.
+///
+/// This struct is used to provide C code access to the installation progress of an update event.
+///
+/// # Fields
+///
+/// * `task` - The current task being executed during the installation process.
+/// * `total_tasks` - The total number of tasks that need to be executed during the installation process.
+/// * `task_progress` - The current progress of the current task, represented as a fraction between 0.0 and 1.0.
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct InstallationProgressC {
+    pub task: u16,
+    pub total_tasks: u16,
+}
+
+impl From<InstallationProgress> for InstallationProgressC {
+    fn from(value: InstallationProgress) -> Self {
+        Self {
+            task: value.task,
+            total_tasks: value.total_tasks,
         }
     }
 }
@@ -120,7 +149,9 @@ mod test {
         assert_eq!(UpdateStateC::NoUpdateAvailable, UpdateStateC::from(UpdateState::NoUpdateAvailable));
         assert_eq!(UpdateStateC::UpdateAvailable, UpdateStateC::from(UpdateState::UpdateAvailable));
         assert_eq!(UpdateStateC::Downloading, UpdateStateC::from(UpdateState::Downloading));
-        assert_eq!(UpdateStateC::DownloadFinished, UpdateStateC::from(UpdateState::DownloadFinished(String::new())));
+        assert_eq!(UpdateStateC::DownloadFinished, UpdateStateC::from(UpdateState::DownloadFinished));
+        assert_eq!(UpdateStateC::Installing, UpdateStateC::from(UpdateState::Installing));
+        assert_eq!(UpdateStateC::InstallationFinished, UpdateStateC::from(UpdateState::InstallationFinished));
     }
 
     #[test]
@@ -134,5 +165,18 @@ mod test {
 
         assert_eq!(progress_c.total_size, 1024);
         assert_eq!(progress_c.downloaded, 512);
+    }
+
+    #[test]
+    fn test_installation_progress_conversions() {
+        let progress = InstallationProgress {
+            task: 3,
+            total_tasks: 10,
+        };
+
+        let c_progress = InstallationProgressC::from(progress.clone());
+
+        assert_eq!(c_progress.task, progress.task);
+        assert_eq!(c_progress.total_tasks, progress.total_tasks);
     }
 }

@@ -1,0 +1,35 @@
+[package]
+name = "popcorn-fx-bootstrap"
+version = "0.6.5"
+edition = "2021"
+rust-version = "1.62"
+publish = false
+license-file = "../LICENSE"
+
+[[bin]]
+name = "popcorn-time"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+popcorn-fx-common = { path = "../popcorn-fx-common" }
+
+directories.workspace = true
+log.workspace = true
+log4rs = { version = "1", features = ["console_writer"] }
+mockall = "0"
+serde = "1"
+serde_yaml = "0.9"
+signal-hook = { version = "0.3" }
+thiserror = "1.0"
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+
+[dev-dependencies]
+popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util", "macros"] }
+
+[build-dependencies]
+winres = "0.1"

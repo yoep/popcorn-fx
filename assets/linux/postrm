@@ -1,0 +1,14 @@
+#!/bin/bash
+
+INSTALL_DIR="$HOME/.local/share/popcorn-fx"
+BIN_LINK="/usr/local/bin/popcorn-time"
+
+if [ -d "$INSTALL_DIR" ]; then
+  echo "Cleaning $INSTALL_DIR"
+  rm -r "$INSTALL_DIR"
+fi
+
+if [ -L "$BIN_LINK" ]; then
+  echo "Cleaning $BIN_LINK"
+  rm "$BIN_LINK"
+fi

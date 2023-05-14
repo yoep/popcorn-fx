@@ -20,6 +20,7 @@
         <RowConstraints />
         <RowConstraints />
         <RowConstraints />
+        <RowConstraints />
         <RowConstraints vgrow="ALWAYS" maxHeight="Infinity"/>
         <RowConstraints />
         <RowConstraints />
@@ -64,19 +65,27 @@
     <Label fx:id="favoriteText" labelFor="$favoriteIcon" text="%filter_favorites" styleClass="icon-text" onMouseClicked="#onCategoryClicked"
            GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 
+    <!-- TORRENT COLLECTION -->
+    <Icon fx:id="collectionIcon" focusTraversable="true" onMouseClicked="#onCollectionClicked" onKeyPressed="#onCollectionPressed"
+          GridPane.columnIndex="0" GridPane.rowIndex="5">
+        <Icon fx:constant="FOLDER_UNICODE"/>
+    </Icon>
+    <Label fx:id="collectionText" labelFor="$collectionIcon" text="%header_torrent_collection" styleClass="icon-text" onMouseClicked="#onCollectionClicked"
+           GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
     <!-- SETTINGS -->
     <Icon fx:id="settingsIcon" focusTraversable="true" onMouseClicked="#onSettingsClicked" onKeyPressed="#onSettingsPressed"
-          GridPane.columnIndex="0" GridPane.rowIndex="6">
+          GridPane.columnIndex="0" GridPane.rowIndex="7">
         <Icon fx:constant="GEAR_UNICODE"/>
     </Icon>
     <Label fx:id="settingsText" labelFor="$settingsIcon" text="%settings" styleClass="icon-text" onMouseClicked="#onSettingsClicked"
-           GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+           GridPane.columnIndex="1" GridPane.rowIndex="7"/>
 
     <!-- INFO -->
     <Icon fx:id="infoIcon" focusTraversable="true" onMouseClicked="#onInfoClicked" onKeyPressed="#onInfoPressed"
-          GridPane.columnIndex="0" GridPane.rowIndex="7">
+          GridPane.columnIndex="0" GridPane.rowIndex="8">
         <Icon fx:constant="INFO_CIRCLE_UNICODE"/>
     </Icon>
     <Label fx:id="infoText" labelFor="$infoIcon" text="%header_about" styleClass="icon-text" onMouseClicked="#onInfoClicked"
-           GridPane.columnIndex="1" GridPane.rowIndex="7"/>
+           GridPane.columnIndex="1" GridPane.rowIndex="8"/>
 </GridPane>

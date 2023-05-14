@@ -72,6 +72,8 @@ class SidebarControllerTest {
         controller.serieText = new Label("serieText");
         controller.favoriteIcon = new Icon("favoriteIcon");
         controller.favoriteText = new Label("favoriteText");
+        controller.collectionIcon = new Icon("collectionIcon");
+        controller.collectionText = new Label("collectionText");
         controller.settingsIcon = new Icon("settingsIcon");
         controller.settingsText = new Label("settingsText");
         controller.infoIcon = new Icon("infoIcon");
@@ -84,6 +86,7 @@ class SidebarControllerTest {
         controller.movieText.setLabelFor(controller.movieIcon);
         controller.serieText.setLabelFor(controller.serieIcon);
         controller.favoriteText.setLabelFor(controller.favoriteIcon);
+        controller.collectionText.setLabelFor(controller.collectionIcon);
         controller.settingsText.setLabelFor(controller.settingsIcon);
         controller.infoText.setLabelFor(controller.infoIcon);
         controller.searchIcon.setOnMouseClicked(controller::onSearchClicked);
@@ -104,6 +107,8 @@ class SidebarControllerTest {
         assertFalse(controller.movieText.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertFalse(controller.favoriteIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertFalse(controller.favoriteText.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
+        assertFalse(controller.collectionIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
+        assertFalse(controller.collectionText.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertTrue(controller.serieIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertTrue(controller.serieText.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
     }
@@ -294,5 +299,43 @@ class SidebarControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         verify(eventPublisher, timeout(500).atLeast(2)).publish(new CategoryChangedEvent(controller, Category.SERIES));
+    }
+
+    @Test
+    void testCollectionClicked() {
+        var event = mock(MouseEvent.class);
+        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        controller.initialize(url, resourceBundle);
+
+        controller.onCollectionClicked(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new ShowTorrentCollectionEvent(controller));
+        assertTrue(controller.collectionIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
+    }
+
+    @Test
+    void testCollectionPressed() {
+        var event = mock(KeyEvent.class);
+        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        when(event.getCode()).thenReturn(KeyCode.ENTER);
+        controller.initialize(url, resourceBundle);
+
+        controller.onCollectionPressed(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new ShowTorrentCollectionEvent(controller));
+        assertTrue(controller.collectionIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
+    }
+
+    @Test
+    void testInitializeTvMode() {
+        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        when(applicationConfig.isTvMode()).thenReturn(true);
+
+        controller.initialize(url, resourceBundle);
+
+        assertFalse(controller.sidebar.getChildren().contains(controller.collectionIcon));
+        assertFalse(controller.sidebar.getChildren().contains(controller.collectionText));
     }
 }

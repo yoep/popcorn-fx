@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ln -sv /opt/popcorn-time/popcorn-time /usr/local/bin/popcorn-time

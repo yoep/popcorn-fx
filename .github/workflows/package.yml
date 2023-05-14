@@ -35,8 +35,8 @@ jobs:
         with:
           name: linux-package
           path: |
-            application/target/popcorn-time*.deb
-            application/target/popcorn-time*.tar.gz
+            target/popcorn-time_*.deb
+            target/patch_*.tar.gz
   package-windows:
     runs-on: windows-latest
 
@@ -65,7 +65,8 @@ jobs:
         with:
           name: windows-package
           path: |
-            application/target/popcorn-time*.exe
+            target/popcorn-time_*.exe
+            target/patch_*.tar.gz
   package-macos:
     runs-on: macos-latest
 
@@ -92,5 +93,5 @@ jobs:
         with:
           name: macos-package
           path: |
-            application/target/popcorn-time*.dmg
-            application/target/popcorn-time*.tar.gz
+            target/popcorn-time_*.dmg
+            target/patch_*.tar.gz

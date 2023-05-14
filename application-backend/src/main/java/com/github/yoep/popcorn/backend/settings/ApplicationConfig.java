@@ -160,8 +160,11 @@ public class ApplicationConfig {
                 new UIScale(1.0f),
                 new UIScale(1.25f),
                 new UIScale(1.50f),
+                new UIScale(1.75f),
                 new UIScale(2.0f),
+                new UIScale(2.5f),
                 new UIScale(3.0f),
+                new UIScale(3.5f),
                 new UIScale(4.0f),
                 new UIScale(5.0f)
         );

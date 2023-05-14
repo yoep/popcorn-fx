@@ -27,7 +27,7 @@ class LoggingBridgeTest {
 
         bridge.append(event);
 
-        verify(fxLib).log("java::com.github.yoep.popcorn.backend.logging.LoggingBridgeTest", "lorem", LogLevel.TRACE);
+        verify(fxLib).log(LoggingBridge.PREFIX + "::com.github.yoep.popcorn.backend.logging.LoggingBridgeTest", "lorem", LogLevel.TRACE);
     }
 
     @Test
@@ -39,7 +39,7 @@ class LoggingBridgeTest {
 
         bridge.append(event);
 
-        verify(fxLib).log("java::LoggingBridgeTest", "ipsum", LogLevel.DEBUG);
+        verify(fxLib).log(LoggingBridge.PREFIX + "::LoggingBridgeTest", "ipsum", LogLevel.DEBUG);
     }
 
     @Test
@@ -51,7 +51,7 @@ class LoggingBridgeTest {
 
         bridge.append(event);
 
-        verify(fxLib).log("java::LoggingBridgeTest", "dolor", LogLevel.INFO);
+        verify(fxLib).log(LoggingBridge.PREFIX + "::LoggingBridgeTest", "dolor", LogLevel.INFO);
     }
 
     @Test
@@ -63,7 +63,7 @@ class LoggingBridgeTest {
 
         bridge.append(event);
 
-        verify(fxLib).log("java::LoggingBridgeTest", "sit", LogLevel.WARN);
+        verify(fxLib).log(LoggingBridge.PREFIX + "::LoggingBridgeTest", "sit", LogLevel.WARN);
     }
 
     @Test
@@ -75,6 +75,6 @@ class LoggingBridgeTest {
 
         bridge.append(event);
 
-        verify(fxLib).log("java::LoggingBridgeTest", "amit", LogLevel.ERROR);
+        verify(fxLib).log(LoggingBridge.PREFIX + "::LoggingBridgeTest", "amit", LogLevel.ERROR);
     }
 }

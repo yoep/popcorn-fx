@@ -66,8 +66,8 @@ public class UpdateService {
     }
 
     private void onStateChanged(UpdateState newState) {
-        if (Objects.requireNonNull(newState) == UpdateState.INSTALLING) {
-            platform.exit();
+        if (Objects.requireNonNull(newState) == UpdateState.INSTALLATION_FINISHED) {
+            platform.exit(3);
         }
     }
 

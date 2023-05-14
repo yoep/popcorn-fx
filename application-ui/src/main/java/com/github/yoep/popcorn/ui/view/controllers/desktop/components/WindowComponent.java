@@ -99,7 +99,7 @@ public class WindowComponent implements Initializable {
     @FXML
     void onCloseClicked(MouseEvent event) {
         event.consume();
-        platformProvider.exit();
+        platformProvider.exit(0);
     }
 
     //endregion

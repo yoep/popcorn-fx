@@ -3,8 +3,8 @@
 members = [
     "popcorn-fx",
     "popcorn-fx-bootstrap",
+    "popcorn-fx-common",
     "popcorn-fx-core",
-    "popcorn-fx-launcher",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
     "popcorn-fx-torrent",

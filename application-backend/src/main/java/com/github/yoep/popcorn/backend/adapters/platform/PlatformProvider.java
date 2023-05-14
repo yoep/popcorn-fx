@@ -34,6 +34,8 @@ public interface PlatformProvider {
 
     /**
      * Exit the application in a safe manner.
+     *
+     * @param code The exit code of the application.
      */
-    void exit();
+    void exit(int code);
 }

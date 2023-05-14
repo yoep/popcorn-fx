@@ -75,7 +75,7 @@ class UpdateServiceTest {
 
         listenerHolder.get().callback(event);
 
-        verify(platform, timeout(150)).exit();
+        verify(platform, timeout(150)).exit(3);
     }
 
     @Test

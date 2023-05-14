@@ -15,7 +15,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use url::Url;
 
-use popcorn_fx_launcher::LauncherOptions;
+use popcorn_fx_common::LauncherOptions;
 
 use crate::core::{CoreCallback, CoreCallbacks, updater};
 use crate::core::config::ApplicationConfig;
@@ -650,9 +650,19 @@ impl InnerUpdater {
             debug!("Extracting archive {:?} to {:?}", task.archive_location().unwrap(), destination);
             archive.unpack(destination)
                 .map_err(|e| UpdateError::ExtractionFailed(e.to_string()))?;
-            info!("Installation task {} of {} completed", total_tasks, index);
             index += 1;
+            info!("Installation task {} of {} completed", index, total_tasks);
         }
+
+        trace!("Updating launcher options");
+        let info = updater.version_info().await?;
+        let mut launcher_options = updater.launcher_options.clone();
+
+        launcher_options.version = info.application.version;
+        launcher_options.runtime_version = info.runtime.version;
+        launcher_options.write(updater.data_path.join(LauncherOptions::filename()))
+            .map_err(|e| UpdateError::IO(e.to_string()))?;
+        debug!("Launcher options have been updated");
 
         Ok(())
     }

@@ -14,7 +14,7 @@ use log4rs::config::{Appender, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use thiserror::Error;
 
-use popcorn_fx_launcher::LauncherOptions;
+use popcorn_fx_common::LauncherOptions;
 
 use crate::data_installer::{DataInstaller, DefaultDataInstaller};
 

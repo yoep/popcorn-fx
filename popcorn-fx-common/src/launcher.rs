@@ -1,17 +1,21 @@
+use std::fs;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::string::ToString;
 
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+use crate::VERSION;
 
 const FILENAME: &str = "launcher";
 const EXTENSIONS: [&str; 2] = [
     "yml",
     "yaml"
 ];
-const DEFAULT_VERSION: fn() -> String = || "0.6.5".to_string();
+const DEFAULT_VERSION: fn() -> String = || VERSION.to_string();
 const DEFAULT_RUNTIME_VERSION: fn() -> String = || "17.0.6".to_string();
 const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
     "-Dsun.awt.disablegrab=true".to_string(),
@@ -19,6 +23,18 @@ const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
     "-Xms100M".to_string(),
     "-XX:+UseG1GC".to_string(),
 ];
+
+/// The launcher specific result type.
+pub type Result<T> = std::result::Result<T, LauncherError>;
+
+/// The launcher options errors.
+#[derive(Debug, Clone, Error, PartialEq)]
+pub enum LauncherError {
+    #[error("Failed to parse launcher options, {0}")]
+    ParsingError(String),
+    #[error("IO error occurred, {0}")]
+    IoError(String),
+}
 
 /// The options for launching an application.
 ///
@@ -28,7 +44,7 @@ const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
 /// # Examples
 ///
 /// ```no_run
-/// use popcorn_fx_launcher::LauncherOptions;
+/// use popcorn_fx_common::LauncherOptions;
 ///
 /// let options = LauncherOptions {
 ///     version: "1.0.0".to_string(),
@@ -36,7 +52,7 @@ const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
 ///     vm_args: vec!["-Xms512m".to_string(), "-Xmx1024m".to_string()],
 /// };
 /// ```
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct LauncherOptions {
     /// The application version to launch.
     #[serde(default = "DEFAULT_VERSION")]
@@ -73,6 +89,29 @@ impl LauncherOptions {
             .expect("Properties should have been loaded");
 
         Self::from(config_value.as_str())
+    }
+
+    /// Write the Launcher options to the specified file path.
+    ///
+    /// # Arguments
+    ///
+    /// * `filepath` - A path to the file where the Launcher options should be written.
+    ///
+    /// # Returns
+    ///
+    /// An empty `Result` indicating success, or an `Err` value if an error occurred.
+    pub fn write<P: AsRef<Path>>(&self, filepath: P) -> Result<()> {
+        let value = serde_yaml::to_string(self)
+            .map_err(|e| LauncherError::ParsingError(e.to_string()))?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(filepath.as_ref())
+            .map_err(|e| LauncherError::IoError(e.to_string()))?;
+
+        file.write_all(value.as_bytes())
+            .map_err(|e| LauncherError::IoError(e.to_string()))
     }
 
     /// Retrieve the default filename for the launcher options configuration file.

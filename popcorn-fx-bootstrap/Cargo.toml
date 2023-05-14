@@ -13,7 +13,7 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-popcorn-fx-launcher = { path = "../popcorn-fx-launcher" }
+popcorn-fx-common = { path = "../popcorn-fx-common" }
 
 directories.workspace = true
 log.workspace = true

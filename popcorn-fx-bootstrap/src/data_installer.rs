@@ -7,7 +7,7 @@ use log::{debug, trace};
 use mockall::automock;
 use thiserror::Error;
 
-use popcorn_fx_launcher::LauncherOptions;
+use popcorn_fx_common::{LauncherError, LauncherOptions};
 
 const INITIAL_INSTALL_DIRECTORY: &str = "main";
 
@@ -15,7 +15,7 @@ const INITIAL_INSTALL_DIRECTORY: &str = "main";
 pub type Result<T> = std::result::Result<T, DataInstallerError>;
 
 /// Errors that might occur during installation.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum DataInstallerError {
     #[error("missing application data in installation at {0:?}")]
     MissingAppData(PathBuf),
@@ -23,6 +23,15 @@ pub enum DataInstallerError {
     ParsingError(String),
     #[error("an IO error occurred, {0}")]
     IoError(String),
+}
+
+impl From<LauncherError> for DataInstallerError{
+    fn from(value: LauncherError) -> Self {
+        match value {
+            LauncherError::ParsingError(e) => DataInstallerError::ParsingError(e),
+            LauncherError::IoError(e) => DataInstallerError::IoError(e)
+        }
+    }
 }
 
 /// A trait for installing and preparing application data.
@@ -83,17 +92,8 @@ impl DefaultDataInstaller {
 
     fn write_default_launcher_options<T: AsRef<Path>>(launcher_options_path: T) -> Result<()> {
         let options = LauncherOptions::default();
-        let value = serde_yaml::to_string(&options)
-            .map_err(|e| DataInstallerError::ParsingError(e.to_string()))?;
-        let mut file = fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(launcher_options_path.as_ref())
-            .map_err(|e| DataInstallerError::IoError(e.to_string()))?;
-
-        file.write_all(value.as_bytes())
-            .map_err(|e| DataInstallerError::IoError(e.to_string()))
+        options.write(launcher_options_path)
+            .map_err(|e| DataInstallerError::from(e))
     }
 }
 
@@ -188,5 +188,14 @@ mod test {
         assert!(result.is_ok(), "expected the preparation to succeed");
         assert!(file1.exists(), "expected {:?} to exist", file1);
         assert!(file2.exists(), "expected {:?} to exist", file2);
+    }
+
+    #[test]
+    fn test_from_launcher_options() {
+        let parser_error = "my parser error";
+        let io_error = "my IO error";
+
+        assert_eq!(DataInstallerError::ParsingError(parser_error.to_string()), DataInstallerError::from(LauncherError::ParsingError(parser_error.to_string())));
+        assert_eq!(DataInstallerError::IoError(io_error.to_string()), DataInstallerError::from(LauncherError::IoError(io_error.to_string())));
     }
 }

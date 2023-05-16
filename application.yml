@@ -38,6 +38,8 @@ popcorn:
       level: trace
     popcorn_fx_core::core::media:
       level: info
+    popcorn_fx_core::core::media::favorites:
+      level: debug
     popcorn_fx_core::core::subtitles:
       level: info
     popcorn_fx_core::core::subtitles::parsers:

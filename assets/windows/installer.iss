@@ -39,6 +39,7 @@ Source: "../../target/package/popcorn-time.exe"; DestDir: "{app}"; Flags: ignore
 Source: "../../target/package/runtimes/*"; DestDir: "{app}\main\runtimes"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
 Source: "../../target/package/popcorn_fx.dll"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
+Source: "popcorn-time.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "jlibtorrent.dll"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
 Source: "ffprobe.exe"; DestDir: "{app}\main\0.6.5"; Flags: ignoreversion
 

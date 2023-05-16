@@ -3,37 +3,43 @@ use thiserror::Error;
 /// The media result type containing [MediaError] on failures.
 pub type Result<T> = std::result::Result<T, MediaError>;
 
-/// The errors which are thrown by the media package.
+/// The errors thrown by the media package.
 #[derive(Error, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MediaError {
-    /// The favorite items failed to load
-    #[error("favorites failed to load, {0}")]
+    /// Failed to load the favorite items.
+    #[error("Failed to load favorites: {0}")]
     FavoritesLoadingFailed(String),
-    /// The requested favorite item couldn't be found
-    #[error("favorite with ID {0} couldn't be found")]
+    /// The requested favorite item couldn't be found.
+    #[error("Favorite with ID {0} not found")]
     FavoriteNotFound(String),
-    #[error("failed to add favorite for {0}, {1}")]
+    /// Failed to add a favorite item.
+    #[error("Failed to add favorite for {0}: {1}")]
     FavoriteAddFailed(String, String),
-    /// The watched items failed to load
-    #[error("watched failed to load, {0}")]
+    /// Failed to load the watched items.
+    #[error("Failed to load watched items: {0}")]
     WatchedLoadingFailed(String),
-    /// The given media item is not supported
-    #[error("media type of {0} is unsupported")]
+    /// The given media item is not supported.
+    #[error("Unsupported media type: {0}")]
     MediaTypeNotSupported(String),
-    /// There are no media providers available to query
-    #[error("there are no available providers to query")]
+    /// There are no available media providers to query.
+    #[error("No available providers to query")]
     NoAvailableProviders,
-    #[error("The provider request connection failed")]
+    /// Failed to establish a connection with the media provider.
+    #[error("Provider connection failed")]
     ProviderConnectionFailed,
-    #[error("request failed with status {0}")]
-    ProviderRequestFailed(u16),
-    #[error("failed to parse response, {0}")]
+    /// The request to the media provider failed with a specific status code.
+    #[error("Request to {0} failed with status {1}")]
+    ProviderRequestFailed(String, u16),
+    /// Failed to parse the response from the media provider.
+    #[error("Failed to parse response: {0}")]
     ProviderParsingFailed(String),
-    #[error("a provider for {0} is already registered")]
+    /// A provider for a specific category is already registered.
+    #[error("Provider for {0} already exists")]
     ProviderAlreadyExists(String),
     /// No provider could be found for the requested category.
-    #[error("no provider could be found for {0}")]
+    #[error("No provider found for {0}")]
     ProviderNotFound(String),
-    #[error("auto-resume failed to load, {0}")]
+    /// Failed to load auto-resume data.
+    #[error("Failed to load auto-resume data: {0}")]
     AutoResumeLoadingFailed(String),
 }

@@ -921,23 +921,14 @@ mod test {
                 arch: "x86_64".to_string(),
             });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let (tx, rx) = channel();
-        let _ = Updater::builder()
+        let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
             .insecure(false)
-            .with_callback(Box::new(move |event| {
-                tx.send(event).unwrap()
-            }))
             .build();
 
-        let event = rx.recv_timeout(Duration::from_millis(100)).unwrap();
-
-        match event {
-            UpdateEvent::StateChanged(result) => assert_eq!(UpdateState::UpdateAvailable, result),
-            _ => assert!(false, "expected UpdateEvent::StateChanged")
-        }
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
     }
 
     #[test]

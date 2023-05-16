@@ -34,9 +34,10 @@ impl FavoriteCacheUpdater {
 
                     trace!("Favorite cache last updated {} hours ago", last_update_diff.num_hours());
                     if last_update_diff >= UPDATE_CACHE_INTERVAL() {
-                        debug!("Starting favorite cache update");
+                        debug!("Starting favorite cache update, last updated {} hours ago", last_update_diff.num_hours());
                         let updated_items = inner.update_media_items(cache).await;
                         let total_items = updated_items.len();
+                        debug!("Retrieved a total of {} updated media items", total_items);
                         inner.service.update(updated_items);
                         info!("Updated a total of {} favorite media items", total_items)
                     } else {

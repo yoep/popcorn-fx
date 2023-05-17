@@ -1,3 +1,6 @@
+use std::thread;
+use std::time::Duration;
+
 use derive_more::Display;
 use log::{debug, error, trace, warn};
 use reqwest::{Client, Response, Url};
@@ -139,7 +142,12 @@ impl BaseProvider {
                         MediaError::ProviderConnectionFailed => provider.disable(),
                         // any other error might be temporary such as 502
                         // so we increase the failed attempts and try again
-                        _ => provider.increase_failure()
+                        _ => {
+                            let delay = Duration::from_millis(500);
+                            trace!("Request was unsuccessful, retrying in {} millis", delay.as_millis());
+                            thread::sleep(delay);
+                            provider.increase_failure()
+                        }
                     }
                 }
             }
@@ -245,7 +253,8 @@ impl UriProvider {
 
     fn increase_failure(&mut self) {
         self.failed_attempts += 1;
-        if self.failed_attempts == 2 {
+        trace!("Provider {} failures increased to {}", self.uri, self.failed_attempts);
+        if self.failed_attempts == 3 {
             self.disable()
         }
     }

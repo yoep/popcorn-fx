@@ -109,7 +109,7 @@ impl FavoriteCacheUpdaterBuilder {
     ///
     /// # Panics
     ///
-    /// This function will panic if the `runtime`, `favorite_service`, or `provider_manager` fields are not set.
+    /// This function will panic if the `favorite_service`, or `provider_manager` fields are not set.
     ///
     /// # Example
     ///
@@ -126,7 +126,9 @@ impl FavoriteCacheUpdaterBuilder {
     ///
     /// This example demonstrates how to use the `FavoriteCacheUpdaterBuilder` to create a new `FavoriteCacheUpdater` instance. The `runtime`, `favorite_service`, and `provider_manager` fields are set using the builder methods. After calling `build()`, the builder creates and returns the `FavoriteCacheUpdater` instance.
     pub fn build(self) -> FavoriteCacheUpdater {
-        let runtime = self.runtime.expect("Runtime is not set");
+        let runtime = self.runtime
+            .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
+            .unwrap();
         let favorite_service = self.favorite_service.expect("Favorite service is not set");
         let provider_manager = self.provider_manager.expect("Provider manager is not set");
 
@@ -134,7 +136,7 @@ impl FavoriteCacheUpdaterBuilder {
             runtime,
             inner: Arc::new(InnerCacheUpdater {
                 service: favorite_service.clone(),
-                providers: provider_manager.clone(),
+                providers: provider_manager,
             }),
         };
 

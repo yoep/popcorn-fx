@@ -30,8 +30,8 @@ cp -v ${ASSETS_DIR}/libjlibtorrent.so "$INSTALLATION_PACKAGE/opt/popcorn-time/ma
 chmod 644 "$INSTALLATION_PACKAGE/opt/popcorn-time/popcorn-time.png"
 
 mkdir -p "$INSTALLATION_PACKAGE/usr/share/applications"
-cp -v ${ASSETS_DIR}/popcorn-time.dekstop "$INSTALLATION_PACKAGE/usr/share/applications/"
-chmod 644 "$INSTALLATION_PACKAGE/usr/share/applications/popcorn-time.dekstop"
+cp -v ${ASSETS_DIR}/popcorn-time.desktop "$INSTALLATION_PACKAGE/usr/share/applications/"
+chmod 644 "$INSTALLATION_PACKAGE/usr/share/applications/popcorn-time.desktop"
 
 echo "Building DEB package"
 dpkg-deb --build -Zgzip target/package/installer target/popcorn-time_${VERSION}.deb

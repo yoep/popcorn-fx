@@ -9,7 +9,7 @@ chmod 755 "${BIN}/popcorn-time"
 chown root:root "${BIN}/popcorn-time"
 
 echo "Updating .desktop entry permissions"
-chown root:root "/usr/share/applications/popcorn-time.dekstop"
+chown root:root "/usr/share/applications/popcorn-time.desktop"
 
 echo "Updating .desktop database"
 update-desktop-database

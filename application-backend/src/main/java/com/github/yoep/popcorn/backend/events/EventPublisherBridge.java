@@ -32,30 +32,30 @@ public class EventPublisherBridge {
 
             return event;
         }, EventPublisher.HIGHEST_ORDER);
-//        eventPublisher.register(PlayVideoEvent.class, event -> {
-//            var event_c = new EventC.ByValue();
-//            event_c.tag = EventC.Tag.PlayVideo;
-//            event_c.union = new EventC.EventCUnion.ByValue();
-//            event_c.union.playVideo_body = new EventC.PlayVideo_Body();
-//            event_c.union.playVideo_body.playVideoEvent = (event instanceof PlayMediaEvent mediaEvent)
-//                    ? PlayVideoEventC.from(mediaEvent)
-//                    : PlayVideoEventC.from(event);
-//
-//            publishEvent(event_c);
-//
-//            return event;
-//        }, EventPublisher.HIGHEST_ORDER);
-//        eventPublisher.register(PlayerStateEvent.class, event -> {
-//            var event_c = new EventC.ByValue();
-//            event_c.tag = EventC.Tag.PlaybackStateChanged;
-//            event_c.union = new EventC.EventCUnion.ByValue();
-//            event_c.union.playbackState_body = new EventC.PlaybackState_Body();
-//            event_c.union.playbackState_body.newState = event.getNewState();
-//
-//            publishEvent(event_c);
-//
-//            return event;
-//        }, EventPublisher.HIGHEST_ORDER);
+        eventPublisher.register(PlayVideoEvent.class, event -> {
+            var event_c = new EventC.ByValue();
+            event_c.tag = EventC.Tag.PlayVideo;
+            event_c.union = new EventC.EventCUnion.ByValue();
+            event_c.union.playVideo_body = new EventC.PlayVideo_Body();
+            event_c.union.playVideo_body.playVideoEvent = (event instanceof PlayMediaEvent mediaEvent)
+                    ? PlayVideoEventC.from(mediaEvent)
+                    : PlayVideoEventC.from(event);
+
+            publishEvent(event_c);
+
+            return event;
+        }, EventPublisher.HIGHEST_ORDER);
+        eventPublisher.register(PlayerStateEvent.class, event -> {
+            var event_c = new EventC.ByValue();
+            event_c.tag = EventC.Tag.PlaybackStateChanged;
+            event_c.union = new EventC.EventCUnion.ByValue();
+            event_c.union.playbackState_body = new EventC.PlaybackState_Body();
+            event_c.union.playbackState_body.newState = event.getNewState();
+
+            publishEvent(event_c);
+
+            return event;
+        }, EventPublisher.HIGHEST_ORDER);
     }
 
     private void publishEvent(EventC.ByValue event_c) {

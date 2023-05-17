@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+BIN=/usr/local/bin
+
+echo "Linking popcorn-time in ${BIN}"
+ln -sv /opt/popcorn-time/popcorn-time "${BIN}/popcorn-time"
+chmod 755 "${BIN}/popcorn-time"
+chown root:root "${BIN}/popcorn-time"
+
+echo "Updating .desktop entry permissions"
+chown root:root "/usr/share/applications/popcorn-time.dekstop"
+
+echo "Updating .desktop database"
+update-desktop-database

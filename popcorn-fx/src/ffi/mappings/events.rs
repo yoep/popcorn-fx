@@ -126,6 +126,7 @@ mod test {
 
     use popcorn_fx_core::{into_c_owned, into_c_string};
     use popcorn_fx_core::core::media::MovieOverview;
+    use popcorn_fx_core::testing::init_logger;
 
     use super::*;
 
@@ -216,5 +217,16 @@ mod test {
                        thumb: Some(thumb.to_string()),
                    }
         );
+    }
+
+    #[test]
+    fn test_from_playback_state_changed() {
+        init_logger();
+
+        if let Event::PlaybackStateChanged(state) = Event::from(EventC::PlaybackStateChanged(PlaybackState::BUFFERING)) {
+            assert_eq!(PlaybackState::BUFFERING, state)
+        } else {
+            assert!(false, "expected Event::PlaybackStateChanged")
+        }
     }
 }

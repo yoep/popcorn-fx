@@ -1340,6 +1340,57 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_register_callback() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, rx) = channel();
+        let (server, settings) = create_server_and_settings(temp_path);
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{
+  "application": {
+    "version": "0.0.5",
+    "platforms": {}
+  },
+  "runtime": {
+    "version": "0.2.1",
+    "platforms": {}
+  }
+ }"#);
+        });
+        let mut platform_mock = MockDummyPlatformData::new();
+        platform_mock.expect_info()
+            .returning(|| PlatformInfo {
+                platform_type: PlatformType::Linux,
+                arch: "x86_64".to_string(),
+            });
+        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let _updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .with_callback(Box::new(move |event| {
+                match event {
+                    UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
+                    _ => {}
+                }
+            }))
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+
+        let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        match event {
+            UpdateEvent::StateChanged(_) => {}
+            _ => assert!(false, "expected UpdateEvent::StateChanged event")
+        }
+    }
+
     fn create_simple_settings(temp_path: &str) -> Arc<Mutex<ApplicationConfig>> {
         Arc::new(Mutex::new(ApplicationConfig {
             storage: Storage::from(temp_path),

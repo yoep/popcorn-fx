@@ -4,7 +4,7 @@ use derive_more::Display;
 ///
 /// This enum describes the different states of the playback known by the player.
 #[repr(i32)]
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, PartialEq)]
 pub enum PlaybackState {
     /// This is the initial state and indicates that the playback state is unknown or hasn't been received from the player.
     ///

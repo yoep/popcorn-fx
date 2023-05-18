@@ -320,7 +320,7 @@ mod test {
         init_logger();
         let path = "/error";
         let status_code = 503;
-        let mut server = MockServer::start();
+        let server = MockServer::start();
         server.mock(|mock, then| {
             mock.method(GET)
                 .path(path);

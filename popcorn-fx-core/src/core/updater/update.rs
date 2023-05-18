@@ -1030,22 +1030,7 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
-        server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
-            then.status(200)
-                .header("content-type", "application/json")
-                .body(r#"{
-  "application": {
-    "version": "0.0.1",
-    "platforms": {}
-  },
-  "runtime": {
-    "version": "17.0.0",
-    "platforms": {}
-  }
- }"#);
-        });
+        no_update_response(&server);
         let platform = default_platform_info();
         let (tx, rx) = channel();
         let updater = Updater::builder()
@@ -1058,7 +1043,7 @@ mod test {
             }))
             .build();
 
-        rx.recv_timeout(Duration::from_millis(100))
+        rx.recv_timeout(Duration::from_millis(300))
             .expect("expected the state changed event");
 
         if let Err(result) = updater.install() {
@@ -1293,7 +1278,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
         let (server, settings) = create_server_and_settings(temp_path);
-        no_update_response(server);
+        no_update_response(&server);
         let platform = default_platform_info();
         let _updater = Updater::builder()
             .settings(settings)
@@ -1323,7 +1308,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
         let (server, settings) = create_server_and_settings(temp_path);
-        no_update_response(server);
+        no_update_response(&server);
         let platform = default_platform_info();
         let updater = Updater::builder()
             .settings(settings)
@@ -1347,6 +1332,28 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_updater_builder_debug() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let builder = UpdaterBuilder::default()
+            .settings(create_simple_settings(temp_path))
+            .platform(default_platform_info())
+            .data_path(temp_path)
+            .insecure(false)
+            .runtime(Arc::new(Runtime::new().unwrap()));
+
+        let debug_output = format!("{:?}", builder);
+
+        assert!(debug_output.contains("UpdaterBuilder"));
+        assert!(debug_output.contains("settings: Some"));
+        assert!(debug_output.contains("insecure: false"));
+        assert!(debug_output.contains("platform: Some"));
+        assert!(debug_output.contains("storage_path: Some"));
+        assert!(debug_output.contains("runtime: Some"));
+    }
+
     fn default_platform_info() -> Arc<Box<dyn PlatformData>> {
         let mut platform_mock = MockDummyPlatformData::new();
         platform_mock.expect_info()
@@ -1358,7 +1365,7 @@ mod test {
         platform
     }
 
-    fn no_update_response(server: MockServer) {
+    fn no_update_response(server: &MockServer) {
         server.mock(move |when, then| {
             when.method(GET)
                 .path(format!("/{}", UPDATE_INFO_FILE));

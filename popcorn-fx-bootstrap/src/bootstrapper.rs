@@ -338,7 +338,11 @@ impl BootstrapperBuilder {
             args: args.collect(),
             data_installer: Box::new(DefaultDataInstaller {
                 data_path: data_path.clone(),
-                installation_path: self.installation_path.unwrap_or_else(|| env::current_dir().expect("expected a working directory")),
+                installation_path: self.installation_path.unwrap_or_else(|| env::current_exe()
+                    .expect("expected an exe directory")
+                    .parent()
+                    .expect("expected exe to reside in a parent directory")
+                    .to_path_buf()),
             }),
             data_path,
             data_base_path,

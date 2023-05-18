@@ -1,3 +1,6 @@
+use std::thread;
+use std::time::Duration;
+
 use derive_more::Display;
 use log::{debug, error, trace, warn};
 use reqwest::{Client, Response, Url};
@@ -139,7 +142,12 @@ impl BaseProvider {
                         MediaError::ProviderConnectionFailed => provider.disable(),
                         // any other error might be temporary such as 502
                         // so we increase the failed attempts and try again
-                        _ => provider.increase_failure()
+                        _ => {
+                            let delay = Duration::from_millis(500);
+                            trace!("Request was unsuccessful, retrying in {} millis", delay.as_millis());
+                            thread::sleep(delay);
+                            provider.increase_failure()
+                        }
                     }
                 }
             }
@@ -152,7 +160,7 @@ impl BaseProvider {
         where T: DeserializeOwned {
         match client.get(url.clone()).send().await {
             Ok(response) => {
-                Self::handle_response::<T>(response).await
+                Self::handle_response::<T>(response, url).await
             }
             Err(err) => {
                 warn!("Failed to retrieve media details, {}", err);
@@ -161,7 +169,7 @@ impl BaseProvider {
         }
     }
 
-    async fn handle_response<T>(response: Response) -> crate::core::media::Result<T>
+    async fn handle_response<T>(response: Response, url: &Url) -> crate::core::media::Result<T>
         where T: DeserializeOwned {
         let status_code = &response.status();
 
@@ -171,8 +179,8 @@ impl BaseProvider {
                 Err(e) => Err(MediaError::ProviderParsingFailed(e.to_string()))
             }
         } else {
-            warn!("Request failed with {}, {}", response.status(), response.text().await.expect("expected the response body to be returned"));
-            Err(MediaError::ProviderRequestFailed(status_code.as_u16()))
+            warn!("Request {} failed with status {}, {}", url.as_str(), response.status(), response.text().await.expect("expected the response body to be returned"));
+            Err(MediaError::ProviderRequestFailed(url.to_string(), status_code.as_u16()))
         }
     }
 
@@ -245,7 +253,8 @@ impl UriProvider {
 
     fn increase_failure(&mut self) {
         self.failed_attempts += 1;
-        if self.failed_attempts == 2 {
+        trace!("Provider {} failures increased to {}", self.uri, self.failed_attempts);
+        if self.failed_attempts == 3 {
             self.disable()
         }
     }
@@ -268,6 +277,9 @@ impl UriProvider {
 
 #[cfg(test)]
 mod test {
+    use httpmock::Method::GET;
+    use httpmock::MockServer;
+
     use crate::testing::init_logger;
 
     use super::*;
@@ -301,5 +313,33 @@ mod test {
             .expect("Expected the created url to be valid");
 
         assert_eq!(expected_result, result.as_str())
+    }
+
+    #[tokio::test]
+    async fn test_handle_failed_response() {
+        init_logger();
+        let path = "/error";
+        let status_code = 503;
+        let server = MockServer::start();
+        server.mock(|mock, then| {
+            mock.method(GET)
+                .path(path);
+            then.status(status_code);
+        });
+        let url = Url::parse(server.url(path).as_str()).unwrap();
+        let provider = BaseProvider::new(vec![server.url("")], false);
+
+        let response = provider.client.get(url.clone())
+            .send()
+            .await
+            .unwrap();
+
+        let result = BaseProvider::handle_response::<()>(response, &url).await;
+
+        if let Err(e) = result {
+            assert_eq!(MediaError::ProviderRequestFailed(url.to_string(), status_code), e);
+        } else {
+            assert!(false, "expected a MediaError to be returned");
+        }
     }
 }

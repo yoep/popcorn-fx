@@ -7,18 +7,14 @@
     "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/popcorn-time_0.6.5.exe"
   },
   "changelog": {
-    "features": [
-      "Improved application logging performance",
-      "Added download progression when downloading a new update",
-      "Improved and optimized the loading of images"
-    ],
+    "features": [],
     "bugfixes": []
   },
   "application": {
     "version": "0.6.5",
     "platforms": {
-      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/",
-      "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/",
+      "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_app_0.6.5_debian_x86_64.tar.gz",
+      "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_app_0.6.5_debian_arm64.tar.gz",
       "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_app_0.6.5_macosx_x86_64.tar.gz",
       "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_app_0.6.5_windows_amd64.tar.gz"
     }
@@ -29,7 +25,7 @@
       "debian.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_debian_x86_64.tar.gz",
       "debian.arm64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_debian_arm64.tar.gz",
       "mac.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_macosx_x86_64.tar.gz",
-      "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_windows.tar.gz"
+      "windows.x86_64": "https://github.com/yoep/popcorn-fx/releases/download/v0.6.5/patch_runtime_17.0.6_windows_amd64.tar.gz"
     }
   }
 }

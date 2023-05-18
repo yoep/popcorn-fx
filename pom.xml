@@ -311,19 +311,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>sonar</id>
-
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.sonarsource.jacoco</groupId>
-                        <artifactId>sonar-jacoco-plugin</artifactId>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

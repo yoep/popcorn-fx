@@ -17,14 +17,14 @@ SYSTEM = $(shell sh -c 'uname 2>/dev/null || echo Unknown')
 ARCH = $(shell uname -m | tr '[:upper:]' '[:lower:]')
 endif
 $(info Detected OS: $(SYSTEM))
-$(info Detected arch: $(ARCH))
+$(info Detected ARCH: $(ARCH))
 $(info Detected JAVA_HOME: $(JAVA_HOME))
+$(info Detected JAVA version: $(shell java -version 2>&1 | awk -F '"' '/version/ {print $2}'))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
 LIBRARY_EXTENSION := dll
 EXECUTABLE := "popcorn-time.exe"
-PROFILE := windows
 ASSETS := windows
 PYTHON := python.exe
 
@@ -36,14 +36,12 @@ endif
 else ifeq ($(SYSTEM),Darwin)
 LIBRARY_EXTENSION := dylib
 EXECUTABLE := "popcorn-time"
-PROFILE := macosx
 ASSETS := mac
 PYTHON := python3
 else
 LIBRARY_EXTENSION := so
 EXECUTABLE := "popcorn-time"
-PROFILE := linux
-ASSETS := linux
+ASSETS := debian
 PYTHON := python3
 endif
 
@@ -55,7 +53,7 @@ prerequisites: ## Install the requirements for the application
 	@cargo install cargo-nextest
 	@cargo install cargo-llvm-cov
 	@cargo install grcov
-	@mvn -B -P$(PROFILE) -pl torrent-frostwire clean
+	@mvn -B -pl torrent-frostwire clean
 
 bump-dependencies: ## Install required bump dependencies
 	@$(PYTHON) -m pip install --upgrade pip
@@ -79,7 +77,7 @@ cov-cargo: prerequisites ## Test coverage of the cargo section as std output
 
 test-java: prerequisites ## The test java section of the application
 	$(info Running maven tests)
-	@mvn -B clean verify -P$(PROFILE)
+	@mvn -B clean verify
 
 test: prerequisites test-java test-cargo ## Test the application code
 
@@ -104,11 +102,11 @@ lib-copy: lib-copy-debug ## The default lib-copy target
 
 build-java: lib-copy-debug ## Build the java part of the application
 	$(info Building java)
-	@mvn -B compile -P$(PROFILE)
+	@mvn -B compile
 
 build-java-release: lib-copy-release ## Build the java part of the application
 	$(info Building java)
-	@mvn -B compile -P$(PROFILE)
+	@mvn -B compile
 
 build: prerequisites build-cargo build-java ## Build the application in debug mode
 
@@ -131,7 +129,7 @@ package-clean:
 #   make package-java
 package-java:
 	@echo Packaging Java
-	@mvn -B package -P$(PROFILE) -DskipTests -DskipITsQ
+	@mvn -B package -DskipTests -DskipITsQ
 
 package: package-clean build-release package-java ## Package the application for distribution
 	@echo Creating JRE bundle
@@ -146,11 +144,11 @@ package: package-clean build-release package-java ## Package the application for
 	@export VERSION=${VERSION}; ./assets/${ASSETS}/installer.sh
 
 	@echo Creating runtime update
-	@cd target/package/runtimes && tar -cvzf ../../patch_runtime_${RUNTIME_VERSION}_${PROFILE}_${ARCH}.tar.gz ${RUNTIME_VERSION}/*
+	@cd target/package/runtimes && tar -cvzf ../../patch_runtime_${RUNTIME_VERSION}_${ASSETS}_${ARCH}.tar.gz ${RUNTIME_VERSION}/*
 	@rm -rf target/package/runtimes
 
 	@echo Creating app update
-	@cd target/package && tar -cvzf ../patch_app_${VERSION}_${PROFILE}_${ARCH}.tar.gz *
+	@cd target/package && tar -cvzf ../patch_app_${VERSION}_${ASSETS}_${ARCH}.tar.gz *
 
 release: bump-minor test-cargo build-release ## Release a new version of the application with increased minor
 

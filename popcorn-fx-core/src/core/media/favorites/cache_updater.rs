@@ -34,9 +34,10 @@ impl FavoriteCacheUpdater {
 
                     trace!("Favorite cache last updated {} hours ago", last_update_diff.num_hours());
                     if last_update_diff >= UPDATE_CACHE_INTERVAL() {
-                        debug!("Starting favorite cache update");
+                        debug!("Starting favorite cache update, last updated {} hours ago", last_update_diff.num_hours());
                         let updated_items = inner.update_media_items(cache).await;
                         let total_items = updated_items.len();
+                        debug!("Retrieved a total of {} updated media items", total_items);
                         inner.service.update(updated_items);
                         info!("Updated a total of {} favorite media items", total_items)
                     } else {
@@ -49,7 +50,8 @@ impl FavoriteCacheUpdater {
     }
 }
 
-#[derive(Debug)]
+/// Builder for creating a `FavoriteCacheUpdater` instance.
+#[derive(Debug, Default)]
 pub struct FavoriteCacheUpdaterBuilder {
     runtime: Option<Arc<Runtime>>,
     favorite_service: Option<Arc<Box<dyn FavoriteService>>>,
@@ -57,44 +59,89 @@ pub struct FavoriteCacheUpdaterBuilder {
 }
 
 impl FavoriteCacheUpdaterBuilder {
+    /// Sets the Tokio runtime to be used by the `FavoriteCacheUpdater`.
+    ///
+    /// # Arguments
+    ///
+    /// * `runtime` - The Tokio `Runtime` instance to be used.
+    ///
+    /// # Returns
+    ///
+    /// The updated `FavoriteCacheUpdaterBuilder` instance.
     pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
         self.runtime = Some(runtime);
         self
     }
 
+    /// Sets the favorite service to be used by the `FavoriteCacheUpdater`.
+    ///
+    /// # Arguments
+    ///
+    /// * `favorite_service` - The favorite service implementing the `FavoriteService` trait.
+    ///
+    /// # Returns
+    ///
+    /// The updated `FavoriteCacheUpdaterBuilder` instance.
     pub fn favorite_service(mut self, favorite_service: Arc<Box<dyn FavoriteService>>) -> Self {
         self.favorite_service = Some(favorite_service);
         self
     }
 
+    /// Sets the provider manager to be used by the `FavoriteCacheUpdater`.
+    ///
+    /// # Arguments
+    ///
+    /// * `provider_manager` - The provider manager instance implementing the `ProviderManager` trait.
+    ///
+    /// # Returns
+    ///
+    /// The updated `FavoriteCacheUpdaterBuilder` instance.
     pub fn provider_manager(mut self, provider_manager: Arc<ProviderManager>) -> Self {
         self.provider_manager = Some(provider_manager);
         self
     }
 
+    /// Builds and returns a new `FavoriteCacheUpdater` instance.
+    ///
+    /// # Returns
+    ///
+    /// A new `FavoriteCacheUpdater` instance with the provided configuration.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the `favorite_service`, or `provider_manager` fields are not set.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::media::favorites::FavoriteCacheUpdaterBuilder;
+    ///
+    /// let builder = FavoriteCacheUpdaterBuilder::default()
+    ///     .runtime(runtime)
+    ///     .favorite_service(favorite_service)
+    ///     .provider_manager(provider_manager);
+    ///
+    /// let updater = builder.build();
+    /// ```
+    ///
+    /// This example demonstrates how to use the `FavoriteCacheUpdaterBuilder` to create a new `FavoriteCacheUpdater` instance. The `runtime`, `favorite_service`, and `provider_manager` fields are set using the builder methods. After calling `build()`, the builder creates and returns the `FavoriteCacheUpdater` instance.
     pub fn build(self) -> FavoriteCacheUpdater {
+        let runtime = self.runtime
+            .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
+            .unwrap();
+        let favorite_service = self.favorite_service.expect("Favorite service is not set");
+        let provider_manager = self.provider_manager.expect("Provider manager is not set");
+
         let instance = FavoriteCacheUpdater {
-            runtime: self.runtime
-                .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
-                .unwrap(),
+            runtime,
             inner: Arc::new(InnerCacheUpdater {
-                service: self.favorite_service.unwrap().clone(),
-                providers: self.provider_manager.unwrap().clone(),
+                service: favorite_service.clone(),
+                providers: provider_manager,
             }),
         };
 
         instance.start_cache_update_check();
         instance
-    }
-}
-
-impl Default for FavoriteCacheUpdaterBuilder {
-    fn default() -> Self {
-        FavoriteCacheUpdaterBuilder {
-            runtime: None,
-            favorite_service: None,
-            provider_manager: None,
-        }
     }
 }
 

@@ -804,13 +804,7 @@ mod test {
   }
 }"#);
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .return_const(PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let runtime = Runtime::new().unwrap();
         let updater = Updater::builder()
             .settings(settings)
@@ -864,13 +858,7 @@ mod test {
   }
 }"#);
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .return_const(PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let (tx, rx) = channel();
         let _updater = Updater::builder()
             .settings(settings)
@@ -914,13 +902,7 @@ mod test {
   }
 }"#);
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .return_const(PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -974,13 +956,7 @@ mod test {
                 .header("content-type", "application/octet-stream")
                 .body_from_file(test_resource_filepath(filename).to_str().unwrap());
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .return_const(PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let runtime = Runtime::new().unwrap();
         let updater = Updater::builder()
             .settings(settings)
@@ -1025,13 +1001,7 @@ mod test {
     "platforms": {{}}
   }} }}"#, url));
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .return_const(PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let runtime = Runtime::new().unwrap();
         let updater = Updater::builder()
             .settings(settings)
@@ -1076,13 +1046,7 @@ mod test {
   }
  }"#);
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .returning(|| PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let (tx, rx) = channel();
         let updater = Updater::builder()
             .settings(settings)
@@ -1149,13 +1113,7 @@ mod test {
             then.status(200)
                 .body_from_file(test_resource_filepath("runtime.tar.gz").to_str().unwrap());
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .returning(|| PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1255,13 +1213,7 @@ mod test {
   }
 }"#);
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .returning(|| PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1305,13 +1257,7 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = create_simple_settings(temp_path);
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .returning(|| PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        let platform = default_platform_info();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1341,12 +1287,78 @@ mod test {
     }
 
     #[test]
+    fn test_builder_callback() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, rx) = channel();
+        let (server, settings) = create_server_and_settings(temp_path);
+        no_update_response(server);
+        let platform = default_platform_info();
+        let _updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .with_callback(Box::new(move |event| {
+                match event {
+                    UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
+                    _ => {}
+                }
+            }))
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+
+        let event = rx.recv_timeout(Duration::from_millis(300)).unwrap();
+
+        match event {
+            UpdateEvent::StateChanged(_) => {}
+            _ => assert!(false, "expected UpdateEvent::StateChanged event")
+        }
+    }
+
+    #[test]
     fn test_register_callback() {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
         let (server, settings) = create_server_and_settings(temp_path);
+        no_update_response(server);
+        let platform = default_platform_info();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+
+        updater.register(Box::new(move |event| {
+            match event {
+                UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
+                _ => {}
+            }
+        }));
+
+        let event = rx.recv_timeout(Duration::from_millis(300)).unwrap();
+
+        match event {
+            UpdateEvent::StateChanged(_) => {}
+            _ => assert!(false, "expected UpdateEvent::StateChanged event")
+        }
+    }
+
+    fn default_platform_info() -> Arc<Box<dyn PlatformData>> {
+        let mut platform_mock = MockDummyPlatformData::new();
+        platform_mock.expect_info()
+            .returning(|| PlatformInfo {
+                platform_type: PlatformType::Linux,
+                arch: "x86_64".to_string(),
+            });
+        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
+        platform
+    }
+
+    fn no_update_response(server: MockServer) {
         server.mock(move |when, then| {
             when.method(GET)
                 .path(format!("/{}", UPDATE_INFO_FILE));
@@ -1361,34 +1373,9 @@ mod test {
     "version": "0.2.1",
     "platforms": {}
   }
- }"#);
+ }"#)
+                .delay(Duration::from_millis(100));
         });
-        let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .returning(|| PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
-        let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let _updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .with_callback(Box::new(move |event| {
-                match event {
-                    UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
-                    _ => {}
-                }
-            }))
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-
-        let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-
-        match event {
-            UpdateEvent::StateChanged(_) => {}
-            _ => assert!(false, "expected UpdateEvent::StateChanged event")
-        }
     }
 
     fn create_simple_settings(temp_path: &str) -> Arc<Mutex<ApplicationConfig>> {

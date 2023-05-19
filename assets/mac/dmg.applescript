@@ -29,7 +29,7 @@ on run (volumeName)
 			set background picture of opts to file ".background:background.png"
 
 			-- Positioning
-			set position of item "Popcorn Time" to {52, 116}
+			set position of item "popcorn-time.dmg" to {52, 116}
 
 			-- Hiding
 			set the extension hidden of item "popcorn-time.dmg" to true

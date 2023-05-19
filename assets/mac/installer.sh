@@ -33,7 +33,7 @@ cp -v ./target/package/popcorn-time ${SOURCE_CONTENTS_FOLDER}/MacOS/
 
 echo "Copying background image"
 mkdir -vp ${SOURCE_FOLDER}/.background
-cp -v ./assets/mac/background.png ${SOURCE_FOLDER}/.background/
+cp -v ./assets/mac/background.png ${SOURCE_FOLDER}/.background/background.png
 
 echo "Copying icon file"
 cp -v ./assets/mac/popcorn-time.icns ${SOURCE_FOLDER}/.VolumeIcon.icns

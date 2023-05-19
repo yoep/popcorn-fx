@@ -18,7 +18,6 @@ rm -rf ${SOURCE_FOLDER}
 mkdir -vp ${APP_FOLDER}
 mkdir -vp ${SOURCE_CONTENTS_FOLDER}
 mkdir -vp ${SOURCE_CONTENTS_FOLDER}/MacOS
-mkdir -vp ${SOURCE_CONTENTS_FOLDER}/Plugins
 mkdir -vp ${SOURCE_CONTENTS_FOLDER}/Resources/main
 mkdir -vp ${SOURCE_CONTENTS_FOLDER}/Resources/main/${VERSION}
 
@@ -26,7 +25,6 @@ envsubst < ./assets/mac/Info.plist > ${SOURCE_CONTENTS_FOLDER}/Info.plist
 
 cp -v ./LICENSE ${SOURCE_CONTENTS_FOLDER}/Resources/
 cp -v ./assets/mac/popcorn-time.icns ${SOURCE_CONTENTS_FOLDER}/Resources/
-cp -v ./target/package/*.dylib ${SOURCE_CONTENTS_FOLDER}/Resources/
 cp -rv ./target/package/runtimes ${SOURCE_CONTENTS_FOLDER}/Resources/main/
 cp -rv ./target/package/*.dylib ${SOURCE_CONTENTS_FOLDER}/Resources/main/${VERSION}/
 cp -v ./target/package/popcorn-time.jar ${SOURCE_CONTENTS_FOLDER}/Resources/main/${VERSION}/

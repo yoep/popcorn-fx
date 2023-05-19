@@ -8,7 +8,10 @@ use thiserror::Error;
 
 use popcorn_fx_common::{LauncherError, LauncherOptions};
 
+#[cfg(not(target_os = "macos"))]
 const INITIAL_INSTALL_DIRECTORY: &str = "main";
+#[cfg(target_os = "macos")]
+const INITIAL_INSTALL_DIRECTORY: &str = "../Resources/main";
 
 /// The result type specific to the data installer.
 pub type Result<T> = std::result::Result<T, DataInstallerError>;

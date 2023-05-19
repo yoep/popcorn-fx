@@ -1,8 +1,9 @@
 #!/bin/bash
 
 IMAGE_NAME="popcorn-time_${VERSION}.dmg"
-SOURCE_FOLDER=./target/popcorn-time.app
-SOURCE_CONTENTS_FOLDER=${SOURCE_FOLDER}/Contents
+SOURCE_FOLDER=./target/popcorn-time
+APP_FOLDER=${SOURCE_FOLDER}/popcorn-time.app
+SOURCE_CONTENTS_FOLDER=${APP_FOLDER}/Contents
 TMP_OUTPUT_TARGET=./target/tmp_${IMAGE_NAME}
 OUTPUT_TARGET=./target/${IMAGE_NAME}
 VOLUME_LOCATION=/Volumes/${IMAGE_NAME}
@@ -13,7 +14,8 @@ detach_volume() {
 }
 
 echo "Creating Application contents"
-rm -rf ${SOURCE_CONTENTS_FOLDER}
+rm -rf ${SOURCE_FOLDER}
+mkdir -vp ${APP_FOLDER}
 mkdir -vp ${SOURCE_CONTENTS_FOLDER}
 mkdir -vp ${SOURCE_CONTENTS_FOLDER}/MacOS
 mkdir -vp ${SOURCE_CONTENTS_FOLDER}/Plugins

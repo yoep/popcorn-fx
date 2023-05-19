@@ -1,3 +1,4 @@
+-- credits: https://github.com/create-dmg/create-dmg
 on run (volumeName)
 	tell application "Finder"
 		tell disk (volumeName as string)
@@ -29,10 +30,10 @@ on run (volumeName)
 			set background picture of opts to file ".background:background.png"
 
 			-- Positioning
-			set position of item "Popcorn Time" to {52, 116}
+			set position of item "popcorn-time.app" to {52, 116}
 
 			-- Hiding
-			set the extension hidden of item "popcorn-time.dmg" to true
+			set the extension hidden of item "popcorn-time.app" to true
 
 			-- Application
 			set position of item "Applications" to {360, 116}

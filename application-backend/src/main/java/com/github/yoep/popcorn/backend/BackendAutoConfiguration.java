@@ -14,7 +14,6 @@ import javax.annotation.PreDestroy;
 @Import({
         FxConfig.class,
         MediaConfig.class,
-        RestConfig.class,
         SettingsConfig.class,
         ThreadConfig.class,
         TorrentStreamConfig.class,

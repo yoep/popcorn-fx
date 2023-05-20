@@ -2113,7 +2113,6 @@ dependencies = [
  "itertools",
  "local-ip-address",
  "log",
- "percent-encoding",
  "popcorn-fx-core",
  "reqwest",
  "tempfile",

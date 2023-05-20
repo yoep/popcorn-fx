@@ -1,11 +1,13 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use derive_more::Display;
+
 use crate::core::torrent;
 use crate::core::torrent::{Torrent, TorrentStream};
 
 /// The state of the torrent stream server.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Display, PartialEq)]
 pub enum TorrentStreamServerState {
     Stopped,
     Running,

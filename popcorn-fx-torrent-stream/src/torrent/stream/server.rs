@@ -9,7 +9,6 @@ use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 use url::Url;
 use warp::{Filter, hyper, Rejection};
-use warp::fs::file;
 use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT};
 use warp::hyper::HeaderMap;
@@ -398,10 +397,6 @@ impl Default for TorrentStreamServerInner {
 
 #[cfg(test)]
 mod test {
-    use std::thread;
-    use std::time::Duration;
-
-    use log::info;
     use reqwest::Client;
 
     use popcorn_fx_core::assert_timeout_eq;
@@ -471,7 +466,7 @@ mod test {
         let client = Client::builder().build().expect("Client should have been created");
         let server = DefaultTorrentStreamServer::default();
 
-        wait_for_server(&server);
+        assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
         let result = runtime.block_on(async {
             let response = client.head(server.inner.build_url("lorem").unwrap())
                 .send()
@@ -518,7 +513,7 @@ mod test {
         let expected_result = read_test_file_to_string(filename)
             .replace("\r\n", "\n");
 
-        wait_for_server(&server);
+        assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
             .expect("expected the torrent stream to have started");
         let result = runtime.block_on(async {
@@ -543,7 +538,7 @@ mod test {
     #[test]
     fn test_stop_stream() {
         init_logger();
-        let filename = "large.txt";
+        let filename = "large-[123].txt";
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let temp_dir = tempfile::tempdir().unwrap();
         let file = temp_dir.path().join(filename);
@@ -562,7 +557,7 @@ mod test {
             .return_const(TorrentState::Downloading);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
-        wait_for_server(&server);
+        assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
             .expect("expected the torrent stream to have started");
         server.stop_stream(&stream);
@@ -587,7 +582,7 @@ mod test {
         let client = Client::builder().build().expect("Client should have been created");
         let server = DefaultTorrentStreamServer::default();
 
-        wait_for_server(&server);
+        assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
         let result = runtime.block_on(async {
             let response = client.get(server.inner.build_url("lorem").unwrap())
                 .send()
@@ -603,12 +598,5 @@ mod test {
     #[test]
     fn test_url_decode() {
         assert_eq!("lorem ipsum=[dolor].txt", TorrentStreamServerInner::url_decode("lorem%20ipsum%3D%5Bdolor%5D.txt"))
-    }
-
-    fn wait_for_server(server: &DefaultTorrentStreamServer) {
-        while server.state() == TorrentStreamServerState::Stopped {
-            info!("Waiting for torrent stream server to be started");
-            thread::sleep(Duration::from_millis(50))
-        }
     }
 }

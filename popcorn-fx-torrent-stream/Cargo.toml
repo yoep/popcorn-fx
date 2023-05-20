@@ -21,7 +21,6 @@ hyper = { version = "0.14", features = ["http2", "server", "stream"] }
 itertools = "0.10"
 local-ip-address = "0.5"
 log.workspace = true
-percent-encoding = "2"
 thiserror = "1.0"
 tokio = { workspace = true, features = ["rt-multi-thread", "fs"] }
 tokio-stream = "0.1"

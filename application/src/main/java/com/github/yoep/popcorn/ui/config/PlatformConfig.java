@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.config;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.platform.PlatformFX;
+import com.github.yoep.popcorn.ui.platform.PlatformFX;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

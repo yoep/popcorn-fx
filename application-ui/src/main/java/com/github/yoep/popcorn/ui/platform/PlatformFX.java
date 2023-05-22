@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.platform;
+package com.github.yoep.popcorn.ui.platform;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import javafx.application.ConditionalFeature;

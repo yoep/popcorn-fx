@@ -2,7 +2,7 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.player.popcorn.controls.ProgressControl?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
            fx:controller="com.github.yoep.player.popcorn.controllers.components.TvPlayerControlsComponent">
@@ -39,10 +39,20 @@
               GridPane.columnIndex="4" GridPane.rowIndex="0">
             <Icon fx:constant="FORWARD_UNICODE"/>
         </Icon>
-        <Icon focusTraversable="true"
-              GridPane.columnIndex="5" GridPane.rowIndex="0">
-            <Icon fx:constant="TH_LIST_UNICODE"/>
-        </Icon>
+        <MenuButton GridPane.columnIndex="5" GridPane.rowIndex="0">
+            <graphic>
+                <Icon>
+                    <Icon fx:constant="TH_LIST_UNICODE"/>
+                </Icon>
+            </graphic>
+            <items>
+                <MenuItem text="%subtitles_change" />
+                <MenuItem text="%subtitles_increase_offset" />
+                <MenuItem text="%subtitles_decrease_offset" />
+                <MenuItem text="%subtitles_increase_font_size" />
+                <MenuItem text="%subtitles_decrease_font_size" />
+            </items>
+        </MenuButton>
 
         <Label fx:id="time" styleClass="time" textAlignment="RIGHT" alignment="CENTER_RIGHT"
                GridPane.columnIndex="0" GridPane.rowIndex="1"/>

@@ -927,6 +927,10 @@
     -fx-padding: 13 8 10 8;
 }
 
+.root .player .player-controls .tooltip {
+    -fx-font-size: 12;
+}
+
 .root .player .player-controls LanguageSelection .list-view {
     -fx-min-width: 150;
     -fx-max-width: 150;

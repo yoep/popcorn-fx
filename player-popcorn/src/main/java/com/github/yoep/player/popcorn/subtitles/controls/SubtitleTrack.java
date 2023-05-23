@@ -108,8 +108,8 @@ public class SubtitleTrack extends VBox {
         return offset;
     }
 
-    public void setOffset(double offset) {
-        this.offset.set(offset);
+    public void setOffset(double offsetInSeconds) {
+        this.offset.set(offsetInSeconds);
     }
 
     //endregion

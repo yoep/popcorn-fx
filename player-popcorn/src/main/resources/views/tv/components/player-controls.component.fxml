@@ -39,18 +39,19 @@
               GridPane.columnIndex="4" GridPane.rowIndex="0">
             <Icon fx:constant="FORWARD_UNICODE"/>
         </Icon>
-        <MenuButton GridPane.columnIndex="5" GridPane.rowIndex="0">
+        <MenuButton fx:id="subtitleMenuButton"
+                    GridPane.columnIndex="5" GridPane.rowIndex="0" popupSide="TOP">
             <graphic>
                 <Icon>
                     <Icon fx:constant="TH_LIST_UNICODE"/>
                 </Icon>
             </graphic>
             <items>
-                <MenuItem text="%subtitles_change" />
-                <MenuItem text="%subtitles_increase_offset" />
-                <MenuItem text="%subtitles_decrease_offset" />
-                <MenuItem text="%subtitles_increase_font_size" />
-                <MenuItem text="%subtitles_decrease_font_size" />
+                <MenuItem text="%subtitles_change"/>
+                <MenuItem fx:id="subtitleIncreaseOffset" text="%subtitles_increase_offset" onAction="#onIncreaseOffset"/>
+                <MenuItem fx:id="subtitleDecreaseOffset" text="%subtitles_decrease_offset" onAction="#onDecreaseOffset"/>
+                <MenuItem text="%subtitles_increase_font_size" onAction="#onIncreaseFontSize"/>
+                <MenuItem text="%subtitles_decrease_font_size" onAction="#onDecreaseFontSize"/>
             </items>
         </MenuButton>
 

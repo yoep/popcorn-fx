@@ -16,6 +16,7 @@ import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -109,7 +110,7 @@ public class PopcornPlayerSectionController implements Initializable {
         playerControlsPane = viewLoader.load(VIEW_CONTROLS);
         AnchorPane.setLeftAnchor(playerControlsPane, 0d);
         AnchorPane.setRightAnchor(playerControlsPane, 0d);
-        AnchorPane.setBottomAnchor(playerControlsPane, applicationConfig.isTvMode() ? 50d : 0d);
+        AnchorPane.setBottomAnchor(playerControlsPane, applicationConfig.isTvMode() ? 150d : 0d);
         playerPane.getChildren().add(playerControlsPane);
 
         AnchorPane.setTopAnchor(infoLabel, applicationConfig.isTvMode() ? INFO_TOP_TV_MODE : 50d);
@@ -125,6 +126,10 @@ public class PopcornPlayerSectionController implements Initializable {
                 subtitleTrack.clear();
                 errorText.setText(null);
             });
+            return event;
+        });
+        eventPublisher.register(SubtitleOffsetEvent.class, event -> {
+            Platform.runLater(() -> onSubtitleOffsetChanged(event.getOffset()));
             return event;
         });
         sectionService.addListener(new PopcornPlayerSectionListener() {
@@ -343,11 +348,11 @@ public class PopcornPlayerSectionController implements Initializable {
                 }
                 case DECREASE_SUBTITLE_OFFSET -> {
                     event.consume();
-                    updateSubtitleOffset(event, false);
+                    handleSubtitleOffsetKeyPressed(event, false);
                 }
                 case INCREASE_SUBTITLE_OFFSET -> {
                     event.consume();
-                    updateSubtitleOffset(event, true);
+                    handleSubtitleOffsetKeyPressed(event, true);
                 }
                 case REVERSE -> {
                     if (!applicationConfig.isTvMode()) {
@@ -394,7 +399,7 @@ public class PopcornPlayerSectionController implements Initializable {
         return isBold ? FontWeight.BOLD : FontWeight.NORMAL;
     }
 
-    private void updateSubtitleOffset(KeyEvent event, boolean increaseOffset) {
+    private void handleSubtitleOffsetKeyPressed(KeyEvent event, boolean increaseOffset) {
         double offset = 0.1;
 
         if (event.isControlDown() && event.isShiftDown()) {
@@ -405,13 +410,12 @@ public class PopcornPlayerSectionController implements Initializable {
             offset = 1.0;
         }
 
-        double currentOffset = subtitleTrack.getOffset();
+        onSubtitleOffsetChanged(increaseOffset ? offset : -offset);
+    }
 
-        if (increaseOffset) {
-            subtitleTrack.setOffset(currentOffset + offset);
-        } else {
-            subtitleTrack.setOffset(currentOffset - offset);
-        }
+    private void onSubtitleOffsetChanged(double subtitleOffset) {
+        var currentOffset = subtitleTrack.getOffset();
+        subtitleTrack.setOffset(currentOffset + subtitleOffset);
     }
 
     private void showInfo(String message) {

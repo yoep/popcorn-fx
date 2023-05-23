@@ -555,12 +555,15 @@
     -fx-text-alignment: center;
     -fx-alignment: center;
     -fx-background-color: rgba(11, 27, 51, 0.5);
+    -fx-background-radius: 0.2em;
     -fx-border-color: #808080;
     -fx-border-width: 3 3 3 3;
     -fx-border-radius: 0.2em;
     -fx-cursor: hand;
 }
 
+.root .player .player-controls .menu-button:hover .icon,
+.root .player .player-controls .menu-button:focused .icon,
 .root .player .player-controls .icon:hover,
 .root .player .player-controls .icon:focused {
     -fx-background-color: rgba(28, 68, 128, 0.5);
@@ -572,6 +575,19 @@
     -fx-font-size: 1.75em;
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
+}
+
+.root .player .player-controls .menu-button {
+    -fx-background-color: transparent;
+}
+
+.root .player .player-controls .menu-button .context-menu {
+    -fx-min-width: 350;
+    -fx-max-width: 350;
+}
+
+.root .player .player-controls .menu-button .context-menu .menu-item {
+    -fx-padding: 10 5 10 5;
 }
 
 /* endregion */

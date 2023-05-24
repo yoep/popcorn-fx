@@ -56,6 +56,8 @@ public class TvPlayerControlsComponent implements Initializable {
     @FXML
     Button subtitleDecreaseOffset;
     @FXML
+    Overlay subtitleOptionsOverlay;
+    @FXML
     Overlay subtitleOverlay;
     @FXML
     AxisItemSelection<SubtitleInfo> subtitleSelection;
@@ -175,6 +177,12 @@ public class TvPlayerControlsComponent implements Initializable {
         eventPublisher.publish(new SubtitleOffsetEvent(this, offsetInSeconds));
     }
 
+    private void showSubtitlesOverlay() {
+        playerControlsService.pause();
+        subtitleOptionsOverlay.hide();
+        subtitleOverlay.show();
+    }
+
     @FXML
     void onPlayClicked(MouseEvent event) {
         event.consume();
@@ -233,30 +241,45 @@ public class TvPlayerControlsComponent implements Initializable {
 
     @FXML
     void onSubtitleChange(Event event) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getCode() != KeyCode.ENTER)
+            return;
+
         event.consume();
-        subtitleOverlay.show();
+        showSubtitlesOverlay();
     }
 
     @FXML
     void onIncreaseOffset(Event event) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getCode() != KeyCode.ENTER)
+            return;
+
         event.consume();
         onSubtitleOffsetChanged(OFFSET_IN_SECONDS);
     }
 
     @FXML
     void onDecreaseOffset(Event event) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getCode() != KeyCode.ENTER)
+            return;
+
         event.consume();
         onSubtitleOffsetChanged(-OFFSET_IN_SECONDS);
     }
 
     @FXML
     void onIncreaseFontSize(Event event) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getCode() != KeyCode.ENTER)
+            return;
+
         event.consume();
         onSubtitleSizeChanged(4);
     }
 
     @FXML
     void onDecreaseFontSize(Event event) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getCode() != KeyCode.ENTER)
+            return;
+
         event.consume();
         onSubtitleSizeChanged(-4);
     }

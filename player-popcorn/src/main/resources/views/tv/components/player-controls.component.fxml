@@ -41,7 +41,7 @@
               GridPane.columnIndex="4" GridPane.rowIndex="0">
             <Icon fx:constant="FORWARD_UNICODE"/>
         </Icon>
-        <Icon fx:id="subtitleOptions" focusTraversable="true"
+        <Icon fx:id="subtitleOptionsButton" focusTraversable="true"
               GridPane.columnIndex="5" GridPane.rowIndex="0">
             <Icon fx:constant="TH_LIST_UNICODE"/>
         </Icon>
@@ -53,13 +53,13 @@
         <Label fx:id="duration" styleClass="time"
                GridPane.columnIndex="6" GridPane.rowIndex="1"/>
     </GridPane>
-    <Overlay for="$subtitleOptions">
+    <Overlay fx:id="subtitleOptionsOverlay" for="$subtitleOptionsButton">
         <VBox spacing="3">
-            <Button text="%subtitles_change" onAction="#onSubtitleChange"/>
-            <Button fx:id="subtitleIncreaseOffset" text="%subtitles_increase_offset" onAction="#onIncreaseOffset"/>
-            <Button fx:id="subtitleDecreaseOffset" text="%subtitles_decrease_offset" onAction="#onDecreaseOffset"/>
-            <Button text="%subtitles_increase_font_size" onAction="#onIncreaseFontSize"/>
-            <Button text="%subtitles_decrease_font_size" onAction="#onDecreaseFontSize"/>
+            <Button text="%subtitles_change" onMouseClicked="#onSubtitleChange" onKeyPressed="#onSubtitleChange"/>
+            <Button fx:id="subtitleIncreaseOffset" text="%subtitles_increase_offset" onMouseClicked="#onIncreaseOffset" onKeyPressed="#onIncreaseOffset"/>
+            <Button fx:id="subtitleDecreaseOffset" text="%subtitles_decrease_offset" onMouseClicked="#onDecreaseOffset" onKeyPressed="#onDecreaseOffset"/>
+            <Button text="%subtitles_increase_font_size" onMouseClicked="#onIncreaseFontSize" onKeyPressed="#onIncreaseFontSize"/>
+            <Button text="%subtitles_decrease_font_size" onMouseClicked="#onDecreaseFontSize" onKeyPressed="#onDecreaseFontSize"/>
         </VBox>
     </Overlay>
     <Overlay fx:id="subtitleOverlay">

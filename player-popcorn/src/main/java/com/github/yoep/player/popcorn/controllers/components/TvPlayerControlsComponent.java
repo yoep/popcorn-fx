@@ -4,23 +4,25 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.controls.ProgressControl;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
+import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
-import com.github.yoep.popcorn.ui.messages.SubtitleMessage;
+import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
+import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -28,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -49,16 +52,18 @@ public class TvPlayerControlsComponent implements Initializable {
     @FXML
     ProgressControl timeline;
     @FXML
-    MenuButton subtitleMenuButton;
+    Button subtitleIncreaseOffset;
     @FXML
-    MenuItem subtitleIncreaseOffset;
+    Button subtitleDecreaseOffset;
     @FXML
-    MenuItem subtitleDecreaseOffset;
+    Overlay subtitleOverlay;
+    @FXML
+    AxisItemSelection<SubtitleInfo> subtitleSelection;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeListeners();
-        initializeContextMenu();
+        initializeOverlay();
         initializeText();
     }
 
@@ -119,11 +124,29 @@ public class TvPlayerControlsComponent implements Initializable {
         });
     }
 
-    private void initializeContextMenu() {
-        subtitleMenuButton.contextMenuProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                onContextMenuChanged(newValue);
+    private void initializeOverlay() {
+        subtitleOverlay.shownProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue) {
+                playerControlsService.resume();
             }
+        });
+        subtitleService.addListener(new PlayerSubtitleListener() {
+            @Override
+            public void onActiveSubtitleChanged(SubtitleInfo activeSubtitle) {
+                subtitleSelection.setSelectedItem(activeSubtitle);
+            }
+
+            @Override
+            public void onAvailableSubtitlesChanged(List<SubtitleInfo> subtitles, SubtitleInfo activeSubtitle) {
+                subtitleSelection.setItems(subtitles.toArray(new SubtitleInfo[0]));
+                subtitleSelection.setSelectedItem(activeSubtitle);
+            }
+        });
+        subtitleSelection.setItemFactory(item -> new Button(item.getLanguage().getNativeName()));
+        subtitleSelection.setOnItemActivated(item -> {
+            subtitleOverlay.hide();
+            playerControlsService.resume();
+            subtitleService.updateActiveSubtitle(item);
         });
     }
 
@@ -142,10 +165,6 @@ public class TvPlayerControlsComponent implements Initializable {
 
     private void forward() {
         playerControlsService.seek(playerControlsService.getTime() + 10000);
-    }
-
-    private void onContextMenuChanged(ContextMenu contextMenu) {
-        contextMenu.setAutoHide(false);
     }
 
     private void onSubtitleSizeChanged(int pixelChange) {
@@ -213,6 +232,12 @@ public class TvPlayerControlsComponent implements Initializable {
     }
 
     @FXML
+    void onSubtitleChange(Event event) {
+        event.consume();
+        subtitleOverlay.show();
+    }
+
+    @FXML
     void onIncreaseOffset(Event event) {
         event.consume();
         onSubtitleOffsetChanged(OFFSET_IN_SECONDS);
@@ -234,5 +259,12 @@ public class TvPlayerControlsComponent implements Initializable {
     void onDecreaseFontSize(Event event) {
         event.consume();
         onSubtitleSizeChanged(-4);
+    }
+
+    @FXML
+    void onChangeSubtitle(Event event) {
+        event.consume();
+        playerControlsService.pause();
+        subtitleOverlay.show();
     }
 }

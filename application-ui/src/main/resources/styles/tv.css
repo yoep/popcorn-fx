@@ -496,6 +496,7 @@
 
 /* region Overlay */
 
+.root .player .overlay .overlay-content .button,
 .root .overlay .overlay-content .axis .button {
     -fx-pref-width: 12em;
 }

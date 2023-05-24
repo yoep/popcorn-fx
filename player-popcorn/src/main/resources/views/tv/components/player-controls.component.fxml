@@ -2,6 +2,8 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.player.popcorn.controls.ProgressControl?>
+<?import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection?>
+<?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -39,21 +41,10 @@
               GridPane.columnIndex="4" GridPane.rowIndex="0">
             <Icon fx:constant="FORWARD_UNICODE"/>
         </Icon>
-        <MenuButton fx:id="subtitleMenuButton"
-                    GridPane.columnIndex="5" GridPane.rowIndex="0" popupSide="TOP">
-            <graphic>
-                <Icon>
-                    <Icon fx:constant="TH_LIST_UNICODE"/>
-                </Icon>
-            </graphic>
-            <items>
-                <MenuItem text="%subtitles_change"/>
-                <MenuItem fx:id="subtitleIncreaseOffset" text="%subtitles_increase_offset" onAction="#onIncreaseOffset"/>
-                <MenuItem fx:id="subtitleDecreaseOffset" text="%subtitles_decrease_offset" onAction="#onDecreaseOffset"/>
-                <MenuItem text="%subtitles_increase_font_size" onAction="#onIncreaseFontSize"/>
-                <MenuItem text="%subtitles_decrease_font_size" onAction="#onDecreaseFontSize"/>
-            </items>
-        </MenuButton>
+        <Icon fx:id="subtitleOptions" focusTraversable="true"
+              GridPane.columnIndex="5" GridPane.rowIndex="0">
+            <Icon fx:constant="TH_LIST_UNICODE"/>
+        </Icon>
 
         <Label fx:id="time" styleClass="time" textAlignment="RIGHT" alignment="CENTER_RIGHT"
                GridPane.columnIndex="0" GridPane.rowIndex="1"/>
@@ -62,4 +53,16 @@
         <Label fx:id="duration" styleClass="time"
                GridPane.columnIndex="6" GridPane.rowIndex="1"/>
     </GridPane>
+    <Overlay for="$subtitleOptions">
+        <VBox spacing="3">
+            <Button text="%subtitles_change" onAction="#onSubtitleChange"/>
+            <Button fx:id="subtitleIncreaseOffset" text="%subtitles_increase_offset" onAction="#onIncreaseOffset"/>
+            <Button fx:id="subtitleDecreaseOffset" text="%subtitles_decrease_offset" onAction="#onDecreaseOffset"/>
+            <Button text="%subtitles_increase_font_size" onAction="#onIncreaseFontSize"/>
+            <Button text="%subtitles_decrease_font_size" onAction="#onDecreaseFontSize"/>
+        </VBox>
+    </Overlay>
+    <Overlay fx:id="subtitleOverlay">
+        <AxisItemSelection fx:id="subtitleSelection" shortKeysEnabled="false" orientation="VERTICAL" spacing="3"/>
+    </Overlay>
 </StackPane>

@@ -6,13 +6,16 @@ import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.ui.messages.SubtitleMessage;
+import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
+import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
+import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.event.Event;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +27,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -50,9 +54,12 @@ class TvPlayerControlsComponentTest {
     @BeforeEach
     void setUp() {
         component.playButton = new Icon();
-        component.subtitleMenuButton = new MenuButton();
-        component.subtitleIncreaseOffset = new MenuItem();
-        component.subtitleDecreaseOffset = new MenuItem();
+        component.subtitleOverlay = new Overlay();
+        component.subtitleSelection = new AxisItemSelection<>();
+        component.subtitleIncreaseOffset = new Button();
+        component.subtitleDecreaseOffset = new Button();
+
+        component.subtitleOverlay.getChildren().add(component.subtitleSelection);
     }
 
     @Test
@@ -65,8 +72,8 @@ class TvPlayerControlsComponentTest {
         component.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.subtitleIncreaseOffset.getText().equals(increaseText));
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.subtitleDecreaseOffset.getText().equals(decreaseText));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.subtitleIncreaseOffset.getText(), increaseText));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.subtitleDecreaseOffset.getText(), decreaseText));
     }
 
     @Test
@@ -129,5 +136,17 @@ class TvPlayerControlsComponentTest {
 
         verify(event).consume();
         verify(subtitleService).updateSubtitleSizeWithSizeOffset(-4);
+    }
+
+    @Test
+    void testOnSubtitle() {
+        var event = mock(Event.class);
+        var parent = new AnchorPane(component.subtitleOverlay);
+        var scene = new Scene(parent);
+        component.initialize(url, resourceBundle);
+
+        component.onChangeSubtitle(event);
+
+        verify(playerControlsService).pause();
     }
 }

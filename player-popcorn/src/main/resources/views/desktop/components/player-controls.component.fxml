@@ -4,6 +4,7 @@
 <?import com.github.yoep.player.popcorn.controls.ProgressSliderControl?>
 <?import com.github.yoep.player.popcorn.controls.Volume?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.player.popcorn.controllers.components.DesktopPlayerControlsComponent"
@@ -45,11 +46,18 @@
 
     <!-- Volume -->
     <Volume fx:id="volumeIcon" styleClass="player-button" cache="true"
-            GridPane.columnIndex="5" GridPane.rowIndex="0"/>
+            GridPane.columnIndex="5" GridPane.rowIndex="0">
+        <tooltip>
+            <Tooltip text="%volume" showDelay="0s" />
+        </tooltip>
+    </Volume>
 
     <!-- Fullscreen -->
     <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked" cache="true"
           GridPane.columnIndex="6" GridPane.rowIndex="0">
+        <tooltip>
+            <Tooltip text="%toggle_fullscreen" showDelay="0s" />
+        </tooltip>
         <Icon fx:constant="EXPAND_UNICODE"/>
     </Icon>
 </GridPane>

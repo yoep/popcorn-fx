@@ -927,31 +927,48 @@
     -fx-padding: 13 8 10 8;
 }
 
-.root .player .player-controls LanguageSelection .list-view {
-    -fx-min-width: 150;
-    -fx-max-width: 150;
+.root .player .player-controls .tooltip {
+    -fx-font-size: 12;
+}
+
+.root .player .player-controls .menu-button .context-menu,
+.root .player .player-controls .list-view {
+    -fx-min-width: 200;
+    -fx-max-width: 200;
     -fx-background-color: #17181b;
 }
 
-.root .player .player-controls LanguageSelection .list-view .list-cell {
-    -fx-font-family: Arial;
+.root .player .player-controls .menu-button .context-menu .menu-item,
+.root .player .player-controls .list-view .list-cell {
     -fx-padding: 3 8 3 8;
     -fx-border-width: 0 0 0 2;
     -fx-background-color: #17181b;
     -fx-cursor: hand;
 }
 
-.root .player .player-controls LanguageSelection .list-view .list-cell:selected {
+.root .player .player-controls .menu-button .context-menu .menu-item {
+    -fx-font-family: "Open Sans Semibold";
+}
+
+.root .player .player-controls .list-view .list-cell {
+    -fx-font-family: Arial;
+}
+
+.root .player .player-controls .menu-button .context-menu .menu-item:selected,
+.root .player .player-controls .list-view .list-cell:selected {
     -fx-background-color: #0b131f;
     -fx-font-weight: bold;
     -fx-border-color: #fff;
 }
 
-.root .player .player-controls LanguageSelection .list-view .list-cell:hover {
+.root .player .player-controls .menu-button .context-menu .menu-item:hover,
+.root .player .player-controls .menu-button .context-menu .menu-item:focused,
+.root .player .player-controls .list-view .list-cell:hover,
+.root .player .player-controls .list-view .list-cell:focused {
     -fx-background-color: #2d72d9;
 }
 
-.root .player .player-controls LanguageSelection .list-view .list-cell:empty {
+.root .player .player-controls .list-view .list-cell:empty {
     -fx-background-color: #17181b;
 }
 
@@ -1010,6 +1027,19 @@
 
 .root .player .player-controls .volume-popup .volume-slider .volume-track {
     -fx-background-color: #2d72d9;
+}
+
+.root .player .player-controls .menu-button .label {
+    -fx-padding: 0;
+}
+
+.root .player .player-controls .menu-button .arrow-button,
+.root .player .player-controls .menu-button .arrow-button .arrow {
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+    -fx-pref-height: 0;
+    -fx-max-height: 0;
+    -fx-padding: 0 0 0 0;
 }
 
 .root .player .playing-next {

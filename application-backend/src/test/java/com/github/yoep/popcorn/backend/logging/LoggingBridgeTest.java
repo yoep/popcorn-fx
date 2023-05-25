@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.logging;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxy;
 import com.github.yoep.popcorn.backend.FxLib;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,9 +73,10 @@ class LoggingBridgeTest {
         when(event.getFormattedMessage()).thenReturn("amit");
         when(event.getLevel()).thenReturn(Level.ERROR);
         when(event.getLoggerName()).thenReturn("LoggingBridgeTest");
+        when(event.getThrowableProxy()).thenReturn(new ThrowableProxy(new RuntimeException("my runtime exception")));
 
         bridge.append(event);
 
-        verify(fxLib).log(LoggingBridge.PREFIX + "::LoggingBridgeTest", "amit", LogLevel.ERROR);
+        verify(fxLib).log(eq(LoggingBridge.PREFIX + "::LoggingBridgeTest"), startsWith("amit\njava.lang.RuntimeException: my runtime exception"), eq(LogLevel.ERROR));
     }
 }

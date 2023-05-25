@@ -6,6 +6,7 @@ import com.github.yoep.player.popcorn.controllers.components.DesktopPlayerContro
 import com.github.yoep.player.popcorn.controllers.components.TvPlayerControlsComponent;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.player.popcorn.services.PlayerHeaderService;
+import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnDesktopMode;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
@@ -39,7 +40,9 @@ public class PopcornConfig {
     @Bean
     @ConditionalOnTvMode
     public TvPlayerControlsComponent tvPlayerControlsComponent(EventPublisher eventPublisher,
-                                                               PlayerControlsService playerControlsService) {
-        return new TvPlayerControlsComponent(eventPublisher, playerControlsService);
+                                                               PlayerControlsService playerControlsService,
+                                                               PlayerSubtitleService subtitleService,
+                                                               LocaleText localeText) {
+        return new TvPlayerControlsComponent(eventPublisher, playerControlsService, subtitleService, localeText);
     }
 }

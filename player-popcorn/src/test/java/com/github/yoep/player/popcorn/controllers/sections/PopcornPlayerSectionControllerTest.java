@@ -11,8 +11,11 @@ import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
 import javafx.animation.Animation;
 import javafx.scene.control.Label;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
@@ -33,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -150,5 +154,38 @@ class PopcornPlayerSectionControllerTest {
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.bufferPane.getChildren().size() == 0);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.idleTimer.getStatus() == Animation.Status.RUNNING);
+    }
+
+    @Test
+    void testOnSubtitleOffsetEvent() throws TimeoutException {
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
+        controller.initialize(url, resourceBundle);
+
+        eventPublisher.publishEvent(new SubtitleOffsetEvent(this, 10.0));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.subtitleTrack.getOffset() == 10.0);
+
+        eventPublisher.publishEvent(new SubtitleOffsetEvent(this, -5.0));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.subtitleTrack.getOffset() == 5.0);
+    }
+
+    @Test
+    void testOnSubtitleOffsetKeyPressed() {
+        when(viewLoader.load(PopcornPlayerSectionController.VIEW_CONTROLS)).thenReturn(new Pane());
+        controller.initialize(url, resourceBundle);
+
+        controller.playerPane.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "G", "G", KeyCode.G, true, false, false, false));
+        assertEquals(1.0, controller.subtitleTrack.getOffset());
+
+        controller.playerPane.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "G", "G", KeyCode.G, true, true, false, false));
+        assertEquals(11.0, controller.subtitleTrack.getOffset());
+
+        controller.playerPane.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "H", "H", KeyCode.H, true, false, false, false));
+        assertEquals(10.0, controller.subtitleTrack.getOffset());
+
+        controller.playerPane.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "H", "H", KeyCode.H, true, true, false, false));
+        assertEquals(0.0, controller.subtitleTrack.getOffset());
+
+        controller.playerPane.fireEvent(new KeyEvent(KeyEvent.KEY_RELEASED, "H", "H", KeyCode.H, false, false, false, false));
+        assertEquals(-0.1, controller.subtitleTrack.getOffset());
     }
 }

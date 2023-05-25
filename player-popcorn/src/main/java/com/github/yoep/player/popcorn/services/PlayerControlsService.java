@@ -46,11 +46,19 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
         screenService.toggleFullscreen();
     }
 
+    public void pause() {
+        player.pause();
+    }
+
+    public void resume() {
+        player.resume();
+    }
+
     public void togglePlayerPlaybackState() {
         if (player.getState() == PlayerState.PAUSED) {
-            player.resume();
+            resume();
         } else {
-            player.pause();
+            pause();
         }
     }
 

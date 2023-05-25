@@ -507,14 +507,14 @@ impl InnerUpdater {
         let filename = url_path.file_name().expect("expected a valid filename").to_str().unwrap();
         let mut file = self.create_update_file(&directory, filename).await?;
 
-        debug!("Downloading update from {}", task.download_link.as_str());
+        debug!("Downloading update patch from {}", task.download_link.as_str());
         match self.client.get(task.download_link.as_ref())
             .send()
             .await {
             Ok(response) => {
                 let status_code = response.status();
 
-                trace!("Received update download status code {}", status_code);
+                trace!("Received update download status code {} for {}", status_code, task.download_link.as_str());
                 if status_code == StatusCode::OK {
                     let total_size = response.content_length().unwrap_or(0);
                     let mut stream = response.bytes_stream();
@@ -542,6 +542,7 @@ impl InnerUpdater {
                 Err(UpdateError::DownloadFailed(status_code.to_string(), filename.to_string()))
             }
             Err(e) => {
+                trace!("Received an error for {}, error: {}", task.download_link.as_str(), e.to_string());
                 self.update_state_async(UpdateState::Error).await;
                 Err(UpdateError::DownloadFailed("UNKNOWN".to_string(), e.to_string()))
             }
@@ -549,6 +550,7 @@ impl InnerUpdater {
     }
 
     async fn update_download_progress(&self, total_size: Option<u64>, downloaded_size: Option<u64>) {
+        trace!("Updating download progression with downloaded: {:?} and total: {:?}", downloaded_size, total_size);
         let mut mutex = self.download_progress.lock().await;
 
         if mutex.is_none() {
@@ -566,6 +568,7 @@ impl InnerUpdater {
         }
 
         let progress = mutex.as_ref().unwrap().clone();
+        trace!("Dropping download progression lock");
         drop(mutex);
 
         self.callbacks.invoke(UpdateEvent::DownloadProgress(progress));

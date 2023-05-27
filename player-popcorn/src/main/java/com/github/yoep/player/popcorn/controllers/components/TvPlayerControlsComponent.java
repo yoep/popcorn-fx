@@ -36,7 +36,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class TvPlayerControlsComponent implements Initializable {
-    static final int OFFSET_IN_SECONDS = 20;
+    static final int OFFSET_IN_SECONDS = 10;
 
     private final EventPublisher eventPublisher;
     private final PlayerControlsService playerControlsService;

@@ -21,7 +21,7 @@ pub enum CacheExecutionError<T>
 }
 
 /// An error related to cache handling.
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum CacheError {
     #[error("Cache data location {0} not found")]
     NotFound(String),

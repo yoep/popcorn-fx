@@ -12,6 +12,7 @@ use tokio::sync::Mutex;
 use crate::core::{block_in_place, cache};
 use crate::core::cache::{CacheError, CacheExecutionError};
 use crate::core::cache::info::{CacheEntry, CacheInfo};
+use crate::core::cache::strategies::{CacheFirstStrategy, CacheLastStrategy};
 use crate::core::storage::{Storage, StorageError};
 
 const DIRECTORY: &str = "cache";
@@ -250,22 +251,35 @@ impl InnerCacheManager {
         drop(cache);
 
         if let Some(cache_entry) = cache_entry {
-            trace!("Retrieving cache entry data of {:?}", cache_entry);
-            let bytes = self.storage.options()
-                .binary(cache_entry.filename())
-                .read()
-                .map(|e| {
-                    self.store(name, key, &options.expires_after, e.as_slice());
-                    e
-                });
+            let cache_data = async {
+                trace!("Retrieving cache entry data of {:?}", cache_entry);
+                match self.storage.options()
+                    .binary(cache_entry.filename())
+                    .read() {
+                    Ok(e) => {
+                        if let Err(cache_error) = self.store(name, key, &options.expires_after, e.as_slice()).await {
+                            warn!("Failed to store cache data, {}", cache_error);
+                        }
 
-            if let Err(e) = bytes {
-                warn!("Failed to read cache, {}", e);
-                return self.execute_operation(name, key, &options, operation).await
-                    .map(|e| e.as_ref().to_vec());
+                        Ok(e)
+                    }
+                    Err(e) => {
+                        match e {
+                            StorageError::NotFound(e) => Err(CacheError::NotFound(e)),
+                            _ => Err(CacheError::Io(e.to_string())),
+                        }
+                    }
+                }
+            };
+            let operation = async {
+                self.execute_operation(name, key, &options, operation).await
+                    .map(|e| e.as_ref().to_vec())
+            };
+
+            match options.cache_type {
+                CacheType::CacheFirst => CacheFirstStrategy::execute(cache_data, operation).await,
+                CacheType::CacheLast => CacheLastStrategy::execute(cache_data, operation).await,
             }
-
-            Ok(bytes.unwrap())
         } else {
             self.execute_operation(name, key, &options, operation).await
                 .map(|e| e.as_ref().to_vec())

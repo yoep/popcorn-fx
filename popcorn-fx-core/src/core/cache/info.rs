@@ -10,7 +10,7 @@ const DATETIME_FORMAT: &str = "%Y-%m-%dT%H:%M";
 /// Cache information containing entries for different caches.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CacheInfo {
-    entries: HashMap<String, Vec<CacheEntry>>,
+    pub entries: HashMap<String, Vec<CacheEntry>>,
 }
 
 impl CacheInfo {
@@ -114,6 +114,25 @@ impl CacheInfo {
         }
     }
 
+    /// Retrieve a list of expired cache entries.
+    pub fn expired(&self) -> Vec<ExpiredCacheEntry> {
+        let expired_entries: Vec<ExpiredCacheEntry> = self.entries
+            .iter()
+            .flat_map(|(name, entries)| {
+                entries
+                    .iter()
+                    .filter(|e| e.is_expired(&e.expires_after()))
+                    .map(move |entry| ExpiredCacheEntry {
+                        name: name.clone(),
+                        entry: entry.clone(),
+                    })
+            })
+            .collect();
+
+        debug!("Found a total of {} expired entries", expired_entries.len());
+        expired_entries
+    }
+
     fn normalize(value: &str) -> String {
         value
             .to_lowercase()
@@ -121,13 +140,19 @@ impl CacheInfo {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExpiredCacheEntry {
+   pub name: String,
+   pub entry: CacheEntry,
+}
+
 /// Cache entry containing information about a cache item.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CacheEntry {
-    key: String,
-    path: String,
+    pub key: String,
+    pub path: String,
     pub expires_after: i64,
-    created_on: String,
+    pub created_on: String,
 }
 
 impl CacheEntry {
@@ -324,5 +349,43 @@ mod test {
         let expected_value = "loremipsum";
 
         assert_eq!(expected_value, CacheInfo::normalize(value).as_str())
+    }
+
+    #[test]
+    fn test_expired() {
+        init_logger();
+        let expired_entry = CacheEntry {
+            key: "ipsum".to_string(),
+            path: "".to_string(),
+            expires_after: 1,
+            created_on: "2023-01-01T12:00".to_string(),
+        };
+        let cache = CacheInfo {
+            entries: vec![
+                ("lorem".to_string(), vec![
+                    expired_entry.clone(),
+                    CacheEntry {
+                        key: "dolor".to_string(),
+                        path: "".to_string(),
+                        expires_after: 5,
+                        created_on: CacheEntry::now_as_string(),
+                    }
+                ]),
+                ("ipsum".to_string(), vec![
+                    CacheEntry {
+                        key: "amet".to_string(),
+                        path: "".to_string(),
+                        expires_after: 99999,
+                        created_on: CacheEntry::now_as_string(),
+                    }
+                ]),
+            ].into_iter().collect(),
+        };
+        let expected_result = ExpiredCacheEntry {
+            name: "lorem".to_string(),
+            entry: expired_entry,
+        };
+
+        assert_eq!(vec![expected_result], cache.expired())
     }
 }

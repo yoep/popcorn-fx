@@ -124,7 +124,7 @@ impl CacheLastStrategy {
         match result {
             Ok(e) => Ok(e),
             Err(e) => {
-                debug!("Cache operation failed, using cache data instead");
+                debug!("Cache operation failed, using cache data instead, reason: {}", e);
                 cache_data.await.map_err(|e| CacheExecutionError::Cache(e))
             }
         }

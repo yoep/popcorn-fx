@@ -43,6 +43,7 @@ pub struct CacheOptions {
 #[derive(Debug)]
 pub struct CacheManager {
     inner: Arc<InnerCacheManager>,
+    runtime: Runtime,
 }
 
 impl CacheManager {
@@ -51,14 +52,19 @@ impl CacheManager {
     /// # Arguments
     ///
     /// * `storage_path` - The storage path for cache operations.
+    /// * `runtime` - The runtime used for executing asynchronous operations.
     ///
     /// # Returns
     ///
     /// A new `CacheManager` instance.
-    pub fn new(storage_path: &str) -> Self {
-        Self {
+    pub fn new(storage_path: &str, runtime: Runtime) -> Self {
+        let instance = Self {
             inner: Arc::new(InnerCacheManager::new(storage_path)),
-        }
+            runtime,
+        };
+
+        instance.run_cleanup();
+        instance
     }
 
     /// Starts a new cache operation which allows the usage of the cache managed by this manager.
@@ -70,9 +76,12 @@ impl CacheManager {
     /// # Examples
     ///
     /// ```no_run
-    /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
+    /// use tokio::runtime::Runtime;
+    /// use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder, CacheOptions};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache");
+    /// let cache_manager = CacheManagerBuilder::default()
+    ///     .storage_path("/path/to/cache")
+    ///     .build();
     ///
     /// let data = cache_manager.operation()
     ///     .name("my_cache".to_string())
@@ -106,9 +115,12 @@ impl CacheManager {
     /// # Examples
     ///
     /// ```no_run
-    /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
+    /// use tokio::runtime::Runtime;
+    /// use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder, CacheOptions};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache");
+    /// let cache_manager = CacheManagerBuilder::default()
+    ///     .storage_path("/path/to/cache")
+    ///     .build();
     ///
     /// let result = cache_manager.execute("my_cache", "my_key", CacheOptions::default(), || {
     ///     // Perform cache operation here
@@ -152,9 +164,10 @@ impl CacheManager {
     /// # Examples
     ///
     /// ```no_run
+    /// use tokio::runtime::Runtime;
     /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache");
+    /// let cache_manager = CacheManager::new("/path/to/cache", Runtime::new().unwrap());
     ///
     /// let result = cache_manager.execute_with_mapper("my_cache", "my_key", CacheOptions::default(), |data| {
     ///     // Map the cache data to another type
@@ -182,13 +195,94 @@ impl CacheManager {
               O: FnOnce() -> Result<T, E> {
         self.inner.execute_with_mapper(name, key, options, mapper, operation).await
     }
+
+    fn run_cleanup(&self) {
+        let cache_manager = self.inner.clone();
+        self.runtime.spawn(async move {
+            debug!("Checking for expired cache data");
+            let mut cache = cache_manager.cache_info.lock().await;
+            let expired_entries = cache.expired();
+
+            for expired in expired_entries.into_iter() {
+                match cache_manager.storage.delete_path(expired.entry.path()) {
+                    Ok(_) => {
+                        cache.remove(expired.name.as_str(), expired.entry.key());
+                        debug!("Cache {} entry {} has been cleaned", expired.name, expired.entry.key())
+                    }
+                    Err(e) => {
+                        error!("Failed to delete cache file {}, {}", expired.entry.absolute_path(), e.to_string())
+                    }
+                }
+            }
+
+            drop(cache);
+            let _ = cache_manager.write_cache_info().await;
+        });
+    }
+}
+
+/// A builder for creating a `CacheManager` instance with customizable options.
+#[derive(Debug, Default)]
+pub struct CacheManagerBuilder {
+    storage_path: Option<String>,
+    runtime: Option<Runtime>,
+}
+
+impl CacheManagerBuilder {
+    /// Sets the storage path for the cache manager.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The storage path for cache operations.
+    ///
+    /// # Returns
+    ///
+    /// The updated `CacheManagerBuilder` instance.
+    pub fn storage_path<P: AsRef<str>>(mut self, path: P) -> Self {
+        self.storage_path = Some(path.as_ref().to_string());
+        self
+    }
+
+    /// Sets the runtime for the cache manager.
+    ///
+    /// # Arguments
+    ///
+    /// * `runtime` - The runtime used for executing asynchronous operations.
+    ///
+    /// # Returns
+    ///
+    /// The updated `CacheManagerBuilder` instance.
+    pub fn runtime(mut self, runtime: Runtime) -> Self {
+        self.runtime = Some(runtime);
+        self
+    }
+
+    /// Builds and returns a new `CacheManager` instance.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the storage path is not set.
+    ///
+    /// # Returns
+    ///
+    /// A new `CacheManager` instance.
+    pub fn build(self) -> CacheManager {
+        let storage_path = self.storage_path.expect("Storage path is required.");
+        let runtime = self.runtime.unwrap_or_else(|| tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(1)
+            .thread_name("cache")
+            .build()
+            .expect("expected a new runtime"));
+
+        CacheManager::new(storage_path.as_str(), runtime)
+    }
 }
 
 #[derive(Debug)]
 pub struct InnerCacheManager {
     storage: Storage,
     cache_info: Mutex<CacheInfo>,
-    runtime: Runtime,
 }
 
 impl InnerCacheManager {
@@ -212,7 +306,6 @@ impl InnerCacheManager {
         Self {
             storage,
             cache_info: Mutex::new(info),
-            runtime: Runtime::new().unwrap(),
         }
     }
 
@@ -466,9 +559,10 @@ impl CacheOperation {
     /// # Examples
     ///
     /// ```
+    /// use tokio::runtime::Runtime;
     /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache");
+    /// let cache_manager = CacheManager::new("/path/to/cache", Runtime::new().unwrap());
     /// let result = cache_manager.operation()
     ///     .name("my_cache".to_string())
     ///     .key("my_key".to_string())
@@ -581,6 +675,7 @@ mod test {
 
     use tokio::runtime::Runtime;
 
+    use crate::assert_timeout;
     use crate::core::cache::CacheExecutionError;
     use crate::core::media::MediaError;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes};
@@ -592,7 +687,9 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::new(temp_path));
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
         let expected_data = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur suscipit ullamcorper eleifend. Nulla ac urna tellus. Nullam posuere ligula non consectetur rhoncus. Nam eleifend non elit nec accumsan.";
         let name = "test";
         let key = "lorem";
@@ -635,7 +732,9 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::new(temp_path));
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
         let name = "test";
         let key = "lorem";
         let runtime = Runtime::new().unwrap();
@@ -669,7 +768,9 @@ mod test {
         let filename = "simple.jpg";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::new(temp_path));
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
         let name = "test";
         let key = "lorem";
         let runtime = Runtime::new().unwrap();
@@ -701,7 +802,9 @@ mod test {
         let filename = "simple.jpg";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::new(temp_path));
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
         let name = "test";
         let key = "lorem";
         let runtime = Runtime::new().unwrap();
@@ -731,5 +834,33 @@ mod test {
 
         rx.recv_timeout(core::time::Duration::from_millis(200)).unwrap();
         assert_eq!(expected_result, data);
+    }
+
+    #[test]
+    fn test_run_cleanup() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let test_filepath = copy_test_file(temp_path, "simple.jpg", Some("cache/simple.jpg"));
+        let storage = Storage::from(&PathBuf::from(temp_path).join(DIRECTORY));
+        let path = PathBuf::from(test_filepath.as_str());
+        storage.options()
+            .make_dirs(true)
+            .serializer(FILENAME)
+            .write(&CacheInfo {
+                entries: vec![
+                    ("lorem".to_string(), vec![CacheEntry {
+                        key: "ipsum".to_string(),
+                        path: test_filepath,
+                        expires_after: 60,
+                        created_on: "2023-01-01T12:00".to_string(),
+                    }])
+                ].into_iter().collect(),
+            }).unwrap();
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
+
+        assert_timeout!(Duration::from_millis(100), !path.exists());
     }
 }

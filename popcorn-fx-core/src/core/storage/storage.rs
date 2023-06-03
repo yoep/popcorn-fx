@@ -62,6 +62,42 @@ impl Storage {
         StorageOptions::new(self.base_path.clone())
     }
 
+    /// Deletes a file at the specified filepath.
+    ///
+    /// # Arguments
+    ///
+    /// * `filepath` - The path to the file to be deleted.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating the success or failure of the operation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use popcorn_fx_core::core::storage::Storage;
+    ///
+    /// let storage = Storage::from("/path/to/storage");
+    ///
+    /// // Delete a file named "data.json" in the storage
+    /// let result = storage.delete_path("data.json");
+    ///
+    /// match result {
+    ///     Ok(()) => {
+    ///         println!("File deleted successfully");
+    ///     }
+    ///     Err(err) => {
+    ///         eprintln!("Failed to delete file: {}", err);
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// This example demonstrates how to use the `delete` method to delete a file within the storage.
+    /// The method takes the filepath as an argument and returns a `Result` indicating the success or failure of the operation.
+    pub fn delete_path<P: AsRef<Path>>(&self, filepath: P) -> storage::Result<()> {
+        Self::internal_delete(filepath)
+    }
+
     /// Clean the given directory path.
     ///
     /// This method removes all files within the directory but does not delete the directory itself.
@@ -102,9 +138,7 @@ impl Storage {
             // check if the path is an actual file
             if filepath.is_file() {
                 trace!("Removing file {:?}", filepath);
-                fs::remove_file(&filepath).map_err(|e| {
-                    StorageError::IO(filepath.to_str().unwrap().to_string(), e.to_string())
-                })?;
+                Self::internal_delete(filepath)?;
             } else {
                 trace!("Removing directory {:?}", filepath);
                 let filepath_value = filepath.to_str().unwrap().to_string();
@@ -113,6 +147,13 @@ impl Storage {
         }
 
         Ok(())
+    }
+
+    fn internal_delete<P: AsRef<Path>>(filepath: P) -> storage::Result<()> {
+        let absolute_path = filepath.as_ref().to_str().unwrap();
+        trace!("Deleting storage file {}", absolute_path);
+        fs::remove_file(filepath.as_ref())
+            .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
     }
 }
 
@@ -809,5 +850,18 @@ mod test {
         let result = read_temp_dir_file_as_bytes(&temp_dir, filename);
 
         assert_eq!(bytes, result)
+    }
+
+    #[test]
+    fn test_delete_path() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let path = copy_test_file(temp_path, "simple.jpg", None);
+        let storage = Storage {
+            base_path: PathBuf::from(temp_path),
+        };
+
+        assert_eq!(Ok(()), storage.delete_path(path))
     }
 }

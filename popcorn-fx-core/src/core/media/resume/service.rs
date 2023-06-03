@@ -167,7 +167,9 @@ impl InnerAutoResumeService {
 
     async fn load_resume_from_storage(&self) -> media::Result<AutoResume> {
         let mutex = self.storage.lock().await;
-        match mutex.read(FILENAME) {
+        match mutex.options()
+            .serializer(FILENAME)
+            .read() {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
@@ -194,7 +196,9 @@ impl InnerAutoResumeService {
 
     async fn save_async(&self, resume: &AutoResume) {
         let mutex = self.storage.lock().await;
-        match mutex.write_async(FILENAME, &resume).await {
+        match mutex.options()
+            .serializer(FILENAME)
+            .write_async(resume).await {
             Ok(_) => info!("Auto-resume data has been saved"),
             Err(e) => error!("Failed to save auto-resume, {}", e)
         }
@@ -301,7 +305,7 @@ mod test {
     use tempfile::tempdir;
 
     use crate::core::media::{MediaIdentifier, MovieOverview};
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string};
 
     use super::*;
 
@@ -473,7 +477,7 @@ mod test {
         let expected_result = "{\"video_timestamps\":[{\"id\":\"tt00001212\",\"filename\":\"already-started-watching.mkv\",\"last_known_time\":20000}]}";
 
         service.player_stopped(&event);
-        let result = read_temp_dir_file(&temp_dir, FILENAME)
+        let result = read_temp_dir_file_as_string(&temp_dir, FILENAME)
             .replace("\r\n", "\n");
 
         assert_eq!(expected_result, result.as_str())

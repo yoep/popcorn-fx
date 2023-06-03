@@ -776,7 +776,7 @@ mod test {
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
     use crate::core::updater::PatchInfo;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file_to_string, test_resource_filepath};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
 
@@ -975,7 +975,7 @@ mod test {
         let _ = runtime.block_on(async {
             updater.download().await
         }).expect("expected the download to succeed");
-        let result = read_temp_dir_file(&temp_dir, format!("updates/{}", filename).as_str());
+        let result = read_temp_dir_file_as_string(&temp_dir, format!("updates/{}", filename).as_str());
 
         assert_eq!(expected_result, result)
     }

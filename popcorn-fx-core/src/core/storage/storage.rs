@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 use std::fs;
-use std::fs::File;
-use std::io::Read;
+use std::fs::{File, OpenOptions};
+use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
-use log::{debug, trace};
+use log::{debug, error, trace, warn};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::io::AsyncWriteExt;
@@ -12,83 +12,81 @@ use tokio::io::AsyncWriteExt;
 use crate::core::{block_in_place, storage};
 use crate::core::storage::StorageError;
 
-/// The storage is responsible for storing & retrieving files from the file system.
+/// The storage module is responsible for storing and retrieving files from the file system.
+///
 /// It uses the home directory for the main files of the application.
+///
+/// The `Storage` struct is thread-safe and can be safely shared across multiple threads.
 #[derive(Debug, Clone)]
 pub struct Storage {
-    directory: PathBuf,
+    base_path: PathBuf,
 }
 
 impl Storage {
-    /// Read the contents from the given filename from within the app directory.
+    /// Creates and returns a new instance of `StorageOptions` for configuring storage operations.
     ///
-    /// It returns the deserialized struct on success, else the [StorageError] that occurred.
-    pub fn read<T>(&self, filename: &str) -> storage::Result<T>
-        where T: DeserializeOwned {
-        let path = self.directory.clone()
-            .join(filename);
-
-        match File::open(&path) {
-            Ok(mut file) => {
-                trace!("Application file {:?} exists", &path);
-                let mut data = String::new();
-                file.read_to_string(&mut data).expect("unable to read file data");
-
-                match serde_json::from_str::<T>(data.as_str()) {
-                    Ok(e) => {
-                        debug!("Application file {} loaded", filename);
-                        Ok(e)
-                    }
-                    Err(e) => {
-                        debug!("Application file {} is invalid, {}", filename, &e);
-                        Err(StorageError::ReadingFailed(filename.to_string(), e.to_string()))
-                    }
-                }
-            }
-            Err(e) => {
-                trace!("Application file {} does not exist, {}", filename, e);
-                Err(StorageError::NotFound(filename.to_string()))
-            }
-        }
-    }
-
-    /// Write the given value to the storage.
-    /// It will be stored under the storage with the given `filename`.
+    /// # Returns
     ///
-    /// This method will block the current thread until it completes.
-    /// Use [Storage::write_async] instead if you don't want to block the current thread.
-    pub fn write<T: Serialize + Debug>(&self, filename: &str, value: &T) -> storage::Result<()> {
-        block_in_place(async {
-            self.write_async(filename, value).await
-        })
-    }
-
-    /// Write the given value to the storage.
-    /// It will be stored under the storage with the given `filename`.
-    pub async fn write_async<T: Serialize + Debug>(&self, filename: &str, value: &T) -> storage::Result<()> {
-        let path = self.directory.clone()
-            .join(filename);
-        let path_string = path.to_str().expect("expected path to be valid").to_string();
-
-        trace!("Opening storage file {:?}", path);
-        match tokio::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path).await {
-            Ok(mut file) => {
-                Self::write_to(&mut file, value, &path_string).await
-            }
-            Err(e) => {
-                Err(StorageError::WritingFailed(path_string, e.to_string()))
-            }
-        }
+    /// A new instance of `StorageOptions` with the base path set to the current `Storage` instance's base path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use popcorn_fx_core::core::storage::Storage;
+    ///
+    /// let storage = Storage::from("/path/to/storage");
+    ///
+    /// let options = storage.options();
+    ///
+    /// // Configure storage options...
+    ///
+    /// // Create a SerializerStorage for storing and retrieving serialized data
+    /// let serializer = options.serializer("data.json");
+    ///
+    /// // Write data to the storage
+    /// let data = vec![1, 2, 3];
+    /// serializer.write(&data).expect("Failed to write data");
+    ///
+    /// // Read data from the storage
+    /// let retrieved_data: Vec<u8> = serializer.read().expect("Failed to read data");
+    ///
+    /// println!("Retrieved data: {:?}", retrieved_data);
+    /// ```
+    ///
+    /// This example demonstrates how to use the `options` method to create a new `StorageOptions` instance for configuring storage operations.
+    /// The `options` method is called on an existing `Storage` instance, and the resulting `StorageOptions` instance can be used to customize the behavior of storage operations.
+    /// In this example, a `SerializerStorage` is created using the `serializer` method of the `StorageOptions` instance.
+    /// Data is then written to the storage using the `write` method of `SerializerStorage`, and subsequently read using the `read` method.
+    /// The retrieved data is printed to the console.
+    pub fn options(&self) -> StorageOptions {
+        StorageOptions::new(self.base_path.clone())
     }
 
     /// Clean the given directory path.
-    /// This will not delete the directory itself, only the files within the directory.
     ///
-    /// It returns a [StorageError] when the directory couldn't be cleaned.
+    /// This method removes all files within the directory but does not delete the directory itself.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The directory path to clean.
+    ///
+    /// # Returns
+    ///
+    /// An empty `Result` indicating success, or a `StorageError` if the directory couldn't be cleaned.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::storage::Storage;
+    /// let storage = Storage::from("/path/to/directory");
+    ///
+    /// match storage.clean_directory("/path/to/directory") {
+    ///     Ok(()) => println!("Directory cleaned successfully."),
+    ///     Err(err) => eprintln!("Failed to clean directory: {}", err),
+    /// }
+    /// ```
+    ///
+    /// This example demonstrates how to use the `clean_directory` method to remove all files within a directory. If the operation is successful, a success message is printed; otherwise, an error message is printed.
     pub fn clean_directory(path: impl AsRef<Path>) -> storage::Result<()> {
         let path_value = path.as_ref().to_str().unwrap().to_string();
         // check if the directory exist before we try to clean it
@@ -116,27 +114,12 @@ impl Storage {
 
         Ok(())
     }
-
-    async fn write_to<T: Serialize + Debug>(file: &mut tokio::fs::File, value: &T, path_string: &String) -> storage::Result<()> {
-        trace!("Serializing storage data {:?}", value);
-        match serde_json::to_string(value) {
-            Ok(e) => {
-                trace!("Writing to storage {:?}, {}", &path_string, &e);
-                file.write_all(e.as_bytes())
-                    .await
-                    .map_err(|e| StorageError::WritingFailed(path_string.clone(), e.to_string()))?;
-                debug!("Storage file {} has been saved", path_string);
-                Ok(())
-            }
-            Err(e) => Err(StorageError::WritingFailed(path_string.clone(), e.to_string()))
-        }
-    }
 }
 
 impl From<&str> for Storage {
     fn from(value: &str) -> Self {
         Self {
-            directory: PathBuf::from(value),
+            base_path: PathBuf::from(value),
         }
     }
 }
@@ -144,18 +127,513 @@ impl From<&str> for Storage {
 impl From<&PathBuf> for Storage {
     fn from(value: &PathBuf) -> Self {
         Self {
-            directory: value.clone(),
+            base_path: value.clone(),
         }
+    }
+}
+
+/// Options for configuring storage behavior.
+#[derive(Debug)]
+pub struct StorageOptions {
+    path: PathBuf,
+    create: bool,
+    make_dirs: bool,
+}
+
+impl StorageOptions {
+    /// Creates and returns a new instance of `StorageOptions` with the initial path.
+    ///
+    /// # Arguments
+    ///
+    /// * `initial_path` - The initial path to set.
+    ///
+    /// # Returns
+    ///
+    /// A new `StorageOptions` instance.
+    fn new<P: AsRef<Path>>(initial_path: P) -> Self {
+        Self {
+            path: PathBuf::from(initial_path.as_ref()),
+            create: false,
+            make_dirs: false,
+        }
+    }
+
+    /// Appends a directory to the storage path.
+    ///
+    /// # Arguments
+    ///
+    /// * `directory` - The directory name to append to the storage path.
+    pub fn directory(mut self, directory: &str) -> Self {
+        self.path = self.path.join(directory);
+        self
+    }
+
+    /// Sets whether the storage directory should be created if it doesn't exist.
+    ///
+    /// # Arguments
+    ///
+    /// * `create` - A boolean indicating whether the storage directory should be created if it doesn't exist.
+    pub fn create(mut self, create: bool) -> Self {
+        self.create = create;
+        self
+    }
+
+    /// Sets whether the storage parent directories of the file should be created.
+    ///
+    /// # Arguments
+    ///
+    /// * `make_dirs` - A boolean indicating if parent directories should be created if they don't exist.
+    pub fn make_dirs(mut self, make_dirs: bool) -> Self {
+        self.make_dirs = make_dirs;
+        self
+    }
+
+    /// Checks if the storage directory exists.
+    ///
+    /// # Returns
+    ///
+    /// A boolean value indicating whether the storage directory exists.
+    pub fn exists(&self) -> bool {
+        self.path.exists()
+    }
+
+    /// Creates a `Serializer` storage instance with the provided filename.
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - The filename for the `SerializerStorage`.
+    pub fn serializer<F: AsRef<str>>(self, filename: F) -> SerializerStorage {
+        SerializerStorage {
+            base: BaseStorage {
+                path: self.path.join(filename.as_ref()),
+                create: self.create,
+                make_dirs: self.make_dirs,
+            }
+        }
+    }
+
+    /// Creates a `Binary` storage instance with the provided filename.
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - The filename for the `BinaryStorage`.
+    pub fn binary<F: AsRef<str>>(self, filename: F) -> BinaryStorage {
+        BinaryStorage {
+            base: BaseStorage {
+                path: self.path.join(filename.as_ref()),
+                create: self.create,
+                make_dirs: self.make_dirs,
+            },
+        }
+    }
+}
+
+/// Base storage information for a file.
+#[derive(Debug)]
+struct BaseStorage {
+    path: PathBuf,
+    create: bool,
+    make_dirs: bool,
+}
+
+impl BaseStorage {
+    /// Checks if the file exists.
+    ///
+    /// # Returns
+    ///
+    /// A boolean value indicating whether the file exists.
+    pub fn exists(&self) -> bool {
+        self.path.exists()
+    }
+
+    /// Returns the absolute path of the file as a string.
+    ///
+    /// # Returns
+    ///
+    /// The absolute path of the file as a string.
+    pub fn absolute_path(&self) -> &str {
+        self.path.to_str().unwrap()
+    }
+
+    /// Returns the path of the file as a `Path` reference.
+    ///
+    /// # Returns
+    ///
+    /// The path of the file as a `Path` reference.
+    pub fn as_path(&self) -> &Path {
+        self.path.as_path()
+    }
+
+    /// Opens the file in read mode.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the opened `File` if successful, or a `StorageError` if the file couldn't be opened.
+    pub fn read_open(&self) -> storage::Result<File> {
+        trace!("Opening storage file {}", self.absolute_path());
+        OpenOptions::new()
+            .read(true)
+            .create(self.create)
+            .open(self.path.as_path())
+            .map_err(|e| {
+                let absolute_path = self.absolute_path();
+                trace!("File {} couldn't be opened, {}", absolute_path, e);
+
+                if e.kind() == ErrorKind::NotFound {
+                    StorageError::NotFound(absolute_path.to_string())
+                } else {
+                    StorageError::ReadingFailed(absolute_path.to_string(), e.to_string())
+                }
+            })
+    }
+
+    pub fn write_open(&self) -> storage::Result<File> {
+        self.create_parent_directories_if_needed()?;
+
+        trace!("Opening storage file {}", self.absolute_path());
+        OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(self.path.as_path())
+            .map_err(|e| {
+                let absolute_path = self.absolute_path();
+                trace!("File {} couldn't be opened, {}", absolute_path, e);
+                StorageError::WritingFailed(absolute_path.to_string(), e.to_string())
+            })
+    }
+
+    pub async fn write_open_async(&self) -> storage::Result<tokio::fs::File> {
+        self.create_parent_directories_if_needed()?;
+
+        trace!("Opening storage file {}", self.absolute_path());
+        tokio::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(self.path.as_path())
+            .await
+            .map_err(|e| {
+                let absolute_path = self.absolute_path();
+                trace!("File {} couldn't be opened, {}", absolute_path, e);
+                StorageError::WritingFailed(absolute_path.to_string(), e.to_string())
+            })
+    }
+
+    fn create_parent_directories_if_needed(&self) -> storage::Result<()> {
+        if self.make_dirs {
+            let parent = self.path.parent().expect("expected a parent directory to have been present for the file");
+            let parent_absolute_path = parent.to_str().unwrap();
+            trace!("Creating parent directories {}", parent_absolute_path);
+            if let Err(e) = fs::create_dir_all(parent) {
+                warn!("Failed to create parent directories, {}", e);
+                return Err(StorageError::IO(parent_absolute_path.to_string(), e.to_string()));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Storage for serializing and deserializing data.
+#[derive(Debug)]
+pub struct SerializerStorage {
+    base: BaseStorage,
+}
+
+impl SerializerStorage {
+    /// Checks if the storage file exists.
+    ///
+    /// # Returns
+    ///
+    /// A boolean value indicating whether the storage file exists.
+    pub fn exists(&self) -> bool {
+        self.base.exists()
+    }
+
+    /// Reads the stored data from the storage file.
+    ///
+    /// # Returns
+    ///
+    /// The deserialized data if successful, or a `StorageError` if reading failed.
+    ///
+    /// # Generic Parameters
+    ///
+    /// * `T` - The type to deserialize the stored data into.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::storage::SerializerStorage;
+    ///
+    /// let storage = SerializerStorage::from_path("/path/to/storage.json");
+    ///
+    /// match storage.read::<Vec<u8>>() {
+    ///     Ok(data) => println!("Data: {:?}", data),
+    ///     Err(err) => eprintln!("Failed to read data: {}", err),
+    /// }
+    /// ```
+    ///
+    /// This example demonstrates how to use the `read` method to deserialize and read the stored data from the storage file. If the operation is successful, the deserialized data is printed; otherwise, an error message is printed.
+    pub fn read<T>(self) -> storage::Result<T>
+        where T: Serialize + DeserializeOwned {
+        let mut file = self.base.read_open()?;
+
+        trace!("Application file {:?} exists", &self.base.absolute_path());
+        let mut data = String::new();
+        file.read_to_string(&mut data).expect("unable to read file data");
+
+        match serde_json::from_str::<T>(data.as_str()) {
+            Ok(e) => {
+                debug!("File {} has been loaded", self.base.absolute_path());
+                Ok(e)
+            }
+            Err(e) => {
+                debug!("File {} is invalid, {}", self.base.absolute_path(), &e);
+                Err(StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string()))
+            }
+        }
+    }
+
+    /// Writes the given value to the storage file.
+    ///
+    /// The data will be stored under the storage file with the given `filename`.
+    ///
+    /// This method blocks the current thread until the write operation completes.
+    /// Use `write_async` instead if you don't want to block the current thread.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to write to the storage file.
+    ///
+    /// # Returns
+    ///
+    /// The path of the storage file if successful, or a `StorageError` if writing failed.
+    ///
+    /// # Generic Parameters
+    ///
+    /// * `T` - The type of the value to write.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::storage::SerializerStorage;
+    ///
+    /// let storage = SerializerStorage::from_path("/path/to/storage.json");
+    ///
+    /// let data = vec![1, 2, 3];
+    ///
+    /// match storage.write(&data) {
+    ///     Ok(path) => println!("Data written to: {:?}", path),
+    ///     Err(err) => eprintln!("Failed to write data: {}", err),
+    /// }
+    /// ```
+    ///
+    /// This example demonstrates how to use the `write` method to serialize and write data to the storage file. If the operation is successful, the path of the storage file is printed; otherwise, an error message is printed.
+    pub fn write<T>(self, value: &T) -> storage::Result<PathBuf>
+        where T: Serialize + DeserializeOwned {
+        block_in_place(async {
+            self.write_async(value).await
+        })
+    }
+
+    /// Writes the given value to the storage file asynchronously.
+    ///
+    /// The data will be stored under the storage file with the given `filename`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to write to the storage file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the path of the storage file if successful, or a `StorageError` if writing failed.
+    ///
+    /// # Generic Parameters
+    ///
+    /// * `T` - The type of the value to write.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tokio::runtime::Runtime;
+    /// use popcorn_fx_core::core::storage::SerializerStorage;
+    ///
+    /// let mut rt = Runtime::new().expect("Failed to create Tokio runtime");
+    ///
+    /// let storage = SerializerStorage::from_path("/path/to/storage.json");
+    ///
+    /// let data = vec![1, 2, 3];
+    ///
+    /// let result = rt.block_on(async {
+    ///     storage.write_async(&data).await
+    /// });
+    ///
+    /// match result {
+    ///     Ok(path) => println!("Data written to: {:?}", path),
+    ///     Err(err) => eprintln!("Failed to write data: {}", err),
+    /// }
+    /// ```
+    ///
+    /// This example demonstrates how to use the `write_async` method to serialize and write data to the storage file asynchronously using the Tokio runtime. The `block_on` function is used to await the asynchronous operation and obtain the result. If the operation is successful, the path of the storage file is printed; otherwise, an error message is printed.
+    pub async fn write_async<T>(self, value: &T) -> storage::Result<PathBuf>
+        where T: Serialize + DeserializeOwned {
+        let path_string = self.base.absolute_path();
+
+        trace!("Opening storage file {}", path_string);
+        let mut file = self.base.write_open_async().await?;
+        self.write_to(&mut file, value).await
+    }
+
+    async fn write_to<T>(self, file: &mut tokio::fs::File, value: &T) -> storage::Result<PathBuf>
+        where T: Serialize + DeserializeOwned {
+        let display_path = self.base.absolute_path();
+
+        trace!("Serializing storage data to {}", display_path);
+        match serde_json::to_string(value) {
+            Ok(e) => {
+                trace!("Writing to storage {:?}, {}", &display_path, &e);
+                file.write_all(e.as_bytes())
+                    .await
+                    .map_err(|e| StorageError::WritingFailed(display_path.to_string(), e.to_string()))?;
+                debug!("Storage file {} has been saved", display_path);
+                Ok(self.base.path.clone())
+            }
+            Err(e) => Err(StorageError::WritingFailed(display_path.to_string(), e.to_string()))
+        }
+    }
+}
+
+/// Binary storage for reading and writing binary data to files.
+///
+/// # Examples
+///
+/// ```no_run
+/// use popcorn_fx_core::core::storage::Storage;
+///
+/// let storage = Storage::from("/path/to/storage");
+///
+/// // Create a BinaryStorage for reading and writing binary data
+/// let binary_storage = storage.options().binary("data.bin");
+///
+/// // Write binary data to the storage
+/// let data: Vec<u8> = vec![1, 2, 3];
+/// binary_storage.write(&data).expect("Failed to write binary data");
+///
+/// // Read binary data from the storage
+/// let retrieved_data = binary_storage.read().expect("Failed to read binary data");
+///
+/// println!("Retrieved data: {:?}", retrieved_data);
+/// ```
+///
+/// This example demonstrates how to use the `BinaryStorage` struct to read and write binary data to files in storage.
+#[derive(Debug)]
+pub struct BinaryStorage {
+    base: BaseStorage,
+}
+
+impl BinaryStorage {
+    /// Checks if the file exists in the binary storage.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the file exists, `false` otherwise.
+    pub fn exists(&self) -> bool {
+        self.base.exists()
+    }
+
+    /// Reads the binary data from the file in the binary storage.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the binary data if successful, or a `StorageError` if the read operation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::storage::Storage;
+    ///
+    /// let storage = Storage::from("/path/to/storage");
+    ///
+    /// let binary_storage = storage.options().binary("data.bin");
+    ///
+    /// let data = binary_storage.read().expect("Failed to read binary data");
+    ///
+    /// println!("Retrieved data: {:?}", data);
+    /// ```
+    ///
+    /// This example demonstrates how to use the `read` method to read binary data from a file in the binary storage.
+    /// The `read` method is called on a `BinaryStorage` instance, and it returns the binary data if the read operation is successful.
+    pub fn read(self) -> storage::Result<Vec<u8>> {
+        let mut buffer = vec![];
+        let mut file = self.base.read_open()?;
+
+        file.read_to_end(&mut buffer)
+            .map_err(|e| {
+                let absolute_path = self.base.absolute_path();
+                error!("Failed to read file {}, {}", absolute_path, e);
+
+                if e.kind() == ErrorKind::NotFound {
+                    StorageError::NotFound(absolute_path.to_string())
+                } else {
+                    StorageError::ReadingFailed(absolute_path.to_string(), e.to_string())
+                }
+            })?;
+
+        Ok(buffer)
+    }
+
+    /// Writes binary data to the file in the binary storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The binary data to write.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the path of the file if successful, or a `StorageError` if the write operation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use popcorn_fx_core::core::storage::Storage;
+    ///
+    /// let storage = Storage::from("/path/to/storage");
+    ///
+    /// let binary_storage = storage.options().binary("data.bin");
+    ///
+    /// let data: Vec<u8> = vec![1, 2, 3];
+    /// binary_storage.write(&data).expect("Failed to write binary data");
+    /// ```
+    ///
+    /// This example demonstrates how to use the `write` method to write binary data to a file in the binary storage.
+    /// The `write` method is called on a `BinaryStorage` instance with the binary data to write as the argument.
+    /// It returns the path of the file if the write operation is successful.
+    pub fn write<V: AsRef<[u8]>>(self, value: V) -> storage::Result<PathBuf> {
+        let mut file = self.base.write_open()?;
+
+        debug!("Writing {} bytes to file {}", value.as_ref().len(), self.base.absolute_path());
+        file.write_all(value.as_ref())
+            .map_err(|e| {
+                let absolute_path = self.base.absolute_path();
+                error!("Failed to write to file {}, {}", absolute_path, e.to_string());
+                StorageError::WritingFailed(absolute_path.to_string(), e.to_string())
+            })?;
+
+        Ok(self.base.path)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::thread;
+
+    use chrono::Duration;
     use tempfile::tempdir;
     use tokio::runtime::Runtime;
 
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes};
 
     use super::*;
 
@@ -167,7 +645,7 @@ mod test {
 
         let storage = Storage::from(temp_path);
 
-        assert_eq!(expected_result, storage.directory)
+        assert_eq!(expected_result, storage.base_path)
     }
 
     #[test]
@@ -178,10 +656,12 @@ mod test {
         copy_test_file(temp_path, "settings.json", None);
         let path = PathBuf::from(temp_path);
         let storage = Storage {
-            directory: path
+            base_path: path
         };
 
-        let result = storage.read::<PopcornSettings>("settings.json");
+        let result = storage.options()
+            .serializer("settings.json")
+            .read::<PopcornSettings>();
 
         assert!(result.is_ok(), "Expected the storage reading to have succeeded")
     }
@@ -190,17 +670,19 @@ mod test {
     fn test_write() {
         init_logger();
         let filename = "test";
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let storage = Storage {
-            directory: PathBuf::from(temp_path),
+            base_path: PathBuf::from(temp_path),
         };
         let settings = UiSettings::default();
         let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
 
-        let result = storage.write(filename.clone(), &settings);
+        let result = storage.options()
+            .serializer(filename)
+            .write(&settings);
         assert!(result.is_ok(), "expected no error to have occurred");
-        let contents = read_temp_dir_file(&temp_dir, filename);
+        let contents = read_temp_dir_file_as_string(&temp_dir, filename);
 
         assert_eq!(expected_result, contents)
     }
@@ -212,12 +694,14 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let storage = Storage {
-            directory: PathBuf::from(temp_path),
+            base_path: PathBuf::from(temp_path),
         };
         let settings = UiSettings::default();
         let runtime = Runtime::new().unwrap();
 
-        let _ = runtime.block_on(storage.write_async(filename.clone(), &settings))
+        let _ = runtime.block_on(storage.options()
+            .serializer(filename)
+            .write_async(&settings))
             .expect("expected no error to have been returned");
         let path = temp_dir.path().join(filename);
 
@@ -228,11 +712,13 @@ mod test {
     fn test_write_invalid_storage() {
         init_logger();
         let storage = Storage {
-            directory: PathBuf::from("/invalid/file/path"),
+            base_path: PathBuf::from("/invalid/file/path"),
         };
         let settings = SubtitleSettings::default();
 
-        let result = storage.write("my-random-filename.txt", &settings);
+        let result = storage.options()
+            .serializer("my-random-filename.txt")
+            .write(&settings);
 
         assert_eq!(true, result.is_err(), "expected an error to be returned");
         match result.err().unwrap() {
@@ -267,5 +753,61 @@ mod test {
             StorageError::NotFound(_) => {}
             _ => assert!(false, "expected StorageError::NotFound")
         }
+    }
+
+    #[test]
+    fn test_exists() {
+        init_logger();
+        let filename = "auto-resume.json";
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let storage = Storage {
+            base_path: PathBuf::from(temp_path),
+        };
+        copy_test_file(temp_path, filename, None);
+
+        assert_eq!(true, storage.options().serializer(filename).exists());
+        assert_eq!(false, storage.options().serializer("lorem-ipsum.dolor").exists());
+    }
+
+    #[test]
+    fn test_binary_storage_read() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let filename = "simple.jpg";
+        let bytes = read_test_file_to_bytes("simple.jpg");
+        copy_test_file(temp_path, "simple.jpg", None);
+        let storage = Storage {
+            base_path: PathBuf::from(temp_path),
+        };
+
+        match storage.options()
+            .binary(filename)
+            .read() {
+            Ok(result) => assert_eq!(bytes, result),
+            Err(e) => assert!(false, "expected the read operation to succeed, {}", e),
+        }
+    }
+
+    #[test]
+    fn test_binary_storage_write() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let filename = "my-simple-test.jpg";
+        let bytes = read_test_file_to_bytes("simple.jpg");
+        let storage = Storage {
+            base_path: PathBuf::from(temp_path),
+        };
+
+        if let Err(e) = storage.options()
+            .binary(filename)
+            .write(&bytes) {
+            assert!(false, "expected the write operation to succeed, {}", e)
+        }
+        let result = read_temp_dir_file_as_bytes(&temp_dir, filename);
+
+        assert_eq!(bytes, result)
     }
 }

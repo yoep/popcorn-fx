@@ -4,7 +4,7 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, MediaError>;
 
 /// The errors thrown by the media package.
-#[derive(Error, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Error, Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MediaError {
     /// Failed to load the favorite items.
     #[error("Failed to load favorites: {0}")]

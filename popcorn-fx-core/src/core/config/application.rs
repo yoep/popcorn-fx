@@ -144,7 +144,10 @@ impl ApplicationConfig {
     /// Reload the application config.
     pub fn reload(&mut self) {
         trace!("Reloading application settings");
-        match self.storage.read::<PopcornSettings>(DEFAULT_SETTINGS_FILENAME) {
+        match self.storage
+            .options()
+            .serializer(DEFAULT_SETTINGS_FILENAME)
+            .read::<PopcornSettings>() {
             Ok(e) => {
                 debug!("Application settings have been read from storage");
                 let old_settings = self.settings.clone();
@@ -187,7 +190,9 @@ impl ApplicationConfig {
 
     async fn save_async(&self, settings: &PopcornSettings) {
         trace!("Saving application settings");
-        match self.storage.write_async(DEFAULT_SETTINGS_FILENAME, settings).await {
+        match self.storage.options()
+            .serializer(DEFAULT_SETTINGS_FILENAME)
+            .write_async(settings).await {
             Ok(_) => info!("Settings have been saved"),
             Err(e) => error!("Failed to save settings, {}", e)
         }
@@ -306,7 +311,9 @@ impl ApplicationConfigBuilder {
         let storage = self.storage.expect("storage path has not been set");
         let settings = self.settings
             .or_else(|| {
-                match storage.read::<PopcornSettings>(DEFAULT_SETTINGS_FILENAME) {
+                match storage.options()
+                    .serializer(DEFAULT_SETTINGS_FILENAME)
+                    .read::<PopcornSettings>() {
                     Ok(e) => Some(e),
                     Err(e) => {
                         warn!("Failed to read settings from storage, using default settings instead, {}", e);
@@ -339,7 +346,7 @@ mod test {
     use crate::core::config::{DecorationType, Quality, SubtitleFamily, SubtitleSettings, UiScale};
     use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string};
 
     use super::*;
 
@@ -413,7 +420,10 @@ mod test {
             settings: Default::default(),
             callbacks: Default::default(),
         };
-        application.storage.write(DEFAULT_SETTINGS_FILENAME, &PopcornSettings::default())
+        application.storage
+            .options()
+            .serializer(DEFAULT_SETTINGS_FILENAME)
+            .write(&PopcornSettings::default())
             .expect("expected the test file to have been written");
 
         application.register(Box::new(move |event| {
@@ -449,13 +459,15 @@ mod test {
             decoration: DecorationType::None,
             bold: true,
         };
-        application.storage.write(DEFAULT_SETTINGS_FILENAME, &PopcornSettings {
-            subtitle_settings: expected_result.clone(),
-            ui_settings: Default::default(),
-            server_settings: Default::default(),
-            torrent_settings: Default::default(),
-            playback_settings: Default::default(),
-        })
+        application.storage.options()
+            .serializer(DEFAULT_SETTINGS_FILENAME)
+            .write(&PopcornSettings {
+                subtitle_settings: expected_result.clone(),
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+            })
             .expect("expected the test file to have been written");
 
         application.register(Box::new(move |event| {
@@ -637,7 +649,7 @@ mod test {
         application.update_playback(playback.clone());
         application.save();
 
-        let result = read_temp_dir_file(&temp_dir, DEFAULT_SETTINGS_FILENAME);
+        let result = read_temp_dir_file_as_string(&temp_dir, DEFAULT_SETTINGS_FILENAME);
         assert!(!result.is_empty(), "expected a non-empty json file");
 
         let settings: PopcornSettings = serde_json::from_str(result.as_str()).unwrap();

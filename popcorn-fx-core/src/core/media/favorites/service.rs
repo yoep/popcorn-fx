@@ -93,7 +93,9 @@ impl DefaultFavoriteService {
 
     async fn save_async(&self, favorites: &Favorites) {
         let mutex = self.storage.lock().await;
-        match mutex.write_async(FILENAME, &favorites).await {
+        match mutex.options()
+            .serializer(FILENAME)
+            .write_async( favorites).await {
             Ok(_) => info!("Favorites have been saved"),
             Err(e) => error!("Failed to save favorites, {}", e)
         }
@@ -120,7 +122,9 @@ impl DefaultFavoriteService {
 
     async fn load_favorites_from_storage(&self) -> media::Result<Favorites> {
         let mutex = self.storage.lock().await;
-        match mutex.read(FILENAME) {
+        match mutex.options()
+            .serializer(FILENAME)
+            .read() {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {

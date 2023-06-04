@@ -184,6 +184,10 @@ impl PopcornFX {
             .storage(app_directory_path)
             .properties(args.properties.clone())
             .build()));
+        let cache_manager = Arc::new(CacheManager::builder()
+            .runtime(runtime.clone())
+            .storage_path(app_directory_path)
+            .build());
         let subtitle_provider: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(OpensubtitlesProvider::builder()
             .settings(settings.clone())
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::default()))
@@ -195,14 +199,10 @@ impl PopcornFX {
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path)) as Box<dyn WatchedService>);
-        let providers = Arc::new(Self::default_providers(&settings, &args, &favorites_service, &watched_service));
+        let providers = Arc::new(Self::default_providers(&settings, &args, &cache_manager, &favorites_service, &watched_service));
         let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
-        let cache_manager = Arc::new(CacheManager::builder()
-            .runtime(runtime.clone())
-            .storage_path(app_directory_path)
-            .build());
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::builder()
             .storage_directory(app_directory_path)
             .event_publisher(event_publisher.clone())
@@ -433,7 +433,7 @@ impl PopcornFX {
             .expect("expected a new runtime")
     }
 
-    fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, args: &PopcornFxArgs, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
+    fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, args: &PopcornFxArgs, cache_manager: &Arc<CacheManager>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
         let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(settings, args.insecure)));
         let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(settings, args.insecure)));
         let favorites_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![
@@ -441,10 +441,10 @@ impl PopcornFX {
             &show_provider,
         ])));
         let thumb_enhancer: Arc<Box<dyn Enhancer>> = Arc::new(Box::new(ThumbEnhancer::new(settings.blocking_lock()
-            .properties()
-            .enhancers
-            .get("tvdb")
-            .expect("expected the tvdb properties to be present").clone())));
+                                                                                              .properties()
+                                                                                              .enhancers
+                                                                                              .get("tvdb")
+                                                                                              .expect("expected the tvdb properties to be present").clone(), cache_manager.clone())));
 
         ProviderManager::builder()
             .with_provider(movie_provider)

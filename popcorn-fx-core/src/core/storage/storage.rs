@@ -667,9 +667,6 @@ impl BinaryStorage {
 
 #[cfg(test)]
 mod test {
-    use std::thread;
-
-    use chrono::Duration;
     use tempfile::tempdir;
     use tokio::runtime::Runtime;
 

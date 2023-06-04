@@ -82,7 +82,7 @@ impl ProviderManager {
 
     async fn enhance_media_item(&self, category: &Category, mut media: Box<dyn MediaDetails>) -> Box<dyn MediaDetails> {
         for enhancer in self.enhancers.iter().filter(|e| e.supports(category)) {
-            debug!("Enhancing media item {} with {:?}", media.imdb_id(), enhancer);
+            debug!("Enhancing media item {} with {}", media.imdb_id(), enhancer);
             media = enhancer.enhance_details(media).await;
         }
 

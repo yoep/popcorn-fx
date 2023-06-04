@@ -336,6 +336,7 @@ impl InnerCacheManager {
               O: Future<Output=Result<T, E>> {
         match self.internal_execute(name, key, options, operation).await {
             Ok(e) => {
+                debug!("Invoking cache mapper for cache {} entry {}", name, key);
                 mapper(e).map_err(|e| CacheExecutionError::Mapping(e))
             }
             Err(e) => {
@@ -361,10 +362,6 @@ impl InnerCacheManager {
                     .binary(cache_entry.filename())
                     .read() {
                     Ok(e) => {
-                        if let Err(cache_error) = self.store(name, key, &options.expires_after, e.as_slice()).await {
-                            warn!("Failed to store cache data, {}", cache_error);
-                        }
-
                         debug!("Cache {} entry {} data has loaded {} cache bytes", name, key, e.len());
                         Ok(e)
                     }
@@ -691,7 +688,7 @@ mod test {
     use crate::assert_timeout;
     use crate::core::cache::CacheExecutionError;
     use crate::core::media::MediaError;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes};
+    use crate::testing::{copy_test_file, init_logger, read_test_file_to_bytes};
 
     use super::*;
 
@@ -870,7 +867,7 @@ mod test {
                     }])
                 ].into_iter().collect(),
             }).unwrap();
-        let cache_manager = Arc::new(CacheManagerBuilder::default()
+        let _cache_manager = Arc::new(CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build());
 

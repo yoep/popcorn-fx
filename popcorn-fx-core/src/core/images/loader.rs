@@ -196,7 +196,6 @@ mod test {
     use tempfile::tempdir;
     use tokio::runtime::Runtime;
 
-    use crate::core::cache::CacheManagerBuilder;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::testing::{init_logger, read_test_file_to_bytes};
 

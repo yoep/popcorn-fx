@@ -1,34 +1,54 @@
 use std::any::TypeId;
+use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::Duration;
+use derive_more::Display;
 use log::{debug, error, trace, warn};
 use regex::Regex;
 use reqwest::Client;
+use thiserror::Error;
 use url::Url;
 
+use crate::core::cache::{CacheManager, CacheOptions, CacheType};
 use crate::core::config::EnhancerProperties;
 use crate::core::media::{Category, Episode, MediaDetails, ShowDetails};
 use crate::core::media::providers::enhancers::Enhancer;
 
+const CACHE_NAME: &str = "thumb_enhancer";
+
+#[derive(Debug, Clone, Error)]
+enum ThumbEnhancerError {
+    #[error("Thumb url couldn't be found for {0}")]
+    NotFound(i32),
+    #[error("Failed to load thumb url, {0}")]
+    Unavailable(String),
+    #[error("UTF8 sequence is invalid, {0}")]
+    Utf8(String),
+}
+
 /// The [Episode] thumb enhancer which allows the retrieval of thumbs for episode media items.
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "ThumbEnhancer uri: {}", "self.properties.uri")]
 pub struct ThumbEnhancer {
     /// The properties for this enhancer
     properties: EnhancerProperties,
     /// the regex used to retrieve the thumb
     regex: Regex,
     client: Client,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl ThumbEnhancer {
     /// Create a new episode enhancer which will use TVDB information based on the given enhancer properties.
-    pub fn new(properties: EnhancerProperties) -> Self {
+    pub fn new(properties: EnhancerProperties, cache_manager: Arc<CacheManager>) -> Self {
         Self {
             properties,
             regex: Regex::new("https://artworks.thetvdb.com/banners/([a-zA-Z0-9/\\.]+)").unwrap(),
             client: Client::builder()
                 .build()
                 .expect("Client should have been created"),
+            cache_manager,
         }
     }
 
@@ -38,8 +58,33 @@ impl ThumbEnhancer {
             return episode;
         }
 
-        trace!("Enhancing episode {}", episode);
-        let url = self.build_url(&episode.tvdb_id);
+        let tvdb_id = &episode.tvdb_id;
+        match self.cache_manager.operation()
+            .name(CACHE_NAME)
+            .key(tvdb_id.to_string())
+            .options(CacheOptions {
+                cache_type: CacheType::CacheFirst,
+                expires_after: Duration::days(3),
+            })
+            .mapping(|data| String::from_utf8(data)
+                .map_err(|e| ThumbEnhancerError::Utf8(e.to_string())))
+            .execute(self.retrieve_thumb_image_url(tvdb_id))
+            .await {
+            Ok(url) => {
+                debug!("Enhancing episode {} with thumb {}", tvdb_id, url);
+                episode.thumb = Some(url);
+            }
+            Err(e) => {
+                debug!("Unable to enhance episode {}, {}", tvdb_id, e);
+            }
+        }
+
+        episode
+    }
+
+    async fn retrieve_thumb_image_url(&self, tvdb_id: &i32) -> Result<String, ThumbEnhancerError> {
+        trace!("Retrieving thumb image url for {}", tvdb_id);
+        let url = self.build_url(tvdb_id);
 
         trace!("Retrieving additional TVDB info from {}", url);
         match self.client.get(url)
@@ -48,27 +93,20 @@ impl ThumbEnhancer {
             Ok(response) => {
                 if response.status().is_success() {
                     match response.text().await {
-                        Ok(body) => self.handle_body(&mut episode, body),
-                        Err(e) => error!("Failed to retrieve body, {}", e)
+                        Ok(body) => {
+                            debug!("Received TVDB body for {}", tvdb_id);
+                            match self.regex.find(body.as_str()) {
+                                None => Err(ThumbEnhancerError::NotFound(tvdb_id.clone())),
+                                Some(url) => Ok(url.as_str().to_string()),
+                            }
+                        }
+                        Err(e) => Err(ThumbEnhancerError::Unavailable(format!("failed to retrieve response body, {}", e)))
                     }
                 } else {
-                    error!("Received invalid response for enhancement, status {}", response.status());
+                    Err(ThumbEnhancerError::Unavailable(format!("received invalid response status code {}", response.status())))
                 }
             }
-            Err(e) => error!("Failed to retrieve the episode details, {}", e)
-        }
-
-        episode
-    }
-
-    fn handle_body(&self, episode: &mut Episode, body: String) {
-        match self.regex.find(body.as_str()) {
-            None => warn!("Thumb url not found for {}", episode.tvdb_id),
-            Some(url) => {
-                let url = url.as_str();
-                debug!("Enhancing episode {} with thumb {}", episode.tvdb_id, url);
-                episode.thumb = Some(url.to_string())
-            }
+            Err(e) => Err(ThumbEnhancerError::Unavailable(e.to_string()))
         }
     }
 
@@ -118,9 +156,15 @@ mod test {
 
     #[test]
     fn test_supports() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
         let enhancer = ThumbEnhancer::new(EnhancerProperties {
             uri: "".to_string(),
-        });
+        }, cache_manager);
 
         assert!(enhancer.supports(&Category::Series), "expected the series to have been supported");
         assert!(enhancer.supports(&Category::Favorites), "expected the favorites to have been supported");
@@ -130,6 +174,11 @@ mod test {
     fn test_enhance_details_show_details() {
         init_logger();
         let tvdb_id = "9435216";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
         let server = MockServer::start();
         let show = Box::new(ShowDetails {
             imdb_id: "tt12124578".to_string(),
@@ -168,7 +217,7 @@ mod test {
         });
         let enhancer = ThumbEnhancer::new(EnhancerProperties {
             uri: server.url(""),
-        });
+        }, cache_manager);
         let runtime = Runtime::new().unwrap();
 
         let result = runtime.block_on(enhancer.enhance_details(show))
@@ -182,6 +231,11 @@ mod test {
     #[test]
     fn test_enhance_details_movie_details() {
         init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
         let movie = Box::new(MovieDetails {
             title: "".to_string(),
             imdb_id: "".to_string(),
@@ -196,7 +250,7 @@ mod test {
         });
         let enhancer = ThumbEnhancer::new(EnhancerProperties {
             uri: "".to_string(),
-        });
+        }, cache_manager);
         let runtime = Runtime::new().unwrap();
 
         let _ = runtime.block_on(enhancer.enhance_details(movie))

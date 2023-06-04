@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -43,7 +44,7 @@ pub struct CacheOptions {
 #[derive(Debug)]
 pub struct CacheManager {
     inner: Arc<InnerCacheManager>,
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
 }
 
 impl CacheManager {
@@ -57,7 +58,7 @@ impl CacheManager {
     /// # Returns
     ///
     /// A new `CacheManager` instance.
-    pub fn new(storage_path: &str, runtime: Runtime) -> Self {
+    pub fn new(storage_path: &str, runtime: Arc<Runtime>) -> Self {
         let instance = Self {
             inner: Arc::new(InnerCacheManager::new(storage_path)),
             runtime,
@@ -65,6 +66,15 @@ impl CacheManager {
 
         instance.run_cleanup();
         instance
+    }
+
+    /// Returns a builder for creating a `CacheManager` instance with customized options.
+    ///
+    /// # Returns
+    ///
+    /// A `CacheManagerBuilder` instance.
+    pub fn builder() -> CacheManagerBuilder {
+        CacheManagerBuilder::default()
     }
 
     /// Starts a new cache operation which allows the usage of the cache managed by this manager.
@@ -141,7 +151,7 @@ impl CacheManager {
     pub async fn execute<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
         where T: AsRef<[u8]> + From<Vec<u8>>,
               E: Error,
-              O: FnOnce() -> Result<T, E> {
+              O: Future<Output=Result<T, E>> {
         self.inner.execute(name, key, options, operation).await
     }
 
@@ -164,10 +174,11 @@ impl CacheManager {
     /// # Examples
     ///
     /// ```no_run
+    /// use std::sync::Arc;
     /// use tokio::runtime::Runtime;
     /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache", Runtime::new().unwrap());
+    /// let cache_manager = CacheManager::new("/path/to/cache", Arc::new(Runtime::new().unwrap()));
     ///
     /// let result = cache_manager.execute_with_mapper("my_cache", "my_key", CacheOptions::default(), |data| {
     ///     // Map the cache data to another type
@@ -192,7 +203,7 @@ impl CacheManager {
         where T: AsRef<[u8]>,
               E: Error,
               M: FnOnce(Vec<u8>) -> Result<T, E>,
-              O: FnOnce() -> Result<T, E> {
+              O: Future<Output=Result<T, E>> {
         self.inner.execute_with_mapper(name, key, options, mapper, operation).await
     }
 
@@ -225,7 +236,7 @@ impl CacheManager {
 #[derive(Debug, Default)]
 pub struct CacheManagerBuilder {
     storage_path: Option<String>,
-    runtime: Option<Runtime>,
+    runtime: Option<Arc<Runtime>>,
 }
 
 impl CacheManagerBuilder {
@@ -252,7 +263,7 @@ impl CacheManagerBuilder {
     /// # Returns
     ///
     /// The updated `CacheManagerBuilder` instance.
-    pub fn runtime(mut self, runtime: Runtime) -> Self {
+    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
         self.runtime = Some(runtime);
         self
     }
@@ -268,12 +279,12 @@ impl CacheManagerBuilder {
     /// A new `CacheManager` instance.
     pub fn build(self) -> CacheManager {
         let storage_path = self.storage_path.expect("Storage path is required.");
-        let runtime = self.runtime.unwrap_or_else(|| tokio::runtime::Builder::new_multi_thread()
+        let runtime = self.runtime.unwrap_or_else(|| Arc::new(tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .worker_threads(1)
             .thread_name("cache")
             .build()
-            .expect("expected a new runtime"));
+            .expect("expected a new runtime")));
 
         CacheManager::new(storage_path.as_str(), runtime)
     }
@@ -312,7 +323,7 @@ impl InnerCacheManager {
     async fn execute<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
         where T: AsRef<[u8]> + From<Vec<u8>>,
               E: Error,
-              O: FnOnce() -> Result<T, E> {
+              O: Future<Output=Result<T, E>> {
         self.internal_execute(name, key, options, operation)
             .await
             .map(|e| T::from(e))
@@ -322,7 +333,7 @@ impl InnerCacheManager {
         where T: AsRef<[u8]>,
               E: Error,
               M: FnOnce(Vec<u8>) -> Result<T, E>,
-              O: FnOnce() -> Result<T, E> {
+              O: Future<Output=Result<T, E>> {
         match self.internal_execute(name, key, options, operation).await {
             Ok(e) => {
                 mapper(e).map_err(|e| CacheExecutionError::Mapping(e))
@@ -336,7 +347,7 @@ impl InnerCacheManager {
     async fn internal_execute<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<Vec<u8>, CacheExecutionError<E>>
         where T: AsRef<[u8]>,
               E: Error,
-              O: FnOnce() -> Result<T, E> {
+              O: Future<Output=Result<T, E>> {
         trace!("Executing cache operation for {} with key {}", name, key);
         let cache = self.cache_info.lock().await;
         let cache_entry = cache.info(name, key)
@@ -354,6 +365,7 @@ impl InnerCacheManager {
                             warn!("Failed to store cache data, {}", cache_error);
                         }
 
+                        debug!("Cache {} entry {} data has loaded {} cache bytes", name, key, e.len());
                         Ok(e)
                     }
                     Err(e) => {
@@ -382,9 +394,9 @@ impl InnerCacheManager {
     async fn execute_operation<T, E, O>(&self, name: &str, key: &str, options: &CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
         where T: AsRef<[u8]>,
               E: Error,
-              O: FnOnce() -> Result<T, E> {
+              O: Future<Output=Result<T, E>> {
         trace!("Executing cache operation for cache {} entry {}", name, key);
-        match operation() {
+        match operation.await {
             Ok(e) => {
                 debug!("Cache operation of {} entry {} executed with success", name, key);
                 self.store(name, key, &options.expires_after, e.as_ref())
@@ -397,7 +409,7 @@ impl InnerCacheManager {
     }
 
     async fn store(&self, name: &str, key: &str, expiration: &Duration, data: &[u8]) -> cache::Result<()> {
-        trace!("Storing new cache entry for {}, {}", name, key);
+        trace!("Storing new cache {} entry {} with expiration {}", name, key, expiration);
         let filename = Self::generate_cache_filename(name, key);
         let path = self.write_cache_data(filename.as_str(), data).await?;
         self.create_cache_entry(name, key, path, expiration).await;
@@ -559,10 +571,11 @@ impl CacheOperation {
     /// # Examples
     ///
     /// ```
+    /// use std::sync::Arc;
     /// use tokio::runtime::Runtime;
     /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache", Runtime::new().unwrap());
+    /// let cache_manager = CacheManager::new("/path/to/cache", Arc::new(Runtime::new().unwrap()));
     /// let result = cache_manager.operation()
     ///     .name("my_cache".to_string())
     ///     .key("my_key".to_string())
@@ -586,7 +599,7 @@ impl CacheOperation {
     pub async fn execute<T, E, O>(self, operation: O) -> Result<T, CacheExecutionError<E>>
         where T: AsRef<[u8]> + From<Vec<u8>>,
               E: Error,
-              O: FnOnce() -> Result<T, E> {
+              O: Future<Output=Result<T, E>> {
         let name = self.name.expect("Name is missing");
         let key = self.key.expect("Key is missing");
         let options = self.options.expect("Options are missing");
@@ -658,7 +671,7 @@ impl<T, E, M> MappedCacheOperation<T, E, M>
     /// This method panics if the cache name, key, or options are missing from the `inner`
     /// `CacheOperation` instance.
     pub async fn execute<O>(self, operation: O) -> Result<T, CacheExecutionError<E>>
-        where O: FnOnce() -> Result<T, E> {
+        where O: Future<Output=Result<T, E>> {
         let name = self.inner.name.expect("Name is missing");
         let key = self.inner.key.expect("Key is missing");
         let options = self.inner.options.expect("Options are missing");
@@ -705,7 +718,7 @@ mod test {
                     expires_after: Duration::hours(6),
                 })
                 .mapping(|e| String::from_utf8(e))
-                .execute(|| Ok(expected_data.to_string())).await;
+                .execute(async { Ok(expected_data.to_string()) }).await;
             result
         }) {
             Ok(data) => assert_eq!(expected_data.to_string(), data),
@@ -750,7 +763,7 @@ mod test {
                     cache_type: CacheType::CacheFirst,
                     expires_after: Duration::hours(6),
                 })
-                .execute(|| Err(cloned_error)).await;
+                .execute(async { Err(cloned_error) }).await;
             result
         }) {
             match e {
@@ -790,7 +803,7 @@ mod test {
                     cache_type: CacheType::CacheFirst,
                     expires_after: Duration::hours(6),
                 })
-                .execute(|| Err(MediaError::ProviderRequestFailed("this should not have been executed".to_string(), 500))).await;
+                .execute(async { Err(MediaError::ProviderRequestFailed("this should not have been executed".to_string(), 500))}).await;
             result
         }).unwrap();
         assert_eq!(expected_result, data);
@@ -825,7 +838,7 @@ mod test {
                     cache_type: CacheType::CacheLast,
                     expires_after: Duration::hours(6),
                 })
-                .execute(|| {
+                .execute(async {
                     tx.send(true).unwrap();
                     Err(MediaError::ProviderRequestFailed("this should not have been executed".to_string(), 500))
                 }).await;

@@ -20,6 +20,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
+use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder};
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
@@ -157,6 +158,7 @@ pub struct PopcornFX {
     event_publisher: Arc<EventPublisher>,
     playback_controls: Arc<PlaybackControls>,
     image_loader: Arc<Box<dyn ImageLoader>>,
+    cache_manager: Arc<CacheManager>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -197,6 +199,10 @@ impl PopcornFX {
         let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(&settings)) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
+        let cache_manager = Arc::new(CacheManager::builder()
+            .runtime(runtime.clone())
+            .storage_path(app_directory_path)
+            .build());
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::builder()
             .storage_directory(app_directory_path)
             .event_publisher(event_publisher.clone())
@@ -217,7 +223,7 @@ impl PopcornFX {
             .platform(platform.clone())
             .event_publisher(event_publisher.clone())
             .build());
-        let image_loader = Arc::new(Box::new(DefaultImageLoader::default()) as Box<dyn ImageLoader>);
+        let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -240,6 +246,7 @@ impl PopcornFX {
             event_publisher,
             playback_controls,
             image_loader,
+            cache_manager,
             runtime,
             opts: args,
         }

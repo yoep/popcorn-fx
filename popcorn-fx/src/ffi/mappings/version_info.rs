@@ -58,7 +58,6 @@ mod test {
     fn test_from_version_info() {
         let version = "1.0.5";
         let runtime_version = "10.0.3";
-        let features = vec!["lorem".to_string()];
         let version_info = VersionInfo {
             application: PatchInfo {
                 version: version.to_string(),

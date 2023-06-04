@@ -246,7 +246,7 @@ mod test {
         let cache_name = "lorem";
         let key = "ipsum";
         let filename = "my-filename.cache";
-        let mut cache = CacheInfo {
+        let cache = CacheInfo {
             entries: vec![
                 (cache_name.to_string(), vec![CacheEntry {
                     key: key.to_string(),
@@ -269,7 +269,7 @@ mod test {
         init_logger();
         let cache_name = "dolor";
         let key = "ipsum";
-        let mut cache = CacheInfo {
+        let cache = CacheInfo {
             entries: vec![
                 (cache_name.to_string(), vec![])
             ].into_iter().collect(),

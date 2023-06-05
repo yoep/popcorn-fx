@@ -19,6 +19,7 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
         ("movies".to_string(), ProviderProperties {
             uris: vec![
                 "https://popcorn-time.ga".to_string(),
+                "https://shows.cf/".to_string(),
                 "https://movies-v2.api-fetch.am".to_string(),
                 "https://movies-v2.api-fetch.website".to_string(),
                 "https://movies-v2.api-fetch.sh".to_string()],
@@ -58,6 +59,7 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
         ("series".to_string(), ProviderProperties {
             uris: vec![
                 "https://popcorn-time.ga".to_string(),
+                "https://shows.cf/".to_string(),
                 "https://tv-v2.api-fetch.am".to_string(),
                 "https://tv-v2.api-fetch.website".to_string(),
                 "https://tv-v2.api-fetch.sh".to_string()],

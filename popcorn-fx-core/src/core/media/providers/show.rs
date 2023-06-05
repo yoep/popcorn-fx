@@ -152,6 +152,7 @@ mod test {
     use httpmock::Method::GET;
     use tokio::runtime;
 
+    use crate::core::cache::CacheManagerBuilder;
     use crate::core::media::MediaIdentifier;
     use crate::test::start_mock_server;
     use crate::testing::{init_logger, read_test_file_to_string};

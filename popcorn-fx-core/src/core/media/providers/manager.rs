@@ -166,6 +166,7 @@ mod test {
     use tokio::runtime::Runtime;
     use tokio::sync::Mutex;
 
+    use crate::core::cache::CacheManagerBuilder;
     use crate::core::config::ApplicationConfig;
     use crate::core::media::{Episode, ShowDetails, ShowOverview};
     use crate::core::media::providers::enhancers::MockEnhancer;
@@ -193,12 +194,16 @@ mod test {
 
     #[test]
     fn test_get_supported_category() {
+        init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build()));
-        let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings, false));
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
+        let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(settings, cache_manager, false));
         let manager = ProviderManagerBuilder::new()
             .with_provider(provider)
             .build();

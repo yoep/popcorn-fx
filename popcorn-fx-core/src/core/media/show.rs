@@ -87,7 +87,7 @@ pub struct ShowDetails {
     pub num_seasons: i32,
     pub images: Images,
     pub rating: Option<Rating>,
-    #[serde(rename(deserialize = "contextLocale"))]
+    #[serde(rename = "contextLocale")]
     pub context_locale: String,
     pub synopsis: String,
     pub runtime: String,

@@ -25,7 +25,7 @@ use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
-use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaDetailsProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::providers::{FavoritesProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};

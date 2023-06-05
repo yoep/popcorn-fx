@@ -133,6 +133,7 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
+    use popcorn_fx_core::core::config::ProviderProperties;
     use popcorn_fx_core::core::media::{Genre, SortBy};
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
@@ -229,7 +230,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut server = MockServer::start();
+        let server = MockServer::start();
         let imdb_id = "tt0000002";
         let show = ShowOverview {
             imdb_id: imdb_id.to_string(),
@@ -248,7 +249,13 @@ mod test {
                 .body(read_test_file_to_bytes("show-details.json"));
         });
         let mut popcorn_fx_args = default_args(temp_path);
-        popcorn_fx_args.properties.providers.get_mut("series").unwrap().uris = vec![server.url("/")];
+        popcorn_fx_args.properties.providers = vec![
+            ("series".to_string(), ProviderProperties {
+                uris: vec![server.url("/")],
+                genres: vec![],
+                sort_by: vec![],
+            })
+        ].into_iter().collect();
         let mut instance = PopcornFX::new(popcorn_fx_args);
 
         let media_result = retrieve_media_details(&mut instance, &MediaItemC::from(show));

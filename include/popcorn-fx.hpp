@@ -836,6 +836,28 @@ struct MediaSetResult {
   };
 };
 
+/// The C-compatible media result for a single media item.
+struct MediaResult {
+  enum class Tag {
+    Ok,
+    Err,
+  };
+
+  struct Ok_Body {
+    MediaItemC _0;
+  };
+
+  struct Err_Body {
+    MediaErrorC _0;
+  };
+
+  Tag tag;
+  union {
+    Ok_Body ok;
+    Err_Body err;
+  };
+};
+
 /// The wrapper communication between rust and C.
 /// This is a temp wrapper which will be replaced in the future.
 struct TorrentWrapperC {
@@ -1211,13 +1233,7 @@ MediaSetResult retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *gen
 /// The details contain all information about the media item.
 ///
 /// It returns the [MediaItemC] on success, else a [ptr::null_mut].
-MediaItemC *retrieve_favorite_details(PopcornFX *popcorn_fx, const char *imdb_id);
-
-/// Retrieve the details of a given movie.
-/// It will query the api for the given IMDB ID.
-///
-/// It returns the [MovieDetailsC] on success, else [ptr::null_mut].
-MovieDetailsC *retrieve_movie_details(PopcornFX *popcorn_fx, const char *imdb_id);
+MediaResult retrieve_media_details(PopcornFX *popcorn_fx, const MediaItemC *media);
 
 /// Retrieve the preferred subtitle instance for the next [Media] item playback.
 ///
@@ -1238,12 +1254,6 @@ StringArray *retrieve_provider_genres(PopcornFX *popcorn_fx, const char *name);
 ///
 /// It returns an empty list when the provider name doesn't exist.
 StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, const char *name);
-
-/// Retrieve the details of a show based on the given IMDB ID.
-/// The details contain all information about the show such as episodes and descriptions.
-///
-/// It returns the [ShowDetailsC] on success, else a [ptr::null_mut].
-ShowDetailsC *retrieve_show_details(PopcornFX *popcorn_fx, const char *imdb_id);
 
 /// Retrieve all watched movie id's.
 ///

@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use log::{debug, trace, warn};
 
 use crate::core::media;
-use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaOverview, SortBy};
+use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType, SortBy};
+use crate::core::media::providers::{MediaDetailsProvider, MediaProvider};
 use crate::core::media::providers::enhancers::Enhancer;
-use crate::core::media::providers::MediaProvider;
 
 /// Manages the available [MediaProvider]'s that can be used to retrieve [Media] items.
 /// Multiple providers for the same [Category] can be registered to overrule an existing one.
@@ -23,9 +21,10 @@ use crate::core::media::providers::MediaProvider;
 #[derive(Debug)]
 pub struct ProviderManager {
     /// The media providers
-    providers: Vec<Arc<Box<dyn MediaProvider>>>,
+    media_providers: Vec<Box<dyn MediaProvider>>,
+    details_providers: Vec<Box<dyn MediaDetailsProvider>>,
     /// The enhancers
-    enhancers: Vec<Arc<Box<dyn Enhancer>>>,
+    enhancers: Vec<Box<dyn Enhancer>>,
 }
 
 impl ProviderManager {
@@ -52,13 +51,14 @@ impl ProviderManager {
     /// The media item will contain all information for a media description and playback.
     ///
     /// It returns the details on success, else the [providers::ProviderError].
-    pub async fn retrieve_details(&self, category: &Category, imdb_id: &str) -> media::Result<Box<dyn MediaDetails>> {
-        match self.provider(category) {
-            None => Err(MediaError::ProviderNotFound(category.to_string())),
+    pub async fn retrieve_details(&self, media: &Box<dyn MediaIdentifier>) -> media::Result<Box<dyn MediaDetails>> {
+        let media_type = media.media_type();
+        match self.details_provider(&media_type) {
+            None => Err(MediaError::ProviderNotFound(media_type.to_string())),
             Some(provider) => {
-                match provider.retrieve_details(imdb_id).await {
+                match provider.retrieve_details(media.imdb_id()).await {
                     Ok(media) => {
-                        Ok(self.enhance_media_item(category, media).await)
+                        Ok(self.enhance_media_item(&Category::from(media_type), media).await)
                     }
                     Err(e) => Err(e)
                 }
@@ -89,12 +89,32 @@ impl ProviderManager {
         media
     }
 
-    /// Retrieve the [MediaProvider] for the given [Category].
+    /// Retrieves the `MediaProvider` for the given `Category`.
     ///
-    /// It returns the [MediaProvider] if one is registered, else [None].
-    fn provider<'a>(&'a self, category: &Category) -> Option<&'a Arc<Box<dyn MediaProvider>>> {
-        self.providers.iter()
+    /// # Arguments
+    ///
+    /// * `category` - The `Category` for which to retrieve the `MediaProvider`.
+    ///
+    /// # Returns
+    ///
+    /// The `MediaProvider` if one is registered for the given `Category`, otherwise `None`.
+    fn provider<'a>(&'a self, category: &Category) -> Option<&'a Box<dyn MediaProvider>> {
+        self.media_providers.iter()
             .find(|&provider| provider.supports(category))
+    }
+
+    /// Retrieves the `MediaDetailsProvider` for the given `MediaType`.
+    ///
+    /// # Arguments
+    ///
+    /// * `media_type` - The `MediaType` for which to retrieve the `MediaDetailsProvider`.
+    ///
+    /// # Returns
+    ///
+    /// The `MediaDetailsProvider` if one is registered for the given `MediaType`, otherwise `None`.
+    fn details_provider<'a>(&'a self, media_type: &MediaType) -> Option<&'a Box<dyn MediaDetailsProvider>> {
+        self.details_providers.iter()
+            .find(|&provider| provider.supports(media_type))
     }
 }
 
@@ -103,10 +123,11 @@ unsafe impl Send for ProviderManager {}
 unsafe impl Sync for ProviderManager {}
 
 /// The builder for the [ProviderManager] instance.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ProviderManagerBuilder {
-    providers: Vec<Arc<Box<dyn MediaProvider>>>,
-    enhancers: Vec<Arc<Box<dyn Enhancer>>>,
+    media_providers: Vec<Box<dyn MediaProvider>>,
+    details_providers: Vec<Box<dyn MediaDetailsProvider>>,
+    enhancers: Vec<Box<dyn Enhancer>>,
 }
 
 impl ProviderManagerBuilder {
@@ -114,29 +135,26 @@ impl ProviderManagerBuilder {
         Self::default()
     }
 
-    pub fn with_provider(mut self, provider: Arc<Box<dyn MediaProvider>>) -> Self {
-        self.providers.push(provider);
+    pub fn with_provider(mut self, provider: Box<dyn MediaProvider>) -> Self {
+        self.media_providers.push(provider);
         self
     }
 
-    pub fn with_enhancer(mut self, enhancer: Arc<Box<dyn Enhancer>>) -> Self {
+    pub fn with_details_provider(mut self, details_provider: Box<dyn MediaDetailsProvider>) -> Self {
+        self.details_providers.push(details_provider);
+        self
+    }
+
+    pub fn with_enhancer(mut self, enhancer: Box<dyn Enhancer>) -> Self {
         self.enhancers.push(enhancer);
         self
     }
 
     pub fn build(self) -> ProviderManager {
         ProviderManager {
-            providers: self.providers,
+            media_providers: self.media_providers,
+            details_providers: self.details_providers,
             enhancers: self.enhancers,
-        }
-    }
-}
-
-impl Default for ProviderManagerBuilder {
-    fn default() -> Self {
-        Self {
-            providers: Vec::new(),
-            enhancers: Vec::new(),
         }
     }
 }
@@ -149,10 +167,11 @@ mod test {
     use tokio::sync::Mutex;
 
     use crate::core::config::ApplicationConfig;
-    use crate::core::media::{Episode, ShowDetails};
+    use crate::core::media::{Episode, ShowDetails, ShowOverview};
     use crate::core::media::providers::enhancers::MockEnhancer;
-    use crate::core::media::providers::MockMediaProvider;
+    use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::core::media::providers::ShowProvider;
+    use crate::testing::init_logger;
 
     use super::*;
 
@@ -181,7 +200,7 @@ mod test {
             .build()));
         let provider: Box<dyn MediaProvider> = Box::new(ShowProvider::new(&settings, false));
         let manager = ProviderManagerBuilder::new()
-            .with_provider(Arc::new(provider))
+            .with_provider(provider)
             .build();
 
         let result = manager.provider(&Category::Series);
@@ -200,10 +219,21 @@ mod test {
 
     #[test]
     fn test_enhance_details() {
+        init_logger();
+        let imdb_id = "tt000001";
         let thumb = "http://localhost/thumb.png";
-        let mut provider = MockMediaProvider::new();
+        let media_identifier = Box::new(ShowOverview {
+            imdb_id: imdb_id.to_string(),
+            tvdb_id: "".to_string(),
+            title: "".to_string(),
+            year: "".to_string(),
+            num_seasons: 0,
+            images: Default::default(),
+            rating: None,
+        }) as Box<dyn MediaIdentifier>;
+        let mut provider = MockMediaDetailsProvider::new();
         provider.expect_supports()
-            .returning(|e: &Category| e == &Category::Series);
+            .returning(|e: &MediaType| e == &MediaType::Show);
         provider.expect_retrieve_details()
             .returning(|imdb_id: &str|
                 Ok(Box::new(ShowDetails {
@@ -246,12 +276,12 @@ mod test {
                 show
             });
         let manager = ProviderManager::builder()
-            .with_provider(Arc::new(Box::new(provider)))
-            .with_enhancer(Arc::new(Box::new(enhancer)))
+            .with_details_provider(Box::new(provider))
+            .with_enhancer(Box::new(enhancer))
             .build();
         let runtime = Runtime::new().unwrap();
 
-        let media = runtime.block_on(manager.retrieve_details(&Category::Series, "tt3581920"))
+        let media = runtime.block_on(manager.retrieve_details(&media_identifier))
             .expect("expected a media item to be returned")
             .into_any()
             .downcast::<ShowDetails>()

@@ -8,10 +8,7 @@ import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.StringArray;
 import com.github.yoep.popcorn.backend.logging.LogLevel;
-import com.github.yoep.popcorn.backend.media.FavoritesSet;
-import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.MediaSet;
-import com.github.yoep.popcorn.backend.media.MediaSetResult;
+import com.github.yoep.popcorn.backend.media.*;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -86,19 +83,15 @@ public interface FxLib extends Library {
 
     MediaSetResult.ByValue retrieve_available_movies(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
-    MovieDetails retrieve_movie_details(PopcornFx instance, String imdbId);
-
     void reset_movie_apis(PopcornFx instance);
 
     MediaSetResult.ByValue retrieve_available_shows(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
-
-    ShowDetails retrieve_show_details(PopcornFx instance, String imdbId);
 
     void reset_show_apis(PopcornFx instance);
 
     FavoritesSet retrieve_available_favorites(PopcornFx instance, Genre genre, SortBy sort, String keywords, int page);
 
-    MediaItem retrieve_favorite_details(PopcornFx instance, String imdbId);
+    MediaResult.ByValue retrieve_media_details(PopcornFx instance, MediaItem media);
 
     byte is_media_liked(PopcornFx instance, MediaItem media);
 

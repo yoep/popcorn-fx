@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use derive_more::Display;
 use log::{debug, error, info, trace, warn};
@@ -70,8 +69,8 @@ pub trait FavoriteService: Debug + Send + Sync {
 /// The standard favorite service which stores & retrieves liked media items based on the ID.
 #[derive(Debug)]
 pub struct DefaultFavoriteService {
-    storage: Arc<Mutex<Storage>>,
-    cache: Arc<Mutex<Option<Favorites>>>,
+    storage: Storage,
+    favorites: Mutex<Favorites>,
     callbacks: CoreCallbacks<FavoriteEvent>,
 }
 
@@ -80,9 +79,31 @@ impl DefaultFavoriteService {
     ///
     /// * `storage_directory` - The directory to use to read & store the favorites.
     pub fn new(storage_path: &str) -> Self {
+        let storage = Storage::from(storage_path);
+        let favorites = match storage.options()
+            .serializer(FILENAME)
+            .read() {
+            Ok(e) => e,
+            Err(error) => {
+                match error {
+                    StorageError::NotFound(file) => {
+                        debug!("Creating new favorites file {}", file);
+                    }
+                    StorageError::ReadingFailed(_, error) => {
+                        error!("Failed to load favorites, {}", error);
+                    }
+                    _ => {
+                        warn!("Unexpected error returned from storage, {}", error);
+                    }
+                }
+
+                Favorites::default()
+            }
+        };
+
         Self {
-            storage: Arc::new(Mutex::new(Storage::from(storage_path))),
-            cache: Arc::new(Mutex::new(None)),
+            storage,
+            favorites: Mutex::new(favorites),
             callbacks: CoreCallbacks::default(),
         }
     }
@@ -92,56 +113,11 @@ impl DefaultFavoriteService {
     }
 
     async fn save_async(&self, favorites: &Favorites) {
-        let mutex = self.storage.lock().await;
-        match mutex.options()
+        match self.storage.options()
             .serializer(FILENAME)
-            .write_async( favorites).await {
+            .write_async(favorites).await {
             Ok(_) => info!("Favorites have been saved"),
             Err(e) => error!("Failed to save favorites, {}", e)
-        }
-    }
-
-    async fn load_favorites_cache(&self) -> media::Result<()> {
-        let mutex = self.cache.clone();
-        let mut cache = mutex.lock().await;
-
-        if cache.is_none() {
-            trace!("Loading favorites cache");
-            return match self.load_favorites_from_storage().await {
-                Ok(e) => {
-                    let _ = cache.insert(e);
-                    Ok(())
-                }
-                Err(e) => Err(e)
-            };
-        }
-
-        trace!("Favorites cache already loaded, nothing to do");
-        Ok(())
-    }
-
-    async fn load_favorites_from_storage(&self) -> media::Result<Favorites> {
-        let mutex = self.storage.lock().await;
-        match mutex.options()
-            .serializer(FILENAME)
-            .read() {
-            Ok(e) => Ok(e),
-            Err(e) => {
-                match e {
-                    StorageError::NotFound(file) => {
-                        debug!("Creating new favorites file {}", file);
-                        Ok(Favorites::default())
-                    }
-                    StorageError::ReadingFailed(_, error) => {
-                        error!("Failed to load favorites, {}", error);
-                        Err(MediaError::FavoritesLoadingFailed(error))
-                    }
-                    _ => {
-                        warn!("Unexpected error returned from storage, {}", e);
-                        Ok(Favorites::default())
-                    }
-                }
-            }
         }
     }
 }
@@ -149,19 +125,8 @@ impl DefaultFavoriteService {
 impl FavoriteService for DefaultFavoriteService {
     fn is_liked(&self, id: &str) -> bool {
         trace!("Verifying if media item {} is liked", id);
-        match futures::executor::block_on(self.load_favorites_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let cache = futures::executor::block_on(mutex.lock());
-                let favorites = cache.as_ref().expect("cache should have been present");
-
-                favorites.contains(id)
-            }
-            Err(e) => {
-                warn!("Unable to load {}, {}", FILENAME, e);
-                false
-            }
-        }
+        let favorites = futures::executor::block_on(self.favorites.lock());
+        favorites.contains(id)
     }
 
     fn is_liked_dyn(&self, favorable: &Box<dyn MediaIdentifier>) -> bool {
@@ -172,28 +137,21 @@ impl FavoriteService for DefaultFavoriteService {
 
     fn all(&self) -> media::Result<Vec<Box<dyn MediaOverview>>> {
         trace!("Retrieving all favorite media items");
-        match futures::executor::block_on(self.load_favorites_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let cache = futures::executor::block_on(mutex.lock());
-                let favorites = cache.as_ref().expect("cache should have been present");
-                let mut all: Vec<Box<dyn MediaOverview>> = vec![];
-                let mut movies: Vec<Box<dyn MediaOverview>> = favorites.movies().iter()
-                    .map(|e| e.clone())
-                    .map(|e| Box::new(e) as Box<dyn MediaOverview>)
-                    .collect();
-                let mut shows: Vec<Box<dyn MediaOverview>> = favorites.shows().iter()
-                    .map(|e| e.clone())
-                    .map(|e| Box::new(e) as Box<dyn MediaOverview>)
-                    .collect();
+        let favorites = futures::executor::block_on(self.favorites.lock());
+        let mut all: Vec<Box<dyn MediaOverview>> = vec![];
+        let mut movies: Vec<Box<dyn MediaOverview>> = favorites.movies().iter()
+            .map(|e| e.clone())
+            .map(|e| Box::new(e) as Box<dyn MediaOverview>)
+            .collect();
+        let mut shows: Vec<Box<dyn MediaOverview>> = favorites.shows().iter()
+            .map(|e| e.clone())
+            .map(|e| Box::new(e) as Box<dyn MediaOverview>)
+            .collect();
 
-                all.append(&mut movies);
-                all.append(&mut shows);
+        all.append(&mut movies);
+        all.append(&mut shows);
 
-                Ok(all)
-            }
-            Err(e) => Err(MediaError::FavoritesLoadingFailed(e.to_string()))
-        }
+        Ok(all)
     }
 
     fn find_id(&self, imdb_id: &str) -> Option<Box<dyn MediaOverview>> {
@@ -208,10 +166,7 @@ impl FavoriteService for DefaultFavoriteService {
 
     fn add(&self, favorite: Box<dyn MediaIdentifier>) -> media::Result<()> {
         trace!("Adding favorite media item {:?}", favorite);
-        futures::executor::block_on(self.load_favorites_cache())?;
-        let mutex = self.cache.clone();
-        let mut cache = futures::executor::block_on(mutex.lock());
-        let favorites = cache.as_mut().expect("cache should have been present");
+        let mut favorites = futures::executor::block_on(self.favorites.lock());
         let imdb_id = favorite.imdb_id().to_string();
         let media_type = favorite.media_type();
 
@@ -244,72 +199,50 @@ impl FavoriteService for DefaultFavoriteService {
 
     fn remove(&self, favorite: Box<dyn MediaIdentifier>) {
         trace!("Removing media item {} from favorites", &favorite);
-        match futures::executor::block_on(self.load_favorites_cache()) {
-            Ok(_) => {
-                let imdb_id = favorite.imdb_id();
-                let mutex = self.cache.clone();
-                let mut cache = futures::executor::block_on(mutex.lock());
-                let mut e = cache.as_mut().expect("cache should have been present");
+        let imdb_id = favorite.imdb_id();
+        let mut favorites = futures::executor::block_on(self.favorites.lock());
 
-                e.remove_id(imdb_id);
+        favorites.remove_id(imdb_id);
 
-                // invoke callbacks
-                self.save(&mut e);
-                self.callbacks.invoke(FavoriteEvent::LikedStateChanged(imdb_id.to_string(), false));
-            }
-            Err(e) => error!("Failed to add {} as favorite, {}", favorite, e)
-        }
+        // invoke callbacks
+        self.save(&mut favorites);
+        self.callbacks.invoke(FavoriteEvent::LikedStateChanged(imdb_id.to_string(), false));
     }
 
     fn update(&self, favorites: Vec<Box<dyn MediaIdentifier>>) {
-        let mut mutex = futures::executor::block_on(self.cache.lock());
+        let mut cache = futures::executor::block_on(self.favorites.lock());
 
-        if mutex.is_some() {
-            let cache = mutex.as_mut().expect("expected the cache to be present");
-
-            for media in favorites.into_iter() {
-                if !cache.contains(media.imdb_id()) {
-                    warn!("Unable to update favorite {}, media is not stored as a favorite item", media.imdb_id());
-                    continue;
-                }
-
-                match media.media_type() {
-                    MediaType::Movie => {
-                        let movie = media.into_any()
-                            .downcast::<MovieOverview>()
-                            .expect("expected MovieOverview");
-                        cache.remove_id(movie.imdb_id());
-                        cache.add_movie(&*movie);
-                    }
-                    MediaType::Show => {
-                        let show = media.into_any()
-                            .downcast::<ShowOverview>()
-                            .expect("expected ShowOverview");
-                        cache.remove_id(show.imdb_id());
-                        cache.add_show(&*show);
-                    }
-                    _ => warn!("Unable to update media item {} type {}", media.imdb_id(), media.media_type())
-                }
+        for media in favorites.into_iter() {
+            if !cache.contains(media.imdb_id()) {
+                warn!("Unable to update favorite {}, media is not stored as a favorite item", media.imdb_id());
+                continue;
             }
 
-            cache.last_cache_update = Favorites::current_datetime();
-            debug!("Favorites have been updated at {}", &cache.last_cache_update);
-        } else {
-            warn!("Unable to update favorites, no cache is present")
+            match media.media_type() {
+                MediaType::Movie => {
+                    let movie = media.into_any()
+                        .downcast::<MovieOverview>()
+                        .expect("expected MovieOverview");
+                    cache.remove_id(movie.imdb_id());
+                    cache.add_movie(&*movie);
+                }
+                MediaType::Show => {
+                    let show = media.into_any()
+                        .downcast::<ShowOverview>()
+                        .expect("expected ShowOverview");
+                    cache.remove_id(show.imdb_id());
+                    cache.add_show(&*show);
+                }
+                _ => warn!("Unable to update media item {} type {}", media.imdb_id(), media.media_type())
+            }
         }
+
+        cache.last_cache_update = Favorites::current_datetime();
+        debug!("Favorites have been updated at {}", &cache.last_cache_update);
     }
 
     fn favorites(&self) -> Option<Favorites> {
-        match futures::executor::block_on(self.load_favorites_cache()) {
-            Ok(_) => {
-                let mutex = futures::executor::block_on(self.cache.lock());
-                mutex.clone()
-            }
-            Err(e) => {
-                warn!("Failed to load favorites, using defaults instead, {}", e);
-                None
-            }
-        }
+        Some(futures::executor::block_on(self.favorites.lock()).clone())
     }
 
     fn register(&self, callback: FavoriteCallback) {
@@ -319,16 +252,10 @@ impl FavoriteService for DefaultFavoriteService {
 
 impl Drop for DefaultFavoriteService {
     fn drop(&mut self) {
-        let mutex = self.cache.clone();
-
         block_in_place(async move {
-            let favorites = mutex.lock().await;
-
-            if favorites.is_some() {
-                debug!("Saving favorites on exit");
-                let e = favorites.as_ref().expect("Expected the favorites to be present");
-                self.save_async(e).await
-            }
+            let favorites = self.favorites.lock().await;
+            debug!("Saving favorites on exit");
+            self.save_async(&favorites).await
         })
     }
 }

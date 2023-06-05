@@ -2,9 +2,7 @@ package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.MediaError;
-import com.github.yoep.popcorn.backend.media.MediaSet;
-import com.github.yoep.popcorn.backend.media.MediaSetResult;
+import com.github.yoep.popcorn.backend.media.*;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -47,14 +45,9 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
     }
 
     @Override
-    public CompletableFuture<ShowOverview> getDetails(String imdbId) {
-        return CompletableFuture.completedFuture(getDetailsInternal(imdbId));
-    }
-
-    @Override
     public CompletableFuture<Media> retrieveDetails(Media media) {
         try {
-            return CompletableFuture.completedFuture(getDetailsInternal(media.getId()));
+            return CompletableFuture.completedFuture(getDetailsInternal(media));
         } catch (Exception ex) {
             throw new MediaDetailsException(media, "Failed to load show details", ex);
         }
@@ -87,7 +80,19 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
         }
     }
 
-    private ShowDetails getDetailsInternal(String imdbId) {
-        return fxLib.retrieve_show_details(instance, imdbId);
+    private ShowDetails getDetailsInternal(Media media) {
+        var result = fxLib.retrieve_media_details(instance, MediaItem.from(media));
+        log.debug("Retrieved media details result {}", result);
+
+        if (result.getTag() == MediaResult.Tag.Ok) {
+            var mediaItem = result.getUnion().getOk().getMediaItem();
+            return (ShowDetails) mediaItem.getMedia();
+        } else {
+            var error = result.getUnion().getErr();
+            switch (error.getMediaError()) {
+                case NoAvailableProviders -> throw new MediaRetrievalException("no providers are available");
+                default -> throw new MediaException("failed to retrieve media details");
+            }
+        }
     }
 }

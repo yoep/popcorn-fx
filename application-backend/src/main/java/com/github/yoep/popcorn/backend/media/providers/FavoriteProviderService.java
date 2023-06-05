@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.backend.media.providers;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.FavoritesSet;
+import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.MediaResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -43,14 +45,18 @@ public class FavoriteProviderService implements ProviderService<Media> {
     }
 
     @Override
-    public CompletableFuture<Media> getDetails(String imdbId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public CompletableFuture<Media> retrieveDetails(Media media) {
-        try (var item = fxLib.retrieve_favorite_details(instance, media.getId())) {
-            return CompletableFuture.completedFuture(item.getMedia());
+        try (var result = fxLib.retrieve_media_details(instance, MediaItem.from(media))) {
+            if (result.getTag() == MediaResult.Tag.Ok) {
+                var mediaItem = result.getUnion().getOk().getMediaItem();
+                return CompletableFuture.completedFuture(mediaItem.getMedia());
+            } else {
+                var error = result.getUnion().getErr();
+                switch (error.getMediaError()) {
+                    case NoAvailableProviders -> throw new MediaRetrievalException("no providers are available");
+                    default -> throw new MediaException("failed to retrieve media details");
+                }
+            }
         }
     }
 

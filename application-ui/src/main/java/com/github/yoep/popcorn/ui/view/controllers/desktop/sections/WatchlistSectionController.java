@@ -141,8 +141,13 @@ public class WatchlistSectionController implements Initializable {
     }
 
     private Media parseTraktMovie(WatchListItem item) {
+        var media = new MovieOverview();
+        media.imdbId = item.getMovie().getIds().getImdb();
+        media.title = item.getMovie().getTitle();
+        media.year = String.valueOf(item.getMovie().getYear());
+
         try {
-            return movieProviderService.getDetails(item.getMovie().getIds().getImdb()).get();
+            return movieProviderService.retrieveDetails(media).get();
         } catch (InterruptedException | ExecutionException ex) {
             log.error(ex.getMessage(), ex);
             eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(WatchlistMessage.FAILED_TO_PARSE_MOVIE)));
@@ -159,8 +164,15 @@ public class WatchlistSectionController implements Initializable {
             return null;
         }
 
+        var media = new ShowOverview();
+        media.imdbId = imdbId;
+        media.tvdbId = imdbId;
+        media.title = show.getTitle();
+        media.year = String.valueOf(show.getYear());
+        media.numberOfSeasons = 1;
+
         try {
-            return showProviderService.getDetails(imdbId).get();
+            return showProviderService.retrieveDetails(media).get();
         } catch (InterruptedException | ExecutionException ex) {
             if (ex.getCause() instanceof MediaException) {
                 log.error(ex.getMessage(), ex);

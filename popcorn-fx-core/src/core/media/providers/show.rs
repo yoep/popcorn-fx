@@ -8,21 +8,36 @@ use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
 use crate::core::config::ApplicationConfig;
-use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, ShowDetails, ShowOverview, SortBy};
-use crate::core::media::providers::{BaseProvider, MediaProvider};
+use crate::core::media::{Category, Genre, MediaDetails, MediaOverview, MediaType, ShowDetails, ShowOverview, SortBy};
+use crate::core::media::providers::{BaseProvider, MediaDetailsProvider, MediaProvider};
 use crate::core::media::providers::utils::available_uris;
 
 const PROVIDER_NAME: &str = "series";
 const SEARCH_RESOURCE_NAME: &str = "shows";
 const DETAILS_RESOURCE_NAME: &str = "show";
 
-/// The [MediaProvider] for show media items.
-#[derive(Debug)]
+/// The `ShowProvider` represents a media provider specifically designed for show media items.
+///
+/// This provider is responsible for retrieving details about TV show episodes, seasons, and other show-related information.
+/// It is designed to work with the supported `Category` and `MediaType` for show media items.
+/// Cloning the `ShowProvider` will create a new instance that shares the same configuration and base provider as the original.
+/// This means that any modifications or disabled URIs in the original provider will be reflected in the cloned provider as well.
+#[derive(Debug, Clone)]
 pub struct ShowProvider {
     base: Arc<Mutex<BaseProvider>>,
 }
 
 impl ShowProvider {
+    /// Creates a new `ShowProvider` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `settings` - The application settings for configuring the provider.
+    /// * `insecure` - A flag indicating whether to allow insecure connections.
+    ///
+    /// # Returns
+    ///
+    /// A new `ShowProvider` instance.
     pub fn new(settings: &Arc<Mutex<ApplicationConfig>>, insecure: bool) -> Self {
         let mutex = settings.blocking_lock();
         let uris = available_uris(&mutex, PROVIDER_NAME);
@@ -30,6 +45,18 @@ impl ShowProvider {
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),
         }
+    }
+
+    /// Resets the internal API statistics of the provider.
+    ///
+    /// This method resets the API statistics of the underlying `BaseProvider`,
+    /// allowing it to re-enable all disabled URIs.
+    fn internal_api_reset(&self) {
+        let base_arc = &self.base.clone();
+        let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+        let mut base = runtime.block_on(base_arc.lock());
+
+        base.reset_api_stats();
     }
 }
 
@@ -46,11 +73,7 @@ impl MediaProvider for ShowProvider {
     }
 
     fn reset_api(&self) {
-        let base_arc = &self.base.clone();
-        let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
-        let mut base = runtime.block_on(base_arc.lock());
-
-        base.reset_api_stats();
+        self.internal_api_reset()
     }
 
     async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
@@ -73,6 +96,17 @@ impl MediaProvider for ShowProvider {
                 Err(e)
             }
         }
+    }
+}
+
+#[async_trait]
+impl MediaDetailsProvider for ShowProvider {
+    fn supports(&self, media_type: &MediaType) -> bool {
+        media_type == &MediaType::Show
+    }
+
+    fn reset_api(&self) {
+        self.internal_api_reset()
     }
 
     async fn retrieve_details(&self, imdb_id: &str) -> crate::core::media::Result<Box<dyn MediaDetails>> {

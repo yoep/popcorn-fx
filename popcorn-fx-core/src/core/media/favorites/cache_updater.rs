@@ -5,7 +5,7 @@ use itertools::Itertools;
 use log::{debug, info, trace, warn};
 use tokio::runtime::Runtime;
 
-use crate::core::media::{Category, MediaIdentifier, MediaType, MovieDetails, ShowDetails};
+use crate::core::media::{MediaIdentifier, MediaType, MovieDetails, ShowDetails};
 use crate::core::media::favorites::FavoriteService;
 use crate::core::media::favorites::model::Favorites;
 use crate::core::media::providers::ProviderManager;
@@ -172,9 +172,7 @@ impl InnerCacheUpdater {
         debug!("Updating a total of {} favorite items", media_items.len());
         futures::future::join_all(media_items.into_iter()
             .map(|media| async {
-                let category = Category::from(media.media_type());
-
-                match self.providers.retrieve_details(&category, media.imdb_id()).await {
+                match self.providers.retrieve_details(&media).await {
                     Ok(e) => {
                         trace!("Retrieved updated media item {}", e);
                         match e.media_type() {
@@ -206,9 +204,9 @@ impl InnerCacheUpdater {
 mod test {
     use std::sync::mpsc::channel;
 
-    use crate::core::media::{MediaOverview, MovieOverview};
+    use crate::core::media::{Category, MediaOverview, MovieOverview};
     use crate::core::media::favorites::MockFavoriteService;
-    use crate::core::media::providers::MockMediaProvider;
+    use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::testing::init_logger;
 
     use super::*;
@@ -219,9 +217,9 @@ mod test {
         let movie_id = "tt12121222";
         let title = "Lorem ipsum";
         let year = "2010";
-        let mut movie_provider = MockMediaProvider::new();
+        let mut movie_provider = MockMediaDetailsProvider::new();
         movie_provider.expect_supports()
-            .returning(|e: &Category| e == &Category::Movies);
+            .returning(|e: &MediaType| e == &MediaType::Movie);
         movie_provider.expect_retrieve_details()
             .returning(|_: &str| Ok(Box::new(MovieDetails {
                 imdb_id: movie_id.to_string(),
@@ -258,7 +256,7 @@ mod test {
         let _updater = FavoriteCacheUpdater::builder()
             .favorite_service(Arc::new(Box::new(favorites)))
             .provider_manager(Arc::new(ProviderManager::builder()
-                .with_provider(Arc::new(Box::new(movie_provider)))
+                .with_details_provider(Box::new(movie_provider))
                 .build()))
             .build();
 

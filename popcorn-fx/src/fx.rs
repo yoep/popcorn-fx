@@ -20,13 +20,13 @@ use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
-use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder};
+use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
-use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
-use popcorn_fx_core::core::media::providers::enhancers::{Enhancer, ThumbEnhancer};
+use popcorn_fx_core::core::media::providers::{FavoritesProvider, MediaDetailsProvider, MediaProvider, MovieProvider, ProviderManager, ShowProvider};
+use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
@@ -434,22 +434,23 @@ impl PopcornFX {
     }
 
     fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, args: &PopcornFxArgs, cache_manager: &Arc<CacheManager>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
-        let movie_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(MovieProvider::new(settings, args.insecure)));
-        let show_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(ShowProvider::new(settings, args.insecure)));
-        let favorites_provider: Arc<Box<dyn MediaProvider>> = Arc::new(Box::new(FavoritesProvider::new(favorites.clone(), watched.clone(), vec![
-            &movie_provider,
-            &show_provider,
-        ])));
-        let thumb_enhancer: Arc<Box<dyn Enhancer>> = Arc::new(Box::new(ThumbEnhancer::new(settings.blocking_lock()
-                                                                                              .properties()
-                                                                                              .enhancers
-                                                                                              .get("tvdb")
-                                                                                              .expect("expected the tvdb properties to be present").clone(), cache_manager.clone())));
+        let movie_provider = Box::new(MovieProvider::new(settings, args.insecure));
+        let show_provider = Box::new(ShowProvider::new(settings, args.insecure));
+        let favorites_provider = Box::new(FavoritesProvider::new(favorites.clone(), watched.clone()));
+        let thumb_enhancer = Box::new(ThumbEnhancer::new(
+            settings.blocking_lock()
+                .properties()
+                .enhancers
+                .get("tvdb")
+                .expect("expected the tvdb properties to be present").clone(),
+            cache_manager.clone()));
 
         ProviderManager::builder()
-            .with_provider(movie_provider)
-            .with_provider(show_provider)
+            .with_provider(movie_provider.clone())
+            .with_provider(show_provider.clone())
             .with_provider(favorites_provider)
+            .with_details_provider(movie_provider)
+            .with_details_provider(show_provider)
             .with_enhancer(thumb_enhancer)
             .build()
     }

@@ -4,10 +4,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use itertools::Itertools;
-use log::{debug, error, trace};
-use tokio::sync::Mutex;
+use log::{debug, trace};
 
-use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaOverview, MediaType, SortBy};
+use crate::core::media::{Category, Genre, MediaOverview, MediaType, SortBy};
 use crate::core::media::favorites::FavoriteService;
 use crate::core::media::providers::MediaProvider;
 use crate::core::media::watched::WatchedService;
@@ -18,21 +17,19 @@ const SORT_YEAR_KEY: &str = "year";
 const SORT_TITLE_KEY: &str = "title";
 const SORT_RATING_KEY: &str = "rating";
 
-/// The [MediaProvider] for liked media items.
+/// The `FavoritesProvider` for liked media items.
 #[derive(Debug)]
 pub struct FavoritesProvider {
     favorites: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
-    providers: Mutex<Vec<Arc<Box<dyn MediaProvider>>>>,
 }
 
 impl FavoritesProvider {
-    /// Create a new favorites provider instance.
+    /// Create a new `FavoritesProvider` instance.
     ///
-    /// It takes ownership of the shared favorites & watched services.
-    /// _Make sure of them are cloned if used somewhere else_
+    /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use std::sync::Arc;
     /// use popcorn_fx_core::core::media::providers::FavoritesProvider;
     ///
@@ -40,16 +37,17 @@ impl FavoritesProvider {
     ///     let favorites = Arc::new(XXX);
     ///     let watched = Arc::new(XXX);
     ///
-    ///     FavoritesProvider::new(favorites.clone(), watched.clone(), vec![])
+    ///     FavoritesProvider::new(favorites.clone(), watched.clone())
     /// }
     /// ```
-    pub fn new(favorites: Arc<Box<dyn FavoriteService>>, watched_service: Arc<Box<dyn WatchedService>>, providers: Vec<&Arc<Box<dyn MediaProvider>>>) -> Self {
+    ///
+    /// This example demonstrates how to create a new `FavoritesProvider` instance by providing the necessary shared favorites and watched services.
+    /// The `favorites` and `watched_service` parameters are of type `Arc<Box<dyn FavoriteService>>` and `Arc<Box<dyn WatchedService>>`, respectively.
+    /// Ensure that you clone these services if they are used in other parts of your application.
+    pub fn new(favorites: Arc<Box<dyn FavoriteService>>, watched_service: Arc<Box<dyn WatchedService>>) -> Self {
         Self {
             favorites,
             watched_service,
-            providers: Mutex::new(providers.into_iter()
-                .map(|e| e.clone())
-                .collect()),
         }
     }
 
@@ -126,37 +124,6 @@ impl FavoritesProvider {
     fn sort_by_title(a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
         a.title().cmp(&b.title())
     }
-
-    fn media_type_to_category(media_type: MediaType) -> Option<Category> {
-        match media_type {
-            MediaType::Movie => Some(Category::Movies),
-            MediaType::Show => Some(Category::Series),
-            _ => {
-                error!("Media type {} doesn't support any categories", media_type);
-                None
-            }
-        }
-    }
-
-    async fn retrieve_media_details(&self, media: Box<dyn MediaOverview>) -> Result<Box<dyn MediaDetails>, MediaError> {
-        match Self::media_type_to_category(media.media_type()) {
-            Some(category) => {
-                let providers = self.providers.lock().await;
-
-                for provider in providers.iter() {
-                    let imdb_id = media.imdb_id();
-
-                    if provider.supports(&category) {
-                        trace!("Using favorite sub provider {} for retrieving details of {}", &provider, &imdb_id);
-                        return provider.retrieve_details(imdb_id).await;
-                    }
-                }
-
-                Err(MediaError::ProviderNotFound(category.to_string()))
-            }
-            None => Err(MediaError::NoAvailableProviders)
-        }
-    }
 }
 
 impl Display for FavoritesProvider {
@@ -194,18 +161,12 @@ impl MediaProvider for FavoritesProvider {
             Err(e) => Err(e)
         }
     }
-
-    async fn retrieve_details(&self, imdb_id: &str) -> crate::core::media::Result<Box<dyn MediaDetails>> {
-        match self.favorites.find_id(imdb_id) {
-            Some(e) => self.retrieve_media_details(e).await,
-            None => Err(MediaError::FavoriteNotFound(imdb_id.to_string()))
-        }
-    }
 }
 
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
+    use tokio::sync::Mutex;
 
     use crate::core::config::ApplicationConfig;
     use crate::core::media;
@@ -238,46 +199,13 @@ mod test {
             });
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(MockWatchedService::new())),
-            vec![]);
+            Arc::new(Box::new(MockWatchedService::new())));
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
         let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
             .expect("expected the favorites to have been returned");
 
         assert_eq!(1, result.len())
-    }
-
-    #[test]
-    fn test_retrieve_details() {
-        init_logger();
-        let imdb_id = "tt1156398";
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        copy_test_file(temp_path, "settings.json", None);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build()));
-        let mut favorites = MockFavoriteService::new();
-        favorites.expect_find_id()
-            .returning(|_id: &str| -> Option<Box<dyn MediaOverview>> {
-                Some(Box::new(MovieOverview::new(
-                    String::new(),
-                    imdb_id.to_string(),
-                    String::new(),
-                )))
-            });
-        let movie_provider = Arc::new(Box::new(MovieProvider::new(&settings, false)) as Box<dyn MediaProvider>);
-        let provider = FavoritesProvider::new(
-            Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(temp_path))),
-            vec![&movie_provider]);
-        let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
-
-        let result = runtime.block_on(provider.retrieve_details(&imdb_id.to_string()))
-            .expect("expected the details to have been retrieved");
-
-        assert_eq!(imdb_id.to_string(), result.imdb_id())
     }
 
     #[test]
@@ -357,13 +285,12 @@ mod test {
     #[test]
     fn test_sort_by_should_order_movie_before_show() {
         init_logger();
-        let resource_directory = tempfile::tempdir().expect("expected a temp directory");
+        let resource_directory = tempdir().expect("expected a temp directory");
         let resource_path = resource_directory.path().to_str().unwrap();
         let favorites = MockFavoriteService::new();
         let service = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(resource_path))),
-            vec![]);
+            Arc::new(Box::new(DefaultWatchedService::new(resource_path))));
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
         let movie = Box::new(MovieOverview::new(
             String::new(),
@@ -407,8 +334,7 @@ mod test {
             });
         let service = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(watched)),
-            vec![]);
+            Arc::new(Box::new(watched)));
         let sort_by = SortBy::new("watched".to_string(), String::new());
 
         let result = service.sort_by(&sort_by, &movie_watched, &movie_unwatched);

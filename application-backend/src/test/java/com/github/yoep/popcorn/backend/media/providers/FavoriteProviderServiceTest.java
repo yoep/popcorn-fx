@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.backend.media.providers;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.MediaResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
@@ -37,14 +38,19 @@ class FavoriteProviderServiceTest {
         var imdbId = "tt121212";
         var overview = new ShowOverview();
         var details = new ShowDetails();
-        var mediaItem = mock(MediaItem.class);
+        var mediaItem = mock(MediaItem.ByValue.class);
+        var mediaResult = new MediaResult.ByValue();
         overview.imdbId = imdbId;
+        mediaResult.tag = MediaResult.Tag.Ok;
+        mediaResult.union = new MediaResult.MediaResultUnion.ByValue();
+        mediaResult.union.ok = new MediaResult.OkBody();
+        mediaResult.union.ok.mediaItem = mediaItem;
         doAnswer(invocation -> {
             fxLib.dispose_media_item(mediaItem);
             return null;
         }).when(mediaItem).close();
         when(mediaItem.getMedia()).thenReturn(details);
-        when(fxLib.retrieve_favorite_details(instance, imdbId)).thenReturn(mediaItem);
+        when(fxLib.retrieve_media_details(instance, MediaItem.from(overview))).thenReturn(mediaResult);
 
         var result = service.retrieveDetails(overview);
 

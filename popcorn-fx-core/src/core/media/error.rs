@@ -7,39 +7,39 @@ pub type Result<T> = std::result::Result<T, MediaError>;
 #[derive(Error, Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MediaError {
     /// Failed to load the favorite items.
-    #[error("Failed to load favorites: {0}")]
+    #[error("failed to load favorites: {0}")]
     FavoritesLoadingFailed(String),
     /// The requested favorite item couldn't be found.
-    #[error("Favorite with ID {0} not found")]
+    #[error("favorite with ID {0} not found")]
     FavoriteNotFound(String),
     /// Failed to add a favorite item.
-    #[error("Failed to add favorite for {0}: {1}")]
+    #[error("failed to add favorite for {0}: {1}")]
     FavoriteAddFailed(String, String),
     /// Failed to load the watched items.
-    #[error("Failed to load watched items: {0}")]
+    #[error("failed to load watched items: {0}")]
     WatchedLoadingFailed(String),
     /// The given media item is not supported.
-    #[error("Unsupported media type: {0}")]
+    #[error("unsupported media type: {0}")]
     MediaTypeNotSupported(String),
     /// There are no available media providers to query.
-    #[error("No available providers to query")]
+    #[error("no available providers to query")]
     NoAvailableProviders,
     /// Failed to establish a connection with the media provider.
-    #[error("Provider connection failed")]
+    #[error("provider connection failed")]
     ProviderConnectionFailed,
     /// The request to the media provider failed with a specific status code.
-    #[error("Request to {0} failed with status {1}")]
+    #[error("request to {0} failed with status {1}")]
     ProviderRequestFailed(String, u16),
     /// Failed to parse the response from the media provider.
-    #[error("Failed to parse response: {0}")]
+    #[error("failed to parse response: {0}")]
     ProviderParsingFailed(String),
     /// A provider for a specific category is already registered.
-    #[error("Provider for {0} already exists")]
+    #[error("provider for {0} already exists")]
     ProviderAlreadyExists(String),
     /// No provider could be found for the requested category.
-    #[error("No provider found for {0}")]
+    #[error("no provider found for {0}")]
     ProviderNotFound(String),
     /// Failed to load auto-resume data.
-    #[error("Failed to load auto-resume data: {0}")]
+    #[error("failed to load auto-resume data: {0}")]
     AutoResumeLoadingFailed(String),
 }

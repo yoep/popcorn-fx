@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use derive_more::Display;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::core::media::{MediaIdentifier, MediaType, TorrentInfo};
 
 /// The episode media information of a show media item.
-#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "tvdb_id: {}, title: {}, season: {}, episode: {}", tvdb_id, title, season, episode)]
 pub struct Episode {
     pub season: u32,

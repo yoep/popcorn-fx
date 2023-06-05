@@ -21,8 +21,11 @@ const CACHE_NAME: &str = "movies";
 
 /// The `MovieProvider` represents a media provider specifically designed for movie media items.
 ///
-/// This provider is responsible for retrieving details about movies, including information such as title, release date, and cast.
+/// This provider is responsible for retrieving details about movies, including information such as title, release date, and genres.
 /// It is designed to work with the supported `Category` and `MediaType` for movie media items.
+///
+/// # Cloning
+///
 /// Cloning the `MovieProvider` will create a new instance that shares the same configuration and base provider as the original.
 /// This means that any modifications or disabled URIs in the original provider will be reflected in the cloned provider as well.
 #[derive(Debug, Clone)]
@@ -119,10 +122,7 @@ impl MediaDetailsProvider for MovieProvider {
         self.cache_manager.operation()
             .name(CACHE_NAME)
             .key(imdb_id)
-            .options(CacheOptions {
-                cache_type: CacheType::CacheLast,
-                expires_after: Duration::days(7),
-            })
+            .options(BaseProvider::default_cache_options())
             .serializer()
             .execute(async move {
                 let mut base = base_arc.lock().await;

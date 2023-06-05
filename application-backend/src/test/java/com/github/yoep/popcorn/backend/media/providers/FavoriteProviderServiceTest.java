@@ -36,7 +36,7 @@ class FavoriteProviderServiceTest {
     @Test
     void testRetrieveDetails() throws ExecutionException, InterruptedException {
         var imdbId = "tt121212";
-        var overview = new ShowOverview();
+        var overview = new ShowOverview.ByReference();
         var details = new ShowDetails();
         var mediaItem = mock(MediaItem.ByValue.class);
         var mediaResult = new MediaResult.ByValue();

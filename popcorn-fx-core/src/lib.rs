@@ -214,7 +214,7 @@ pub mod testing {
             panic!("Temp filepath {:?} does not exist", path)
         }
     }
-    
+
     pub fn read_temp_dir_file_as_bytes(temp_dir: &TempDir, filename: &str) -> Vec<u8> {
         let path = temp_dir.path().join(filename);
         let mut buffer = vec![];

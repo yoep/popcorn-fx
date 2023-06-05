@@ -66,7 +66,7 @@ impl ThumbEnhancer {
                 cache_type: CacheType::CacheFirst,
                 expires_after: Duration::days(3),
             })
-            .mapping(|data| String::from_utf8(data)
+            .map(|data| String::from_utf8(data)
                 .map_err(|e| ThumbEnhancerError::Utf8(e.to_string())))
             .execute(self.retrieve_thumb_image_url(tvdb_id))
             .await {

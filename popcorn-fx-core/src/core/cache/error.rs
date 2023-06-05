@@ -10,23 +10,34 @@ pub type Result<T> = std::result::Result<T, CacheError>;
 pub enum CacheExecutionError<T>
     where T: Error {
     /// An error occurred while executing the operation.
-    #[error("An error occurred while executing the operation: {0}")]
+    #[error("an error occurred while executing the operation: {0}")]
     Operation(T),
     /// An error occurred while mapping the binary data.
-    #[error("An error occurred while mapping the data: {0}")]
+    #[error("an error occurred while mapping the data: {0}")]
     Mapping(T),
     /// An error occurred while handling the cache data.
-    #[error("An error occurred while handling the cache data: {0}")]
+    #[error("an error occurred while handling the cache data: {0}")]
     Cache(CacheError),
 }
 
 /// An error related to cache handling.
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum CacheError {
-    #[error("Cache data location {0} not found")]
+    #[error("cache data location {0} not found")]
     NotFound(String),
+    #[error("failed to parse cache data, {0}")]
+    Parsing(String),
     /// An IO error occurred while handling cache data.
-    #[error("An IO error occurred while handling cache data: {0}")]
+    #[error("an IO error occurred while handling cache data: {0}")]
     Io(String),
+}
+
+#[derive(Debug, Clone, Error)]
+pub enum CacheParserError<T>
+    where T: Error {
+    #[error("an error occurred while executing the operation: {0}")]
+    Operation(T),
+    #[error("an error occurred while parsing the cache data, {0}")]
+    Parsing(String),
 }
 

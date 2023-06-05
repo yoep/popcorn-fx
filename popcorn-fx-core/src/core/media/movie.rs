@@ -76,7 +76,7 @@ impl MediaOverview for MovieOverview {
 
 /// The detailed version of a media item representing a movie.
 /// It contains all information need for a movie description.
-#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}}}", imdb_id, title, year, runtime)]
 pub struct MovieDetails {
     pub title: String,

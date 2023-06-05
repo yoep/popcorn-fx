@@ -7,11 +7,13 @@ use chrono::Duration;
 use log::{debug, error, trace, warn};
 use ring::digest;
 use ring::digest::digest;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, cache};
-use crate::core::cache::{CacheError, CacheExecutionError};
+use crate::core::cache::{CacheError, CacheExecutionError, CacheParserError};
 use crate::core::cache::info::{CacheEntry, CacheInfo};
 use crate::core::cache::strategies::{CacheFirstStrategy, CacheLastStrategy};
 use crate::core::storage::{Storage, StorageError};
@@ -329,7 +331,39 @@ impl InnerCacheManager {
             .map(|e| T::from(e))
     }
 
-    async fn execute_with_mapper<T, E, M, O>(&self, name: &str, key: &str, options: CacheOptions, mapper: M, operation: O) -> Result<T, CacheExecutionError<E>>
+    async fn execute_serializer<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
+        where T: Serialize + DeserializeOwned,
+              E: Error,
+              O: Future<Output=Result<T, E>> {
+        let operation = async move {
+            match operation.await {
+                Ok(e) => {
+                    serde_json::to_string::<T>(&e)
+                        .map(|e| e.as_bytes().to_vec())
+                        .map_err(|e| CacheParserError::Parsing(e.to_string()))
+                }
+                Err(e) => Err(CacheParserError::Operation(e)),
+            }
+        };
+        let output_mapping: fn(Vec<u8>) -> Result<T, CacheParserError<E>> = |e: Vec<u8>| {
+            serde_json::from_slice::<T>(e.as_slice())
+                .map_err(|e| CacheParserError::Parsing(e.to_string()))
+        };
+
+        match self.internal_execute(name, key, options, operation).await {
+            Ok(e) => {
+                debug!("Invoking cache mapper for cache {} entry {}", name, key);
+                output_mapping(e).map_err(|e| Self::map_cache_parser_error(e))
+            }
+            Err(error) => match error {
+                CacheExecutionError::Operation(e) => Err(Self::map_cache_parser_error(e)),
+                CacheExecutionError::Mapping(e) => Err(Self::map_cache_parser_error(e)),
+                CacheExecutionError::Cache(inner) => Err(CacheExecutionError::Cache(inner)),
+            },
+        }
+    }
+
+    async fn execute_with_mapper<T, E, M, O>(&self, name: &str, key: &str, options: CacheOptions, output_mapping: M, operation: O) -> Result<T, CacheExecutionError<E>>
         where T: AsRef<[u8]>,
               E: Error,
               M: FnOnce(Vec<u8>) -> Result<T, E>,
@@ -337,7 +371,7 @@ impl InnerCacheManager {
         match self.internal_execute(name, key, options, operation).await {
             Ok(e) => {
                 debug!("Invoking cache mapper for cache {} entry {}", name, key);
-                mapper(e).map_err(|e| CacheExecutionError::Mapping(e))
+                output_mapping(e).map_err(|e| CacheExecutionError::Mapping(e))
             }
             Err(e) => {
                 Err(e)
@@ -464,6 +498,14 @@ impl InnerCacheManager {
             .map(|byte| format!("{:02x}", byte))
             .collect::<String>() + EXTENSION
     }
+
+    fn map_cache_parser_error<E>(error: CacheParserError<E>) -> CacheExecutionError<E>
+        where E: Error {
+        match error {
+            CacheParserError::Operation(e) => CacheExecutionError::Operation(e),
+            CacheParserError::Parsing(e) => CacheExecutionError::Cache(CacheError::Parsing(e))
+        }
+    }
 }
 
 impl Drop for InnerCacheManager {
@@ -541,13 +583,24 @@ impl CacheOperation {
     /// # Returns
     ///
     /// A `MappedCacheOperation` instance with the specified mapper function.
-    pub fn mapping<T, E, M>(self, mapper: M) -> MappedCacheOperation<T, E, M>
+    pub fn map<T, E, M>(self, mapper: M) -> MappedCacheOperation<T, E, M>
         where T: AsRef<[u8]>,
               E: Error,
               M: FnOnce(Vec<u8>) -> Result<T, E> {
         MappedCacheOperation {
             inner: self,
             mapper,
+        }
+    }
+
+    /// Serializes the data before storing it within the cache operation.
+    ///
+    /// # Returns
+    ///
+    /// A `SerializedCacheOperation` instance for further serialization operations.
+    pub fn serializer(self) -> SerializedCacheOperation {
+        SerializedCacheOperation {
+            inner: self,
         }
     }
 
@@ -677,6 +730,98 @@ impl<T, E, M> MappedCacheOperation<T, E, M>
     }
 }
 
+/// Represents a cache operation specifically designed for serialization and deserialization.
+#[derive(Debug)]
+pub struct SerializedCacheOperation {
+    inner: CacheOperation,
+}
+
+impl SerializedCacheOperation {
+    /// Sets the name for the cache operation.
+    ///
+    /// # Arguments
+    ///
+    /// * name - The name of the cache operation.
+    pub fn name<V: AsRef<str>>(mut self, name: V) -> Self {
+        self.inner.name = Some(name.as_ref().to_string());
+        self
+    }
+
+    /// Sets the key for the cache operation.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key of the cache operation.
+    pub fn key<V: AsRef<str>>(mut self, key: V) -> Self {
+        self.inner.key = Some(key.as_ref().to_string());
+        self
+    }
+
+    /// Sets the cache options for the cache operation.
+    ///
+    /// # Arguments
+    ///
+    /// * `options` - The cache options for the cache operation.
+    pub fn options(mut self, options: CacheOptions) -> Self {
+        self.inner.options = Some(options);
+        self
+    }
+
+    /// Executes the cache operation asynchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `operation` - The operation to execute.
+    ///
+    /// # Returns
+    ///
+    /// The result of the cache operation.
+    ///
+    /// # Generic Parameters
+    ///
+    /// * `T` - The type of the value to be serialized or deserialized.
+    /// * `E` - The type of the error that may occur during serialization or deserialization.
+    /// * `O` - The type of the future representing the operation.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::error::Error;
+    /// use serde::{Serialize, Deserialize};
+    /// use popcorn_fx_core::core::cache::{CacheExecutionError, CacheOptions, SerializedCacheOperation};
+    ///
+    /// async fn operation() -> Result<Vec<u8>, Box<dyn Error>> {
+    ///     // Implementation code here...
+    ///     # Ok(vec![])
+    /// }
+    ///
+    /// let cache_operation = SerializedCacheOperation::new(cache_manager)
+    ///     .name("my_cache")
+    ///     .key("my_key")
+    ///     .options(CacheOptions::default());
+    ///
+    /// let result: Result<Vec<u8>, CacheExecutionError<Box<dyn Error>>> = cache_operation.execute(operation);
+    /// match result {
+    ///     Ok(data) => {
+    ///         // Process the obtained data...
+    ///     }
+    ///     Err(err) => {
+    ///         // Handle the cache execution error...
+    ///     }
+    /// }
+    /// ```
+    pub async fn execute<T, E, O>(self, operation: O) -> Result<T, CacheExecutionError<E>>
+        where T: Serialize + DeserializeOwned,
+              E: Error,
+              O: Future<Output=Result<T, E>> {
+        let name = self.inner.name.expect("Name is missing");
+        let key = self.inner.key.expect("Key is missing");
+        let options = self.inner.options.expect("Options are missing");
+
+        self.inner.cache_manager.execute_serializer(name.as_str(), key.as_str(), options, operation).await
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::string::FromUtf8Error;
@@ -687,7 +832,7 @@ mod test {
 
     use crate::assert_timeout;
     use crate::core::cache::CacheExecutionError;
-    use crate::core::media::MediaError;
+    use crate::core::media::{MediaError, MovieOverview};
     use crate::testing::{copy_test_file, init_logger, read_test_file_to_bytes};
 
     use super::*;
@@ -714,7 +859,7 @@ mod test {
                     cache_type: CacheType::CacheFirst,
                     expires_after: Duration::hours(6),
                 })
-                .mapping(|e| String::from_utf8(e))
+                .map(|e| String::from_utf8(e))
                 .execute(async { Ok(expected_data.to_string()) }).await;
             result
         }) {
@@ -800,7 +945,7 @@ mod test {
                     cache_type: CacheType::CacheFirst,
                     expires_after: Duration::hours(6),
                 })
-                .execute(async { Err(MediaError::ProviderRequestFailed("this should not have been executed".to_string(), 500))}).await;
+                .execute(async { Err(MediaError::ProviderRequestFailed("this should not have been executed".to_string(), 500)) }).await;
             result
         }).unwrap();
         assert_eq!(expected_result, data);
@@ -844,6 +989,108 @@ mod test {
 
         rx.recv_timeout(core::time::Duration::from_millis(200)).unwrap();
         assert_eq!(expected_result, data);
+    }
+
+    #[test]
+    fn test_execute_serializer() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
+        let media = MovieOverview {
+            imdb_id: "tt1112233".to_string(),
+            title: "Lorem ipsum".to_string(),
+            year: "".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+        let runtime = Runtime::new().unwrap();
+
+        let cloned_manager = cache_manager.clone();
+        let cloned_media = media.clone();
+        let result = runtime.block_on(async move {
+            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager.operation()
+                .name("test")
+                .key("lorem")
+                .options(CacheOptions {
+                    cache_type: CacheType::CacheFirst,
+                    expires_after: Duration::hours(5),
+                })
+                .serializer()
+                .execute(async {
+                    Ok(cloned_media)
+                })
+                .await;
+            result
+        });
+
+        if let Ok(e) = result {
+            assert_eq!(media, e)
+        } else {
+            assert!(false, "expected the cache operation to succeed, {:?}", result)
+        }
+    }
+
+    #[test]
+    fn test_execute_serializer_error() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let cache_manager = Arc::new(CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build());
+        let media = MovieOverview {
+            imdb_id: "tt1112233".to_string(),
+            title: "Lorem ipsum".to_string(),
+            year: "".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+        let runtime = Runtime::new().unwrap();
+
+        let cloned_manager = cache_manager.clone();
+        let cloned_media = media.clone();
+        let result = runtime.block_on(async move {
+            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager.operation()
+                .name("test")
+                .key("lorem")
+                .options(CacheOptions {
+                    cache_type: CacheType::CacheFirst,
+                    expires_after: Duration::hours(5),
+                })
+                .serializer()
+                .execute(async {
+                    Err(MediaError::NoAvailableProviders)
+                })
+                .await;
+            result
+        });
+
+        if let Err(execution_error) = result {
+            match execution_error {
+                CacheExecutionError::Operation(e) => assert_eq!(MediaError::NoAvailableProviders, e),
+                _ => assert!(false, "expected CacheExecutionError::Operation, but got {:?} instead", execution_error)
+            }
+        } else {
+            assert!(false, "expected the cache operation to succeed, {:?}", result)
+        }
+    }
+
+    #[test]
+    fn test_map_parser_error() {
+        if let CacheExecutionError::Operation(e) = InnerCacheManager::map_cache_parser_error(CacheParserError::Operation(MediaError::NoAvailableProviders)) {
+            assert_eq!(MediaError::NoAvailableProviders, e);
+        } else {
+            assert!(false, "CacheExecutionError::Operation");
+        }
+
+        if let CacheExecutionError::Cache(e) = InnerCacheManager::map_cache_parser_error(CacheParserError::Parsing::<MediaError>("lorem".to_string())) {
+            assert_eq!(CacheError::Parsing("lorem".to_string()), e);
+        } else {
+            assert!(false, "CacheExecutionError::Mapping");
+        }
     }
 
     #[test]

@@ -208,52 +208,6 @@ pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtit
     }
 }
 
-/// Retrieve the details of a given movie.
-/// It will query the api for the given IMDB ID.
-///
-/// It returns the [MovieDetailsC] on success, else [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_movie_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MovieDetailsC {
-    let imdb_id = from_c_string(imdb_id);
-
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Movies, &imdb_id)) {
-        Ok(e) => {
-            trace!("Returning movie details {:?}", &e);
-            into_c_owned(MovieDetailsC::from(*e
-                .into_any()
-                .downcast::<MovieDetails>()
-                .expect("expected media to be movie details")))
-        }
-        Err(e) => {
-            error!("Failed to retrieve movie details, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
-/// Retrieve the details of a show based on the given IMDB ID.
-/// The details contain all information about the show such as episodes and descriptions.
-///
-/// It returns the [ShowDetailsC] on success, else a [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_show_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut ShowDetailsC {
-    let imdb_id = from_c_string(imdb_id);
-
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Series, &imdb_id)) {
-        Ok(e) => {
-            trace!("Returning show details {:?}", &e);
-            into_c_owned(ShowDetailsC::from(*e
-                .into_any()
-                .downcast::<ShowDetails>()
-                .expect("expected media to be a show")))
-        }
-        Err(e) => {
-            error!("Failed to retrieve show details, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.
 #[no_mangle]
@@ -279,41 +233,6 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
         }
         Err(e) => {
             error!("Failed to retrieve favorites, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
-/// Retrieve the details of a favorite item on the given IMDB ID.
-/// The details contain all information about the media item.
-///
-/// It returns the [MediaItemC] on success, else a [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_favorite_details(popcorn_fx: &mut PopcornFX, imdb_id: *const c_char) -> *mut MediaItemC {
-    let imdb_id = from_c_string(imdb_id);
-
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve_details(&Category::Favorites, imdb_id.as_str())) {
-        Ok(e) => {
-            trace!("Returning favorite details {:?}", &e);
-            match e.media_type() {
-                MediaType::Movie => {
-                    into_c_owned(MediaItemC::from(*e.into_any()
-                        .downcast::<MovieDetails>()
-                        .expect("expected the favorite item to be a movie")))
-                }
-                MediaType::Show => {
-                    into_c_owned(MediaItemC::from_show_details(*e.into_any()
-                        .downcast::<ShowDetails>()
-                        .expect("expected the favorite item to be a show")))
-                }
-                _ => {
-                    error!("Media type {} is not supported to retrieve favorite details", e.media_type());
-                    ptr::null_mut()
-                }
-            }
-        }
-        Err(e) => {
-            error!("Failed to retrieve favorite details, {}", e);
             ptr::null_mut()
         }
     }

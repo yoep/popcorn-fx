@@ -16,6 +16,8 @@ import java.util.Optional;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"movieOverview", "movieDetails", "showOverview", "showDetails", "episode"})
 public class MediaItem extends Structure implements Closeable {
+    public static class ByValue extends MediaItem implements Structure.ByValue {
+    }
     public static class ByReference extends MediaItem implements Structure.ByReference {
     }
 

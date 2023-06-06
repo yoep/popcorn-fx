@@ -1,12 +1,13 @@
 use std::thread;
-use std::time::Duration;
 
+use chrono::Duration;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
 use reqwest::{Client, Response, Url};
 use reqwest::redirect::Policy;
 use serde::de::DeserializeOwned;
 
+use crate::core::cache::{CacheOptions, CacheType};
 use crate::core::media::{Genre, MediaError, SortBy};
 
 const SORT_QUERY: &str = "sort";
@@ -18,7 +19,7 @@ const ORDER_QUERY_VALUE: &str = "-1";
 /// A basic provider which provides common functionality for each provider.
 /// It is meant to be used within other providers and not on it's own.
 ///
-/// ```rust
+/// ```no_run
 /// use popcorn_fx_core::core::media::providers::BaseProvider;
 ///
 /// struct MyProvider {
@@ -41,7 +42,15 @@ pub struct BaseProvider {
 
 impl BaseProvider {
     /// Create a new base provider.
-    /// * uris  - The available host uri's to use for this provider.
+    ///
+    /// # Arguments
+    ///
+    /// * `uris` - The available host URIs to use for this provider.
+    /// * `insecure` - A flag indicating whether to accept invalid certificates.
+    ///
+    /// # Returns
+    ///
+    /// A new `BaseProvider` instance.
     pub fn new(uris: Vec<String>, insecure: bool) -> Self {
         Self {
             client: Client::builder()
@@ -62,12 +71,20 @@ impl BaseProvider {
         }
     }
 
-    /// Retrieve the [T] for the given resource.
-    /// The retrieval will try all known api's and disable the ones which are unavailable along the way.
+    /// Retrieve the `[T]` for the given resource.
+    /// The retrieval will try all known APIs and disable the ones which are unavailable along the way.
     ///
-    /// * [T] - The data model being returned.
+    /// # Arguments
     ///
-    /// It returns an array of [T] items on success, else the [providers::ProviderError].
+    /// * `resource` - The resource to retrieve.
+    /// * `genre` - The genre of the resource.
+    /// * `sort` - The sorting criteria for the retrieved data.
+    /// * `keywords` - The search keywords.
+    /// * `page` - The page number.
+    ///
+    /// # Returns
+    ///
+    /// An array of `[T]` items on success, or a `providers::ProviderError` if there was an error.
     pub async fn retrieve_provider_page<T>(&mut self, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<T>>
         where T: DeserializeOwned {
         let client = self.client.clone();
@@ -98,6 +115,16 @@ impl BaseProvider {
         Err(MediaError::NoAvailableProviders)
     }
 
+    /// Retrieve details for the given resource.
+    ///
+    /// # Arguments
+    ///
+    /// * `resource` - The resource to retrieve details for.
+    /// * `id` - The ID of the resource.
+    ///
+    /// # Returns
+    ///
+    /// The details of the resource, or a `providers::ProviderError` if there was an error.
     pub async fn retrieve_details<T>(&mut self, resource: &str, id: &str) -> crate::core::media::Result<T>
         where T: DeserializeOwned {
         let client = self.client.clone();
@@ -128,6 +155,18 @@ impl BaseProvider {
         Err(MediaError::NoAvailableProviders)
     }
 
+    /// Get the default cache options.
+    ///
+    /// # Returns
+    ///
+    /// The default `CacheOptions` instance.
+    pub fn default_cache_options() -> CacheOptions {
+        CacheOptions {
+            cache_type: CacheType::CacheLast,
+            expires_after: Duration::days(7),
+        }
+    }
+
     async fn send_request_with_provider<T>(client: &Client, url: &Url, provider: &mut UriProvider) -> Option<crate::core::media::Result<T>>
         where T: DeserializeOwned {
         while !provider.disabled {
@@ -143,7 +182,7 @@ impl BaseProvider {
                         // any other error might be temporary such as 502
                         // so we increase the failed attempts and try again
                         _ => {
-                            let delay = Duration::from_millis(500);
+                            let delay = std::time::Duration::from_millis(500);
                             trace!("Request was unsuccessful, retrying in {} millis", delay.as_millis());
                             thread::sleep(delay);
                             provider.increase_failure()
@@ -234,7 +273,7 @@ impl BaseProvider {
     }
 }
 
-#[derive(Debug, Display)]
+#[derive(Debug, Clone, Display)]
 #[display(fmt = "uri: {}, disabled: {}, failed_attempts: {}", uri, disabled, failed_attempts)]
 struct UriProvider {
     uri: String,

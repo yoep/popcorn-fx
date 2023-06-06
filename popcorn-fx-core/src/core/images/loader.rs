@@ -1,13 +1,19 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
-use log::{debug, error, trace};
+use chrono::Duration;
+use log::{debug, trace, warn};
 use reqwest::Client;
 use url::Url;
 
+use crate::core::cache::{CacheManager, CacheOptions, CacheType};
+use crate::core::images::ImageError;
 use crate::core::media::MediaOverview;
 
 const POSTER_PLACEHOLDER: &[u8] = include_bytes!("../../../resources/posterholder.png");
 const ART_PLACEHOLDER: &[u8] = include_bytes!("../../../resources/artholder.png");
 const BACKGROUND_HOLDER: &[u8] = include_bytes!("../../../resources/background.jpg");
+const CACHE_NAME: &str = "images";
 
 /// The `ImageLoader` trait is responsible for loading image data from local or remote locations.
 ///
@@ -75,45 +81,76 @@ pub trait ImageLoader {
 #[derive(Debug)]
 pub struct DefaultImageLoader {
     client: Client,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl DefaultImageLoader {
+    /// Creates a new `DefaultImageLoader` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `cache_manager` - The cache manager for storing and retrieving image data.
+    ///
+    /// # Returns
+    ///
+    /// A new `DefaultImageLoader` instance.
+    pub fn new(cache_manager: Arc<CacheManager>) -> Self {
+        Self {
+            client: Client::builder()
+                .build()
+                .expect("expected a new client"),
+            cache_manager,
+        }
+    }
+
+    /// Retrieves the image data from the cache or fetches it remotely if not available in the cache.
+    ///
+    /// # Arguments
+    ///
+    /// * `image_url` - The URL of the image to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// The image data as a `Vec<u8>`, or `None` if the data could not be retrieved.
     async fn retrieve_image_data(&self, image_url: &str) -> Option<Vec<u8>> {
-        trace!("Parsing image url {}", image_url);
-        match Url::parse(image_url) {
-            Ok(url) => {
-                debug!("Retrieving image data from {:?}", url);
-                match self.client.get(url)
-                    .send()
-                    .await {
-                    Ok(response) => {
-                        trace!("Retrieved image data with status {}", response.status());
-                        if response.status().is_success() {
-                            debug!("Retrieved image data from {}", image_url);
-                            match response.bytes().await {
-                                Ok(bytes) => {
-                                    Some(bytes.to_vec())
-                                }
-                                Err(e) => {
-                                    error!("Failed to retrieve the image binary data, {}", e);
-                                    None
-                                }
-                            }
-                        } else {
-                            error!("Received invalid response status {} for image url {}", response.status(), image_url);
-                            None
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to load image data, {}", e);
-                        None
-                    }
-                }
-            }
+        match self.cache_manager.operation()
+            .name(CACHE_NAME)
+            .key(image_url)
+            .options(CacheOptions {
+                cache_type: CacheType::CacheFirst,
+                expires_after: Duration::days(1),
+            })
+            .execute(self.fetch_remote_image_data(image_url))
+            .await {
+            Ok(e) => Some(e),
             Err(e) => {
-                error!("Failed to parse image url, {}", e);
+                warn!("Failed to retrieve image data, {}", e);
                 None
             }
+        }
+    }
+
+    async fn fetch_remote_image_data(&self, image_url: &str) -> Result<Vec<u8>, ImageError> {
+        trace!("Parsing image url {}", image_url);
+        let url = Url::parse(image_url)
+            .map_err(|e| ImageError::ParseUrl(e.to_string()))?;
+
+        debug!("Retrieving image data from {:?}", url);
+        let response = self.client.get(url)
+            .send()
+            .await
+            .map_err(|e| ImageError::Load(e.to_string()))?;
+
+        trace!("Retrieved image data with status {}", response.status());
+        if response.status().is_success() {
+            debug!("Retrieved image data from {}", image_url);
+            match response.bytes().await {
+                Ok(bytes) => Ok(bytes.to_vec()),
+                Err(e) => Err(ImageError::Load(format!("failed to retrieve the image binary data, {}", e))),
+            }
+        } else {
+            warn!("Received invalid response status {} for image url {}", response.status(), image_url);
+            Err(ImageError::Load(format!("received response status {}", response.status())))
         }
     }
 }
@@ -152,20 +189,11 @@ impl ImageLoader for DefaultImageLoader {
     }
 }
 
-impl Default for DefaultImageLoader {
-    fn default() -> Self {
-        Self {
-            client: Client::builder()
-                .build()
-                .expect("expected a new client")
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use httpmock::Method::GET;
     use httpmock::MockServer;
+    use tempfile::tempdir;
     use tokio::runtime::Runtime;
 
     use crate::core::media::{Images, MovieOverview, ShowOverview};
@@ -176,7 +204,12 @@ mod test {
     #[test]
     fn test_default_poster() {
         init_logger();
-        let loader = DefaultImageLoader::default();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
+        let loader = DefaultImageLoader::new(cache_manager);
 
         assert_eq!(POSTER_PLACEHOLDER.to_vec(), loader.default_poster())
     }
@@ -184,6 +217,8 @@ mod test {
     #[test]
     fn test_load_fanart() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let expected_result = read_test_file_to_bytes("image.png");
         server.mock(|when, then| {
@@ -203,11 +238,14 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let loader = DefaultImageLoader::default();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
+        let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let result = runtime.block_on(async move {
-            loader.load_fanart(&media).await
+        let (result, _) = runtime.block_on(async move {
+            (loader.load_fanart(&media).await, loader)
         });
 
         assert_eq!(expected_result, result)
@@ -216,6 +254,8 @@ mod test {
     #[test]
     fn test_load_fanart_invalid_url() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let media = Box::new(MovieOverview {
             title: "lorem ipsum".to_string(),
             imdb_id: "tt121212".to_string(),
@@ -227,11 +267,14 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let loader = DefaultImageLoader::default();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
+        let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let result = runtime.block_on(async move {
-            loader.load_fanart(&media).await
+        let (result, _) = runtime.block_on(async move {
+            (loader.load_fanart(&media).await, loader)
         });
 
         assert_eq!(BACKGROUND_HOLDER, result)
@@ -240,6 +283,8 @@ mod test {
     #[test]
     fn test_load_fanart_invalid_response() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET)
@@ -258,11 +303,14 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let loader = DefaultImageLoader::default();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
+        let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let result = runtime.block_on(async move {
-            loader.load_fanart(&media).await
+        let (result, _) = runtime.block_on(async move {
+            (loader.load_fanart(&media).await, loader)
         });
 
         assert_eq!(BACKGROUND_HOLDER, result)
@@ -271,6 +319,8 @@ mod test {
     #[test]
     fn test_load_poster() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let expected_result = read_test_file_to_bytes("image.png");
         server.mock(|when, then| {
@@ -292,11 +342,14 @@ mod test {
             },
             rating: None,
         }) as Box<dyn MediaOverview>;
-        let loader = DefaultImageLoader::default();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
+        let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let result = runtime.block_on(async move {
-            loader.load_poster(&media).await
+        let (result, _) = runtime.block_on(async move {
+            (loader.load_poster(&media).await, loader)
         });
 
         assert_eq!(expected_result, result)
@@ -305,6 +358,8 @@ mod test {
     #[test]
     fn test_load_url() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         let expected_result = read_test_file_to_bytes("image.png");
         server.mock(|when, then| {
@@ -314,11 +369,14 @@ mod test {
                 .body(expected_result.as_slice());
         });
         let url = server.url("/my-image.png");
-        let loader = DefaultImageLoader::default();
+        let cache_manager = Arc::new(CacheManager::builder()
+            .storage_path(temp_path)
+            .build());
+        let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let result = runtime.block_on(async move {
-            loader.load(url.as_str()).await
+        let (result, _) = runtime.block_on(async move {
+            (loader.load(url.as_str()).await, loader)
         });
 
         assert_eq!(Some(expected_result), result)

@@ -20,8 +20,25 @@ pub enum MediaSetResult {
 impl From<MediaError> for MediaSetResult {
     fn from(value: MediaError) -> Self {
         match value {
-            MediaError::NoAvailableProviders => MediaSetResult::Err(MediaErrorC::NoAvailableProviders),
-            _ => MediaSetResult::Err(MediaErrorC::Failed),
+            MediaError::NoAvailableProviders => Self::Err(MediaErrorC::NoAvailableProviders),
+            _ => Self::Err(MediaErrorC::Failed),
+        }
+    }
+}
+
+/// The C-compatible media result for a single media item.
+#[repr(C)]
+#[derive(Debug)]
+pub enum MediaResult {
+    Ok(MediaItemC),
+    Err(MediaErrorC),
+}
+
+impl From<MediaError> for MediaResult {
+    fn from(value: MediaError) -> Self {
+        match value {
+            MediaError::NoAvailableProviders => Self::Err(MediaErrorC::NoAvailableProviders),
+            _ => Self::Err(MediaErrorC::Failed),
         }
     }
 }
@@ -33,6 +50,16 @@ pub enum MediaErrorC {
     Failed = 0,
     NoItemsFound = 1,
     NoAvailableProviders = 2,
+}
+
+impl From<MediaError> for MediaErrorC {
+    fn from(value: MediaError) -> Self {
+        match value {
+            MediaError::NoAvailableProviders => MediaErrorC::NoAvailableProviders,
+            MediaError::ProviderNotFound(_) => MediaErrorC::NoAvailableProviders,
+            _ => MediaErrorC::Failed,
+        }
+    }
 }
 
 /// Structure defining a set of media items.
@@ -979,5 +1006,25 @@ mod test {
 
         assert_eq!(title, result.title().as_str());
         assert_eq!(id, result.imdb_id())
+    }
+
+    #[test]
+    fn test_media_result_from_media_error() {
+        init_logger();
+        let error = MediaError::NoAvailableProviders;
+
+        let result = MediaResult::from(error);
+
+        match result {
+            MediaResult::Err(e) => assert_eq!(MediaErrorC::NoAvailableProviders, e),
+            _ => assert!(false, "expected MediaResult::Err, got {:?} instead", result)
+        }
+    }
+
+    #[test]
+    fn test_media_error_c_from() {
+        assert_eq!(MediaErrorC::NoAvailableProviders, MediaErrorC::from(MediaError::NoAvailableProviders));
+        assert_eq!(MediaErrorC::NoAvailableProviders, MediaErrorC::from(MediaError::ProviderNotFound(String::new())));
+        assert_eq!(MediaErrorC::Failed, MediaErrorC::from(MediaError::FavoriteNotFound(String::new())));
     }
 }

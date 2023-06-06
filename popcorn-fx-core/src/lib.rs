@@ -142,11 +142,11 @@ pub mod testing {
     /// * `output_filename` - The new filename within the temp directory
     pub fn copy_test_file(temp_dir: &str, filename: &str, output_filename: Option<&str>) -> String {
         let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
-        let mut source = PathBuf::from(root_dir);
-        source.push("test");
-        source.push(filename);
-        let mut destination = PathBuf::from(temp_dir);
-        destination.push(output_filename.or_else(|| Some(filename)).unwrap());
+        let source = PathBuf::from(root_dir)
+            .join("test")
+            .join(filename);
+        let destination = PathBuf::from(temp_dir)
+            .join(output_filename.unwrap_or(filename));
 
         // make sure the parent dir exists
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
@@ -154,7 +154,7 @@ pub mod testing {
         trace!("Copying test file {} to {:?}", filename, destination);
         fs::copy(&source, &destination).unwrap();
 
-        destination.as_path().to_str().unwrap().to_string()
+        destination.to_str().unwrap().to_string()
     }
 
     /// Retrieve the path to the testing resource directory.
@@ -193,7 +193,7 @@ pub mod testing {
     }
 
     /// Read a file from the temp directory.
-    pub fn read_temp_dir_file(temp_dir: &TempDir, filename: &str) -> String {
+    pub fn read_temp_dir_file_as_string(temp_dir: &TempDir, filename: &str) -> String {
         let path = temp_dir.path().join(filename);
 
         trace!("Reading temp filepath {:?}", path);
@@ -207,6 +207,28 @@ pub mod testing {
                 Ok(e) => {
                     debug!("Read temp file {:?} with size {}", path, e);
                     content
+                }
+                Err(e) => panic!("Failed to read temp file, {}", e)
+            }
+        } else {
+            panic!("Temp filepath {:?} does not exist", path)
+        }
+    }
+
+    pub fn read_temp_dir_file_as_bytes(temp_dir: &TempDir, filename: &str) -> Vec<u8> {
+        let path = temp_dir.path().join(filename);
+        let mut buffer = vec![];
+
+        trace!("Reading temp filepath {:?}", path);
+        if path.exists() {
+            match OpenOptions::new()
+                .read(true)
+                .open(&path)
+                .unwrap()
+                .read_to_end(&mut buffer) {
+                Ok(e) => {
+                    debug!("Read temp file {:?} with size {}", path, e);
+                    buffer
                 }
                 Err(e) => panic!("Failed to read temp file, {}", e)
             }

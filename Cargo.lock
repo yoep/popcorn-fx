@@ -1673,7 +1673,7 @@ dependencies = [
  "log",
  "memchr",
  "mime",
- "spin",
+ "spin 0.9.8",
  "version_check",
 ]
 
@@ -1964,7 +1964,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "async-trait",
  "cbindgen",
@@ -1989,7 +1989,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-bootstrap"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "directories",
  "log",
@@ -2020,7 +2020,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-core"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2042,6 +2042,7 @@ dependencies = [
  "popcorn-fx-core",
  "regex",
  "reqwest",
+ "ring",
  "semver",
  "serde",
  "serde_json",
@@ -2057,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-opensubtitles"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2076,7 +2077,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-platform"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "core-foundation",
  "derive_more",
@@ -2093,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-torrent"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "async-trait",
  "log",
@@ -2104,7 +2105,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-torrent-stream"
-version = "0.6.5"
+version = "0.7.1"
 dependencies = [
  "bytes",
  "derive_more",
@@ -2303,6 +2304,21 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "winreg",
+]
+
+[[package]]
+name = "ring"
+version = "0.16.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
+dependencies = [
+ "cc",
+ "libc",
+ "once_cell",
+ "spin 0.5.2",
+ "untrusted",
+ "web-sys",
+ "winapi",
 ]
 
 [[package]]
@@ -2580,6 +2596,12 @@ dependencies = [
  "objc",
  "windows 0.44.0",
 ]
+
+[[package]]
+name = "spin"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"
@@ -2974,6 +2996,12 @@ name = "unsafe-libyaml"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1865806a559042e51ab5414598446a5871b561d21b6764f2eabb0dd481d880a6"
+
+[[package]]
+name = "untrusted"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
 
 [[package]]
 name = "url"

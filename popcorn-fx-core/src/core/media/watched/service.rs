@@ -118,7 +118,9 @@ impl DefaultWatchedService {
     }
 
     fn load_watched_from_storage(&self) -> media::Result<Watched> {
-        match self.storage.read(FILENAME) {
+        match self.storage.options()
+            .serializer(FILENAME)
+            .read() {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
@@ -144,7 +146,10 @@ impl DefaultWatchedService {
     }
 
     async fn save_async(&self, watchable: &Watched) {
-        match self.storage.write_async(FILENAME, &watchable).await {
+        match self.storage
+            .options()
+            .serializer(FILENAME)
+            .write_async(watchable).await {
             Ok(_) => info!("Watched items have been saved"),
             Err(e) => error!("Failed to save watched items, {}", e)
         }

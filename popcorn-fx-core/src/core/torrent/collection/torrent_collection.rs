@@ -103,7 +103,9 @@ impl TorrentCollection {
     }
 
     fn load_collection_from_storage(&self) -> torrent::Result<Collection> {
-        match self.storage.read::<Collection>(FILENAME) {
+        match self.storage.options()
+            .serializer(FILENAME)
+            .read::<Collection>() {
             Ok(e) => Ok(e),
             Err(e) => {
                 match e {
@@ -129,7 +131,9 @@ impl TorrentCollection {
     }
 
     async fn save_async(&self, collection: &Collection) {
-        match self.storage.write_async(FILENAME, &collection).await {
+        match self.storage.options()
+            .serializer(FILENAME)
+            .write_async(collection).await {
             Ok(_) => info!("Torrent collection data has been saved"),
             Err(e) => error!("Failed to save torrent collection, {}", e)
         }

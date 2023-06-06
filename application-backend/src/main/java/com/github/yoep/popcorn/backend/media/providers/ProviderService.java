@@ -42,15 +42,6 @@ public interface ProviderService<T extends Media> {
     CompletableFuture<Page<T>> getPage(Genre genre, SortBy sortBy, int page, String keywords);
 
     /**
-     * Get the {@link Media} details of the given imdb ID.
-     *
-     * @param imdbId The imdb id of the {@link Media}.
-     * @return Returns the {@link Media} details for the given id.
-     */
-    @Async
-    CompletableFuture<T> getDetails(String imdbId);
-
-    /**
      * Retrieve the full details of the {@link Media} item.
      * This will load the details for the media item through the provider.
      *

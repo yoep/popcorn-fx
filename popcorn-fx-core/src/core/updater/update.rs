@@ -776,7 +776,7 @@ mod test {
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
     use crate::core::storage::Storage;
     use crate::core::updater::PatchInfo;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file, read_test_file_to_string, test_resource_filepath};
+    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
 
@@ -917,14 +917,13 @@ mod test {
     }
 
     #[test]
-    fn test_download() {
+    fn test_download_application() {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
         let filename = "popcorn-time_99.0.0.deb";
         let app_url = server.url("/v99.0.0/popcorn-time_99.0.0.deb");
-        let runtime_url = server.url("/v100.0.0/runtime.zip");
         server.mock(move |when, then| {
             when.method(GET)
                 .path(format!("/{}", UPDATE_INFO_FILE));
@@ -938,23 +937,14 @@ mod test {
     }}
   }},
   "runtime": {{
-    "version": "100.0.0",
-    "platforms": {{
-        "debian.x86_64": "{}"
-    }}
+    "version": "1.0.0",
+    "platforms": {{}}
   }}
-}}"#, app_url, runtime_url));
+}}"#, app_url));
         });
         server.mock(move |when, then| {
             when.method(GET)
                 .path("/v99.0.0/popcorn-time_99.0.0.deb");
-            then.status(200)
-                .header("content-type", "application/octet-stream")
-                .body_from_file(test_resource_filepath(filename).to_str().unwrap());
-        });
-        server.mock(move |when, then| {
-            when.method(GET)
-                .path("/v100.0.0/runtime.zip");
             then.status(200)
                 .header("content-type", "application/octet-stream")
                 .body_from_file(test_resource_filepath(filename).to_str().unwrap());
@@ -975,7 +965,61 @@ mod test {
         let _ = runtime.block_on(async {
             updater.download().await
         }).expect("expected the download to succeed");
-        let result = read_temp_dir_file(&temp_dir, format!("updates/{}", filename).as_str());
+        let result = read_temp_dir_file_as_string(&temp_dir, format!("updates/{}", filename).as_str());
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_download_runtime() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (server, settings) = create_server_and_settings(temp_path);
+        let filename = "runtime.tar.gz";
+        let runtime_url = server.url("/v100.0.0/runtime.tar.gz");
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(r#"{{
+  "application": {{
+    "version": "1.0.0",
+    "platforms": {{}}
+  }},
+  "runtime": {{
+    "version": "100.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }}
+}}"#, runtime_url));
+        });
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path("/v100.0.0/runtime.tar.gz");
+            then.status(200)
+                .header("content-type", "application/octet-stream")
+                .body_from_file(test_resource_filepath(filename).to_str().unwrap());
+        });
+        let platform = default_platform_info();
+        let runtime = Runtime::new().unwrap();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+        let expected_result = read_test_file_to_bytes(filename);
+
+        // wait for state update available
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+
+        let _ = runtime.block_on(async {
+            updater.download().await
+        }).expect("expected the download to succeed");
+        let result = read_temp_dir_file_as_bytes(&temp_dir, format!("updates/{}", filename).as_str());
 
         assert_eq!(expected_result, result)
     }

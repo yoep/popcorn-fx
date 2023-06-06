@@ -77,7 +77,7 @@ impl MediaOverview for ShowOverview {
 }
 
 /// The details of a show/serie which contains one or more [Episode] items.
-#[derive(Debug, Clone, PartialEq, Deserialize, Display)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[display(fmt = "{{ShowDetails: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
 pub struct ShowDetails {
     pub imdb_id: String,
@@ -87,7 +87,7 @@ pub struct ShowDetails {
     pub num_seasons: i32,
     pub images: Images,
     pub rating: Option<Rating>,
-    #[serde(rename(deserialize = "contextLocale"))]
+    #[serde(rename = "contextLocale")]
     pub context_locale: String,
     pub synopsis: String,
     pub runtime: String,

@@ -15,110 +15,112 @@ const DEFAULT_USER_AGENT: fn() -> String = || "Popcorn Time v1".to_string();
 const DEFAULT_API_TOKEN: fn() -> String = || "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string();
 const DEFAULT_UPDATE_CHANNEL: fn() -> String = || "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string();
 const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
-    let mut map: HashMap<String, ProviderProperties> = HashMap::new();
-    map.insert("movies".to_string(), ProviderProperties {
-        uris: vec![
-            "https://popcorn-time.ga".to_string(),
-            "https://movies-v2.api-fetch.am".to_string(),
-            "https://movies-v2.api-fetch.website".to_string(),
-            "https://movies-v2.api-fetch.sh".to_string()],
-        genres: vec![
-            "all".to_string(),
-            "action".to_string(),
-            "adventure".to_string(),
-            "animation".to_string(),
-            "comedy".to_string(),
-            "crime".to_string(),
-            "disaster".to_string(),
-            "documentary".to_string(),
-            "drama".to_string(),
-            "family".to_string(),
-            "fantasy".to_string(),
-            "history".to_string(),
-            "holiday".to_string(),
-            "horror".to_string(),
-            "music".to_string(),
-            "mystery".to_string(),
-            "romance".to_string(),
-            "science-fiction".to_string(),
-            "short".to_string(),
-            "suspense".to_string(),
-            "thriller".to_string(),
-            "war".to_string(),
-            "western".to_string()],
-        sort_by: vec![
-            "trending".to_string(),
-            "popularity".to_string(),
-            "last added".to_string(),
-            "year".to_string(),
-            "title".to_string(),
-            "rating".to_string(),
-        ],
-    });
-    map.insert("series".to_string(), ProviderProperties {
-        uris: vec![
-            "https://popcorn-time.ga".to_string(),
-            "https://tv-v2.api-fetch.am".to_string(),
-            "https://tv-v2.api-fetch.website".to_string(),
-            "https://tv-v2.api-fetch.sh".to_string()],
-        genres: vec![
-            "all".to_string(),
-            "action".to_string(),
-            "adventure".to_string(),
-            "animation".to_string(),
-            "children".to_string(),
-            "comedy".to_string(),
-            "crime".to_string(),
-            "documentary".to_string(),
-            "drama".to_string(),
-            "family".to_string(),
-            "fantasy".to_string(),
-            "horror".to_string(),
-            "mini Series".to_string(),
-            "mystery".to_string(),
-            "news".to_string(),
-            "reality".to_string(),
-            "romance".to_string(),
-            "science-fiction".to_string(),
-            "soap".to_string(),
-            "special Interest".to_string(),
-            "sport".to_string(),
-            "suspense".to_string(),
-            "talk Show".to_string(),
-            "thriller".to_string(),
-            "western".to_string(),
-        ],
-        sort_by: vec![
-            "trending".to_string(),
-            "popularity".to_string(),
-            "updated".to_string(),
-            "year".to_string(),
-            "name".to_string(),
-            "rating".to_string(),
-        ],
-    });
-    map.insert("favorites".to_string(), ProviderProperties {
-        uris: vec![],
-        genres: vec![
-            "all".to_string(),
-            "movies".to_string(),
-            "tv".to_string(),
-        ],
-        sort_by: vec![
-            "watched".to_string(),
-            "year".to_string(),
-            "title".to_string(),
-            "rating".to_string(),
-        ],
-    });
-    map
+    vec![
+        ("movies".to_string(), ProviderProperties {
+            uris: vec![
+                "https://popcorn-time.ga".to_string(),
+                "https://shows.cf/".to_string(),
+                "https://movies-v2.api-fetch.am".to_string(),
+                "https://movies-v2.api-fetch.website".to_string(),
+                "https://movies-v2.api-fetch.sh".to_string()],
+            genres: vec![
+                "all".to_string(),
+                "action".to_string(),
+                "adventure".to_string(),
+                "animation".to_string(),
+                "comedy".to_string(),
+                "crime".to_string(),
+                "disaster".to_string(),
+                "documentary".to_string(),
+                "drama".to_string(),
+                "family".to_string(),
+                "fantasy".to_string(),
+                "history".to_string(),
+                "holiday".to_string(),
+                "horror".to_string(),
+                "music".to_string(),
+                "mystery".to_string(),
+                "romance".to_string(),
+                "science-fiction".to_string(),
+                "short".to_string(),
+                "suspense".to_string(),
+                "thriller".to_string(),
+                "war".to_string(),
+                "western".to_string()],
+            sort_by: vec![
+                "trending".to_string(),
+                "popularity".to_string(),
+                "last added".to_string(),
+                "year".to_string(),
+                "title".to_string(),
+                "rating".to_string(),
+            ],
+        }),
+        ("series".to_string(), ProviderProperties {
+            uris: vec![
+                "https://popcorn-time.ga".to_string(),
+                "https://shows.cf/".to_string(),
+                "https://tv-v2.api-fetch.am".to_string(),
+                "https://tv-v2.api-fetch.website".to_string(),
+                "https://tv-v2.api-fetch.sh".to_string()],
+            genres: vec![
+                "all".to_string(),
+                "action".to_string(),
+                "adventure".to_string(),
+                "animation".to_string(),
+                "children".to_string(),
+                "comedy".to_string(),
+                "crime".to_string(),
+                "documentary".to_string(),
+                "drama".to_string(),
+                "family".to_string(),
+                "fantasy".to_string(),
+                "horror".to_string(),
+                "mini Series".to_string(),
+                "mystery".to_string(),
+                "news".to_string(),
+                "reality".to_string(),
+                "romance".to_string(),
+                "science-fiction".to_string(),
+                "soap".to_string(),
+                "special Interest".to_string(),
+                "sport".to_string(),
+                "suspense".to_string(),
+                "talk Show".to_string(),
+                "thriller".to_string(),
+                "western".to_string(),
+            ],
+            sort_by: vec![
+                "trending".to_string(),
+                "popularity".to_string(),
+                "updated".to_string(),
+                "year".to_string(),
+                "name".to_string(),
+                "rating".to_string(),
+            ],
+        }),
+        ("favorites".to_string(), ProviderProperties {
+            uris: vec![],
+            genres: vec![
+                "all".to_string(),
+                "movies".to_string(),
+                "tv".to_string(),
+            ],
+            sort_by: vec![
+                "watched".to_string(),
+                "year".to_string(),
+                "title".to_string(),
+                "rating".to_string(),
+            ],
+        }),
+    ].into_iter().collect()
 };
 const DEFAULT_ENHANCERS: fn() -> HashMap<String, EnhancerProperties> = || {
-    let mut map = HashMap::new();
-    map.insert("tvdb".to_string(), EnhancerProperties {
-        uri: "https://thetvdb.com/series/lorem/episodes".to_string(),
-    });
-    map
+    vec![
+        ("tvdb".to_string(), EnhancerProperties {
+            uri: "https://thetvdb.com/series/lorem/episodes".to_string(),
+        })
+    ].into_iter().collect()
 };
 const DEFAULT_LOGGERS: fn() -> HashMap<String, LoggingProperties> = || HashMap::new();
 

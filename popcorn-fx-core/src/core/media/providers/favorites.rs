@@ -166,16 +166,13 @@ impl MediaProvider for FavoritesProvider {
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
-    use tokio::sync::Mutex;
 
-    use crate::core::config::ApplicationConfig;
     use crate::core::media;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::core::media::favorites::MockFavoriteService;
-    use crate::core::media::providers::MovieProvider;
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
-    use crate::testing::{copy_test_file, init_logger};
+    use crate::testing::init_logger;
 
     use super::*;
 

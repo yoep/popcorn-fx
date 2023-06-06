@@ -3,12 +3,11 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::Duration;
 use itertools::*;
 use log::{debug, info, warn};
 use tokio::sync::Mutex;
 
-use crate::core::cache::{CacheExecutionError, CacheManager, CacheOptions, CacheType};
+use crate::core::cache::{CacheExecutionError, CacheManager};
 use crate::core::config::ApplicationConfig;
 use crate::core::media::{Category, Genre, MediaDetails, MediaError, MediaOverview, MediaType, MovieDetails, MovieOverview, SortBy};
 use crate::core::media::providers::{BaseProvider, MediaDetailsProvider, MediaProvider};

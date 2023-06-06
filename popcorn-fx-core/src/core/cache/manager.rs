@@ -827,6 +827,7 @@ mod test {
     use std::string::FromUtf8Error;
     use std::sync::Arc;
     use std::sync::mpsc::channel;
+    use std::thread;
 
     use tokio::runtime::Runtime;
 
@@ -867,6 +868,7 @@ mod test {
             Err(e) => assert!(false, "expected the cache execution to succeed, {}", e),
         };
 
+        thread::sleep(std::time::Duration::from_millis(10));
         let cache_info: CacheInfo = cache_manager.inner.storage.options()
             .serializer(FILENAME)
             .read()
@@ -1041,17 +1043,9 @@ mod test {
         let cache_manager = Arc::new(CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build());
-        let media = MovieOverview {
-            imdb_id: "tt1112233".to_string(),
-            title: "Lorem ipsum".to_string(),
-            year: "".to_string(),
-            rating: None,
-            images: Default::default(),
-        };
         let runtime = Runtime::new().unwrap();
 
         let cloned_manager = cache_manager.clone();
-        let cloned_media = media.clone();
         let result = runtime.block_on(async move {
             let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager.operation()
                 .name("test")

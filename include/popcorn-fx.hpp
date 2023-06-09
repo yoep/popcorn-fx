@@ -14,6 +14,16 @@ enum class Category : int32_t {
   Favorites = 2,
 };
 
+/// The cleaning mode for downloaded files.
+enum class CleaningMode : int32_t {
+  /// Cleaning is disabled.
+  Off = 0,
+  /// Files are cleaned on application shutdown.
+  OnShutdown = 1,
+  /// Files are cleaned when fully watched.
+  Watched = 2,
+};
+
 /// The decoration to apply to the subtitle during rendering.
 enum class DecorationType : int32_t {
   None = 0,
@@ -345,7 +355,7 @@ struct TorrentSettingsC {
   /// The torrent directory to store the torrents
   const char *directory;
   /// Indicates if the torrents directory will be cleaned on closure
-  bool auto_cleaning_enabled;
+  CleaningMode cleaning_mode;
   /// The max number of connections
   uint32_t connections_limit;
   /// The download rate limit

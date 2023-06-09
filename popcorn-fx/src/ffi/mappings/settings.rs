@@ -5,7 +5,7 @@ use std::ptr;
 use log::trace;
 
 use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned, into_c_string};
-use popcorn_fx_core::core::config::{ApplicationConfigEvent, DecorationType, PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
+use popcorn_fx_core::core::config::{ApplicationConfigEvent, CleaningMode, DecorationType, PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
 use popcorn_fx_core::core::media::Category;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 
@@ -128,7 +128,7 @@ pub struct TorrentSettingsC {
     /// The torrent directory to store the torrents
     pub directory: *const c_char,
     /// Indicates if the torrents directory will be cleaned on closure
-    pub auto_cleaning_enabled: bool,
+    pub cleaning_mode: CleaningMode,
     /// The max number of connections
     pub connections_limit: u32,
     /// The download rate limit
@@ -141,7 +141,7 @@ impl From<&TorrentSettings> for TorrentSettingsC {
     fn from(value: &TorrentSettings) -> Self {
         Self {
             directory: into_c_string(value.directory().to_str().unwrap().to_string()),
-            auto_cleaning_enabled: value.auto_cleaning_enabled,
+            cleaning_mode: value.cleaning_mode.clone(),
             connections_limit: value.connections_limit,
             download_rate_limit: value.download_rate_limit,
             upload_rate_limit: value.upload_rate_limit,
@@ -153,7 +153,7 @@ impl From<TorrentSettingsC> for TorrentSettings {
     fn from(value: TorrentSettingsC) -> Self {
         Self {
             directory: PathBuf::from(from_c_string(value.directory)),
-            auto_cleaning_enabled: value.auto_cleaning_enabled,
+            cleaning_mode: value.cleaning_mode,
             connections_limit: value.connections_limit,
             download_rate_limit: value.download_rate_limit,
             upload_rate_limit: value.upload_rate_limit,
@@ -375,7 +375,7 @@ mod test {
         let directory = "/tmp/lorem/torrent";
         let settings = TorrentSettings {
             directory: PathBuf::from(directory),
-            auto_cleaning_enabled: true,
+            cleaning_mode: CleaningMode::Off,
             connections_limit: 100,
             download_rate_limit: 0,
             upload_rate_limit: 0,
@@ -384,7 +384,7 @@ mod test {
         let result = TorrentSettingsC::from(&settings);
 
         assert_eq!(directory.to_string(), from_c_string(result.directory));
-        assert_eq!(true, result.auto_cleaning_enabled);
+        assert_eq!(CleaningMode::Off, result.cleaning_mode);
         assert_eq!(100, result.connections_limit);
     }
 
@@ -394,14 +394,14 @@ mod test {
         let connections_limit = 200;
         let settings = TorrentSettingsC {
             directory: into_c_string(directory.to_string()),
-            auto_cleaning_enabled: true,
+            cleaning_mode: CleaningMode::Watched,
             connections_limit,
             download_rate_limit: 10,
             upload_rate_limit: 20,
         };
         let expected_result = TorrentSettings {
             directory: PathBuf::from(directory),
-            auto_cleaning_enabled: true,
+            cleaning_mode: CleaningMode::Watched,
             connections_limit,
             download_rate_limit: 10,
             upload_rate_limit: 20,

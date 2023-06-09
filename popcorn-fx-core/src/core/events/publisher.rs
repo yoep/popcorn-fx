@@ -48,7 +48,7 @@ pub const LOWEST_ORDER: Order = i32::MAX;
 /// ```
 pub type EventCallback = Box<dyn Fn(Event) -> Option<Event> + Send>;
 
-/// The event ordering priority type in which the event consumers/listeners will be invoked.
+/// The event ordering priority type that determines the order in which the event consumers/listeners will be invoked.
 pub type Order = i32;
 
 /// The event publisher allows for the publishing and listing to application wide events.
@@ -81,7 +81,29 @@ pub struct EventPublisher {
 }
 
 impl EventPublisher {
-    /// Register a new event consumer/listener to the [EventPublisher].
+    /// Register a new event consumer/listener with the `EventPublisher`.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - The event callback to register.
+    /// * `order` - The ordering priority for the callback. Lower values indicate higher priority.
+    ///
+    /// # Examples
+    ///
+    /// Registering a new event callback with the highest order:
+    ///
+    /// ```no_run
+    /// use popcorn_fx_core::core::events;
+    /// use popcorn_fx_core::core::events::{Event, EventPublisher, EventCallback, Order};
+    ///
+    /// let event_publisher = EventPublisher::default();
+    /// let callback: EventCallback = Box::new(|event| {
+    ///     // Handle the event
+    ///     Some(event)
+    /// });
+    ///
+    /// event_publisher.register(callback, events::HIGHEST_ORDER);
+    /// ```
     pub fn register(&self, callback: EventCallback, order: Order) {
         trace!("Registering a new callback to the EventPublisher");
         let callbacks = self.callbacks.clone();
@@ -96,6 +118,12 @@ impl EventPublisher {
     }
 
     /// Publish a new application event.
+    ///
+    /// This method asynchronously invokes the registered event callbacks with the provided event.
+    ///
+    /// # Arguments
+    ///
+    /// * `event` - The event to publish.
     pub fn publish(&self, event: Event) {
         let callbacks = self.callbacks.clone();
         self.runtime.spawn(async move {

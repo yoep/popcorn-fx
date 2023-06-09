@@ -61,8 +61,10 @@
     </HBox>
 
     <!-- Clear cache -->
-    <CheckBox fx:id="clearCache" text="%settings_torrent_clear_cache"
-              GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+    <Label text="%settings_torrent_cleaning_mode"
+           GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+    <ComboBox fx:id="cleaningMode"
+               GridPane.columnIndex="2" GridPane.rowIndex="4"/>
 
     <!-- Separator -->
     <Separator

@@ -81,7 +81,7 @@ mod test {
     fn test_default() {
         let expected_result = TorrentSettings {
             directory: DEFAULT_DIRECTORY(),
-            cleaning_mode: DEFAULT_AUTO_CLEANING(),
+            cleaning_mode: DEFAULT_CLEANING_MODE(),
             connections_limit: DEFAULT_CONNECTIONS_LIMIT(),
             download_rate_limit: DEFAULT_DOWNLOAD_RATE_LIMIT(),
             upload_rate_limit: DEFAULT_UPLOAD_RATE_LIMIT(),

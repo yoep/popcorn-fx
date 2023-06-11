@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use log::{debug, error};
+use log::{debug, error, trace};
+use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::{events, torrent};
+use popcorn_fx_core::core::{block_in_place, events, torrent};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode};
-use popcorn_fx_core::core::events::{Event, EventPublisher, Order};
+use popcorn_fx_core::core::events::{Event, EventPublisher, Order, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrent::{TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState};
 
@@ -19,16 +20,18 @@ pub struct DefaultTorrentManager {
 }
 
 impl DefaultTorrentManager {
-    pub fn new(settings: Arc<Mutex<ApplicationConfig>>, event_publisher: Arc<EventPublisher>) -> Self {
+    pub fn new(settings: Arc<Mutex<ApplicationConfig>>, event_publisher: Arc<EventPublisher>, runtime: Arc<Runtime>) -> Self {
         let instance = Self {
             inner: Arc::new(InnerTorrentManager {
                 settings,
-            })
+                runtime,
+            }),
         };
 
-        event_publisher.register(Box::new(|event| {
+        let cloned_instance = instance.inner.clone();
+        event_publisher.register(Box::new(move |event| {
             if let Event::PlayerStopped(e) = &event {
-                // TODO
+                cloned_instance.on_player_stopped(e.clone());
             }
 
             Some(event)
@@ -57,14 +60,24 @@ impl TorrentManager for DefaultTorrentManager {
 struct InnerTorrentManager {
     /// The settings of the application
     settings: Arc<Mutex<ApplicationConfig>>,
+    runtime: Arc<Runtime>,
 }
 
 impl InnerTorrentManager {
+    fn on_player_stopped(&self, event: PlayerStoppedEvent) {
+        trace!("Received player stopped event for {:?}", event);
+        let config = block_in_place(self.settings.lock());
+        let torrent_settings = &config.settings.torrent_settings;
+
+        if torrent_settings.cleaning_mode == CleaningMode::Watched {
+            debug!("Handling player stopped event for {:?}", event);
+        }
+    }
 }
 
 impl Drop for InnerTorrentManager {
     fn drop(&mut self) {
-        let mutex = self.settings.blocking_lock();
+        let mutex = block_in_place(self.settings.lock());
         let settings = mutex.settings.torrent();
 
         if settings.cleaning_mode == CleaningMode::OnShutdown {
@@ -87,13 +100,37 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_on_player_stopped() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let output_path = copy_test_file(temp_path, "example.mp4", None);
+        let settings = default_config(temp_path, CleaningMode::Watched);
+        let event_publisher = Arc::new(EventPublisher::default());
+        let manager = DefaultTorrentManager::new(settings, event_publisher.clone(), Arc::new(Runtime::new().unwrap()));
+        let runtime = Runtime::new().unwrap();
+
+        runtime.block_on(async {
+            event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
+                url: "http://localhost:8081/example.mp4".to_string(),
+                media: None,
+                time: None,
+                duration: None,
+            }));
+        });
+
+
+        assert_eq!(false, PathBuf::from(output_path).exists())
+    }
+
+    #[test]
     fn test_drop_cleaning_disabled() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::Off);
         let filepath = copy_test_file(temp_path, "debian.torrent", None);
-        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()));
+        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Runtime::new().unwrap()));
 
         drop(manager);
 
@@ -107,7 +144,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::OnShutdown);
         copy_test_file(temp_path, "debian.torrent", None);
-        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()));
+        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Runtime::new().unwrap()));
 
         drop(manager);
 

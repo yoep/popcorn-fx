@@ -343,7 +343,7 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::config::{DecorationType, Quality, SubtitleFamily, SubtitleSettings, UiScale};
+    use crate::core::config::{CleaningMode, DecorationType, Quality, SubtitleFamily, SubtitleSettings, UiScale};
     use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string};
@@ -531,7 +531,7 @@ mod test {
         let directory = "/tmp/lorem/torrents";
         let settings = TorrentSettings {
             directory: PathBuf::from(directory),
-            auto_cleaning_enabled: false,
+            cleaning_mode: CleaningMode::Off,
             connections_limit: 100,
             download_rate_limit: 0,
             upload_rate_limit: 0,

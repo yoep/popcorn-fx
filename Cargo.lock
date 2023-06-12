@@ -2081,6 +2081,7 @@ name = "popcorn-fx-torrent"
 version = "0.7.2"
 dependencies = [
  "async-trait",
+ "itertools",
  "log",
  "popcorn-fx-core",
  "serde",

@@ -1,6 +1,8 @@
 use std::any::Any;
 
-use log::error;
+use itertools::Itertools;
+use log::{error, trace, warn};
+use url::Url;
 
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
 
@@ -24,6 +26,39 @@ impl PlayerStoppedEvent {
         self.url.as_str()
     }
 
+    pub fn uri(&self) -> Option<Url> {
+        match Url::parse(self.url.as_str()) {
+            Ok(e) => Some(e),
+            Err(e) => {
+                error!("Playback url is invalid, {}", e);
+                None
+            }
+        }
+    }
+
+    pub fn filename(&self) -> Option<String> {
+        match self.uri() {
+            Some(uri) => {
+                trace!("Extracting path from uri {:?}", uri);
+                if let Some(path) = uri.path_segments() {
+                    trace!("Extracting filename from path {:?}", path);
+                    if let Some(filename) = path.last() {
+                        trace!("Extracted filename {} from {}", filename, uri);
+                        return Some(Self::url_decode(filename));
+                    }
+                } else {
+                    warn!("Unable to retrieve filename, uri has no path for {:?}", self);
+                }
+
+                None
+            }
+            None => {
+                warn!("Unable to retrieve filename, no valid uri found for {:?}", self);
+                None
+            }
+        }
+    }
+
     /// The media item that was being played.
     pub fn media(&self) -> Option<&Box<dyn MediaIdentifier>> {
         self.media.as_ref()
@@ -43,6 +78,12 @@ impl PlayerStoppedEvent {
     /// video couldn't be determined.
     pub fn duration(&self) -> Option<&u64> {
         self.duration.as_ref()
+    }
+
+    fn url_decode(filename: &str) -> String {
+        url::form_urlencoded::parse(filename.as_bytes())
+            .map(|(key, value)| key.to_string() + value.as_ref())
+            .join("")
     }
 }
 

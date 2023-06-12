@@ -1,7 +1,9 @@
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use log::{debug, error, trace};
+use log::{debug, error, info, trace, warn};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
@@ -10,6 +12,8 @@ use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode};
 use popcorn_fx_core::core::events::{Event, EventPublisher, Order, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrent::{TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState};
+
+const CLEANUP_THRESHOLD: f64 = 85 as f64;
 
 /// The default torrent manager of the application.
 /// It currently only cleans the torrent directory if needed.
@@ -35,7 +39,7 @@ impl DefaultTorrentManager {
             }
 
             Some(event)
-        }), events::LOWEST_ORDER);
+        }), events::LOWEST_ORDER - 10);
 
         instance
     }
@@ -71,6 +75,30 @@ impl InnerTorrentManager {
 
         if torrent_settings.cleaning_mode == CleaningMode::Watched {
             debug!("Handling player stopped event for {:?}", event);
+            if let Some(filename) = event.filename() {
+                if let (Some(time), Some(duration)) = (&event.time, &event.duration) {
+                    let percentage = (*time as f64 / *duration as f64) * 100 as f64;
+
+                    trace!("Media {} has been watched for {:.2}", filename, percentage);
+                    if percentage >= CLEANUP_THRESHOLD {
+                        debug!("Cleaning media file \"{}\"", filename);
+                        let filepath = torrent_settings.directory.join(filename);
+                        let absolute_filepath = filepath.to_str().unwrap();
+
+                        if filepath.exists() {
+                            if let Err(e) = fs::remove_file(filepath.as_path()) {
+                                error!("Failed to remove media file \"{}\", {}", absolute_filepath, e)
+                            } else {
+                                info!("Media file \"{}\" has been removed", absolute_filepath);
+                            }
+                        } else {
+                            warn!("Unable to clean {}, filename doesn't exist at the expected location", absolute_filepath)
+                        }
+                    }
+                }
+            } else {
+                warn!("Unable to handle player stopped event, no valid filename found")
+            }
         }
     }
 }
@@ -92,6 +120,8 @@ impl Drop for InnerTorrentManager {
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
 
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
     use popcorn_fx_core::core::storage::Storage;
@@ -104,22 +134,26 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let output_path = copy_test_file(temp_path, "example.mp4", None);
+        let output_path = copy_test_file(temp_path, "example.mp4", Some("lorem ipsum=[dolor].mp4"));
         let settings = default_config(temp_path, CleaningMode::Watched);
         let event_publisher = Arc::new(EventPublisher::default());
         let manager = DefaultTorrentManager::new(settings, event_publisher.clone(), Arc::new(Runtime::new().unwrap()));
-        let runtime = Runtime::new().unwrap();
+        let (tx, rx) = channel();
 
-        runtime.block_on(async {
+        event_publisher.register(Box::new(move |e| {
+            tx.send(true).unwrap();
+            Some(e)
+        }), events::LOWEST_ORDER);
+        manager.inner.runtime.block_on(async {
             event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
-                url: "http://localhost:8081/example.mp4".to_string(),
+                url: "http://localhost:8081/lorem%20ipsum%3D%5Bdolor%5D.mp4".to_string(),
                 media: None,
-                time: None,
-                duration: None,
+                time: Some(55000),
+                duration: Some(60000),
             }));
         });
 
-
+        rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(false, PathBuf::from(output_path).exists())
     }
 

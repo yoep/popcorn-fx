@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 
 use crate::core::{CoreCallback, torrent};
-use crate::core::torrent::TorrentInfo;
+use crate::core::torrent::{TorrentInfo, TorrentWrapper};
 
 /// The callback type for the torrent manager events.
 pub type TorrentManagerCallback = CoreCallback<TorrentManagerEvent>;
@@ -45,17 +46,37 @@ impl Display for TorrentManagerEvent {
 pub trait TorrentManager {
     /// Retrieve the current state of the torrent manager.
     ///
-    /// It returns an owned instance of the state.
+    /// # Returns
+    ///
+    /// An owned instance of the torrent manager state.
     fn state(&self) -> TorrentManagerState;
 
     /// Register a new callback to this manager.
+    ///
     /// The callback will receive events when an action occurs in this manager.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - The callback function to register.
     fn register(&self, callback: TorrentManagerCallback);
 
-    /// Resolve the given url into torrent information.
+    /// Resolve the given URL into torrent information.
     ///
-    /// It returns the meta info on success, else the [torrent::TorrentError].
+    /// # Arguments
+    ///
+    /// * `url` - The URL to resolve into torrent information.
+    ///
+    /// # Returns
+    ///
+    /// The torrent meta information on success, or a [torrent::TorrentError] if there was an error.
     async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo>;
+
+    /// Add a new torrent wrapper to the manager.
+    ///
+    /// # Arguments
+    ///
+    /// * `torrent` - The torrent wrapper to add to the manager.
+    fn add(&self, torrent: Arc<TorrentWrapper>);
 }
 
 #[cfg(test)]

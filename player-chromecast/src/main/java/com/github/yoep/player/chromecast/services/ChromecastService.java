@@ -171,6 +171,7 @@ public class ChromecastService {
 
         log.trace("Loading chromecast tracks for filename: {}, quality: {}", filename, quality);
         return subtitleService.preferredSubtitle()
+                .filter(e -> !e.isNone())
                 .flatMap(e -> {
                     try {
                         return Optional.of(subtitleService.downloadAndParse(e, SubtitleMatcher.from(filename, quality)).get());

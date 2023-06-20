@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -9,9 +8,9 @@ use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::{block_in_place, events, torrent};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode};
-use popcorn_fx_core::core::events::{Event, EventPublisher, Order, PlayerStoppedEvent};
+use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
-use popcorn_fx_core::core::torrent::{TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState};
+use popcorn_fx_core::core::torrent::{Torrent, TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState, TorrentWrapper};
 
 const CLEANUP_THRESHOLD: f64 = 85 as f64;
 
@@ -29,6 +28,7 @@ impl DefaultTorrentManager {
             inner: Arc::new(InnerTorrentManager {
                 settings,
                 runtime,
+                torrents: Default::default(),
             }),
         };
 
@@ -48,15 +48,19 @@ impl DefaultTorrentManager {
 #[async_trait]
 impl TorrentManager for DefaultTorrentManager {
     fn state(&self) -> TorrentManagerState {
-        todo!()
+        self.inner.state()
     }
 
-    fn register(&self, _callback: TorrentManagerCallback) {
-        todo!()
+    fn register(&self, callback: TorrentManagerCallback) {
+        self.inner.register(callback)
     }
 
-    async fn info<'a>(&'a self, _url: &'a str) -> torrent::Result<TorrentInfo> {
-        todo!()
+    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo> {
+        self.inner.info(url).await
+    }
+
+    fn add(&self, torrent: Arc<TorrentWrapper>) {
+        self.inner.add(torrent)
     }
 }
 
@@ -65,6 +69,7 @@ struct InnerTorrentManager {
     /// The settings of the application
     settings: Arc<Mutex<ApplicationConfig>>,
     runtime: Arc<Runtime>,
+    torrents: Mutex<Vec<Arc<TorrentWrapper>>>,
 }
 
 impl InnerTorrentManager {
@@ -82,17 +87,23 @@ impl InnerTorrentManager {
                     trace!("Media {} has been watched for {:.2}", filename, percentage);
                     if percentage >= CLEANUP_THRESHOLD {
                         debug!("Cleaning media file \"{}\"", filename);
-                        let filepath = torrent_settings.directory.join(filename);
-                        let absolute_filepath = filepath.to_str().unwrap();
+                        if let Some(torrent) = self.find_by_filename(filename.as_str()) {
+                            let filepath = torrent.file();
+                            let absolute_filepath = filepath.to_str().unwrap();
 
-                        if filepath.exists() {
-                            if let Err(e) = fs::remove_file(filepath.as_path()) {
-                                error!("Failed to remove media file \"{}\", {}", absolute_filepath, e)
+                            if filepath.exists() {
+                                if let Err(e) = fs::remove_file(filepath.as_path()) {
+                                    error!("Failed to remove media file \"{}\", {}", absolute_filepath, e)
+                                } else {
+                                    info!("Media file \"{}\" has been removed", absolute_filepath);
+                                }
                             } else {
-                                info!("Media file \"{}\" has been removed", absolute_filepath);
+                                warn!("Unable to clean {}, filename doesn't exist at the expected location", absolute_filepath)
                             }
+
+                            self.remove_by_filename(filename.as_str());
                         } else {
-                            warn!("Unable to clean {}, filename doesn't exist at the expected location", absolute_filepath)
+                            warn!("Unable to find related torrent for \"{}\"", filename);
                         }
                     }
                 }
@@ -100,6 +111,57 @@ impl InnerTorrentManager {
                 warn!("Unable to handle player stopped event, no valid filename found")
             }
         }
+    }
+
+    fn find_by_filename(&self, filename: &str) -> Option<Arc<TorrentWrapper>> {
+        let torrents = block_in_place(self.torrents.lock());
+
+        trace!("Searching for \"{}\" in {:?}", filename, *torrents);
+        torrents.iter()
+            .find(|e| {
+                let absolute_path = e.filepath.to_str().unwrap();
+                absolute_path.contains(filename)
+            })
+            .map(|e| e.clone())
+    }
+
+    fn remove_by_filename(&self, filename: &str) {
+        let mut torrents = block_in_place(self.torrents.lock());
+        let position = torrents.iter()
+            .position(|e| {
+                let absolute_path = e.filepath.to_str().unwrap();
+                absolute_path.contains(filename)
+            });
+
+        if let Some(position) = position {
+            let torrent = torrents.remove(position);
+            debug!("Removed torrent {:?}", torrent)
+        } else {
+            warn!("Unable to remove torrent with filename {}, torrent not found", filename)
+        }
+    }
+}
+
+#[async_trait]
+impl TorrentManager for InnerTorrentManager {
+    fn state(&self) -> TorrentManagerState {
+        TorrentManagerState::Running
+    }
+
+    fn register(&self, callback: TorrentManagerCallback) {
+        todo!()
+    }
+
+    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo> {
+        todo!()
+    }
+
+    fn add(&self, torrent: Arc<TorrentWrapper>) {
+        trace!("Adding new torrent wrapper {:?}", torrent);
+        let mut torrents = self.torrents.blocking_lock();
+        let info = torrent.to_string();
+        torrents.push(torrent);
+        debug!("Added torrent {}", info)
     }
 }
 
@@ -125,21 +187,45 @@ mod test {
 
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
     use popcorn_fx_core::core::storage::Storage;
+    use popcorn_fx_core::core::torrent::TorrentState;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use super::*;
+
+    #[test]
+    fn test_state() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_config(temp_path, CleaningMode::Off);
+        let event_publisher = Arc::new(EventPublisher::default());
+        let manager = DefaultTorrentManager::new(settings, event_publisher.clone(), Arc::new(Runtime::new().unwrap()));
+
+        assert_eq!(TorrentManagerState::Running, manager.state())
+    }
 
     #[test]
     fn test_on_player_stopped() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let output_path = copy_test_file(temp_path, "example.mp4", Some("lorem ipsum=[dolor].mp4"));
+        let filename = "lorem ipsum=[dolor].mp4";
+        let output_path = copy_test_file(temp_path, "example.mp4", Some(filename));
         let settings = default_config(temp_path, CleaningMode::Watched);
         let event_publisher = Arc::new(EventPublisher::default());
         let manager = DefaultTorrentManager::new(settings, event_publisher.clone(), Arc::new(Runtime::new().unwrap()));
         let (tx, rx) = channel();
 
+        manager.add(Arc::new(TorrentWrapper {
+            filepath: PathBuf::from(temp_path).join(filename),
+            has_bytes: Mutex::new(Box::new(|_| true)),
+            has_piece: Mutex::new(Box::new(|_| true)),
+            total_pieces: Mutex::new(Box::new(|| 10)),
+            prioritize_bytes: Mutex::new(Box::new(|_| {})),
+            prioritize_pieces: Mutex::new(Box::new(|_| {})),
+            sequential_mode: Mutex::new(Box::new(|| {})),
+            torrent_state: Mutex::new(Box::new(|| TorrentState::Downloading)),
+            callbacks: Default::default(),
+        }));
         event_publisher.register(Box::new(move |e| {
             tx.send(true).unwrap();
             Some(e)
@@ -177,12 +263,13 @@ mod test {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::OnShutdown);
-        copy_test_file(temp_path, "debian.torrent", None);
-        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Runtime::new().unwrap()));
+        copy_test_file(temp_path, "debian.torrent", Some("torrents/debian.torrent"));
+        let manager = DefaultTorrentManager::new(settings.clone(), Arc::new(EventPublisher::default()), Arc::new(Runtime::new().unwrap()));
 
         drop(manager);
 
-        assert_eq!(true, temp_dir.path().read_dir().unwrap().next().is_none())
+        let config = settings.blocking_lock();
+        assert_eq!(true, config.settings.torrent_settings.directory.read_dir().unwrap().next().is_none())
     }
 
     fn default_config(temp_path: &str, cleaning_mode: CleaningMode) -> Arc<Mutex<ApplicationConfig>> {
@@ -194,7 +281,7 @@ mod test {
                 ui_settings: Default::default(),
                 server_settings: Default::default(),
                 torrent_settings: TorrentSettings {
-                    directory: PathBuf::from(temp_path),
+                    directory: PathBuf::from(temp_path).join("torrents"),
                     cleaning_mode,
                     connections_limit: 0,
                     download_rate_limit: 0,

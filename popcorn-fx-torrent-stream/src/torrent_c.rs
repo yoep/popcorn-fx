@@ -4,9 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use popcorn_fx_core::{from_c_string, to_c_vec};
-use popcorn_fx_core::core::torrent::{Torrent, TorrentCallback, TorrentState};
-
-use crate::torrent::TorrentWrapper;
+use popcorn_fx_core::core::torrent::{Torrent, TorrentCallback, TorrentState, TorrentWrapper};
 
 /// The callback to verify if the given byte is available.
 pub type HasByteCallbackC = extern "C" fn(i32, *mut u64) -> bool;

@@ -8,6 +8,7 @@ pub use media::*;
 pub use options::*;
 pub use properties::*;
 pub use subtitles::*;
+pub use torrents::*;
 pub use update::*;
 
 mod controls;
@@ -20,4 +21,5 @@ mod media;
 mod options;
 mod properties;
 mod subtitles;
+mod torrents;
 mod update;

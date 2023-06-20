@@ -1,10 +1,9 @@
 use std::os::raw::c_char;
-use std::ptr;
 
 use log::{debug, error, info, trace};
 
-use popcorn_fx_core::{from_c_string, into_c_owned};
-use popcorn_fx_core::core::media::{Category, MediaIdentifier, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
+use popcorn_fx_core::from_c_string;
+use popcorn_fx_core::core::media::{Category, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
 
 use crate::ffi::{GenreC, MediaErrorC, MediaItemC, MediaResult, MediaSetC, MediaSetResult, SortByC};
 use crate::PopcornFX;
@@ -137,7 +136,6 @@ mod test {
     use popcorn_fx_core::core::media::{Genre, SortBy};
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
-    use popcorn_fx_torrent_stream::torrent::stream::MediaTypeResult;
 
     use crate::test::default_args;
 

@@ -44,7 +44,7 @@ popcorn:
     popcorn_fx_core::core::media::watched:
       level: trace
     popcorn_fx_core::core::subtitles:
-      level: info
+      level: debug
     popcorn_fx_core::core::subtitles::parsers:
       level: info
     popcorn_fx_core::core::updater:
@@ -53,7 +53,7 @@ popcorn:
       level: info
     popcorn_fx_platform:
       level: trace
-    popcorn-fx-torrent:
-      level: debug
+    popcorn_fx_torrent:
+      level: trace
     popcorn_fx_torrent_stream:
       level: info

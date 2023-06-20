@@ -2,17 +2,19 @@ use std::fs;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Duration, Local};
 use log::{debug, error, info, trace, warn};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::{block_in_place, events, torrent};
-use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode};
+use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrent::{Torrent, TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState, TorrentWrapper};
 
-const CLEANUP_THRESHOLD: f64 = 85 as f64;
+const CLEANUP_WATCH_THRESHOLD: f64 = 85 as f64;
+const CLEANUP_AFTER: fn() -> Duration = || Duration::days(10);
 
 /// The default torrent manager of the application.
 /// It currently only cleans the torrent directory if needed.
@@ -85,7 +87,7 @@ impl InnerTorrentManager {
                     let percentage = (*time as f64 / *duration as f64) * 100 as f64;
 
                     trace!("Media {} has been watched for {:.2}", filename, percentage);
-                    if percentage >= CLEANUP_THRESHOLD {
+                    if percentage >= CLEANUP_WATCH_THRESHOLD {
                         debug!("Cleaning media file \"{}\"", filename);
                         if let Some(torrent) = self.find_by_filename(filename.as_str()) {
                             let filepath = torrent.file();
@@ -140,6 +142,41 @@ impl InnerTorrentManager {
             warn!("Unable to remove torrent with filename {}, torrent not found", filename)
         }
     }
+
+    fn clean_directory(settings: &TorrentSettings) {
+        debug!("Cleaning torrent directory {}", settings.directory().to_str().unwrap());
+        if let Err(e) = Storage::clean_directory(settings.directory()) {
+            error!("Failed to clean torrent directory, {}", e)
+        }
+    }
+
+    fn clean_directory_after(settings: &TorrentSettings) {
+        let cleanup_after = CLEANUP_AFTER();
+        debug!("Cleaning torrents older than {}", cleanup_after);
+        for entry in settings.directory.read_dir().expect("expected the directory to be readable") {
+            match entry {
+                Ok(filepath) => {
+                    match filepath.metadata() {
+                        Ok(meta) => {
+                            let absolute_path = filepath.path().to_str().unwrap().to_string();
+                            if let Ok(last_modified) = meta.modified() {
+                                let last_modified = DateTime::from(last_modified);
+                                trace!("Torrent path {} has last been modified at {}", absolute_path, last_modified);
+                                if Local::now() - last_modified >= cleanup_after {
+                                    match Storage::delete(filepath.path()) {
+                                        Ok(_) => debug!("Torrent path {} has been removed", absolute_path),
+                                        Err(e) => error!("Failed to remove torrent path {}, {}", absolute_path, e)
+                                    }
+                                }
+                            };
+                        }
+                        Err(e) => warn!("Unable to read entry data, {}", e)
+                    }
+                }
+                Err(e) => warn!("File entry is invalid, {}", e)
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -170,11 +207,10 @@ impl Drop for InnerTorrentManager {
         let mutex = block_in_place(self.settings.lock());
         let settings = mutex.settings.torrent();
 
-        if settings.cleaning_mode == CleaningMode::OnShutdown {
-            debug!("Cleaning torrent directory {:?}", settings.directory);
-            if let Err(e) = Storage::clean_directory(settings.directory()) {
-                error!("Failed to clean torrent directory, {}", e)
-            }
+        match settings.cleaning_mode {
+            CleaningMode::OnShutdown => Self::clean_directory(settings),
+            CleaningMode::Watched => Self::clean_directory_after(settings),
+            _ => {}
         }
     }
 }
@@ -183,7 +219,8 @@ impl Drop for InnerTorrentManager {
 mod test {
     use std::path::PathBuf;
     use std::sync::mpsc::channel;
-    use std::time::Duration;
+
+    use utime::set_file_times;
 
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
     use popcorn_fx_core::core::storage::Storage;
@@ -208,7 +245,7 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let filename = "lorem ipsum=[dolor].mp4";
+        let filename = "torrents/lorem ipsum=[dolor].mp4";
         let output_path = copy_test_file(temp_path, "example.mp4", Some(filename));
         let settings = default_config(temp_path, CleaningMode::Watched);
         let event_publisher = Arc::new(EventPublisher::default());
@@ -239,7 +276,7 @@ mod test {
             }));
         });
 
-        rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        rx.recv_timeout(std::time::Duration::from_millis(200)).unwrap();
         assert_eq!(false, PathBuf::from(output_path).exists())
     }
 
@@ -258,7 +295,7 @@ mod test {
     }
 
     #[test]
-    fn test_drop_should_clean_directory() {
+    fn test_drop_cleaning_mode_set_to_on_shutdown() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -266,6 +303,23 @@ mod test {
         copy_test_file(temp_path, "debian.torrent", Some("torrents/debian.torrent"));
         let manager = DefaultTorrentManager::new(settings.clone(), Arc::new(EventPublisher::default()), Arc::new(Runtime::new().unwrap()));
 
+        drop(manager);
+
+        let config = settings.blocking_lock();
+        assert_eq!(true, config.settings.torrent_settings.directory.read_dir().unwrap().next().is_none())
+    }
+
+    #[test]
+    fn test_drop_cleaning_mode_set_to_watched() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_config(temp_path, CleaningMode::Watched);
+        let filepath = copy_test_file(temp_path, "debian.torrent", Some("torrents/my-torrent/debian.torrent"));
+        let manager = DefaultTorrentManager::new(settings.clone(), Arc::new(EventPublisher::default()), Arc::new(Runtime::new().unwrap()));
+        let modified = Local::now() - Duration::days(10);
+
+        set_file_times(PathBuf::from(temp_path).join("torrents").join("my-torrent"), modified.timestamp(), modified.timestamp()).unwrap();
         drop(manager);
 
         let config = settings.blocking_lock();

@@ -217,7 +217,7 @@ impl CacheManager {
             let expired_entries = cache.expired();
 
             for expired in expired_entries.into_iter() {
-                match cache_manager.storage.delete_path(expired.entry.path()) {
+                match Storage::delete(expired.entry.path()) {
                     Ok(_) => {
                         cache.remove(expired.name.as_str(), expired.entry.key());
                         debug!("Cache {} entry {} has been cleaned", expired.name, expired.entry.key())

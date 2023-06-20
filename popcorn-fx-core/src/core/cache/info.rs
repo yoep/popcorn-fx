@@ -182,7 +182,7 @@ impl CacheEntry {
         self.path.as_str()
     }
 
-    /// Get the path of the cache entry.
+    /// Get the absolute path of the cache entry.
     pub fn path(&self) -> PathBuf {
         PathBuf::from(self.path.as_str())
     }

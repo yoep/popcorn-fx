@@ -95,7 +95,7 @@ impl Storage {
     /// This example demonstrates how to use the `delete` method to delete a file within the storage.
     /// The method takes the filepath as an argument and returns a `Result` indicating the success or failure of the operation.
     pub fn delete_path<P: AsRef<Path>>(&self, filepath: P) -> storage::Result<()> {
-        Self::internal_delete(filepath)
+        Self::delete(self.base_path.join(filepath))
     }
 
     /// Clean the given directory path.
@@ -132,28 +132,41 @@ impl Storage {
 
         let dir_entry = fs::read_dir(path)
             .map_err(|e| StorageError::IO(path_value, e.to_string()))?;
-        for file in dir_entry {
-            let filepath = file.expect("expected path entry to be valid").path();
-
-            // check if the path is an actual file
-            if filepath.is_file() {
-                trace!("Removing file {:?}", filepath);
-                Self::internal_delete(filepath)?;
-            } else {
-                trace!("Removing directory {:?}", filepath);
-                let filepath_value = filepath.to_str().unwrap().to_string();
-                fs::remove_dir_all(filepath).map_err(|e| StorageError::IO(filepath_value, e.to_string()))?;
+        for entry in dir_entry {
+            match entry {
+                Ok(path) => Self::delete(path.path())?,
+                Err(e) => warn!("Unable to read directory entry, {}", e)
             }
         }
 
         Ok(())
     }
 
-    fn internal_delete<P: AsRef<Path>>(filepath: P) -> storage::Result<()> {
-        let absolute_path = filepath.as_ref().to_str().unwrap();
-        trace!("Deleting storage file {}", absolute_path);
-        fs::remove_file(filepath.as_ref())
-            .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
+    /// Delete the given path from the system.
+    ///
+    /// This path can either point to a file or directory. In the case of a directory, the whole directory, including its contents, will be removed.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to delete.
+    ///
+    /// # Returns
+    ///
+    /// A result indicating success or an error of type [storage::Error].
+    pub fn delete<P: AsRef<Path>>(path: P) -> storage::Result<()> {
+        let path = path.as_ref();
+        let absolute_path = path.to_str().unwrap();
+        debug!("Deleting path {}", absolute_path);
+
+        if path.is_file() {
+            trace!("Deleting filepath {}", absolute_path);
+            fs::remove_file(path)
+                .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
+        } else {
+            trace!("Deleting directory {}", absolute_path);
+            fs::remove_dir_all(path)
+                .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
+        }
     }
 }
 
@@ -860,5 +873,20 @@ mod test {
         };
 
         assert_eq!(Ok(()), storage.delete_path(path))
+    }
+
+    #[test]
+    fn test_delete() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let filepath = copy_test_file(temp_path, "image.png", None);
+        let directory_path = copy_test_file(temp_path, "image.png", Some("lorem/image.png"));
+
+        Storage::delete(directory_path.as_str()).unwrap();
+        assert_eq!(false, PathBuf::from(directory_path).exists(), "expected the directory to have been removed");
+
+        Storage::delete(filepath.as_str()).unwrap();
+        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the file to have been removed");
     }
 }

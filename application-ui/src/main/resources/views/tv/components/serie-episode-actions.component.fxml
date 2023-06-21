@@ -24,14 +24,14 @@
         </graphic>
     </Button>
 
-    <Overlay fx:id="qualityOverlay" for="$watchNowButton">
+    <Overlay fx:id="qualityOverlay" for="$watchNowButton" attachTo="showDetailsSection">
         <VBox>
             <Label styleClass="title" text="%video_resolution"/>
             <AxisItemSelection fx:id="qualities" spacing="5"/>
         </VBox>
     </Overlay>
 
-    <Overlay fx:id="subtitleOverlay">
+    <Overlay fx:id="subtitleOverlay" attachTo="showDetailsSection">
         <VBox>
             <Label styleClass="title" text="%details_subtitle"/>
             <AxisItemSelection fx:id="subtitles" spacing="5"/>

@@ -72,7 +72,7 @@
                            GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="6"/>
     </GridPane>
 
-    <Overlay fx:id="overlay" attachTo="showDetailsSection">
+    <Overlay fx:id="episodeDetailsOverlay" attachTo="showDetailsSection">
         <!-- Actions -->
         <GridPane fx:id="episodeDetails">
             <columnConstraints>

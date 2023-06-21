@@ -163,10 +163,10 @@ public class Overlay extends Pane {
                 if (Objects.equals(node.getId(), getAttachTo())) {
                     if (!pane.getChildren().contains(this)) {
                         pane.getChildren().add(pane.getChildren().size(), this);
-                        prefWidthProperty().bind(pane.widthProperty());
-                        prefHeightProperty().bind(pane.heightProperty());
                     }
 
+                    prefWidthProperty().bind(pane.widthProperty());
+                    prefHeightProperty().bind(pane.heightProperty());
                     attached = true;
                     return;
                 }

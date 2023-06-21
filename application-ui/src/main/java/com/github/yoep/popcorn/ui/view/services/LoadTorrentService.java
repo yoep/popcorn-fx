@@ -80,6 +80,7 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         // remove the stored info
         resetToIdleState();
 
+        subtitleService.reset();
         eventPublisher.publishEvent(new CloseLoadEvent(this));
     }
 

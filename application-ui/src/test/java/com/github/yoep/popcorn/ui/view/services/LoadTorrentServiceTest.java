@@ -90,6 +90,7 @@ class LoadTorrentServiceTest {
         eventPublisher.publish(event);
         service.cancel();
 
+        verify(subtitleService).reset();
         verify(eventPublisher).publishEvent(new CloseLoadEvent(service));
         verify(future).cancel(true);
     }

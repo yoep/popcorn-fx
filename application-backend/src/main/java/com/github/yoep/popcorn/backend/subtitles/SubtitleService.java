@@ -131,4 +131,9 @@ public interface SubtitleService {
      * Disable the subtitle track.
      */
     void disableSubtitle();
+
+    /**
+     * Reset the active subtitle track to idle state.
+     */
+    void reset();
 }

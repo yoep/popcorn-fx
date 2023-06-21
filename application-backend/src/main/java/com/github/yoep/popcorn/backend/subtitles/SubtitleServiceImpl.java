@@ -206,6 +206,11 @@ public class SubtitleServiceImpl implements SubtitleService {
         fxLib.disable_subtitle(instance);
     }
 
+    @Override
+    public void reset() {
+        fxLib.reset_subtitle(instance);
+    }
+
     //endregion
 
     private void init() {

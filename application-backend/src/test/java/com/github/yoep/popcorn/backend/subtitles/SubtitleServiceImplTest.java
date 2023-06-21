@@ -93,4 +93,18 @@ class SubtitleServiceImplTest {
         var result = eventFuture.get(200, TimeUnit.MILLISECONDS);
         assertEquals(event, result);
     }
+
+    @Test
+    void testDisableSubtitle() {
+        service.disableSubtitle();
+
+        verify(fxLib).disable_subtitle(instance);
+    }
+
+    @Test
+    void testReset() {
+        service.reset();
+
+        verify(fxLib).reset_subtitle(instance);
+    }
 }

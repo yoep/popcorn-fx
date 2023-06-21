@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use derive_more::Display;
 use itertools::Itertools;
-use log::{info, trace, warn};
+use log::{debug, info, trace, warn};
 use regex::Regex;
 
 use crate::core::subtitles;
@@ -17,7 +17,7 @@ use crate::core::subtitles::SubtitleFile;
 
 const SRT_EXTENSION: &str = "srt";
 const VTT_EXTENSION: &str = "vtt";
-const NORMALIZATION_PATTERN: &str = "[\\.\\[\\]\\(\\)_-]";
+const NORMALIZATION_PATTERN: &str = "[\\.\\[\\]\\(\\)_\\-+]";
 
 const SUBTITLE_TYPES: [SubtitleType; 2] = [
     SubtitleType::Srt,
@@ -162,8 +162,9 @@ impl SubtitleInfo {
         // verify if a name is present to match
         // this will try to find a file matching the name in a normalized way
         if let Some(name) = name {
-            trace!("Searching subtitle file based on filename {}", name);
-            files = self.filter_by_filename(name, files);
+            let name = self.normalize(name);
+            debug!("Searching subtitle file based on filename {}", name);
+            files = self.filter_by_filename(name.as_str(), files);
 
             return match files.into_iter().next() {
                 None => {
@@ -207,10 +208,14 @@ impl SubtitleInfo {
         }
     }
 
-    fn filter_by_filename(&self, name: &str, files: Vec<SubtitleFile>) -> Vec<SubtitleFile> {
-        let normalized_filename = self.normalize(name);
+    fn filter_by_filename<S: AsRef<str>>(&self, name: S, files: Vec<SubtitleFile>) -> Vec<SubtitleFile> {
+        let name = name.as_ref().to_string();
         files.into_iter()
-            .filter(|e| self.normalize(e.name()) == normalized_filename)
+            .filter(|e| {
+                let normalized_filename = self.normalize(e.name());
+                trace!("Matching subtitle filename {} against expected filename {}", normalized_filename, name);
+                normalized_filename == name
+            })
             .collect()
     }
 
@@ -458,7 +463,7 @@ mod test {
 
     #[test]
     fn test_subtitle_info_normalize() {
-        let filename = "Lorem.S02E11[720p]AMZN.WEBRip.x264-GalaxyTV.mkv";
+        let filename = "Lorem.S02E11+[720p]AMZN.WEBRip.x264-GalaxyTV.mkv";
         let expected_result = "lorems02e11720pamznwebripx264galaxytv";
         let subtitle_info = SubtitleInfo::none();
 

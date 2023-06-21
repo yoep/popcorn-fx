@@ -53,7 +53,7 @@
         <Label fx:id="duration" styleClass="time"
                GridPane.columnIndex="6" GridPane.rowIndex="1"/>
     </GridPane>
-    <Overlay fx:id="subtitleOptionsOverlay" for="$subtitleOptionsButton">
+    <Overlay fx:id="subtitleOptionsOverlay" for="$subtitleOptionsButton" attachTo="playerSection">
         <VBox spacing="3">
             <Button text="%subtitles_change" onMouseClicked="#onSubtitleChange" onKeyPressed="#onSubtitleChange"/>
             <Button fx:id="subtitleIncreaseOffset" text="%subtitles_increase_offset" onMouseClicked="#onIncreaseOffset" onKeyPressed="#onIncreaseOffset"/>
@@ -62,7 +62,10 @@
             <Button text="%subtitles_decrease_font_size" onMouseClicked="#onDecreaseFontSize" onKeyPressed="#onDecreaseFontSize"/>
         </VBox>
     </Overlay>
-    <Overlay fx:id="subtitleOverlay">
-        <AxisItemSelection fx:id="subtitleSelection" shortKeysEnabled="false" orientation="VERTICAL" spacing="3"/>
+    <Overlay fx:id="subtitleOverlay" attachTo="playerSection">
+        <VBox>
+            <Label text="%subtitles_select"/>
+            <AxisItemSelection fx:id="subtitleSelection" shortKeysEnabled="false" orientation="VERTICAL" spacing="3"/>
+        </VBox>
     </Overlay>
 </StackPane>

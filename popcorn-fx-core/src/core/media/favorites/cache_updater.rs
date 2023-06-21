@@ -204,7 +204,7 @@ impl InnerCacheUpdater {
 mod test {
     use std::sync::mpsc::channel;
 
-    use crate::core::media::{Category, MediaOverview, MovieOverview};
+    use crate::core::media::{MediaOverview, MovieOverview};
     use crate::core::media::favorites::MockFavoriteService;
     use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::testing::init_logger;

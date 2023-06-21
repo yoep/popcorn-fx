@@ -31,7 +31,10 @@ pub enum Event {
     PlayVideo(PlayVideoEvent),
     /// Invoked when the player/playback state is changed
     #[display(fmt = "Playback state has changed to {}", _0)]
-    PlaybackStateChanged(PlaybackState)
+    PlaybackStateChanged(PlaybackState),
+    /// Invoked when the watched state of a media items is changed
+    #[display(fmt = "Watched state of {} changed to {}", _0, _1)]
+    WatchStateChanged(String, bool),
 }
 
 /// The event is triggered when a new video playback is started.

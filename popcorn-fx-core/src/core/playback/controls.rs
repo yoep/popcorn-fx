@@ -132,6 +132,7 @@ impl PlaybackControlsBuilder {
                         inner.notify_media_state_changed(new_state.clone())
                     }
                     Event::PlayerStopped(_) => inner.notify_media_stopped(),
+                    _ => {}
                 }
                 Some(event)
             }), DEFAULT_ORDER);

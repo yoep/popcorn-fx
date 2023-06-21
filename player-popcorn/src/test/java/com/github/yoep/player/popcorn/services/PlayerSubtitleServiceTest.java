@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -161,5 +162,18 @@ class PlayerSubtitleServiceTest {
         listenerHolder.get().onPlay(request);
 
         verify(listener).onAvailableSubtitlesChanged(availableSubtitles, subtitleNone);
+    }
+
+    @Test
+    void testDefaultSubtitles() {
+        var none = mock(SubtitleInfo.class);
+        var custom = mock(SubtitleInfo.class);
+        var expected = new SubtitleInfo[]{none, custom};
+        when(subtitleService.none()).thenReturn(none);
+        when(subtitleService.custom()).thenReturn(custom);
+
+        var result = service.defaultSubtitles();
+
+        assertArrayEquals(expected, result);
     }
 }

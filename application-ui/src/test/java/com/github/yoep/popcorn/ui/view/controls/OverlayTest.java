@@ -3,37 +3,23 @@ package com.github.yoep.popcorn.ui.view.controls;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import org.junit.jupiter.api.Disabled;
+import javafx.scene.layout.StackPane;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.spy;
 
 @ExtendWith(ApplicationExtension.class)
 class OverlayTest {
     @Test
-    void testFocus() {
-        var button = spy(new Button());
-        var overlay = new Overlay(button);
-        var parent = new AnchorPane(overlay);
-        WaitForAsyncUtils.waitForFxEvents();
-        var scene = new Scene(parent);
-        WaitForAsyncUtils.waitForFxEvents();
-
-        overlay.show();
-
-        verify(button, timeout(250).atLeast(1)).requestFocus();
-        assertEquals(1, GridPane.getColumnIndex(button), "expected column index 1");
-        assertEquals(1, GridPane.getRowIndex(button), "expected row index 1");
-    }
-
-    @Test
-    @Disabled
     void testHide() {
         var button = spy(new Button());
         var overlay = new Overlay(button);
@@ -46,22 +32,23 @@ class OverlayTest {
         parent.getChildren().add(overlay);
         overlay.hide();
 
-        assertFalse(parent.getChildren().contains(overlay));
+        assertTrue(overlay.isDisabled());
     }
 
     @Test
-    void testAttachToParent_shouldScanUpwardsForParent() {
+    void testAttachToSpecifiedID() throws TimeoutException {
         var overlay = new Overlay();
-        var inBetween = new Pane();
-        var parent = new AnchorPane(inBetween);
+        var inBetween = new Pane(overlay);
+        var expectedParent = new AnchorPane(inBetween);
+        var root = new StackPane(expectedParent);
+        expectedParent.setId(Overlay.DEFAULT_ATTACH_ID);
 
         WaitForAsyncUtils.waitForFxEvents();
-        inBetween.getChildren().add(overlay);
-        WaitForAsyncUtils.waitForFxEvents();
-        var scene = new Scene(parent);
+        var scene = new Scene(root);
+        overlay.requestLayout();
         WaitForAsyncUtils.waitForFxEvents();
 
-        assertEquals(parent, overlay.attachedParent.get());
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> expectedParent.getChildren().contains(overlay));
     }
 
     @Test

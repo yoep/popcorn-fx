@@ -127,6 +127,34 @@ class ChromecastServiceTest {
     }
 
     @Test
+    void testToLoadRequest_whenPreferredSubtitleIsNone_shouldNotSetTrack() {
+        var url = "http://localhost:9976/big-bug-bunny.mp4";
+        var sessionId = "mySessionId";
+        var contentType = "video/mp4";
+        var duration = 20000L;
+        var subtitleInfo = mock(SubtitleInfo.class);
+        var request = SimplePlayRequest.builder()
+                .url(url)
+                .title("My movie title")
+                .autoResumeTimestamp(20000L)
+                .thumb("https://thumbs.com/my-thumb.jpg")
+                .build();
+        when(subtitleInfo.isNone()).thenReturn(true);
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
+                .contentType(contentType)
+                .duration(duration)
+                .build());
+        when(ffprobeResult.getStreams()).thenReturn(Collections.singletonList(new Stream(probeData)));
+        when(probeData.getStreamType("codec_type")).thenReturn(StreamType.VIDEO);
+        when(probeData.getString("codec_name")).thenReturn(getSupportedCodec());
+
+        var result = service.toLoadRequest(sessionId, request);
+
+        assertEquals(0, result.getMedia().getTracks().size());
+    }
+
+    @Test
     void testToMediaRequest_whenFormatIsNotSupported_shouldUseTranscodedUrl() {
         var url = "http://localhost:9976/my-video-url.mkv";
         var sessionId = "mySessionId";

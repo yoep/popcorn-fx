@@ -167,6 +167,7 @@ impl MediaProvider for FavoritesProvider {
 mod test {
     use tempfile::tempdir;
 
+    use crate::core::events::EventPublisher;
     use crate::core::media;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::core::media::favorites::MockFavoriteService;
@@ -282,12 +283,12 @@ mod test {
     #[test]
     fn test_sort_by_should_order_movie_before_show() {
         init_logger();
-        let resource_directory = tempdir().expect("expected a temp directory");
-        let resource_path = resource_directory.path().to_str().unwrap();
+        let temp_dir = tempdir().expect("expected a temp directory");
+        let resource_path = temp_dir.path().to_str().unwrap();
         let favorites = MockFavoriteService::new();
         let service = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(resource_path))));
+            Arc::new(Box::new(DefaultWatchedService::new(resource_path, Arc::new(EventPublisher::default())))));
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
         let movie = Box::new(MovieOverview::new(
             String::new(),

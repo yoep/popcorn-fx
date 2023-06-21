@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
+import com.github.yoep.popcorn.backend.settings.models.CleaningMode;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import org.junit.jupiter.api.Test;
@@ -59,9 +60,9 @@ class ApplicationConfigTest {
     @Test
     void testUpdateTorrentSettings() {
         var settings = new TorrentSettings();
-        settings.autoCleaningEnabled = (byte) 1;
+        settings.cleaningMode = CleaningMode.ON_SHUTDOWN;
         var expected = new TorrentSettings.ByValue();
-        expected.autoCleaningEnabled = (byte) 1;
+        expected.cleaningMode = CleaningMode.ON_SHUTDOWN;
 
         config.update(settings);
 

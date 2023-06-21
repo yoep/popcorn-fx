@@ -260,6 +260,27 @@ pub mod testing {
             assert!(false, "Timeout assertion failed after {:?}", $timeout);
         }
     }};
+    ($timeout:expr, $condition:expr, $message:expr) => {{
+        use std::thread;
+        use std::time::{Duration, Instant};
+
+        let start_time = Instant::now();
+        let timeout: Duration = $timeout;
+
+        let result = loop {
+            if $condition {
+                break true;
+            }
+            if start_time.elapsed() >= timeout {
+                break false;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+
+        if !result {
+            assert!(false, concat!("Timeout assertion failed after {:?}: ", $message), $timeout);
+        }
+    }};
     }
 
     #[macro_export]

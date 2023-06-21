@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.settings.models.CleaningMode;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
@@ -10,7 +11,8 @@ import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
-import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.DirectoryChooser;
@@ -35,7 +37,7 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     @FXML
     TextField cacheDirectory;
     @FXML
-    CheckBox clearCache;
+    ComboBox<CleaningMode> cleaningMode;
 
     public SettingsTorrentComponent(EventPublisher eventPublisher,
                                     LocaleText localeText,
@@ -51,7 +53,7 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         initializeUploadLimit();
         initializeConnectionLimit();
         initializeCacheDirectory();
-        initializeClearCache();
+        initializeCleaningMode();
     }
 
     private void initializeDownloadLimit() {
@@ -117,23 +119,41 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         });
     }
 
-    private void initializeClearCache() {
+    private void initializeCleaningMode() {
         var settings = getSettings();
 
-        clearCache.setSelected(settings.isAutoCleaningEnabled());
-        clearCache.selectedProperty().addListener((observable, oldValue, newValue) -> onClearCacheChanged(newValue));
+        cleaningMode.setCellFactory(item -> createCleaningModeCell());
+        cleaningMode.setButtonCell(createCleaningModeCell());
+        cleaningMode.getItems().addAll(CleaningMode.values());
+        cleaningMode.getSelectionModel().select(settings.getCleaningMode());
+        cleaningMode.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onCleaningModeChanged(newValue));
     }
 
-    private void onClearCacheChanged(Boolean newValue) {
+    private void onCleaningModeChanged(CleaningMode newValue) {
         var settings = getSettings();
 
-        settings.setAutoCleaningEnabled(newValue);
+        settings.setCleaningMode(newValue);
         applicationConfig.update(settings);
         showNotification();
     }
 
     private TorrentSettings getSettings() {
         return applicationConfig.getSettings().getTorrentSettings();
+    }
+
+    private ListCell<CleaningMode> createCleaningModeCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(CleaningMode item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (!empty) {
+                    setText(localeText.get("cleaning_mode_" + item.name().toLowerCase()));
+                } else {
+                    setText(null);
+                }
+            }
+        };
     }
 
     @FXML

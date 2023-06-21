@@ -49,10 +49,10 @@ class PlayerSectionControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller.playerSectionPane = new Pane();
+        controller.playerSection = new Pane();
         controller.playerPlayNextPane = new Pane();
 
-        controller.playerSectionPane.getChildren().add(playNextPane);
+        controller.playerSection.getChildren().add(playNextPane);
     }
 
     @Test
@@ -78,8 +78,8 @@ class PlayerSectionControllerTest {
         eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
 
-        assertEquals(2, controller.playerSectionPane.getChildren().size(), "Expected a player to have been added");
-        assertEquals(externalPlayerPane, controller.playerSectionPane.getChildren().get(0));
+        assertEquals(2, controller.playerSection.getChildren().size(), "Expected a player to have been added");
+        assertEquals(externalPlayerPane, controller.playerSection.getChildren().get(0));
     }
 
     @Test
@@ -97,8 +97,8 @@ class PlayerSectionControllerTest {
         eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
 
-        assertEquals(2, controller.playerSectionPane.getChildren().size(), "Expected a player to have been added");
-        assertEquals(playerViewNode, controller.playerSectionPane.getChildren().get(0));
+        assertEquals(2, controller.playerSection.getChildren().size(), "Expected a player to have been added");
+        assertEquals(playerViewNode, controller.playerSection.getChildren().get(0));
     }
 
     @Test
@@ -122,8 +122,8 @@ class PlayerSectionControllerTest {
         eventPublisher.publish(event);
         WaitForAsyncUtils.waitForFxEvents(10);
 
-        assertEquals(2, controller.playerSectionPane.getChildren().size(), "Expected the previous player to have been cleared");
-        assertEquals(player2ViewNode, controller.playerSectionPane.getChildren().get(0));
+        assertEquals(2, controller.playerSection.getChildren().size(), "Expected the previous player to have been cleared");
+        assertEquals(player2ViewNode, controller.playerSection.getChildren().get(0));
     }
 
     @Test

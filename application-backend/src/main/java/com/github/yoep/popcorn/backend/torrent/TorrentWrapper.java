@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.torrent;
 
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
@@ -26,9 +27,9 @@ import java.util.Optional;
         "prioritizeBytesCallback", "prioritizePiecesCallback", "sequentialModeCallback", "torrentStateCallback"})
 public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public static class ByValue extends TorrentWrapper implements Structure.ByValue {
-        public ByValue(Torrent torrent) {
+        public ByValue(PopcornFx instance, Torrent torrent) {
             super(torrent);
-            this.wrapperPointer = FxLibInstance.INSTANCE.get().torrent_wrapper(this);
+            this.wrapperPointer = FxLibInstance.INSTANCE.get().torrent_wrapper(instance, this);
             log.trace("Created torrent wrapper pointer {}", this.wrapperPointer);
         }
     }
@@ -150,9 +151,9 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
 
     //region Methods
 
-    public static TorrentWrapper.ByValue from(Torrent torrent) {
+    public static TorrentWrapper.ByValue from(PopcornFx instance, Torrent torrent) {
         Objects.requireNonNull(torrent, "torrent cannot be null");
-        return new TorrentWrapper.ByValue(torrent);
+        return new TorrentWrapper.ByValue(instance, torrent);
     }
 
     @Override

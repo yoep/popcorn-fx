@@ -14,6 +14,16 @@ enum class Category : int32_t {
   Favorites = 2,
 };
 
+/// The cleaning mode for downloaded files.
+enum class CleaningMode : int32_t {
+  /// Cleaning is disabled.
+  Off = 0,
+  /// Files are cleaned on application shutdown.
+  OnShutdown = 1,
+  /// Files are cleaned when fully watched.
+  Watched = 2,
+};
+
 /// The decoration to apply to the subtitle during rendering.
 enum class DecorationType : int32_t {
   None = 0,
@@ -198,8 +208,7 @@ struct PopcornFX;
 /// The C compatible struct for [TorrentStream].
 struct TorrentStreamC;
 
-/// The wrapper containing the callbacks to retrieve the actual
-/// torrent information from C.
+/// The wrapper containing the callbacks to retrieve the actual torrent information from C.
 struct TorrentWrapper;
 
 struct RatingC {
@@ -345,7 +354,7 @@ struct TorrentSettingsC {
   /// The torrent directory to store the torrents
   const char *directory;
   /// Indicates if the torrents directory will be cleaned on closure
-  bool auto_cleaning_enabled;
+  CleaningMode cleaning_mode;
   /// The max number of connections
   uint32_t connections_limit;
   /// The download rate limit
@@ -1305,7 +1314,17 @@ void torrent_info(PopcornFX *popcorn_fx, const char *url);
 /// Inform the FX core that a piece for the torrent has finished downloading.
 void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
 
-/// Inform the FX core that the state of the torrent has changed.
+/// Inform that the state of the torrent has changed.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `torrent` pointer must be a valid `TorrentWrapperC` instance.
+///
+/// # Arguments
+///
+/// * `torrent` - A pointer to a `TorrentWrapperC` instance.
+/// * `state` - The new state of the torrent.
 void torrent_state_changed(const TorrentWrapperC *torrent, TorrentState state);
 
 /// Retrieve the current state of the stream.
@@ -1314,9 +1333,26 @@ void torrent_state_changed(const TorrentWrapperC *torrent, TorrentState state);
 /// It returns the known [TorrentStreamState] at the time of invocation.
 TorrentStreamState torrent_stream_state(TorrentStreamC *stream);
 
-/// The torrent wrapper for moving data between rust and java.
-/// This is a temp wrapper till the torrent component is replaced.
-TorrentWrapperC *torrent_wrapper(TorrentC torrent);
+/// The torrent wrapper for moving data between Rust and FrostWire.
+///
+/// This is a temporary wrapper until the torrent component is replaced.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `popcorn_fx` pointer must be valid and properly initialized.
+/// The `torrent` pointer must be a valid `TorrentC` instance.
+/// The returned pointer to `TorrentWrapperC` should be used carefully to avoid memory leaks.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `torrent` - A pointer to a `TorrentC` instance.
+///
+/// # Returns
+///
+/// A pointer to a `TorrentWrapperC` instance.
+TorrentWrapperC *torrent_wrapper(PopcornFX *popcorn_fx, TorrentC torrent);
 
 /// Update the playback settings with the new value.
 void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);

@@ -117,7 +117,7 @@ public interface FxLib extends Library {
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
-    TorrentWrapperPointer torrent_wrapper(TorrentWrapper.ByValue torrent);
+    TorrentWrapperPointer torrent_wrapper(PopcornFx instance, TorrentWrapper.ByValue torrent);
 
     void torrent_state_changed(TorrentWrapperPointer torrent, TorrentState state);
 

@@ -5,8 +5,8 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::CoreCallbacks;
-use popcorn_fx_core::core::torrent::{Torrent, TorrentCallback, TorrentEvent, TorrentState};
+use crate::core::CoreCallbacks;
+use crate::core::torrent::{Torrent, TorrentCallback, TorrentEvent, TorrentState};
 
 /// The has byte callback.
 pub type HasBytesCallback = Box<dyn Fn(&[u64]) -> bool + Send>;
@@ -29,8 +29,7 @@ pub type SequentialModeCallback = Box<dyn Fn() + Send>;
 /// The callback for retrieving the torrent state.
 pub type TorrentStateCallback = Box<dyn Fn() -> TorrentState + Send>;
 
-/// The wrapper containing the callbacks to retrieve the actual
-/// torrent information from C.
+/// The wrapper containing the callbacks to retrieve the actual torrent information from C.
 #[derive(Display)]
 #[display(fmt = "filepath: {:?}", filepath)]
 pub struct TorrentWrapper {
@@ -46,6 +45,22 @@ pub struct TorrentWrapper {
 }
 
 impl TorrentWrapper {
+    /// Creates a new `TorrentWrapper` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `filepath` - The filepath of the torrent.
+    /// * `has_byte` - The callback for checking if a byte exists in the torrent.
+    /// * `has_piece` - The callback for checking if a piece exists in the torrent.
+    /// * `total_pieces` - The callback for retrieving the total number of pieces in the torrent.
+    /// * `prioritize_bytes` - The callback for prioritizing bytes in the torrent.
+    /// * `prioritize_pieces` - The callback for prioritizing pieces in the torrent.
+    /// * `sequential_mode` - The callback for setting sequential mode in the torrent.
+    /// * `torrent_state` - The callback for handling torrent state changes.
+    ///
+    /// # Returns
+    ///
+    /// A new `TorrentWrapper` instance.
     pub fn new(filepath: String, has_byte: HasBytesCallback, has_piece: HasPieceCallback,
                total_pieces: TotalPiecesCallback, prioritize_bytes: PrioritizeBytesCallback,
                prioritize_pieces: PrioritizePiecesCallback, sequential_mode: SequentialModeCallback,
@@ -63,10 +78,20 @@ impl TorrentWrapper {
         }
     }
 
+    /// Notifies the wrapper that the state of the torrent has changed.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The new state of the torrent.
     pub fn state_changed(&self, state: TorrentState) {
         self.callbacks.invoke(TorrentEvent::StateChanged(state))
     }
 
+    /// Notifies the wrapper that a piece of the torrent has finished downloading.
+    ///
+    /// # Arguments
+    ///
+    /// * `piece` - The index of the finished piece.
     pub fn piece_finished(&self, piece: u32) {
         self.callbacks.invoke(TorrentEvent::PieceFinished(piece))
     }
@@ -74,7 +99,10 @@ impl TorrentWrapper {
 
 impl Debug for TorrentWrapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "filepath: {:?}", self.filepath)
+        f.debug_struct("TorrentWrapper")
+            .field("filepath", &self.filepath)
+            .field("callbacks", &self.callbacks)
+            .finish()
     }
 }
 

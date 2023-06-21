@@ -1,3 +1,4 @@
+use std::convert::Into;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
@@ -6,12 +7,14 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CoreCallbacks, media};
+use crate::core::{block_in_place, CoreCallbacks, events, media};
+use crate::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::media::watched::Watched;
 use crate::core::storage::{Storage, StorageError};
 
 const FILENAME: &str = "watched.json";
+const WATCHED_PERCENTAGE_THRESHOLD: f64 = 85 as f64;
 
 /// The callback to listen on events of the watched service.
 pub type WatchedCallback = Box<dyn Fn(WatchedEvent) + Send>;
@@ -80,23 +83,79 @@ pub trait WatchedService: Debug + Send + Sync {
     fn register(&self, callback: WatchedCallback);
 }
 
-/// The standard Popcorn FX watched service.
 #[derive(Debug)]
 pub struct DefaultWatchedService {
-    storage: Storage,
-    cache: Arc<Mutex<Option<Watched>>>,
-    callbacks: CoreCallbacks<WatchedEvent>,
+    inner: Arc<InnerWatchedService>,
 }
 
 impl DefaultWatchedService {
-    pub fn new(storage_directory: &str) -> Self {
-        Self {
-            storage: Storage::from(storage_directory),
-            cache: Arc::new(Mutex::new(None)),
-            callbacks: CoreCallbacks::default(),
-        }
+    pub fn new(storage_directory: &str, event_publisher: Arc<EventPublisher>) -> Self {
+        let instance = Self {
+            inner: Arc::new(InnerWatchedService {
+                storage: Storage::from(storage_directory),
+                cache: Arc::new(Mutex::new(None)),
+                callbacks: CoreCallbacks::default(),
+                event_publisher,
+            })
+        };
+
+        let cloned_instance = instance.inner.clone();
+        instance.inner.event_publisher.register(Box::new(move |event| {
+            if let Event::PlayerStopped(e) = &event {
+                cloned_instance.on_player_stopped_event(e.clone())
+            }
+
+            Some(event)
+        }), events::DEFAULT_ORDER);
+
+        instance
+    }
+}
+
+impl WatchedService for DefaultWatchedService {
+    fn is_watched(&self, id: &str) -> bool {
+        self.inner.is_watched(id)
     }
 
+    fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
+        self.inner.is_watched_dyn(watchable)
+    }
+
+    fn all(&self) -> media::Result<Vec<String>> {
+        self.inner.all()
+    }
+
+    fn watched_movies(&self) -> media::Result<Vec<String>> {
+        self.inner.watched_movies()
+    }
+
+    fn watched_shows(&self) -> media::Result<Vec<String>> {
+        self.inner.watched_shows()
+    }
+
+    fn add(&self, watchable: Box<dyn MediaIdentifier>) -> media::Result<()> {
+        self.inner.add(watchable)
+    }
+
+    fn remove(&self, watchable: Box<dyn MediaIdentifier>) {
+        self.inner.remove(watchable)
+    }
+
+    fn register(&self, callback: WatchedCallback) {
+        self.inner.register(callback)
+    }
+}
+
+/// The standard Popcorn FX watched service.
+#[derive(Debug)]
+struct InnerWatchedService {
+    storage: Storage,
+    cache: Arc<Mutex<Option<Watched>>>,
+    callbacks: CoreCallbacks<WatchedEvent>,
+    event_publisher: Arc<EventPublisher>,
+}
+
+impl InnerWatchedService {
     async fn load_watched_cache(&self) -> media::Result<()> {
         let mutex = self.cache.clone();
         let mut cache = mutex.lock().await;
@@ -154,9 +213,33 @@ impl DefaultWatchedService {
             Err(e) => error!("Failed to save watched items, {}", e)
         }
     }
+
+    fn on_player_stopped_event(&self, event: PlayerStoppedEvent) {
+        trace!("Received player stopped event for {:?}", event);
+        if let Some(media) = event.media {
+            if let (Some(time), Some(duration)) = (&event.time, &event.duration) {
+                let imdb_id = media.imdb_id().to_string();
+                let title = media.title();
+                let percentage_watched = (*time as f64 / *duration as f64) * 100 as f64;
+
+                trace!("Media item {} has been watched for {:.2}%", media.imdb_id(), percentage_watched);
+                if percentage_watched >= WATCHED_PERCENTAGE_THRESHOLD {
+                    if let Err(e) = self.add(media) {
+                        error!("Failed to add media item {} to the watch list, {}", imdb_id, e);
+                    } else {
+                        info!("Added media \"{}\" ({}) to the watched list", title, imdb_id);
+                    }
+                }
+            } else {
+                debug!("Player stopped event has an unknown time and/or duration, skipping watched check")
+            }
+        } else {
+            debug!("Player stopped event doesn't have contain media information, skipping watched check")
+        }
+    }
 }
 
-impl WatchedService for DefaultWatchedService {
+impl WatchedService for InnerWatchedService {
     fn is_watched(&self, imdb_id: &str) -> bool {
         trace!("Verifying if {} is watched", imdb_id);
         match futures::executor::block_on(self.load_watched_cache()) {
@@ -242,6 +325,7 @@ impl WatchedService for DefaultWatchedService {
 
         self.save(watched);
         self.callbacks.invoke(WatchedEvent::WatchedStateChanged(watchable.imdb_id().to_string(), true));
+        self.event_publisher.publish(Event::WatchStateChanged(watchable.imdb_id().to_string(), true));
         Ok(())
     }
 
@@ -256,6 +340,7 @@ impl WatchedService for DefaultWatchedService {
                 watched.remove(id);
                 self.save(watched);
                 self.callbacks.invoke(WatchedEvent::WatchedStateChanged(id.to_string(), false));
+                self.event_publisher.publish(Event::WatchStateChanged(watchable.imdb_id().to_string(), false));
             }
             Err(e) => {
                 error!("Failed to remove watched item, {}", e)
@@ -268,7 +353,7 @@ impl WatchedService for DefaultWatchedService {
     }
 }
 
-impl Drop for DefaultWatchedService {
+impl Drop for InnerWatchedService {
     fn drop(&mut self) {
         let mutex = self.cache.clone();
         let execute = async move {
@@ -301,6 +386,7 @@ mod test {
 
     use tempfile::tempdir;
 
+    use crate::assert_timeout;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::testing::{copy_test_file, init_logger};
 
@@ -312,7 +398,7 @@ mod test {
         let imdb_id = "tt548723".to_string();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultWatchedService::new(temp_path);
+        let service = DefaultWatchedService::new(temp_path, Arc::new(EventPublisher::default()));
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -331,7 +417,7 @@ mod test {
         let imdb_id = "tt548766".to_string();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultWatchedService::new(temp_path);
+        let service = DefaultWatchedService::new(temp_path, Arc::new(EventPublisher::default()));
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -351,7 +437,7 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "watched.json", None);
-        let service = DefaultWatchedService::new(temp_path);
+        let service = DefaultWatchedService::new(temp_path, Arc::new(EventPublisher::default()));
         let movie = MovieOverview::new(
             String::new(),
             imdb_id,
@@ -368,7 +454,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let service = DefaultWatchedService::new(temp_path);
+        let service = DefaultWatchedService::new(temp_path, Arc::new(EventPublisher::default()));
         let expected_result = vec![
             "tt548723",
             "tt541345",
@@ -388,7 +474,7 @@ mod test {
         let imdb_id = "tt548795".to_string();
         let resource_directory = tempdir().unwrap();
         let resource_path = resource_directory.path().to_str().unwrap();
-        let service = DefaultWatchedService::new(resource_path);
+        let service = DefaultWatchedService::new(resource_path, Arc::new(EventPublisher::default()));
         let movie = MovieOverview::new(
             String::new(),
             imdb_id.clone(),
@@ -406,9 +492,9 @@ mod test {
     fn test_add_show() {
         init_logger();
         let imdb_id = "tt88877554".to_string();
-        let resource_directory = tempdir().unwrap();
-        let resource_path = resource_directory.path().to_str().unwrap();
-        let service = DefaultWatchedService::new(resource_path);
+        let temp_dir = tempdir().unwrap();
+        let resource_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path, Arc::new(EventPublisher::default()));
         let show = ShowOverview::new(
             imdb_id.clone(),
             String::new(),
@@ -430,9 +516,9 @@ mod test {
     fn test_register_when_add_is_called_should_invoke_callbacks() {
         init_logger();
         let id = "tt8744557";
-        let resource_directory = tempdir().unwrap();
-        let resource_path = resource_directory.path().to_str().unwrap();
-        let service = DefaultWatchedService::new(resource_path);
+        let temp_dir = tempdir().unwrap();
+        let resource_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path, Arc::new(EventPublisher::default()));
         let (tx, rx) = channel();
         let callback: WatchedCallback = Box::new(move |e| {
             tx.send(e).unwrap();
@@ -459,9 +545,9 @@ mod test {
     fn test_register_when_remove_is_called_should_invoke_callbacks() {
         init_logger();
         let id = "tt8744557";
-        let resource_directory = tempdir().unwrap();
-        let resource_path = resource_directory.path().to_str().unwrap();
-        let service = DefaultWatchedService::new(resource_path);
+        let temp_dir = tempdir().unwrap();
+        let resource_path = temp_dir.path().to_str().unwrap();
+        let service = DefaultWatchedService::new(resource_path, Arc::new(EventPublisher::default()));
         let (tx, rx) = channel();
         let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(
             String::new(),
@@ -481,5 +567,61 @@ mod test {
                 assert_eq!(false, state)
             }
         }
+    }
+
+    #[test]
+    fn test_on_player_stopped_watched() {
+        init_logger();
+        let imdb_id = "tt12455512";
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let event_publisher = Arc::new(EventPublisher::default());
+        let service = DefaultWatchedService::new(temp_path, event_publisher.clone());
+
+        event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
+            url: "http://localhost:8052/example.mp4".to_string(),
+            media: Some(Box::new(MovieOverview {
+                imdb_id: imdb_id.to_string(),
+                title: "Lorem ipsum dolor".to_string(),
+                year: "2013".to_string(),
+                rating: None,
+                images: Default::default(),
+            })),
+            time: Some(55000),
+            duration: Some(60000),
+        }));
+
+        assert_timeout!(Duration::from_millis(100), service.is_watched(imdb_id), "expected the media item to have been watched");
+    }
+
+    #[test]
+    fn test_on_player_stopped_not_fully_watched() {
+        init_logger();
+        let imdb_id = "tt0001212";
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let event_publisher = Arc::new(EventPublisher::default());
+        let service = DefaultWatchedService::new(temp_path, event_publisher.clone());
+        let (tx, rx) = channel();
+
+        event_publisher.register(Box::new(move |event| {
+            tx.send(true).unwrap();
+            Some(event)
+        }), events::LOWEST_ORDER);
+        event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
+            url: "http://localhost:8052/example.mp4".to_string(),
+            media: Some(Box::new(MovieOverview {
+                imdb_id: imdb_id.to_string(),
+                title: "Lorem dolor esta amit".to_string(),
+                year: "2009".to_string(),
+                rating: None,
+                images: Default::default(),
+            })),
+            time: Some(90000),
+            duration: Some(120000),
+        }));
+
+        rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        assert_eq!(false, service.is_watched(imdb_id), "expected the media item to not have been watched");
     }
 }

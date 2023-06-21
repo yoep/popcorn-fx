@@ -1152,6 +1152,12 @@
     -fx-font-size: 2.5em;
 }
 
+.root .settings-section,
+.root .settings-section .viewport,
+.root .settings-section .scroll-pane {
+    -fx-background-color: #17181b;
+}
+
 .root .settings-section GridPane Separator {
     -fx-padding: 10 30 15 15;
 }
@@ -1191,7 +1197,7 @@
 }
 
 .root .settings-section .sub-section .label,
-.root .settings-section .sub-section CheckBox,
+.root .settings-section .sub-section .check-box,
 .root .settings-section .sub-section .button-holder {
     -fx-padding: 0 8 0 15;
 }
@@ -1212,7 +1218,7 @@
 }
 
 .root .settings-section .sub-section .subsection-label {
-    -fx-pref-width: 10em;
+    -fx-pref-width: 12em;
 }
 
 .root .settings-section .additional-info {
@@ -1220,9 +1226,11 @@
 }
 
 .root .settings-section .sub-section .combo-box {
-    -fx-min-width: 150;
-    -fx-max-width: 150;
+    -fx-min-width: 200;
+    -fx-max-width: 200;
     -fx-background-color: #393b3d;
+    -fx-border-width: 1;
+    -fx-border-color: transparent;
 }
 
 .root .settings-section .sub-section .combo-box .arrow {
@@ -1236,6 +1244,10 @@
     -fx-cursor: hand;
 }
 
+.root .settings-section .sub-section .combo-box:hover,
+.root .settings-section .sub-section .combo-box:focused,
+.root .settings-section .sub-section .text-field:hover,
+.root .settings-section .sub-section .text-field:focused,
 .root .settings-section .sub-section .combo-box .list-view {
     -fx-border-width: 1;
     -fx-border-color: #c3c5c7;
@@ -1244,11 +1256,6 @@
 .root .settings-section .sub-section .combo-box .list-view .list-cell:hover {
     -fx-background-color: #0b131f;
     -fx-text-fill: #fff;
-}
-
-.root .settings-section .sub-section .combo-box.small {
-    -fx-min-width: 75;
-    -fx-max-width: 75;
 }
 
 .root .settings-section .sub-section .combo-box .box {
@@ -1261,16 +1268,19 @@
 
 .root .settings-section .sub-section .text-field,
 .root .settings-section .sub-section .text-field.long {
-    -fx-min-width: 300;
-    -fx-max-width: 300;
+    -fx-min-width: 350;
+    -fx-max-width: 350;
     -fx-background-color: #393b3d;
     -fx-text-fill: #c3c5c7;
     -fx-prompt-text-fill: #646566;
+    -fx-border-width: 1;
+    -fx-border-color: transparent;
 }
 
+.root .settings-section .sub-section .combo-box.small,
 .root .settings-section .sub-section .text-field.small {
-    -fx-min-width: 150;
-    -fx-max-width: 150;
+    -fx-min-width: 100;
+    -fx-max-width: 100;
 }
 
 .root .torrent-collection .torrent-list TableHeaderRow {
@@ -1539,6 +1549,10 @@
 /* endregion */
 
 /* region Overlay */
+
+.root .overlay {
+    -fx-padding: 15 0 0 15;
+}
 
 .root .overlay .overlay-content {
     -fx-background-color: rgba(24, 25, 28, 0.75);

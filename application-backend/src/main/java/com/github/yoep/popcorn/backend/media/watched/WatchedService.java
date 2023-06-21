@@ -1,9 +1,7 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
-import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
@@ -22,18 +20,16 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Slf4j
 @Service
 public class WatchedService {
-    private static final int WATCHED_PERCENTAGE_THRESHOLD = 85;
-
-    private final EventPublisher eventPublisher;
-
     private final FxLib fxLib;
+    private final PopcornFx instance;
+
     private final Object lock = new Object();
     private final WatchedEventCallback callback = createCallback();
     private final ConcurrentLinkedDeque<WatchedEventCallback> listeners = new ConcurrentLinkedDeque<>();
 
-    public WatchedService(EventPublisher eventPublisher, FxLib fxLib) {
-        this.eventPublisher = eventPublisher;
+    public WatchedService(FxLib fxLib, PopcornFx instance) {
         this.fxLib = fxLib;
+        this.instance = instance;
         init();
     }
 
@@ -49,7 +45,7 @@ public class WatchedService {
         Objects.requireNonNull(watchable, "watchable cannot be null");
         synchronized (lock) {
             try (var media = MediaItem.from(watchable)) {
-                return fxLib.is_media_watched(PopcornFxInstance.INSTANCE.get(), media) == 1;
+                return fxLib.is_media_watched(instance, media) == 1;
             }
         }
     }
@@ -61,7 +57,7 @@ public class WatchedService {
      */
     public List<String> getWatchedMovies() {
         synchronized (lock) {
-            try (var watched = fxLib.retrieve_watched_movies(PopcornFxInstance.INSTANCE.get())) {
+            try (var watched = fxLib.retrieve_watched_movies(instance)) {
                 log.debug("Retrieved watched movies {}", watched);
                 return watched.values();
             }
@@ -75,7 +71,7 @@ public class WatchedService {
      */
     public List<String> getWatchedShows() {
         synchronized (lock) {
-            try (var watched = fxLib.retrieve_watched_shows(PopcornFxInstance.INSTANCE.get())) {
+            try (var watched = fxLib.retrieve_watched_shows(instance)) {
                 log.debug("Retrieved watched shows {}", watched);
                 return watched.values();
             }
@@ -91,7 +87,7 @@ public class WatchedService {
         Objects.requireNonNull(watchable, "watchable cannot be null");
         synchronized (lock) {
             try (var media = MediaItem.from(watchable)) {
-                fxLib.add_to_watched(PopcornFxInstance.INSTANCE.get(), media);
+                fxLib.add_to_watched(instance, media);
             }
         }
     }
@@ -105,7 +101,7 @@ public class WatchedService {
         Objects.requireNonNull(watchable, "watchable cannot be null");
         synchronized (lock) {
             try (var media = MediaItem.from(watchable)) {
-                fxLib.remove_from_watched(PopcornFxInstance.INSTANCE.get(), media);
+                fxLib.remove_from_watched(instance, media);
             }
         }
     }
@@ -121,38 +117,8 @@ public class WatchedService {
 
     //endregion
     private void init() {
-        eventPublisher.register(PlayerStoppedEvent.class, event -> {
-            onPlayerStoppedEvent(event);
-            return event;
-        });
         synchronized (lock) {
-            fxLib.register_watched_event_callback(PopcornFxInstance.INSTANCE.get(), callback);
-        }
-    }
-
-    private void onPlayerStoppedEvent(PlayerStoppedEvent event) {
-        // check if the media is present
-        // if not, the played video might have been a trailer or video file
-        if (event.getMedia().isEmpty())
-            return;
-
-        var time = event.getTime();
-        var duration = event.getDuration();
-
-        // check if both the time and duration of the video are known
-        // if not, the close activity media is not eligible for being auto marked as watched
-        if (time == PlayerStoppedEvent.UNKNOWN || duration == PlayerStoppedEvent.UNKNOWN)
-            return;
-
-        var percentageWatched = ((double) time / duration) * 100;
-        var media = event.getMedia().get();
-
-        // check if the media has been watched for the percentage threshold
-        // if so, mark the media as watched
-        log.trace("Media playback of \"{}\" ({}) has been watched for {}%", media.getTitle(), media.getId(), percentageWatched);
-        if (percentageWatched >= WATCHED_PERCENTAGE_THRESHOLD) {
-            log.debug("Marking media \"{}\" ({}) automatically as watched", media.getTitle(), media.getId());
-            addToWatchList(media);
+            fxLib.register_watched_event_callback(instance, callback);
         }
     }
 

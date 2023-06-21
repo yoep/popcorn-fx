@@ -140,7 +140,7 @@ impl From<SubtitleFile> for SubtitleFileC {
         trace!("Converting SubtitleFile to C for {:?}", &value);
         Self {
             file_id: *value.file_id(),
-            name: into_c_string(value.name().clone()),
+            name: into_c_string(value.name().to_string()),
             url: into_c_string(value.url().clone()),
             score: *value.score(),
             downloads: *value.downloads(),

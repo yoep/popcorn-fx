@@ -34,8 +34,8 @@ reqwest = { version = "0", features = ["serde_json", "json", "stream"] }
 ring = "0.16"
 semver = "1.0"
 serde.workspace = true
-serde_json = "1"
-serde_yaml = "0.9"
+serde_json.workspace = true
+serde_yaml.workspace = true
 tar = "0.4"
 tempfile = { version = "3", optional = true }
 thiserror = "1"

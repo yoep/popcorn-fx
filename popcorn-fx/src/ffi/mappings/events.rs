@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string};
 use popcorn_fx_core::core::events::{Event, PlayerStoppedEvent, PlayVideoEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 
@@ -52,12 +52,10 @@ impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
         trace!("Converting PlayerStoppedEvent from C for {:?}", value);
         let media = if !value.media.is_null() {
             trace!("Converting MediaItem from C for {:?}", value.media);
-            // TODO: TMP disabled due to memory cleanup issues
-            //     let media_item = from_c_owned(value.media);
-            //     let identifier = media_item.as_identifier();
-            //     mem::forget(media_item);
-            //     identifier
-            None
+            let media_item = from_c_into_boxed(value.media);
+            let identifier = media_item.as_identifier();
+            mem::forget(media_item);
+            identifier
         } else {
             None
         };

@@ -53,8 +53,8 @@ impl SubtitleFile {
         &self.file_id
     }
 
-    pub fn name(&self) -> &String {
-        &self.name
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
 
     pub fn url(&self) -> &String {

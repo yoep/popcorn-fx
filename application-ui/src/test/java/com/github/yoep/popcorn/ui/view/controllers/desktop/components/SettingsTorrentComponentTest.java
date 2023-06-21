@@ -4,10 +4,11 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
+import com.github.yoep.popcorn.backend.settings.models.CleaningMode;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
 import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
-import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,17 +57,18 @@ class SettingsTorrentComponentTest {
         component.connectionLimit = new DelayedTextField();
         component.downloadLimit = new DelayedTextField();
         component.uploadLimit = new DelayedTextField();
-        component.clearCache = new CheckBox();
+        component.cleaningMode = new ComboBox<>();
     }
 
     @Test
     void testChangeClearCache() {
+        var expected_mode = CleaningMode.WATCHED;
         when(settings.getDirectory()).thenReturn(workingDir.getAbsolutePath());
         component.initialize(url, resourceBundle);
 
-        component.clearCache.setSelected(true);
+        component.cleaningMode.getSelectionModel().select(expected_mode);
 
-        verify(settings).setAutoCleaningEnabled(true);
+        verify(settings).setCleaningMode(expected_mode);
         verify(applicationConfig).update(settings);
     }
 }

@@ -1,12 +1,12 @@
 package com.github.yoep.popcorn.backend.torrent;
 
 import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @RequiredArgsConstructor
 public class TorrentStreamServiceImpl implements TorrentStreamService {
     private final FxLib lib;
-    private final PopcornFxInstance instance;
+    private final PopcornFx instance;
     private final TorrentService torrentService;
     private final Queue<TorrentStream> streamCache = new ConcurrentLinkedQueue<>();
 
@@ -29,8 +29,8 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
         Objects.requireNonNull(torrent, "torrent cannot be null");
         synchronized (streamCache) {
             log.trace("Starting a new stream for torrent file {}", torrent.getFile());
-            var torrentWrapper = TorrentWrapper.from(torrent);
-            var torrentStream = lib.start_stream(instance.get(), torrentWrapper.getWrapperPointer());
+            var torrentWrapper = TorrentWrapper.from(instance, torrent);
+            var torrentStream = lib.start_stream(instance, torrentWrapper.getWrapperPointer());
 
             log.debug("Starting stream for torrent {} at {}", torrent.getFile(), torrentStream.getStreamUrl());
             torrentStream.updateTorrent(torrentWrapper);
@@ -52,7 +52,7 @@ public class TorrentStreamServiceImpl implements TorrentStreamService {
                     }
                     if (torrentStream instanceof TorrentStreamWrapper wrapper) {
                         wrapper.close();
-                        lib.stop_stream(instance.get(), wrapper);
+                        lib.stop_stream(instance, wrapper);
                         lib.dispose_torrent_stream(wrapper);
                     }
 

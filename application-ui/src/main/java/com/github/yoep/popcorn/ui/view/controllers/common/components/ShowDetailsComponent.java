@@ -65,7 +65,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @FXML
     AxisItemSelection<Episode> episodes;
     @FXML
-    Overlay overlay;
+    Overlay episodeDetailsOverlay;
     @FXML
     GridPane episodeDetails;
     @FXML
@@ -114,7 +114,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         loadText();
         loadSeasons();
-        overlay.hide();
+        episodeDetailsOverlay.hide();
     }
 
     @Override
@@ -211,7 +211,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         var episodeActions = viewLoader.load("components/serie-episode-actions.component.fxml");
         episodeDetails.add(episodeActions, 0, 4, 2, 1);
-        serieActionsComponent.setOnWatchNowClicked(() -> overlay.hide());
+        serieActionsComponent.setOnWatchNowClicked(() -> episodeDetailsOverlay.hide());
     }
 
     private void loadText() {
@@ -241,7 +241,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void switchEpisode(Episode episode) {
-        this.overlay.show();
+        this.episodeDetailsOverlay.show();
         this.episode = episode;
 
         if (episode == null)

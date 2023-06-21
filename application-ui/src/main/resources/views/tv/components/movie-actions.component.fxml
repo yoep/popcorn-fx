@@ -29,22 +29,21 @@
     <Button fx:id="favoriteButton" onMouseClicked="#onFavoriteClicked" onKeyPressed="#onFavoritePressed">
         <graphic>
             <Icon fx:id="favoriteIcon">
-                <Icon fx:constant="HEART_UNICODE" />
+                <Icon fx:constant="HEART_UNICODE"/>
             </Icon>
         </graphic>
     </Button>
 
-    <Overlay fx:id="qualityOverlay" for="$watchNowButton">
-        <VBox>
-            <Label styleClass="title" text="%video_resolution" />
-            <AxisItemSelection fx:id="qualities" spacing="5" />
+    <Overlay fx:id="qualityOverlay" for="$watchNowButton" attachTo="movieDetails">
+        <VBox fillWidth="false">
+            <Label styleClass="title" text="%video_resolution"/>
+            <AxisItemSelection fx:id="qualities" spacing="5"/>
         </VBox>
     </Overlay>
-
-    <Overlay fx:id="subtitleOverlay">
-        <VBox>
-            <Label styleClass="title" text="%details_subtitle" />
-            <AxisItemSelection fx:id="subtitles" spacing="5" />
+    <Overlay fx:id="subtitleOverlay" attachTo="movieDetails">
+        <VBox fillWidth="false">
+            <Label styleClass="title" text="%details_subtitle"/>
+            <AxisItemSelection fx:id="subtitles" spacing="5"/>
         </VBox>
     </Overlay>
 </HBox>

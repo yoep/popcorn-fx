@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.*?>
 <AnchorPane xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.ShowDetailsComponent"
-            styleClass="show-details-section">
+            fx:id="showDetailsSection" styleClass="show-details-section">
 
     <!-- Background -->
     <BackgroundImageCover fx:id="backgroundImage"
@@ -72,7 +72,7 @@
                            GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="6"/>
     </GridPane>
 
-    <Overlay fx:id="overlay">
+    <Overlay fx:id="episodeDetailsOverlay" attachTo="showDetailsSection">
         <!-- Actions -->
         <GridPane fx:id="episodeDetails">
             <columnConstraints>

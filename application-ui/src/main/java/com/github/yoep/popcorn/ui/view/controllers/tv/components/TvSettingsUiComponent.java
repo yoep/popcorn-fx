@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.UIScale;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
+import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -24,6 +25,8 @@ public class TvSettingsUiComponent implements Initializable {
 
     @FXML
     Button defaultLanguage;
+    @FXML
+    Overlay defaultLanguageOverlay;
     @FXML
     AxisItemSelection<Locale> languages;
     @FXML
@@ -57,6 +60,7 @@ public class TvSettingsUiComponent implements Initializable {
             settings.setDefaultLanguage(newValue.toString());
             applicationConfig.update(settings);
             defaultLanguage.setText(localeText.get("language_" + newValue));
+            defaultLanguageOverlay.hide();
         });
         languages.setSelectedItem(Locale.forLanguageTag(getSettings().getDefaultLanguage()));
 
@@ -69,6 +73,7 @@ public class TvSettingsUiComponent implements Initializable {
         });
         uiScales.setSelectedItem(getSettings().getUiScale());
 
+        startScreens.setItemFactory(item -> new Button(localeText.get("filter_" + item.name().toLowerCase())));
         startScreens.setItems(Category.values());
         startScreens.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             var settings = getSettings();

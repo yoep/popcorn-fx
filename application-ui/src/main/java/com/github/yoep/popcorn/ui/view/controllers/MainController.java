@@ -56,7 +56,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private final ApplicationConfig applicationConfig;
 
     @FXML
-    AnchorPane rootPane;
+    AnchorPane root;
     Pane contentPane;
     Pane playerPane;
     Pane loaderPane;
@@ -84,12 +84,12 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     private void initializeSceneEvents() {
-        rootPane.setOnDragOver(this::onDragOver);
-        rootPane.setOnDragDropped(this::onDragDropped);
+        root.setOnDragOver(this::onDragOver);
+        root.setOnDragDropped(this::onDragDropped);
     }
 
     private void initializeSceneListeners() {
-        rootPane.setOnKeyPressed(this::onKeyPressed);
+        root.setOnKeyPressed(this::onKeyPressed);
     }
 
     private void initializeSection() {
@@ -100,16 +100,16 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private void initializeOptions() {
         if (applicationConfig.isMouseDisabled()) {
             log.trace("Hiding the mouse on the main scene");
-            rootPane.getStyleClass().add(MOUSE_DISABLED_STYLE_CLASS);
-            rootPane.setCursor(Cursor.NONE);
-            rootPane.sceneProperty().addListener((observable, oldValue, newValue) -> {
+            root.getStyleClass().add(MOUSE_DISABLED_STYLE_CLASS);
+            root.setCursor(Cursor.NONE);
+            root.sceneProperty().addListener((observable, oldValue, newValue) -> {
                 if (newValue != null) {
                     newValue.setCursor(Cursor.NONE);
                 }
             });
             log.trace("Disabling mouse events on the root pane");
-            rootPane.addEventFilter(MouseEvent.ANY, this::handleRootMouseEvent);
-            rootPane.addEventFilter(KeyEvent.KEY_PRESSED, this::handleRootKeyEvent);
+            root.addEventFilter(MouseEvent.ANY, this::handleRootMouseEvent);
+            root.addEventFilter(KeyEvent.KEY_PRESSED, this::handleRootKeyEvent);
         }
     }
 
@@ -138,7 +138,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private void initializeTvStylesheet() {
         if (applicationConfig.isTvMode()) {
-            rootPane.getStylesheets().add(TV_STYLESHEET);
+            root.getStylesheets().add(TV_STYLESHEET);
         }
     }
 
@@ -269,8 +269,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         }
 
         Platform.runLater(() -> {
-            rootPane.getChildren().removeIf(e -> e != notificationPane);
-            rootPane.getChildren().add(0, content.get());
+            root.getChildren().removeIf(e -> e != notificationPane);
+            root.getChildren().add(0, content.get());
         });
     }
 
@@ -278,7 +278,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         AnchorPane.setTopAnchor(notificationPane, 55.0);
         AnchorPane.setRightAnchor(notificationPane, 20.0);
 
-        rootPane.getChildren().add(notificationPane);
+        root.getChildren().add(notificationPane);
     }
 
     private void anchor(Pane pane) {
@@ -291,7 +291,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private void handleRootMouseEvent(MouseEvent event) {
         event.consume();
         if (event.getEventType() == MouseEvent.MOUSE_CLICKED) {
-            Optional.ofNullable(rootPane.getScene())
+            Optional.ofNullable(root.getScene())
                     .map(Scene::getFocusOwner)
                     .ifPresent(focussedNode -> {
                         var keyEvent = mapMouseEventToKeyEvent(event, focussedNode);
@@ -303,7 +303,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private void handleRootKeyEvent(KeyEvent event) {
         if (event.getCode() == KeyCode.UNDEFINED) {
             event.consume();
-            Optional.ofNullable(rootPane.getScene())
+            Optional.ofNullable(root.getScene())
                     .map(Scene::getFocusOwner)
                     .ifPresent(focussedNode -> {
                         var keyEvent = new KeyEvent(focussedNode, focussedNode, KeyEvent.KEY_PRESSED, KeyCode.BACK_SPACE.getChar(),

@@ -32,7 +32,6 @@
         <Label text="%kilobyte_rate"/>
     </HBox>
 
-
     <!-- Upload limit -->
     <Label text="%settings_torrent_upload_limit"
            GridPane.columnIndex="1" GridPane.rowIndex="1"/>

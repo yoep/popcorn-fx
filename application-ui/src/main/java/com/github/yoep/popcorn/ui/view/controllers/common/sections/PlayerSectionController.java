@@ -35,7 +35,7 @@ public class PlayerSectionController implements Initializable {
     private final ApplicationConfig applicationConfig;
 
     @FXML
-    Pane playerSectionPane;
+    Pane playerSection;
     @FXML
     Pane playerPlayNextPane;
 
@@ -88,7 +88,7 @@ public class PlayerSectionController implements Initializable {
         anchorPane(pane);
 
         Platform.runLater(() -> {
-            var children = playerSectionPane.getChildren();
+            var children = playerSection.getChildren();
 
             // check if the previous player should be removed
             if (children.size() >= 2) {

@@ -498,7 +498,7 @@
 
 .root .player .overlay .overlay-content .button,
 .root .overlay .overlay-content .axis .button {
-    -fx-pref-width: 12em;
+    -fx-pref-width: 16em;
 }
 
 /* endregion */
@@ -510,7 +510,7 @@
 }
 
 .root .settings-section .sub-section .button {
-    -fx-pref-width: 10em;
+    -fx-pref-width: 12em;
     -fx-background-color: rgba(23, 24, 27, 0.8);
 }
 
@@ -525,7 +525,7 @@
 }
 
 .root .settings-section .overlay .overlay-content .button {
-    -fx-pref-width: 12em;
+    -fx-pref-width: 15em;
 }
 
 /* endregion */

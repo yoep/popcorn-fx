@@ -53,7 +53,7 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         initializeUploadLimit();
         initializeConnectionLimit();
         initializeCacheDirectory();
-        initializeClearCache();
+        initializeCleaningMode();
     }
 
     private void initializeDownloadLimit() {
@@ -119,7 +119,7 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
         });
     }
 
-    private void initializeClearCache() {
+    private void initializeCleaningMode() {
         var settings = getSettings();
 
         cleaningMode.setCellFactory(item -> createCleaningModeCell());

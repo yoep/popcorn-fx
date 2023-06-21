@@ -44,6 +44,14 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
         subtitleManagerService.updateSubtitle(subtitleInfo);
     }
 
+    public SubtitleInfo[] defaultSubtitles() {
+        try (var none = subtitleService.none()) {
+            try (var custom = subtitleService.custom()) {
+                return new SubtitleInfo[]{none, custom};
+            }
+        }
+    }
+
     //endregion
 
     //region PostConstruct

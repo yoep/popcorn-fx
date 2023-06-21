@@ -59,7 +59,7 @@ class MainControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller.rootPane = new AnchorPane();
+        controller.root = new AnchorPane();
     }
 
     @Test
@@ -68,19 +68,19 @@ class MainControllerTest {
         var targetNode = new Icon();
         var event = new MouseEvent(MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, MouseButton.PRIMARY, 1, false, false, false, false, true,
                 false, false, false, false, false, new PickResult(targetNode, null, 0, 0, null));
-        var scene = new Scene(controller.rootPane);
+        var scene = new Scene(controller.root);
         targetNode.setOnKeyPressed(eventFuture::complete);
         when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
         when(applicationConfig.isMouseDisabled()).thenReturn(true);
 
         controller.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.loaderPane != null);
-        assertEquals(Cursor.NONE, controller.rootPane.getCursor());
-        assertTrue(controller.rootPane.getStyleClass().contains(MainController.MOUSE_DISABLED_STYLE_CLASS));
+        assertEquals(Cursor.NONE, controller.root.getCursor());
+        assertTrue(controller.root.getStyleClass().contains(MainController.MOUSE_DISABLED_STYLE_CLASS));
 
-        controller.rootPane.getChildren().add(targetNode);
+        controller.root.getChildren().add(targetNode);
         targetNode.requestFocus();
-        controller.rootPane.fireEvent(event);
+        controller.root.fireEvent(event);
         // TODO: fix this test, it doesn't work within github actions
 //        var eventResult = eventFuture.get(200, TimeUnit.MILLISECONDS);
 //        assertEquals(KeyCode.ENTER, eventResult.getCode());
@@ -91,7 +91,7 @@ class MainControllerTest {
         var eventFuture = new CompletableFuture<KeyEvent>();
         var targetNode = new Button();
         var event = new KeyEvent(this, targetNode, KeyEvent.KEY_PRESSED, "", "", KeyCode.UNDEFINED, false, false, false, false);
-        var scene = new Scene(controller.rootPane);
+        var scene = new Scene(controller.root);
         targetNode.setOnKeyPressed(eventFuture::complete);
         when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
         when(applicationConfig.isMouseDisabled()).thenReturn(true);
@@ -99,9 +99,9 @@ class MainControllerTest {
         controller.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.loaderPane != null);
 
-        controller.rootPane.getChildren().add(targetNode);
+        controller.root.getChildren().add(targetNode);
         targetNode.requestFocus();
-        controller.rootPane.fireEvent(event);
+        controller.root.fireEvent(event);
     }
 
     @Test
@@ -111,7 +111,7 @@ class MainControllerTest {
 
         eventPublisher.publish(new ShowDetailsEvent<>(this, mock(MovieDetails.class)));
 
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.rootPane.getChildren().contains(controller.contentPane));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.root.getChildren().contains(controller.contentPane));
     }
 
     @Test
@@ -122,6 +122,6 @@ class MainControllerTest {
         WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> controller.playerPane != null);
         eventPublisher.publish(new PlayVideoEvent(this, "http://localhost", "lorem", false));
 
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.rootPane.getChildren().contains(controller.playerPane));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.root.getChildren().contains(controller.playerPane));
     }
 }

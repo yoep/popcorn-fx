@@ -36,17 +36,26 @@
     <Label styleClass="subsection-label" text="%settings_start_screen" labelFor="$startScreen"
            GridPane.columnIndex="1" GridPane.rowIndex="2"/>
     <Button fx:id="startScreen"
-              GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+            GridPane.columnIndex="2" GridPane.rowIndex="2"/>
 
     <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
 
-    <Overlay for="$defaultLanguage">
-        <AxisItemSelection fx:id="languages" orientation="VERTICAL" spacing="5" />
+    <Overlay fx:id="defaultLanguageOverlay" for="$defaultLanguage" attachTo="settings">
+        <VBox>
+            <Label text="%settings_ui_language"/>
+            <AxisItemSelection fx:id="languages" orientation="VERTICAL" spacing="5"/>
+        </VBox>
     </Overlay>
-    <Overlay for="$uiScale">
-        <AxisItemSelection fx:id="uiScales" orientation="VERTICAL" spacing="5" />
+    <Overlay for="$uiScale" attachTo="settings">
+        <VBox>
+            <Label text="%settings_ui_scale"/>
+            <AxisItemSelection fx:id="uiScales" orientation="VERTICAL" spacing="5"/>
+        </VBox>
     </Overlay>
-    <Overlay for="$startScreen">
-        <AxisItemSelection fx:id="startScreens" orientation="VERTICAL" spacing="5" />
+    <Overlay for="$startScreen" attachTo="settings">
+        <VBox>
+            <Label text="%settings_start_screen"/>
+            <AxisItemSelection fx:id="startScreens" orientation="VERTICAL" spacing="5"/>
+        </VBox>
     </Overlay>
 </GridPane>

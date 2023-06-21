@@ -3,7 +3,7 @@
 <?import javafx.scene.layout.AnchorPane?>
 <AnchorPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.PlayerSectionController"
-            fx:id="playerSectionPane" styleClass="player" onKeyPressed="#onPlayerPressed">
+            fx:id="playerSection" styleClass="player" onKeyPressed="#onPlayerPressed">
     <!-- Play next -->
     <fx:include fx:id="playerPlayNextPane" source="../../desktop/components/player-play-next.component.fxml"
                 AnchorPane.rightAnchor="0"/>

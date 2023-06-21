@@ -45,6 +45,10 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         defaultLanguage.getItems().addAll(UISettings.supportedLanguages());
         defaultLanguage.getSelectionModel().select(Locale.forLanguageTag(getUiSettings().getDefaultLanguage()));
         defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
+        defaultLanguage.sceneProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null)
+                defaultLanguage.requestFocus();
+        });
     }
 
     private void initializeUIScale() {

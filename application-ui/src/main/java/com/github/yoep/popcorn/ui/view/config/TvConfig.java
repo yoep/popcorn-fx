@@ -84,6 +84,13 @@ public class TvConfig {
 
     @Bean
     @ConditionalOnTvMode
+    public TvSettingsTorrentComponent tvSettingsTorrentComponent(ApplicationConfig applicationConfig,
+                                                                 LocaleText localeText) {
+        return new TvSettingsTorrentComponent(applicationConfig, localeText);
+    }
+
+    @Bean
+    @ConditionalOnTvMode
     public TvSerieActionsComponent tvSerieActionsComponent(EventPublisher eventPublisher,
                                                            LocaleText localeText,
                                                            DetailsComponentService detailsComponentService) {

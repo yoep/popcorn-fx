@@ -135,13 +135,15 @@ public class TvPlayerControlsComponent implements Initializable {
         subtitleService.addListener(new PlayerSubtitleListener() {
             @Override
             public void onActiveSubtitleChanged(SubtitleInfo activeSubtitle) {
-                subtitleSelection.setSelectedItem(activeSubtitle);
+                Platform.runLater(() -> subtitleSelection.setSelectedItem(activeSubtitle));
             }
 
             @Override
             public void onAvailableSubtitlesChanged(List<SubtitleInfo> subtitles, SubtitleInfo activeSubtitle) {
-                subtitleSelection.setItems(subtitles.toArray(new SubtitleInfo[0]));
-                subtitleSelection.setSelectedItem(activeSubtitle);
+                Platform.runLater(() -> {
+                    subtitleSelection.setItems(subtitles.toArray(new SubtitleInfo[0]));
+                    subtitleSelection.setSelectedItem(activeSubtitle);
+                });
             }
         });
         subtitleSelection.setItemFactory(item -> new Button(item.getLanguage().getNativeName()));
@@ -150,6 +152,7 @@ public class TvPlayerControlsComponent implements Initializable {
             playerControlsService.resume();
             subtitleService.updateActiveSubtitle(item);
         });
+        subtitleSelection.setItems(subtitleService.defaultSubtitles());
     }
 
     private void initializeText() {

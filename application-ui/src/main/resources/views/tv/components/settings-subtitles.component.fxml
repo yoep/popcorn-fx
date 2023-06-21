@@ -44,16 +44,19 @@
 
     <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 
-    <Overlay fx:id="defaultSubtitleOverlay" for="$defaultSubtitle">
-        <AxisItemSelection fx:id="subtitles" orientation="VERTICAL" spacing="5"/>
+    <Overlay fx:id="defaultSubtitleOverlay" for="$defaultSubtitle" attachTo="settings">
+        <VBox>
+            <Label text="%settings_subtitles_default" />
+            <AxisItemSelection fx:id="subtitles" orientation="VERTICAL" spacing="5"/>
+        </VBox>
     </Overlay>
-    <Overlay fx:id="fontFamilyOverlay" for="$fontFamily">
+    <Overlay fx:id="fontFamilyOverlay" for="$fontFamily" attachTo="settings">
         <AxisItemSelection fx:id="fontFamilies" orientation="VERTICAL" spacing="5"/>
     </Overlay>
-    <Overlay fx:id="decorationOverlay" for="$decoration">
+    <Overlay fx:id="decorationOverlay" for="$decoration" attachTo="settings">
         <AxisItemSelection fx:id="decorations" orientation="VERTICAL" spacing="5"/>
     </Overlay>
-    <Overlay fx:id="fontSizeOverlay" for="$fontSize">
+    <Overlay fx:id="fontSizeOverlay" for="$fontSize" attachTo="settings">
         <AxisItemSelection fx:id="fontSizes" orientation="VERTICAL" spacing="5"/>
     </Overlay>
 </GridPane>

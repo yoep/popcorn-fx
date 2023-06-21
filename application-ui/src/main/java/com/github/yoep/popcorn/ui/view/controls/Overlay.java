@@ -1,34 +1,37 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
 import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.collections.ListChangeListener;
+import javafx.geometry.HPos;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.*;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 @Slf4j
-public class Overlay extends GridPane {
+public class Overlay extends Pane {
     static final String STYLE_CLASS = "overlay";
     static final String CHILD_STYLE_CLASS = "overlay-content";
+    static final String DEFAULT_ATTACH_ID = "root";
 
     final ObjectProperty<Node> forNode = new SimpleObjectProperty<>(this, "for");
-    final ObjectProperty<AnchorPane> attachedParent = new SimpleObjectProperty<>(this, "attachedParent");
+    final StringProperty attachTo = new SimpleStringProperty(this, "attachTo", DEFAULT_ATTACH_ID);
     final BooleanProperty shown = new SimpleBooleanProperty(this, "shown");
 
     Node lastKnownFocusNode;
+    boolean attached;
 
     public Overlay() {
         init();
@@ -65,25 +68,30 @@ public class Overlay extends GridPane {
         this.shown.set(shown);
     }
 
+    public String getAttachTo() {
+        return attachTo.get();
+    }
+
+    public StringProperty attachToProperty() {
+        return attachTo;
+    }
+
+    public void setAttachTo(String attachTo) {
+        this.attachTo.set(attachTo);
+    }
+
     //endregion
 
     public synchronized void show() {
-        if (!isShown()) {
-            var children = attachedParent.get().getChildren();
-            children.add(children.size(), this);
-            setShown(true);
-        }
-
+        setViewOrder(-999);
+        updateState(false);
+        setShown(true);
         doInternalFocusRequest();
     }
 
     public synchronized void hide() {
-        var attachedParent = this.attachedParent.get();
-        if (attachedParent == null)
-            return;
-
-        var children = attachedParent.getChildren();
-        children.remove(this);
+        setViewOrder(999);
+        updateState(true);
         setShown(false);
 
         if (lastKnownFocusNode != null) {
@@ -91,19 +99,34 @@ public class Overlay extends GridPane {
         }
     }
 
+    @Override
+    public void requestLayout() {
+        if (!attached && getScene() != null) {
+            log.trace("Searching for node ID {} to attach to", getAttachTo());
+            doAttaching(getScene().getRoot().getChildrenUnmodifiable());
+            hide();
+        }
+
+        super.requestLayout();
+    }
+
+    @Override
+    protected void layoutChildren() {
+        var children = getManagedChildren();
+        var width = getWidth();
+        var height = getHeight();
+        var insets = getInsets();
+        var usableWidth = width - insets.getLeft() - insets.getRight();
+        var usableHeight = height - insets.getTop() - insets.getBottom();
+
+        for (Node child : children) {
+            layoutInArea(child, 0, 0, usableWidth, usableHeight, 0, getInsets(), false, false, HPos.CENTER, VPos.CENTER);
+        }
+    }
+
     private void init() {
         getStyleClass().add(STYLE_CLASS);
-        getColumnConstraints().add(0, resizingColumn());
-        getColumnConstraints().add(1, new ColumnConstraints());
-        getColumnConstraints().add(2, resizingColumn());
-        getRowConstraints().add(0, resizingRow());
-        getRowConstraints().add(1, new RowConstraints());
-        getRowConstraints().add(2, resizingRow());
-        setMaxHeight(0d);
-
         AnchorPane.setTopAnchor(this, 0d);
-        AnchorPane.setRightAnchor(this, 0d);
-        AnchorPane.setBottomAnchor(this, 0d);
         AnchorPane.setLeftAnchor(this, 0d);
 
         setOnKeyPressed(this::onKeyPressed);
@@ -114,19 +137,6 @@ public class Overlay extends GridPane {
 
     private void initializeListeners() {
         getChildren().addListener((ListChangeListener<? super Node>) Overlay::onChildrenChanged);
-        attachedParent.addListener((observable, oldValue, newValue) -> {
-            onAttachedParentChanged();
-        });
-        sceneProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null)
-                updateParentIfNeeded();
-        });
-        parentProperty().addListener((observable, oldValue, newValue) -> updateParentIfNeeded());
-        focusWithinProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue && isShown()) {
-                doInternalFocusRequest();
-            }
-        });
         forNode.addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 newValue.setOnMouseClicked(event -> {
@@ -147,27 +157,22 @@ public class Overlay extends GridPane {
         });
     }
 
-    private void updateParentIfNeeded() {
-        if (attachedParent.get() == null) {
-            new Thread(() -> {
-                var attached = false;
-
-                do {
-                    var future = new CompletableFuture<Boolean>();
-                    Platform.runLater(() -> {
-                        attachToParent(getParent());
-                        future.complete(attachedParent.get() != null);
-                    });
-
-                    try {
-                        attached = future.get();
-                        Thread.sleep(200);
-                    } catch (InterruptedException | ExecutionException e) {
-                        log.warn("Unable to attach to parent, {}", e.getMessage(), e);
-                        break;
+    private void doAttaching(List<Node> nodes) {
+        for (Node node : nodes) {
+            if (node instanceof Pane pane) {
+                if (Objects.equals(node.getId(), getAttachTo())) {
+                    if (!pane.getChildren().contains(this)) {
+                        pane.getChildren().add(pane.getChildren().size(), this);
+                        prefWidthProperty().bind(pane.widthProperty());
+                        prefHeightProperty().bind(pane.heightProperty());
                     }
-                } while (!attached);
-            }, "Overlay.AttachParent").start();
+
+                    attached = true;
+                    return;
+                }
+
+                doAttaching(pane.getChildren());
+            }
         }
     }
 
@@ -176,6 +181,11 @@ public class Overlay extends GridPane {
         var y = event.getSceneY();
 
         if (getChildren().stream().noneMatch(e -> e.getBoundsInParent().contains(x, y))) {
+            event.consume();
+            hide();
+        }
+
+        if (event.getButton() == MouseButton.BACK) {
             event.consume();
             hide();
         }
@@ -221,18 +231,18 @@ public class Overlay extends GridPane {
         });
     }
 
-    private synchronized void onAttachedParentChanged() {
-        var children = ((Pane) getParent()).getChildren();
-        children.removeIf(e -> e == this);
-    }
+    private void updateState(boolean disabled) {
+        setDisable(disabled);
+        setVisible(!disabled);
+        getChildren().forEach(e -> e.setDisable(disabled));
 
-    private void attachToParent(Parent parent) {
-        if (parent instanceof AnchorPane pane) {
-            setMaxHeight(USE_COMPUTED_SIZE);
-            attachedParent.set(pane);
-            log.trace("Overlay has been attached to {}", pane);
-        } else if (parent != null) {
-            attachToParent(parent.getParent());
+        if (getParent() == null)
+            return;
+
+        for (Node node : getParent().getChildrenUnmodifiable()) {
+            if (node != this) {
+                node.setDisable(!disabled);
+            }
         }
     }
 
@@ -240,8 +250,6 @@ public class Overlay extends GridPane {
         while (change.next()) {
             if (change.wasAdded()) {
                 for (Node child : change.getAddedSubList()) {
-                    GridPane.setColumnIndex(child, 1);
-                    GridPane.setRowIndex(child, 1);
                     child.getStyleClass().add(CHILD_STYLE_CLASS);
                 }
             }
@@ -268,21 +276,5 @@ public class Overlay extends GridPane {
         }
 
         return null;
-    }
-
-    private static ColumnConstraints resizingColumn() {
-        var resizingColumn = new ColumnConstraints();
-        resizingColumn.setMinWidth(45d);
-        resizingColumn.setMaxWidth(Double.MAX_VALUE);
-        resizingColumn.setHgrow(Priority.ALWAYS);
-        return resizingColumn;
-    }
-
-    private static RowConstraints resizingRow() {
-        var resizingRow = new RowConstraints();
-        resizingRow.setMinHeight(25d);
-        resizingRow.setMaxHeight(Double.MAX_VALUE);
-        resizingRow.setVgrow(Priority.ALWAYS);
-        return resizingRow;
     }
 }

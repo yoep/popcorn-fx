@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection?>
+<?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvSettingsTorrentComponent"
+          styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <Label styleClass="subsection-title" text="%settings_torrent" GridPane.valignment="TOP"
+           GridPane.rowSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <Label styleClass="subsection-label" text="%settings_torrent_cleaning_mode"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <Button fx:id="cacheCleanup"
+            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <Separator GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+    <Overlay fx:id="cacheCleanupOverlay" for="$cacheCleanup" attachTo="settings">
+        <AxisItemSelection fx:id="cleanupModes" orientation="VERTICAL" spacing="5"/>
+    </Overlay>
+</GridPane>

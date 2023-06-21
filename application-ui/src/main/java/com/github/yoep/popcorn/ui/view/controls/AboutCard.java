@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.controls;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.info.ComponentState;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.Label;
@@ -90,7 +91,7 @@ public class AboutCard extends GridPane {
 
         componentInfo.addChangeListener(evt -> {
             if (evt.getPropertyName().equals(ComponentInfo.STATE_PROPERTY)) {
-                stateIcon.setText(stateToIconUnicode((ComponentState) evt.getNewValue()));
+                Platform.runLater(() -> stateIcon.setText(stateToIconUnicode((ComponentState) evt.getNewValue())));
             }
         });
     }

@@ -1104,7 +1104,7 @@ mod test {
     }
 
     #[test]
-    fn test_install_update() {
+    fn test_install_update_application() {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1126,18 +1126,72 @@ mod test {
     }}
   }},
   "runtime": {{
-    "version": "99.0.0",
-    "platforms": {{
-        "debian.x86_64": "{}"
-    }}
+    "version": "1.0.0",
+    "platforms": {{}}
   }}
- }}"#, application_patch_url, runtime_patch_url));
+ }}"#, application_patch_url));
         });
         server.mock(|when, then| {
             when.method(GET)
                 .path("/application.tar.gz");
             then.status(200)
                 .body_from_file(test_resource_filepath("application.tar.gz").to_str().unwrap());
+        });
+        let platform = default_platform_info();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+        let runtime = Runtime::new().unwrap();
+
+        // wait for the UpdateAvailable state
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+
+        // download the update
+        if let Err(err) = runtime.block_on(updater.download()) {
+            assert!(false, "expected the download to succeed, {}", err);
+        }
+
+        // install the update
+        if let Err(err) = updater.install() {
+            assert!(false, "expected the installation to succeed, {}", err);
+        }
+
+        // wait for the installation to complete
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::InstallationFinished, updater.state());
+
+        // verify if the patch file exists
+        assert!(application_patch_filepath.exists(), "expected application patch file {:?} to exist", application_patch_filepath);
+    }
+
+    #[test]
+    fn test_install_update() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let application_patch_filepath = temp_dir.path().join("99.0.0").join("test.txt");
+        let runtime_patch_filepath = temp_dir.path().join("runtimes").join("runtime.txt");
+        let (server, settings) = create_server_and_settings(temp_path);
+        let runtime_patch_url = server.url("/runtime.tar.gz");
+        server.mock(move |when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(r#"{{
+  "application": {{
+    "version": "1.0.0",
+    "platforms": {{}}
+  }},
+  "runtime": {{
+    "version": "99.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }}
+ }}"#, runtime_patch_url));
         });
         server.mock(|when, then| {
             when.method(GET)
@@ -1171,7 +1225,6 @@ mod test {
         assert_timeout_eq!(Duration::from_millis(200), UpdateState::InstallationFinished, updater.state());
 
         // verify if the patch file exists
-        assert!(application_patch_filepath.exists(), "expected application patch file {:?} to exist", application_patch_filepath);
         assert!(runtime_patch_filepath.exists(), "expected runtime patch file {:?} to exist", runtime_patch_filepath);
     }
 

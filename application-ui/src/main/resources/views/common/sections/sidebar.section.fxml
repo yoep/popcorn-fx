@@ -85,6 +85,9 @@
     <Icon fx:id="infoIcon" focusTraversable="true" onMouseClicked="#onInfoClicked" onKeyPressed="#onInfoPressed"
           GridPane.columnIndex="0" GridPane.rowIndex="8">
         <Icon fx:constant="INFO_CIRCLE_UNICODE"/>
+        <tooltip>
+            <Tooltip fx:id="infoTooltip" showDelay="0s" hideDelay="0s" text="%header_about" />
+        </tooltip>
     </Icon>
     <Label fx:id="infoText" labelFor="$infoIcon" text="%header_about" styleClass="icon-text" onMouseClicked="#onInfoClicked"
            GridPane.columnIndex="1" GridPane.rowIndex="8"/>

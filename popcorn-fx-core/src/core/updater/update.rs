@@ -688,7 +688,7 @@ impl InnerUpdater {
                     .send()
                     .await {
                     Ok(response) => {
-                        if response.status() == StatusCode::FOUND {
+                        if response.status().is_success() || response.status() == StatusCode::FOUND {
                             debug!("Application download link is available at {}", url);
                             true
                         } else {
@@ -722,7 +722,7 @@ impl InnerUpdater {
                     .send()
                     .await {
                     Ok(response) => {
-                        if response.status() == StatusCode::FOUND {
+                        if response.status().is_success() || response.status() == StatusCode::FOUND {
                             debug!("Runtime download link is available at {}", url);
                             true
                         } else {
@@ -942,7 +942,7 @@ mod test {
         server.mock(|when, then| {
             when.method(HEAD)
                 .path("/v999.0.0/popcorn-time_999.0.0.deb");
-            then.status(302);
+            then.status(200);
         });
         let platform = default_platform_info();
         let updater = Updater::builder()

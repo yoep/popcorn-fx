@@ -380,6 +380,7 @@
 .root .list-section .poster-item .poster .overlay {
     visibility: hidden;
     -fx-background-color: rgba(23, 24, 27, 0.6);
+    -fx-padding: 0 0 0 0;
 }
 
 .root .list-section .poster-item .poster:hover .overlay {

@@ -2,9 +2,12 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.updater.UpdateCallbackEvent;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
@@ -18,6 +21,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -41,6 +45,7 @@ public class SidebarController implements Initializable {
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
     private final UpdateService updateService;
+    private final LocaleText localeText;
 
     final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500), new Pane());
     final Transition updateTransition = createColorTransition();
@@ -74,6 +79,8 @@ public class SidebarController implements Initializable {
     Icon infoIcon;
     @FXML
     Label infoText;
+    @FXML
+    Tooltip infoTooltip;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -129,6 +136,10 @@ public class SidebarController implements Initializable {
             });
             return event;
         });
+        eventPublisher.register(ShowAboutEvent.class, event -> {
+            Platform.runLater(() -> switchCategory(infoIcon, false));
+            return event;
+        });
         updateService.register(event -> {
             if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
                 onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
@@ -149,8 +160,10 @@ public class SidebarController implements Initializable {
         Platform.runLater(() -> {
             if (newState == UpdateState.UPDATE_AVAILABLE) {
                 updateTransition.playFromStart();
+                infoTooltip.setText(localeText.get(UpdateMessage.UPDATE_AVAILABLE));
             } else {
                 updateTransition.stop();
+                infoTooltip.setText(localeText.get("header_about"));
             }
         });
     }
@@ -267,14 +280,14 @@ public class SidebarController implements Initializable {
         return new Transition() {
             {
                 setCycleCount(Animation.INDEFINITE);
-                setCycleDuration(Duration.seconds(2));
+                setCycleDuration(Duration.millis(1500));
                 setAutoReverse(true);
             }
 
             @Override
             protected void interpolate(double frac) {
-                var color = Color.rgb(36, 104, 204);
-                infoIcon.setTextFill(color.interpolate(Color.rgb(45, 150, 217), frac));
+                var color = Color.rgb(23, 65, 128);
+                infoIcon.setTextFill(color.interpolate(Color.rgb(48, 160, 230), frac));
             }
         };
     }

@@ -1,12 +1,17 @@
 package com.github.yoep.popcorn.backend.updater;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
+import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
@@ -23,6 +28,10 @@ class UpdateServiceTest {
     private PopcornFx instance;
     @Mock
     private PlatformProvider platform;
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
+    @Mock
+    private LocaleText localeText;
     @InjectMocks
     private UpdateService service;
 
@@ -76,6 +85,23 @@ class UpdateServiceTest {
         listenerHolder.get().callback(event);
 
         verify(platform, timeout(150)).exit(3);
+    }
+
+    @Test
+    void testCallbackListener_onUpdateAvailable() {
+        var text = "lorem";
+        var listenerHolder = new AtomicReference<UpdateCallback>();
+        when(localeText.get(UpdateMessage.UPDATE_AVAILABLE)).thenReturn(text);
+        UpdateCallbackEvent.ByValue event = createStateChangedEvent(UpdateState.UPDATE_AVAILABLE);
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
+            return null;
+        }).when(fxLib).register_update_callback(eq(instance), isA(UpdateCallback.class));
+        service.init();
+
+        listenerHolder.get().callback(event);
+
+        verify(eventPublisher, timeout(150)).publish(new InfoNotificationEvent(service, text));
     }
 
     @Test

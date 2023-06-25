@@ -10,6 +10,7 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 
@@ -17,19 +18,19 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 public class NotificationComponent implements Initializable {
-    private static final String INFO_STYLE_CLASS = "info";
-    private static final String SUCCESS_STYLE_CLASS = "success";
-    private static final String WARNING_STYLE_CLASS = "warning";
-    private static final String ERROR_STYLE_CLASS = "error";
-    private static final Duration CLOSE_DELAY = Duration.seconds(5);
+    static final String INFO_STYLE_CLASS = "info";
+    static final String SUCCESS_STYLE_CLASS = "success";
+    static final String WARNING_STYLE_CLASS = "warning";
+    static final String ERROR_STYLE_CLASS = "error";
+    static final Duration CLOSE_DELAY = Duration.seconds(5);
 
     private final PauseTransition pauseTransition = new PauseTransition(CLOSE_DELAY);
     private final NotificationEvent notificationActivity;
 
     @FXML
-    private Pane rootPane;
+    Pane rootPane;
     @FXML
-    private Label text;
+    Label text;
 
     private EventHandler<ActionEvent> onClose;
 
@@ -74,7 +75,7 @@ public class NotificationComponent implements Initializable {
     }
 
     private void initializeCloseTransition() {
-        pauseTransition.setOnFinished(actionEvent -> close());
+        pauseTransition.setOnFinished(actionEvent -> handleClose());
 
         rootPane.setOnMouseEntered(mouseEvent -> pauseTransition.stop());
         rootPane.setOnMouseExited(mouseEvent -> pauseTransition.playFromStart());
@@ -82,9 +83,22 @@ public class NotificationComponent implements Initializable {
         pauseTransition.playFromStart();
     }
 
-    @FXML
-    private void close() {
+    private void handleClose() {
         if (onClose != null)
             onClose.handle(new ActionEvent(rootPane, null));
+    }
+
+    private void handleAction() {
+        if (notificationActivity.getAction() == null)
+            return;
+
+        notificationActivity.getAction().run();
+    }
+
+    @FXML
+    void onClicked(MouseEvent event) {
+        event.consume();
+        handleAction();
+        handleClose();
     }
 }

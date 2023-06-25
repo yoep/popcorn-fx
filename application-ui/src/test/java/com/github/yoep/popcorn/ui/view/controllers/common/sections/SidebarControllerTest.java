@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
@@ -11,6 +13,7 @@ import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.ui.events.*;
 import javafx.animation.Animation;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -49,6 +52,8 @@ class SidebarControllerTest {
     private ViewLoader viewLoader;
     @Mock
     private UpdateService updateService;
+    @Mock
+    private LocaleText localeText;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
@@ -78,6 +83,7 @@ class SidebarControllerTest {
         controller.settingsText = new Label("settingsText");
         controller.infoIcon = new Icon("infoIcon");
         controller.infoText = new Label("infoText");
+        controller.infoTooltip = new Tooltip();
 
         controller.sidebar.getColumnConstraints().add(new ColumnConstraints());
         controller.sidebar.getColumnConstraints().add(new ColumnConstraints());

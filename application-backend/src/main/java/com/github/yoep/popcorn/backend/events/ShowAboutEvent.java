@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.events;
+package com.github.yoep.popcorn.backend.events;
 
 import lombok.EqualsAndHashCode;
 import org.springframework.context.ApplicationEvent;

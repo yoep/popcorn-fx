@@ -133,7 +133,7 @@ impl DefaultImageLoader {
     async fn fetch_remote_image_data(&self, image_url: &str) -> Result<Vec<u8>, ImageError> {
         trace!("Parsing image url {}", image_url);
         let url = Url::parse(image_url)
-            .map_err(|e| ImageError::ParseUrl(e.to_string()))?;
+            .map_err(|e| ImageError::ParseUrl(image_url.to_string(), e.to_string()))?;
 
         debug!("Retrieving image data from {:?}", url);
         let response = self.client.get(url)

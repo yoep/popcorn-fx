@@ -1,8 +1,13 @@
 package com.github.yoep.popcorn.backend.updater;
 
+import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
+import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
+import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,6 +23,8 @@ public class UpdateService {
     private final FxLib fxLib;
     private final PopcornFx instance;
     private final PlatformProvider platform;
+    private final EventPublisher eventPublisher;
+    private final LocaleText localeText;
 
     private final Queue<UpdateCallback> listeners = new ConcurrentLinkedDeque<>();
     private final UpdateCallback callback = createCallback();
@@ -63,10 +70,14 @@ public class UpdateService {
     @PostConstruct
     void init() {
         fxLib.register_update_callback(instance, callback);
+        onStateChanged(fxLib.update_state(instance));
     }
 
     private void onStateChanged(UpdateState newState) {
-        if (Objects.requireNonNull(newState) == UpdateState.INSTALLATION_FINISHED) {
+        if (Objects.equals(newState, UpdateState.UPDATE_AVAILABLE)) {
+            eventPublisher.publish(new InfoNotificationEvent(this, localeText.get(UpdateMessage.UPDATE_AVAILABLE),
+                    () -> eventPublisher.publish(new ShowAboutEvent(this))));
+        } else if (Objects.equals(newState, UpdateState.INSTALLATION_FINISHED)) {
             platform.exit(3);
         }
     }

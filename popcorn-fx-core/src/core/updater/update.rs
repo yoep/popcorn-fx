@@ -416,7 +416,7 @@ impl InnerUpdater {
         let mut tasks_mutex = self.tasks.lock().await;
 
         debug!("Checking channel app version {} against local version {}", current_version.to_string(), application_version.to_string());
-        if self.is_application_update_available(version_info, &application_version) {
+        if self.is_application_update_available(version_info, &application_version).await {
             info!("New application version {} is available", application_version);
             tasks_mutex.push(UpdateTask::builder()
                 .current_version(current_version)
@@ -429,7 +429,7 @@ impl InnerUpdater {
         }
 
         debug!("Checking channel runtime version {} against local version {}", self.launcher_options.runtime_version, runtime_version.to_string());
-        if self.is_runtime_update_available(version_info, &runtime_version) {
+        if self.is_runtime_update_available(version_info, &runtime_version).await {
             info!("New runtime version {} is available", runtime_version);
             tasks_mutex.push(UpdateTask::builder()
                 .current_version(Version::parse(self.launcher_options.runtime_version.as_str())
@@ -677,13 +677,30 @@ impl InnerUpdater {
     /// Verify if an application update is available for the current platform.
     ///
     /// It returns `true` when a new version is available for the platform, else `false`.
-    fn is_application_update_available(&self, version_info: &VersionInfo, channel_version: &Version) -> bool {
+    async fn is_application_update_available(&self, version_info: &VersionInfo, channel_version: &Version) -> bool {
         let current_version = Self::current_application_version();
 
         if channel_version.cmp(&current_version) == Ordering::Greater {
             let platform_identifier = self.platform_identifier();
-            if version_info.application.download_link(platform_identifier.as_str()).is_some() {
-                return true;
+            if let Some(url) = version_info.application.download_link(platform_identifier.as_str()) {
+                trace!("Verifying if application download link exists for {}", url);
+                return match self.client.head(url.as_str())
+                    .send()
+                    .await {
+                    Ok(response) => {
+                        if response.status().is_success() || response.status() == StatusCode::FOUND {
+                            debug!("Application download link is available at {}", url);
+                            true
+                        } else {
+                            warn!("Application download link is unavailable, status {}", response.status());
+                            false
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Application download link is unavailable, {}", e);
+                        false
+                    }
+                }
             }
             warn!("New version {} available, but no installer found for {}", channel_version, platform_identifier.as_str());
         }
@@ -694,13 +711,30 @@ impl InnerUpdater {
     /// Verify if a runtime update is available for the current platform.
     ///
     /// It returns `true` when a new runtime version is available for the platform, else `false`.
-    fn is_runtime_update_available(&self, version_info: &VersionInfo, runtime_version: &Version) -> bool {
+    async fn is_runtime_update_available(&self, version_info: &VersionInfo, runtime_version: &Version) -> bool {
         let current_runtime_version = Version::parse(self.launcher_options.runtime_version.as_str()).unwrap();
 
         if runtime_version.cmp(&current_runtime_version) == Ordering::Greater {
             let platform_identifier = self.platform_identifier();
-            if version_info.runtime.platforms.contains_key(platform_identifier.as_str()) {
-                return true;
+            if let Some(url) = version_info.runtime.platforms.get(platform_identifier.as_str()) {
+                trace!("Verifying if runtime download link exists for {}", url);
+                return match self.client.head(url.as_str())
+                    .send()
+                    .await {
+                    Ok(response) => {
+                        if response.status().is_success() || response.status() == StatusCode::FOUND {
+                            debug!("Runtime download link is available at {}", url);
+                            true
+                        } else {
+                            warn!("Runtime download link is unavailable, status {}", response.status());
+                            false
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Runtime download link is unavailable, {}", e);
+                        false
+                    }
+                }
             }
             warn!("New runtime version {} available, but no runtime update found for {}", runtime_version, platform_identifier.as_str());
         }
@@ -767,7 +801,7 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use httpmock::Method::GET;
+    use httpmock::Method::{GET, HEAD};
     use httpmock::MockServer;
     use tempfile::tempdir;
 
@@ -892,18 +926,23 @@ mod test {
                 .path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"{
-  "application": {
+                .body(format!(r#"{{
+  "application": {{
     "version": "999.0.0",
-    "platforms": {
-        "debian.x86_64": "http://localhost/v999.0.0/popcorn-time_999.0.0.deb"
-    }
-  },
-  "runtime": {
-    "version": "17.0.0",
-    "platforms": {}
-  }
-}"#);
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
+    "version": "1.0.0",
+    "platforms": {{}}
+  }}
+}}"#, server.url("/v999.0.0/popcorn-time_999.0.0.deb")));
+        });
+        server.mock(|when, then| {
+            when.method(HEAD)
+                .path("/v999.0.0/popcorn-time_999.0.0.deb");
+            then.status(200);
         });
         let platform = default_platform_info();
         let updater = Updater::builder()
@@ -913,7 +952,42 @@ mod test {
             .insecure(false)
             .build();
 
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+        assert_timeout_eq!(Duration::from_millis(500), UpdateState::UpdateAvailable, updater.state());
+    }
+
+    #[test]
+    fn test_poll_download_link_unavailable() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (server, settings) = create_server_and_settings(temp_path);
+        server.mock(|when, then| {
+            when.method(GET)
+                .path(format!("/{}", UPDATE_INFO_FILE));
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(r#"{{
+  "application": {{
+    "version": "999.0.0",
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
+    "version": "2.0.0",
+    "platforms": {{}}
+  }}
+}}"#, server.url("/v999.0.0/popcorn-time_999.0.0.deb")));
+        });
+        let platform = default_platform_info();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+
+        assert_timeout_eq!(Duration::from_millis(500), UpdateState::NoUpdateAvailable, updater.state());
     }
 
     #[test]
@@ -941,6 +1015,11 @@ mod test {
     "platforms": {{}}
   }}
 }}"#, app_url));
+        });
+        server.mock(|when, then| {
+            when.method(HEAD)
+                .path("/v99.0.0/popcorn-time_99.0.0.deb");
+            then.status(302);
         });
         server.mock(move |when, then| {
             when.method(GET)
@@ -997,6 +1076,11 @@ mod test {
 }}"#, runtime_url));
         });
         server.mock(move |when, then| {
+            when.method(HEAD)
+                .path("/v100.0.0/runtime.tar.gz");
+            then.status(302);
+        });
+        server.mock(move |when, then| {
             when.method(GET)
                 .path("/v100.0.0/runtime.tar.gz");
             then.status(200)
@@ -1047,6 +1131,11 @@ mod test {
     "version": "17.0.0",
     "platforms": {{}}
   }} }}"#, url));
+        });
+        server.mock(move |when, then| {
+            when.method(HEAD)
+                .path("/unknown.deb");
+            then.status(302);
         });
         let platform = default_platform_info();
         let runtime = Runtime::new().unwrap();
@@ -1109,10 +1198,8 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let application_patch_filepath = temp_dir.path().join("99.0.0").join("test.txt");
-        let runtime_patch_filepath = temp_dir.path().join("runtimes").join("runtime.txt");
         let (server, settings) = create_server_and_settings(temp_path);
         let application_patch_url = server.url("/application.tar.gz");
-        let runtime_patch_url = server.url("/runtime.tar.gz");
         server.mock(move |when, then| {
             when.method(GET)
                 .path(format!("/{}", UPDATE_INFO_FILE));
@@ -1130,6 +1217,11 @@ mod test {
     "platforms": {{}}
   }}
  }}"#, application_patch_url));
+        });
+        server.mock(|when, then| {
+            when.method(HEAD)
+                .path("/application.tar.gz");
+            then.status(302);
         });
         server.mock(|when, then| {
             when.method(GET)
@@ -1171,7 +1263,6 @@ mod test {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let application_patch_filepath = temp_dir.path().join("99.0.0").join("test.txt");
         let runtime_patch_filepath = temp_dir.path().join("runtimes").join("runtime.txt");
         let (server, settings) = create_server_and_settings(temp_path);
         let runtime_patch_url = server.url("/runtime.tar.gz");
@@ -1192,6 +1283,11 @@ mod test {
     }}
   }}
  }}"#, runtime_patch_url));
+        });
+        server.mock(|when, then| {
+            when.method(HEAD)
+                .path("/runtime.tar.gz");
+            then.status(302);
         });
         server.mock(|when, then| {
             when.method(GET)
@@ -1309,31 +1405,41 @@ mod test {
         assert_timeout!(Duration::from_millis(300), updater.state() != UpdateState::CheckingForNewVersion);
         assert_eq!(UpdateState::NoUpdateAvailable, updater.state());
         first_mock.delete();
-        server.mock(move |when, then| {
+        server.mock(|when, then| {
             when.method(GET)
                 .path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .delay(Duration::from_millis(500))
                 .header("content-type", "application/json")
-                .body(r#"{
-  "application": {
+                .body(format!(r#"{{
+  "application": {{
     "version": "999.0.0",
-    "platforms": {
-        "debian.x86_64": "http://localhost:9090/app"
-    }
-  },
-  "runtime": {
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }},
+  "runtime": {{
     "version": "30.0.1",
-    "platforms": {
-        "debian.x86_64": "http://localhost:9090/runtime"
-    }
-  }
- }"#);
+    "platforms": {{
+        "debian.x86_64": "{}"
+    }}
+  }}
+ }}"#, server.url("/app-update"), server.url("/runtime-update")));
+        });
+        server.mock(move |when, then| {
+            when.method(HEAD)
+                .path("/app-update");
+            then.status(302);
+        });
+        server.mock(move |when, then| {
+            when.method(HEAD)
+                .path("/runtime-update");
+            then.status(302);
         });
 
         updater.check_for_updates();
-        assert_timeout_eq!(Duration::from_millis(200), updater.state(), UpdateState::CheckingForNewVersion);
-        assert_timeout_eq!(Duration::from_millis(500), updater.state(), UpdateState::UpdateAvailable);
+        assert_timeout_eq!(Duration::from_millis(200), UpdateState::CheckingForNewVersion, updater.state());
+        assert_timeout_eq!(Duration::from_millis(500), UpdateState::UpdateAvailable, updater.state());
     }
 
     #[tokio::test]

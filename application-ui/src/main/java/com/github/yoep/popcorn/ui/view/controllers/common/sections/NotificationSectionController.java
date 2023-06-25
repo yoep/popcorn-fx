@@ -10,35 +10,61 @@ import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 import lombok.RequiredArgsConstructor;
 
 import javax.annotation.PostConstruct;
+import java.net.URL;
+import java.util.Queue;
+import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @ViewController
 @RequiredArgsConstructor
-public class NotificationSectionController {
+public class NotificationSectionController implements Initializable {
+    static final String NOTIFICATION_VIEW = "common/components/notification.component.fxml";
     private static final int SAFETY_OFFSET = 20;
 
     private final ViewLoader viewLoader;
     private final EventPublisher eventPublisher;
+    private final Queue<NotificationEvent> queue = new ConcurrentLinkedQueue<>();
 
     @FXML
-    private Pane rootPane;
+    Pane rootPane;
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        processQueue();
+        rootPane.sceneProperty().addListener(observable -> processQueue());
+    }
 
     //region Functions
 
     @PostConstruct
     void init() {
         eventPublisher.register(NotificationEvent.class, event -> {
-            displayNotification(event);
+            queue.add(event);
+            processQueue();
             return event;
         });
     }
 
-    private void displayNotification(NotificationEvent notificationActivity) {
-        var notificationPane = loadNotificationPane(notificationActivity);
+    private void processQueue() {
+        if (rootPane == null || rootPane.getScene() == null)
+            return;
+
+        var event = queue.poll();
+        if (event == null)
+            return;
+
+        displayNotification(event);
+        processQueue();
+    }
+
+    private void displayNotification(NotificationEvent event) {
+        var notificationPane = loadNotificationPane(event);
         var transition = new TranslateTransition(Duration.seconds(1), notificationPane);
 
         Platform.runLater(() -> {
@@ -61,7 +87,7 @@ public class NotificationSectionController {
 
         controller.setOnClose(this::closeNotification);
 
-        return viewLoader.load("common/components/notification.component.fxml", controller);
+        return viewLoader.load(NOTIFICATION_VIEW, controller);
     }
 
     private void closeNotification(ActionEvent action) {

@@ -3,6 +3,6 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.StackPane?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:id="rootPane" styleClass="notification" onMouseClicked="#close">
+           fx:id="rootPane" styleClass="notification" onMouseClicked="#onClicked">
     <Label fx:id="text"/>
 </StackPane>

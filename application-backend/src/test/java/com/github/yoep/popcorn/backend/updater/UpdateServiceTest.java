@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
+import com.github.yoep.popcorn.backend.events.NotificationEvent;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -91,17 +92,25 @@ class UpdateServiceTest {
     void testCallbackListener_onUpdateAvailable() {
         var text = "lorem";
         var listenerHolder = new AtomicReference<UpdateCallback>();
+        var eventHolder = new AtomicReference<NotificationEvent>();
         when(localeText.get(UpdateMessage.UPDATE_AVAILABLE)).thenReturn(text);
         UpdateCallbackEvent.ByValue event = createStateChangedEvent(UpdateState.UPDATE_AVAILABLE);
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
             return null;
         }).when(fxLib).register_update_callback(eq(instance), isA(UpdateCallback.class));
+        eventPublisher.register(NotificationEvent.class, e -> {
+            eventHolder.set(e);
+            return e;
+        });
         service.init();
 
         listenerHolder.get().callback(event);
 
-        verify(eventPublisher, timeout(150)).publish(new InfoNotificationEvent(service, text));
+        verify(eventPublisher, timeout(150)).publish(isA(InfoNotificationEvent.class));
+        var result = eventHolder.get();
+        assertEquals(service, result.getSource());
+        assertEquals(text, result.getText());
     }
 
     @Test

@@ -11,7 +11,7 @@
         <Label styleClass="settings-title" text="%settings"/>
 
         <ManageableScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" shortKeysEnabled="false">
-            <VBox>
+            <VBox styleClass="settings-section-content">
                 <!-- User interface -->
                 <fx:include source="../components/settings-ui.component.fxml"/>
 
@@ -29,6 +29,9 @@
 
                 <!-- Server -->
                 <fx:include source="../components/settings-server.component.fxml"/>
+
+                <!-- Actions -->
+                <fx:include source="../../common/components/settings-actions.component.fxml"/>
             </VBox>
         </ManageableScrollPane>
     </VBox>

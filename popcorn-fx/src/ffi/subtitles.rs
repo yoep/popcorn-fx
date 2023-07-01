@@ -11,6 +11,19 @@ use crate::PopcornFX;
 pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
 
 /// Retrieve the default options available for the subtitles.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `popcorn_fx` pointer must be valid and properly initialized.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitleInfoSet` instance.
 #[no_mangle]
 pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoSet {
     trace!("Retrieving default subtitle options");
@@ -22,19 +35,47 @@ pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut S
     into_c_owned(SubtitleInfoSet::from(subtitles))
 }
 
-/// Retrieve a special [SubtitleInfo::none] type instance of the application.
+/// Retrieve a special [SubtitleInfo::none] instance of the application.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitleInfoC` instance representing "none".
 #[no_mangle]
 pub extern "C" fn subtitle_none() -> *mut SubtitleInfoC {
     into_c_owned(SubtitleInfoC::from(SubtitleInfo::none()))
 }
 
-/// Retrieve a special [SubtitleInfo::custom] type instance of the application.
+/// Retrieve a special [SubtitleInfo::custom] instance of the application.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitleInfoC` instance representing "custom".
 #[no_mangle]
 pub extern "C" fn subtitle_custom() -> *mut SubtitleInfoC {
     into_c_owned(SubtitleInfoC::from(SubtitleInfo::custom()))
 }
 
 /// Register a new callback for subtitle events.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `popcorn_fx` pointer must be valid and properly initialized.
+/// The `callback` function pointer should point to a valid C function that can receive a `SubtitleEventC` parameter and return nothing.
+/// The callback function will be invoked whenever a subtitle event occurs in the system.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - A function pointer to the C callback function.
 #[no_mangle]
 pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callback: SubtitleCallbackC) {
     trace!("Wrapping C callback for SubtitleCallback");
@@ -47,16 +88,34 @@ pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callbac
     popcorn_fx.subtitle_manager().register(wrapper);
 }
 
+/// Clean the subtitles directory.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `popcorn_fx` pointer must be valid and properly initialized.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+#[no_mangle]
+pub extern "C" fn cleanup_subtitles_directory(popcorn_fx: &mut PopcornFX) {
+    trace!("Cleaning subtitles directory from C");
+    popcorn_fx.subtitle_manager().cleanup()
+}
+
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
     use log::info;
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
-    use crate::test::default_args;
+    use crate::test::{default_args, new_instance};
 
     use super::*;
 
@@ -70,7 +129,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
+        let mut instance = new_instance(temp_path);
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
 
         let set_ptr = from_c_owned(default_subtitle_options(&mut instance));
@@ -104,9 +163,22 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
+        let mut instance = new_instance(temp_path);
 
         register_subtitle_callback(&mut instance, subtitle_callback);
         instance.subtitle_manager().update_subtitle(SubtitleInfo::none())
+    }
+
+    #[test]
+    fn test_cleanup_subtitles_directory() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = new_instance(temp_path);
+        let filepath = copy_test_file(instance.settings().settings.subtitle_settings.directory.as_str(), "example.srt", None);
+
+        cleanup_subtitles_directory(&mut instance);
+
+        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the subtitle file to have been cleaned");
     }
 }

@@ -2,10 +2,12 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 
 use derive_more::Display;
-use log::info;
+use log::{debug, error, info, trace};
 use tokio::sync::Mutex;
 
 use crate::core::{CoreCallback, CoreCallbacks};
+use crate::core::config::ApplicationConfig;
+use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
 
@@ -39,12 +41,31 @@ pub struct SubtitleManager {
     /// Indicates if the subtitle has been disabled by the user
     disabled_by_user: Mutex<bool>,
     callbacks: CoreCallbacks<SubtitleEvent>,
+    settings: Arc<Mutex<ApplicationConfig>>,
 }
 
 impl SubtitleManager {
-    /// The current preferred subtitle for [Media] item playbacks.
+    /// Creates a new `SubtitleManager` instance.
     ///
-    /// It returns a reference of the preferred [SubtitleInfo] if present.
+    /// # Arguments
+    ///
+    /// * `settings` - The application settings for configuring the manager.
+    pub fn new(settings: Arc<Mutex<ApplicationConfig>>) -> Self {
+        Self {
+            subtitle_info: Arc::new(Mutex::new(None)),
+            preferred_language: Arc::new(Mutex::new(SubtitleLanguage::None)),
+            custom_subtitle_file: Mutex::new(None),
+            disabled_by_user: Mutex::new(false),
+            callbacks: Default::default(),
+            settings,
+        }
+    }
+
+    /// Retrieves the current preferred subtitle for [Media] item playbacks.
+    ///
+    /// # Returns
+    ///
+    /// The preferred [SubtitleInfo] if present.
     pub fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
         let mutex = futures::executor::block_on(self.subtitle_info.lock());
 
@@ -55,18 +76,22 @@ impl SubtitleManager {
         }
     }
 
-    /// The current preferred subtitle language for the [Media] item playback.
+    /// Retrieves the current preferred subtitle language for the [Media] item playback.
     ///
-    /// It returns an owned instance of the preferred [SubtitleLanguage].
+    /// # Returns
+    ///
+    /// The preferred [SubtitleLanguage].
     pub fn preferred_language(&self) -> SubtitleLanguage {
         let arc = self.preferred_language.clone();
         let mutex = futures::executor::block_on(arc.lock());
-        mutex.clone()
+        *mutex
     }
 
-    /// The configured custom subtitle filepath if one is present.
+    /// Retrieves the configured custom subtitle filepath if one is present.
     ///
-    /// It returns the subtitle filepath.
+    /// # Returns
+    ///
+    /// The subtitle filepath, if available.
     pub fn custom_subtitle(&self) -> Option<String> {
         let mutex_file = self.custom_subtitle_file.blocking_lock();
 
@@ -78,12 +103,20 @@ impl SubtitleManager {
         }
     }
 
-    /// Verify if the subtitle has been disabled by the user.
+    /// Checks if the subtitle has been disabled by the user.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the subtitle is disabled, `false` otherwise.
     pub fn is_disabled(&self) -> bool {
         *self.disabled_by_user.blocking_lock()
     }
 
-    /// Update the [SubtitleInfo] for the next [Media] item playback.
+    /// Updates the [SubtitleInfo] for the next [Media] item playback.
+    ///
+    /// # Arguments
+    ///
+    /// * `subtitle` - The new subtitle information.
     pub fn update_subtitle(&self, subtitle: SubtitleInfo) {
         let subtitle_text = subtitle.to_string();
         let language = subtitle.language().clone();
@@ -94,9 +127,11 @@ impl SubtitleManager {
         info!("Subtitle has been updated to {}", subtitle_text);
     }
 
-    /// Update the active subtitle to a custom selected subtitle file.
+    /// Updates the active subtitle to a custom selected subtitle file.
     ///
-    /// * `subtitle_file`   - The custom subtitle filepath.
+    /// # Arguments
+    ///
+    /// * `subtitle_file` - The custom subtitle filepath.
     pub fn update_custom_subtitle(&self, subtitle_file: &str) {
         let mut mutex = self.custom_subtitle_file.blocking_lock();
         let _ = mutex.insert(subtitle_file.to_string());
@@ -106,8 +141,8 @@ impl SubtitleManager {
         info!("Subtitle custom file applied for {}", subtitle_file)
     }
 
-    /// Disable the subtitle for the next video playback.
-    /// This will make the `is_disabled()` fn return true.
+    /// Disables the subtitle for the next video playback.
+    /// This will make the `is_disabled()` function return `true`
     pub fn disable_subtitle(&self) {
         self.update_subtitle_info(SubtitleInfo::none());
         self.update_language(SubtitleLanguage::None);
@@ -115,7 +150,7 @@ impl SubtitleManager {
         info!("Subtitle track has been disabled")
     }
 
-    /// Reset the subtitle for the next [Media] item playback.
+    /// Resets the subtitle for the next [Media] item playback.
     pub fn reset(&self) {
         let mut mutex_language = self.preferred_language.blocking_lock();
         let mut mutex_file = self.custom_subtitle_file.blocking_lock();
@@ -135,9 +170,33 @@ impl SubtitleManager {
         info!("Subtitle has been reset for next media playback")
     }
 
-    /// Register a new callback listener for the [SubtitleEvent]'s.
+    /// Registers a new callback listener for the [SubtitleEvent]s.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - The callback function to register.
     pub fn register(&self, callback: SubtitleCallback) {
         self.callbacks.add(callback)
+    }
+
+    /// Cleans the subtitle directory.
+    ///
+    /// This operation removes all subtitle files from the file system.
+    ///
+    /// # Safety
+    ///
+    /// This method performs file system operations and may have side effects. Use with caution.
+    pub fn cleanup(&self) {
+        let mutex = self.settings.blocking_lock();
+        let path = mutex.settings.subtitle_settings.directory();
+        let absolute_path = path.to_str().unwrap();
+
+        debug!("Cleaning subtitle directory {}", absolute_path);
+        if let Err(e) = Storage::clean_directory(path.as_path()) {
+            error!("Failed to clean subtitle directory, {}", e);
+        } else {
+            info!("Subtitle directory {} has been cleaned", absolute_path);
+        }
     }
 
     fn update_language(&self, preferred_language: SubtitleLanguage) {
@@ -164,35 +223,45 @@ impl SubtitleManager {
     }
 }
 
-impl Default for SubtitleManager {
-    fn default() -> Self {
-        Self {
-            subtitle_info: Arc::new(Mutex::new(None)),
-            preferred_language: Arc::new(Mutex::new(SubtitleLanguage::None)),
-            custom_subtitle_file: Mutex::new(None),
-            disabled_by_user: Mutex::new(false),
-            callbacks: Default::default(),
+impl Drop for SubtitleManager {
+    fn drop(&mut self) {
+        let mutex = self.settings.blocking_lock();
+        let settings = mutex.user_settings().subtitle();
+
+        if *settings.auto_cleaning_enabled() {
+            drop(mutex);
+            self.cleanup()
+        } else {
+            trace!("Skipping subtitle directory cleaning")
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::testing::init_logger;
+    use tempfile::tempdir;
+
+    use crate::core::config::{DecorationType, PopcornProperties, PopcornSettings, SubtitleFamily, SubtitleSettings};
+    use crate::core::subtitles::language::SubtitleLanguage::English;
+    use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
 
     #[test]
     fn test_update_subtitle() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_settings(temp_path, false);
         let subtitle = SubtitleInfo::new(
             "tt1111".to_string(),
             SubtitleLanguage::Croatian,
         );
-        let manager = SubtitleManager::default();
+        let manager = SubtitleManager::new(settings);
 
         manager.disable_subtitle();
         manager.update_subtitle(subtitle.clone());
@@ -207,13 +276,16 @@ mod test {
     #[test]
     fn test_subtitle_info_changed() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_settings(temp_path, false);
         let subtitle = SubtitleInfo::new(
             "tt1234555".to_string(),
             SubtitleLanguage::Spanish,
         );
         let (tx_info, rx_info) = channel();
         let (tx_lang, rx_lang) = channel();
-        let manager = SubtitleManager::default();
+        let manager = SubtitleManager::new(settings);
 
         manager.register(Box::new(move |event| {
             match event {
@@ -233,8 +305,11 @@ mod test {
     #[test]
     fn test_update_custom_subtitle() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_settings(temp_path, false);
         let filepath = "/home/lorem/ipsum.srt";
-        let manager = SubtitleManager::default();
+        let manager = SubtitleManager::new(settings);
 
         manager.update_custom_subtitle(filepath);
         let result = manager.custom_subtitle();
@@ -245,7 +320,10 @@ mod test {
     #[test]
     fn test_disable_subtitle() {
         init_logger();
-        let manager = SubtitleManager::default();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_settings(temp_path, false);
+        let manager = SubtitleManager::new(settings);
 
         manager.disable_subtitle();
         let result = manager.is_disabled();
@@ -256,11 +334,14 @@ mod test {
     #[test]
     fn test_reset() {
         init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_settings(temp_path, false);
         let subtitle = SubtitleInfo::new(
             "tt121212".to_string(),
             SubtitleLanguage::Lithuanian,
         );
-        let manager = SubtitleManager::default();
+        let manager = SubtitleManager::new(settings);
 
         manager.update_custom_subtitle("my-subtitle.srt");
         manager.update_subtitle(subtitle);
@@ -271,5 +352,49 @@ mod test {
         assert_eq!(SubtitleLanguage::None, manager.preferred_language());
         assert_eq!(None, manager.custom_subtitle());
         assert_eq!(false, manager.is_disabled(), "expected the subtitle to not be disabled")
+    }
+
+    #[test]
+    fn test_drop_cleanup_subtitles() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_settings(temp_path, true);
+        let manager = SubtitleManager::new(settings);
+        let filepath = copy_test_file(temp_path, "example.srt", None);
+
+        drop(manager);
+
+        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the file to have been removed");
+        assert_eq!(true, PathBuf::from(temp_path).exists(), "expected the subtitle directory to not have been removed");
+    }
+
+    fn default_settings(temp_path: &str, auto_cleaning_enabled: bool) -> Arc<Mutex<ApplicationConfig>> {
+        Arc::new(Mutex::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: PopcornProperties {
+                loggers: Default::default(),
+                update_channel: String::new(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+            },
+            settings: PopcornSettings {
+                subtitle_settings: SubtitleSettings {
+                    directory: temp_path.to_string(),
+                    auto_cleaning_enabled,
+                    default_subtitle: English,
+                    font_family: SubtitleFamily::Arial,
+                    font_size: 28,
+                    decoration: DecorationType::None,
+                    bold: false,
+                },
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+            },
+            callbacks: Default::default(),
+        }))
     }
 }

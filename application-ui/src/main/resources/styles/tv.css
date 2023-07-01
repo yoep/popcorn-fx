@@ -514,6 +514,13 @@
     -fx-background-color: rgba(23, 24, 27, 0.8);
 }
 
+.root .settings-section .sub-section .settings-actions .button {
+    -fx-font-family: "Open Sans Bold";
+    -fx-background-color: #1f375f;
+}
+
+.root .settings-section .sub-section .settings-actions .button:focused,
+.root .settings-section .sub-section .settings-actions .button:hover,
 .root .settings-section .sub-section .button:focused,
 .root .settings-section .sub-section .button:hover {
     -fx-text-fill: #2d72d9;

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.SettingsActionsComponent" styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <Label styleClass="subsection-title"
+           GridPane.rowSpan="1" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <HBox styleClass="settings-actions" GridPane.columnIndex="1" GridPane.rowIndex="0" spacing="5">
+        <Button text="%settings_clean_subtitles" onMouseClicked="#onCleanSubtitlesClicked" onKeyPressed="#onCleanSubtitlesPressed">
+            <graphic>
+                <Icon>
+                    <Icon fx:constant="FONT_UNICODE"/>
+                </Icon>
+            </graphic>
+        </Button>
+        <Button text="%settings_clean_torrents" onMouseClicked="#onCleanTorrentsClicked" onKeyPressed="#onCleanTorrentsPressed">
+            <graphic>
+                <Icon>
+                    <Icon fx:constant="DATABASE_UNICODE"/>
+                </Icon>
+            </graphic>
+        </Button>
+    </HBox>
+</GridPane>

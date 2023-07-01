@@ -1159,6 +1159,10 @@
     -fx-background-color: #17181b;
 }
 
+.root .settings-section .settings-section-content {
+    -fx-padding: 0 0 20 0;
+}
+
 .root .settings-section GridPane Separator {
     -fx-padding: 10 30 15 15;
 }
@@ -1201,6 +1205,15 @@
 .root .settings-section .sub-section .check-box,
 .root .settings-section .sub-section .button-holder {
     -fx-padding: 0 8 0 15;
+}
+
+.root .settings-section .settings-actions {
+    -fx-padding: 0 0 0 15;
+}
+
+.root .settings-section .settings-actions .label {
+    -fx-font-size: 1em;
+    -fx-padding: 0 0 0 3;
 }
 
 .root .settings-section .sub-section .subsection-title {

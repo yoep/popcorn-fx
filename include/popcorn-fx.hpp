@@ -946,7 +946,32 @@ uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const cha
 /// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
 void check_for_updates(PopcornFX *popcorn_fx);
 
+/// Clean the subtitles directory.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `popcorn_fx` pointer must be valid and properly initialized.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+void cleanup_subtitles_directory(PopcornFX *popcorn_fx);
+
 /// Retrieve the default options available for the subtitles.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `popcorn_fx` pointer must be valid and properly initialized.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitleInfoSet` instance.
 SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 
 /// Disable the subtitle track on request of the user.
@@ -1166,6 +1191,18 @@ void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC
 void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallbackC callback);
 
 /// Register a new callback for subtitle events.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+/// The `popcorn_fx` pointer must be valid and properly initialized.
+/// The `callback` function pointer should point to a valid C function that can receive a `SubtitleEventC` parameter and return nothing.
+/// The callback function will be invoked whenever a subtitle event occurs in the system.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - A function pointer to the C callback function.
 void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
 
 /// Register a new callback for the torrent stream.
@@ -1288,10 +1325,26 @@ TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torre
 /// Stop the given torrent stream.
 void stop_stream(PopcornFX *popcorn_fx, TorrentStreamC *stream);
 
-/// Retrieve a special [SubtitleInfo::custom] type instance of the application.
+/// Retrieve a special [SubtitleInfo::custom] instance of the application.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitleInfoC` instance representing "custom".
 SubtitleInfoC *subtitle_custom();
 
-/// Retrieve a special [SubtitleInfo::none] type instance of the application.
+/// Retrieve a special [SubtitleInfo::none] instance of the application.
+///
+/// # Safety
+///
+/// This function should only be called from C code.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitleInfoC` instance representing "none".
 SubtitleInfoC *subtitle_none();
 
 /// Add the given magnet info to the torrent collection.

@@ -15,6 +15,9 @@
             <fx:include source="../components/settings-subtitles.component.fxml"/>
 
             <fx:include source="../components/settings-torrent.component.fxml"/>
+
+            <!-- Actions -->
+            <fx:include source="../../common/components/settings-actions.component.fxml"/>
         </VBox>
     </VBox>
 </AnchorPane>

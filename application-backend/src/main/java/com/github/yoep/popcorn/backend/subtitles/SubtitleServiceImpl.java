@@ -211,6 +211,11 @@ public class SubtitleServiceImpl implements SubtitleService {
         fxLib.reset_subtitle(instance);
     }
 
+    @Override
+    public void cleanup() {
+        fxLib.cleanup_subtitles_directory(instance);
+    }
+
     //endregion
 
     private void init() {

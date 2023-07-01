@@ -136,4 +136,9 @@ public interface SubtitleService {
      * Reset the active subtitle track to idle state.
      */
     void reset();
+
+    /**
+     * Clean the subtitles directory of all subtitle files.
+     */
+    void cleanup();
 }

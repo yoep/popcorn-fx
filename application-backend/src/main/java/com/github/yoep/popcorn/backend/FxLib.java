@@ -75,6 +75,8 @@ public interface FxLib extends Library {
 
     void reset_subtitle(PopcornFx instance);
 
+    void cleanup_subtitles_directory(PopcornFx instance);
+
     String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
 
     Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
@@ -144,6 +146,8 @@ public interface FxLib extends Library {
     void torrent_collection_add(PopcornFx instance, String name, String magnetUrl);
 
     void torrent_collection_remove(PopcornFx instance, String magnetUrl);
+
+    void cleanup_torrents_directory(PopcornFx instance);
 
     ApplicationSettings application_settings(PopcornFx instance);
 

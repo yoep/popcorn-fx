@@ -775,6 +775,15 @@ mod test {
         }
     }
 
+    pub fn new_instance(temp_path: &str) -> PopcornFX {
+        let mut instance = PopcornFX::new(default_args(temp_path));
+        let mut mutex = instance.settings();
+        mutex.settings.subtitle_settings.directory = PathBuf::from(temp_path).join("subtitles").to_str().unwrap().to_string();
+        mutex.settings.torrent_settings.directory = PathBuf::from(temp_path).join("torrents");
+        drop(mutex);
+        instance
+    }
+
     #[no_mangle]
     pub extern "C" fn settings_callback(_: ApplicationConfigEventC) {}
 

@@ -2,6 +2,8 @@ package com.github.yoep.torrent.frostwire;
 
 import com.frostwire.jlibtorrent.Priority;
 import com.frostwire.jlibtorrent.TorrentHandle;
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
@@ -32,6 +34,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TorrentServiceImpl implements TorrentService {
     private final TorrentSessionManager sessionManager;
     private final TorrentResolverService torrentResolverService;
+    private final FxLib fxLib;
+    private final PopcornFx instance;
 
     //region Getters
 
@@ -162,6 +166,11 @@ public class TorrentServiceImpl implements TorrentService {
         };
 
         return new TorrentHealthImpl(healthState, ratio, seeds, peers);
+    }
+
+    @Override
+    public void cleanup() {
+        fxLib.cleanup_torrents_directory(instance);
     }
 
     //endregion

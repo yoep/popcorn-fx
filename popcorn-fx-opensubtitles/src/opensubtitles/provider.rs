@@ -505,23 +505,6 @@ impl SubtitleProvider for OpensubtitlesProvider {
     }
 }
 
-impl Drop for OpensubtitlesProvider {
-    fn drop(&mut self) {
-        let mutex = self.settings.blocking_lock();
-        let settings = mutex.user_settings().subtitle();
-
-        if *settings.auto_cleaning_enabled() {
-            let path = settings.directory();
-            debug!("Cleaning subtitle directory {:?}", &path);
-            if let Err(e) = Storage::clean_directory(path) {
-                error!("Failed to clean subtitle directory, {}", e);
-            }
-        } else {
-            trace!("Skipping subtitle directory cleaning")
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct OpensubtitlesProviderBuilder {
     settings: Option<Arc<Mutex<ApplicationConfig>>>,

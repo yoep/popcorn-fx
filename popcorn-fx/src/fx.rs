@@ -195,7 +195,7 @@ impl PopcornFX {
             .insecure(args.insecure)
             .build()));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
-        let subtitle_manager = Arc::new(SubtitleManager::default());
+        let subtitle_manager = Arc::new(SubtitleManager::new(settings.clone()));
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path, event_publisher.clone())) as Box<dyn WatchedService>);

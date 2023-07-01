@@ -106,4 +106,10 @@ public interface TorrentService {
      * @return Returns the health of the torrent.
      */
     TorrentHealth calculateHealth(int seeds, int peers);
+
+    /**
+     * Clean the torrents directory.
+     * This will remove all torrents from the system.
+     */
+    void cleanup();
 }

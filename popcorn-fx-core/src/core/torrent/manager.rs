@@ -77,6 +77,11 @@ pub trait TorrentManager {
     ///
     /// * `torrent` - The torrent wrapper to add to the manager.
     fn add(&self, torrent: Arc<TorrentWrapper>);
+
+    /// Cleanup the torrents directory.
+    ///
+    /// This operation removes all torrents from the filesystem.
+    fn cleanup(&self);
 }
 
 #[cfg(test)]

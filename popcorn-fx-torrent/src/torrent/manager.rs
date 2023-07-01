@@ -64,6 +64,10 @@ impl TorrentManager for DefaultTorrentManager {
     fn add(&self, torrent: Arc<TorrentWrapper>) {
         self.inner.add(torrent)
     }
+
+    fn cleanup(&self) {
+        self.inner.cleanup()
+    }
 }
 
 #[derive(Debug)]
@@ -199,6 +203,12 @@ impl TorrentManager for InnerTorrentManager {
         let info = torrent.to_string();
         torrents.push(torrent);
         debug!("Added torrent {}", info)
+    }
+
+    fn cleanup(&self) {
+        let mutex = block_in_place(self.settings.lock());
+        let settings = mutex.settings.torrent();
+        Self::clean_directory(settings);
     }
 }
 

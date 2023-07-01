@@ -50,8 +50,17 @@ pub extern "C" fn torrent_state_changed(torrent: &TorrentWrapperC, state: Torren
     torrent.state_changed(state)
 }
 
+/// Clean the torrents directory.
+/// This will remove all existing torrents from the system.
+#[no_mangle]
+pub extern "C" fn cleanup_torrents_directory(popcorn_fx: &mut PopcornFX) {
+    trace!("Cleaning torrents directory from C");
+    popcorn_fx.torrent_manager().cleanup();
+}
+
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
@@ -59,8 +68,9 @@ mod test {
 
     use popcorn_fx_core::{from_c_owned, into_c_string};
     use popcorn_fx_core::core::torrent::{Torrent, TorrentEvent};
+    use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
-    use crate::test::default_args;
+    use crate::test::{default_args, new_instance};
 
     use super::*;
 
@@ -95,7 +105,8 @@ mod test {
 
     #[test]
     fn test_torrent_state_changed() {
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
         let torrent = TorrentC {
@@ -122,5 +133,19 @@ mod test {
             TorrentEvent::StateChanged(state) => assert_eq!(TorrentState::Starting, state),
             _ => {}
         }
+    }
+
+    #[test]
+    fn test_cleanup_torrents_directory() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = new_instance(temp_path);
+        let filepath = copy_test_file(temp_path, "example.mp4", Some("torrents/subdir/example.mp4"));
+
+        cleanup_torrents_directory(&mut instance);
+
+        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the torrent file to have been cleaned");
+        assert_eq!(true, instance.settings().settings.torrent_settings.directory.exists(), "expected the torrent directory to still exist");
     }
 }

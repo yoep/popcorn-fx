@@ -147,6 +147,8 @@ public interface FxLib extends Library {
 
     void torrent_collection_remove(PopcornFx instance, String magnetUrl);
 
+    void cleanup_torrents_directory(PopcornFx instance);
+
     ApplicationSettings application_settings(PopcornFx instance);
 
     void reload_settings(PopcornFx instance);

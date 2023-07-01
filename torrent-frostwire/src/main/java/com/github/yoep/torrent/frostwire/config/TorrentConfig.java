@@ -1,5 +1,7 @@
 package com.github.yoep.torrent.frostwire.config;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentSettingsService;
 import com.github.yoep.torrent.frostwire.*;
@@ -34,8 +36,10 @@ public class TorrentConfig {
     @Bean
     @ConditionalOnMissingBean(TorrentService.class)
     public TorrentService torrentService(TorrentSessionManager sessionManager,
-                                         TorrentResolverService torrentResolverService) {
-        return new TorrentServiceImpl(sessionManager, torrentResolverService);
+                                         TorrentResolverService torrentResolverService,
+                                         FxLib fxLib,
+                                         PopcornFx instance) {
+        return new TorrentServiceImpl(sessionManager, torrentResolverService, fxLib, instance);
     }
 
     @Bean

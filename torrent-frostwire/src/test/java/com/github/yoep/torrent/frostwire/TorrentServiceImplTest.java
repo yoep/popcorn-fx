@@ -1,5 +1,7 @@
 package com.github.yoep.torrent.frostwire;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
 import com.github.yoep.torrent.frostwire.model.TorrentHealthImpl;
 import org.junit.jupiter.api.Test;
@@ -9,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class TorrentServiceImplTest {
@@ -16,14 +19,18 @@ class TorrentServiceImplTest {
     private TorrentSessionManager sessionManager;
     @Mock
     private TorrentResolverService torrentResolverService;
+    @Mock
+    private FxLib fxLib;
+    @Mock
+    private PopcornFx instance;
     @InjectMocks
-    private TorrentServiceImpl torrentService;
+    private TorrentServiceImpl service;
 
     @Test
     void testCalculateHealth_whenSeedsIsZeroAndPeersIsZero_shouldReturnUnknown() {
         var expectedResult = new TorrentHealthImpl(TorrentHealthState.UNKNOWN, 0, 0, 0);
 
-        var result = torrentService.calculateHealth(0, 0);
+        var result = service.calculateHealth(0, 0);
 
         assertEquals(expectedResult, result);
     }
@@ -35,7 +42,7 @@ class TorrentServiceImplTest {
         var ratio = 0.5;
         var expectedResult = new TorrentHealthImpl(TorrentHealthState.BAD, ratio, seeds, peers);
 
-        var result = torrentService.calculateHealth(seeds, peers);
+        var result = service.calculateHealth(seeds, peers);
 
         assertEquals(expectedResult, result);
     }
@@ -47,7 +54,7 @@ class TorrentServiceImplTest {
         var ratio = 1;
         var expectedResult = new TorrentHealthImpl(TorrentHealthState.BAD, ratio, seeds, peers);
 
-        var result = torrentService.calculateHealth(seeds, peers);
+        var result = service.calculateHealth(seeds, peers);
 
         assertEquals(expectedResult, result);
     }
@@ -59,7 +66,7 @@ class TorrentServiceImplTest {
         var ratio = 3.5;
         var expectedResult = new TorrentHealthImpl(TorrentHealthState.GOOD, ratio, seeds, peers);
 
-        var result = torrentService.calculateHealth(seeds, peers);
+        var result = service.calculateHealth(seeds, peers);
 
         assertEquals(expectedResult, result);
     }
@@ -71,8 +78,15 @@ class TorrentServiceImplTest {
         var ratio = 5;
         var expectedResult = new TorrentHealthImpl(TorrentHealthState.EXCELLENT, ratio, seeds, peers);
 
-        var result = torrentService.calculateHealth(seeds, peers);
+        var result = service.calculateHealth(seeds, peers);
 
         assertEquals(expectedResult, result);
+    }
+
+    @Test
+    void testCleanup() {
+        service.cleanup();
+
+        verify(fxLib).cleanup_torrents_directory(instance);
     }
 }

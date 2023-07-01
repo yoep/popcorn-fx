@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
@@ -21,6 +22,8 @@ import static org.mockito.Mockito.*;
 class SettingsActionsComponentTest {
     @Mock
     private SubtitleService subtitleService;
+    @Mock
+    private TorrentService torrentService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
@@ -52,6 +55,33 @@ class SettingsActionsComponentTest {
 
         verify(event).consume();
         verify(subtitleService).cleanup();
+        verify(eventPublisher).publish(new SuccessNotificationEvent(component, text));
+    }
+
+    @Test
+    void testOnCleanTorrentsClicked() {
+        var text = "ipsum";
+        var event = mock(MouseEvent.class);
+        when(localeText.get(SettingsActionsComponent.TORRENTS_CLEANED_MESSAGE)).thenReturn(text);
+
+        component.onCleanTorrentsClicked(event);
+
+        verify(event).consume();
+        verify(torrentService).cleanup();
+        verify(eventPublisher).publish(new SuccessNotificationEvent(component, text));
+    }
+
+    @Test
+    void testOnCleanTorrentsPressed() {
+        var text = "ipsum";
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(KeyCode.ENTER);
+        when(localeText.get(SettingsActionsComponent.TORRENTS_CLEANED_MESSAGE)).thenReturn(text);
+
+        component.onCleanTorrentsPressed(event);
+
+        verify(event).consume();
+        verify(torrentService).cleanup();
         verify(eventPublisher).publish(new SuccessNotificationEvent(component, text));
     }
 }

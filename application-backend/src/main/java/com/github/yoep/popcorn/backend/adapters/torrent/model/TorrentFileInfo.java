@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.backend.adapters.torrent.model;
 
 import java.io.Serializable;
 
-public interface TorrentFileInfo extends Serializable {
+public interface TorrentFileInfo extends Serializable, Comparable<TorrentFileInfo> {
     /**
      * Get the filename of the torrent file.
      *

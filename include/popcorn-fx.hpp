@@ -958,6 +958,10 @@ void check_for_updates(PopcornFX *popcorn_fx);
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 void cleanup_subtitles_directory(PopcornFX *popcorn_fx);
 
+/// Clean the torrents directory.
+/// This will remove all existing torrents from the system.
+void cleanup_torrents_directory(PopcornFX *popcorn_fx);
+
 /// Retrieve the default options available for the subtitles.
 ///
 /// # Safety

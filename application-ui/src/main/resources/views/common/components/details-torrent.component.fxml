@@ -29,7 +29,7 @@
         <!-- Torrent contents -->
         <StackPane fx:id="fileShadow"
                    GridPane.columnSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="1">
-            <ListView fx:id="fileList" styleClass="files"/>
+            <ListView fx:id="torrentList" styleClass="files"/>
         </StackPane>
 
         <!-- Store/Remove torrent -->

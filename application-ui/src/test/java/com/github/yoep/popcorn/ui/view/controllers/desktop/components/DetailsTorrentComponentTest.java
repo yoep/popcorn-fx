@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguag
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
@@ -35,13 +36,11 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class DetailsTorrentComponentTest {
@@ -84,12 +83,9 @@ class DetailsTorrentComponentTest {
     @Test
     void testOnShowTorrentDetailsEvent() throws TimeoutException {
         var filename = " lorem ipsum dolor.mp4";
-        var player = mock(Player.class);
         var subtitleInfo = createSubtitle();
         var torrent = mock(TorrentInfo.class);
         var fileInfo = mock(TorrentFileInfo.class);
-        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
-        when(playerManagerService.getPlayers()).thenReturn(Collections.singletonList(player));
         when(fxLib.subtitle_none()).thenReturn(subtitleInfo);
         when(fxLib.subtitle_custom()).thenReturn(subtitleInfo);
         when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
@@ -100,6 +96,21 @@ class DetailsTorrentComponentTest {
         WaitForAsyncUtils.waitForFxEvents();
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.torrentList.getItems().contains(fileInfo));
+    }
+
+    @Test
+    void testOnFileInfoClicked() {
+        var torrent = mock(TorrentInfo.class);
+        var fileInfo = mock(TorrentFileInfo.class);
+        var subtitleInfo = createSubtitle();
+        when(fxLib.subtitle_none()).thenReturn(subtitleInfo);
+        when(fxLib.subtitle_custom()).thenReturn(subtitleInfo);
+        component.initialize(url, resourceBundle);
+
+        eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
+        component.onFileInfoClicked(fileInfo);
+
+        verify(eventPublisher).publish(new LoadUrlTorrentEvent(component, torrent, fileInfo, null));
     }
 
     private SubtitleInfo createSubtitle() {

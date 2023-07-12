@@ -16,8 +16,8 @@ public class StreamPlayRequest extends SimplePlayRequest implements PlayStreamRe
     private final TorrentStream torrentStream;
 
     @Builder(builderMethodName = "streamBuilder")
-    public StreamPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp, TorrentStream torrentStream) {
-        super(url, title, thumb, autoResumeTimestamp);
+    public StreamPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp, TorrentStream torrentStream, boolean isSubtitlesEnabled) {
+        super(url, title, thumb, autoResumeTimestamp, isSubtitlesEnabled);
         Objects.requireNonNull(torrentStream, "torrentStream cannot be null");
         this.torrentStream = torrentStream;
     }

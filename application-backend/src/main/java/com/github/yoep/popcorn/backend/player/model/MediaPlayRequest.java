@@ -21,7 +21,7 @@ public class MediaPlayRequest extends StreamPlayRequest {
     @Builder(builderMethodName = "mediaBuilder")
     public MediaPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp, TorrentStream torrentStream,
                             SubtitleInfo subtitle, String quality, Media media, Media subMediaItem) {
-        super(url, title, thumb, autoResumeTimestamp, torrentStream);
+        super(url, title, thumb, autoResumeTimestamp, torrentStream, true);
         this.quality = quality;
         this.media = media;
         this.subMediaItem = subMediaItem;
@@ -39,10 +39,5 @@ public class MediaPlayRequest extends StreamPlayRequest {
      */
     public Optional<Media> getSubMediaItem() {
         return Optional.ofNullable(subMediaItem);
-    }
-
-    @Override
-    public boolean isSubtitlesEnabled() {
-        return true;
     }
 }

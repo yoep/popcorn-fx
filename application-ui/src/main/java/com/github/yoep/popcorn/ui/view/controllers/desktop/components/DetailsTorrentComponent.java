@@ -22,6 +22,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.InnerShadow;
@@ -36,8 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -62,7 +61,7 @@ public class DetailsTorrentComponent implements Initializable {
     private SubtitleInfo activeSubtitleInfo;
 
     @FXML
-    ListView<String> fileList;
+    ListView<TorrentFileInfo> torrentList;
     @FXML
     Pane fileShadow;
     @FXML
@@ -93,10 +92,16 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void initializeFileList() {
-        fileList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                handleFileChanged(newValue);
-            }
+        torrentList.setCellFactory(view -> {
+            var cell = new ListCell<TorrentFileInfo>() {
+                @Override
+                protected void updateItem(TorrentFileInfo item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty ? null : item.getFilename());
+                }
+            };
+            cell.setOnMouseClicked(this::onTorrentCellClicked);
+            return cell;
         });
     }
 
@@ -110,26 +115,30 @@ public class DetailsTorrentComponent implements Initializable {
 
     //region Functions
 
+    private void onTorrentCellClicked(MouseEvent event) {
+        var cell = (ListCell<String>) event.getSource();
+        if (cell.isEmpty())
+            return;
+
+        event.consume();
+        handleFileChanged(cell.getItem());
+    }
+
     private void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
         log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
         this.magnetUri = event.getMagnetUri();
         this.torrentInfo = event.getTorrentInfo();
-        var filenames = new ArrayList<String>();
-        var files = torrentInfo.getFiles();
-
-        for (TorrentFileInfo file : files) {
-            var extension = FilenameUtils.getExtension(file.getFilename());
-
-            if (SUPPORTED_FILES.contains(extension.toLowerCase()))
-                filenames.add(file.getFilename());
-        }
-
-        // sort files to make it easier for the user
-        filenames.sort(Comparator.comparing(String::toLowerCase));
+        var validFiles = torrentInfo.getFiles().stream()
+                .filter(e -> {
+                    var extension = FilenameUtils.getExtension(e.getFilename());
+                    return SUPPORTED_FILES.contains(extension.toLowerCase());
+                })
+                .sorted()
+                .toList();
 
         Platform.runLater(() -> {
-            fileList.getItems().clear();
-            fileList.getItems().addAll(filenames);
+            torrentList.getItems().clear();
+            torrentList.getItems().addAll(validFiles);
         });
 
         updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
@@ -146,7 +155,7 @@ public class DetailsTorrentComponent implements Initializable {
                         () -> log.error("Failed to find torrent file with name \"{}\"", filename));
 
         // reset the file selection for later use
-        fileList.getSelectionModel().clearSelection();
+        torrentList.getSelectionModel().clearSelection();
     }
 
     private void onFileClicked(TorrentFileInfo fileInfo) {
@@ -177,7 +186,7 @@ public class DetailsTorrentComponent implements Initializable {
         this.magnetUri = null;
         this.torrentInfo = null;
 
-        Platform.runLater(() -> fileList.getItems().clear());
+        Platform.runLater(() -> torrentList.getItems().clear());
     }
 
     private void close() {

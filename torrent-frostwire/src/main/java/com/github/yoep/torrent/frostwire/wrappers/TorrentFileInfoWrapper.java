@@ -52,5 +52,10 @@ public class TorrentFileInfoWrapper implements TorrentFileInfo {
         return torrentInfo;
     }
 
+    @Override
+    public int compareTo(TorrentFileInfo other) {
+        return getFilename().toLowerCase().compareTo(other.getFilename().toLowerCase());
+    }
+
     //endregion
 }

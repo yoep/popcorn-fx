@@ -31,10 +31,14 @@ public class TorrentCollection extends TableView<StoredTorrent> {
 
     //endregion
 
-    //region Setters
+    //region Properties
 
     public void setOnMagnetClicked(Consumer<StoredTorrent> event) {
         magnetClickedConsumer = event;
+    }
+
+    public Consumer<StoredTorrent> getTorrentClickedConsumer() {
+        return torrentClickedConsumer;
     }
 
     public void setOnTorrentClicked(Consumer<StoredTorrent> event) {

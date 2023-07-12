@@ -32,9 +32,9 @@ public class TorrentCollectionSectionController implements Initializable {
     private final LocaleText localeText;
 
     @FXML
-    private Pane fileShadow;
+    Pane fileShadow;
     @FXML
-    private TorrentCollection collection;
+    TorrentCollection collection;
 
     //region Initializable
 
@@ -43,11 +43,7 @@ public class TorrentCollectionSectionController implements Initializable {
         initializeFileShadow();
         initializeCollection();
         eventPublisher.register(ShowTorrentCollectionEvent.class, event -> {
-            log.trace("Loading torrent collection list");
-            Platform.runLater(() -> {
-                collection.getItems().clear();
-                collection.getItems().addAll(torrentCollectionService.getStoredTorrents());
-            });
+            updateTorrentCollection();
             return event;
         });
     }
@@ -65,6 +61,14 @@ public class TorrentCollectionSectionController implements Initializable {
         collection.setOnMagnetClicked(this::onMagnetClicked);
         collection.setOnTorrentClicked(this::onTorrentClicked);
         collection.setOnDeleteClicked(this::onDeleteClicked);
+    }
+
+    private void updateTorrentCollection() {
+        Platform.runLater(() -> {
+            log.trace("Updating torrent collection list");
+            collection.getItems().clear();
+            collection.getItems().addAll(torrentCollectionService.getStoredTorrents());
+        });
     }
 
     private void onMagnetClicked(StoredTorrent item) {

@@ -15,6 +15,7 @@ public class SimplePlayRequest implements PlayRequest {
     private final String title;
     private final String thumb;
     private final Long autoResumeTimestamp;
+    private final boolean subtitlesEnabled;
 
     @Override
     public Optional<String> getTitle() {
@@ -38,6 +39,6 @@ public class SimplePlayRequest implements PlayRequest {
 
     @Override
     public boolean isSubtitlesEnabled() {
-        return false;
+        return subtitlesEnabled;
     }
 }

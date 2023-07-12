@@ -2142,7 +2142,7 @@ dependencies = [
  "popcorn-fx-core",
  "souvlaki",
  "tokio",
- "windows 0.48.0",
+ "windows 0.44.0",
  "x11rb",
 ]
 

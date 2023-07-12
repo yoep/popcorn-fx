@@ -87,6 +87,7 @@ public class PlayerPlayService {
                 .thumb(event.getThumbnail())
                 .autoResumeTimestamp(autoResumeService.getResumeTimestamp(filename).orElse(null))
                 .torrentStream(event.getTorrentStream())
+                .isSubtitlesEnabled(event.isSubtitlesEnabled())
                 .build());
     }
 

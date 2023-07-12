@@ -116,12 +116,15 @@ public class DetailsTorrentComponent implements Initializable {
     //region Functions
 
     private void onTorrentCellClicked(MouseEvent event) {
-        var cell = (ListCell<String>) event.getSource();
-        if (cell.isEmpty())
-            return;
+        if (event.getSource() instanceof ListCell<?> cell) {
+            if (cell.isEmpty())
+                return;
 
-        event.consume();
-        handleFileChanged(cell.getItem());
+            event.consume();
+            onFileInfoClicked((TorrentFileInfo) cell.getItem());
+        } else {
+            log.warn("Expected a 'ListCell<>' but got '{}' instead", event.getSource().getClass());
+        }
     }
 
     private void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
@@ -142,24 +145,6 @@ public class DetailsTorrentComponent implements Initializable {
         });
 
         updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
-    }
-
-    private void handleFileChanged(String filename) {
-        var files = torrentInfo.getFiles();
-
-        files.stream()
-                .filter(e -> e.getFilename().equals(filename))
-                .findFirst()
-                .ifPresentOrElse(
-                        this::onFileClicked,
-                        () -> log.error("Failed to find torrent file with name \"{}\"", filename));
-
-        // reset the file selection for later use
-        torrentList.getSelectionModel().clearSelection();
-    }
-
-    private void onFileClicked(TorrentFileInfo fileInfo) {
-        eventPublisher.publishEvent(new LoadUrlTorrentEvent(this, torrentInfo, fileInfo, activeSubtitleInfo));
     }
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
@@ -192,6 +177,10 @@ public class DetailsTorrentComponent implements Initializable {
     private void close() {
         reset();
         eventPublisher.publishEvent(new CloseTorrentDetailsEvent(this));
+    }
+
+    void onFileInfoClicked(TorrentFileInfo fileInfo) {
+        eventPublisher.publishEvent(new LoadUrlTorrentEvent(this, torrentInfo, fileInfo, activeSubtitleInfo));
     }
 
     @FXML

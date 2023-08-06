@@ -2,12 +2,14 @@ package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
+import javafx.application.Platform;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -35,8 +37,7 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class MainControllerTest {
@@ -50,6 +51,8 @@ class MainControllerTest {
     private UrlService urlService;
     @Mock
     private ApplicationConfig applicationConfig;
+    @Mock
+    private PlatformProvider platformProvider;
     @Mock
     private URL url;
     @Mock
@@ -123,5 +126,45 @@ class MainControllerTest {
         eventPublisher.publish(new PlayVideoEvent(this, "http://localhost", "lorem", false));
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.root.getChildren().contains(controller.playerPane));
+    }
+
+    @Test
+    void testClipboardPasteEventMac() {
+        var magnetUrl = "magnet:?loremDolorEsta";
+        var event = new KeyEvent(KeyEvent.KEY_PRESSED, "v", "v", KeyCode.V, false, false, false, true);
+        var clipboardContent = new ClipboardContent();
+        clipboardContent.putUrl(magnetUrl);
+        when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
+        when(platformProvider.isMac()).thenReturn(true);
+        controller.initialize(url, resourceBundle);
+
+        // execute everything on a FX thread
+        Platform.runLater(() -> {
+            Clipboard.getSystemClipboard().setContent(clipboardContent);
+            controller.onKeyPressed(event);
+        });
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(urlService, timeout(250)).process(magnetUrl);
+    }
+
+    @Test
+    void testClipboardPasteEventNonMac() {
+        var magnetUrl = "magnet:?loremIpsum";
+        var event = new KeyEvent(KeyEvent.KEY_PRESSED, "v", "v", KeyCode.V, false, true, false, false);
+        var clipboardContent = new ClipboardContent();
+        clipboardContent.putUrl(magnetUrl);
+        when(viewLoader.load(isA(String.class))).thenReturn(new Pane(), new Pane(), new Pane(), new Pane());
+        when(platformProvider.isMac()).thenReturn(false);
+        controller.initialize(url, resourceBundle);
+
+        // execute everything on a FX thread
+        Platform.runLater(() -> {
+            Clipboard.getSystemClipboard().setContent(clipboardContent);
+            controller.onKeyPressed(event);
+        });
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(urlService, timeout(250)).process(magnetUrl);
     }
 }

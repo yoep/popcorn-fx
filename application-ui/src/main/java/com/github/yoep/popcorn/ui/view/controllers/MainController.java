@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
@@ -42,6 +43,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     static final String MOUSE_DISABLED_STYLE_CLASS = "mouse-disabled";
 
     private static final KeyCodeCombination PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.CONTROL_DOWN);
+    private static final KeyCodeCombination MACOS_PASTE_KEY_COMBINATION = new KeyCodeCombination(KeyCode.V, KeyCombination.META_DOWN);
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_1 = new KeyCodeCombination(KeyCode.ADD, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_2 = new KeyCodeCombination(KeyCode.PLUS, KeyCombination.CONTROL_DOWN);
     private static final KeyCodeCombination UI_ENLARGE_KEY_COMBINATION_3 = new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN,
@@ -54,6 +56,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private final ApplicationArguments arguments;
     private final UrlService urlService;
     private final ApplicationConfig applicationConfig;
+    private final PlatformProvider platformProvider;
 
     @FXML
     AnchorPane root;
@@ -222,8 +225,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
      *
      * @param event The key event of the main section view.
      */
-    protected void onKeyPressed(KeyEvent event) {
-        if (PASTE_KEY_COMBINATION.match(event)) {
+    void onKeyPressed(KeyEvent event) {
+        if (isPasteAction(event)) {
             event.consume();
             onContentPasted();
         }
@@ -325,6 +328,14 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             default -> new KeyEvent(targetNode, targetNode, KeyEvent.KEY_PRESSED, KeyCode.ENTER.getChar(), KeyCode.ENTER.getName(), KeyCode.ENTER, false, false,
                     false, false);
         };
+    }
+
+    private boolean isPasteAction(KeyEvent event) {
+        if (platformProvider.isMac()) {
+            return MACOS_PASTE_KEY_COMBINATION.match(event);
+        }
+
+        return PASTE_KEY_COMBINATION.match(event);
     }
 
     //endregion

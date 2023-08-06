@@ -60,9 +60,7 @@ public class UrlService {
      * @return Returns true if the url was processed with success and an activity has been invoked, else false.
      */
     public boolean process(String url) {
-        Assert.notNull(url, "url cannot be null");
-
-        // check if url is empty
+        // check if the url is empty
         // if so, ignore this process action
         if (StringUtils.isBlank(url))
             return false;

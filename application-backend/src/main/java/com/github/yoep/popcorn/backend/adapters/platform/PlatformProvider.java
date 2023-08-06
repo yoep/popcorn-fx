@@ -33,6 +33,12 @@ public interface PlatformProvider {
     boolean launch(@NotNull String command);
 
     /**
+     * Verify if the current platform is a MacOS system.
+     * @return Returns true when the current platform is Mac, else false.
+     */
+    boolean isMac();
+
+    /**
      * Exit the application in a safe manner.
      *
      * @param code The exit code of the application.

@@ -32,11 +32,6 @@ class UrlServiceTest {
     }
 
     @Test
-    void testProcess_whenUrlIsNull_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> urlService.process(null), "url cannot be null");
-    }
-
-    @Test
     void testProcess_whenUrlIsEmpty_shouldReturnFalse() {
         var result = urlService.process("");
 

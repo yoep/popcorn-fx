@@ -40,6 +40,11 @@ public class PlatformFX implements PlatformProvider {
     }
 
     @Override
+    public boolean isMac() {
+        return com.sun.jna.Platform.isMac();
+    }
+
+    @Override
     public void exit(int code) {
         Platform.exit();
         System.exit(code);

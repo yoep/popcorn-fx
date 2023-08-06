@@ -1,8 +1,8 @@
 [Setup]
 AppId=Popcorn-Time
 AppName=Popcorn Time
-AppVersion=0.7.3
-AppVerName=Popcorn-Time 0.7.3
+AppVersion=0.7.4
+AppVerName=Popcorn-Time 0.7.4
 AppPublisher=Popcorn FX
 AppPublisherURL=https://github.com/yoep/popcorn-fx
 AppSupportURL=https://github.com/yoep/popcorn-fx
@@ -37,11 +37,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "../../target/package/popcorn-time.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "../../target/package/runtimes/*"; DestDir: "{app}\main\runtimes"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.7.3"; Flags: ignoreversion
-Source: "../../target/package/popcorn_fx.dll"; DestDir: "{app}\main\0.7.3"; Flags: ignoreversion
+Source: "../../target/package/popcorn-time.jar"; DestDir: "{app}\main\0.7.4"; Flags: ignoreversion
+Source: "../../target/package/popcorn_fx.dll"; DestDir: "{app}\main\0.7.4"; Flags: ignoreversion
 Source: "popcorn-time.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "jlibtorrent.dll"; DestDir: "{app}\main\0.7.3"; Flags: ignoreversion
-Source: "ffprobe.exe"; DestDir: "{app}\main\0.7.3"; Flags: ignoreversion
+Source: "jlibtorrent.dll"; DestDir: "{app}\main\0.7.4"; Flags: ignoreversion
+Source: "ffprobe.exe"; DestDir: "{app}\main\0.7.4"; Flags: ignoreversion
 
 [UninstallDelete]
 Type: files; Name: "{userappdata}\popcorn-fx"

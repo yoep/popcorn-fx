@@ -67,6 +67,22 @@ class MovieProviderServiceTest {
     }
 
     @Test
+    void testGetPageNoItemsFound() throws ExecutionException, InterruptedException {
+        var mediaResult = new MediaSetResult.ByValue();
+        var genre = new Genre("lorem", "");
+        var sortBy = new SortBy("ipsum", "");
+        mediaResult.tag = MediaSetResult.Tag.Err;
+        mediaResult.union = new MediaSetResult.MediaSetResultUnion.ByValue();
+        mediaResult.union.err = new MediaSetResult.ErrBody();
+        mediaResult.union.err.mediaError = MediaError.NoItemsFound;
+        when(fxLib.retrieve_available_movies(instance, genre, sortBy, "", 1)).thenReturn(mediaResult);
+
+        var result = provider.getPage(genre, sortBy, 1).get();
+
+        assertEquals(Collections.emptyList(), result.getContent());
+    }
+
+    @Test
     void testGetPageFailed() {
         var mediaResult = new MediaSetResult.ByValue();
         var genre = new Genre("ipsum", "");

@@ -2,7 +2,10 @@ package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.*;
+import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.MediaResult;
+import com.github.yoep.popcorn.backend.media.MediaSet;
+import com.github.yoep.popcorn.backend.media.MediaSetResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -71,10 +74,12 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
                 return new PageImpl<>(shows);
             } else {
                 var mediaError = mediaResult.getUnion().getErr().getMediaError();
-                if (mediaError == MediaError.NoAvailableProviders) {
-                    throw new MediaRetrievalException(mediaError.getMessage());
-                } else {
-                    throw new MediaException(mediaError.getMessage());
+                switch (mediaError) {
+                    case NoAvailableProviders -> throw new MediaRetrievalException(mediaError.getMessage());
+                    case NoItemsFound -> {
+                        return new PageImpl<>(Collections.emptyList());
+                    }
+                    default -> throw new MediaException(mediaError.getMessage());
                 }
             }
         }

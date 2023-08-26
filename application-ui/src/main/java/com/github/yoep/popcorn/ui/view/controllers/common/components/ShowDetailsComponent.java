@@ -317,8 +317,12 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                 if (imdbId.equals(item.getId())) {
                     controller.updateWatchedState(newState);
                 } else {
-                    selectUnwatchedSeason();
-                    selectUnwatchedEpisode(seasons.getSelectedItem());
+                    // calling the watched backend on the same thread causes some weird lock issue within Rust
+                    // to prevent this, we create a new thread from where we call the watch state info
+                    new Thread(() -> {
+                        selectUnwatchedSeason();
+                        selectUnwatchedEpisode(seasons.getSelectedItem());
+                    }, "EpisodeWatchState").start();
                 }
             }
 

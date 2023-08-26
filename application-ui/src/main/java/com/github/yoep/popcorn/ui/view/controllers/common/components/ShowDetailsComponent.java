@@ -18,15 +18,13 @@ import com.github.yoep.popcorn.ui.view.ViewHelper;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
-import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
-import com.github.yoep.popcorn.ui.view.services.HealthService;
-import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.ShowHelperService;
+import com.github.yoep.popcorn.ui.view.services.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
@@ -36,6 +34,8 @@ import org.apache.commons.lang3.StringUtils;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
+
+import static java.util.Arrays.asList;
 
 @Slf4j
 @ViewController
@@ -47,6 +47,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private final ShowHelperService showHelperService;
     private final ViewLoader viewLoader;
     private final SerieActionsComponent serieActionsComponent;
+    private final VideoQualityService videoQualityService;
 
     private Episode episode;
 
@@ -93,7 +94,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
                                 ViewLoader viewLoader,
-                                SerieActionsComponent serieActionsComponent) {
+                                SerieActionsComponent serieActionsComponent,
+                                VideoQualityService videoQualityService) {
         super(eventPublisher,
                 localeText,
                 healthService,
@@ -106,6 +108,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         this.showHelperService = showHelperService;
         this.viewLoader = viewLoader;
         this.serieActionsComponent = serieActionsComponent;
+        this.videoQualityService = videoQualityService;
     }
 
     //endregion
@@ -313,6 +316,9 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             public void onWatchChanged(String imdbId, boolean newState) {
                 if (imdbId.equals(item.getId())) {
                     controller.updateWatchedState(newState);
+                } else {
+                    selectUnwatchedSeason();
+                    selectUnwatchedEpisode(seasons.getSelectedItem());
                 }
             }
 
@@ -325,13 +331,15 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     @FXML
     void onMagnetClicked(MouseEvent event) {
-        //        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
-        //
-        //        if (event.getButton() == MouseButton.SECONDARY) {
-        //            copyMagnetLink(torrentInfo);
-        //        } else {
-        //            openMagnetLink(torrentInfo);
-        //        }
+        var qualities = videoQualityService.getVideoResolutions(episode.getTorrents());
+        var quality = videoQualityService.getDefaultVideoResolution(asList(qualities));
+        var torrentInfo = episode.getTorrents().get(quality);
+
+        if (event.getButton() == MouseButton.SECONDARY) {
+            copyMagnetLink(torrentInfo);
+        } else {
+            openMagnetLink(torrentInfo);
+        }
     }
 
     @FXML

@@ -49,7 +49,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private final SerieActionsComponent serieActionsComponent;
     private final VideoQualityService videoQualityService;
 
-    private Episode episode;
+    Episode episode;
 
     @FXML
     GridPane showDetails;
@@ -160,7 +160,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         });
         eventPublisher.register(MediaQualityChangedEvent.class, event -> {
             Platform.runLater(() -> {
-                if (episode != null && event.getMedia() instanceof ShowDetails) {
+                if (episode != null && (event.getMedia() instanceof ShowDetails || event.getMedia() instanceof Episode)) {
                     switchHealth(episode.getTorrents().get(event.getQuality()));
                 }
             });

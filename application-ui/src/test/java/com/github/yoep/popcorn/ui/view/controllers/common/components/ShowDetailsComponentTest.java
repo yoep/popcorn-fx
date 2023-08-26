@@ -2,19 +2,20 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
-import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
-import com.github.yoep.popcorn.ui.view.controls.Overlay;
-import com.github.yoep.popcorn.ui.view.controls.Stars;
+import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
+import com.github.yoep.popcorn.ui.view.controls.*;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -36,6 +37,7 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -91,6 +93,7 @@ class ShowDetailsComponentTest {
         component.backgroundImage = new BackgroundImageCover();
         component.ratingStars = new Stars();
         component.episodeDetailsOverlay = new Overlay();
+        component.health = new HealthIcon();
 
         when(viewLoader.load(ShowDetailsComponent.SERIE_ACTIONS_COMPONENT_FXML)).thenReturn(new Pane());
         when(viewLoader.load(ShowDetailsComponent.POSTER_COMPONENT_FXML)).thenReturn(new Pane());
@@ -126,6 +129,34 @@ class ShowDetailsComponentTest {
         assertTrue(component.seasons.getItems().stream().anyMatch(e -> e.getSeason() == 1), "expected season 1 to be present");
         assertFalse(component.seasons.getItems().stream().anyMatch(e -> e.getSeason() == 2), "expected season 2 to not be present");
         assertTrue(component.seasons.getItems().stream().anyMatch(e -> e.getSeason() == 3), "expected season 3 to be present");
+    }
+
+    @Test
+    void testMediaQualityChangedEvent() {
+        var media = mock(ShowDetails.class);
+        var episode = mock(Episode.class);
+        var torrentUrl = "myTorrentMagnetUrlThingy";
+        var torrentHealth = mock(TorrentHealth.class);
+        when(episode.getTorrents()).thenReturn(new HashMap<>(){{
+            put("720p", MediaTorrentInfo.builder()
+                    .seed(20)
+                    .peer(2)
+                    .url(torrentUrl)
+                    .build());
+        }});
+        when(healthService.calculateHealth(20, 2)).thenReturn(torrentHealth);
+        when(healthService.getTorrentHealth(isA(String.class))).thenReturn(new CompletableFuture<>());
+        when(torrentHealth.getState()).thenReturn(TorrentHealthState.GOOD);
+        component.initialize(url, resourceBundle);
+
+        eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
+        WaitForAsyncUtils.waitForFxEvents();
+        component.episode = episode;
+        eventPublisher.publish(new MediaQualityChangedEvent(this, episode, "720p"));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(healthService).calculateHealth(20, 2);
+        verify(healthService).getTorrentHealth(torrentUrl);
     }
 
     @Test

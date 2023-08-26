@@ -40,6 +40,10 @@ import java.util.ResourceBundle;
 @Slf4j
 @ViewController
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
+    static final String POSTER_COMPONENT_FXML = "components/poster.component.fxml";
+    static final String SERIE_ACTIONS_COMPONENT_FXML = "components/serie-actions.component.fxml";
+    static final String EPISODE_ACTIONS_COMPONENT_FXML = "components/serie-episode-actions.component.fxml";
+
     private final ShowHelperService showHelperService;
     private final ViewLoader viewLoader;
     private final SerieActionsComponent serieActionsComponent;
@@ -49,17 +53,17 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @FXML
     GridPane showDetails;
     @FXML
-    private Label title;
+    Label title;
     @FXML
-    private Label year;
+    Label year;
     @FXML
-    private Label duration;
+    Label duration;
     @FXML
-    private Label status;
+    Label status;
     @FXML
-    private Label genres;
+    Label genres;
     @FXML
-    private Label overview;
+    Label overview;
     @FXML
     AxisItemSelection<Season> seasons;
     @FXML
@@ -162,7 +166,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializePoster() {
-        var poster = viewLoader.load("components/poster.component.fxml");
+        var poster = viewLoader.load(POSTER_COMPONENT_FXML);
         showDetails.add(poster, 0, 0, 1, 4);
     }
 
@@ -172,7 +176,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializeSerieActions() {
-        var actions = viewLoader.load("components/serie-actions.component.fxml");
+        var actions = viewLoader.load(SERIE_ACTIONS_COMPONENT_FXML);
         showDetails.add(actions, 2, 3);
     }
 
@@ -209,7 +213,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             return viewLoader.load("common/components/episode.component.fxml", controller);
         });
 
-        var episodeActions = viewLoader.load("components/serie-episode-actions.component.fxml");
+        var episodeActions = viewLoader.load(EPISODE_ACTIONS_COMPONENT_FXML);
         episodeDetails.add(episodeActions, 0, 4, 2, 1);
         serieActionsComponent.setOnWatchNowClicked(() -> episodeDetailsOverlay.hide());
     }
@@ -224,7 +228,9 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void loadSeasons() {
-        seasons.setItems(showHelperService.getSeasons(media).toArray(new Season[0]));
+        seasons.setItems(showHelperService.getSeasons(media).stream()
+                .filter(e -> showHelperService.getSeasonEpisodes(e, media).size() > 0)
+                .toArray(Season[]::new));
         selectUnwatchedSeason();
     }
 
@@ -234,8 +240,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         List<Episode> episodes = showHelperService.getSeasonEpisodes(newSeason, media);
 
+        this.episodes.setItems(episodes.toArray(new Episode[0]));
         if (episodes.size() > 0) {
-            this.episodes.setItems(episodes.toArray(new Episode[0]));
             selectUnwatchedEpisode(newSeason);
         }
     }
@@ -301,7 +307,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         selectUnwatchedSeason();
     }
 
-    private static DetailsComponentListener episodeWatchStateListener(Episode item, EpisodeComponent controller) {
+    private DetailsComponentListener episodeWatchStateListener(Episode item, EpisodeComponent controller) {
         return new DetailsComponentListener() {
             @Override
             public void onWatchChanged(String imdbId, boolean newState) {

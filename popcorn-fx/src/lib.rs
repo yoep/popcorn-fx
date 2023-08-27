@@ -361,9 +361,11 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
 pub extern "C" fn is_media_watched(popcorn_fx: &mut PopcornFX, watchable: &MediaItemC) -> bool {
     match watchable.as_identifier() {
         Some(media) => {
-            trace!("Verifying if media item is watched for {}", &media);
+            let media_id = media.to_string();
+            trace!("Verifying if media item is watched for {}", media_id);
             let watched = popcorn_fx.watched_service().is_watched_dyn(&media);
             mem::forget(media);
+            trace!("Retrieved watched state {} for {}", &watched, media_id);
             watched
         }
         None => {

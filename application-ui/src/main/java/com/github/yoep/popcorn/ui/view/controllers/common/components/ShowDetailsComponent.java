@@ -18,15 +18,13 @@ import com.github.yoep.popcorn.ui.view.ViewHelper;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
-import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
-import com.github.yoep.popcorn.ui.view.services.HealthService;
-import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.ShowHelperService;
+import com.github.yoep.popcorn.ui.view.services.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
@@ -37,29 +35,36 @@ import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import static java.util.Arrays.asList;
+
 @Slf4j
 @ViewController
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
+    static final String POSTER_COMPONENT_FXML = "components/poster.component.fxml";
+    static final String SERIE_ACTIONS_COMPONENT_FXML = "components/serie-actions.component.fxml";
+    static final String EPISODE_ACTIONS_COMPONENT_FXML = "components/serie-episode-actions.component.fxml";
+
     private final ShowHelperService showHelperService;
     private final ViewLoader viewLoader;
     private final SerieActionsComponent serieActionsComponent;
+    private final VideoQualityService videoQualityService;
 
-    private Episode episode;
+    Episode episode;
 
     @FXML
     GridPane showDetails;
     @FXML
-    private Label title;
+    Label title;
     @FXML
-    private Label year;
+    Label year;
     @FXML
-    private Label duration;
+    Label duration;
     @FXML
-    private Label status;
+    Label status;
     @FXML
-    private Label genres;
+    Label genres;
     @FXML
-    private Label overview;
+    Label overview;
     @FXML
     AxisItemSelection<Season> seasons;
     @FXML
@@ -89,7 +94,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                                 DetailsComponentService service,
                                 ShowHelperService showHelperService,
                                 ViewLoader viewLoader,
-                                SerieActionsComponent serieActionsComponent) {
+                                SerieActionsComponent serieActionsComponent,
+                                VideoQualityService videoQualityService) {
         super(eventPublisher,
                 localeText,
                 healthService,
@@ -102,6 +108,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         this.showHelperService = showHelperService;
         this.viewLoader = viewLoader;
         this.serieActionsComponent = serieActionsComponent;
+        this.videoQualityService = videoQualityService;
     }
 
     //endregion
@@ -153,7 +160,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         });
         eventPublisher.register(MediaQualityChangedEvent.class, event -> {
             Platform.runLater(() -> {
-                if (episode != null && event.getMedia() instanceof ShowDetails) {
+                if (episode != null && (event.getMedia() instanceof ShowDetails || event.getMedia() instanceof Episode)) {
                     switchHealth(episode.getTorrents().get(event.getQuality()));
                 }
             });
@@ -162,7 +169,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializePoster() {
-        var poster = viewLoader.load("components/poster.component.fxml");
+        var poster = viewLoader.load(POSTER_COMPONENT_FXML);
         showDetails.add(poster, 0, 0, 1, 4);
     }
 
@@ -172,7 +179,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void initializeSerieActions() {
-        var actions = viewLoader.load("components/serie-actions.component.fxml");
+        var actions = viewLoader.load(SERIE_ACTIONS_COMPONENT_FXML);
         showDetails.add(actions, 2, 3);
     }
 
@@ -209,7 +216,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             return viewLoader.load("common/components/episode.component.fxml", controller);
         });
 
-        var episodeActions = viewLoader.load("components/serie-episode-actions.component.fxml");
+        var episodeActions = viewLoader.load(EPISODE_ACTIONS_COMPONENT_FXML);
         episodeDetails.add(episodeActions, 0, 4, 2, 1);
         serieActionsComponent.setOnWatchNowClicked(() -> episodeDetailsOverlay.hide());
     }
@@ -224,7 +231,9 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void loadSeasons() {
-        seasons.setItems(showHelperService.getSeasons(media).toArray(new Season[0]));
+        seasons.setItems(showHelperService.getSeasons(media).stream()
+                .filter(e -> showHelperService.getSeasonEpisodes(e, media).size() > 0)
+                .toArray(Season[]::new));
         selectUnwatchedSeason();
     }
 
@@ -234,8 +243,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         List<Episode> episodes = showHelperService.getSeasonEpisodes(newSeason, media);
 
+        this.episodes.setItems(episodes.toArray(new Episode[0]));
         if (episodes.size() > 0) {
-            this.episodes.setItems(episodes.toArray(new Episode[0]));
             selectUnwatchedEpisode(newSeason);
         }
     }
@@ -301,12 +310,19 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         selectUnwatchedSeason();
     }
 
-    private static DetailsComponentListener episodeWatchStateListener(Episode item, EpisodeComponent controller) {
+    private DetailsComponentListener episodeWatchStateListener(Episode item, EpisodeComponent controller) {
         return new DetailsComponentListener() {
             @Override
             public void onWatchChanged(String imdbId, boolean newState) {
                 if (imdbId.equals(item.getId())) {
                     controller.updateWatchedState(newState);
+                } else {
+                    // calling the watched backend on the same thread causes some weird lock issue within Rust
+                    // to prevent this, we create a new thread from where we call the watch state info
+                    new Thread(() -> {
+                        selectUnwatchedSeason();
+                        selectUnwatchedEpisode(seasons.getSelectedItem());
+                    }, "EpisodeWatchState").start();
                 }
             }
 
@@ -319,13 +335,15 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     @FXML
     void onMagnetClicked(MouseEvent event) {
-        //        MediaTorrentInfo torrentInfo = episode.getTorrents().get(quality);
-        //
-        //        if (event.getButton() == MouseButton.SECONDARY) {
-        //            copyMagnetLink(torrentInfo);
-        //        } else {
-        //            openMagnetLink(torrentInfo);
-        //        }
+        var qualities = videoQualityService.getVideoResolutions(episode.getTorrents());
+        var quality = videoQualityService.getDefaultVideoResolution(asList(qualities));
+        var torrentInfo = episode.getTorrents().get(quality);
+
+        if (event.getButton() == MouseButton.SECONDARY) {
+            copyMagnetLink(torrentInfo);
+        } else {
+            openMagnetLink(torrentInfo);
+        }
     }
 
     @FXML

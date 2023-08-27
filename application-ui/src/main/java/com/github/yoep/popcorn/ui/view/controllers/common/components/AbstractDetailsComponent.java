@@ -42,11 +42,11 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
     protected T media;
 
     @FXML
-    protected HealthIcon health;
+    HealthIcon health;
     @FXML
-    protected Stars ratingStars;
+    Stars ratingStars;
     @FXML
-    protected BackgroundImageCover backgroundImage;
+    BackgroundImageCover backgroundImage;
 
     //region Methods
 

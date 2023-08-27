@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.Collections;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.Optional;
 
 @Data
 @AllArgsConstructor
+@EqualsAndHashCode
 public class Season implements Media, Comparable {
     private final int season;
     private final String text;

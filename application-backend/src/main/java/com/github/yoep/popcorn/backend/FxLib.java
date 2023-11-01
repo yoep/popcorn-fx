@@ -36,13 +36,24 @@ import com.sun.jna.Library;
 import com.sun.jna.Pointer;
 
 /**
- * The Popcorn FX native library interface.
- * Use the {@link FxLibInstance#INSTANCE} to communicate with the loaded library.
+ * The interface for interacting with the Popcorn FX native library.
+ * Use the {@link FxLibInstance#INSTANCE} to obtain an instance of this interface
+ * for communication with the loaded library.
  * <p>
- * <i>Example:</i>
+ * <b>Example Usage:</b>
  * <pre><code>
- * var subtitles = FxLibInstance.INSTANCE.get().movie_subtitles(PopcornFxInstance.INSTANCE.get(), movie);
+ * // Obtain an instance of the FxLib interface
+ * FxLib fxLib = FxLibInstance.INSTANCE.get();
+ *
+ * // Access various methods provided by the native library
+ * SubtitleInfoSet subtitles = fxLib.movie_subtitles(fxLibInstance, movie);
+ * MediaSetResult.ByValue movies = fxLib.retrieve_available_movies(fxLibInstance, Genre.ACTION, SortBy.POPULARITY, "action", 1);
+ * // ... and so on
  * </code></pre>
+ * <p>
+ * This interface defines native methods for various operations related to media, subtitles,
+ * torrents, settings, and more. It serves as the bridge between your Java application
+ * and the underlying Popcorn FX library.
  */
 public interface FxLib extends Library {
     PopcornFx new_popcorn_fx(String[] args, int len);

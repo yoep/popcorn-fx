@@ -46,7 +46,7 @@ impl SystemPlatform for PlatformWin {
                     let mut mutex = self.screensaver_request.blocking_lock();
                     *mutex = Some(handle);
 
-                    if PowerSetRequest(handle, PowerRequestDisplayRequired).as_bool() {
+                    if PowerSetRequest(handle, PowerRequestDisplayRequired).is_ok() {
                         info!("Screensaver has been disabled");
                         true
                     } else {
@@ -63,7 +63,7 @@ impl SystemPlatform for PlatformWin {
         let mut mutex = self.screensaver_request.blocking_lock();
 
         if let Some(handle) = *mutex {
-            if unsafe { PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() } {
+            if unsafe { PowerClearRequest(handle, PowerRequestDisplayRequired).is_ok() } {
                 info!("Screensaver has been enabled");
                 *mutex = None;
                 true

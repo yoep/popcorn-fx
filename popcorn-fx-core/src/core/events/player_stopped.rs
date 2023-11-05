@@ -1,10 +1,8 @@
-use std::any::Any;
-
 use itertools::Itertools;
 use log::{error, trace, warn};
 use url::Url;
 
-use crate::core::media::{Episode, MediaIdentifier, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
+use crate::core::media::{MediaIdentifier, ShowOverview};
 
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
@@ -91,22 +89,7 @@ impl Clone for PlayerStoppedEvent {
     fn clone(&self) -> Self {
         let cloned_media = match &self.media {
             None => None,
-            Some(media) => {
-                if let Some(e) = media.as_ref().as_any().downcast_ref::<Episode>() {
-                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
-                } else if let Some(e) = media.as_ref().as_any().downcast_ref::<ShowOverview>() {
-                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
-                } else if let Some(e) = media.as_ref().as_any().downcast_ref::<MovieOverview>() {
-                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
-                } else if let Some(e) = media.as_ref().as_any().downcast_ref::<MovieDetails>() {
-                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
-                } else if let Some(e) = media.as_ref().as_any().downcast_ref::<ShowDetails>() {
-                    Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
-                } else {
-                    error!("Unable to clone MediaIdentifier, unknown type {:?}", (*media).type_id());
-                    None
-                }
-            }
+            Some(media) => media.clone_identifier(),
         };
 
         PlayerStoppedEvent {
@@ -130,7 +113,7 @@ impl PartialEq for PlayerStoppedEvent {
 mod test {
     use std::collections::HashMap;
 
-    use crate::core::media::{Images, Rating};
+    use crate::core::media::{Episode, Images, Rating};
     use crate::testing::init_logger;
 
     use super::*;

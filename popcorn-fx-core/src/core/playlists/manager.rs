@@ -3,18 +3,18 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::core::events::EventPublisher;
-use crate::core::playlist::Playlist;
+use crate::core::playlists::Playlist;
 
 #[derive(Debug)]
-pub struct PlaylistPlayer {
-    inner: Arc<InnerPlaylistPlayer>,
+pub struct PlaylistManager {
+    inner: Arc<InnerPlaylistManager>,
     event_publisher: Arc<EventPublisher>,
 }
 
-impl PlaylistPlayer {
+impl PlaylistManager {
     pub fn new(event_publisher: Arc<EventPublisher>) -> Self {
         Self {
-            inner: Arc::new(InnerPlaylistPlayer::default()),
+            inner: Arc::new(InnerPlaylistManager::default()),
             event_publisher,
         }
     }
@@ -25,11 +25,11 @@ impl PlaylistPlayer {
 }
 
 #[derive(Debug, Default)]
-struct InnerPlaylistPlayer {
+struct InnerPlaylistManager {
     playlist: Mutex<Playlist>,
 }
 
-impl InnerPlaylistPlayer {}
+impl InnerPlaylistManager {}
 
 #[cfg(test)]
 mod test {

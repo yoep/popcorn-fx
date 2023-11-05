@@ -1,5 +1,5 @@
-pub use player::*;
+pub use manager::*;
 pub use playlist::*;
 
-mod player;
+mod manager;
 mod playlist;

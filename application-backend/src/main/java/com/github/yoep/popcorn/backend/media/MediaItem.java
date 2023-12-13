@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
@@ -8,7 +7,6 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
-import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -18,6 +16,7 @@ import java.util.Optional;
 public class MediaItem extends Structure implements Closeable {
     public static class ByValue extends MediaItem implements Structure.ByValue {
     }
+
     public static class ByReference extends MediaItem implements Structure.ByReference {
     }
 
@@ -26,8 +25,6 @@ public class MediaItem extends Structure implements Closeable {
     public ShowOverview.ByReference showOverview;
     public ShowDetails.ByReference showDetails;
     public Episode.ByReference episode;
-
-    private FxLib fxLib;
 
     public Media getMedia() {
         if (movieOverview != null) {
@@ -46,12 +43,6 @@ public class MediaItem extends Structure implements Closeable {
         return episode;
     }
 
-    public MediaItem withLib(FxLib fxLib) {
-        Objects.requireNonNull(fxLib, "fxLib cannot be null");
-        this.fxLib = fxLib;
-        return this;
-    }
-
     @Override
     public void close() {
         setAutoSynch(false);
@@ -59,10 +50,16 @@ public class MediaItem extends Structure implements Closeable {
         Optional.ofNullable(movieDetails).ifPresent(MovieDetails::close);
         Optional.ofNullable(showOverview).ifPresent(ShowOverview::close);
         Optional.ofNullable(showDetails).ifPresent(ShowDetails::close);
-        Optional.ofNullable(this.fxLib).ifPresent(e -> {
-            log.trace("Disposing MediaItem {}", this);
-            e.dispose_media_item(this);
-        });
+    }
+
+    public MediaItem.ByReference toReference() {
+        var media = new MediaItem.ByReference();
+        media.showOverview = showOverview;
+        media.showDetails = showDetails;
+        media.episode = episode;
+        media.movieOverview = movieOverview;
+        media.movieDetails = movieDetails;
+        return media;
     }
 
     public static MediaItem from(Media media) {

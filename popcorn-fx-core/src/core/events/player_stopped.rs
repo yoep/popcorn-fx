@@ -2,7 +2,7 @@ use itertools::Itertools;
 use log::{error, trace, warn};
 use url::Url;
 
-use crate::core::media::{MediaIdentifier, ShowOverview};
+use crate::core::media::MediaIdentifier;
 
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
@@ -113,7 +113,7 @@ impl PartialEq for PlayerStoppedEvent {
 mod test {
     use std::collections::HashMap;
 
-    use crate::core::media::{Episode, Images, Rating};
+    use crate::core::media::{Episode, Images, Rating, ShowOverview};
     use crate::testing::init_logger;
 
     use super::*;

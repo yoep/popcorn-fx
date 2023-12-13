@@ -7,6 +7,8 @@ import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
+import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -44,6 +46,7 @@ public class DesktopMovieActionsComponent implements Initializable {
     static final String DEFAULT_TORRENT_AUDIO = "en";
 
     private final PlayerManagerService playerService;
+    private final PlaylistManager playlistManager;
     private final EventPublisher eventPublisher;
     private final LocaleText localeText;
     private final SubtitleService subtitleService;
@@ -164,6 +167,7 @@ public class DesktopMovieActionsComponent implements Initializable {
 
     private void onWatchNow() {
         var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(desktopMovieQualityComponent.getSelectedQuality());
+        playlistManager.play(PlaylistItem.fromMedia(media));
         eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, null, desktopMovieQualityComponent.getSelectedQuality(),
                 languageSelection.getSelectedItem()));
     }

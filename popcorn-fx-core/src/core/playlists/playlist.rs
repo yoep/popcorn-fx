@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use derive_more::Display;
 use log::{debug, info};
 
-use crate::core::media::{MediaIdentifier, MovieOverview};
+use crate::core::media::MediaIdentifier;
 
 /// A struct representing a playlist of media items.
 #[derive(Debug, Default)]
 pub struct Playlist {
-    items: VecDeque<PlaylistItem>,
+    pub items: VecDeque<PlaylistItem>,
 }
 
 impl Playlist {
@@ -62,12 +62,20 @@ impl Playlist {
     }
 }
 
+impl From<PlaylistItem> for Playlist {
+    fn from(value: PlaylistItem) -> Self {
+        let mut playlist = Playlist::default();
+        playlist.add(value);
+        playlist
+    }
+}
+
 #[derive(Debug, Display)]
-#[display(fmt = "url: {:?}, title: {}, thumb: {}", url, title, thumb)]
+#[display(fmt = "url: {:?}, title: {}, thumb: {:?}, media: {:?}", url, title, thumb, media)]
 pub struct PlaylistItem {
     pub url: Option<String>,
     pub title: String,
-    pub thumb: String,
+    pub thumb: Option<String>,
     pub media: Option<Box<dyn MediaIdentifier>>,
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
@@ -98,6 +106,7 @@ impl Clone for PlaylistItem {
 impl PartialEq for PlaylistItem {
     fn eq(&self, other: &Self) -> bool {
         let mut media_equal = true;
+        let mut thumb_equal = true;
 
         if let Some(media) = &self.media {
             if let Some(other_media) = &other.media {
@@ -106,10 +115,17 @@ impl PartialEq for PlaylistItem {
                 media_equal = false;
             }
         }
+        if let Some(thumb) = &self.thumb {
+            if let Some(other_thumb) = &other.thumb {
+                thumb_equal = thumb == other_thumb;
+            } else {
+                thumb_equal = false;
+            }
+        }
 
         self.url == other.url &&
             self.title.as_str() == other.title.as_str() &&
-            self.thumb.as_str() == other.title.as_str() &&
+            thumb_equal &&
             media_equal &&
             self.quality == other.quality
     }
@@ -118,6 +134,7 @@ impl PartialEq for PlaylistItem {
 #[cfg(test)]
 mod test {
     use crate::core::media::{MediaOverview, MovieOverview};
+    use crate::testing::init_logger;
 
     use super::*;
 
@@ -133,7 +150,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
-            thumb: "".to_string(),
+            thumb: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -154,7 +171,7 @@ mod test {
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
-            thumb: "".to_string(),
+            thumb: None,
             media: Some(Box::new(MovieOverview::new(
                 "ipsum".to_string(),
                 imdb_id.to_string(),
@@ -182,7 +199,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
-            thumb: "".to_string(),
+            thumb: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -207,7 +224,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
-            thumb: "".to_string(),
+            thumb: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -231,7 +248,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
-            thumb: "".to_string(),
+            thumb: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -240,5 +257,23 @@ mod test {
         let result = playlist.next();
         assert!(result.is_some(), "expected a next item to have been returned");
         assert!(!playlist.has_next(), "expected no next item to have been available")
+    }
+
+    #[test]
+    fn test_from_playlist_item() {
+        init_logger();
+        let item = PlaylistItem {
+            url: None,
+            title: "FooBar".to_string(),
+            thumb: None,
+            media: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+
+        let result = Playlist::from(item.clone());
+
+        assert!(result.items.contains(&item))
     }
 }

@@ -461,6 +461,13 @@ struct MediaSetC {
   int32_t shows_len;
 };
 
+struct PlaylistItemC {
+  const char *url;
+  const char *title;
+  const char *thumb;
+  MediaItemC *media;
+};
+
 struct StyledTextC {
   const char *text;
   bool italic;
@@ -997,6 +1004,13 @@ void dispose_media_item(Box<MediaItemC> media);
 /// Dispose all given media items from memory.
 void dispose_media_items(Box<MediaSetC> media);
 
+/// Dispose of a playlist item.
+///
+/// # Arguments
+///
+/// * `item` - A boxed `PlaylistItemC` representing the item to be disposed of.
+void dispose_playlist_item(Box<PlaylistItemC> item);
+
 /// Delete the PopcornFX instance, given as a [ptr], in a safe way.
 /// All data within the instance will be deleted from memory making the instance unusable.
 /// This means that the original pointer will become invalid.
@@ -1149,6 +1163,19 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
+
+/// Play a playlist item using PopcornFX.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `item` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `item` - A reference to a `PlaylistItemC` representing the item to be played.
+void play_playlist_item(PopcornFX *popcorn_fx, const PlaylistItemC *item);
 
 /// Retrieve the default poster (placeholder) image data as a C compatible byte array.
 ///

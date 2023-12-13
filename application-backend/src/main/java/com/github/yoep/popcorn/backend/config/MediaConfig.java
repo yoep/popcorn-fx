@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlsService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -30,5 +31,10 @@ public class MediaConfig {
     public PlayerEventService playerManagerService(PlayerManagerService playerService,
                                                    EventPublisher eventPublisher) {
         return new PlayerEventService(playerService, eventPublisher);
+    }
+
+    @Bean
+    public PlaylistManager playlistManager(FxLib fxLib, PopcornFx instance) {
+        return new PlaylistManager(fxLib, instance);
     }
 }

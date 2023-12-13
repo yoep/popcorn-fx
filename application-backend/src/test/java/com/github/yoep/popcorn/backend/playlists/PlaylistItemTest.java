@@ -1,0 +1,41 @@
+package com.github.yoep.popcorn.backend.playlists;
+
+import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class PlaylistItemTest {
+
+    @Test
+    void testGetUrl() {
+        var expectedResult = "https://localhost:98745/myurl";
+        var item = new PlaylistItem();
+        item.url = null;
+        assertEquals(Optional.empty(), item.getUrl());
+
+        item.url = expectedResult;
+        assertEquals(Optional.of(expectedResult), item.getUrl());
+    }
+
+    @Test
+    void testGetMedia() {
+        var media = new ShowOverview.ByReference();
+        var item = new PlaylistItem();
+        assertEquals(Optional.empty(), item.getMedia());
+
+        item.media = new MediaItem.ByReference();
+        item.media.showOverview = media;
+        assertEquals(Optional.of(media), item.getMedia());
+    }
+
+    @Test
+    void testClose() throws IOException {
+        var item = new PlaylistItem();
+        item.close();
+    }
+}

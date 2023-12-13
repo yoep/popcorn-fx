@@ -8,7 +8,7 @@ logging:
     com.github.yoep.popcorn.backend.media.watched: INFO
     com.github.yoep.popcorn.backend.settings: DEBUG
     com.github.yoep.popcorn.backend.subtitles: DEBUG
-    com.github.yoep.popcorn.backend.torrent: TRACE
+    com.github.yoep.popcorn.backend.torrent: DEBUG
     com.github.yoep.popcorn.media: INFO
     com.github.yoep.popcorn.ui: INFO
     com.github.yoep.popcorn.view: INFO
@@ -28,31 +28,33 @@ popcorn:
     popcorn_fx::ffi::mappings::subtitle:
       level: info
     popcorn_fx_core:
-      level: debug
+      level: info
     popcorn_fx_core::core::callback:
       level: info
     popcorn_fx_core::core::config:
       level: info
     popcorn_fx_core::core::events:
-      level: trace
+      level: info
     popcorn_fx_core::core::media:
       level: info
     popcorn_fx_core::core::media::favorites:
-      level: debug
+      level: info
     popcorn_fx_core::core::media::providers:
-      level: debug
+      level: info
     popcorn_fx_core::core::media::watched:
       level: info
     popcorn_fx_core::core::subtitles:
-      level: debug
+      level: info
     popcorn_fx_core::core::subtitles::parsers:
       level: info
+    popcorn_fx_core::core::playlists:
+      level: trace
     popcorn_fx_core::core::updater:
       level: info
     popcorn_fx_opensubtitles:
       level: info
     popcorn_fx_platform:
-      level: debug
+      level: info
     popcorn_fx_torrent:
       level: info
     popcorn_fx_torrent_stream:

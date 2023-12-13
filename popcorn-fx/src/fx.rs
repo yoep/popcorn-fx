@@ -31,6 +31,7 @@ use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeS
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
+use popcorn_fx_core::core::playlists::PlaylistManager;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
@@ -159,6 +160,7 @@ pub struct PopcornFX {
     playback_controls: Arc<PlaybackControls>,
     image_loader: Arc<Box<dyn ImageLoader>>,
     cache_manager: Arc<CacheManager>,
+    playlist_manager: Arc<PlaylistManager>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -224,6 +226,7 @@ impl PopcornFX {
             .event_publisher(event_publisher.clone())
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
+        let playlist_manager = Arc::new(PlaylistManager::new(event_publisher.clone()));
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -247,6 +250,7 @@ impl PopcornFX {
             playback_controls,
             image_loader,
             cache_manager,
+            playlist_manager,
             runtime,
             opts: args,
         }
@@ -339,6 +343,11 @@ impl PopcornFX {
     /// Retrieve the event publisher of the FX instance.
     pub fn event_publisher(&self) -> &Arc<EventPublisher> {
         &self.event_publisher
+    }
+
+    /// Retrieve the playlist manager of the FX instance.
+    pub fn playlist_manager(&self) -> &Arc<PlaylistManager> {
+        &self.playlist_manager
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.

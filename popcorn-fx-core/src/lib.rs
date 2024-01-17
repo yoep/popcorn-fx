@@ -29,13 +29,12 @@ pub fn from_c_string(ptr: *const c_char) -> String {
     if !ptr.is_null() {
         let slice = unsafe { CStr::from_ptr(ptr).to_bytes() };
 
-        match std::str::from_utf8(slice) {
-            Ok(e) => e.to_string(),
-            Err(e) => {
+        return std::str::from_utf8(slice)
+            .map(|e| e.to_string())
+            .unwrap_or_else(|e| {
                 error!("Failed to read C string, using empty string instead ({})", e);
                 String::new()
-            }
-        }
+            });
     } else {
         error!("Unable to read C string, pointer is null");
         String::new()
@@ -58,10 +57,43 @@ pub fn from_c_owned<T>(ptr: *mut T) -> T {
     *value
 }
 
-/// Retrieve a C value as an [Box]] value.
-/// For more info, see [Box::from_raw].
+/// Retrieve a C value as a [Box] value.
 ///
-/// * `ptr` - The pointer value to convert
+/// This function is preferred over `into_c_owned` when you want to obtain a Rust [Box] without
+/// taking ownership of the underlying C memory. Using this function, you are responsible for
+/// managing the C memory manually.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it involves raw pointer manipulation.
+///
+/// # Arguments
+///
+/// * `ptr` - The pointer value to convert.
+///
+/// # Panics
+///
+/// Panics if the provided `ptr` is null.
+///
+/// # Returns
+///
+/// Returns a [Box] containing the value referred to by the provided pointer.
+///
+/// # Example
+///
+/// ```no_run
+/// use std::mem;
+/// use popcorn_fx_core::from_c_into_boxed;
+///
+/// // Assume you have a C value `value` with a media pointer.
+/// let media_item = from_c_into_boxed(value.media);
+///
+/// // Perform operations with the media_item...
+/// let identifier = media_item.as_identifier();
+///
+/// // Don't forget to manually manage the C memory, as ownership has not been transferred to Rust.
+/// mem::forget(media_item);
+/// ```
 pub fn from_c_into_boxed<T>(ptr: *mut T) -> Box<T> {
     if !ptr.is_null() {
         unsafe { Box::from_raw(ptr) }

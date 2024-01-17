@@ -465,6 +465,7 @@ struct PlaylistItemC {
   const char *url;
   const char *title;
   const char *thumb;
+  const char *quality;
   MediaItemC *media;
 };
 
@@ -606,6 +607,12 @@ struct FavoriteEventC {
 
 /// The C compatible callback for playback control events.
 using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
+
+struct PlayerC {
+  const char *id;
+  const char *name;
+  const char *description;
+};
 
 /// The C compatible application events.
 struct ApplicationConfigEventC {
@@ -1217,6 +1224,24 @@ void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(F
 /// The `callback` function pointer should point to a valid C function that can receive a `PlaybackControlsEventC` parameter and return nothing.
 /// The callback function will be invoked whenever a playback control event occurs in the system.
 void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC callback);
+
+/// Register a player with the PopcornFX player manager.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `player` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `player` - A `PlayerC` instance to be registered with the player manager.
+///
+/// # Notes
+///
+/// This function registers a player with the PopcornFX player manager using the provided `PlayerC` instance.
+/// It logs an info message if the registration is successful and a warning message if registration fails.
+void register_player(PopcornFX *popcorn_fx, PlayerC player);
 
 /// Register a new callback for all setting events.
 void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallbackC callback);

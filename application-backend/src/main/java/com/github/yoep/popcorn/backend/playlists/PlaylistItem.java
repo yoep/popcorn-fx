@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -12,21 +9,22 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Optional;
 
 @Data
 @ToString
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
-@Structure.FieldOrder({"url", "title", "thumb", "media"})
+@Structure.FieldOrder({"url", "title", "thumb", "quality", "media"})
 public class PlaylistItem extends Structure implements Closeable {
+
     public static class ByReference extends PlaylistItem implements Structure.ByReference {
     }
 
     public String url;
     public String title;
     public String thumb;
+    public String quality;
     public MediaItem.ByReference media;
 
     public PlaylistItem(String url, String title, String thumb, MediaItem.ByReference media) {
@@ -45,15 +43,20 @@ public class PlaylistItem extends Structure implements Closeable {
                 .map(MediaItem::getMedia);
     }
 
+    public Optional<String> getQuality() {
+        return Optional.ofNullable(quality);
+    }
+
     @Override
-    public void close() throws IOException {
+    public void close() {
         setAutoSynch(false);
     }
 
-    public static PlaylistItem fromMedia(Media media) {
+    public static PlaylistItem fromMedia(Media media, String quality) {
         var item = new PlaylistItem();
         item.title = media.getTitle();
         item.media = MediaItem.from(media).toReference();
+        item.quality = quality;
 
         if (media instanceof ShowOverview show) {
             item.thumb = show.getImages().getPoster();
@@ -63,6 +66,16 @@ public class PlaylistItem extends Structure implements Closeable {
             item.thumb = episode.getThumb().orElse(null);
         }
 
+        return item;
+    }
+
+    public static PlaylistItem fromMedia(Media media) {
+        return fromMedia(media, null);
+    }
+
+    public static PlaylistItem fromMediaTrailer(MovieDetails media) {
+        var item = fromMedia(media);
+        item.url = media.getTrailer();
         return item;
     }
 }

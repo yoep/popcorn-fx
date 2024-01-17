@@ -82,8 +82,11 @@ impl DefaultFavoriteService {
         let storage = Storage::from(storage_path);
         let favorites = match storage.options()
             .serializer(FILENAME)
-            .read() {
-            Ok(e) => e,
+            .read::<Favorites>() {
+            Ok(e) => {
+                info!("Favorites have been loaded from {} ({} total items)", FILENAME, e.movies().len() + e.shows().len());
+                e
+            },
             Err(error) => {
                 match error {
                     StorageError::NotFound(file) => {
@@ -139,10 +142,12 @@ impl FavoriteService for DefaultFavoriteService {
         trace!("Retrieving all favorite media items");
         let favorites = futures::executor::block_on(self.favorites.lock());
         let mut all: Vec<Box<dyn MediaOverview>> = vec![];
+        trace!("Cloning a total of {} movie items", favorites.movies().len());
         let mut movies: Vec<Box<dyn MediaOverview>> = favorites.movies().iter()
             .map(|e| e.clone())
             .map(|e| Box::new(e) as Box<dyn MediaOverview>)
             .collect();
+        trace!("Cloning a total of {} show items", favorites.shows().len());
         let mut shows: Vec<Box<dyn MediaOverview>> = favorites.shows().iter()
             .map(|e| e.clone())
             .map(|e| Box::new(e) as Box<dyn MediaOverview>)
@@ -151,6 +156,7 @@ impl FavoriteService for DefaultFavoriteService {
         all.append(&mut movies);
         all.append(&mut shows);
 
+        debug!("Retrieved a total of {} favorite items", all.len());
         Ok(all)
     }
 

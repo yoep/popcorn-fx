@@ -2,13 +2,12 @@ package com.github.yoep.player.popcorn.player;
 
 import com.github.yoep.player.popcorn.services.VideoService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
-import lombok.RequiredArgsConstructor;
+import com.github.yoep.popcorn.backend.player.AbstractPlayerBridge;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -22,8 +21,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class PopcornPlayer implements Player {
+public class PopcornPlayer extends AbstractPlayerBridge {
     public static final String PLAYER_ID = "internalPlayer";
     public static final String PLAYER_NAME = "Popcorn Time";
 
@@ -36,23 +34,15 @@ public class PopcornPlayer implements Player {
     private PlayerState playerState = PlayerState.UNKNOWN;
     private Long time;
 
-    //region EmbeddablePlayer
-
-    @Override
-    public String getId() {
-        return PLAYER_ID;
-    }
-
-    @Override
-    public String getName() {
-        return PLAYER_NAME;
-    }
-
-    @Override
-    public String getDescription() {
-        return "Popcorn Time is the default embedded player of the application. " +
+    public PopcornPlayer(VideoService videoService) {
+        this.id = PLAYER_ID;
+        this.name = PLAYER_NAME;
+        this.description = "Popcorn Time is the default embedded player of the application. " +
                 "It allows the video playback within the application itself.";
+        this.videoService = videoService;
     }
+
+    //region EmbeddablePlayer
 
     @Override
     public Optional<Resource> getGraphicResource() {

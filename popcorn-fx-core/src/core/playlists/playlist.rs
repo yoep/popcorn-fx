@@ -133,7 +133,7 @@ impl PartialEq for PlaylistItem {
 
 #[cfg(test)]
 mod test {
-    use crate::core::media::{MediaOverview, MovieOverview};
+    use crate::core::media::MovieOverview;
     use crate::testing::init_logger;
 
     use super::*;
@@ -164,10 +164,6 @@ mod test {
     fn test_remove() {
         let mut playlist = Playlist::default();
         let imdb_id = "tt00013";
-        let media = Box::new(MovieOverview::new(
-            "ipsum".to_string(),
-            imdb_id.to_string(),
-            "2015".to_string())) as Box<dyn MediaOverview>;
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),

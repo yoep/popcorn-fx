@@ -31,6 +31,7 @@ use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeS
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
+use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlists::PlaylistManager;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
@@ -161,6 +162,7 @@ pub struct PopcornFX {
     image_loader: Arc<Box<dyn ImageLoader>>,
     cache_manager: Arc<CacheManager>,
     playlist_manager: Arc<PlaylistManager>,
+    player_manager: Arc<Box<dyn PlayerManager>>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -226,6 +228,7 @@ impl PopcornFX {
             .event_publisher(event_publisher.clone())
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
+        let player_manager = Arc::new(Box::new(DefaultPlayerManager::default()) as Box<dyn PlayerManager>);
         let playlist_manager = Arc::new(PlaylistManager::new(event_publisher.clone()));
 
         // disable the screensaver
@@ -250,6 +253,7 @@ impl PopcornFX {
             playback_controls,
             image_loader,
             cache_manager,
+            player_manager,
             playlist_manager,
             runtime,
             opts: args,
@@ -343,6 +347,11 @@ impl PopcornFX {
     /// Retrieve the event publisher of the FX instance.
     pub fn event_publisher(&self) -> &Arc<EventPublisher> {
         &self.event_publisher
+    }
+
+    /// Retrieve the player manager of the FX instance.
+    pub fn player_manager(&self) -> &Arc<Box<dyn PlayerManager>> {
+        &self.player_manager
     }
 
     /// Retrieve the playlist manager of the FX instance.

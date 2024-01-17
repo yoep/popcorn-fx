@@ -1,8 +1,11 @@
 package com.github.yoep.popcorn.ui.player;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerAlreadyExistsException;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.player.AbstractPlayerBridge;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -29,6 +32,8 @@ public class PlayerManagerServiceImpl implements PlayerManagerService {
 
     private final ObservableMap<String, Player> players = FXCollections.observableMap(new LinkedHashMap<>());
     private final ObjectProperty<Player> activePlayer = new SimpleObjectProperty<>(this, ACTIVE_PLAYER_PROPERTY);
+    private final FxLib fxLib;
+    private final PopcornFx popcornFx;
 
     //region Properties
 
@@ -81,6 +86,11 @@ public class PlayerManagerServiceImpl implements PlayerManagerService {
         }
 
         players.put(id, player);
+
+        if (player instanceof AbstractPlayerBridge cPlayer) {
+            log.info("Registering new C player");
+            fxLib.register_player(popcornFx, cPlayer);
+        }
     }
 
     @Override

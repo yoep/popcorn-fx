@@ -167,12 +167,18 @@ public class DesktopMovieActionsComponent implements Initializable {
 
     private void onWatchNow() {
         var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(desktopMovieQualityComponent.getSelectedQuality());
-        playlistManager.play(PlaylistItem.fromMedia(media));
+        try (var item = PlaylistItem.fromMedia(media, desktopMovieQualityComponent.getSelectedQuality())) {
+            playlistManager.play(item);
+        }
+
         eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, null, desktopMovieQualityComponent.getSelectedQuality(),
                 languageSelection.getSelectedItem()));
     }
 
     private void playTrailer() {
+        try (var item = PlaylistItem.fromMediaTrailer(media)) {
+            playlistManager.play(item);
+        }
         eventPublisher.publish(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
     }
 

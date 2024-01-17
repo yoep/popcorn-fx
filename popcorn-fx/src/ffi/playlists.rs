@@ -20,6 +20,7 @@ use crate::PopcornFX;
 pub extern "C" fn play_playlist_item(popcorn_fx: &mut PopcornFX, item: &PlaylistItemC) {
     let item = item.to_struct();
 
+    trace!("Playing playlist item {:?}", item);
     popcorn_fx.playlist_manager().play(Playlist::from(item))
 }
 
@@ -37,10 +38,31 @@ pub extern "C" fn dispose_playlist_item(item: Box<PlaylistItemC>) {
 mod test {
     use std::ptr;
 
+    use tempfile::tempdir;
+
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 
+    use crate::test::default_args;
+
     use super::*;
+
+    #[test]
+    fn test_play_playlist_item() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(default_args(temp_path));
+        let item = PlaylistItemC {
+            url: into_c_string("https://www.youtube.com/".to_string()),
+            title: into_c_string("FooBar".to_string()),
+            thumb: ptr::null(),
+            quality: ptr::null(),
+            media: ptr::null_mut(),
+        };
+
+        play_playlist_item(&mut instance, &item);
+    }
 
     #[test]
     fn test_dispose_playlist_item() {
@@ -50,6 +72,7 @@ mod test {
             title: into_c_string("Foo Bar".to_string()),
             thumb: into_c_string("MyThumb".to_string()),
             media: ptr::null_mut(),
+            quality: ptr::null_mut(),
         });
 
         dispose_playlist_item(item);

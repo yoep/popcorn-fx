@@ -139,30 +139,31 @@ public class ChromecastService {
 
     //region Functions
 
-    private boolean isSubtitleNotDisabled(Subtitle e) {
-        return !e.isNone();
-    }
-
     private boolean isSupportedVideoFormat(String url) {
         Objects.requireNonNull(url, "url cannot be null");
-        return ffprobe
-                .setShowStreams(true)
-                .setInput(url)
-                .execute()
-                .getStreams().stream()
-                .filter(e -> e.getCodecType() == StreamType.VIDEO)
-                .findFirst()
-                .map(e -> {
-                    log.trace("Probe of {}: {}", url, e);
-                    return e;
-                })
-                .map(Stream::getCodecName)
-                .filter(SUPPORTED_CODECS::contains)
-                .map(e -> {
-                    log.debug("Codec {} is supported by Chromecast", e);
-                    return e;
-                })
-                .isPresent();
+        try {
+            return ffprobe
+                    .setShowStreams(true)
+                    .setInput(url)
+                    .execute()
+                    .getStreams().stream()
+                    .filter(e -> e.getCodecType() == StreamType.VIDEO)
+                    .findFirst()
+                    .map(e -> {
+                        log.trace("Probe of {}: {}", url, e);
+                        return e;
+                    })
+                    .map(Stream::getCodecName)
+                    .filter(SUPPORTED_CODECS::contains)
+                    .map(e -> {
+                        log.debug("Codec {} is supported by Chromecast", e);
+                        return e;
+                    })
+                    .isPresent();
+        } catch (Exception ex) {
+            log.error("Failed to verify if video format is supported, {}", ex.getMessage(), ex);
+            return true;
+        }
     }
 
     private List<Track> loadTracks(PlayRequest request) {

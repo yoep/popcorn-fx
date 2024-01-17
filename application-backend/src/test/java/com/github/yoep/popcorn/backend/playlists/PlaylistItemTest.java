@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,8 +34,21 @@ class PlaylistItemTest {
     }
 
     @Test
-    void testClose() throws IOException {
+    void testClose() {
         var item = new PlaylistItem();
         item.close();
+    }
+
+    @Test
+    void testGetFromMediaTrailer() {
+        var movie = new MovieDetails.ByReference();
+        movie.title = "FooBar";
+        movie.trailer = "https://youtube.com";
+
+        var result = PlaylistItem.fromMediaTrailer(movie);
+
+        assertEquals(movie.title, result.title);
+        assertEquals(movie.trailer, result.url);
+        assertEquals(movie, result.media.movieDetails);
     }
 }

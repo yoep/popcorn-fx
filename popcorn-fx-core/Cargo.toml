@@ -21,7 +21,7 @@ derive_more = "0"
 directories.workspace = true
 downcast-rs = "1"
 flate2 = "1"
-futures = "0"
+futures = "0.3"
 html-escape = "0"
 itertools = "0"
 local-ip-address = "0"
@@ -31,7 +31,7 @@ mockall = "0"
 percent-encoding = "2"
 regex = "1"
 reqwest = { version = "0", features = ["serde_json", "json", "stream"] }
-ring = "0.16"
+ring = "0.17"
 semver = "1.0"
 serde.workspace = true
 serde_json.workspace = true

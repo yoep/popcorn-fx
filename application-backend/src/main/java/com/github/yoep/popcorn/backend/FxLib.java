@@ -16,6 +16,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.backend.player.AbstractPlayerBridge;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.*;
@@ -220,6 +221,8 @@ public interface FxLib extends Library {
     ByteArray load_image(PopcornFx instance, String url);
 
     void play_playlist_item(PopcornFx instance, PlaylistItem item);
+
+    void register_player(PopcornFx instance, AbstractPlayerBridge player);
 
     void log(String target, String message, LogLevel level);
 

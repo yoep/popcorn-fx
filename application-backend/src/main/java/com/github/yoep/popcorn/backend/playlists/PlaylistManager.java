@@ -54,6 +54,7 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
         item.url = episode.getTorrents().get(quality).url;
         item.title = episode.getTitle();
         item.thumb = show.getImages().getPoster();
+        item.parentMedia = MediaItem.from(show).toReference();
         item.media = MediaItem.from(episode).toReference();
         item.quality = quality;
         return item;

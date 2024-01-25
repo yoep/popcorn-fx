@@ -1,8 +1,10 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
+#[cfg(any(test, feature = "testing"))]
+use mockall::automock;
 
 use crate::core::{CoreCallback, torrent};
 use crate::core::torrent::{TorrentInfo, TorrentWrapper};
@@ -42,8 +44,9 @@ impl Display for TorrentManagerEvent {
 }
 
 /// The torrent manager stores the active sessions and torrents that are being processed.
+#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
-pub trait TorrentManager {
+pub trait TorrentManager : Debug + Send + Sync {
     /// Retrieve the current state of the torrent manager.
     ///
     /// # Returns
@@ -82,6 +85,8 @@ pub trait TorrentManager {
     ///
     /// This operation removes all torrents from the filesystem.
     fn cleanup(&self);
+
+    fn torrent_info(&self, torrent_url: &str) -> Option<TorrentInfo>;
 }
 
 #[cfg(test)]

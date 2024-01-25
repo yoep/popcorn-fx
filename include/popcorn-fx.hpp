@@ -498,6 +498,7 @@ struct PlaylistItemC {
   const char *title;
   const char *thumb;
   const char *quality;
+  MediaItemC *parent_media;
   MediaItemC *media;
   uint64_t *auto_resume_timestamp;
 };

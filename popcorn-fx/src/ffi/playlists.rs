@@ -77,6 +77,7 @@ mod test {
             title: into_c_string("FooBar".to_string()),
             thumb: ptr::null(),
             quality: ptr::null(),
+            parent_media: ptr::null_mut(),
             media: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
         };
@@ -91,6 +92,7 @@ mod test {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),
             thumb: into_c_string("MyThumb".to_string()),
+            parent_media: ptr::null_mut(),
             media: ptr::null_mut(),
             quality: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
@@ -106,6 +108,7 @@ mod test {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),
             thumb: into_c_string("MyThumb".to_string()),
+            parent_media: ptr::null_mut(),
             media: ptr::null_mut(),
             quality: ptr::null_mut(),
             auto_resume_timestamp: into_c_owned(500u64),

@@ -100,6 +100,7 @@ pub struct PlaylistItem {
     pub url: Option<String>,
     pub title: String,
     pub thumb: Option<String>,
+    pub parent_media: Option<Box<dyn MediaIdentifier>>,
     pub media: Option<Box<dyn MediaIdentifier>>,
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
@@ -108,6 +109,12 @@ pub struct PlaylistItem {
 
 impl Clone for PlaylistItem {
     fn clone(&self) -> Self {
+        let cloned_parent_media = match &self.parent_media {
+            None => None,
+            Some(media) => {
+                media.clone_identifier()
+            }
+        };
         let cloned_media = match &self.media {
             None => None,
             Some(media) => {
@@ -119,6 +126,7 @@ impl Clone for PlaylistItem {
             url: self.url.clone(),
             title: self.title.clone(),
             thumb: self.thumb.clone(),
+            parent_media: cloned_parent_media,
             media: cloned_media,
             quality: self.quality.clone(),
             auto_resume_timestamp: self.auto_resume_timestamp,
@@ -175,6 +183,7 @@ mod test {
             url: None,
             title: "".to_string(),
             thumb: None,
+            parent_media: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -192,6 +201,7 @@ mod test {
             url: None,
             title: "".to_string(),
             thumb: None,
+            parent_media: None,
             media: Some(Box::new(MovieOverview::new(
                 "ipsum".to_string(),
                 imdb_id.to_string(),
@@ -220,6 +230,7 @@ mod test {
             url: None,
             title: "".to_string(),
             thumb: None,
+            parent_media: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -245,6 +256,7 @@ mod test {
             url: None,
             title: "".to_string(),
             thumb: None,
+            parent_media: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -269,6 +281,7 @@ mod test {
             url: None,
             title: "".to_string(),
             thumb: None,
+            parent_media: None,
             media: Some(media.clone()),
             quality: None,
             auto_resume_timestamp: None,
@@ -286,6 +299,7 @@ mod test {
             url: None,
             title: "FooBar".to_string(),
             thumb: None,
+            parent_media: None,
             media: None,
             quality: None,
             auto_resume_timestamp: None,
@@ -304,6 +318,7 @@ mod test {
             url: None,
             title: title.to_string(),
             thumb: None,
+            parent_media: None,
             media: None,
             quality: None,
             auto_resume_timestamp: None,
@@ -326,6 +341,7 @@ mod test {
             url: None,
             title: title.to_string(),
             thumb: None,
+            parent_media: None,
             media: None,
             quality: None,
             auto_resume_timestamp: None,

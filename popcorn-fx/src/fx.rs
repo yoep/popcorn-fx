@@ -32,7 +32,7 @@ use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedServic
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
-use popcorn_fx_core::core::playlists::PlaylistManager;
+use popcorn_fx_core::core::playlists::{LoadingChain, LoadingStrategy, PlaylistManager, SubtitleLoadingStrategy, TorrentLoadingStrategy};
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
@@ -229,7 +229,11 @@ impl PopcornFX {
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
         let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(event_publisher.clone())) as Box<dyn PlayerManager>);
-        let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone()));
+        let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
+            Box::new(SubtitleLoadingStrategy::default()),
+            Box::new(TorrentLoadingStrategy::new(torrent_manager.clone())),
+        ];
+        let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), LoadingChain::from(loading_chain)));
 
         // disable the screensaver
         platform.disable_screensaver();

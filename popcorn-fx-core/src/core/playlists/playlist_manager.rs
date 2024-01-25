@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use derive_more::Display;
-use log::{debug, info, trace};
+use log::{debug, trace, warn};
 use tokio::sync::Mutex;
 
-use crate::core::{Callbacks, CoreCallback, CoreCallbacks};
-use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayVideoEvent};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher};
 use crate::core::players::{PlayerManager, PlayerManagerEvent};
-use crate::core::playlists::{Playlist, PlaylistItem};
+use crate::core::playlists::{LoadingChain, Playlist, PlaylistItem};
 
 /// An event representing changes to the playlist manager.
 #[derive(Debug, Display, Clone)]
@@ -45,9 +45,9 @@ impl PlaylistManager {
     /// # Returns
     ///
     /// A new `PlaylistManager` instance.
-    pub fn new(player_manager: Arc<Box<dyn PlayerManager>>, event_publisher: Arc<EventPublisher>) -> Self {
+    pub fn new(player_manager: Arc<Box<dyn PlayerManager>>, event_publisher: Arc<EventPublisher>, loading_chain: LoadingChain) -> Self {
         let manager = Self {
-            inner: Arc::new(InnerPlaylistManager::new(player_manager, event_publisher)),
+            inner: Arc::new(InnerPlaylistManager::new(player_manager, event_publisher, loading_chain)),
         };
 
         let event_manager = manager.inner.clone();
@@ -125,16 +125,18 @@ struct InnerPlaylistManager {
     playlist: Mutex<Playlist>,
     player_manager: Arc<Box<dyn PlayerManager>>,
     player_duration: Mutex<u64>,
+    loading_chain: LoadingChain,
     callbacks: CoreCallbacks<PlaylistManagerEvent>,
     event_publisher: Arc<EventPublisher>,
 }
 
 impl InnerPlaylistManager {
-    fn new(player_manager: Arc<Box<dyn PlayerManager>>, event_publisher: Arc<EventPublisher>) -> Self {
+    fn new(player_manager: Arc<Box<dyn PlayerManager>>, event_publisher: Arc<EventPublisher>, loading_chain: LoadingChain) -> Self {
         let instance = Self {
             playlist: Default::default(),
             player_manager,
             player_duration: Default::default(),
+            loading_chain,
             callbacks: Default::default(),
             event_publisher,
         };
@@ -144,9 +146,13 @@ impl InnerPlaylistManager {
 
     fn play(&self, playlist: Playlist) {
         trace!("Starting new playlist with {:?}", playlist);
-        let mut mutex = futures::executor::block_on(self.playlist.lock());
-        debug!("Replacing playlist with {:?}", playlist);
-        *mutex = playlist
+        {
+            let mut mutex = futures::executor::block_on(self.playlist.lock());
+            debug!("Replacing playlist with {:?}", playlist);
+            *mutex = playlist
+        }
+
+        self.play_next()
     }
 
     fn play_next(&self) {
@@ -157,27 +163,33 @@ impl InnerPlaylistManager {
 
             trace!("Processing next item in playlist {}", item);
             if item.url.is_some() {
-                self.play_item(&item);
+                self.play_item(item);
             }
         } else {
             debug!("End of playlist has been reached")
         }
     }
 
-    fn play_item(&self, item: &PlaylistItem) {
-        let url = if let Some(e) = &item.url {
-            e.clone()
-        } else {
-            "".to_string()
-        };
+    fn play_item(&self, item: PlaylistItem) {
+        debug!("Starting playback of next playlist item {}", item);
+        let strategies = self.loading_chain.strategies();
+        let mut item = item;
 
-        info!("Playing next playlist item {}", item);
-        self.event_publisher.publish(Event::PlayVideo(PlayVideoEvent {
-            url,
-            title: item.title.clone(),
-            subtitle: None,
-            thumb: item.thumb.clone(),
-        }))
+        block_in_place(async {
+            trace!("Processing a total of {} loading strategies", strategies.len());
+            for strategy in strategies.iter() {
+                if let Some(strategy) = strategy.upgrade() {
+                    if let Some(new_item) = strategy.process(item).await {
+                        item = new_item;
+                    } else {
+                        debug!("Reached end of playlist item loading chain");
+                        break;
+                    }
+                } else {
+                    warn!("Loading strategy is no longer in scope");
+                }
+            }
+        });
     }
 
     fn has_next(&self) -> bool {
@@ -225,9 +237,44 @@ mod test {
 
     use crate::core::events::PlayerStoppedEvent;
     use crate::core::players::MockPlayerManager;
+    use crate::core::playlists::{LoadingStrategy, MockLoadingStrategy};
     use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_play() {
+        init_logger();
+        let mut playlist = Playlist::default();
+        let playlist_item = PlaylistItem {
+            url: Some("http://localhost/myvideo.mp4".to_string()),
+            title: "FooBar".to_string(),
+            thumb: None,
+            media: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+        let event_publisher = Arc::new(EventPublisher::default());
+        let mut player_manager = Box::new(MockPlayerManager::new());
+        player_manager.expect_subscribe()
+            .return_const(());
+        let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
+        let (tx, rx) = channel();
+        let mut strategy = MockLoadingStrategy::new();
+        strategy.expect_process().returning(move |e| {
+            tx.send(e).unwrap();
+            None
+        });
+        let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
+        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), LoadingChain::from(loading_chain));
+
+        playlist.add(playlist_item.clone());
+        manager.play(playlist);
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        assert_eq!(playlist_item, result);
+    }
 
     #[test]
     fn test_has_next() {
@@ -238,11 +285,20 @@ mod test {
         player_manager.expect_subscribe()
             .return_const(());
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone());
+        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), LoadingChain::default());
 
         playlist.add(PlaylistItem {
-            url: Some("http://localhost/myvideo.mp4".to_string()),
-            title: "FooBar".to_string(),
+            url: Some("http://localhost/myvideo1.mp4".to_string()),
+            title: "FooBar1".to_string(),
+            thumb: None,
+            media: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        });
+        playlist.add(PlaylistItem {
+            url: Some("http://localhost/myvideo2.mp4".to_string()),
+            title: "FooBar2".to_string(),
             thumb: None,
             media: None,
             quality: None,
@@ -265,7 +321,7 @@ mod test {
         player_manager.expect_subscribe()
             .return_const(());
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone());
+        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), LoadingChain::default());
 
         playlist.add(PlaylistItem {
             url: Some(url.to_string()),
@@ -315,7 +371,7 @@ mod test {
             });
         let (tx, rx) = channel();
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone());
+        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), LoadingChain::default());
 
         playlist.add(PlaylistItem {
             url: None,

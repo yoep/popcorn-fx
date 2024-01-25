@@ -577,7 +577,7 @@ impl From<Box<dyn MediaIdentifier>> for MediaItemC {
         match value.media_type() {
             MediaType::Unknown => {
                 error!("Unable to convert MediaIdentifier to MediaItemC, unknown media type");
-                panic!("Invalid media type")
+                panic!("Unable to map MediaIdentifier, invalid media type")
             }
             MediaType::Movie => {
                 if let Some(media) = value.downcast_ref::<MovieDetails>() {
@@ -586,23 +586,23 @@ impl From<Box<dyn MediaIdentifier>> for MediaItemC {
                     return MediaItemC::from(media.clone());
                 }
 
-                panic!("")
+                panic!("Unable to map MediaIdentifier to Movie type")
             }
             MediaType::Show => {
                 if let Some(media) = value.downcast_ref::<ShowDetails>() {
                     return MediaItemC::from(media.clone());
-                } else if let Some(media) = value.downcast_ref::<ShowDetails>() {
+                } else if let Some(media) = value.downcast_ref::<ShowOverview>() {
                     return MediaItemC::from(media.clone());
                 }
 
-                panic!("")
+                panic!("Unable to map MediaIdentifier to Show type")
             }
             MediaType::Episode => {
                 if let Ok(media) = value.downcast::<Episode>() {
                     return MediaItemC::from(*media);
                 }
 
-                panic!("")
+                panic!("Unable to map MediaIdentifier to Episode type")
             }
         }
     }
@@ -1010,6 +1010,31 @@ mod test {
     }
 
     #[test]
+    fn test_media_item_c_from_identifier_show_overview() {
+        init_logger();
+        let imdb_id = "tt12346666";
+        let tvdb_id = "tt00007777";
+        let title = "Dolor";
+        let show = ShowOverview {
+            imdb_id: imdb_id.to_string(),
+            tvdb_id: tvdb_id.to_string(),
+            title: title.to_string(),
+            year: "2019".to_string(),
+            num_seasons: 8,
+            images: Default::default(),
+            rating: None,
+        };
+
+        let result = MediaItemC::from(Box::new(show.clone()) as Box<dyn MediaIdentifier>);
+
+        assert!(!result.show_overview.is_null(), "expected the show overview to have been mapped");
+        let result = from_c_owned(result.show_overview);
+        assert_eq!(imdb_id.to_string(), from_c_string(result.imdb_id));
+        assert_eq!(tvdb_id.to_string(), from_c_string(result.tvdb_id));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+    }
+
+    #[test]
     fn test_media_item_as_identifier() {
         init_logger();
         let title = "lorem ipsum";
@@ -1060,7 +1085,36 @@ mod test {
     }
 
     #[test]
-    fn test_media_item_as_overview() {
+    fn test_media_item_as_identifier_show_overview() {
+        init_logger();
+        let imdb_id = "tt12345687";
+        let tvdb_id = "tt12345999";
+        let title = "FooBar";
+        let show = ShowOverview {
+            imdb_id: imdb_id.to_string(),
+            tvdb_id: tvdb_id.to_string(),
+            title: title.to_string(),
+            year: "".to_string(),
+            num_seasons: 0,
+            images: Default::default(),
+            rating: None,
+        };
+        let media_item = MediaItemC {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: into_c_owned(ShowOverviewC::from(show)),
+            show_details: ptr::null_mut(),
+            episode: ptr::null_mut(),
+        };
+
+        let result = media_item.as_identifier().unwrap();
+
+        assert_eq!(imdb_id, result.imdb_id());
+        assert_eq!(title, result.title().as_str());
+    }
+
+    #[test]
+    fn test_media_item_as_show_overview() {
         init_logger();
         let title = "lorem ipsum";
         let id = "tt111222";

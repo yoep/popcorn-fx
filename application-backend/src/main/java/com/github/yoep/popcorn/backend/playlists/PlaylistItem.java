@@ -15,7 +15,7 @@ import java.util.Optional;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
-@Structure.FieldOrder({"url", "title", "thumb", "quality", "media", "autoResumeTimestamp"})
+@Structure.FieldOrder({"url", "title", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp"})
 public class PlaylistItem extends Structure implements Closeable {
     public static class ByReference extends PlaylistItem implements Structure.ByReference {
     }
@@ -24,6 +24,7 @@ public class PlaylistItem extends Structure implements Closeable {
     public String title;
     public String thumb;
     public String quality;
+    public MediaItem.ByReference parentMedia;
     public MediaItem.ByReference media;
     public Long autoResumeTimestamp;
 
@@ -38,6 +39,11 @@ public class PlaylistItem extends Structure implements Closeable {
         return Optional.ofNullable(url);
     }
 
+    public Optional<Media> getParentMedia() {
+        return Optional.ofNullable(parentMedia)
+                .map(MediaItem::getMedia);
+    }
+    
     public Optional<Media> getMedia() {
         return Optional.ofNullable(media)
                 .map(MediaItem::getMedia);

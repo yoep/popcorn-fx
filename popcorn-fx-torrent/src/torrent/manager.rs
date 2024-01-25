@@ -68,6 +68,10 @@ impl TorrentManager for DefaultTorrentManager {
     fn cleanup(&self) {
         self.inner.cleanup()
     }
+
+    fn torrent_info(&self, torrent_url: &str) -> Option<TorrentInfo> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -209,6 +213,10 @@ impl TorrentManager for InnerTorrentManager {
         let mutex = block_in_place(self.settings.lock());
         let settings = mutex.settings.torrent();
         Self::clean_directory(settings);
+    }
+
+    fn torrent_info(&self, torrent_url: &str) -> Option<TorrentInfo> {
+        None
     }
 }
 

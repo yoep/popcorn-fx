@@ -4,6 +4,7 @@ use std::os::raw::c_char;
 use log::trace;
 
 use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::core::media::MediaIdentifier;
 use popcorn_fx_core::core::playlists::PlaylistItem;
 
 use crate::ffi::MediaItemC;
@@ -15,8 +16,31 @@ pub struct PlaylistItemC {
     pub title: *const c_char,
     pub thumb: *const c_char,
     pub quality: *const c_char,
+    pub parent_media: *mut MediaItemC,
     pub media: *mut MediaItemC,
     pub auto_resume_timestamp: *mut u64,
+}
+
+impl PlaylistItemC {
+    fn media_ptr(value: Option<Box<dyn MediaIdentifier>>) -> *mut MediaItemC {
+        if let Some(value) = value {
+            into_c_owned(MediaItemC::from(value))
+        } else {
+            ptr::null_mut()
+        }
+    }
+
+    fn media_value(value: *mut MediaItemC) -> Option<Box<dyn MediaIdentifier>> {
+        if !value.is_null() {
+            trace!("Converting MediaItem from C for {:?}", value);
+            let media = from_c_into_boxed(value);
+            let identifier = media.as_identifier();
+            mem::forget(media);
+            identifier
+        } else {
+            None
+        }
+    }
 }
 
 impl From<PlaylistItemC> for PlaylistItem {
@@ -31,15 +55,8 @@ impl From<PlaylistItemC> for PlaylistItem {
         } else {
             None
         };
-        let media = if !value.media.is_null() {
-            trace!("Converting MediaItem from C for {:?}", value.media);
-            let media = from_c_into_boxed(value.media);
-            let identifier = media.as_identifier();
-            mem::forget(media);
-            identifier
-        } else {
-            None
-        };
+        let parent_media = PlaylistItemC::media_value(value.parent_media);
+        let media = PlaylistItemC::media_value(value.media);
         let quality = if !value.quality.is_null() {
             Some(from_c_string(value.quality))
         } else {
@@ -55,6 +72,7 @@ impl From<PlaylistItemC> for PlaylistItem {
             url,
             title: from_c_string(value.title),
             thumb,
+            parent_media,
             media,
             quality,
             auto_resume_timestamp,
@@ -91,7 +109,8 @@ impl From<PlaylistItem> for PlaylistItemC {
             title: into_c_string(value.title),
             thumb,
             quality,
-            media: ptr::null_mut(),
+            parent_media: PlaylistItemC::media_ptr(value.parent_media),
+            media: PlaylistItemC::media_ptr(value.media),
             auto_resume_timestamp,
         }
     }
@@ -149,6 +168,7 @@ mod test {
             url: into_c_string(url.to_string()),
             title: into_c_string(title.to_string()),
             thumb: ptr::null(),
+            parent_media: ptr::null_mut(),
             media: into_c_owned(MediaItemC::from(media.clone())),
             quality: into_c_string(quality.to_string()),
             auto_resume_timestamp: into_c_owned(8000u64),
@@ -157,6 +177,7 @@ mod test {
             url: Some(url.to_string()),
             title: title.to_string(),
             thumb: None,
+            parent_media: None,
             media: Some(Box::new(media)),
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
@@ -186,6 +207,7 @@ mod test {
             url: Some(url.to_string()),
             title: title.to_string(),
             thumb: None,
+            parent_media: None,
             media: Some(Box::new(media.clone())),
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,

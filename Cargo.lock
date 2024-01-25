@@ -2146,6 +2146,7 @@ dependencies = [
  "percent-encoding",
  "popcorn-fx-common",
  "popcorn-fx-core",
+ "rand",
  "regex",
  "reqwest",
  "ring",

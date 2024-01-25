@@ -5,7 +5,7 @@ use derive_more::Display;
 use log::{debug, error, info, trace};
 use tokio::sync::Mutex;
 
-use crate::core::{CoreCallback, CoreCallbacks};
+use crate::core::{Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::ApplicationConfig;
 use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
@@ -176,7 +176,7 @@ impl SubtitleManager {
     ///
     /// * `callback` - The callback function to register.
     pub fn register(&self, callback: SubtitleCallback) {
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 
     /// Cleans the subtitle directory.

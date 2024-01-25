@@ -1,8 +1,8 @@
 use log::trace;
 
-use popcorn_fx_core::core::events::Event;
+use popcorn_fx_core::core::events::{Event, LOWEST_ORDER};
 
-use crate::ffi::EventC;
+use crate::ffi::{EventC, EventCCallback};
 use crate::PopcornFX;
 
 /// Publish a new application event over the FFI layer.
@@ -17,6 +17,26 @@ pub extern "C" fn publish_event(popcorn_fx: &mut PopcornFX, event: EventC) {
     popcorn_fx.runtime().spawn(async move {
         event_publisher.publish(event);
     });
+}
+
+/// Register an event callback with the PopcornFX event publisher.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `callback` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - A C-compatible function pointer representing the callback to be registered.
+#[no_mangle]
+pub extern "C" fn register_event_callback(popcorn_fx: &mut PopcornFX, callback: EventCCallback) {
+    popcorn_fx.event_publisher().register(Box::new(move |e| {
+        trace!("Executing EventPublisher bridge event callback for {}", e);
+        callback(EventC::from(e));
+        None // consume the event
+    }), LOWEST_ORDER);
 }
 
 #[cfg(test)]

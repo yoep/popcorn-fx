@@ -17,7 +17,7 @@ use url::Url;
 
 use popcorn_fx_common::LauncherOptions;
 
-use crate::core::{CoreCallback, CoreCallbacks, updater};
+use crate::core::{Callbacks, CoreCallback, CoreCallbacks, updater};
 use crate::core::config::ApplicationConfig;
 use crate::core::platform::PlatformData;
 use crate::core::storage::Storage;
@@ -671,7 +671,7 @@ impl InnerUpdater {
     }
 
     fn register(&self, callback: UpdateCallback) {
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 
     /// Verify if an application update is available for the current platform.

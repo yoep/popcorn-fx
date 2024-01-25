@@ -1,3 +1,4 @@
+use std::collections::vec_deque::Iter;
 use std::collections::VecDeque;
 
 use derive_more::Display;
@@ -60,12 +61,35 @@ impl Playlist {
     pub fn next(&mut self) -> Option<PlaylistItem> {
         self.items.pop_front()
     }
+
+    /// Retrieves the next media item in the playlist without removing it.
+    ///
+    /// Returns `Some` containing a reference to the next media item if there is one,
+    /// or `None` if the playlist is empty.
+    pub fn next_as_ref(&self) -> Option<&PlaylistItem> {
+        self.items.front()
+    }
+
+    /// Returns an iterator over the media items in the playlist.
+    pub fn iter(&self) -> Iter<'_, PlaylistItem> {
+        self.items.iter()
+    }
 }
 
 impl From<PlaylistItem> for Playlist {
     fn from(value: PlaylistItem) -> Self {
         let mut playlist = Playlist::default();
         playlist.add(value);
+        playlist
+    }
+}
+
+impl FromIterator<PlaylistItem> for Playlist {
+    fn from_iter<T: IntoIterator<Item=PlaylistItem>>(iter: T) -> Self {
+        let mut playlist = Self::default();
+        for item in iter {
+            playlist.add(item);
+        }
         playlist
     }
 }
@@ -271,5 +295,46 @@ mod test {
         let result = Playlist::from(item.clone());
 
         assert!(result.items.contains(&item))
+    }
+
+    #[test]
+    fn test_playlist_iter() {
+        let title = "FooBar123";
+        let playlist = Playlist::from(PlaylistItem {
+            url: None,
+            title: title.to_string(),
+            thumb: None,
+            media: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        });
+
+        let result = playlist.iter();
+
+        assert_eq!(1, result.len());
+        for e in result {
+            assert_eq!(title, e.title.as_str())
+        }
+    }
+
+    #[test]
+    fn test_playlist_from_iter() {
+        let title = "FooBar123";
+
+        let result: Playlist = vec![PlaylistItem {
+            url: None,
+            title: title.to_string(),
+            thumb: None,
+            media: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        }]
+            .into_iter()
+            .collect();
+
+        assert_eq!(1, result.items.len());
+        assert_eq!(title, result.items.get(0).unwrap().title.as_str());
     }
 }

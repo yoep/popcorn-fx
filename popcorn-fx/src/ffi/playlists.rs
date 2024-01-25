@@ -1,8 +1,9 @@
 use log::trace;
 
-use popcorn_fx_core::core::playlists::Playlist;
+use popcorn_fx_core::core::playlists::{Playlist, PlaylistItem};
+use popcorn_fx_core::from_c_vec;
 
-use crate::ffi::PlaylistItemC;
+use crate::ffi::{PlaylistItemC, PlaylistSet};
 use crate::PopcornFX;
 
 /// Play a playlist item using PopcornFX.
@@ -18,10 +19,22 @@ use crate::PopcornFX;
 /// * `item` - A reference to a `PlaylistItemC` representing the item to be played.
 #[no_mangle]
 pub extern "C" fn play_playlist_item(popcorn_fx: &mut PopcornFX, item: &PlaylistItemC) {
-    let item = item.to_struct();
+    trace!("Playing playlist item from C for {:?}", item);
+    let item = PlaylistItem::from(item.clone());
 
     trace!("Playing playlist item {:?}", item);
     popcorn_fx.playlist_manager().play(Playlist::from(item))
+}
+
+#[no_mangle]
+pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: PlaylistSet) {
+    trace!("Playing playlist from C for {:?}", playlist);
+    let playlist: Playlist = Vec::<PlaylistItemC>::from(playlist).into_iter()
+        .map(|e| PlaylistItem::from(e))
+        .collect();
+
+    trace!("Playing playlist {:?}", playlist);
+    popcorn_fx.playlist_manager().play(playlist);
 }
 
 /// Dispose of a playlist item.
@@ -34,13 +47,19 @@ pub extern "C" fn dispose_playlist_item(item: Box<PlaylistItemC>) {
     trace!("Disposing playlist item {:?}", item)
 }
 
+#[no_mangle]
+pub extern "C" fn dispose_playlist_set(set: Box<PlaylistSet>) {
+    trace!("Disposing playlist set {:?}", set);
+    drop(from_c_vec(set.items, set.len));
+}
+
 #[cfg(test)]
 mod test {
     use std::ptr;
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::into_c_string;
+    use popcorn_fx_core::{into_c_owned, into_c_string};
     use popcorn_fx_core::testing::init_logger;
 
     use crate::test::default_args;
@@ -59,6 +78,7 @@ mod test {
             thumb: ptr::null(),
             quality: ptr::null(),
             media: ptr::null_mut(),
+            auto_resume_timestamp: ptr::null_mut(),
         };
 
         play_playlist_item(&mut instance, &item);
@@ -73,8 +93,25 @@ mod test {
             thumb: into_c_string("MyThumb".to_string()),
             media: ptr::null_mut(),
             quality: ptr::null_mut(),
+            auto_resume_timestamp: ptr::null_mut(),
         });
 
         dispose_playlist_item(item);
+    }
+
+    #[test]
+    fn test_dispose_playlist_set() {
+        init_logger();
+        let item = PlaylistItemC {
+            url: into_c_string("http://my_url".to_string()),
+            title: into_c_string("Foo Bar".to_string()),
+            thumb: into_c_string("MyThumb".to_string()),
+            media: ptr::null_mut(),
+            quality: ptr::null_mut(),
+            auto_resume_timestamp: into_c_owned(500u64),
+        };
+        let playlist = PlaylistSet::from(vec![item]);
+
+        dispose_playlist_set(Box::new(playlist));
     }
 }

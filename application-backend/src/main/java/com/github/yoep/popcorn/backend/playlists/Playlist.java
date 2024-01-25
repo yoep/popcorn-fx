@@ -12,24 +12,55 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Arrays.asList;
+
 @Data
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"items", "itemsLen"})
+@Structure.FieldOrder({"items", "len"})
 public class Playlist extends Structure implements Closeable {
     public static class ByValue extends Playlist implements Structure.ByValue {
     }
-    
+
     public PlaylistItem.ByReference items;
-    public int itemsLen;
-    
+    public int len;
+
+    private List<PlaylistItem> cachedItems;
+
+    public Playlist() {
+    }
+
+    public Playlist(List<PlaylistItem> items) {
+        this.items = new PlaylistItem.ByReference();
+        this.len = items.size();
+        var array = (PlaylistItem.ByReference[]) this.items.toArray(this.len);
+
+        for (int i = 0; i < this.len; i++) {
+            var item = items.get(i);
+            array[i].url = item.url;
+            array[i].title = item.title;
+            array[i].thumb = item.thumb;
+            array[i].quality = item.quality;
+            array[i].media = item.media;
+            array[i].autoResumeTimestamp = item.autoResumeTimestamp;
+        }
+    }
+
     public List<PlaylistItem> getItems() {
         return Optional.ofNullable(items)
-                .map(e -> (PlaylistItem[]) e.toArray(itemsLen))
+                .map(e -> (PlaylistItem[]) e.toArray(len))
                 .map(Arrays::asList)
                 .orElse(Collections.emptyList());
     }
-    
+
+    @Override
+    public void read() {
+        super.read();
+        cachedItems = Optional.ofNullable(items)
+                .map(e -> asList((PlaylistItem[]) e.toArray(len)))
+                .orElse(Collections.emptyList());
+    }
+
     @Override
     public void close() throws IOException {
         setAutoSynch(false);

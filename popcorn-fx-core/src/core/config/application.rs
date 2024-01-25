@@ -1,7 +1,7 @@
 use derive_more::Display;
 use log::{debug, error, info, trace, warn};
 
-use crate::core::{block_in_place, CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use crate::core::storage::Storage;
 
@@ -180,7 +180,7 @@ impl ApplicationConfig {
 
     /// Register a new callback with this instance.
     pub fn register(&self, callback: ApplicationConfigCallback) {
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 
     /// Save the application settings.

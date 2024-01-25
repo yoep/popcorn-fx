@@ -1,33 +1,60 @@
-use std::mem;
+use std::{mem, ptr};
 use std::os::raw::c_char;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string};
-use popcorn_fx_core::core::events::{Event, PlayerStoppedEvent, PlayVideoEvent};
+use popcorn_fx_core::{from_c_into_boxed, from_c_string, into_c_owned, into_c_string};
+use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStoppedEvent, PlayVideoEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
+use popcorn_fx_core::core::players::PlayerChange;
 
 use crate::ffi::MediaItemC;
+
+/// A type alias for a C-compatible callback function that takes an `EventC` parameter.
+///
+/// This type alias is used to define functions in Rust that can accept C callback functions
+/// with the specified signature.
+pub type EventCCallback = extern "C" fn(EventC);
 
 /// The C compatible [Event] representation.
 #[repr(C)]
 #[derive(Debug)]
 pub enum EventC {
+    /// Invoked when the player is changed
+    /// 1ste argument is the new player id, 2nd argument is the new player name
+    PlayerChanged(PlayerChangedEventC),
     /// Invoked when the player is being stopped
     PlayerStopped(PlayerStoppedEventC),
     /// Invoked when a new video playback is started
     PlayVideo(PlayVideoEventC),
     /// Invoked when the playback state is changed
     PlaybackStateChanged(PlaybackState),
+    /// Invoked when the watch state of an item is changed
+    WatchStateChanged(*const c_char, bool),
+}
+
+impl From<Event> for EventC {
+    fn from(value: Event) -> Self {
+        trace!("Converting Event to C event for {:?}", value);
+        match value {
+            Event::PlayerChanged(e) => EventC::PlayerChanged(PlayerChangedEventC::from(e)),
+            Event::PlayerStopped(e) => EventC::PlayerStopped(PlayerStoppedEventC::from(e)),
+            Event::PlayVideo(e) => EventC::PlayVideo(PlayVideoEventC::from(e)),
+            Event::PlaybackStateChanged(e) => EventC::PlaybackStateChanged(e),
+            Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
+        }
+    }
 }
 
 impl From<EventC> for Event {
     fn from(value: EventC) -> Self {
         trace!("Converting from C event {:?}", value);
         match value {
+            EventC::PlayerChanged(e) => Event::PlayerChanged(PlayerChangedEvent::from(e)),
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
             EventC::PlayVideo(event_c) => Event::PlayVideo(PlayVideoEvent::from(event_c)),
             EventC::PlaybackStateChanged(new_state) => Event::PlaybackStateChanged(new_state),
+            EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
         }
     }
 }
@@ -45,6 +72,33 @@ pub struct PlayerStoppedEventC {
     pub duration: *const i64,
     /// The optional media item that was being played
     pub media: *mut MediaItemC,
+}
+
+impl From<PlayerStoppedEvent> for PlayerStoppedEventC {
+    fn from(value: PlayerStoppedEvent) -> Self {
+        let time = if let Some(time) = value.time {
+            time as *const i64
+        } else {
+            ptr::null()
+        };
+        let duration = if let Some(duration) = value.duration {
+            duration as *const i64
+        } else {
+            ptr::null()
+        };
+        let media = if let Some(media) = value.media {
+            into_c_owned(MediaItemC::from(media))
+        } else {
+            ptr::null_mut()
+        };
+
+        Self {
+            url: into_c_string(value.url),
+            time,
+            duration,
+            media,
+        }
+    }
 }
 
 impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
@@ -95,6 +149,23 @@ pub struct PlayVideoEventC {
     pub thumb: *const c_char,
 }
 
+impl From<PlayVideoEvent> for PlayVideoEventC {
+    fn from(value: PlayVideoEvent) -> Self {
+        let thumb = if let Some(thumb) = value.thumb {
+            into_c_string(thumb)
+        } else {
+            ptr::null()
+        };
+
+        Self {
+            url: into_c_string(value.url),
+            title: into_c_string(value.title),
+            show_name: ptr::null(),
+            thumb,
+        }
+    }
+}
+
 impl From<PlayVideoEventC> for PlayVideoEvent {
     fn from(value: PlayVideoEventC) -> Self {
         trace!("Converting PlayVideoEvent from C for {:?}", value);
@@ -114,6 +185,66 @@ impl From<PlayVideoEventC> for PlayVideoEvent {
             title: from_c_string(value.title),
             subtitle: show_name,
             thumb,
+        }
+    }
+}
+
+/// A C-compatible struct representing a player change event.
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct PlayerChangedEventC {
+    /// The (nullable) old player id
+    pub old_player_id: *const c_char,
+    /// The new player id
+    pub new_player_id: *const c_char,
+    /// The new player name
+    pub new_player_name: *const c_char,
+}
+
+impl From<PlayerChangedEvent> for PlayerChangedEventC {
+    fn from(value: PlayerChangedEvent) -> Self {
+        let old_player_id = if let Some(id) = &value.old_player_id {
+            into_c_string(id.clone())
+        } else {
+            ptr::null()
+        };
+
+        Self {
+            old_player_id,
+            new_player_id: into_c_string(value.new_player_id.clone()),
+            new_player_name: into_c_string(value.new_player_name.clone()),
+        }
+    }
+}
+
+impl From<PlayerChange> for PlayerChangedEventC {
+    fn from(value: PlayerChange) -> Self {
+        let old_player_id = if let Some(id) = &value.old_player_id {
+            into_c_string(id.clone())
+        } else {
+            ptr::null()
+        };
+
+        Self {
+            old_player_id,
+            new_player_id: into_c_string(value.new_player_id.clone()),
+            new_player_name: into_c_string(value.new_player_name.clone()),
+        }
+    }
+}
+
+impl From<PlayerChangedEventC> for PlayerChangedEvent {
+    fn from(value: PlayerChangedEventC) -> Self {
+        let old_player_id = if !value.old_player_id.is_null() {
+            Some(from_c_string(value.old_player_id))
+        } else {
+            None
+        };
+
+        Self {
+            old_player_id,
+            new_player_id: from_c_string(value.new_player_id),
+            new_player_name: from_c_string(value.new_player_name),
         }
     }
 }
@@ -226,5 +357,41 @@ mod test {
         } else {
             assert!(false, "expected Event::PlaybackStateChanged")
         }
+    }
+
+    #[test]
+    fn test_player_changed_event_c_from_player_changed_event() {
+        let old_player_id = "oldId";
+        let new_player_id = "newId";
+        let new_player_name = "newName";
+        let event = PlayerChangedEvent {
+            old_player_id: Some(old_player_id.to_string()),
+            new_player_id: new_player_id.to_string(),
+            new_player_name: new_player_name.to_string(),
+        };
+
+        let result = PlayerChangedEventC::from(event);
+
+        assert_eq!(old_player_id.to_string(), from_c_string(result.old_player_id));
+        assert_eq!(new_player_id.to_string(), from_c_string(result.new_player_id));
+        assert_eq!(new_player_name.to_string(), from_c_string(result.new_player_name));
+    }
+
+    #[test]
+    fn test_player_changed_event_c_from_player_changed() {
+        let old_player_id = "Foo1";
+        let new_player_id = "Foo2";
+        let new_player_name = "Foo3";
+        let event = PlayerChange {
+            old_player_id: Some(old_player_id.to_string()),
+            new_player_id: new_player_id.to_string(),
+            new_player_name: new_player_name.to_string(),
+        };
+
+        let result = PlayerChangedEventC::from(event);
+
+        assert_eq!(old_player_id.to_string(), from_c_string(result.old_player_id));
+        assert_eq!(new_player_id.to_string(), from_c_string(result.new_player_id));
+        assert_eq!(new_player_name.to_string(), from_c_string(result.new_player_name));
     }
 }

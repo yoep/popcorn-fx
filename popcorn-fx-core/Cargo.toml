@@ -29,6 +29,7 @@ log.workspace = true
 log4rs = { version = "1", features = ["console_writer"], optional = true }
 mockall = "0"
 percent-encoding = "2"
+rand = "0.8"
 regex = "1"
 reqwest = { version = "0", features = ["serde_json", "json", "stream"] }
 ring = "0.17"

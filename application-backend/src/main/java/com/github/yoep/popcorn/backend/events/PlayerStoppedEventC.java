@@ -51,6 +51,14 @@ public class PlayerStoppedEventC extends Structure implements Closeable {
                 .orElse(null);
     }
 
+    public Long getTime() {
+        return time.getValue();
+    }
+
+    public Long getDuration() {
+        return duration.getValue();
+    }
+
     @Override
     public void close() {
         setAutoSynch(false);

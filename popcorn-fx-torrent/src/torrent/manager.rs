@@ -13,7 +13,7 @@ use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrent::{Torrent, TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState, TorrentWrapper};
 
-const CLEANUP_WATCH_THRESHOLD: f64 = 85 as f64;
+const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 const CLEANUP_AFTER: fn() -> Duration = || Duration::days(10);
 
 /// The default torrent manager of the application.
@@ -189,11 +189,11 @@ impl TorrentManager for InnerTorrentManager {
         TorrentManagerState::Running
     }
 
-    fn register(&self, callback: TorrentManagerCallback) {
+    fn register(&self, _callback: TorrentManagerCallback) {
         todo!()
     }
 
-    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo> {
+    async fn info<'a>(&'a self, _url: &'a str) -> torrent::Result<TorrentInfo> {
         todo!()
     }
 

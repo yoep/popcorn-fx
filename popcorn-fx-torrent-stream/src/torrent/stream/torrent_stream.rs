@@ -16,7 +16,7 @@ use log::{debug, error, info, trace, warn};
 use tokio::sync::Mutex;
 use url::Url;
 
-use popcorn_fx_core::core::{CoreCallbacks, torrent};
+use popcorn_fx_core::core::{Callbacks, CoreCallbacks, torrent};
 use popcorn_fx_core::core::torrent::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
 
 /// The default buffer size used while streaming in bytes
@@ -331,7 +331,7 @@ impl TorrentStream for TorrentStreamWrapper {
 
     fn register_stream(&self, callback: TorrentStreamCallback) {
         debug!("Adding a new callback to stream {}", self);
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 
     fn stop_stream(&self) {

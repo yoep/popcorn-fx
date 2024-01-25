@@ -1,16 +1,22 @@
 use std::fmt::{Debug, Display};
-#[cfg(test)]
+#[cfg(any(test, feature = "testing"))]
 use std::fmt::Formatter;
 
-#[cfg(test)]
+use derive_more::Display;
+use downcast_rs::{DowncastSync, impl_downcast};
+#[cfg(any(test, feature = "testing"))]
 use mockall::automock;
+
+use crate::core::Callbacks;
+#[cfg(any(test, feature = "testing"))]
+use crate::core::CoreCallback;
 
 /// A trait representing a player for media playback.
 ///
 /// This trait extends `PlayerIdentifier` and includes additional methods related to the player's
 /// description, graphic resource, and current state.
-#[cfg_attr(test, automock)]
-pub trait Player: Debug + Display {
+#[cfg_attr(any(test, feature = "testing"), automock)]
+pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// Get the unique identifier of the player.
     fn id(&self) -> &str;
 
@@ -28,6 +34,7 @@ pub trait Player: Debug + Display {
     /// Get the current state of the player.
     fn state(&self) -> &PlayerState;
 }
+impl_downcast!(sync Player);
 
 impl PartialEq for dyn Player {
     fn eq(&self, other: &Self) -> bool {
@@ -37,7 +44,7 @@ impl PartialEq for dyn Player {
 
 /// An enumeration representing the possible states of a player.
 #[repr(i32)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone, PartialEq)]
 pub enum PlayerState {
     Unknown = -1,
     Ready = 0,
@@ -55,10 +62,39 @@ impl Default for PlayerState {
     }
 }
 
-#[cfg(test)]
+/// An enumeration representing events related to a player.
+#[repr(i32)]
+#[derive(Debug, Display, Clone, PartialEq)]
+pub enum PlayerEvent {
+    /// The duration of the media content has changed.
+    #[display(fmt = "Player duration changed to {}", _0)]
+    DurationChanged(u64),
+    /// The playback time position has changed.
+    #[display(fmt = "Player time changed to {}", _0)]
+    TimeChanged(u64),
+    /// The player's state has changed.
+    #[display(fmt = "Player state changed to {}", _0)]
+    StateChanged(PlayerState),
+    /// The volume of the player has changed.
+    #[display(fmt = "Player volume changed to {}", _0)]
+    VolumeChanged(u32),
+}
+
+#[cfg(any(test, feature = "testing"))]
 impl Display for MockPlayer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "MockPlayer")
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+impl Callbacks<PlayerEvent> for MockPlayer {
+    fn add(&self, _callback: CoreCallback<PlayerEvent>) -> i64 {
+        1000
+    }
+
+    fn remove(&self, _callback_id: i64) {
+        // no-op
     }
 }
 

@@ -3,8 +3,6 @@ package com.github.yoep.popcorn.ui.utils;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,13 +27,9 @@ class WatchNowUtilsTest {
     private PlayerDropDownButton watchNowButton;
 
     private final ObservableMap<String, Player> playerProperty = FXCollections.observableMap(new LinkedHashMap<>());
-    private final ObjectProperty<Player> activePlayerProperty = new SimpleObjectProperty<>();
 
     @BeforeEach
     void setUp() {
-        when(playerManagerService.playersProperty()).thenReturn(playerProperty);
-        when(playerManagerService.activePlayerProperty()).thenReturn(activePlayerProperty);
-
         watchNowButton = new PlayerDropDownButton();
     }
 

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
@@ -16,10 +15,6 @@ import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.SubtitleDropDownButton;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleMapProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ObservableMap;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
@@ -65,9 +60,6 @@ class DetailsTorrentComponentTest {
     @InjectMocks
     private DetailsTorrentComponent component;
 
-    private final ObservableMap<String, Player> playersProperty = new SimpleMapProperty<>();
-    private final ObjectProperty<Player> activePlayerProperty = new SimpleObjectProperty<>();
-
     @BeforeEach
     void setUp() {
         component.fileShadow = new Pane();
@@ -76,8 +68,7 @@ class DetailsTorrentComponentTest {
         component.playerButton = new PlayerDropDownButton();
         component.storeTorrentButton = new Button();
 
-        when(playerManagerService.playersProperty()).thenReturn(playersProperty);
-        when(playerManagerService.activePlayerProperty()).thenReturn(activePlayerProperty);
+
     }
 
     @Test

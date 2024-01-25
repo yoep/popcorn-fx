@@ -84,6 +84,18 @@ enum class PlaybackState : int32_t {
   ERROR = 6,
 };
 
+/// An enumeration representing the possible states of a player.
+enum class PlayerState : int32_t {
+  Unknown = -1,
+  Ready = 0,
+  Loading = 1,
+  Buffering = 2,
+  Playing = 3,
+  Paused = 4,
+  Stopped = 5,
+  Error = 6,
+};
+
 /// The playback quality defined in a resolution size
 enum class Quality {
   P480,
@@ -192,6 +204,8 @@ struct Arc;
 template<typename T = void>
 struct Box;
 
+struct PlayerWrapperC;
+
 /// The [PopcornFX] application instance.
 /// This is the main entry into the FX application and manages all known data.
 ///
@@ -210,6 +224,35 @@ struct TorrentStreamC;
 
 /// The wrapper containing the callbacks to retrieve the actual torrent information from C.
 struct TorrentWrapper;
+
+/// A C-compatible byte array that can be used to return byte array data from Rust functions.
+///
+/// This struct contains a pointer to the byte array data and the length of the byte array.
+/// It is intended for use in C code that needs to interact with Rust functions that return byte array data.
+struct ByteArray {
+  /// A pointer to the byte array data.
+  uint8_t *values;
+  /// The length of the byte array.
+  int32_t len;
+};
+
+/// A C-compatible struct representing a player.
+struct PlayerC {
+  /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
+  const char *id;
+  /// A pointer to a null-terminated C string representing the name of the player.
+  const char *name;
+  /// A pointer to a null-terminated C string representing the description of the player.
+  const char *description;
+  /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
+  ///
+  /// This field can be a null pointer if no graphic resource is associated with the player.
+  ByteArray *graphic_resource;
+  /// The state of the player.
+  PlayerState state;
+  /// Indicates whether embedded playback is supported by the player.
+  bool embedded_playback_supported;
+};
 
 struct RatingC {
   uint16_t percentage;
@@ -412,17 +455,6 @@ struct PopcornSettingsC {
   PlaybackSettingsC playback_settings;
 };
 
-/// A C-compatible byte array that can be used to return byte array data from Rust functions.
-///
-/// This struct contains a pointer to the byte array data and the length of the byte array.
-/// It is intended for use in C code that needs to interact with Rust functions that return byte array data.
-struct ByteArray {
-  /// A pointer to the byte array data.
-  uint8_t *values;
-  /// The length of the byte array.
-  int32_t len;
-};
-
 /// The C compatible [SubtitleFile] representation.
 struct SubtitleFileC {
   int32_t file_id;
@@ -467,6 +499,12 @@ struct PlaylistItemC {
   const char *thumb;
   const char *quality;
   MediaItemC *media;
+  uint64_t *auto_resume_timestamp;
+};
+
+struct PlaylistSet {
+  PlaylistItemC *items;
+  int32_t len;
 };
 
 struct StyledTextC {
@@ -529,6 +567,63 @@ struct SubtitleMatcherC {
   const char *quality;
 };
 
+/// An enumeration representing events related to a player.
+union PlayerEvent {
+  enum class Tag : int32_t {
+    /// The duration of the media content has changed.
+    DurationChanged,
+    /// The playback time position has changed.
+    TimeChanged,
+    /// The player's state has changed.
+    StateChanged,
+    /// The volume of the player has changed.
+    VolumeChanged,
+  };
+
+  struct DurationChanged_Body {
+    Tag tag;
+    uint64_t _0;
+  };
+
+  struct TimeChanged_Body {
+    Tag tag;
+    uint64_t _0;
+  };
+
+  struct StateChanged_Body {
+    Tag tag;
+    PlayerState _0;
+  };
+
+  struct VolumeChanged_Body {
+    Tag tag;
+    uint32_t _0;
+  };
+
+  struct {
+    Tag tag;
+  };
+  DurationChanged_Body duration_changed;
+  TimeChanged_Body time_changed;
+  StateChanged_Body state_changed;
+  VolumeChanged_Body volume_changed;
+};
+
+struct PlayerSet {
+  PlayerC *players;
+  int32_t len;
+};
+
+/// A C-compatible struct representing a player change event.
+struct PlayerChangedEventC {
+  /// The (nullable) old player id
+  const char *old_player_id;
+  /// The new player id
+  const char *new_player_id;
+  /// The new player name
+  const char *new_player_name;
+};
+
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
 struct PlayerStoppedEventC {
@@ -557,12 +652,21 @@ struct PlayVideoEventC {
 /// The C compatible [Event] representation.
 struct EventC {
   enum class Tag {
+    /// Invoked when the player is changed
+    /// 1ste argument is the new player id, 2nd argument is the new player name
+    PlayerChanged,
     /// Invoked when the player is being stopped
     PlayerStopped,
     /// Invoked when a new video playback is started
     PlayVideo,
     /// Invoked when the playback state is changed
     PlaybackStateChanged,
+    /// Invoked when the watch state of an item is changed
+    WatchStateChanged,
+  };
+
+  struct PlayerChanged_Body {
+    PlayerChangedEventC _0;
   };
 
   struct PlayerStopped_Body {
@@ -577,13 +681,26 @@ struct EventC {
     PlaybackState _0;
   };
 
+  struct WatchStateChanged_Body {
+    const char *_0;
+    bool _1;
+  };
+
   Tag tag;
   union {
+    PlayerChanged_Body player_changed;
     PlayerStopped_Body player_stopped;
     PlayVideo_Body play_video;
     PlaybackStateChanged_Body playback_state_changed;
+    WatchStateChanged_Body watch_state_changed;
   };
 };
+
+/// A type alias for a C-compatible callback function that takes an `EventC` parameter.
+///
+/// This type alias is used to define functions in Rust that can accept C callback functions
+/// with the specified signature.
+using EventCCallback = void(*)(EventC);
 
 struct FavoriteEventC {
   enum class Tag {
@@ -608,11 +725,41 @@ struct FavoriteEventC {
 /// The C compatible callback for playback control events.
 using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
 
-struct PlayerC {
-  const char *id;
-  const char *name;
-  const char *description;
+struct PlayerManagerEventC {
+  enum class Tag {
+    ActivePlayerChanged,
+    PlayersChanged,
+    PlayerDurationChanged,
+    PlayerTimeChanged,
+    PlayerStateChanged,
+  };
+
+  struct ActivePlayerChanged_Body {
+    PlayerChangedEventC _0;
+  };
+
+  struct PlayerDurationChanged_Body {
+    uint64_t _0;
+  };
+
+  struct PlayerTimeChanged_Body {
+    uint64_t _0;
+  };
+
+  struct PlayerStateChanged_Body {
+    PlayerState _0;
+  };
+
+  Tag tag;
+  union {
+    ActivePlayerChanged_Body active_player_changed;
+    PlayerDurationChanged_Body player_duration_changed;
+    PlayerTimeChanged_Body player_time_changed;
+    PlayerStateChanged_Body player_state_changed;
+  };
 };
+
+using PlayerManagerEventCallback = void(*)(PlayerManagerEventC);
 
 /// The C compatible application events.
 struct ApplicationConfigEventC {
@@ -925,6 +1072,22 @@ struct TorrentC {
 
 extern "C" {
 
+/// Retrieve a pointer to the active player as a `PlayerC` instance from the PopcornFX player manager.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` pointer.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// Returns a pointer to a `PlayerC` instance representing the active player, or a null pointer if there is no active player.
+PlayerC *active_player(PopcornFX *popcorn_fx);
+
 /// Add the media item to the favorites.
 /// Duplicate favorite media items are ignored.
 void add_to_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
@@ -1018,6 +1181,8 @@ void dispose_media_items(Box<MediaSetC> media);
 /// * `item` - A boxed `PlaylistItemC` representing the item to be disposed of.
 void dispose_playlist_item(Box<PlaylistItemC> item);
 
+void dispose_playlist_set(Box<PlaylistSet> set);
+
 /// Delete the PopcornFX instance, given as a [ptr], in a safe way.
 /// All data within the instance will be deleted from memory making the instance unusable.
 /// This means that the original pointer will become invalid.
@@ -1062,6 +1227,24 @@ SubtitleInfoSet *filename_subtitles(PopcornFX *popcorn_fx, char *filename);
 ///
 /// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
 void install_update(PopcornFX *popcorn_fx);
+
+/// Invoke a player event on a wrapped player instance.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance that wraps a player.
+/// * `event` - The player event to invoke.
+///
+/// # Notes
+///
+/// This function checks if the `player` instance exists and is of the expected type (`PlayerWrapper`).
+/// If the conditions are met, it invokes the specified player event on the wrapped player.
+void invoke_player_event(PlayerWrapperC *player, PlayerEvent event);
 
 /// Verify if the FX embedded video player has been disabled.
 bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
@@ -1171,6 +1354,8 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 
+void play_playlist(PopcornFX *popcorn_fx, PlaylistSet playlist);
+
 /// Play a playlist item using PopcornFX.
 ///
 /// # Safety
@@ -1183,6 +1368,39 @@ PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `item` - A reference to a `PlaylistItemC` representing the item to be played.
 void play_playlist_item(PopcornFX *popcorn_fx, const PlaylistItemC *item);
+
+/// Retrieve a pointer to a `PlayerC` instance by its unique identifier (ID) from the PopcornFX player manager.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `player_id` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
+///
+/// # Returns
+///
+/// Returns a pointer to a `PlayerC` instance representing the player if found, or a null pointer if no player with the given ID exists.
+PlayerC *player_by_id(PopcornFX *popcorn_fx, const char *player_id);
+
+/// Retrieve a pointer to a `PlayerSet` containing information about all players managed by PopcornFX.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` pointer.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// Returns a pointer to a `PlayerSet` containing information about all players managed by PopcornFX.
+PlayerSet *players(PopcornFX *popcorn_fx);
 
 /// Retrieve the default poster (placeholder) image data as a C compatible byte array.
 ///
@@ -1207,6 +1425,19 @@ ByteArray *poster_placeholder(PopcornFX *popcorn_fx);
 ///
 /// _Please keep in mind that the consumption of the event chain is not communicated over the FFI layer_
 void publish_event(PopcornFX *popcorn_fx, EventC event);
+
+/// Register an event callback with the PopcornFX event publisher.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `callback` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - A C-compatible function pointer representing the callback to be registered.
+void register_event_callback(PopcornFX *popcorn_fx, EventCCallback callback);
 
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
@@ -1241,7 +1472,20 @@ void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC
 ///
 /// This function registers a player with the PopcornFX player manager using the provided `PlayerC` instance.
 /// It logs an info message if the registration is successful and a warning message if registration fails.
-void register_player(PopcornFX *popcorn_fx, PlayerC player);
+PlayerWrapperC *register_player(PopcornFX *popcorn_fx, PlayerC player);
+
+/// Register a callback function to be notified of player manager events.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` pointer.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - A C-compatible callback function that will be invoked when player manager events occur.
+void register_player_callback(PopcornFX *popcorn_fx, PlayerManagerEventCallback callback);
 
 /// Register a new callback for all setting events.
 void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallbackC callback);
@@ -1293,6 +1537,24 @@ void remove_from_favorites(PopcornFX *popcorn_fx, const MediaItemC *favorite);
 
 /// Remove the given media item from the watched list.
 void remove_from_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
+
+/// Remove a player with the specified ID from the PopcornFX player manager.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `player_id` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
+///
+/// # Notes
+///
+/// This function removes a player with the specified ID from the PopcornFX player manager.
+/// It converts the `player_id` C string to a Rust String and logs a trace message to indicate the removal.
+void remove_player(PopcornFX *popcorn_fx, const char *player_id);
 
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.
@@ -1374,6 +1636,19 @@ SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleI
 ///
 /// It returns the url which hosts the [Subtitle].
 const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
+
+/// Set the active player in the PopcornFX player manager.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `player_id` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
+void set_active_player(PopcornFX *popcorn_fx, const char *player_id);
 
 /// Start a torrent stream for the given torrent.
 TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torrent);

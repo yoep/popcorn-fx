@@ -128,8 +128,9 @@ public class ViewConfig {
     public DesktopSerieActionsComponent desktopSerieActionsComponent(EventPublisher eventPublisher,
                                                                      PlayerManagerService playerManagerService,
                                                                      SubtitleService subtitleService,
-                                                                     DesktopSerieQualityComponent desktopSerieQualityComponent) {
-        return new DesktopSerieActionsComponent(eventPublisher, playerManagerService, subtitleService, desktopSerieQualityComponent);
+                                                                     DesktopSerieQualityComponent desktopSerieQualityComponent,
+                                                                     PlaylistManager playlistManager) {
+        return new DesktopSerieActionsComponent(eventPublisher, playerManagerService, subtitleService, desktopSerieQualityComponent, playlistManager);
     }
 
     @Bean

@@ -1,5 +1,7 @@
 use std::ffi::c_char;
 
+use log::trace;
+
 use popcorn_fx_core::{into_c_string, to_c_vec};
 
 /// The C compatible string array.
@@ -53,11 +55,24 @@ pub struct ByteArray {
 
 impl From<Vec<u8>> for ByteArray {
     fn from(value: Vec<u8>) -> Self {
+        trace!("Converting Vec<u8> to ByteArray");
         let (values, len) = to_c_vec(value);
 
         Self {
             values,
             len,
+        }
+    }
+}
+
+impl From<&ByteArray> for Vec<u8> {
+    fn from(value: &ByteArray) -> Self {
+        trace!("Converting ByteArray to Vec<u8>");
+        if !value.values.is_null() && value.len > 0 {
+            let slice = unsafe { std::slice::from_raw_parts(value.values, value.len as usize) };
+            Vec::from(slice)
+        } else {
+            Vec::new()
         }
     }
 }
@@ -103,8 +118,10 @@ mod test {
         let vec: Vec<u8> = vec![13, 12];
 
         let array = ByteArray::from(vec.clone());
-        let result = from_c_vec(array.values, array.len);
+        let result1 = Vec::from(&array);
+        let result2 = Vec::from(&array);
 
-        assert_eq!(vec, result)
+        assert_eq!(vec, result1);
+        assert_eq!(vec, result2, "failed to read byte array multiple times");
     }
 }

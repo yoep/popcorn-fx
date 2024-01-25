@@ -7,7 +7,6 @@ import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlay
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.LayoutMode;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.player.AbstractPlayerBridge;
 import javafx.scene.Node;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -22,7 +21,7 @@ import java.util.Optional;
 @Component
 @EqualsAndHashCode(exclude = "embeddablePlayer", callSuper = false)
 @ToString(exclude = "embeddablePlayer")
-public class EmbeddablePopcornPlayer extends AbstractPlayerBridge implements EmbeddablePlayer {
+public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     static final String PLAYER_SECTION_VIEW = "common/sections/popcorn-player.section.fxml";
 
     private final PlayerManagerService playerService;
@@ -32,9 +31,6 @@ public class EmbeddablePopcornPlayer extends AbstractPlayerBridge implements Emb
     private Node embeddablePlayer;
 
     public EmbeddablePopcornPlayer(PlayerManagerService playerService, ViewLoader viewLoader, PopcornPlayer popcornPlayer) {
-        this.id = popcornPlayer.getId();
-        this.name = popcornPlayer.getName();
-        this.description = popcornPlayer.getDescription();
         this.playerService = playerService;
         this.viewLoader = viewLoader;
         this.popcornPlayer = popcornPlayer;

@@ -4,9 +4,9 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieActionsComponent;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagCell;
@@ -36,6 +36,7 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
     private final PlayerManagerService playerManagerService;
     private final SubtitleService subtitleService;
     private final DesktopSerieQualityComponent desktopSerieQualityComponent;
+    private final PlaylistManager playlistManager;
 
     private ShowDetails media;
     private Episode episode;
@@ -117,23 +118,25 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
                 });
     }
 
-    private void startMoviePlayback() {
-        var mediaTorrentInfo = episode.getTorrents().get(desktopSerieQualityComponent.getSelectedQuality());
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, desktopSerieQualityComponent.getSelectedQuality(),
-                languageSelection.getSelectedItem()));
+    private void startSeriePlayback() {
+        //        var mediaTorrentInfo = episode.getTorrents().get(desktopSerieQualityComponent.getSelectedQuality());
+        //        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, desktopSerieQualityComponent
+        //        .getSelectedQuality(),
+        //                languageSelection.getSelectedItem()));
+        playlistManager.play(media, episode, desktopSerieQualityComponent.getSelectedQuality());
     }
 
     @FXML
     void onWatchNowClicked(MouseEvent event) {
         event.consume();
-        startMoviePlayback();
+        startSeriePlayback();
     }
 
     @FXML
     void onWatchNowPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             event.consume();
-            startMoviePlayback();
+            startSeriePlayback();
         }
     }
 }

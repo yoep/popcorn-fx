@@ -6,13 +6,13 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.AbstractPlayerL
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
-import javafx.collections.MapChangeListener;
+import com.github.yoep.popcorn.backend.player.PlayerChanged;
+import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,7 +25,17 @@ public class PlayerInfoService extends AbstractInfoService {
 
     @PostConstruct
     void init() {
-        playerManagerService.playersProperty().addListener((MapChangeListener<? super String, ? super Player>) e -> onPlayersChanged(new ArrayList<>(e.getMap().values())));
+        playerManagerService.addListener(new PlayerManagerListener() {
+            @Override
+            public void activePlayerChanged(PlayerChanged playerChange) {
+                // no-op
+            }
+
+            @Override
+            public void playersChanged() {
+                onPlayersChanged(playerManagerService.getPlayers().stream().toList());
+            }
+        });
     }
 
     private void onPlayersChanged(List<Player> players) {

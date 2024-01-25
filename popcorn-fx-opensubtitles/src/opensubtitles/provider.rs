@@ -16,7 +16,6 @@ use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
-use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;

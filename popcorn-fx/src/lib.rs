@@ -13,8 +13,8 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
-use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
+use popcorn_fx_core::core::torrent::{Torrent, TorrentStreamState};
+use popcorn_fx_torrent_stream::{TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 #[cfg(feature = "ffi")]
 use crate::ffi::*;
@@ -741,15 +741,12 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
 
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-    use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
@@ -778,7 +775,7 @@ mod test {
     }
 
     pub fn new_instance(temp_path: &str) -> PopcornFX {
-        let mut instance = PopcornFX::new(default_args(temp_path));
+        let instance = PopcornFX::new(default_args(temp_path));
         let mut mutex = instance.settings();
         mutex.settings.subtitle_settings.directory = PathBuf::from(temp_path).join("subtitles").to_str().unwrap().to_string();
         mutex.settings.torrent_settings.directory = PathBuf::from(temp_path).join("torrents");

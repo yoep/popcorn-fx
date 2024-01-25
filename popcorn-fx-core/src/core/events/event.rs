@@ -23,6 +23,9 @@ use crate::core::playback::PlaybackState;
 /// ```
 #[derive(Debug, Clone, Display)]
 pub enum Event {
+    /// Invoked when the active player is changed
+    #[display(fmt = "Active player changed to {} ({})", "_0.new_player_id.as_str()", "_0.new_player_name.as_str()")]
+    PlayerChanged(PlayerChangedEvent),
     /// Invoked when the player playback has stopped
     #[display(fmt = "Player has been stopped with last known timestamp {:?}", "_0.time()")]
     PlayerStopped(PlayerStoppedEvent),
@@ -64,4 +67,11 @@ pub struct PlayVideoEvent {
     pub subtitle: Option<String>,
     /// The url to the video thumbnail
     pub thumb: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlayerChangedEvent {
+    pub old_player_id: Option<String>,
+    pub new_player_id: String,
+    pub new_player_name: String,
 }

@@ -5,7 +5,7 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use crate::core::CoreCallbacks;
+use crate::core::{Callbacks, CoreCallbacks};
 use crate::core::torrent::{Torrent, TorrentCallback, TorrentEvent, TorrentState};
 
 /// The has byte callback.

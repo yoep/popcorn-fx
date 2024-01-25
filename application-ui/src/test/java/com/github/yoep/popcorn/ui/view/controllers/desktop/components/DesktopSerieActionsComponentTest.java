@@ -9,8 +9,6 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
-import javafx.beans.property.SimpleMapProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -49,8 +47,6 @@ class DesktopSerieActionsComponentTest {
 
     @BeforeEach
     void setUp() {
-        when(playerManagerService.playersProperty()).thenReturn(new SimpleMapProperty<>());
-        when(playerManagerService.activePlayerProperty()).thenReturn(new SimpleObjectProperty<>());
 
         component.watchNowButton = new PlayerDropDownButton();
         component.languageSelection = new LanguageFlagSelection();

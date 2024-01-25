@@ -8,11 +8,14 @@ import com.sun.jna.Union;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEvent;
 
 import java.io.Closeable;
 import java.util.Arrays;
 import java.util.Optional;
 
+@Slf4j
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
@@ -43,11 +46,54 @@ public class EventC extends Structure implements Closeable {
         getUnion().close();
     }
 
+    public <T extends ApplicationEvent> T toEvent() {
+        switch (tag) {
+            case PlayerChanged -> {
+                var event = union.playerChanged_body.playerChangedEvent;
+
+                return (T) PlayerChangedEvent.builder()
+                        .source(this)
+                        .oldPlayerId(event.getOldPlayerId().orElse(null))
+                        .newPlayerId(event.getNewPlayerId())
+                        .newPlayerName(event.getNewPlayerName())
+                        .build();
+            }
+            case PlayerStopped -> {
+                var event = union.playerStopped_body.stoppedEvent;
+
+                return (T) PlayerStoppedEvent.builder()
+                        .source(this)
+                        .url(event.url)
+                        .time(event.getTime())
+                        .duration(event.getDuration())
+                        .media(event.media.getMedia())
+                        .build();
+            }
+            default -> {
+                log.error("Failed to create ApplicationEvent from {}", this);
+                return null;
+            }
+        }
+    }
+
     private void updateUnionType() {
         switch (tag) {
+            case PlayerChanged -> union.setType(PlayerChanged_Body.class);
             case PlayerStopped -> union.setType(PlayerStopped_Body.class);
             case PlayVideo -> union.setType(PlayVideo_Body.class);
             case PlaybackStateChanged -> union.setType(PlaybackState_Body.class);
+        }
+    }
+
+    @Getter
+    @ToString
+    @FieldOrder({"playerChangedEvent"})
+    public static class PlayerChanged_Body extends Structure implements Closeable {
+        public PlayerChangedEventC.ByValue playerChangedEvent;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
         }
     }
 
@@ -96,6 +142,7 @@ public class EventC extends Structure implements Closeable {
         public static class ByValue extends EventCUnion implements Union.ByValue {
         }
 
+        public PlayerChanged_Body playerChanged_body;
         public PlayerStopped_Body playerStopped_body;
         public PlayVideo_Body playVideo_body;
         public PlaybackState_Body playbackState_body;
@@ -103,6 +150,8 @@ public class EventC extends Structure implements Closeable {
         @Override
         public void close() {
             setAutoSynch(false);
+            Optional.ofNullable(playerChanged_body)
+                    .ifPresent(PlayerChanged_Body::close);
             Optional.ofNullable(playerStopped_body)
                     .ifPresent(PlayerStopped_Body::close);
             Optional.ofNullable(playVideo_body)
@@ -113,6 +162,7 @@ public class EventC extends Structure implements Closeable {
     }
 
     public enum Tag implements NativeMapped {
+        PlayerChanged,
         PlayerStopped,
         PlayVideo,
         PlaybackStateChanged;

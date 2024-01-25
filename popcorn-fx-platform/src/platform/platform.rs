@@ -8,7 +8,7 @@ use mockall::mock;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use tokio::sync::{Mutex, MutexGuard};
 
-use popcorn_fx_core::core::CoreCallbacks;
+use popcorn_fx_core::core::{Callbacks, CoreCallbacks};
 use popcorn_fx_core::core::platform::{Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType};
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
 

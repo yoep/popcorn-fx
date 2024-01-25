@@ -35,7 +35,6 @@ class PlayerEventServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(playerService.activePlayerProperty()).thenReturn(playerProperty);
     }
 
     @Test

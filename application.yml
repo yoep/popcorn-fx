@@ -47,6 +47,8 @@ popcorn:
       level: info
     popcorn_fx_core::core::subtitles::parsers:
       level: info
+    popcorn_fx_core::core::players:
+      level: trace
     popcorn_fx_core::core::playlists:
       level: trace
     popcorn_fx_core::core::updater:

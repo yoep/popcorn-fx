@@ -5,7 +5,7 @@ use std::os::raw::c_char;
 use log::{error, trace};
 
 use popcorn_fx_core::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
-use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
+use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use popcorn_fx_core::core::media::favorites::FavoriteEvent;
 use popcorn_fx_core::core::media::watched::WatchedEvent;
 
@@ -572,6 +572,42 @@ impl MediaItemC {
     }
 }
 
+impl From<Box<dyn MediaIdentifier>> for MediaItemC {
+    fn from(value: Box<dyn MediaIdentifier>) -> Self {
+        match value.media_type() {
+            MediaType::Unknown => {
+                error!("Unable to convert MediaIdentifier to MediaItemC, unknown media type");
+                panic!("Invalid media type")
+            }
+            MediaType::Movie => {
+                if let Some(media) = value.downcast_ref::<MovieDetails>() {
+                    return MediaItemC::from(media.clone());
+                } else if let Some(media) = value.downcast_ref::<MovieOverview>() {
+                    return MediaItemC::from(media.clone());
+                }
+
+                panic!("")
+            }
+            MediaType::Show => {
+                if let Some(media) = value.downcast_ref::<ShowDetails>() {
+                    return MediaItemC::from(media.clone());
+                } else if let Some(media) = value.downcast_ref::<ShowDetails>() {
+                    return MediaItemC::from(media.clone());
+                }
+
+                panic!("")
+            }
+            MediaType::Episode => {
+                if let Ok(media) = value.downcast::<Episode>() {
+                    return MediaItemC::from(*media);
+                }
+
+                panic!("")
+            }
+        }
+    }
+}
+
 impl From<MovieOverview> for MediaItemC {
     fn from(value: MovieOverview) -> Self {
         Self {
@@ -616,6 +652,18 @@ impl From<ShowDetails> for MediaItemC {
             show_overview: ptr::null_mut(),
             show_details: into_c_owned(ShowDetailsC::from(value)),
             episode: ptr::null_mut(),
+        }
+    }
+}
+
+impl From<Episode> for MediaItemC {
+    fn from(value: Episode) -> Self {
+        Self {
+            movie_overview: ptr::null_mut(),
+            movie_details: ptr::null_mut(),
+            show_overview: ptr::null_mut(),
+            show_details: ptr::null_mut(),
+            episode: into_c_owned(EpisodeC::from(value)),
         }
     }
 }
@@ -850,6 +898,7 @@ impl WatchedEventC {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::testing::init_logger;
 
     use super::*;
@@ -934,6 +983,30 @@ mod test {
         let result = MovieDetails::from(&movie_c);
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_media_item_c_from_episode() {
+        let title = "FooBar";
+        let overview = "Lorem ipsum dolor";
+        let episode = Episode {
+            season: 0,
+            episode: 0,
+            first_aired: 0,
+            title: title.to_string(),
+            overview: overview.to_string(),
+            tvdb_id: 0,
+            tvdb_id_value: "".to_string(),
+            thumb: None,
+            torrents: Default::default(),
+        };
+
+        let result = MediaItemC::from(episode);
+
+        assert_ne!(ptr::null_mut(), result.episode, "expected the episode data to be present");
+        let result = from_c_owned(result.episode);
+        assert_eq!(title.to_string(), from_c_string(result.title));
+        assert_eq!(overview.to_string(), from_c_string(result.synopsis));
     }
 
     #[test]

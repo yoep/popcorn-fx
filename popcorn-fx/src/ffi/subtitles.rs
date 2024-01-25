@@ -115,7 +115,7 @@ mod test {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
-    use crate::test::{default_args, new_instance};
+    use crate::test::new_instance;
 
     use super::*;
 

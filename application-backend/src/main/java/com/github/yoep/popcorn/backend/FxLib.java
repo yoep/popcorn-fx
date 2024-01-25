@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.backend;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
+import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
@@ -16,7 +17,8 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
-import com.github.yoep.popcorn.backend.player.AbstractPlayerBridge;
+import com.github.yoep.popcorn.backend.player.*;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.*;
@@ -150,6 +152,8 @@ public interface FxLib extends Library {
 
     void publish_event(PopcornFx instance, EventC.ByValue event);
 
+    void register_event_callback(PopcornFx instance, EventBridgeCallback callback);
+
     void torrent_info(PopcornFx instance, String url);
 
     byte torrent_collection_is_stored(PopcornFx instance, String magnetUrl);
@@ -222,7 +226,23 @@ public interface FxLib extends Library {
 
     void play_playlist_item(PopcornFx instance, PlaylistItem item);
 
-    void register_player(PopcornFx instance, AbstractPlayerBridge player);
+    void play_playlist(PopcornFx instance, Playlist set);
+
+    PlayerWrapper active_player(PopcornFx instance);
+
+    void set_active_player(PopcornFx instance, String playerId);
+
+    PlayerSet players(PopcornFx instance);
+
+    PlayerWrapper player_by_id(PopcornFx instance, String playerId);
+
+    void register_player_callback(PopcornFx instance, PlayerManagerCallback callback);
+
+    PlayerWrapperPointer register_player(PopcornFx instance, PlayerWrapper player);
+
+    void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
+
+    void remove_player(PopcornFx instance, String playerId);
 
     void log(String target, String message, LogLevel level);
 

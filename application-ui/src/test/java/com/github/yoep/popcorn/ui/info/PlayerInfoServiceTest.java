@@ -6,8 +6,8 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableMap;
+import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,8 +27,16 @@ class PlayerInfoServiceTest {
     @InjectMocks
     private PlayerInfoService service;
 
-    private final ObservableMap<String, Player> players = FXCollections.observableMap(new LinkedHashMap<>());
     private final AtomicReference<PlayerListener> listenerHolder = new AtomicReference<>();
+    private final AtomicReference<PlayerManagerListener> playerListenerHolder = new AtomicReference<>();
+
+    @BeforeEach
+    void setUp() {
+        doAnswer(invocation -> {
+            playerListenerHolder.set(invocation.getArgument(0, PlayerManagerListener.class));
+            return null;
+        }).when(playerManagerService).addListener(isA(PlayerManagerListener.class));
+    }
 
     @Test
     void testListener_whenPlayerAreChanged_shouldUpdateComponentDetailsList() {
@@ -42,13 +49,13 @@ class PlayerInfoServiceTest {
                 .description(description)
                 .state(ComponentState.READY)
                 .build();
-        when(playerManagerService.playersProperty()).thenReturn(players);
+        when(playerManagerService.getPlayers()).thenReturn(Collections.singletonList(player));
         when(player.getName()).thenReturn(name);
         when(player.getDescription()).thenReturn(description);
         when(player.getState()).thenReturn(state);
         service.init();
 
-        players.put(name, player);
+        playerListenerHolder.get().playersChanged();
         var result = service.getComponentDetails();
 
         assertEquals(1, result.size());
@@ -59,7 +66,7 @@ class PlayerInfoServiceTest {
     void testListener_whenPlayerStateChanges_shouldChangeDetailState() {
         var name = "player-name";
         var player = mock(Player.class);
-        when(playerManagerService.playersProperty()).thenReturn(players);
+        when(playerManagerService.getPlayers()).thenReturn(Collections.singletonList(player));
         when(player.getName()).thenReturn(name);
         when(player.getState()).thenReturn(PlayerState.UNKNOWN);
         doAnswer(invocation -> {
@@ -68,7 +75,7 @@ class PlayerInfoServiceTest {
         }).when(player).addListener(isA(PlayerListener.class));
         service.init();
 
-        players.put(name, player);
+        playerListenerHolder.get().playersChanged();
         var listener = listenerHolder.get();
         listener.onStateChanged(PlayerState.ERROR);
         var result = service.getComponentDetails();
@@ -86,7 +93,7 @@ class PlayerInfoServiceTest {
                 .name(name)
                 .state(ComponentState.UNKNOWN)
                 .build();
-        when(playerManagerService.playersProperty()).thenReturn(players);
+        when(playerManagerService.getPlayers()).thenReturn(Collections.singletonList(player));
         when(player.getName()).thenReturn(name);
         when(player.getState()).thenReturn(PlayerState.UNKNOWN);
         doAnswer(invocation -> {
@@ -96,7 +103,7 @@ class PlayerInfoServiceTest {
         service.init();
 
         service.addListener(infoListener);
-        players.put(name, player);
+        playerListenerHolder.get().playersChanged();
 
         verify(infoListener).onComponentDetailsChanged(Collections.singletonList(expectedResult));
     }

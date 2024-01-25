@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayerChangedEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStateEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +48,15 @@ public class PlayerEventService {
 
     @PostConstruct
     void init() {
-        playerService.activePlayerProperty().addListener((observable, oldValue, newValue) -> onPlayerChanged(oldValue, newValue));
+        eventPublisher.register(PlayerChangedEvent.class, event -> {
+            var oldPlayer = event.getOldPlayerId()
+                    .flatMap(playerService::getById)
+                    .orElse(null);
+            var newPlayer = playerService.getById(event.getNewPlayerId())
+                    .orElse(null);
+            onPlayerChanged(oldPlayer, newPlayer);
+            return event;
+        });
         eventPublisher.register(ClosePlayerEvent.class, event -> {
             playerService.getActivePlayer()
                     .ifPresent(Player::stop);
@@ -60,7 +69,7 @@ public class PlayerEventService {
     //region Functions
 
     private void onPlayerChanged(Player oldValue, Player newValue) {
-        log.debug("Active player has been changed to {}, updating the player listener", newValue.getId());
+        log.debug("Active player has been changed to {}, updating the player listener", newValue);
         // check if we need to unregister the listener from the old player
         Optional.ofNullable(oldValue)
                 .ifPresent(e -> e.removeListener(playerListener));

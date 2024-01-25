@@ -1,59 +1,124 @@
-use std::mem;
+use std::{mem, ptr};
 use std::os::raw::c_char;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_string};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
 use popcorn_fx_core::core::playlists::PlaylistItem;
 
 use crate::ffi::MediaItemC;
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PlaylistItemC {
     pub url: *const c_char,
     pub title: *const c_char,
     pub thumb: *const c_char,
     pub quality: *const c_char,
     pub media: *mut MediaItemC,
+    pub auto_resume_timestamp: *mut u64,
 }
 
-impl PlaylistItemC {
-    pub fn to_struct(&self) -> PlaylistItem {
-        let url = if !self.url.is_null() {
-            Some(from_c_string(self.url))
+impl From<PlaylistItemC> for PlaylistItem {
+    fn from(value: PlaylistItemC) -> Self {
+        let url = if !value.url.is_null() {
+            Some(from_c_string(value.url))
         } else {
             None
         };
-        let thumb = if !self.thumb.is_null() {
-            Some(from_c_string(self.thumb))
+        let thumb = if !value.thumb.is_null() {
+            Some(from_c_string(value.thumb))
         } else {
             None
         };
-        let media = if !self.media.is_null() {
-            trace!("Converting MediaItem from C for {:?}", self.media);
-            let media = from_c_into_boxed(self.media);
+        let media = if !value.media.is_null() {
+            trace!("Converting MediaItem from C for {:?}", value.media);
+            let media = from_c_into_boxed(value.media);
             let identifier = media.as_identifier();
             mem::forget(media);
             identifier
         } else {
             None
         };
-        let quality = if !self.quality.is_null() {
-            Some(from_c_string(self.quality))
+        let quality = if !value.quality.is_null() {
+            Some(from_c_string(value.quality))
+        } else {
+            None
+        };
+        let auto_resume_timestamp = if !value.auto_resume_timestamp.is_null() {
+            Some(from_c_owned(value.auto_resume_timestamp) as u64)
         } else {
             None
         };
 
         PlaylistItem {
             url,
-            title: from_c_string(self.title),
+            title: from_c_string(value.title),
             thumb,
             media,
             quality,
-            auto_resume_timestamp: None,
+            auto_resume_timestamp,
             subtitles_enabled: false,
         }
+    }
+}
+
+impl From<PlaylistItem> for PlaylistItemC {
+    fn from(value: PlaylistItem) -> Self {
+        let url = if let Some(e) = value.url {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let thumb = if let Some(e) = value.thumb {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let quality = if let Some(e) = value.quality {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp {
+            into_c_owned(e)
+        } else {
+            ptr::null_mut()
+        };
+
+        Self {
+            url,
+            title: into_c_string(value.title),
+            thumb,
+            quality,
+            media: ptr::null_mut(),
+            auto_resume_timestamp,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PlaylistSet {
+    pub items: *mut PlaylistItemC,
+    pub len: i32,
+}
+
+impl From<Vec<PlaylistItemC>> for PlaylistSet {
+    fn from(value: Vec<PlaylistItemC>) -> Self {
+        trace!("Converting playlist items to C playlist");
+        let (items, len) = to_c_vec(value);
+
+        Self {
+            items,
+            len,
+        }
+    }
+}
+
+impl From<PlaylistSet> for Vec<PlaylistItemC> {
+    fn from(value: PlaylistSet) -> Self {
+        from_c_vec(value.items, value.len)
     }
 }
 
@@ -67,7 +132,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_playlist_item_to_struct() {
+    fn test_playlist_item_from() {
         let url = "MyUrl";
         let title = "FooBar";
         let quality = "720p";
@@ -86,6 +151,7 @@ mod test {
             thumb: ptr::null(),
             media: into_c_owned(MediaItemC::from(media.clone())),
             quality: into_c_string(quality.to_string()),
+            auto_resume_timestamp: into_c_owned(8000u64),
         };
         let expected_result = PlaylistItem {
             url: Some(url.to_string()),
@@ -97,8 +163,39 @@ mod test {
             subtitles_enabled: false,
         };
 
-        let result = item.to_struct();
+        let result = PlaylistItem::from(item);
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_playlist_item_c_from() {
+        let url = "https://youtube.com/v/qwe654874a";
+        let title = "FooBar";
+        let quality = "720p";
+        let media = ShowOverview {
+            imdb_id: "tt0000666".to_string(),
+            tvdb_id: "tt0000845".to_string(),
+            title: "FooBar".to_string(),
+            year: "".to_string(),
+            num_seasons: 0,
+            images: Default::default(),
+            rating: None,
+        };
+        let item = PlaylistItem {
+            url: Some(url.to_string()),
+            title: title.to_string(),
+            thumb: None,
+            media: Some(Box::new(media.clone())),
+            quality: Some(quality.to_string()),
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+
+        let result = PlaylistItemC::from(item);
+
+        assert_eq!(url.to_string(), from_c_string(result.url));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+        assert_eq!(quality.to_string(), from_c_string(result.quality));
     }
 }

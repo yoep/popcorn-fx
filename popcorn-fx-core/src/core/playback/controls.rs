@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use log::{debug, trace, warn};
 
-use crate::core::CoreCallbacks;
+use crate::core::{Callbacks, CoreCallbacks};
 use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayVideoEvent};
 use crate::core::platform::{PlatformData, PlatformEvent};
 use crate::core::playback::{MediaInfo, MediaNotificationEvent, PlaybackControlCallback, PlaybackControlEvent, PlaybackState};
@@ -175,7 +175,7 @@ impl InnerPlaybackControls {
     }
 
     fn register(&self, callback: PlaybackControlCallback) {
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 
     fn handle_event(&self, event: PlatformEvent) {

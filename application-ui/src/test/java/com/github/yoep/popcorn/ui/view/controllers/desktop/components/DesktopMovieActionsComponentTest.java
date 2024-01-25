@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
@@ -16,10 +15,6 @@ import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableMap;
 import javafx.scene.control.Button;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -37,7 +32,6 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
@@ -67,13 +61,8 @@ class DesktopMovieActionsComponentTest {
     @InjectMocks
     private DesktopMovieActionsComponent component;
 
-    private final ObservableMap<String, Player> playerProperty = FXCollections.observableMap(new LinkedHashMap<>());
-    private final ObjectProperty<Player> activePlayerProperty = new SimpleObjectProperty<>();
-
     @BeforeEach
     void setUp() {
-        when(playerService.playersProperty()).thenReturn(playerProperty);
-        when(playerService.activePlayerProperty()).thenReturn(activePlayerProperty);
         lenient().when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(new CompletableFuture<>());
         lenient().when(subtitleService.none()).thenReturn(subtitleNone);
         lenient().when(subtitleService.custom()).thenReturn(mock(SubtitleInfo.class));

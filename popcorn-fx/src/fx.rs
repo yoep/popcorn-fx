@@ -228,8 +228,8 @@ impl PopcornFX {
             .event_publisher(event_publisher.clone())
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
-        let player_manager = Arc::new(Box::new(DefaultPlayerManager::default()) as Box<dyn PlayerManager>);
-        let playlist_manager = Arc::new(PlaylistManager::new(event_publisher.clone()));
+        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(event_publisher.clone())) as Box<dyn PlayerManager>);
+        let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone()));
 
         // disable the screensaver
         platform.disable_screensaver();

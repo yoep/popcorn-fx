@@ -5,7 +5,7 @@ use log::{debug, error, info, trace, warn};
 use mockall::automock;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CoreCallback, CoreCallbacks, media};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks, media};
 use crate::core::media::{MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview};
 use crate::core::media::favorites::model::Favorites;
 use crate::core::storage::{Storage, StorageError};
@@ -252,7 +252,7 @@ impl FavoriteService for DefaultFavoriteService {
     }
 
     fn register(&self, callback: FavoriteCallback) {
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 }
 

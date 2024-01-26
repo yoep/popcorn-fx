@@ -16,6 +16,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 async-trait = "0"
 bytes = "1.4"
+derive_more = "0"
 derive-new = "0"
 futures = "0"
 itertools = "0"

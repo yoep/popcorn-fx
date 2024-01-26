@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 
 use crate::core::subtitles::cue::SubtitleCue;
@@ -14,7 +15,7 @@ mod utils;
 const NEWLINE: &str = "\n";
 
 /// A subtitle parser which is able to convert a [File] into a [Subtitle] or visa-versa.
-pub trait Parser: Send + Sync {
+pub trait Parser: Debug + Send + Sync {
     /// Parse the given file to subtitle cues.
     /// Invalid lines within the given buffer will be ignored by the parser and logged as a warning.
     fn parse_file(&self, file: File) -> Vec<SubtitleCue>;

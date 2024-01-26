@@ -168,7 +168,7 @@ impl OpenSubtitlesFile {
 pub struct OpenSubtitlesFeatureDetails {
     feature_id: i32,
     feature_type: String,
-    year: i32,
+    year: Option<i32>,
     title: String,
     imdb_id: i32,
 }
@@ -178,7 +178,7 @@ impl OpenSubtitlesFeatureDetails {
         Self {
             feature_id,
             feature_type,
-            year,
+            year: Some(year),
             title,
             imdb_id,
         }

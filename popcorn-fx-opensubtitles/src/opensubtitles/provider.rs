@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use derive_more::Display;
 use futures::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
@@ -33,6 +34,8 @@ const FILENAME_PARAM_KEY: &str = "query";
 const PAGE_PARAM_KEY: &str = "page";
 const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 
+#[derive(Debug, Display)]
+#[display(fmt = "Opensubtitles subtitle provider")]
 pub struct OpensubtitlesProvider {
     settings: Arc<Mutex<ApplicationConfig>>,
     client: Client,
@@ -412,7 +415,7 @@ impl OpensubtitlesProvider {
 
 #[async_trait]
 impl SubtitleProvider for OpensubtitlesProvider {
-    async fn movie_subtitles(&self, media: MovieDetails) -> Result<Vec<SubtitleInfo>> {
+    async fn movie_subtitles(&self, media: &MovieDetails) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.imdb_id();
 
         debug!("Searching movie subtitles for IMDB ID {}", &imdb_id);
@@ -420,7 +423,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
             .await
     }
 
-    async fn episode_subtitles(&self, media: ShowDetails, episode: Episode) -> Result<Vec<SubtitleInfo>> {
+    async fn episode_subtitles(&self, media: &ShowDetails, episode: &Episode) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.imdb_id();
 
         debug!("Searching episode subtitles for IMDB ID {}", &imdb_id);
@@ -692,7 +695,7 @@ mod test {
             .build();
         let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(service.movie_subtitles(movie));
+        let result = runtime.block_on(service.movie_subtitles(&movie));
 
         match result {
             Ok(subtitles) => {
@@ -738,10 +741,10 @@ mod test {
         let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(async {
-            service.movie_subtitles(movie1)
+            service.movie_subtitles(&movie1)
                 .await
                 .expect("Expected the first search to succeed");
-            service.movie_subtitles(movie2)
+            service.movie_subtitles(&movie2)
                 .await
         });
 
@@ -791,7 +794,7 @@ mod test {
         );
         let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(service.episode_subtitles(show, episode));
+        let result = runtime.block_on(service.episode_subtitles(&show, &episode));
 
         match result {
             Ok(subtitles) => {

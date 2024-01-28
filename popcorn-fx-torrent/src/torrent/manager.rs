@@ -259,7 +259,7 @@ impl TorrentManager for InnerTorrentManager {
 
     fn add(&self, torrent: Arc<TorrentWrapper>) {
         trace!("Adding new torrent wrapper {:?}", torrent);
-        let mut torrents = self.torrents.blocking_lock();
+        let mut torrents = block_in_place(self.torrents.lock());
         let info = torrent.to_string();
         torrents.push(torrent);
         debug!("Added torrent {}", info)

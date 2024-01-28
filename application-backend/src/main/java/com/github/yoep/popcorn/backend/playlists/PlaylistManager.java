@@ -23,7 +23,7 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
     }
 
     public void play(Playlist playlist) {
-        fxLib.play_playlist(instance, playlist);
+        new Thread(() -> fxLib.play_playlist(instance, playlist), "PlaylistManager.play").start();
     }
 
     public void play(ShowDetails show, Episode episode, String quality) {

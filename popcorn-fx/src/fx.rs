@@ -24,7 +24,7 @@ use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
-use popcorn_fx_core::core::loader::{DefaultMediaLoader, LoadingStrategy, MediaLoader, PlayerLoadingStrategy, SubtitleLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy};
+use popcorn_fx_core::core::loader::{DefaultMediaLoader, LoadingStrategy, MediaLoader, PlayerLoadingStrategy, SubtitleLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy, TorrentStreamLoadingStrategy};
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
@@ -235,9 +235,10 @@ impl PopcornFX {
             Box::new(SubtitleLoadingStrategy::new(subtitle_provider.clone(), subtitle_manager.clone())),
             Box::new(TorrentInfoLoadingStrategy::new(torrent_manager.clone())),
             Box::new(TorrentLoadingStrategy::new(torrent_manager.clone(), settings.clone())),
+            Box::new(TorrentStreamLoadingStrategy::new(torrent_stream_server.clone())),
             Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
-        let media_loader = Arc::new(Box::new(DefaultMediaLoader::new()) as Box<dyn MediaLoader>);
+        let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain, event_publisher.clone())) as Box<dyn MediaLoader>);
         let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), media_loader.clone()));
 
         // disable the screensaver

@@ -33,10 +33,6 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
             log.trace("Created torrent wrapper pointer {}", this.wrapperPointer);
         }
 
-        public ByValue(Torrent torrent) {
-            super(torrent);
-        }
-
         public ByValue() {
         }
     }
@@ -50,7 +46,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public SequentialModeCallback sequentialModeCallback;
     public TorrentStateCallback torrentStateCallback;
 
-    private Torrent torrent;
+    Torrent torrent;
     TorrentWrapperPointer wrapperPointer;
 
     public TorrentWrapper() {
@@ -188,9 +184,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
             }
 
             @Override
-            public void onDownloadStatus(DownloadStatus status) {
-
-            }
+            public void onDownloadStatus(DownloadStatus status) {}
 
             @Override
             public void onPieceFinished(int pieceIndex) {

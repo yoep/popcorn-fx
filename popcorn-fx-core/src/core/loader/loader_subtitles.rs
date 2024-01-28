@@ -156,6 +156,8 @@ mod tests {
             media: Some(movie),
             torrent_info: None,
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: true,

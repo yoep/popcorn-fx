@@ -37,6 +37,8 @@ pub enum Event {
     /// Invoked when the watched state of a media items is changed
     #[display(fmt = "Watched state of {} changed to {}", _0, _1)]
     WatchStateChanged(String, bool),
+    #[display(fmt = "Loading of a media item has started")]
+    LoadingStarted,
 }
 
 /// Represents an event indicating a change in the active player within a multimedia application.

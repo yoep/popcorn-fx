@@ -10,6 +10,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::events::{Event, EventPublisher};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::LoadingStrategy;
 use crate::core::playlists::PlaylistItem;
@@ -49,6 +50,10 @@ pub enum LoadingState {
     DownloadingSubtitle,
     #[display(fmt = "Loader is connecting")]
     Connecting,
+    #[display(fmt = "Loader is downloading the media")]
+    Downloading,
+    #[display(fmt = "Loader has finished downloading the media")]
+    DownloadFinished,
     #[display(fmt = "Loader is playing media")]
     Playing,
 }
@@ -62,6 +67,8 @@ pub enum LoadingError {
     TorrentError(TorrentError),
     #[error("Failed to process media information, {0}")]
     MediaError(String),
+    #[error("Loading timed-out, {0}")]
+    TimeoutError(String),
 }
 
 #[cfg_attr(any(test, feature = "testing"), automock)]
@@ -83,9 +90,9 @@ pub struct DefaultMediaLoader {
 }
 
 impl DefaultMediaLoader {
-    fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>) -> Self {
+    pub fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>, event_publisher: Arc<EventPublisher>) -> Self {
         let instance = Self {
-            inner: Arc::new(InnerMediaLoader::new(loading_chain)),
+            inner: Arc::new(InnerMediaLoader::new(loading_chain, event_publisher)),
         };
         instance.register_state_updates();
 
@@ -137,14 +144,16 @@ struct InnerMediaLoader {
     state: Arc<Mutex<LoadingState>>,
     loading_chain: LoadingChain,
     callbacks: CoreCallbacks<LoaderEvent>,
+    event_publisher: Arc<EventPublisher>,
 }
 
 impl InnerMediaLoader {
-    fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>) -> Self {
+    fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>, event_publisher: Arc<EventPublisher>) -> Self {
         Self {
             state: Arc::new(Mutex::new(LoadingState::Idle)),
             loading_chain: LoadingChain::from(loading_chain),
             callbacks: Default::default(),
+            event_publisher,
         }
     }
 
@@ -176,6 +185,7 @@ impl MediaLoader for InnerMediaLoader {
     }
 
     async fn load_playlist_item(&self, mut item: PlaylistItem) -> LoaderResult<()> {
+        self.event_publisher.publish(Event::LoadingStarted);
         let strategies = self.loading_chain.strategies();
 
         trace!("Processing a total of {} loading strategies", strategies.len());
@@ -216,6 +226,6 @@ mod tests {
         strategy.expect_on_state_update()
             .return_const(());
         let chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
-        let loader = DefaultMediaLoader::new(chain);
+        let loader = DefaultMediaLoader::new(chain, Arc::new(EventPublisher::default()));
     }
 }

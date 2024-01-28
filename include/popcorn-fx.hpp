@@ -277,10 +277,15 @@ struct MovieOverviewC {
   ImagesC images;
 };
 
+/// A C-compatible struct representing torrent file information.
 struct TorrentFileInfoC {
+  /// A pointer to a null-terminated C string representing the filename.
   const char *filename;
+  /// A pointer to a null-terminated C string representing the file path.
   const char *file_path;
+  /// The size of the file in bytes.
   int64_t file_size;
+  /// The index of the file.
   int32_t file_index;
 };
 
@@ -296,22 +301,39 @@ struct CSet {
   int32_t len;
 };
 
+/// A C-compatible struct representing torrent information.
 struct TorrentInfoC {
+  /// A pointer to a null-terminated C string representing the torrent URL.
   const char *url;
+  /// A pointer to a null-terminated C string representing the torrent provider.
   const char *provider;
+  /// A pointer to a null-terminated C string representing the torrent source.
   const char *source;
+  /// A pointer to a null-terminated C string representing the torrent title.
   const char *title;
+  /// A pointer to a null-terminated C string representing the torrent quality.
   const char *quality;
+  /// The number of seeders for the torrent.
   uint32_t seed;
+  /// The number of peers for the torrent.
   uint32_t peer;
+  /// A pointer to a null-terminated C string representing the torrent size in bytes.
   const char *size;
+  /// A pointer to a null-terminated C string representing the torrent filesize in human-readable format.
   const char *filesize;
+  /// A pointer to a null-terminated C string representing the selected file within the torrent collection.
   const char *file;
 };
 
+/// A C-compatible struct representing torrent information.
 struct TorrentInfoC {
+  /// A pointer to a null-terminated C string representing the name of the torrent.
   const char *name;
+  /// A pointer to a null-terminated C string representing the directory name of the torrent.
+  const char *directory_name;
+  /// The total number of files in the torrent.
   int32_t total_files;
+  /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
   CSet<TorrentFileInfoC> files;
 };
 
@@ -645,6 +667,15 @@ struct PlayerChangedEventC {
   const char *new_player_name;
 };
 
+struct PlayerStartedEventC {
+  const char *url;
+  const char *title;
+  const char *thumbnail;
+  const char *quality;
+  uint64_t *auto_resume_timestamp;
+  bool subtitles_enabled;
+};
+
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
 struct PlayerStoppedEventC {
@@ -658,44 +689,32 @@ struct PlayerStoppedEventC {
   MediaItemC *media;
 };
 
-/// The C compatible [PlayVideo] representation.
-struct PlayVideoEventC {
-  /// The video playback url
-  const char *url;
-  /// The video playback title
-  const char *title;
-  /// The media playback show name
-  const char *show_name;
-  /// The optional video playback thumbnail
-  const char *thumb;
-};
-
 /// The C compatible [Event] representation.
 struct EventC {
   enum class Tag {
     /// Invoked when the player is changed
     /// 1ste argument is the new player id, 2nd argument is the new player name
     PlayerChanged,
+    PlayerStarted,
     /// Invoked when the player is being stopped
     PlayerStopped,
-    /// Invoked when a new video playback is started
-    PlayVideo,
     /// Invoked when the playback state is changed
     PlaybackStateChanged,
     /// Invoked when the watch state of an item is changed
     WatchStateChanged,
+    LoadingStarted,
   };
 
   struct PlayerChanged_Body {
     PlayerChangedEventC _0;
   };
 
-  struct PlayerStopped_Body {
-    PlayerStoppedEventC _0;
+  struct PlayerStarted_Body {
+    PlayerStartedEventC _0;
   };
 
-  struct PlayVideo_Body {
-    PlayVideoEventC _0;
+  struct PlayerStopped_Body {
+    PlayerStoppedEventC _0;
   };
 
   struct PlaybackStateChanged_Body {
@@ -710,8 +729,8 @@ struct EventC {
   Tag tag;
   union {
     PlayerChanged_Body player_changed;
+    PlayerStarted_Body player_started;
     PlayerStopped_Body player_stopped;
-    PlayVideo_Body play_video;
     PlaybackStateChanged_Body playback_state_changed;
     WatchStateChanged_Body watch_state_changed;
   };
@@ -1081,8 +1100,6 @@ struct TorrentWrapperC {
   Arc<TorrentWrapper> wrapper;
 };
 
-using ResolveTorrentCallback = TorrentInfoC(*)(const char *url);
-
 /// The callback to verify if the given byte is available.
 using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
 
@@ -1117,6 +1134,12 @@ struct TorrentC {
   SequentialModeCallbackC sequential_mode;
   TorrentStateCallbackC torrent_state;
 };
+
+/// Type definition for a callback that resolves torrent information and starts a download.
+using ResolveTorrentCallback = TorrentC(*)(TorrentFileInfoC file_info, const char *torrent_directory, bool auto_start_download);
+
+/// Type definition for a callback that resolves torrent information.
+using ResolveTorrentInfoCallback = TorrentInfoC(*)(const char *url);
 
 
 extern "C" {
@@ -1773,6 +1796,25 @@ void torrent_info(PopcornFX *popcorn_fx, const char *url);
 /// Inform the FX core that a piece for the torrent has finished downloading.
 void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
 
+/// A callback function for resolving torrents.
+///
+/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
+/// It takes a `PopcornFX` instance and a `ResolveTorrentCallback` function as arguments.
+///
+/// The function registers the provided callback function with the `DefaultTorrentManager` from the `PopcornFX` instance.
+/// When the callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
+/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `ResolveTorrentCallback`.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `callback` - The `ResolveTorrentCallback` function to be registered.
+void torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback callback);
+
 /// Registers a new C-compatible resolve torrent callback function with PopcornFX.
 ///
 /// This function allows registering a callback that will be invoked when torrent resolution is complete.
@@ -1801,7 +1843,7 @@ void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
 /// # Safety
 ///
 /// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
-void torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback callback);
+void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCallback callback);
 
 /// Inform that the state of the torrent has changed.
 ///

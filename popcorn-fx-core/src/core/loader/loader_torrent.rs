@@ -46,7 +46,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         *state = state_update;
     }
 
-    async fn process(&self, item: PlaylistItem) -> loader::LoadingResult {
+    async fn process(&self, mut item: PlaylistItem) -> loader::LoadingResult {
         if let Some(torrent_file_info) = item.torrent_file_info.as_ref() {
             {
                 let state_update = self.state_update.lock().await;
@@ -60,7 +60,8 @@ impl LoadingStrategy for TorrentLoadingStrategy {
 
             match self.torrent_manager.create(torrent_file_info, torrent_directory, true).await {
                 Ok(torrent) => {
-                    debug!("Received torrent {:?}", torrent);
+                    debug!("Enhancing playlist item with torrent {:?}", torrent);
+                    item.torrent = Some(torrent);
                 }
                 Err(e) => return loader::LoadingResult::Err(LoadingError::TorrentError(e)),
             }
@@ -96,6 +97,8 @@ mod tests {
             media: None,
             torrent_info: Some(torrent_info.clone()),
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,

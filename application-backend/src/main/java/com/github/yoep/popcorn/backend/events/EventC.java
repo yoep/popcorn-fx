@@ -46,12 +46,12 @@ public class EventC extends Structure implements Closeable {
         getUnion().close();
     }
 
-    public <T extends ApplicationEvent> T toEvent() {
+    public ApplicationEvent toEvent() {
         switch (tag) {
             case PlayerChanged -> {
                 var event = union.playerChanged_body.playerChangedEvent;
 
-                return (T) PlayerChangedEvent.builder()
+                return PlayerChangedEvent.builder()
                         .source(this)
                         .oldPlayerId(event.getOldPlayerId().orElse(null))
                         .newPlayerId(event.getNewPlayerId())
@@ -61,7 +61,7 @@ public class EventC extends Structure implements Closeable {
             case PlayerStarted -> {
                 var event = union.playerStarted_body.startedEvent;
 
-                return (T) PlayerStartedEvent.builder()
+                return PlayerStartedEvent.builder()
                         .source(this)
                         .url(event.getUrl())
                         .title(event.getTitle())
@@ -74,13 +74,16 @@ public class EventC extends Structure implements Closeable {
             case PlayerStopped -> {
                 var event = union.playerStopped_body.stoppedEvent;
 
-                return (T) PlayerStoppedEvent.builder()
+                return  PlayerStoppedEvent.builder()
                         .source(this)
                         .url(event.url)
                         .time(event.getTime())
                         .duration(event.getDuration())
                         .media(event.media.getMedia())
                         .build();
+            }
+            case LoadingStarted -> {
+                return  new LoadingStartedEvent(this);
             }
             default -> {
                 log.error("Failed to create ApplicationEvent from {}", this);
@@ -95,6 +98,7 @@ public class EventC extends Structure implements Closeable {
             case PlayerStarted -> union.setType(PlayerStarted_Body.class);
             case PlayerStopped -> union.setType(PlayerStopped_Body.class);
             case PlaybackStateChanged -> union.setType(PlaybackState_Body.class);
+            case WatchStateChanged -> union.setType(WatchStateChanged_Body.class);
         }
     }
 
@@ -150,6 +154,23 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"imdbId", "watched"})
+    public static class WatchStateChanged_Body extends Structure implements Closeable {
+        public String imdbId;
+        public byte watched;
+
+        public boolean isWatched() {
+            return watched == 1;
+        }
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class EventCUnion extends Union implements Closeable {
         public static class ByValue extends EventCUnion implements Union.ByValue {
@@ -159,6 +180,7 @@ public class EventC extends Structure implements Closeable {
         public PlayerStarted_Body playerStarted_body;
         public PlayerStopped_Body playerStopped_body;
         public PlaybackState_Body playbackState_body;
+        public WatchStateChanged_Body watchStateChanged_body;
 
         @Override
         public void close() {
@@ -171,6 +193,8 @@ public class EventC extends Structure implements Closeable {
                     .ifPresent(PlayerStopped_Body::close);
             Optional.ofNullable(playbackState_body)
                     .ifPresent(PlaybackState_Body::close);
+            Optional.ofNullable(watchStateChanged_body)
+                    .ifPresent(WatchStateChanged_Body::close);
         }
     }
 
@@ -178,7 +202,9 @@ public class EventC extends Structure implements Closeable {
         PlayerChanged,
         PlayerStarted,
         PlayerStopped,
-        PlaybackStateChanged;
+        PlaybackStateChanged,
+        WatchStateChanged,
+        LoadingStarted;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

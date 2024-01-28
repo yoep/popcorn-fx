@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::Weak;
 
 use derive_more::Display;
 
@@ -14,18 +14,28 @@ pub enum TorrentStreamServerState {
     Error,
 }
 
-/// The torrent stream server allows a [Torrent] to be streamed over the HTTP protocol.
+/// A trait for a torrent stream server that allows streaming torrents over HTTP.
+///
+/// This trait defines methods for managing the state of the torrent stream server and starting/stopping torrent streams.
 pub trait TorrentStreamServer: Debug + Send + Sync {
-    /// The state of the torrent stream server.
+    /// Get the current state of the torrent stream server.
     fn state(&self) -> TorrentStreamServerState;
 
-    /// Start a new stream for the given [Torrent] info.
+    /// Start streaming a torrent.
     ///
-    /// * `torrent` - The torrent info for which a stream should be started.
+    /// # Arguments
     ///
-    /// It returns a reference to the started stream on success, else the [torrent::TorrentError].
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Arc<dyn TorrentStream>>;
+    /// * `torrent` - A boxed trait object implementing `Torrent` to be streamed.
+    ///
+    /// # Returns
+    ///
+    /// A result containing a weak reference to the started torrent stream, or an error if the stream could not be started.
+    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Weak<dyn TorrentStream>>;
 
-    /// Stop the given torrent stream on the server.
-    fn stop_stream(&self, stream: &Arc<dyn TorrentStream>);
+    /// Stop a torrent stream.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - A weak reference to the torrent stream to be stopped.
+    fn stop_stream(&self, stream: Weak<dyn TorrentStream>);
 }

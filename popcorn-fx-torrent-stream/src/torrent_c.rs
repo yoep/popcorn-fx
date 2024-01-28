@@ -86,6 +86,7 @@ impl TorrentWrapperC {
     }
 
     pub fn state_changed(&self, state: TorrentState) {
+        trace!("TorrentWrapperC state changed to {}", state);
         self.wrapper.state_changed(state)
     }
 

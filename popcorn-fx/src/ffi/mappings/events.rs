@@ -30,6 +30,7 @@ pub enum EventC {
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the watch state of an item is changed
     WatchStateChanged(*const c_char, bool),
+    LoadingStarted,
 }
 
 impl From<Event> for EventC {
@@ -41,6 +42,7 @@ impl From<Event> for EventC {
             Event::PlayerStopped(e) => EventC::PlayerStopped(PlayerStoppedEventC::from(e)),
             Event::PlaybackStateChanged(e) => EventC::PlaybackStateChanged(e),
             Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
+            Event::LoadingStarted => EventC::LoadingStarted,
         }
     }
 }
@@ -54,6 +56,7 @@ impl From<EventC> for Event {
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
             EventC::PlaybackStateChanged(new_state) => Event::PlaybackStateChanged(new_state),
             EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
+            EventC::LoadingStarted => Event::LoadingStarted,
         }
     }
 }

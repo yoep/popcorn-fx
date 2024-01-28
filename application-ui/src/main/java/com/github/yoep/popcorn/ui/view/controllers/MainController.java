@@ -6,7 +6,6 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
-import com.github.yoep.popcorn.ui.events.LoadEvent;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.application.Platform;
@@ -122,7 +121,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             switchSection(SectionType.PLAYER);
             return event;
         });
-        eventPublisher.register(LoadEvent.class, event -> {
+        eventPublisher.register(LoadingStartedEvent.class, event -> {
             switchSection(SectionType.LOADER);
             return event;
         });

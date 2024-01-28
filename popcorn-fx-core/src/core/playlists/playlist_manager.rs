@@ -224,12 +224,12 @@ impl InnerPlaylistManager {
     fn handle_player_event(&self, event: PlayerManagerEvent) {
         match event {
             PlayerManagerEvent::PlayerDurationChanged(e) => {
-                let mut player_duration = self.player_duration.blocking_lock();
+                let mut player_duration = block_in_place(self.player_duration.lock());
                 debug!("Updating the last known player duration to {}", e);
                 *player_duration = e;
             }
             PlayerManagerEvent::PlayerTimeChanged(time) => {
-                let duration = self.player_duration.blocking_lock().clone();
+                let duration = block_in_place(self.player_duration.lock()).clone();
                 let remaining_time = (duration - time) / 1000;
 
                 if duration > 0 && remaining_time <= 60 {
@@ -282,6 +282,8 @@ mod test {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -327,6 +329,8 @@ mod test {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -339,6 +343,8 @@ mod test {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -370,6 +376,8 @@ mod test {
             parent_media: None,
             torrent_info: None,
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -425,6 +433,8 @@ mod test {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,

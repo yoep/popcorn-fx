@@ -265,18 +265,6 @@ public class TorrentServiceImpl implements TorrentService {
                 .filter(TorrentHandle::isValid);
     }
 
-    private boolean isDeletable(TorrentHandle handle) {
-        if (handle.isValid()) {
-            // check if the torrent is still only being used for health purpose
-            // if a file priority is present, than it isn't the case anymore
-            // and the handle may not be deleted
-            return Arrays.stream(handle.filePriorities())
-                    .allMatch(e -> e == Priority.IGNORE);
-        }
-
-        return false;
-    }
-
     private ResolveTorrentInfoCallback createResolveTorrentInfoCallback() {
         return url -> {
             log.debug("Executing resolve torrent info callback for {}", url);
@@ -286,7 +274,7 @@ public class TorrentServiceImpl implements TorrentService {
                 return info;
             } catch (Exception ex) {
                 log.error("Failed to resolve torrent info, {}", ex.getMessage(), ex);
-                throw new RuntimeException(ex);
+                throw new TorrentException(ex.getMessage(), ex);
             }
         };
     }
@@ -302,7 +290,7 @@ public class TorrentServiceImpl implements TorrentService {
 
             try {
                 var torrent = create(torrentFile, new File(torrentDirectory), autoStartDownload == 1).get();
-                var wrapper = new TorrentWrapper.ByValue(torrent);
+                var wrapper = new TorrentWrapper.ByValue(instance, torrent);
                 torrentWrappers.add(wrapper);
                 return wrapper;
             } catch (Exception ex) {

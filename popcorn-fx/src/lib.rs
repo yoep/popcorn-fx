@@ -2,6 +2,7 @@ extern crate core;
 
 use std::{mem, ptr, slice};
 use std::os::raw::c_char;
+use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
 
@@ -504,8 +505,12 @@ pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static Tor
     trace!("Starting a new stream from C for {:?}", torrent);
     match popcorn_fx.torrent_stream_server().start_stream(Box::new(torrent) as Box<dyn Torrent>) {
         Ok(e) => {
-            info!("Started new stream {}", e);
-            into_c_owned(TorrentStreamC::from(e))
+            if let Some(stream) = e.upgrade() {
+                info!("Started new stream {}", stream);
+                into_c_owned(TorrentStreamC::from(stream))
+            } else {
+                ptr::null_mut()
+            }
         }
         Err(e) => {
             error!("Failed to start stream, {}", e);
@@ -523,7 +528,7 @@ pub extern "C" fn stop_stream(popcorn_fx: &mut PopcornFX, stream: &mut TorrentSt
         None => error!("Unable to stop stream, pointer is invalid"),
         Some(stream) => {
             trace!("Stream {:?} has been read, trying to stop server", stream);
-            popcorn_fx.torrent_stream_server().stop_stream(&stream);
+            popcorn_fx.torrent_stream_server().stop_stream(Arc::downgrade(&stream));
         }
     }
 }
@@ -536,7 +541,7 @@ pub extern "C" fn register_torrent_stream_callback(stream: &mut TorrentStreamC, 
     match stream {
         None => error!("Unable to register callback, pointer is invalid"),
         Some(stream) => {
-            stream.register_stream(Box::new(move |e| {
+            stream.subscribe(Box::new(move |e| {
                 callback(TorrentStreamEventC::from(e))
             }));
         }

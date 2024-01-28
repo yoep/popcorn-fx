@@ -80,7 +80,7 @@ public class PlaylistItem extends Structure implements Closeable {
     }
 
     public static PlaylistItem fromMediaTrailer(MovieDetails media) {
-        var item = fromMedia(media);
+        var item = new PlaylistItem();
         item.url = media.getTrailer();
         item.title = media.getTitle();
         item.thumb = media.getImages().getPoster();

@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::sync::Weak;
 
 use downcast_rs::{DowncastSync, impl_downcast};
 #[cfg(any(test, feature = "testing"))]
@@ -6,6 +7,7 @@ use mockall::automock;
 
 use crate::core::media::MediaIdentifier;
 use crate::core::playlists::PlaylistItem;
+use crate::core::torrents::TorrentStream;
 
 /// A trait representing a play request for media playback.
 #[cfg_attr(any(test, feature = "testing"), automock)]
@@ -173,6 +175,8 @@ pub struct PlayMediaRequest {
     pub media: Box<dyn MediaIdentifier>,
     /// The quality information for the media.
     pub quality: String,
+    /// The torrent stream that is being used to stream the media item
+    pub torrent_stream: Weak<dyn TorrentStream>,
 }
 
 impl PlayMediaRequest {
@@ -186,6 +190,7 @@ impl PlayMediaRequest {
         media: Box<dyn MediaIdentifier>,
         parent_media: Option<Box<dyn MediaIdentifier>>,
         quality: String,
+        torrent_stream: Weak<dyn TorrentStream>
     ) -> Self {
         let base = PlayUrlRequest {
             url,
@@ -200,6 +205,7 @@ impl PlayMediaRequest {
             parent_media,
             media,
             quality,
+            torrent_stream,
         }
     }
 }
@@ -276,6 +282,7 @@ pub struct PlayMediaRequestBuilder {
     media: Option<Box<dyn MediaIdentifier>>,
     parent_media: Option<Box<dyn MediaIdentifier>>,
     quality: Option<String>,
+    torrent_stream: Option<Weak<dyn TorrentStream>>,
 }
 
 impl PlayMediaRequestBuilder {
@@ -332,14 +339,20 @@ impl PlayMediaRequestBuilder {
         self
     }
 
+    /// Sets the torrent stream of the media.
+    pub fn torrent_stream(mut self, torrent_stream: Weak<dyn TorrentStream>) -> Self {
+        self.torrent_stream = Some(torrent_stream);
+        self
+    }
+
     /// Builds and returns a `PlayMediaRequest` based on the provided parameters.
     ///
     /// # Panics
     ///
     /// Panics if the required fields (`url`, `title`, and `media`) are not provided.
     pub fn build(self) -> PlayMediaRequest {
-        if self.url.is_none() || self.title.is_none() || self.media.is_none() {
-            panic!("url, title, and media fields must be provided to build PlayMediaRequest");
+        if self.url.is_none() || self.title.is_none() {
+            panic!("url and title fields must be provided to build PlayMediaRequest");
         }
 
         let base = PlayUrlRequest {
@@ -353,17 +366,97 @@ impl PlayMediaRequestBuilder {
         PlayMediaRequest {
             base,
             parent_media: self.parent_media,
-            media: self.media.unwrap(),
+            media: self.media.expect("media has not been set"),
             quality: self.quality.unwrap_or_else(|| "".to_string()),
+            torrent_stream: self.torrent_stream.expect("torrent_stream has not been set")
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    use derive_more::Display;
+    use url::Url;
+
     use crate::core::media::{Episode, ShowOverview};
+    use crate::core::torrents::{Torrent, TorrentCallback, TorrentState, TorrentStreamCallback, TorrentStreamingResourceWrapper, TorrentStreamState};
 
     use super::*;
+
+    #[derive(Debug, Display)]
+    #[display(fmt = "DummyStream")]
+    pub struct DummyStream {}
+
+    impl Torrent for DummyStream {
+        fn file(&self) -> PathBuf {
+            todo!()
+        }
+
+        fn has_bytes(&self, bytes: &[u64]) -> bool {
+            todo!()
+        }
+
+        fn has_piece(&self, piece: u32) -> bool {
+            todo!()
+        }
+
+        fn prioritize_bytes(&self, bytes: &[u64]) {
+            todo!()
+        }
+
+        fn prioritize_pieces(&self, pieces: &[u32]) {
+            todo!()
+        }
+
+        fn total_pieces(&self) -> i32 {
+            todo!()
+        }
+
+        fn sequential_mode(&self) {
+            todo!()
+        }
+
+        fn state(&self) -> TorrentState {
+            todo!()
+        }
+
+        fn register(&self, callback: TorrentCallback) {
+            todo!()
+        }
+    }
+
+    impl TorrentStream for DummyStream {
+        fn url(&self) -> Url {
+            todo!()
+        }
+
+        fn stream(&self) -> crate::core::torrents::Result<TorrentStreamingResourceWrapper> {
+            todo!()
+        }
+
+        fn stream_offset(&self, offset: u64, len: Option<u64>) -> crate::core::torrents::Result<TorrentStreamingResourceWrapper> {
+            todo!()
+        }
+
+        fn stream_state(&self) -> TorrentStreamState {
+            todo!()
+        }
+
+        fn subscribe(&self, callback: TorrentStreamCallback) -> i64 {
+            todo!()
+        }
+
+        fn unsubscribe(&self, callback_id: i64) {
+            todo!()
+        }
+
+        fn stop_stream(&self) {
+            todo!()
+        }
+    }
 
     #[test]
     fn test_play_url_request_builder() {
@@ -403,6 +496,8 @@ mod tests {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
+            torrent: None,
+            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: Some(auto_resume),
             subtitles_enabled: false,
@@ -446,6 +541,7 @@ mod tests {
             thumb: None,
             torrents: Default::default(),
         };
+        let stream = Arc::new(DummyStream{}) as Arc<dyn TorrentStream>;
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -457,6 +553,7 @@ mod tests {
             parent_media: Some(Box::new(show.clone())),
             media: Box::new(episode.clone()),
             quality: quality.to_string(),
+            torrent_stream: Arc::downgrade(&stream),
         };
 
         let result = PlayMediaRequestBuilder::builder()
@@ -466,6 +563,7 @@ mod tests {
             .quality(quality)
             .parent_media(Box::new(show))
             .media(Box::new(episode))
+            .torrent_stream(Arc::downgrade(&stream))
             .build();
 
         assert_eq!(expected_result, result)

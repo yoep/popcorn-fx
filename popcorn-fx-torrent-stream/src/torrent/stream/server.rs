@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use hyper::Body;
 use itertools::Itertools;
@@ -13,7 +13,7 @@ use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT};
 use warp::hyper::HeaderMap;
 
-use popcorn_fx_core::core::torrents;
+use popcorn_fx_core::core::{block_in_place, torrents};
 use popcorn_fx_core::core::torrents::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
 
 use crate::torrent::stream::{DefaultTorrentStream, MediaType, MediaTypeFactory, Range};
@@ -47,11 +47,11 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
         self.inner.state()
     }
 
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Arc<dyn TorrentStream>> {
+    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Weak<dyn TorrentStream>> {
         self.inner.start_stream(torrent)
     }
 
-    fn stop_stream(&self, stream: &Arc<dyn TorrentStream>) {
+    fn stop_stream(&self, stream: Weak<dyn TorrentStream>) {
         self.inner.stop_stream(stream)
     }
 }
@@ -318,9 +318,8 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         mutex.clone()
     }
 
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Arc<dyn TorrentStream>> {
-        let streams = self.streams.clone();
-        let mut mutex = streams.blocking_lock();
+    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Weak<dyn TorrentStream>> {
+        let mut mutex = block_in_place(self.streams.lock());
         let filepath = torrent.file();
         let filename = filepath.file_name()
             .expect("expected a valid filename")
@@ -330,7 +329,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         if mutex.contains_key(filename) {
             debug!("Torrent stream already exists for {}, ignoring stream creation", filename);
             return Ok(mutex.get(filename)
-                .map(|e| e.clone())
+                .map(|e| Arc::downgrade(e))
                 .unwrap());
         }
 
@@ -339,7 +338,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
             Ok(url) => {
                 debug!("Starting url stream for {}", &url);
                 let stream = Arc::new(DefaultTorrentStream::new(url, torrent));
-                let stream_ref = stream.clone();
+                let stream_ref = Arc::downgrade(&stream);
 
                 mutex.insert(filename.to_string(), stream);
 
@@ -352,22 +351,24 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         }
     }
 
-    fn stop_stream(&self, stream: &Arc<dyn TorrentStream>) {
-        trace!("Stopping torrent stream {}", stream);
-        let streams = self.streams.clone();
-        let mut mutex = streams.blocking_lock();
-        let filepath = stream.file();
-        let filename = filepath.file_name()
-            .expect("expected a valid filename")
-            .to_str()
-            .unwrap();
+    fn stop_stream(&self, stream: Weak<dyn TorrentStream>) {
+        if let Some(stream) = stream.upgrade() {
+            trace!("Stopping torrent stream {}", stream);
+            let streams = self.streams.clone();
+            let mut mutex = streams.blocking_lock();
+            let filepath = stream.file();
+            let filename = filepath.file_name()
+                .expect("expected a valid filename")
+                .to_str()
+                .unwrap();
 
-        debug!("Trying to stop stream of {}", filename);
-        match mutex.remove(filename) {
-            None => warn!("Unable to stop stream of {}, stream not found", filename),
-            Some(stream) => {
-                stream.stop_stream();
-                info!("Stream {} has been stopped", stream.url())
+            debug!("Trying to stop stream of {}", filename);
+            match mutex.remove(filename) {
+                None => warn!("Unable to stop stream of {}, stream not found", filename),
+                Some(stream) => {
+                    stream.stop_stream();
+                    info!("Stream {} has been stopped", stream.url())
+                }
             }
         }
     }
@@ -400,7 +401,7 @@ mod test {
     use reqwest::Client;
 
     use popcorn_fx_core::assert_timeout_eq;
-    use popcorn_fx_core::core::torrents::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState, TorrentStreamState};
+    use popcorn_fx_core::core::torrents::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;
@@ -441,6 +442,7 @@ mod test {
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
             .expect("expected the torrent stream to have started");
 
+        let stream = stream.upgrade().unwrap();
         assert_eq!("/video/large-%5B123%5D.txt", stream.url().path());
         let result = runtime.block_on(async {
             let response = client.head(stream.url())
@@ -517,7 +519,7 @@ mod test {
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
             .expect("expected the torrent stream to have started");
         let result = runtime.block_on(async {
-            let response = client.get(stream.url())
+            let response = client.get(stream.upgrade().unwrap().url())
                 .header(RANGE, "bytes=0-50000")
                 .send()
                 .await
@@ -560,9 +562,10 @@ mod test {
         assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
         let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
             .expect("expected the torrent stream to have started");
-        server.stop_stream(&stream);
+        let stream_url = stream.upgrade().unwrap().url();
+        server.stop_stream(stream.clone());
         let result = runtime.block_on(async {
-            let response = client.get(stream.url())
+            let response = client.get(stream_url)
                 .header(RANGE, "bytes=0-50000")
                 .send()
                 .await
@@ -571,7 +574,7 @@ mod test {
             response.status()
         });
 
-        assert_eq!(TorrentStreamState::Stopped, stream.stream_state());
+        assert!(stream.upgrade().is_none(), "expected the stream reference to have been dropped");
         assert_eq!(StatusCode::NOT_FOUND, result)
     }
 

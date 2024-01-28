@@ -124,7 +124,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
         trace!("Registering new callback to CoreCallbacks");
         let id = self.generate_id();
         let callbacks = self.callbacks.clone();
-        let mut mutex = callbacks.blocking_lock();
+        let mut mutex = block_in_place(callbacks.lock());
 
         mutex.push(InternalCallbackHolder {
             id: id.clone(),
@@ -137,7 +137,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
     fn remove(&self, callback_id: i64) {
         trace!("Removing callback from CoreCallbacks");
         let callbacks = self.callbacks.clone();
-        let mut mutex = callbacks.blocking_lock();
+        let mut mutex = block_in_place(callbacks.lock());
         let position = mutex.iter()
             .position(|e| e.id == callback_id);
 
@@ -209,12 +209,12 @@ mod test {
         let callbacks = CoreCallbacks::<Event>::default();
 
         let id = callbacks.add(Box::new(move |_| {}));
-        let e = callbacks.callbacks.blocking_lock();
+        let e = block_in_place(callbacks.callbacks.lock());
         assert_eq!(1, e.len());
         drop(e);
 
         callbacks.remove(id);
-        let e = callbacks.callbacks.blocking_lock();
+        let e = block_in_place(callbacks.callbacks.lock());
         assert_eq!(0, e.len());
     }
 
@@ -224,7 +224,7 @@ mod test {
         let callbacks = CoreCallbacks::<Event>::default();
 
         callbacks.remove(54875542);
-        let e = callbacks.callbacks.blocking_lock();
+        let e = block_in_place(callbacks.callbacks.lock());
         assert_eq!(0, e.len());
     }
 }

@@ -46,40 +46,54 @@ impl Display for TorrentStreamEvent {
     }
 }
 
-/// The torrent stream contains the information of a [Torrent] that is being streamed
-/// over the [TorrentStreamServer].
+/// A trait for a torrent stream that provides access to torrent streaming information.
 ///
-/// Use [TorrentStream::stream] or [TorrentStream::stream_offset] to retrieve a [Stream] resource.
-/// Once a [TorrentStreamingResource] is started, the offset and length can't be changed anymore.
-/// If you require another range, please create a new stream and drop the previous one.
+/// This trait defines methods for retrieving stream details, streaming torrent content,
+/// and managing the stream state.
 pub trait TorrentStream: Torrent {
-    /// Retrieve the endpoint url on which the stream is available.
+    /// Get the endpoint URL where the stream is available.
     ///
-    /// It returns an owned instance of the url.
+    /// Returns an owned instance of the URL.
     fn url(&self) -> Url;
 
     /// Stream the torrent contents as a byte array.
-    /// The actual [Stream] implementation is wrapped in the [TorrentStreamingResourceWrapper] as most streaming servers
-    /// require the [Stream] to have a known size.
+    /// The actual [Stream] implementation is wrapped in the [TorrentStreamingResourceWrapper],
+    /// as most streaming servers require the [Stream] to have a known size.
     ///
-    /// It returns the stream of the torrent bytes, else the [torrent::TorrentError] that occurred.
+    /// Returns the stream of the torrent bytes or the [torrents::TorrentError] that occurred.
     fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
-    /// Stream the torrent contents as a byte array with the given offset.
-    /// The actual [Stream] implementation is wrapped in the [TorrentStreamingResourceWrapper] as most streaming servers
-    /// require the [Stream] to have a known size.
+    /// Stream the torrent contents as a byte array with the given offset and length.
+    /// The actual [Stream] implementation is wrapped in the [TorrentStreamingResourceWrapper],
+    /// as most streaming servers require the [Stream] to have a known size.
     ///
-    /// It returns the stream of the torrent bytes, else the [torrent::TorrentError] that occurred.
+    /// # Arguments
+    ///
+    /// * `offset` - The offset within the torrent to start streaming from.
+    /// * `len` - The length of the content to stream (optional).
+    ///
+    /// Returns the stream of the torrent bytes or the [torrents::TorrentError] that occurred.
     fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
-    /// The current state of the stream.
+    /// Get the current state of the stream.
     fn stream_state(&self) -> TorrentStreamState;
 
-    /// Register a new callback for the stream events.
-    fn register_stream(&self, callback: TorrentStreamCallback);
+    /// Subscribe to stream events with the provided callback.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - A callback function to handle stream events.
+    fn subscribe(&self, callback: TorrentStreamCallback) -> i64;
 
-    /// Stop the stream which will prevent new streaming resources to be created.
-    /// It will also stop the underlying [Torrent] process.
+    /// Unsubscribe from stream events with the provided callback ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback_id` - The unique identifier of the callback to unsubscribe.
+    fn unsubscribe(&self, callback_id: i64);
+
+    /// Stop the stream, preventing new streaming resources from being created,
+    /// and stopping the underlying [Torrent] process.
     fn stop_stream(&self);
 }
 

@@ -60,4 +60,4 @@ popcorn:
     popcorn_fx_torrent:
       level: info
     popcorn_fx_torrent_stream:
-      level: info
+      level: trace

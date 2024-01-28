@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
+use downcast_rs::{DowncastSync, impl_downcast};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
-use crate::core::{CoreCallback, torrent};
-use crate::core::torrent::{TorrentInfo, TorrentWrapper};
+use crate::core::{CoreCallback, torrents};
+use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentInfo, TorrentWrapper};
 
 /// The callback type for the torrent manager events.
 pub type TorrentManagerCallback = CoreCallback<TorrentManagerEvent>;
@@ -46,7 +47,7 @@ impl Display for TorrentManagerEvent {
 /// The torrent manager stores the active sessions and torrents that are being processed.
 #[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
-pub trait TorrentManager : Debug + Send + Sync {
+pub trait TorrentManager: Debug + DowncastSync {
     /// Retrieve the current state of the torrent manager.
     ///
     /// # Returns
@@ -72,7 +73,9 @@ pub trait TorrentManager : Debug + Send + Sync {
     /// # Returns
     ///
     /// The torrent meta information on success, or a [torrent::TorrentError] if there was an error.
-    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo>;
+    async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo>;
+
+    async fn create(&self, file_info: &TorrentFileInfo, torrent_directory: &str, auto_download: bool) -> torrents::Result<Box<dyn Torrent>>;
 
     /// Add a new torrent wrapper to the manager.
     ///
@@ -85,13 +88,12 @@ pub trait TorrentManager : Debug + Send + Sync {
     ///
     /// This operation removes all torrents from the filesystem.
     fn cleanup(&self);
-
-    fn torrent_info(&self, torrent_url: &str) -> Option<TorrentInfo>;
 }
+impl_downcast!(sync TorrentManager);
 
 #[cfg(test)]
 mod test {
-    use crate::core::torrent::{TorrentManagerEvent, TorrentManagerState};
+    use crate::core::torrents::{TorrentManagerEvent, TorrentManagerState};
 
     #[test]
     fn test_torrent_manager_event_display() {

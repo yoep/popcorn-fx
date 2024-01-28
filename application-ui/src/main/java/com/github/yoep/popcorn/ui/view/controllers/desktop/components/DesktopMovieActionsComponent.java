@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
@@ -179,7 +178,6 @@ public class DesktopMovieActionsComponent implements Initializable {
         try (var item = PlaylistItem.fromMediaTrailer(media)) {
             playlistManager.play(item);
         }
-        eventPublisher.publish(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
     }
 
     protected LanguageSelectionListener createLanguageListener() {

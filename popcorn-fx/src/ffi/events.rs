@@ -41,14 +41,16 @@ pub extern "C" fn register_event_callback(popcorn_fx: &mut PopcornFX, callback: 
 
 #[cfg(test)]
 mod test {
-    use std::ptr;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::into_c_string;
+    use popcorn_fx_core::{into_c_owned, into_c_string};
+    use popcorn_fx_core::core::media::{Images, MovieOverview};
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::ffi::PlayVideoEventC;
+    use crate::ffi::{MediaItemC, PlayerStoppedEventC};
     use crate::test::default_args;
 
     use super::*;
@@ -58,14 +60,40 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, rx) = channel();
+        let url = "https://localhost:8090/dummy.mp4";
+        let movie = MovieOverview {
+            title: "MyMovie".to_string(),
+            imdb_id: "tt00011123".to_string(),
+            year: "2015".to_string(),
+            rating: None,
+            images: Images {
+                poster: "https://image".to_string(),
+                fanart: "https://image".to_string(),
+                banner: "https://image".to_string(),
+            },
+        };
         let mut instance = PopcornFX::new(default_args(temp_path));
-        let event = EventC::PlayVideo(PlayVideoEventC {
-            url: into_c_string("http://localhost/video.mp4".to_string()),
-            title: into_c_string("Lorem ipsum dolor".to_string()),
-            show_name: ptr::null_mut(),
-            thumb: into_c_string("http://localhost/thumb.jpg".to_string()),
+        let event = EventC::PlayerStopped(PlayerStoppedEventC {
+            url: into_c_string(url.to_string()),
+            time: 20000 as *const i64,
+            duration: 25000 as *const i64,
+            media: into_c_owned(MediaItemC::from(movie)),
         });
 
+        instance.event_publisher().register(Box::new(move |e| {
+            tx.send(e).unwrap();
+            None
+        }), LOWEST_ORDER);
         publish_event(&mut instance, event);
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        if let Event::PlayerStopped(result) = result {
+            assert_eq!(url, result.url());
+            assert_eq!(Some(&20000u64), result.time());
+            assert_eq!(Some(&25000u64), result.duration());
+        } else {
+            assert!(false, "expected Event::PlayerStopped, but got {} instead", result);
+        }
     }
 }

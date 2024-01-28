@@ -458,6 +458,19 @@ impl From<&EpisodeC> for Episode {
         } else {
             None
         };
+        let torrents = if value.len > 0 {
+            trace!("Converting EpisodeC torrents");
+            let mut result: HashMap<String, TorrentInfo> = HashMap::with_capacity(value.len as usize);
+
+            for torrent_quality in from_c_vec(value.torrents, value.len) {
+                let quality = from_c_string(torrent_quality.quality);
+                result.insert(quality, TorrentInfo::from(torrent_quality.torrent));
+            }
+
+            result
+        } else {
+            Default::default()
+        };
 
         Self {
             season: value.season as u32,
@@ -468,7 +481,7 @@ impl From<&EpisodeC> for Episode {
             tvdb_id,
             tvdb_id_value: tvdb_id.to_string(),
             thumb,
-            torrents: Default::default(),
+            torrents,
         }
     }
 }
@@ -817,44 +830,88 @@ impl TorrentQualityC {
     }
 }
 
+/// A C-compatible struct representing torrent information.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct TorrentInfoC {
-    url: *const c_char,
-    provider: *const c_char,
-    source: *const c_char,
-    title: *const c_char,
-    quality: *const c_char,
-    seed: u32,
-    peer: u32,
-    size: *const c_char,
-    filesize: *const c_char,
-    file: *const c_char,
+    /// A pointer to a null-terminated C string representing the torrent URL.
+    pub url: *const c_char,
+    /// A pointer to a null-terminated C string representing the torrent provider.
+    pub provider: *const c_char,
+    /// A pointer to a null-terminated C string representing the torrent source.
+    pub source: *const c_char,
+    /// A pointer to a null-terminated C string representing the torrent title.
+    pub title: *const c_char,
+    /// A pointer to a null-terminated C string representing the torrent quality.
+    pub quality: *const c_char,
+    /// The number of seeders for the torrent.
+    pub seed: u32,
+    /// The number of peers for the torrent.
+    pub peer: u32,
+    /// A pointer to a null-terminated C string representing the torrent size in bytes.
+    pub size: *const c_char,
+    /// A pointer to a null-terminated C string representing the torrent filesize in human-readable format.
+    pub filesize: *const c_char,
+    /// A pointer to a null-terminated C string representing the selected file within the torrent collection.
+    pub file: *const c_char,
 }
 
-impl TorrentInfoC {
-    fn from(info: &TorrentInfo) -> Self {
+impl From<&TorrentInfo> for TorrentInfoC {
+    fn from(value: &TorrentInfo) -> Self {
         Self {
-            url: into_c_string(info.url().clone()),
-            provider: into_c_string(info.provider().clone()),
-            source: into_c_string(info.source().clone()),
-            title: into_c_string(info.title().clone()),
-            quality: into_c_string(info.quality().clone()),
-            seed: info.seed().clone(),
-            peer: info.peer().clone(),
-            size: match info.size() {
+            url: into_c_string(value.url().clone()),
+            provider: into_c_string(value.provider().clone()),
+            source: into_c_string(value.source().clone()),
+            title: into_c_string(value.title().clone()),
+            quality: into_c_string(value.quality().clone()),
+            seed: value.seed().clone(),
+            peer: value.peer().clone(),
+            size: match value.size() {
                 None => ptr::null(),
                 Some(e) => into_c_string(e.clone())
             },
-            filesize: match info.filesize() {
+            filesize: match value.filesize() {
                 None => ptr::null(),
                 Some(e) => into_c_string(e.clone())
             },
-            file: match info.file() {
+            file: match value.file() {
                 None => ptr::null(),
                 Some(e) => into_c_string(e.clone())
             },
         }
+    }
+}
+
+impl From<TorrentInfoC> for TorrentInfo {
+    fn from(value: TorrentInfoC) -> Self {
+        let size = if !value.size.is_null() {
+            Some(from_c_string(value.size))
+        } else {
+            None
+        };
+        let filesize = if !value.filesize.is_null() {
+            Some(from_c_string(value.filesize))
+        } else {
+            None
+        };
+        let file = if !value.file.is_null() {
+            Some(from_c_string(value.file))
+        } else {
+            None
+        };
+
+        Self::new(
+            from_c_string(value.url),
+            from_c_string(value.provider),
+            from_c_string(value.source),
+            from_c_string(value.title),
+            from_c_string(value.quality),
+            value.seed,
+            value.peer,
+            size,
+            filesize,
+            file,
+        )
     }
 }
 
@@ -1153,5 +1210,71 @@ mod test {
         assert_eq!(MediaErrorC::NoAvailableProviders, MediaErrorC::from(MediaError::NoAvailableProviders));
         assert_eq!(MediaErrorC::NoAvailableProviders, MediaErrorC::from(MediaError::ProviderNotFound(String::new())));
         assert_eq!(MediaErrorC::Failed, MediaErrorC::from(MediaError::FavoriteNotFound(String::new())));
+    }
+
+    #[test]
+    fn test_torrent_info_c_from() {
+        let url = "https://example.com";
+        let provider = "Provider";
+        let source = "Source";
+        let title = "Title";
+        let torrent_info = TorrentInfo::new(
+            url.to_string(),
+            provider.to_string(),
+            source.to_string(),
+            title.to_string(),
+            "Quality".to_string(),
+            42,
+            24,
+            Some("12345 bytes".to_string()),
+            Some("12.34 GB".to_string()),
+            Some("example_file.mkv".to_string()),
+        );
+
+        let result: TorrentInfoC = (&torrent_info).into();
+
+        assert_eq!(url.to_string(), from_c_string(result.url));
+        assert_eq!(provider.to_string(), from_c_string(result.provider));
+        assert_eq!(source.to_string(), from_c_string(result.source));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+    }
+
+    #[test]
+    fn test_torrent_info_from() {
+        let url = into_c_string("https://example.com".to_string());
+        let provider = into_c_string("Provider".to_string());
+        let source = into_c_string("Source".to_string());
+        let title = into_c_string("Title".to_string());
+        let quality = into_c_string("Quality".to_string());
+        let size = into_c_string("12345 bytes".to_string());
+        let filesize = into_c_string("12.34 GB".to_string());
+        let file = into_c_string("example_file.mkv".to_string());
+
+        let torrent_info_c = TorrentInfoC {
+            url,
+            provider,
+            source,
+            title,
+            quality,
+            seed: 42,
+            peer: 24,
+            size,
+            filesize,
+            file,
+        };
+
+        let torrent_info: TorrentInfo = torrent_info_c.into();
+
+        assert_eq!(torrent_info.url(), "https://example.com");
+        assert_eq!(torrent_info.provider(), "Provider");
+        assert_eq!(torrent_info.source(), "Source");
+        assert_eq!(torrent_info.title(), "Title");
+        assert_eq!(torrent_info.quality(), "Quality");
+        assert_eq!(torrent_info.seed(), &42);
+        assert_eq!(torrent_info.peer(), &24);
+
+        assert_eq!(torrent_info.size().unwrap(), "12345 bytes");
+        assert_eq!(torrent_info.filesize().unwrap(), "12.34 GB");
+        assert_eq!(torrent_info.file().unwrap(), "example_file.mkv");
     }
 }

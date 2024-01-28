@@ -8,6 +8,7 @@ pub use players::*;
 pub use playlists::*;
 pub use settings::*;
 pub use subtitle::*;
+pub use torrents::*;
 pub use update::*;
 pub use version_info::*;
 
@@ -21,5 +22,6 @@ mod players;
 mod playlists;
 mod settings;
 mod subtitle;
+mod torrents;
 mod update;
 mod version_info;

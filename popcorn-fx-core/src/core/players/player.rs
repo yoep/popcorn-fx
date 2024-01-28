@@ -10,6 +10,7 @@ use mockall::automock;
 use crate::core::Callbacks;
 #[cfg(any(test, feature = "testing"))]
 use crate::core::CoreCallback;
+use crate::core::players::PlayRequest;
 
 /// A trait representing a player for media playback.
 ///
@@ -33,6 +34,8 @@ pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
 
     /// Get the current state of the player.
     fn state(&self) -> &PlayerState;
+    
+    fn play(&self, request: Box<dyn PlayRequest>);
 }
 impl_downcast!(sync Player);
 

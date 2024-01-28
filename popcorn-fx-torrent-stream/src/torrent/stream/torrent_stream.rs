@@ -16,8 +16,8 @@ use log::{debug, error, info, trace, warn};
 use tokio::sync::Mutex;
 use url::Url;
 
-use popcorn_fx_core::core::{Callbacks, CoreCallbacks, torrent};
-use popcorn_fx_core::core::torrent::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
+use popcorn_fx_core::core::{Callbacks, CoreCallbacks, torrents};
+use popcorn_fx_core::core::torrents::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
 
 /// The default buffer size used while streaming in bytes
 const BUFFER_SIZE: usize = 10000;
@@ -93,11 +93,11 @@ impl TorrentStream for DefaultTorrentStream {
         self.internal.url()
     }
 
-    fn stream(&self) -> torrent::Result<TorrentStreamingResourceWrapper> {
+    fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper> {
         self.internal.stream()
     }
 
-    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrent::Result<TorrentStreamingResourceWrapper> {
+    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper> {
         self.internal.stream_offset(offset, len)
     }
 
@@ -301,7 +301,7 @@ impl TorrentStream for TorrentStreamWrapper {
         self.url.clone()
     }
 
-    fn stream(&self) -> torrent::Result<TorrentStreamingResourceWrapper> {
+    fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper> {
         tokio::task::block_in_place(|| {
             let mutex = self.state.blocking_lock();
             if *mutex == TorrentStreamState::Streaming {
@@ -313,7 +313,7 @@ impl TorrentStream for TorrentStreamWrapper {
         })
     }
 
-    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrent::Result<TorrentStreamingResourceWrapper> {
+    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper> {
         tokio::task::block_in_place(|| {
             let mutex = self.state.blocking_lock();
             if *mutex == TorrentStreamState::Streaming {
@@ -359,13 +359,13 @@ pub struct DefaultTorrentStreamingResource {
 
 impl DefaultTorrentStreamingResource {
     /// Create a new streaming resource which will read the full [Torrent].
-    pub fn new(torrent: &Arc<Box<dyn Torrent>>) -> torrent::Result<Self> {
+    pub fn new(torrent: &Arc<Box<dyn Torrent>>) -> torrents::Result<Self> {
         Self::new_offset(torrent, 0, None)
     }
 
     /// Create a new streaming resource for the given offset.
     /// If no `len` is given, the streaming resource will be read till it's end.
-    pub fn new_offset(torrent: &Arc<Box<dyn Torrent>>, offset: u64, len: Option<u64>) -> torrent::Result<Self> {
+    pub fn new_offset(torrent: &Arc<Box<dyn Torrent>>, offset: u64, len: Option<u64>) -> torrents::Result<Self> {
         let torrent = torrent.clone();
 
         debug!("Creating a new streaming resource for torrent {:?}", torrent);
@@ -512,7 +512,7 @@ impl DefaultTorrentStreamingResource {
     }
 
     /// Retrieve the last byte for the given file.
-    fn file_bytes(file: &mut File) -> torrent::Result<u64> {
+    fn file_bytes(file: &mut File) -> torrents::Result<u64> {
         match file.seek(SeekFrom::End(0)) {
             Ok(e) => Ok(e),
             Err(e) => {
@@ -593,7 +593,7 @@ mod test {
     use futures::TryStreamExt;
     use tokio::runtime;
 
-    use popcorn_fx_core::core::torrent::{MockTorrent, StreamBytes};
+    use popcorn_fx_core::core::torrents::{MockTorrent, StreamBytes};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;

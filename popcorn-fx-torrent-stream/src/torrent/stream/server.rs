@@ -13,8 +13,8 @@ use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT};
 use warp::hyper::HeaderMap;
 
-use popcorn_fx_core::core::torrent;
-use popcorn_fx_core::core::torrent::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
+use popcorn_fx_core::core::torrents;
+use popcorn_fx_core::core::torrents::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
 
 use crate::torrent::stream::{DefaultTorrentStream, MediaType, MediaTypeFactory, Range};
 
@@ -47,7 +47,7 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
         self.inner.state()
     }
 
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrent::Result<Arc<dyn TorrentStream>> {
+    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Arc<dyn TorrentStream>> {
         self.inner.start_stream(torrent)
     }
 
@@ -318,7 +318,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         mutex.clone()
     }
 
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrent::Result<Arc<dyn TorrentStream>> {
+    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Arc<dyn TorrentStream>> {
         let streams = self.streams.clone();
         let mut mutex = streams.blocking_lock();
         let filepath = torrent.file();
@@ -400,7 +400,7 @@ mod test {
     use reqwest::Client;
 
     use popcorn_fx_core::assert_timeout_eq;
-    use popcorn_fx_core::core::torrent::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState, TorrentStreamState};
+    use popcorn_fx_core::core::torrents::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState, TorrentStreamState};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;

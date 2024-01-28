@@ -34,20 +34,6 @@ public class EventPublisherBridge implements EventBridgeCallback {
 
             return event;
         }, EventPublisher.HIGHEST_ORDER);
-        eventPublisher.register(PlayVideoEvent.class, event -> {
-            var event_c = new EventC.ByValue();
-            event_c.tag = EventC.Tag.PlayVideo;
-            event_c.union = new EventC.EventCUnion.ByValue();
-            event_c.union.playVideo_body = new EventC.PlayVideo_Body();
-            event_c.union.playVideo_body.playVideoEvent = (event instanceof PlayMediaEvent mediaEvent)
-                    ? PlayVideoEventC.from(mediaEvent)
-                    : PlayVideoEventC.from(event);
-
-            if (isBridgePublishAllowed(event))
-                publishEvent(event_c);
-
-            return event;
-        }, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(PlayerStateEvent.class, event -> {
             var event_c = new EventC.ByValue();
             event_c.tag = EventC.Tag.PlaybackStateChanged;
@@ -69,6 +55,7 @@ public class EventPublisherBridge implements EventBridgeCallback {
     public void callback(EventC.ByValue event) {
         switch (event.getTag()) {
             case PlayerChanged -> eventPublisher.<PlayerChangedEvent>publish(event.toEvent());
+            case PlayerStarted -> eventPublisher.<PlayerStartedEvent>publish(event.toEvent());
             case PlayerStopped -> eventPublisher.<PlayerStoppedEvent>publish(event.toEvent());
             default -> log.warn("EventC callback of {} is currently not yet supported", event.getTag());
         }

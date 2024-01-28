@@ -3,8 +3,10 @@ use std::os::raw::c_char;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use log::trace;
+
 use popcorn_fx_core::{from_c_string, to_c_vec};
-use popcorn_fx_core::core::torrent::{Torrent, TorrentCallback, TorrentState, TorrentWrapper};
+use popcorn_fx_core::core::torrents::{Torrent, TorrentCallback, TorrentState, TorrentWrapper};
 
 /// The callback to verify if the given byte is available.
 pub type HasByteCallbackC = extern "C" fn(i32, *mut u64) -> bool;
@@ -45,7 +47,8 @@ pub struct TorrentC {
 
 impl From<TorrentC> for TorrentWrapper {
     fn from(value: TorrentC) -> Self {
-        TorrentWrapper::new(
+        trace!("Converting TorrentWrapper from TorrentC {:?}", value);
+        Self::new(
             from_c_string(value.filepath),
             Box::new(move |bytes| -> bool {
                 let (bytes, len) = to_c_vec(bytes.to_vec());

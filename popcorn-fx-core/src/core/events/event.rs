@@ -1,6 +1,6 @@
 use derive_more::Display;
 
-use crate::core::events::PlayerStoppedEvent;
+use crate::core::events::{PlayerStartedEvent, PlayerStoppedEvent};
 use crate::core::playback::PlaybackState;
 
 /// Handles all events within the Popcorn FX library.
@@ -12,13 +12,12 @@ use crate::core::playback::PlaybackState;
 /// # Examples
 ///
 /// ```no_run
-/// use popcorn_fx_core::core::events::{Event, PlayVideoEvent};
+/// use popcorn_fx_core::core::events::{Event, PlayerChangedEvent};
 ///
-/// let event = Event::PlayVideo(PlayVideoEvent {
-///     url: "https://example.com/video.mp4".to_string(),
-///     title: "Example Video".to_string(),
-///     subtitle: None,
-///     thumb: Some("https://example.com/thumb.jpg".to_string()),
+/// let event = Event::PlayerChanged(PlayerChangedEvent {
+///     old_player_id: Some("OldPlayerId".to_string()),
+///     new_player_id: "NewPlayerId".to_string(),
+///     new_player_name: "NewPlayerName".to_string(),
 /// });
 /// ```
 #[derive(Debug, Clone, Display)]
@@ -26,12 +25,12 @@ pub enum Event {
     /// Invoked when the active player is changed
     #[display(fmt = "Active player changed to {} ({})", "_0.new_player_id.as_str()", "_0.new_player_name.as_str()")]
     PlayerChanged(PlayerChangedEvent),
+    /// Invoked when the player playback has started for a new media item
+    #[display(fmt = "Player has started playback of {}", "_0.title.as_str()")]
+    PlayerStarted(PlayerStartedEvent),
     /// Invoked when the player playback has stopped
     #[display(fmt = "Player has been stopped with last known timestamp {:?}", "_0.time()")]
     PlayerStopped(PlayerStoppedEvent),
-    /// Invoked when a new playback is being started
-    #[display(fmt = "Play new video with url: {}", "_0.url")]
-    PlayVideo(PlayVideoEvent),
     /// Invoked when the player/playback state is changed
     #[display(fmt = "Playback state has changed to {}", _0)]
     PlaybackStateChanged(PlaybackState),
@@ -40,38 +39,13 @@ pub enum Event {
     WatchStateChanged(String, bool),
 }
 
-/// The event is triggered when a new video playback is started.
-///
-/// The `PlayVideoEvent` struct represents the event that starts a new playback in the Popcorn FX application.
-/// It provides information about the URL, title, and thumbnail of the video that is being played.
-///
-/// # Examples
-///
-/// ```no_run
-/// use popcorn_fx_core::core::events::PlayVideoEvent;
-///
-/// let event = PlayVideoEvent {
-///     url: "https://example.com/video.mp4".to_string(),
-///     title: "Example Video".to_string(),
-///     subtitle: None,
-///     thumb: Some("https://example.com/thumb.jpg".to_string()),
-/// };
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct PlayVideoEvent {
-    /// The playback url to start
-    pub url: String,
-    /// The video title
-    pub title: String,
-    /// The video subtitle/additional info
-    pub subtitle: Option<String>,
-    /// The url to the video thumbnail
-    pub thumb: Option<String>,
-}
-
+/// Represents an event indicating a change in the active player within a multimedia application.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlayerChangedEvent {
+    /// The previous player's unique identifier, if any.
     pub old_player_id: Option<String>,
+    /// The new active player's unique identifier.
     pub new_player_id: String,
+    /// The name of the new active player.
     pub new_player_name: String,
 }

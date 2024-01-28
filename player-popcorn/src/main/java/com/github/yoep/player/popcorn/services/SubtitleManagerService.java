@@ -123,7 +123,7 @@ public class SubtitleManagerService {
         log.trace("Initializing video player subtitle service");
         initializeSubtitleSize();
         initializeSubtitleListener();
-        eventPublisher.register(PlayVideoEvent.class, event -> {
+        eventPublisher.register(PlayerStartedEvent.class, event -> {
             this.url = event.getUrl();
             return event;
         });

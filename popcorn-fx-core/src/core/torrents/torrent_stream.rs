@@ -6,14 +6,14 @@ use derive_more::Display;
 use futures::Stream;
 use url::Url;
 
-use crate::core::{CoreCallback, torrent};
-use crate::core::torrent::Torrent;
+use crate::core::{CoreCallback, torrents};
+use crate::core::torrents::Torrent;
 
 /// The stream bytes that are available to be used for the [TorrentStream].
 pub type StreamBytes = Vec<u8>;
 
 /// The streaming result of a read operation on the [TorrentStream] resource.
-pub type StreamBytesResult = Result<StreamBytes, torrent::TorrentError>;
+pub type StreamBytesResult = Result<StreamBytes, torrents::TorrentError>;
 
 /// The callback type for all torrent stream events.
 pub type TorrentStreamCallback = CoreCallback<TorrentStreamEvent>;
@@ -63,14 +63,14 @@ pub trait TorrentStream: Torrent {
     /// require the [Stream] to have a known size.
     ///
     /// It returns the stream of the torrent bytes, else the [torrent::TorrentError] that occurred.
-    fn stream(&self) -> torrent::Result<TorrentStreamingResourceWrapper>;
+    fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
     /// Stream the torrent contents as a byte array with the given offset.
     /// The actual [Stream] implementation is wrapped in the [TorrentStreamingResourceWrapper] as most streaming servers
     /// require the [Stream] to have a known size.
     ///
     /// It returns the stream of the torrent bytes, else the [torrent::TorrentError] that occurred.
-    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrent::Result<TorrentStreamingResourceWrapper>;
+    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
     /// The current state of the stream.
     fn stream_state(&self) -> TorrentStreamState;

@@ -1,9 +1,11 @@
 use log::trace;
 
-use popcorn_fx_core::core::torrent::TorrentState;
-use popcorn_fx_core::into_c_owned;
+use popcorn_fx_core::{into_c_owned, into_c_string};
+use popcorn_fx_core::core::torrents::{TorrentInfo, TorrentState, TorrentWrapper};
+use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 use popcorn_fx_torrent_stream::{TorrentC, TorrentWrapperC};
 
+use crate::ffi::{ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
 use crate::PopcornFX;
 
 /// The torrent wrapper for moving data between Rust and FrostWire.
@@ -50,6 +52,79 @@ pub extern "C" fn torrent_state_changed(torrent: &TorrentWrapperC, state: Torren
     torrent.state_changed(state)
 }
 
+/// Registers a new C-compatible resolve torrent callback function with PopcornFX.
+///
+/// This function allows registering a callback that will be invoked when torrent resolution is complete.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `callback` - The C-compatible resolve torrent callback function to be registered.
+///
+/// # Example
+///
+/// ```c
+/// void resolve_callback(TorrentInfoC info) {
+///     // Handle resolved torrent information
+/// }
+///
+/// // Register the C-compatible callback with PopcornFX
+/// torrent_resolve_callback(popcorn_fx, resolve_callback);
+/// ```
+///
+/// This function registers a callback that receives resolved torrent information in the form of a `TorrentInfoC` struct.
+/// You can then handle this information as needed within your callback function.
+///
+/// Note: This function is intended for C integration with PopcornFX.
+///
+/// # Safety
+///
+/// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
+#[no_mangle]
+pub extern "C" fn torrent_resolve_info_callback(popcorn_fx: &mut PopcornFX, callback: ResolveTorrentInfoCallback) {
+    trace!("Registering new C resolve torrent info callback");
+    if let Some(manager) = popcorn_fx.torrent_manager().downcast_ref::<DefaultTorrentManager>() {
+        manager.register_resolve_info_callback(Box::new(move |e| {
+            trace!("Executing resolve magnet callback for {}", e);
+            let info_c = callback(into_c_string(e));
+            trace!("Received {:?} as resolve magnet callback result", info_c);
+            TorrentInfo::from(info_c)
+        }));
+    }
+}
+
+/// A callback function for resolving torrents.
+///
+/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
+/// It takes a `PopcornFX` instance and a `ResolveTorrentCallback` function as arguments.
+///
+/// The function registers the provided callback function with the `DefaultTorrentManager` from the `PopcornFX` instance.
+/// When the callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
+/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `ResolveTorrentCallback`.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `callback` - The `ResolveTorrentCallback` function to be registered.
+#[no_mangle]
+pub extern "C" fn torrent_resolve_callback(popcorn_fx: &mut PopcornFX, callback: ResolveTorrentCallback) {
+    trace!("Registering new C resolve torrent callback");
+    if let Some(manager) = popcorn_fx.torrent_manager().downcast_ref::<DefaultTorrentManager>() {
+        manager.register_resolve_callback(Box::new(move |file_info, torrent_directory, auto_start| {
+            trace!("Executing resolve torrent callback for {:?}", file_info);
+            let torrent_file_info = TorrentFileInfoC::from(file_info.clone());
+            let torrent_directory = into_c_string(torrent_directory.to_string());
+            let torrent = callback(torrent_file_info, torrent_directory, auto_start);
+            trace!("Received {:?} as resolve torrent callback result", torrent);
+            TorrentWrapper::from(torrent)
+        }));
+    }
+}
+
 /// Clean the torrents directory.
 /// This will remove all existing torrents from the system.
 #[no_mangle]
@@ -67,7 +142,7 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, into_c_string};
-    use popcorn_fx_core::core::torrent::{Torrent, TorrentEvent};
+    use popcorn_fx_core::core::torrents::{Torrent, TorrentEvent};
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::test::{default_args, new_instance};

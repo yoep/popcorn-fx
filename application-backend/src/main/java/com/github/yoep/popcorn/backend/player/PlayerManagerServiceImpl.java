@@ -6,7 +6,9 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
@@ -22,10 +24,14 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     private final List<PlayerWrapper> playerWrappers = new ArrayList<>();
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ApplicationConfig applicationConfig;
+    private final ScreenService screenService;
 
-    public PlayerManagerServiceImpl(FxLib fxLib, PopcornFx instance) {
+    public PlayerManagerServiceImpl(FxLib fxLib, PopcornFx instance, ApplicationConfig applicationConfig, ScreenService screenService) {
         this.fxLib = fxLib;
         this.instance = instance;
+        this.applicationConfig = applicationConfig;
+        this.screenService = screenService;
         init();
     }
 
@@ -71,7 +77,7 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     public void register(Player player) {
         Assert.notNull(player, "player cannot be null");
         log.trace("Registering new player {}", player);
-        try (var wrapper = new PlayerWrapper(player)) {
+        try (var wrapper = new PlayerWrapperRegistration(player)) {
             var playerC = fxLib.register_player(instance, wrapper);
             wrapper.setPlayerC(playerC);
             wrapper.setListener(new PlayerListener() {
@@ -151,5 +157,14 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
                     .orElse(wrapper);
         }
         return player;
+    }
+
+    private void fullscreenVideo() {
+        var settings = applicationConfig.getSettings();
+        var playbackSettings = settings.getPlaybackSettings();
+
+        if (playbackSettings.isFullscreen()) {
+            screenService.fullscreen(true);
+        }
     }
 }

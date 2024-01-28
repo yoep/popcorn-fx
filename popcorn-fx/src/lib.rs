@@ -13,7 +13,7 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::torrent::{Torrent, TorrentStreamState};
+use popcorn_fx_core::core::torrents::{Torrent, TorrentStreamState};
 use popcorn_fx_torrent_stream::{TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 #[cfg(feature = "ffi")]
@@ -25,13 +25,24 @@ pub mod ffi;
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
-/// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
+/// This function takes a reference to the `PopcornFX` instance and a reference to a `MovieDetailsC`.
+/// It returns a reference to `SubtitleInfoSet` containing the available subtitles for the movie,
+/// or a null pointer (`ptr::null_mut()`) on failure.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `movie` - A reference to the `MovieDetailsC` for which subtitles are to be retrieved.
+///
+/// # Returns
+///
+/// A pointer to the `SubtitleInfoSet` containing the available subtitles, or a null pointer on failure.
 /// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetailsC) -> *mut SubtitleInfoSet {
     let movie_instance = MovieDetails::from(movie);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().movie_subtitles(movie_instance)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().movie_subtitles(&movie_instance)) {
         Ok(e) => {
             debug!("Found movie subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -47,13 +58,28 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetai
     }
 }
 
-/// Retrieve the given subtitles for the given episode
+/// Retrieve the given subtitles for the given episode.
+///
+/// This function takes a reference to the `PopcornFX` instance, a reference to a `ShowDetailsC`, and a reference
+/// to an `EpisodeC` for which subtitles are to be retrieved.
+/// It returns a reference to `SubtitleInfoSet` containing the available subtitles for the episode.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `show` - A reference to the `ShowDetailsC` containing information about the show.
+/// * `episode` - A reference to the `EpisodeC` for which subtitles are to be retrieved.
+///
+/// # Returns
+///
+/// A pointer to the `SubtitleInfoSet` containing the available subtitles for the episode.
+/// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetailsC, episode: &EpisodeC) -> *mut SubtitleInfoSet {
     let show_instance = show.to_struct();
     let episode_instance = Episode::from(episode);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().episode_subtitles(show_instance, episode_instance)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().episode_subtitles(&show_instance, &episode_instance)) {
         Ok(e) => {
             debug!("Found episode subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()

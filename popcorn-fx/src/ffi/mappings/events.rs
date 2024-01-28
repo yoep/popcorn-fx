@@ -3,8 +3,8 @@ use std::os::raw::c_char;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_string, into_c_owned, into_c_string};
-use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStoppedEvent, PlayVideoEvent};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string};
+use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;
 
@@ -23,10 +23,9 @@ pub enum EventC {
     /// Invoked when the player is changed
     /// 1ste argument is the new player id, 2nd argument is the new player name
     PlayerChanged(PlayerChangedEventC),
+    PlayerStarted(PlayerStartedEventC),
     /// Invoked when the player is being stopped
     PlayerStopped(PlayerStoppedEventC),
-    /// Invoked when a new video playback is started
-    PlayVideo(PlayVideoEventC),
     /// Invoked when the playback state is changed
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the watch state of an item is changed
@@ -38,8 +37,8 @@ impl From<Event> for EventC {
         trace!("Converting Event to C event for {:?}", value);
         match value {
             Event::PlayerChanged(e) => EventC::PlayerChanged(PlayerChangedEventC::from(e)),
+            Event::PlayerStarted(e) => EventC::PlayerStarted(PlayerStartedEventC::from(e)),
             Event::PlayerStopped(e) => EventC::PlayerStopped(PlayerStoppedEventC::from(e)),
-            Event::PlayVideo(e) => EventC::PlayVideo(PlayVideoEventC::from(e)),
             Event::PlaybackStateChanged(e) => EventC::PlaybackStateChanged(e),
             Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
         }
@@ -51,8 +50,8 @@ impl From<EventC> for Event {
         trace!("Converting from C event {:?}", value);
         match value {
             EventC::PlayerChanged(e) => Event::PlayerChanged(PlayerChangedEvent::from(e)),
+            EventC::PlayerStarted(e) => Event::PlayerStarted(PlayerStartedEvent::from(e)),
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
-            EventC::PlayVideo(event_c) => Event::PlayVideo(PlayVideoEvent::from(event_c)),
             EventC::PlaybackStateChanged(new_state) => Event::PlaybackStateChanged(new_state),
             EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
         }
@@ -135,60 +134,6 @@ impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
     }
 }
 
-/// The C compatible [PlayVideo] representation.
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct PlayVideoEventC {
-    /// The video playback url
-    pub url: *const c_char,
-    /// The video playback title
-    pub title: *const c_char,
-    /// The media playback show name
-    pub show_name: *const c_char,
-    /// The optional video playback thumbnail
-    pub thumb: *const c_char,
-}
-
-impl From<PlayVideoEvent> for PlayVideoEventC {
-    fn from(value: PlayVideoEvent) -> Self {
-        let thumb = if let Some(thumb) = value.thumb {
-            into_c_string(thumb)
-        } else {
-            ptr::null()
-        };
-
-        Self {
-            url: into_c_string(value.url),
-            title: into_c_string(value.title),
-            show_name: ptr::null(),
-            thumb,
-        }
-    }
-}
-
-impl From<PlayVideoEventC> for PlayVideoEvent {
-    fn from(value: PlayVideoEventC) -> Self {
-        trace!("Converting PlayVideoEvent from C for {:?}", value);
-        let show_name = if !value.show_name.is_null() {
-            Some(from_c_string(value.show_name))
-        } else {
-            None
-        };
-        let thumb = if !value.thumb.is_null() {
-            Some(from_c_string(value.thumb))
-        } else {
-            None
-        };
-
-        Self {
-            url: from_c_string(value.url),
-            title: from_c_string(value.title),
-            subtitle: show_name,
-            thumb,
-        }
-    }
-}
-
 /// A C-compatible struct representing a player change event.
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -245,6 +190,75 @@ impl From<PlayerChangedEventC> for PlayerChangedEvent {
             old_player_id,
             new_player_id: from_c_string(value.new_player_id),
             new_player_name: from_c_string(value.new_player_name),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct PlayerStartedEventC {
+    pub url: *const c_char,
+    pub title: *const c_char,
+    pub thumbnail: *const c_char,
+    pub quality: *const c_char,
+    pub auto_resume_timestamp: *mut u64,
+    pub subtitles_enabled: bool,
+}
+
+impl From<PlayerStartedEvent> for PlayerStartedEventC {
+    fn from(value: PlayerStartedEvent) -> Self {
+        let thumbnail = if let Some(e) = value.thumbnail {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let quality = if let Some(e) = value.quality {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp {
+            into_c_owned(e)
+        } else {
+            ptr::null_mut()
+        };
+
+        Self {
+            url: into_c_string(value.url),
+            title: into_c_string(value.title),
+            thumbnail,
+            quality,
+            auto_resume_timestamp,
+            subtitles_enabled: value.subtitles_enabled,
+        }
+    }
+}
+
+impl From<PlayerStartedEventC> for PlayerStartedEvent {
+    fn from(value: PlayerStartedEventC) -> Self {
+        let thumbnail = if !value.thumbnail.is_null() {
+            Some(from_c_string(value.thumbnail))
+        } else {
+            None
+        };
+        let quality = if !value.quality.is_null() {
+            Some(from_c_string(value.quality))
+        } else {
+            None
+        };
+        let auto_resume_timestamp = if !value.auto_resume_timestamp.is_null() {
+            Some(from_c_owned(value.auto_resume_timestamp))
+        } else {
+            None
+        };
+
+        Self {
+            url: from_c_string(value.url),
+            title: from_c_string(value.title),
+            thumbnail,
+            quality,
+            auto_resume_timestamp,
+            subtitles_enabled: value.subtitles_enabled,
         }
     }
 }
@@ -322,33 +336,6 @@ mod test {
     }
 
     #[test]
-    fn test_from_play_video_event_c_to_play_video_event() {
-        // Create a PlayVideoEventC instance for testing
-        let url = "http://example.com/video.mp4";
-        let title = "Test Video";
-        let thumb = "http://example.com/video_thumb.png";
-        let play_video_event_c = PlayVideoEventC {
-            url: into_c_string(url.to_string()),
-            title: into_c_string(title.to_string()),
-            show_name: ptr::null(),
-            thumb: into_c_string(thumb.to_string()),
-        };
-
-        // Convert the PlayVideoEventC instance to a PlayVideoEvent instance
-        let play_video_event = PlayVideoEvent::from(play_video_event_c);
-
-        // Verify that the conversion was successful
-        assert_eq!(play_video_event,
-                   PlayVideoEvent {
-                       url: url.to_string(),
-                       title: title.to_string(),
-                       subtitle: None,
-                       thumb: Some(thumb.to_string()),
-                   }
-        );
-    }
-
-    #[test]
     fn test_from_playback_state_changed() {
         init_logger();
 
@@ -393,5 +380,27 @@ mod test {
         assert_eq!(old_player_id.to_string(), from_c_string(result.old_player_id));
         assert_eq!(new_player_id.to_string(), from_c_string(result.new_player_id));
         assert_eq!(new_player_name.to_string(), from_c_string(result.new_player_name));
+    }
+
+    #[test]
+    fn test_player_started_event_c_from() {
+        let url = "https://localhost:8081/my-video.mkv";
+        let title = "MyTitle";
+        let thumb = "https://imgur.com/MyThumb.jpg";
+        let event = PlayerStartedEvent {
+            url: url.to_string(),
+            title: title.to_string(),
+            thumbnail: Some(thumb.to_string()),
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: true,
+        };
+
+        let result = PlayerStartedEventC::from(event);
+
+        assert_eq!(url.to_string(), from_c_string(result.url));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+        assert_eq!(thumb.to_string(), from_c_string(result.thumbnail));
+        assert_eq!(true, result.subtitles_enabled, "expected the subtitles to have been enabled");
     }
 }

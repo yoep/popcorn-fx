@@ -3,6 +3,37 @@ use log::{error, trace, warn};
 use url::Url;
 
 use crate::core::media::MediaIdentifier;
+use crate::core::players::PlayRequest;
+
+/// Represents an event indicating that a multimedia player has started playback with specific media details.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct PlayerStartedEvent {
+    /// The URL of the media resource that was started.
+    pub url: String,
+    /// The title of the media.
+    pub title: String,
+    /// An optional URL for the media thumbnail or cover art.
+    pub thumbnail: Option<String>,
+    /// An optional string indicating the quality of the media (e.g., "HD" or "4K").
+    pub quality: Option<String>,
+    /// An optional timestamp indicating where to auto-resume playback, if supported.
+    pub auto_resume_timestamp: Option<u64>,
+    /// A flag indicating whether subtitles are enabled for the media.
+    pub subtitles_enabled: bool,
+}
+
+impl From<&Box<dyn PlayRequest>> for PlayerStartedEvent {
+    fn from(value: &Box<dyn PlayRequest>) -> Self {
+        Self {
+            url: value.url().to_string(),
+            title: value.title().to_string(),
+            thumbnail: value.thumbnail().clone(),
+            quality: value.quality().clone(),
+            auto_resume_timestamp: value.auto_resume_timestamp().clone(),
+            subtitles_enabled: value.subtitles_enabled(),
+        }
+    }
+}
 
 /// The player stopped event which indicates a video playback has been stopped.
 /// It contains the last known information of the video playback right before it was stopped.
@@ -114,9 +145,37 @@ mod test {
     use std::collections::HashMap;
 
     use crate::core::media::{Episode, Images, Rating, ShowOverview};
+    use crate::core::players::PlayUrlRequestBuilder;
     use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn player_started_event_from() {
+        let url = "https://dummy";
+        let title = "MyTitle";
+        let thumb = "MyThumb";
+        let auto_resume = 50000;
+        let request = PlayUrlRequestBuilder::builder()
+            .url(url)
+            .title(title)
+            .thumb(thumb)
+            .auto_resume_timestamp(auto_resume)
+            .subtitles_enabled(true)
+            .build();
+        let expected_result = PlayerStartedEvent {
+            url: url.to_string(),
+            title: title.to_string(),
+            thumbnail: Some(thumb.to_string()),
+            quality: None,
+            auto_resume_timestamp: Some(auto_resume),
+            subtitles_enabled: true,
+        };
+
+        let result = PlayerStartedEvent::from(&(Box::new(request) as Box<dyn PlayRequest>));
+
+        assert_eq!(expected_result, result);
+    }
 
     #[test]
     fn test_player_stopped_event_clone_with_episode() {

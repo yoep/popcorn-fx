@@ -1,17 +1,21 @@
 use std::{mem, ptr};
+use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
 use std::sync::{Arc, Weak};
 
 use derive_more::Display;
 use log::trace;
+use tokio::sync::Mutex;
 
 use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string, to_c_vec};
-use popcorn_fx_core::core::{Callbacks, CoreCallback, CoreCallbacks};
-use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState};
+use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayUrlRequest};
 
 use crate::ffi::{ByteArray, PlayerChangedEventC};
 
 pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
+
+pub type PlayerPlayCallback = extern "C" fn(PlayRequestC);
 
 /// A C-compatible struct representing a player.
 #[repr(C)]
@@ -62,7 +66,27 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
 }
 
 #[repr(C)]
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Clone)]
+pub struct PlayerRegistrationC {
+    /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
+    pub id: *const c_char,
+    /// A pointer to a null-terminated C string representing the name of the player.
+    pub name: *const c_char,
+    /// A pointer to a null-terminated C string representing the description of the player.
+    pub description: *const c_char,
+    /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
+    ///
+    /// This field can be a null pointer if no graphic resource is associated with the player.
+    pub graphic_resource: *mut ByteArray,
+    /// The state of the player.
+    pub state: PlayerState,
+    /// Indicates whether embedded playback is supported by the player.
+    pub embedded_playback_supported: bool,
+    pub play_callback: PlayerPlayCallback,
+}
+
+#[repr(C)]
+#[derive(Display)]
 #[display(fmt = "id: {}, name: {}", id, name)]
 pub struct PlayerWrapper {
     id: String,
@@ -71,6 +95,7 @@ pub struct PlayerWrapper {
     graphic_resource: Vec<u8>,
     state: PlayerState,
     embedded_playback_supported: bool,
+    play_callback: Mutex<Box<dyn Fn(PlayRequestC) + Send + Sync>>,
     callbacks: CoreCallbacks<PlayerEvent>,
 }
 
@@ -110,10 +135,30 @@ impl Player for PlayerWrapper {
     fn state(&self) -> &PlayerState {
         &self.state
     }
+
+    fn play(&self, request: Box<dyn PlayRequest>) {
+        trace!("Invoking play callback on C for {:?}", self);
+        let callback = block_in_place(self.play_callback.lock());
+        callback(PlayRequestC::from(request));
+    }
 }
 
-impl From<PlayerC> for PlayerWrapper {
-    fn from(value: PlayerC) -> Self {
+impl Debug for PlayerWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PlayerWrapper")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("graphic_resource", &self.graphic_resource.len())
+            .field("state", &self.state)
+            .field("embedded_playback_supported", &self.embedded_playback_supported)
+            .field("callbacks", &self.callbacks)
+            .finish()
+    }
+}
+
+impl From<PlayerRegistrationC> for PlayerWrapper {
+    fn from(value: PlayerRegistrationC) -> Self {
         trace!("Converting PlayerC to PlayerWrapperC");
         let id = from_c_string(value.id);
         let name = from_c_string(value.name);
@@ -126,6 +171,8 @@ impl From<PlayerC> for PlayerWrapper {
         } else {
             Vec::new()
         };
+        let play_callback = value.play_callback;
+        let play_callback: Box<dyn Fn(PlayRequestC) + Send + Sync> = Box::new(move |e| play_callback(e));
 
         Self {
             id,
@@ -134,6 +181,7 @@ impl From<PlayerC> for PlayerWrapper {
             graphic_resource,
             state: value.state.clone(),
             embedded_playback_supported: value.embedded_playback_supported.clone(),
+            play_callback: Mutex::new(play_callback),
             callbacks: Default::default(),
         }
     }
@@ -200,6 +248,58 @@ impl From<PlayerManagerEvent> for PlayerManagerEventC {
     }
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct PlayRequestC {
+    pub url: *const c_char,
+    pub title: *const c_char,
+    pub thumb: *const c_char,
+}
+
+impl From<&PlayUrlRequest> for PlayRequestC {
+    fn from(value: &PlayUrlRequest) -> Self {
+        let thumb = if let Some(thumb) = value.thumbnail() {
+            into_c_string(thumb)
+        } else {
+            ptr::null()
+        };
+
+        Self {
+            url: into_c_string(value.url.clone()),
+            title: into_c_string(value.title.clone()),
+            thumb,
+        }
+    }
+}
+
+impl From<&PlayMediaRequest> for PlayRequestC {
+    fn from(value: &PlayMediaRequest) -> Self {
+        let thumb = if let Some(thumb) = value.thumbnail() {
+            into_c_string(thumb)
+        } else {
+            ptr::null()
+        };
+
+        Self {
+            url: into_c_string(value.base.url.clone()),
+            title: into_c_string(value.base.title.clone()),
+            thumb,
+        }
+    }
+}
+
+impl From<Box<dyn PlayRequest>> for PlayRequestC {
+    fn from(value: Box<dyn PlayRequest>) -> Self {
+        if let Some(value) = value.downcast_ref::<PlayMediaRequest>() {
+            return PlayRequestC::from(value);
+        } else if let Some(value) = value.downcast_ref::<PlayUrlRequest>() {
+            return PlayRequestC::from(value);
+        }
+
+        panic!("Unexpected play request {:?}", value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ptr;
@@ -209,6 +309,11 @@ mod tests {
     use popcorn_fx_core::testing::init_logger;
 
     use super::*;
+
+    #[no_mangle]
+    extern "C" fn play_callback(_: PlayRequestC) {
+        // no-op
+    }
 
     #[test]
     fn test_from_player() {
@@ -251,6 +356,7 @@ mod tests {
             graphic_resource: vec![],
             state: state.clone(),
             embedded_playback_supported: true,
+            play_callback: Mutex::new(Box::new(|_| {})),
             callbacks: Default::default(),
         }) as Box<dyn Player>);
 
@@ -289,13 +395,14 @@ mod tests {
         let player_name = "InternalPlayerName";
         let description = "Lorem ipsum dolor esta";
         let resource = vec![84, 78, 90];
-        let player = PlayerC {
+        let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string(player_name.to_string()),
             description: into_c_string(description.to_string()),
             graphic_resource: into_c_owned(ByteArray::from(resource.clone())),
             state: PlayerState::Paused,
             embedded_playback_supported: false,
+            play_callback,
         };
 
         let wrapper = PlayerWrapper::from(player);

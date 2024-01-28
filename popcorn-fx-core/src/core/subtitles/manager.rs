@@ -5,7 +5,7 @@ use derive_more::Display;
 use log::{debug, error, info, trace};
 use tokio::sync::Mutex;
 
-use crate::core::{Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::ApplicationConfig;
 use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
@@ -105,11 +105,26 @@ impl SubtitleManager {
 
     /// Checks if the subtitle has been disabled by the user.
     ///
+    /// This function checks whether the subtitle is disabled by the user and returns `true` if it is disabled,
+    /// or `false` otherwise.
+    ///
     /// # Returns
     ///
     /// `true` if the subtitle is disabled, `false` otherwise.
     pub fn is_disabled(&self) -> bool {
-        *self.disabled_by_user.blocking_lock()
+        block_in_place(self.is_disabled_async())
+    }
+
+    /// Asynchronously checks if the subtitle has been disabled by the user.
+    ///
+    /// This asynchronous function checks whether the subtitle is disabled by the user and returns `true` if it is disabled,
+    /// or `false` otherwise.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the subtitle is disabled, `false` otherwise.
+    pub async fn is_disabled_async(&self) -> bool {
+        *self.disabled_by_user.lock().await
     }
 
     /// Updates the [SubtitleInfo] for the next [Media] item playback.

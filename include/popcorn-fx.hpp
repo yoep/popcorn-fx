@@ -277,6 +277,25 @@ struct MovieOverviewC {
   ImagesC images;
 };
 
+struct TorrentFileInfoC {
+  const char *filename;
+  const char *file_path;
+  int64_t file_size;
+  int32_t file_index;
+};
+
+/// A C-compatible set/array of items.
+///
+/// This struct is used to represent a set of items that can be passed between Rust and C code.
+/// It includes a pointer to the items and their length.
+template<typename T>
+struct CSet {
+  /// A pointer to the array of items.
+  T *items;
+  /// The length of the array.
+  int32_t len;
+};
+
 struct TorrentInfoC {
   const char *url;
   const char *provider;
@@ -288,6 +307,12 @@ struct TorrentInfoC {
   const char *size;
   const char *filesize;
   const char *file;
+};
+
+struct TorrentInfoC {
+  const char *name;
+  int32_t total_files;
+  CSet<TorrentFileInfoC> files;
 };
 
 struct TorrentQualityC {
@@ -501,11 +526,6 @@ struct PlaylistItemC {
   MediaItemC *parent_media;
   MediaItemC *media;
   uint64_t *auto_resume_timestamp;
-};
-
-struct PlaylistSet {
-  PlaylistItemC *items;
-  int32_t len;
 };
 
 struct StyledTextC {
@@ -725,6 +745,32 @@ struct FavoriteEventC {
 
 /// The C compatible callback for playback control events.
 using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
+
+struct PlayRequestC {
+  const char *url;
+  const char *title;
+  const char *thumb;
+};
+
+using PlayerPlayCallback = void(*)(PlayRequestC);
+
+struct PlayerRegistrationC {
+  /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
+  const char *id;
+  /// A pointer to a null-terminated C string representing the name of the player.
+  const char *name;
+  /// A pointer to a null-terminated C string representing the description of the player.
+  const char *description;
+  /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
+  ///
+  /// This field can be a null pointer if no graphic resource is associated with the player.
+  ByteArray *graphic_resource;
+  /// The state of the player.
+  PlayerState state;
+  /// Indicates whether embedded playback is supported by the player.
+  bool embedded_playback_supported;
+  PlayerPlayCallback play_callback;
+};
 
 struct PlayerManagerEventC {
   enum class Tag {
@@ -1035,6 +1081,8 @@ struct TorrentWrapperC {
   Arc<TorrentWrapper> wrapper;
 };
 
+using ResolveTorrentCallback = TorrentInfoC(*)(const char *url);
+
 /// The callback to verify if the given byte is available.
 using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
 
@@ -1182,7 +1230,7 @@ void dispose_media_items(Box<MediaSetC> media);
 /// * `item` - A boxed `PlaylistItemC` representing the item to be disposed of.
 void dispose_playlist_item(Box<PlaylistItemC> item);
 
-void dispose_playlist_set(Box<PlaylistSet> set);
+void dispose_playlist_set(Box<CSet<PlaylistItemC>> set);
 
 /// Delete the PopcornFX instance, given as a [ptr], in a safe way.
 /// All data within the instance will be deleted from memory making the instance unusable.
@@ -1216,7 +1264,22 @@ SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfo
 /// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
 void download_update(PopcornFX *popcorn_fx);
 
-/// Retrieve the given subtitles for the given episode
+/// Retrieve the given subtitles for the given episode.
+///
+/// This function takes a reference to the `PopcornFX` instance, a reference to a `ShowDetailsC`, and a reference
+/// to an `EpisodeC` for which subtitles are to be retrieved.
+/// It returns a reference to `SubtitleInfoSet` containing the available subtitles for the episode.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `show` - A reference to the `ShowDetailsC` containing information about the show.
+/// * `episode` - A reference to the `EpisodeC` for which subtitles are to be retrieved.
+///
+/// # Returns
+///
+/// A pointer to the `SubtitleInfoSet` containing the available subtitles for the episode.
+/// <i>The returned reference should be managed by the caller.</i>
 SubtitleInfoSet *episode_subtitles(PopcornFX *popcorn_fx, const ShowDetailsC *show, const EpisodeC *episode);
 
 /// Retrieve the available subtitles for the given filename
@@ -1346,7 +1409,18 @@ void log(const char *target, const char *message, LogLevel level);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
-/// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
+/// This function takes a reference to the `PopcornFX` instance and a reference to a `MovieDetailsC`.
+/// It returns a reference to `SubtitleInfoSet` containing the available subtitles for the movie,
+/// or a null pointer (`ptr::null_mut()`) on failure.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `movie` - A reference to the `MovieDetailsC` for which subtitles are to be retrieved.
+///
+/// # Returns
+///
+/// A pointer to the `SubtitleInfoSet` containing the available subtitles, or a null pointer on failure.
 /// <i>The returned reference should be managed by the caller.</i>
 SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *movie);
 
@@ -1355,7 +1429,7 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 
-void play_playlist(PopcornFX *popcorn_fx, PlaylistSet playlist);
+void play_playlist(PopcornFX *popcorn_fx, CSet<PlaylistItemC> playlist);
 
 /// Play a playlist item using PopcornFX.
 ///
@@ -1467,13 +1541,13 @@ void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC
 /// # Arguments
 ///
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
-/// * `player` - A `PlayerC` instance to be registered with the player manager.
+/// * `player` - A `PlayerRegistrationC` instance to be registered with the player manager.
 ///
 /// # Notes
 ///
 /// This function registers a player with the PopcornFX player manager using the provided `PlayerC` instance.
 /// It logs an info message if the registration is successful and a warning message if registration fails.
-PlayerWrapperC *register_player(PopcornFX *popcorn_fx, PlayerC player);
+PlayerWrapperC *register_player(PopcornFX *popcorn_fx, PlayerRegistrationC player);
 
 /// Register a callback function to be notified of player manager events.
 ///
@@ -1698,6 +1772,36 @@ void torrent_info(PopcornFX *popcorn_fx, const char *url);
 
 /// Inform the FX core that a piece for the torrent has finished downloading.
 void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
+
+/// Registers a new C-compatible resolve torrent callback function with PopcornFX.
+///
+/// This function allows registering a callback that will be invoked when torrent resolution is complete.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `callback` - The C-compatible resolve torrent callback function to be registered.
+///
+/// # Example
+///
+/// ```c
+/// void resolve_callback(TorrentInfoC info) {
+///     // Handle resolved torrent information
+/// }
+///
+/// // Register the C-compatible callback with PopcornFX
+/// torrent_resolve_callback(popcorn_fx, resolve_callback);
+/// ```
+///
+/// This function registers a callback that receives resolved torrent information in the form of a `TorrentInfoC` struct.
+/// You can then handle this information as needed within your callback function.
+///
+/// Note: This function is intended for C integration with PopcornFX.
+///
+/// # Safety
+///
+/// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
+void torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback callback);
 
 /// Inform that the state of the torrent has changed.
 ///

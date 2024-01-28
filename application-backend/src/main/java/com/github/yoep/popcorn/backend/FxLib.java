@@ -28,10 +28,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
-import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
-import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
-import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
+import com.github.yoep.popcorn.backend.torrent.*;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
@@ -135,6 +132,10 @@ public interface FxLib extends Library {
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
     TorrentWrapperPointer torrent_wrapper(PopcornFx instance, TorrentWrapper.ByValue torrent);
+    
+    void torrent_resolve_info_callback(PopcornFx instance, ResolveTorrentInfoCallback callback);
+
+    void torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
 
     void torrent_state_changed(TorrentWrapperPointer torrent, TorrentState state);
 
@@ -238,7 +239,7 @@ public interface FxLib extends Library {
 
     void register_player_callback(PopcornFx instance, PlayerManagerCallback callback);
 
-    PlayerWrapperPointer register_player(PopcornFx instance, PlayerWrapper player);
+    PlayerWrapperPointer register_player(PopcornFx instance, PlayerWrapperRegistration player);
 
     void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
 

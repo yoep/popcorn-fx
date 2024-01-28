@@ -1,10 +1,10 @@
 use log::{debug, error, info, trace, warn};
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, torrent};
+use crate::core::{block_in_place, torrents};
 use crate::core::storage::{Storage, StorageError};
-use crate::core::torrent::collection::{Collection, MagnetInfo};
-use crate::core::torrent::TorrentError;
+use crate::core::torrents::collection::{Collection, MagnetInfo};
+use crate::core::torrents::TorrentError;
 
 const FILENAME: &str = "torrent-collection.json";
 
@@ -42,7 +42,7 @@ impl TorrentCollection {
 
     /// Retrieve all stored magnets as owned instances.
     /// It returns the array of available [MagnetInfo] items, else the [TorrentError].
-    pub fn all(&self) -> torrent::Result<Vec<MagnetInfo>> {
+    pub fn all(&self) -> torrents::Result<Vec<MagnetInfo>> {
         match futures::executor::block_on(self.load_collection_cache()) {
             Ok(_) => {
                 let mutex = self.cache.blocking_lock();
@@ -84,7 +84,7 @@ impl TorrentCollection {
         }
     }
 
-    async fn load_collection_cache(&self) -> torrent::Result<()> {
+    async fn load_collection_cache(&self) -> torrents::Result<()> {
         let mut cache = self.cache.lock().await;
 
         if cache.is_none() {
@@ -102,7 +102,7 @@ impl TorrentCollection {
         Ok(())
     }
 
-    fn load_collection_from_storage(&self) -> torrent::Result<Collection> {
+    fn load_collection_from_storage(&self) -> torrents::Result<Collection> {
         match self.storage.options()
             .serializer(FILENAME)
             .read::<Collection>() {

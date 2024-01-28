@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.backend.player.model;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -20,7 +19,7 @@ public class MediaPlayRequest extends StreamPlayRequest {
 
     @Builder(builderMethodName = "mediaBuilder")
     public MediaPlayRequest(String url, String title, String thumb, Long autoResumeTimestamp, TorrentStream torrentStream,
-                            SubtitleInfo subtitle, String quality, Media media, Media subMediaItem) {
+                            String quality, Media media, Media subMediaItem) {
         super(url, title, thumb, autoResumeTimestamp, torrentStream, true);
         this.quality = quality;
         this.media = media;

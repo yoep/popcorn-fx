@@ -6,7 +6,7 @@ use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::{from_c_string, into_c_owned};
 use popcorn_fx_core::core::players::{Player, PlayerEvent};
 
-use crate::ffi::{PlayerC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerSet, PlayerWrapper, PlayerWrapperC};
+use crate::ffi::{PlayerC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC, PlayerSet, PlayerWrapper, PlayerWrapperC};
 use crate::PopcornFX;
 
 /// Retrieve a pointer to the active player as a `PlayerC` instance from the PopcornFX player manager.
@@ -139,14 +139,14 @@ pub extern "C" fn register_player_callback(popcorn_fx: &mut PopcornFX, callback:
 /// # Arguments
 ///
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
-/// * `player` - A `PlayerC` instance to be registered with the player manager.
+/// * `player` - A `PlayerRegistrationC` instance to be registered with the player manager.
 ///
 /// # Notes
 ///
 /// This function registers a player with the PopcornFX player manager using the provided `PlayerC` instance.
 /// It logs an info message if the registration is successful and a warning message if registration fails.
 #[no_mangle]
-pub extern "C" fn register_player(popcorn_fx: &mut PopcornFX, player: PlayerC) -> *mut PlayerWrapperC {
+pub extern "C" fn register_player(popcorn_fx: &mut PopcornFX, player: PlayerRegistrationC) -> *mut PlayerWrapperC {
     trace!("Registering new C player");
     let player = PlayerWrapper::from(player);
     let id = player.id().to_string();
@@ -233,10 +233,15 @@ mod tests {
     use popcorn_fx_core::core::players::PlayerState;
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::ffi::ByteArray;
+    use crate::ffi::{ByteArray, PlayRequestC};
     use crate::test::default_args;
 
     use super::*;
+
+    #[no_mangle]
+    extern "C" fn play_registration_callback(_: PlayRequestC) {
+        // no-op
+    }
 
     #[test]
     fn test_active_player() {
@@ -245,13 +250,14 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
-        let player = PlayerWrapper::from(PlayerC {
+        let player = PlayerWrapper::from(PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: ptr::null_mut(),
             state: PlayerState::Playing,
             embedded_playback_supported: false,
+            play_callback: play_registration_callback,
         });
 
         instance.player_manager().add_player(Box::new(player));
@@ -269,13 +275,14 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
-        let player = PlayerC {
+        let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: into_c_owned(ByteArray::from(graphic_resource.clone())),
             state: PlayerState::Paused,
             embedded_playback_supported: false,
+            play_callback: play_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -298,13 +305,14 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
-        let player = PlayerC {
+        let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string(name.to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: into_c_owned(ByteArray::from(graphic_resource.clone())),
             state: PlayerState::Paused,
             embedded_playback_supported: false,
+            play_callback: play_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -323,13 +331,14 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
-        let player = PlayerC {
+        let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: ptr::null_mut(),
             state: PlayerState::Error,
             embedded_playback_supported: false,
+            play_callback: play_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -349,13 +358,14 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
-        let player = PlayerC {
+        let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: ptr::null_mut(),
             state: PlayerState::Buffering,
             embedded_playback_supported: false,
+            play_callback: play_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -368,13 +378,14 @@ mod tests {
     fn test_invoke_player_event() {
         init_logger();
         let expected_result = 240;
-        let player = PlayerWrapper::from(PlayerC {
+        let player = PlayerWrapper::from(PlayerRegistrationC {
             id: ptr::null(),
             name: ptr::null(),
             description: ptr::null(),
             graphic_resource: ptr::null_mut(),
             state: Default::default(),
             embedded_playback_supported: false,
+            play_callback: play_registration_callback,
         });
         let (tx, rx) = channel();
         player.add(Box::new(move |e| {

@@ -1,56 +1,25 @@
 use std::cmp::Ordering;
-use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, RwLock, Weak};
 
-use async_trait::async_trait;
 use log::debug;
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
 
-use crate::core::playlists::PlaylistItem;
+use crate::core::loader::LoadingStrategy;
 
 pub const HIGHEST_ORDER: Order = i32::MIN;
 pub const DEFAULT_ORDER: Order = 0;
 pub const LOWEST_ORDER: Order = i32::MAX;
 
-/// A trait for defining loading strategies for media items in a playlist.
-#[cfg_attr(any(test, feature = "testing"), automock)]
-#[async_trait]
-pub trait LoadingStrategy: Debug + Display {
-    /// Process the playlist item.
-    ///
-    /// This method takes a `PlaylistItem` as input and may enhance the item, replace it, or start the playback.
-    /// If an updated `PlaylistItem` is returned, it indicates that the next strategy in the chain should
-    /// continue processing this item. If `None` is returned, it indicates that this strategy has started
-    /// the playback for the given item, and further processing in the chain is stopped.
-    ///
-    /// # Arguments
-    ///
-    /// * `item` - The `PlaylistItem` to be processed by the loading strategy.
-    ///
-    /// # Returns
-    ///
-    /// An optional `PlaylistItem`. If `Some(item)` is returned, it indicates that the strategy
-    /// has processed the item, and the item may have been modified or replaced. If `None` is returned,
-    /// it indicates that the strategy has initiated playback for the item, and processing in the chain stops.
-    async fn process(&self, item: PlaylistItem) -> Option<PlaylistItem>;
-}
-
-#[cfg(any(test, feature = "testing"))]
-impl Display for MockLoadingStrategy {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MockLoadingStrategy")
-    }
-}
-
+/// Represents the order in which loading strategies are applied within the loading chain.
 pub type Order = i32;
 
+/// A struct that manages a chain of loading strategies.
 #[derive(Debug, Default)]
 pub struct LoadingChain {
     chain: RwLock<Vec<ChainAction>>,
 }
 
 impl LoadingChain {
+    /// Add a loading strategy to the chain with the specified `order`.
     pub fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
         debug!("Adding loading strategy {} to the chain", strategy);
         let mut chain = self.chain.write().unwrap();
@@ -61,6 +30,7 @@ impl LoadingChain {
         chain.sort()
     }
 
+    /// Get a vector of weak references to the loading strategies in the chain.
     pub fn strategies(&self) -> Vec<Weak<Box<dyn LoadingStrategy>>> {
         let chain = self.chain.read().unwrap();
         chain.iter()
@@ -121,6 +91,8 @@ impl Ord for ChainAction {
 
 #[cfg(test)]
 mod tests {
+    use crate::core::loader::{LoadingStrategy, MockLoadingStrategy};
+
     use super::*;
 
     #[test]
@@ -132,5 +104,15 @@ mod tests {
         let chain: LoadingChain = LoadingChain::from(strategies);
 
         assert_eq!(2, chain.strategies().len());
+    }
+
+    #[test]
+    fn test_loading_chain_add() {
+        let strategy = Box::new(MockLoadingStrategy::new()) as Box<dyn LoadingStrategy>;
+        let chain = LoadingChain::default();
+
+        assert_eq!(0, chain.strategies().len());
+        chain.add(strategy, DEFAULT_ORDER);
+        assert_eq!(1, chain.strategies().len());
     }
 }

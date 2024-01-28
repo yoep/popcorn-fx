@@ -11,6 +11,7 @@ import org.springframework.util.Assert;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
+@Deprecated
 public class PlayVideoEvent extends ApplicationEvent {
     /**
      * The url of the video to play.

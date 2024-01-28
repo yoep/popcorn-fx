@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string};
 use popcorn_fx_core::core::media::MediaIdentifier;
 use popcorn_fx_core::core::playlists::PlaylistItem;
 
@@ -74,6 +74,8 @@ impl From<PlaylistItemC> for PlaylistItem {
             thumb,
             parent_media,
             media,
+            torrent_info: None,
+            torrent_file_info: None,
             quality,
             auto_resume_timestamp,
             subtitles_enabled: false,
@@ -116,31 +118,6 @@ impl From<PlaylistItem> for PlaylistItemC {
     }
 }
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct PlaylistSet {
-    pub items: *mut PlaylistItemC,
-    pub len: i32,
-}
-
-impl From<Vec<PlaylistItemC>> for PlaylistSet {
-    fn from(value: Vec<PlaylistItemC>) -> Self {
-        trace!("Converting playlist items to C playlist");
-        let (items, len) = to_c_vec(value);
-
-        Self {
-            items,
-            len,
-        }
-    }
-}
-
-impl From<PlaylistSet> for Vec<PlaylistItemC> {
-    fn from(value: PlaylistSet) -> Self {
-        from_c_vec(value.items, value.len)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::ptr;
@@ -179,6 +156,8 @@ mod test {
             thumb: None,
             parent_media: None,
             media: Some(Box::new(media)),
+            torrent_info: None,
+            torrent_file_info: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -209,6 +188,8 @@ mod test {
             thumb: None,
             parent_media: None,
             media: Some(Box::new(media.clone())),
+            torrent_info: None,
+            torrent_file_info: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
             subtitles_enabled: false,

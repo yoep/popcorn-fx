@@ -4,7 +4,7 @@ use std::sync::Arc;
 use log::{trace, warn};
 
 use popcorn_fx_core::{from_c_owned, into_c_owned, into_c_string};
-use popcorn_fx_core::core::torrent::{TorrentStream, TorrentStreamEvent, TorrentStreamState};
+use popcorn_fx_core::core::torrents::{TorrentStream, TorrentStreamEvent, TorrentStreamState};
 
 /// The C compatible struct for [TorrentStream].
 #[repr(C)]

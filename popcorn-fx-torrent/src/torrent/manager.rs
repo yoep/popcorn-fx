@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::sync::Arc;
 
@@ -7,14 +8,27 @@ use log::{debug, error, info, trace, warn};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::{block_in_place, events, torrent};
+use popcorn_fx_core::core::{block_in_place, events, torrents};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
-use popcorn_fx_core::core::torrent::{Torrent, TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState, TorrentWrapper};
+use popcorn_fx_core::core::torrents::{Torrent, TorrentFileInfo, TorrentInfo, TorrentManager, TorrentManagerCallback, TorrentManagerState, TorrentWrapper};
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 const CLEANUP_AFTER: fn() -> Duration = || Duration::days(10);
+
+/// A callback function type for resolving torrent information.
+///
+/// The function takes a `String` argument representing the URL of the torrent and returns
+/// a `TorrentInfo` struct. It must be `Send` and `Sync` to support concurrent execution.
+pub type ResolveTorrentInfoCallback = Box<dyn Fn(String) -> TorrentInfo + Send + Sync>;
+
+/// A callback function type for resolving torrents.
+///
+/// The function takes a `TorrentFileInfo` struct, a `String` representing the torrent directory,
+/// and a `bool` indicating whether auto-start download is enabled. It returns a `TorrentWrapper`.
+/// It must be `Send` and `Sync` to support concurrent execution.
+pub type ResolveTorrentCallback = Box<dyn Fn(&TorrentFileInfo, &str, bool) -> TorrentWrapper + Send + Sync>;
 
 /// The default torrent manager of the application.
 /// It currently only cleans the torrent directory if needed.
@@ -31,6 +45,8 @@ impl DefaultTorrentManager {
                 settings,
                 runtime,
                 torrents: Default::default(),
+                resolve_torrent_info_callback: Mutex::new(Box::new(|_| { panic!("No torrent info resolver configured") })),
+                resolve_torrent_callback: Mutex::new(Box::new(|_, _, _| { panic!("No torrent resolver configured") })),
             }),
         };
 
@@ -45,6 +61,20 @@ impl DefaultTorrentManager {
 
         instance
     }
+
+    pub fn register_resolve_info_callback(&self, callback: ResolveTorrentInfoCallback) {
+        trace!("Updating torrent info resolve callback");
+        let mut guard = block_in_place(self.inner.resolve_torrent_info_callback.lock());
+        *guard = callback;
+        info!("Updated torrent  inforesolve callback");
+    }
+
+    pub fn register_resolve_callback(&self, callback: ResolveTorrentCallback) {
+        trace!("Updating torrent resolve callback");
+        let mut guard = block_in_place(self.inner.resolve_torrent_callback.lock());
+        *guard = callback;
+        info!("Updated torrent resolve callback");
+    }
 }
 
 #[async_trait]
@@ -57,8 +87,12 @@ impl TorrentManager for DefaultTorrentManager {
         self.inner.register(callback)
     }
 
-    async fn info<'a>(&'a self, url: &'a str) -> torrent::Result<TorrentInfo> {
+    async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo> {
         self.inner.info(url).await
+    }
+
+    async fn create(&self, file_info: &TorrentFileInfo, torrent_directory: &str, auto_download: bool) -> torrents::Result<Box<dyn Torrent>> {
+        self.inner.create(file_info, torrent_directory, auto_download).await
     }
 
     fn add(&self, torrent: Arc<TorrentWrapper>) {
@@ -68,18 +102,15 @@ impl TorrentManager for DefaultTorrentManager {
     fn cleanup(&self) {
         self.inner.cleanup()
     }
-
-    fn torrent_info(&self, torrent_url: &str) -> Option<TorrentInfo> {
-        todo!()
-    }
 }
 
-#[derive(Debug)]
 struct InnerTorrentManager {
     /// The settings of the application
     settings: Arc<Mutex<ApplicationConfig>>,
     runtime: Arc<Runtime>,
     torrents: Mutex<Vec<Arc<TorrentWrapper>>>,
+    resolve_torrent_info_callback: Mutex<ResolveTorrentInfoCallback>,
+    resolve_torrent_callback: Mutex<ResolveTorrentCallback>,
 }
 
 impl InnerTorrentManager {
@@ -187,6 +218,16 @@ impl InnerTorrentManager {
     }
 }
 
+impl Debug for InnerTorrentManager {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InnerTorrentManager")
+            .field("settings", &self.settings)
+            .field("runtime", &self.runtime)
+            .field("torrents", &self.torrents)
+            .finish()
+    }
+}
+
 #[async_trait]
 impl TorrentManager for InnerTorrentManager {
     fn state(&self) -> TorrentManagerState {
@@ -197,8 +238,23 @@ impl TorrentManager for InnerTorrentManager {
         todo!()
     }
 
-    async fn info<'a>(&'a self, _url: &'a str) -> torrent::Result<TorrentInfo> {
-        todo!()
+    async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo> {
+        debug!("Resolving torrent magnet url {}", url);
+        let callback = block_in_place(self.resolve_torrent_info_callback.lock());
+        Ok(callback(url.to_string()))
+    }
+
+    async fn create(&self, file_info: &TorrentFileInfo, torrent_directory: &str, auto_download: bool) -> torrents::Result<Box<dyn Torrent>> {
+        debug!("Resolving torrent info {:?}", file_info);
+        let torrent_wrapper: TorrentWrapper;
+
+        {
+            let callback = block_in_place(self.resolve_torrent_callback.lock());
+            torrent_wrapper = callback(file_info, torrent_directory, auto_download);
+        }
+        
+        debug!("Received resolved torrent {:?}", torrent_wrapper);
+        Ok(Box::new(torrent_wrapper))
     }
 
     fn add(&self, torrent: Arc<TorrentWrapper>) {
@@ -213,10 +269,6 @@ impl TorrentManager for InnerTorrentManager {
         let mutex = block_in_place(self.settings.lock());
         let settings = mutex.settings.torrent();
         Self::clean_directory(settings);
-    }
-
-    fn torrent_info(&self, torrent_url: &str) -> Option<TorrentInfo> {
-        None
     }
 }
 
@@ -242,7 +294,7 @@ mod test {
 
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
     use popcorn_fx_core::core::storage::Storage;
-    use popcorn_fx_core::core::torrent::TorrentState;
+    use popcorn_fx_core::core::torrents::TorrentState;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use super::*;

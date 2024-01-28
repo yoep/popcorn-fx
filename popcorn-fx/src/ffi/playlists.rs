@@ -3,7 +3,7 @@ use log::trace;
 use popcorn_fx_core::core::playlists::{Playlist, PlaylistItem};
 use popcorn_fx_core::from_c_vec;
 
-use crate::ffi::{PlaylistItemC, PlaylistSet};
+use crate::ffi::{CSet, PlaylistItemC};
 use crate::PopcornFX;
 
 /// Play a playlist item using PopcornFX.
@@ -27,13 +27,13 @@ pub extern "C" fn play_playlist_item(popcorn_fx: &mut PopcornFX, item: &Playlist
 }
 
 #[no_mangle]
-pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: PlaylistSet) {
+pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: CSet<PlaylistItemC>) {
     trace!("Playing playlist from C for {:?}", playlist);
     let playlist: Playlist = Vec::<PlaylistItemC>::from(playlist).into_iter()
         .map(|e| PlaylistItem::from(e))
         .collect();
 
-    trace!("Playing playlist {:?}", playlist);
+    trace!("Starting playback of {:?}", playlist);
     popcorn_fx.playlist_manager().play(playlist);
 }
 
@@ -48,7 +48,7 @@ pub extern "C" fn dispose_playlist_item(item: Box<PlaylistItemC>) {
 }
 
 #[no_mangle]
-pub extern "C" fn dispose_playlist_set(set: Box<PlaylistSet>) {
+pub extern "C" fn dispose_playlist_set(set: Box<CSet<PlaylistItemC>>) {
     trace!("Disposing playlist set {:?}", set);
     drop(from_c_vec(set.items, set.len));
 }
@@ -113,7 +113,7 @@ mod test {
             quality: ptr::null_mut(),
             auto_resume_timestamp: into_c_owned(500u64),
         };
-        let playlist = PlaylistSet::from(vec![item]);
+        let playlist = CSet::<PlaylistItemC>::from(vec![item]);
 
         dispose_playlist_set(Box::new(playlist));
     }

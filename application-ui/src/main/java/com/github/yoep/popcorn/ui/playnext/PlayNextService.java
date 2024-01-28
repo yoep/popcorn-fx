@@ -34,6 +34,7 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Deprecated
 public class PlayNextService {
     public static final String NEXT_EPISODE_PROPERTY = "nextEpisode";
     public static final String PLAYING_IN_PROPERTY = "playingIn";

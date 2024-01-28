@@ -3,10 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers;
 import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
-import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
+import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.events.LoadEvent;
@@ -121,7 +118,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
             switchSection(SectionType.CONTENT);
             return event;
         });
-        eventPublisher.register(PlayVideoEvent.class, event -> {
+        eventPublisher.register(PlayerStartedEvent.class, event -> {
             switchSection(SectionType.PLAYER);
             return event;
         });

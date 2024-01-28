@@ -3,7 +3,7 @@ use std::sync::Arc;
 use log::{debug, trace, warn};
 
 use crate::core::{Callbacks, CoreCallbacks};
-use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayVideoEvent};
+use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayerStartedEvent};
 use crate::core::platform::{PlatformData, PlatformEvent};
 use crate::core::playback::{MediaInfo, MediaNotificationEvent, PlaybackControlCallback, PlaybackControlEvent, PlaybackState};
 
@@ -125,7 +125,7 @@ impl PlaybackControlsBuilder {
         if let Some(event_publisher) = self.event_publisher {
             event_publisher.register(Box::new(move |event| {
                 match &event {
-                    Event::PlayVideo(play_event) => {
+                    Event::PlayerStarted(play_event) => {
                         inner.notify_media_playback(play_event.clone());
                     }
                     Event::PlaybackStateChanged(new_state) => {
@@ -151,12 +151,12 @@ struct InnerPlaybackControls {
 }
 
 impl InnerPlaybackControls {
-    fn notify_media_playback(&self, event: PlayVideoEvent) {
+    fn notify_media_playback(&self, event: PlayerStartedEvent) {
         debug!("Notifying system that a new media playback is being started");
         self.platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
             title: event.title,
-            subtitle: event.subtitle,
-            thumb: event.thumb,
+            subtitle: event.quality,
+            thumb: event.thumbnail,
         }))
     }
 
@@ -256,7 +256,7 @@ mod test {
     }
 
     #[test]
-    fn test_on_play_video_event() {
+    fn test_on_player_started_event() {
         init_logger();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
@@ -270,11 +270,13 @@ mod test {
             .event_publisher(event_publisher.clone())
             .build();
 
-        event_publisher.publish(Event::PlayVideo(PlayVideoEvent {
-            url: "http://localhost/video.mp4".to_string(),
+        event_publisher.publish(Event::PlayerStarted(PlayerStartedEvent {
+            url: "https://my-url".to_string(),
             title: "Lorem ipsum".to_string(),
-            subtitle: Some("My showname".to_string()),
-            thumb: None,
+            thumbnail: Some("MyThumb".to_string()),
+            quality: Some("My showname".to_string()),
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
         }));
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
@@ -282,7 +284,7 @@ mod test {
             MediaNotificationEvent::StateStarting(info) => assert_eq!(info, MediaInfo {
                 title: "Lorem ipsum".to_string(),
                 subtitle: Some("My showname".to_string()),
-                thumb: None,
+                thumb: Some("MyThumb".to_string()),
             }),
             _ => panic!("Expected MediaNotificationEvent::PlaybackStarted")
         }

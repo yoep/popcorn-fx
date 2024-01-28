@@ -58,6 +58,19 @@ public class EventC extends Structure implements Closeable {
                         .newPlayerName(event.getNewPlayerName())
                         .build();
             }
+            case PlayerStarted -> {
+                var event = union.playerStarted_body.startedEvent;
+
+                return (T) PlayerStartedEvent.builder()
+                        .source(this)
+                        .url(event.getUrl())
+                        .title(event.getTitle())
+                        .thumbnail(event.getThumbnail().orElse(null))
+                        .quality(event.getQuality().orElse(null))
+                        .autoResumeTimestamp(event.getAutoResumeTimestamp())
+                        .subtitleEnabled(event.isSubtitlesEnabled())
+                        .build();
+            }
             case PlayerStopped -> {
                 var event = union.playerStopped_body.stoppedEvent;
 
@@ -79,8 +92,8 @@ public class EventC extends Structure implements Closeable {
     private void updateUnionType() {
         switch (tag) {
             case PlayerChanged -> union.setType(PlayerChanged_Body.class);
+            case PlayerStarted -> union.setType(PlayerStarted_Body.class);
             case PlayerStopped -> union.setType(PlayerStopped_Body.class);
-            case PlayVideo -> union.setType(PlayVideo_Body.class);
             case PlaybackStateChanged -> union.setType(PlaybackState_Body.class);
         }
     }
@@ -99,6 +112,19 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"startedEvent"})
+    public static class PlayerStarted_Body extends Structure implements Closeable {
+        public PlayerStartedEventC.ByValue startedEvent;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            startedEvent.close();
+        }
+    }
+
+    @Getter
+    @ToString
     @FieldOrder({"stoppedEvent"})
     public static class PlayerStopped_Body extends Structure implements Closeable {
         public PlayerStoppedEventC.ByValue stoppedEvent;
@@ -107,19 +133,6 @@ public class EventC extends Structure implements Closeable {
         public void close() {
             setAutoSynch(false);
             stoppedEvent.close();
-        }
-    }
-
-    @Getter
-    @ToString
-    @FieldOrder({"playVideoEvent"})
-    public static class PlayVideo_Body extends Structure implements Closeable {
-        public PlayVideoEventC.ByValue playVideoEvent;
-
-        @Override
-        public void close() {
-            setAutoSynch(false);
-            playVideoEvent.close();
         }
     }
 
@@ -143,8 +156,8 @@ public class EventC extends Structure implements Closeable {
         }
 
         public PlayerChanged_Body playerChanged_body;
+        public PlayerStarted_Body playerStarted_body;
         public PlayerStopped_Body playerStopped_body;
-        public PlayVideo_Body playVideo_body;
         public PlaybackState_Body playbackState_body;
 
         @Override
@@ -152,10 +165,10 @@ public class EventC extends Structure implements Closeable {
             setAutoSynch(false);
             Optional.ofNullable(playerChanged_body)
                     .ifPresent(PlayerChanged_Body::close);
+            Optional.ofNullable(playerStarted_body)
+                    .ifPresent(PlayerStarted_Body::close);
             Optional.ofNullable(playerStopped_body)
                     .ifPresent(PlayerStopped_Body::close);
-            Optional.ofNullable(playVideo_body)
-                    .ifPresent(PlayVideo_Body::close);
             Optional.ofNullable(playbackState_body)
                     .ifPresent(PlaybackState_Body::close);
         }
@@ -163,8 +176,8 @@ public class EventC extends Structure implements Closeable {
 
     public enum Tag implements NativeMapped {
         PlayerChanged,
+        PlayerStarted,
         PlayerStopped,
-        PlayVideo,
         PlaybackStateChanged;
 
         @Override

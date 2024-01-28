@@ -1,13 +1,13 @@
 use thiserror::Error;
 
-use crate::core::torrent::{TorrentManagerState, TorrentStreamState};
+use crate::core::torrents::{TorrentManagerState, TorrentStreamState};
 
 /// The torrent package specific results.
 pub type Result<T> = std::result::Result<T, TorrentError>;
 
 /// The torrent error describes exceptions which have occurred when handling
 /// torrent actions.
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum TorrentError {
     #[error("Torrent url {0} is invalid")]
     InvalidUrl(String),

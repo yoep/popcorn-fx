@@ -118,7 +118,7 @@ impl DefaultImageLoader {
             .key(image_url)
             .options(CacheOptions {
                 cache_type: CacheType::CacheFirst,
-                expires_after: Duration::days(1),
+                expires_after: Duration::days(3),
             })
             .execute(self.fetch_remote_image_data(image_url))
             .await {

@@ -32,6 +32,13 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
             this.wrapperPointer = FxLibInstance.INSTANCE.get().torrent_wrapper(instance, this);
             log.trace("Created torrent wrapper pointer {}", this.wrapperPointer);
         }
+
+        public ByValue(Torrent torrent) {
+            super(torrent);
+        }
+
+        public ByValue() {
+        }
     }
 
     public String filepath;
@@ -43,10 +50,14 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public SequentialModeCallback sequentialModeCallback;
     public TorrentStateCallback torrentStateCallback;
 
-    private final Torrent torrent;
+    private Torrent torrent;
     TorrentWrapperPointer wrapperPointer;
 
-    private TorrentWrapper(Torrent torrent) {
+    public TorrentWrapper() {
+        this.torrent = null;
+    }
+
+    public TorrentWrapper(Torrent torrent) {
         this.torrent = torrent;
         this.filepath = torrent.getFile().getAbsolutePath();
         this.hasByteCallback = createHasByteCallback();
@@ -57,6 +68,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
         this.sequentialModeCallback = this.torrent::sequentialMode;
         this.torrentStateCallback = this.torrent::getState;
         initialize();
+        write();
     }
 
     //region Torrent

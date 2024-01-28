@@ -9,9 +9,9 @@ use mockall::automock;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use crate::core::{Callbacks, CoreCallback, CoreCallbacks};
-use crate::core::events::{Event, EventPublisher, PlayerChangedEvent};
-use crate::core::players::{Player, PlayerEvent, PlayerState};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::events::{Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent};
+use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
 
 /// An event representing changes to the player manager.
 #[derive(Debug, Clone, Display)]
@@ -54,16 +54,19 @@ pub struct PlayerChange {
     pub new_player_name: String,
 }
 
-/// A trait for managing multiple players.
+/// A trait for managing multiple players within a multimedia application.
 #[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait PlayerManager: Debug + Send + Sync {
+    /// Get the active player, if any.
+    ///
+    /// Returns `Some` containing a weak reference to the currently active player, or `None` if there is no active player.
     fn active_player(&self) -> Option<Weak<Box<dyn Player>>>;
 
-    /// Set the active player.
+    /// Set the active player by specifying its unique identifier (ID).
     ///
     /// # Arguments
     ///
-    /// * `player_id` - A reference to the player id to set as active.
+    /// * `player_id` - A reference to the player ID to set as active.
     fn set_active_player(&self, player_id: &str);
 
     /// Get a list of players managed by the manager.
@@ -89,15 +92,22 @@ pub trait PlayerManager: Debug + Send + Sync {
     /// Returns `true` if the player was successfully registered, or `false` if a player with the same ID already exists.
     fn add_player(&self, player: Box<dyn Player>) -> bool;
 
-    /// Remove a player from the manager by its unique identifier (ID).
+    /// Remove a player from the manager by specifying its unique identifier (ID).
     ///
     /// # Arguments
     ///
     /// * `player_id` - The unique identifier of the player to remove.
     fn remove_player(&self, player_id: &str);
 
-    /// Subscribe to the player manager events.
+    /// Subscribe to receive player manager events through a callback.
     fn subscribe(&self, callback: PlayerManagerCallback);
+
+    /// Play media content by submitting a play request to the player manager.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A boxed trait object representing the play request.
+    fn play(&self, request: Box<dyn PlayRequest>);
 }
 
 #[derive(Debug)]
@@ -202,8 +212,7 @@ impl DefaultPlayerManager {
 
 impl PlayerManager for DefaultPlayerManager {
     fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
-        self.active_player
-            .blocking_lock()
+        block_in_place(self.active_player.lock())
             .as_ref()
             .and_then(|id| self.by_id(id.as_str()))
             .map(|e| e)
@@ -299,6 +308,18 @@ impl PlayerManager for DefaultPlayerManager {
     fn subscribe(&self, callback: PlayerManagerCallback) {
         self.callbacks.add(callback);
     }
+
+    fn play(&self, request: Box<dyn PlayRequest>) {
+        if let Some(player) = self.active_player()
+            .and_then(|e| e.upgrade()) {
+            debug!("Starting playback of {} in {}", request.url(), player);
+            let player_started_event = PlayerStartedEvent::from(&request);
+            player.play(request);
+            self.event_publisher.publish(Event::PlayerStarted(player_started_event));
+        } else {
+            error!("Unable to start playback, no active player found");
+        }
+    }
 }
 
 impl Drop for DefaultPlayerManager {
@@ -366,6 +387,10 @@ mod tests {
 
         fn state(&self) -> &PlayerState {
             &PlayerState::Unknown
+        }
+
+        fn play(&self, request: Box<dyn PlayRequest>) {
+            todo!()
         }
     }
 

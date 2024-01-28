@@ -12,6 +12,9 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
+import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
+import com.github.yoep.popcorn.backend.torrent.ResolveTorrentInfoCallback;
+import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
 import com.github.yoep.torrent.frostwire.listeners.TorrentCreationListener;
 import com.github.yoep.torrent.frostwire.model.FrostTorrent;
 import com.github.yoep.torrent.frostwire.model.FrostTorrentHealth;
@@ -22,9 +25,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
+import javax.annotation.PostConstruct;
 import java.io.File;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,6 +42,11 @@ public class TorrentServiceImpl implements TorrentService {
     private final TorrentResolverService torrentResolverService;
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ResolveTorrentInfoCallback resolveTorrentInfoCallback = createResolveTorrentInfoCallback();
+    private final ResolveTorrentCallback resolveTorrentCallback = createResolveTorrentCallback();
+
+    private final List<com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper> torrentInfos = new ArrayList<>();
+    private final List<TorrentWrapper> torrentWrappers = new ArrayList<>();
 
     //region Getters
 
@@ -177,6 +188,12 @@ public class TorrentServiceImpl implements TorrentService {
 
     //region Functions
 
+    @PostConstruct
+    void init() {
+        fxLib.torrent_resolve_info_callback(instance, resolveTorrentInfoCallback);
+        fxLib.torrent_resolve_callback(instance, resolveTorrentCallback);
+    }
+
     private TorrentHandle internalCreateTorrentHandle(TorrentFileInfo torrentFile, File torrentDirectory) {
         log.debug("Creating new torrent for {} in {}", torrentFile.getFilename(), torrentDirectory.getAbsolutePath());
         var session = sessionManager.getSession();
@@ -258,6 +275,41 @@ public class TorrentServiceImpl implements TorrentService {
         }
 
         return false;
+    }
+
+    private ResolveTorrentInfoCallback createResolveTorrentInfoCallback() {
+        return url -> {
+            log.debug("Executing resolve torrent info callback for {}", url);
+            try {
+                var info = new com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper.ByValue(getTorrentInfo(url).get());
+                torrentInfos.add(info);
+                return info;
+            } catch (Exception ex) {
+                log.error("Failed to resolve torrent info, {}", ex.getMessage(), ex);
+                throw new RuntimeException(ex);
+            }
+        };
+    }
+
+    private ResolveTorrentCallback createResolveTorrentCallback() {
+        return (fileInfo, torrentDirectory, autoStartDownload) -> {
+            log.debug("Executing resolve torrent callback for {}", fileInfo);
+            var torrentFile = torrentInfos.stream()
+                    .flatMap(info -> info.getFiles().stream())
+                    .filter(file -> file.equals(fileInfo))
+                    .findFirst()
+                    .orElseThrow(() -> new TorrentException("Torrent file couldn't be found back"));
+
+            try {
+                var torrent = create(torrentFile, new File(torrentDirectory), autoStartDownload == 1).get();
+                var wrapper = new TorrentWrapper.ByValue(torrent);
+                torrentWrappers.add(wrapper);
+                return wrapper;
+            } catch (Exception ex) {
+                log.error("Failed to resolve torrent, {}", ex.getMessage(), ex);
+                throw new TorrentException(ex.getMessage(), ex);
+            }
+        };
     }
 
     //endregion
